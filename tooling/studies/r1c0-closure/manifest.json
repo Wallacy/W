@@ -126,12 +126,12 @@
     {
       "id": "R1-allocator-runtime-slot",
       "path": "tooling/studies/r1-allocator-runtime-slot/bundle.json",
-      "digest": "sha256:40c01c3ffe02c9892cac031581b4e804c3e5b4fd82bd82c1c73ca9f08fb2dafd"
+      "digest": "sha256:33214754602c71d95ff295499084475b7108c82ab64d309e07ee0e005091e009"
     },
     {
       "id": "R1-arena-scope",
       "path": "tooling/studies/r1-arena-scope/bundle.json",
-      "digest": "sha256:498739ba5b481ce9611a4de0c92fa4734e76591dacc02c3c4a32afd06fca4ac6"
+      "digest": "sha256:89d7b4de671e719772fdc0ff76226708a5632bb779c18e76c0b539f162f4ec50"
     },
     {
       "id": "R1-assignment-unit",
@@ -151,7 +151,7 @@
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:e5069d0186cb22dc0be3c52fa5d738fa09fac3fe210544a557a2f89b0f3cb5b4"
+      "digest": "sha256:eb37a2b1313c9759be292d74ae90b60a5eef441833af8673a8e31d74f8cb4293"
     },
     {
       "id": "R1-borrow-expressivity",
@@ -171,7 +171,7 @@
     {
       "id": "R1-call-label-order",
       "path": "tooling/studies/r1-call-label-order/bundle.json",
-      "digest": "sha256:f6b98829f340788c47cceafad27f4713185f201afced440bf89267a0fa0870da"
+      "digest": "sha256:e806e3fe39354d40f5505bdc4d2237a2561fc14b64c5e061e4f74e95cb81b928"
     },
     {
       "id": "R1-callable-model-last-light",
@@ -186,7 +186,7 @@
     {
       "id": "R1-conditional-value-block",
       "path": "tooling/studies/r1-conditional-value-block/bundle.json",
-      "digest": "sha256:fb839626e1a07e2c9a049badae00a278f9556f0ab1ef523cf7066c1ac870dcd4"
+      "digest": "sha256:982b4c58db7ed1dcbb9afa2eb5e62c77403c12f2387c42261027c84f30800587"
     },
     {
       "id": "R1-consuming-receiver-last-light",
@@ -216,7 +216,7 @@
     {
       "id": "R1-data-declaration-surface",
       "path": "tooling/studies/r1-data-declaration-surface/bundle.json",
-      "digest": "sha256:5f508d985c8b9f831d9c7d24387085bc118625f0390f68967ffcfc8d48106e3d"
+      "digest": "sha256:4319c7eed0d25312e225a7c0ac91f89124f6aae96967720ce5d4ffdb88d59078"
     },
     {
       "id": "R1-delimited-value-surface",
@@ -231,7 +231,7 @@
     {
       "id": "R1-end-relative-access",
       "path": "tooling/studies/r1-end-relative-access/bundle.json",
-      "digest": "sha256:6b111f145b01f4679bee02e312c732fb10802d5610859f20d866ba1e433c2a84"
+      "digest": "sha256:374ad000da96814df02f3ccb1288b7c8ee9f3da1bb18eeb18bb8fd48c8864e8f"
     },
     {
       "id": "R1-fail-fast-last-light",

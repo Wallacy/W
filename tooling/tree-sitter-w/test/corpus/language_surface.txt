@@ -523,11 +523,10 @@ W property behavior accessors
 ==================
 
 behavior Versioned<Value> for Value {
-  storage var current: Value
-  storage var revision: u64 = 0
-  input initialValue: fn(): Value
+  var current: Value
+  var revision: u64 = 0
 
-  init {
+  init(initialValue: fn(): Value) {
     current = initialValue()
   }
 
@@ -553,32 +552,30 @@ behavior Versioned<Value> for Value {
       (type_name
         (type_identifier)))
     (behavior_body
-      (behavior_storage_declaration
+      (behavior_field_declaration
         (identifier)
         (type
           (type_name
             (type_identifier))))
-      (behavior_storage_declaration
+      (behavior_field_declaration
         (identifier)
         (type
           (type_name
             (type_identifier)))
         (number_literal))
-      (behavior_input_declaration
-        (identifier)
-        (type
-          (function_type
+      (behavior_accessor
+        (behavior_initializer
+          (behavior_initializer_parameters
             (type
               (type_name
-                (type_identifier))))))
-      (behavior_accessor
-        (block
-          (expression_statement
-            (assignment_expression
-              (identifier)
-              (call_expression
+                (type_identifier))))
+          (block
+            (expression_statement
+              (assignment_expression
                 (identifier)
-                (argument_list))))))
+                (call_expression
+                  (identifier)
+                  (argument_list)))))))
       (behavior_accessor
         (block
           (return_statement
@@ -596,6 +593,43 @@ behavior Versioned<Value> for Value {
             (assignment_expression
               (identifier)
               (number_literal))))))))
+
+==================
+Retired behavior storage and input spellings are rejected
+==================
+
+behavior Legacy for Value {
+  storage var current: Value
+  input initialValue: fn(): Value
+  init { current = initialValue() }
+}
+
+---
+
+(source_file
+  (behavior_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (ERROR
+        (identifier))
+      (behavior_field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (ERROR
+        (identifier)
+        (ERROR
+          (identifier)
+          (identifier))
+        (identifier)
+        (ERROR)
+        (parameter_list)))))
+
+
 
 ==================
 W static and mutable receivers

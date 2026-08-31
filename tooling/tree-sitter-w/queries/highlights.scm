@@ -101,7 +101,6 @@
   "from"
   "get"
   "import"
-  "input"
   "module"
   "domain"
   "package"
@@ -110,7 +109,6 @@
   "modify"
   "set"
   "some"
-  "storage"
   "true"
 ] @keyword
 
@@ -129,6 +127,7 @@
 (parameter name: (identifier) @variable.parameter)
 (set_accessor parameter: (identifier) @variable.parameter)
 (behavior_parameter name: (identifier) @variable.parameter)
+(behavior_field_declaration name: (identifier) @property)
 (closure_parameter name: (identifier) @variable.parameter)
 (argument label: (identifier) @variable.parameter)
 (labeled_tuple_type_element label: (identifier) @property)

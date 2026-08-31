@@ -93,8 +93,8 @@ describe("syntax atlas coverage checker", () => {
     expect(source.includes("allocator destination: ref Allocator")).toBe(true);
     expect(source.includes("stage(city)")).toBe(true);
     expect(source.includes("allocator .fixed<capacity: 128>")).toBe(true);
-    expect(source.includes("allocator .root")).toBe(true);
-    expect(source.includes("allocator .none")).toBe(true);
+    expect(source.includes("allocator .root")).toBe(false);
+    expect(source.includes("allocator .none")).toBe(false);
   });
 
   test("direct sync entry remains static and keeps its error edge", () => {

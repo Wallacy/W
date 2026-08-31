@@ -53,11 +53,10 @@ export enum BillingError: Error {
 }
 
 export behavior Versioned<Value> for Value {
-  storage var current: Value
-  storage var mutationEpoch: u64 = 0
-  input initialValue: fn(): Value
+  var current: Value
+  var mutationEpoch: u64 = 0
 
-  init {
+  init(initialValue: fn(): Value) {
     current = initialValue()
   }
 

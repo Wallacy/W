@@ -24,6 +24,12 @@ de prosa. Preserve a precisão antes de reduzir o texto.
 Melhore documentos antigos quando você alterar a seção correspondente. Não faça
 uma reescrita global sem uma tarefa específica.
 
+### Exemplos observáveis
+
+Cada exemplo deve demonstrar um resultado, effect ou diagnostic observável. Não
+use um tail identifier isolado sem o contexto que define sua origem, operação e
+consumo.
+
 ## Inglês
 
 Use o ASD-STE100 Issue 9 em textos técnicos em inglês.

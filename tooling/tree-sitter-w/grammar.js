@@ -86,7 +86,6 @@ const OTHER_KEYWORDS = [
   "modify",
   "set",
   "some",
-  "storage",
   "stream",
   "true",
 ];
@@ -728,17 +727,15 @@ module.exports = grammar({
         "{",
         repeat(
           choice(
-            $.behavior_storage_declaration,
-            $.behavior_input_declaration,
+            $.behavior_field_declaration,
             $.behavior_accessor,
             $.function_declaration,
           ),
         ),
         "}",
       ),
-    behavior_storage_declaration: ($) =>
+    behavior_field_declaration: ($) =>
       seq(
-        "storage",
         "var",
         field("name", $.identifier),
         ":",
@@ -746,20 +743,37 @@ module.exports = grammar({
         optional(seq("=", field("value", $._expression))),
         optional(";"),
       ),
-    behavior_input_declaration: ($) =>
-      seq(
-        "input",
-        field("name", $.identifier),
-        ":",
-        field("type", $.type),
-        optional(";"),
-      ),
     behavior_accessor: ($) =>
+      choice(
+        $.behavior_initializer,
+        seq(
+          optional("mut"),
+          field("kind", choice("get", "set", "modify")),
+          optional($.behavior_parameter_list),
+          field("body", $.block),
+        ),
+      ),
+    behavior_initializer: ($) =>
       seq(
-        optional("mut"),
-        field("kind", choice("init", "get", "set", "modify")),
-        optional($.behavior_parameter_list),
+        "init",
+        field("parameters", $.behavior_initializer_parameters),
         field("body", $.block),
+      ),
+    behavior_initializer_parameters: ($) =>
+      seq(
+        "(",
+        optional(
+          seq(
+            "initialValue",
+            ":",
+            "fn",
+            "(",
+            ")",
+            ":",
+            field("type", $.type),
+          ),
+        ),
+        ")",
       ),
     behavior_parameter_list: ($) =>
       seq("(", commaSep($.behavior_parameter), optional(","), ")"),

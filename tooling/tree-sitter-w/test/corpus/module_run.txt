@@ -76,13 +76,12 @@ export { Local }
       (identifier))))
 
 ==================
-Behavior initializer input is typed
+Behavior initializer receives an RHS thunk
 ==================
 
 behavior Trackable for Place {
-  storage var current: Place
-  input initialValue: fn(): Place
-  init { current = initialValue() }
+  var current: Place
+  init(initialValue: fn(): Place) { current = initialValue() }
 }
 
 ---
@@ -94,23 +93,55 @@ behavior Trackable for Place {
       (type_name
         (type_identifier)))
     (behavior_body
-      (behavior_storage_declaration
+      (behavior_field_declaration
         (identifier)
         (type
           (type_name
             (type_identifier))))
-      (behavior_input_declaration
-        (identifier)
-        (type
-          (function_type
+      (behavior_accessor
+        (behavior_initializer
+          (behavior_initializer_parameters
             (type
               (type_name
-                (type_identifier))))))
-      (behavior_accessor
-        (block
-          (expression_statement
-            (assignment_expression
-              (identifier)
-              (call_expression
+                (type_identifier))))
+          (block
+            (expression_statement
+              (assignment_expression
                 (identifier)
-                (argument_list)))))))))
+                (call_expression
+                  (identifier)
+                  (argument_list))))))))))
+
+==================
+Behavior supports the zero-slot initializer form
+==================
+
+behavior Defaultable for Place {
+  var current: Place
+  init() { current = Place() }
+}
+
+---
+
+(source_file
+  (behavior_declaration
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (behavior_field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_accessor
+        (behavior_initializer
+          (behavior_initializer_parameters)
+          (block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (call_expression
+                  (identifier)
+                  (argument_list))))))))))

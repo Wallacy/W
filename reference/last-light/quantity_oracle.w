@@ -37,9 +37,10 @@ const fn memoryBitsAreCanonical(): Bool {
 }
 
 // Fixed domain JSON examples. Their unit tokens do not vary with the runtime value.
-export const tickDurationJsonExample: String = "{\"value\":30,\"unit\":\"s\"}"
-export const energyUsedJsonExample: String = "{\"value\":12.5,\"unit\":\"J\"}"
-export const memorySizeJsonExample: String = "{\"value\":\"524288\",\"unit\":\"bit\"}"
+// Raw delimiters keep JSON quotes visible without changing UnicodeScalar literals.
+export const tickDurationJsonExample: String = #"{"value":30,"unit":"s"}"#
+export const energyUsedJsonExample: String = #"{"value":12.5,"unit":"J"}"#
+export const memorySizeJsonExample: String = #"{"value":"524288","unit":"bit"}"#
 
 export fn normalizedTemperature(): Temperature {
   return 180<degC>
@@ -82,9 +83,9 @@ test "IEC information stores reference bits and converts exactly to bytes" {
 }
 
 test "domain JSON fixes unit tokens and rejects an alternative token" {
-  expect tickDurationJsonExample == "{\"value\":30,\"unit\":\"s\"}"
-  expect energyUsedJsonExample == "{\"value\":12.5,\"unit\":\"J\"}"
-  expect memorySizeJsonExample == "{\"value\":\"524288\",\"unit\":\"bit\"}"
+  expect tickDurationJsonExample == #"{"value":30,"unit":"s"}"#
+  expect energyUsedJsonExample == #"{"value":12.5,"unit":"J"}"#
+  expect memorySizeJsonExample == #"{"value":"524288","unit":"bit"}"#
   var secondsToken = "s"
   expect expectedTickDurationTokenOutcome(ref secondsToken) == .accepted
 

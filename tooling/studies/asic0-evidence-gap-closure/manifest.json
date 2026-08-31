@@ -111,7 +111,7 @@
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:a5bf28593f24b3db77198535f17becd0a176474c4c96ab22778e59508882bb07"
+      "digest": "sha256:4c5247531e4455777b2b6e898bdb3f1e61efdc3923bccdba641a5f2590089824"
     },
     {
       "id": "avf-corpus",

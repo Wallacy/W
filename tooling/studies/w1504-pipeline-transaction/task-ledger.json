@@ -1,0 +1,277 @@
+{
+  "$schema": "w-w1504-pipeline-transaction-ledger-1",
+  "id": "W-1504",
+  "status": "registered-research-bundle",
+  "title": "Pipeline and transaction convergence evidence for W-1504",
+  "languageSurface": "none",
+  "statePolicy": {
+    "registrationOnly": true,
+    "syntaxPromotionRequiresEvidence": true,
+    "grammarEdits": false,
+    "lastLightEdits": false,
+    "currentSurfacePreserved": true,
+    "promotionRule": "No syntax migration before parser/checker/HIR, effect, provider/transport, fault, benchmark and human gates produce independent evidence."
+  },
+  "contractRefs": [
+    "DESIGN.md §3.2",
+    "DESIGN.md §12.13",
+    "DESIGN.md §23.1.7",
+    "RATIONALE.md §1.17"
+  ],
+  "sourceRefs": [
+    {
+      "path": "DESIGN.md",
+      "symbol": "W-1504",
+      "claim": "Current pipeline and transaction boundary, candidate primary surface and fork gate."
+    },
+    {
+      "path": "RATIONALE.md",
+      "symbol": "W-1504",
+      "claim": "Research rationale, primary evidence and non-promotion boundary."
+    },
+    {
+      "path": "reference/last-light/service_oracle.w",
+      "symbol": "PipelineBodyCase",
+      "claim": "Current static dependent-call DAG oracle and typed pipeline uncertainty."
+    },
+    {
+      "path": "reference/last-light/transaction_oracle.w",
+      "symbol": "expectedTransactionOutcome",
+      "claim": "Current single-provider transaction commit and typed commit uncertainty oracle."
+    },
+    {
+      "path": "reference/last-light/BUILD.md",
+      "symbol": "pipeline and transaction",
+      "claim": "Current build note keeps pipeline and transaction source surfaces distinct."
+    }
+  ],
+  "officialRefs": [
+    {
+      "id": "capnproto-rpc-promise-pipelining",
+      "url": "https://capnproto.org/rpc.html",
+      "accessed": "2026-08-31",
+      "claim": "Promise pipelining expresses dependent capability calls before earlier results arrive."
+    },
+    {
+      "id": "postgresql-libpq-pipeline-mode",
+      "url": "https://www.postgresql.org/docs/current/libpq-pipeline-mode.html",
+      "accessed": "2026-08-31",
+      "claim": "Current libpq pipeline queue, sync boundaries, aborted state and explicit transaction/commit behavior."
+    },
+    {
+      "id": "rfc9110-idempotent-retry",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html#section-9.2.2",
+      "accessed": "2026-08-31",
+      "claim": "Idempotent requests can be retried after communication failure; non-idempotent retry needs detection or recovery."
+    },
+    {
+      "id": "rfc9112-pipelined-retry",
+      "url": "https://www.rfc-editor.org/rfc/rfc9112.html#section-9.3.2",
+      "accessed": "2026-08-31",
+      "claim": "HTTP/1.1 pipelined unanswered-request retry keeps an explicit idempotency boundary."
+    }
+  ],
+  "currentBoundary": {
+    "pipeline": "Static dependent-call DAG with a return terminal; current grammar and Last Light remain unchanged.",
+    "transaction": "Single-provider async structured region with a commit terminal; local compute, branch and loop are allowed; current grammar and Last Light remain unchanged.",
+    "sharedInternal": "HIR/runtime may share a StructuredOperationRegion or Graph as an implementation candidate, but the source surfaces do not unify in the current design.",
+    "noSyntaxEdits": "This ledger records research only; it does not change grammar, corpus, parser projections or Last Light."
+  },
+  "candidatePrimary": {
+    "status": "research/open",
+    "plain": "pipeline with a commit terminal",
+    "transactional": "pipeline<transaction: {isolation:..., access:...}> tx = provider { ... commit value }",
+    "keyword": "The transaction keyword may be removed before 1.0 only if evidence supports the migration.",
+    "plainCommit": "Exports an output envelope and does not imply rollback.",
+    "transactionalCommit": "Also requests an atomic provider commit.",
+    "defaults": "Isolation, access, provider capability and failure defaults remain evidence questions; no default is ratified by this ledger."
+  },
+  "forks": [
+    {
+      "id": "A-static-dag-transaction",
+      "status": "open",
+      "hypothesis": "Restrict the current transaction body to a static dependent-call DAG and move dynamic control into a provider method.",
+      "risk": "A remote branch or loop may become hidden provider behavior, weakening source-visible ownership, diagnostics and cancellation boundaries.",
+      "evidenceRequired": [
+        "parser/checker body-shape proof",
+        "HIR schema for static transaction nodes",
+        "provider contract for dynamic control and commit acknowledgement",
+        "Last Light migration and diagnostic examples"
+      ]
+    },
+    {
+      "id": "B-mode-dependent-region",
+      "status": "open",
+      "hypothesis": "One pipeline keyword selects a mode-dependent body shape and terminal contract over a StructuredOperationRegion; each mode has its own terminal, with the candidate primary converging on commit.",
+      "risk": "Mode-dependent grammar can make body shape, effect classification and error precedence ambiguous to users and tools.",
+      "evidenceRequired": [
+        "unambiguous parser/checker diagnostics",
+        "HIR region schema with mode and ownership facts",
+        "provider/transport receipts for both modes",
+        "human usability evidence"
+      ]
+    },
+    {
+      "id": "C-control-nodes-sent-code",
+      "status": "guarded-open",
+      "hypothesis": "Represent control nodes or sent code in a bounded IR so a pipeline can carry remote branch/loop behavior.",
+      "promotionRule": "Reject unless bounded IR, capability, isolation, cancellation, security and provider evidence proves the representation without hidden general execution.",
+      "risk": "Sent control can hide an unbounded remote program, alter authority and make commit/error behavior non-local.",
+      "evidenceRequired": [
+        "bounded verified-HIR schema",
+        "provider admission and capability receipt",
+        "fault and cancellation behavior",
+        "human-readable w explain diagnostics"
+      ]
+    },
+    {
+      "id": "D-separate-keyword",
+      "status": "open",
+      "hypothesis": "Keep transaction as a separate source keyword and let pipeline remain a static DAG with return.",
+      "tradeoff": "Preserves clear body-shape and atomicity signals, but retains two source concepts and duplicates some tooling/runtime machinery.",
+      "evidenceRequired": [
+        "migration cost before 1.0",
+        "parser/checker/HIR duplication measurement",
+        "human comprehension comparison",
+        "runtime round-trip and contention comparison"
+      ]
+    }
+  ],
+  "failurePolicy": {
+    "status": "research/open",
+    "rules": [
+      {
+        "case": "query-only",
+        "policy": "A query-only pipeline never produces unknownOutcome.",
+        "requiredEvidence": "Effect classifier and provider receipt must prove that no mutation can commit."
+      },
+      {
+        "case": "idempotent-or-reconcilable-mutation",
+        "policy": "An idempotent or reconcilable mutation requires an EffectId that is retained across retry and reconciliation.",
+        "requiredEvidence": "Provider deduplication or reconciliation receipt and typed output ownership."
+      },
+      {
+        "case": "non-idempotent-mutation",
+        "policy": "A non-idempotent mutation must be transactional or be rejected.",
+        "requiredEvidence": "Atomic provider contract, or a diagnostic that rejects the effect before dispatch."
+      },
+      {
+        "case": "lost-ack-before-node",
+        "policy": "Without a provider admission or receipt fact, a lost acknowledgement before node admission remains typed uncertainty; if the provider proves non-admission, the outcome is known and retry is safe only under the contract.",
+        "requiredEvidence": "Transport transcript and provider status query."
+      },
+      {
+        "case": "lost-ack-after-node",
+        "policy": "Without a provider admission or receipt fact, a lost acknowledgement after a node may have run remains unknownOutcome; a provider proof of non-admission makes the outcome known, otherwise no blind retry.",
+        "requiredEvidence": "EffectId transcript and replay/fault injection."
+      },
+      {
+        "case": "lost-ack-before-or-after-commit",
+        "policy": "Without a provider admission or receipt fact, a lost commit acknowledgement remains unknownCommit or the corresponding typed uncertainty; a provider proof of non-admission makes the outcome known, and otherwise it never becomes rollback or silent success.",
+        "requiredEvidence": "Commit/ACK fault injection and provider acknowledgement oracle."
+      }
+    ]
+  },
+  "adversarialCases": [
+    { "id": "W-1504-query-only-uncertainty", "expected": "query-only cannot produce unknownOutcome" },
+    { "id": "W-1504-effect-id-reconcile", "expected": "idempotent/reconcilable mutation retains EffectId across retry and reconciliation" },
+    { "id": "W-1504-non-idempotent-reject", "expected": "non-idempotent mutation is transactional or rejected before dispatch" },
+    { "id": "W-1504-ack-before-node", "expected": "without provider admission/receipt fact, lost ACK before node admission remains typed uncertainty; proven non-admission is known and safely retryable only under contract" },
+    { "id": "W-1504-ack-after-node", "expected": "without provider admission/receipt fact, lost ACK after node execution preserves unknownOutcome; proven non-admission is known" },
+    { "id": "W-1504-ack-before-commit", "expected": "without provider admission/receipt fact, lost ACK before commit confirmation preserves unknownCommit; proven non-admission is known" },
+    { "id": "W-1504-ack-after-commit", "expected": "without provider admission/receipt fact, lost ACK after a possible commit never becomes an asserted rollback" },
+    { "id": "W-1504-cancel-drain", "expected": "cancel requests stop admission and every path drains children, providers and in-flight responses" },
+    { "id": "W-1504-error-precedence", "expected": "body, cancellation, transport and commit uncertainty use a documented precedence without hiding uncertainty" },
+    { "id": "W-1504-capability-output-ownership", "expected": "capabilities, output envelope ownership and effect ownership remain explicit at each node" },
+    { "id": "W-1504-multi-provider-nesting", "expected": "multi-provider and nested regions are rejected or explicitly contracted; no distributed transaction is inferred" },
+    { "id": "W-1504-remote-result-branch", "expected": "branch on remote result is classified as region/control evidence, not silently accepted as a static DAG edge" },
+    { "id": "W-1504-default-contract", "expected": "isolation/access/provider defaults are visible in the contract or diagnostic, never ambient" },
+    { "id": "W-1504-explain-diagnostics", "expected": "w explain reports source mode, effect, uncertainty, provider receipt and ownership" }
+  ],
+  "tasks": [
+    {
+      "id": "W-1504-T1",
+      "state": "Pesquisa",
+      "title": "Surface, body shape and fork comparison",
+      "dependencies": ["DESIGN.md §3.2", "W-1504"],
+      "outputs": [
+        { "id": "W-1504-surface-matrix", "kind": "matrix", "observable": "current pipeline/transaction boundary and candidate primary spellings remain separately classified" },
+        { "id": "W-1504-fork-decision", "kind": "decision-record", "observable": "A/B/C/D comparison records body shape, migration, diagnostics and rejection evidence" }
+      ],
+      "adversarialCases": ["W-1504-remote-result-branch", "W-1504-multi-provider-nesting", "W-1504-default-contract"],
+      "evidence": {
+        "current": ["design-source", "last-light-service-oracle", "last-light-transaction-oracle"],
+        "missing": ["parser-checker-prototype", "HIR-region-schema", "migration-plan", "human-usability-study"]
+      },
+      "stopCondition": "Stop before choosing a fork if body shape, source ownership or migration cannot be explained without a hidden mode."
+    },
+    {
+      "id": "W-1504-T2",
+      "state": "Pesquisa",
+      "title": "Effect classification and failure semantics",
+      "dependencies": ["W-1504-T1", "DESIGN.md §12.13"],
+      "outputs": [
+        { "id": "W-1504-effect-matrix", "kind": "effect-matrix", "observable": "query, idempotent/reconcilable and non-idempotent mutation classes have explicit retry and uncertainty rules" },
+        { "id": "W-1504-failure-precedence", "kind": "diagnostic-contract", "observable": "cancel/drain, error precedence, unknownOutcome and unknownCommit remain typed" }
+      ],
+      "adversarialCases": ["W-1504-query-only-uncertainty", "W-1504-effect-id-reconcile", "W-1504-non-idempotent-reject", "W-1504-error-precedence"],
+      "evidence": {
+        "current": ["service-oracle-typed-uncertainty", "transaction-oracle-unknown-commit", "official-idempotency-references"],
+        "missing": ["effect-aware-checker", "fault-injection-matrix", "provider-reconciliation-receipt"]
+      },
+      "stopCondition": "Stop if a lost ACK is collapsed to success, rollback or a blind retry, or if mutation class is inferred from a name rather than a checked effect."
+    },
+    {
+      "id": "W-1504-T3",
+      "state": "Pesquisa",
+      "title": "Provider, transport, capabilities and ownership",
+      "dependencies": ["W-1504-T2"],
+      "outputs": [
+        { "id": "W-1504-provider-transport-oracle", "kind": "oracle", "observable": "node admission, provider receipt, ACK phase and commit acknowledgement are independently replayable" },
+        { "id": "W-1504-ownership-matrix", "kind": "ownership-matrix", "observable": "capability, child, output envelope, EffectId and nested-provider ownership have one owner and one cleanup path" }
+      ],
+      "adversarialCases": ["W-1504-ack-before-node", "W-1504-ack-after-node", "W-1504-ack-before-commit", "W-1504-ack-after-commit", "W-1504-capability-output-ownership", "W-1504-cancel-drain"],
+      "evidence": {
+        "current": ["last-light-service-oracle", "last-light-transaction-oracle", "CapnProto-promise-pipelining", "PostgreSQL-libpq-pipeline"],
+        "missing": ["provider-oracle", "transport-transcript", "commit-ACK-fault-injection", "multi-provider-conformance"]
+      },
+      "stopCondition": "Stop if provider capability, transport acknowledgement or output ownership is implicit, or if nested/multi-provider behavior implies distributed atomicity without a contract."
+    },
+    {
+      "id": "W-1504-T4",
+      "state": "Pesquisa",
+      "title": "Promotion gates, migration, benchmarks and human evidence",
+      "dependencies": ["W-1504-T1", "W-1504-T2", "W-1504-T3"],
+      "outputs": [
+        { "id": "W-1504-promotion-gate", "kind": "gate-record", "observable": "parser/checker/HIR, effect, provider/transport, fault, static-DAG-versus-region and Last Light gates are all named" },
+        { "id": "W-1504-benchmark-plan", "kind": "benchmark-plan", "observable": "round-trips, contention, cancellation/drain and equivalent values/errors use fixed workloads" },
+        { "id": "W-1504-human-evidence", "kind": "usability-plan", "observable": "users can distinguish return, commit, atomicity, uncertainty and retry rules from source and w explain" }
+      ],
+      "adversarialCases": ["W-1504-explain-diagnostics", "W-1504-default-contract", "W-1504-remote-result-branch"],
+      "evidence": {
+        "current": ["registered-research-boundary", "official-primary-references"],
+        "missing": ["parser-checker", "HIR-schema", "effect-classification", "provider-transport-oracle", "commit-ACK-faults", "DAG-region-decision", "Last-Light-migration", "round-trip-contention-benchmarks", "human-usability"]
+      },
+      "stopCondition": "Stop and keep the current grammar if any gate is missing, if benchmark values/errors differ, or if human evidence cannot distinguish a plain output commit from a transactional atomic commit."
+    }
+  ],
+  "blockers": [
+    "parser/checker body-shape and diagnostics",
+    "HIR schema for static DAG and StructuredOperationRegion",
+    "effect classification and EffectId propagation",
+    "provider/transport oracle and commit/ACK fault injection",
+    "cancel/drain, error precedence and ownership receipts",
+    "multi-provider, nesting and remote-result branch contract",
+    "static DAG versus region decision and pre-1.0 migration plan",
+    "w explain diagnostics",
+    "round-trip/contention benchmarks and human usability evidence"
+  ],
+  "evidenceBoundary": {
+    "current": ["design-source", "last-light-service-oracle", "last-light-transaction-oracle", "official-primary-references", "research-ledger"],
+    "missing": ["parser", "checker", "HIR", "effect-checker", "provider", "transport", "fault-injection", "runtime", "migration", "benchmarks", "human-study", "model-study"],
+    "hostOnly": true,
+    "syntaxPromotion": false,
+    "implementationClaimed": false
+  },
+  "stopCondition": "Stop before syntax or Last Light promotion on stale source/evidence, hidden dynamic control, implicit provider/default capability, conflated return/commit meaning, lost-ACK collapse, blind retry, missing EffectId, unbounded sent code, distributed atomicity inferred from shared machinery, ownership leak, reducer divergence, benchmark value/error change or human ambiguity. Reopen only with a bounded case, exact source, independent evidence and Sol review."
+}
