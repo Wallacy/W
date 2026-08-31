@@ -24651,15 +24651,20 @@ forma declara explicitamente `unsafe`, FFI, target specialization, manual
 layout, algorithm e legibility, inclusive `none`. O target specialization é
 `none`: SIMD portátil com fallback scalar não é target especializado.
 
-C11 e Rust são referências de correção independentes e auditáveis, sem ranking
-no estado atual (`correctness-reference-no-ranking`). O baseline primário e a
-regressão futura continuam sendo W histórico. Após equivalência, a função
-futura dos dois baselines é `independent-comparison-after-equivalence`, com
-toolchain e recipe fixos por proveniência. Ambos recebem path e delimitador
-explícitos, fazem leitura bounded, publicam somente um JSON canônico depois de
-validar todo o input e falham sem stdout parcial. A receita C11 usa o
-`CMakeLists.txt` versionado e seu digest; Rust usa `rustc --edition=2021` sem
-Cargo ou lockfile. O checker Bun cria
+C23 e Rust são referências de correção independentes e auditáveis, sem ranking
+no estado atual (`correctness-reference-no-ranking`). C23 é a receita primária
+explícita desta referência. O CMake e o recipe declaram `C_STANDARD=23`,
+`C_EXTENSIONS=OFF` e exigem o standard solicitado; uma toolchain antiga que só
+aceita `-std=c2x` pode executar correctness com disclosure
+`c2x-preview (correctness-only; not a final C23 result)`, mas não produz ranking
+ou resultado final rotulado C23. C11 permanece somente como lane explícita de
+recovery/compatibilidade. O baseline primário e a regressão futura continuam
+sendo W histórico. Após equivalência, a função futura dos dois baselines é
+`independent-comparison-after-equivalence`, com toolchain e recipe fixos por
+proveniência. Ambos recebem path e delimitador explícitos, fazem leitura
+bounded, publicam somente um JSON canônico depois de validar todo o input e
+falham sem stdout parcial. A receita C23 usa o `CMakeLists.txt` versionado e
+seu digest; Rust usa `rustc --edition=2021` sem Cargo ou lockfile. O checker Bun cria
 arquivos temporários determinísticos, calcula um oracle independente, testa
 empty, limites, classes, delimitadores inválidos e excesso de 64 MiB e exige
 bytes exatos de stdout e exit code. Se um toolchain estiver ausente, o smoke
@@ -26417,7 +26422,8 @@ semântica, diagnostics e source map. A escolha de backend é uma otimização d
 latência, não uma segunda linguagem ou runtime com regras próprias.
 
 O seed portátil usa CMake e Ninja. Ele aceita `bootstrap.w0` e emite um subset C
-conservador aceito em modo C11. O output não depende de uma feature C11 quando
+conservador em modo C23 primário; C11 é aceito somente na lane de recovery
+explícita. O output não depende de uma feature C23 quando
 uma forma com suporte mais amplo é suficiente. Esse emitter existe somente para
 bootstrap, auditoria e recovery. O backend normal continua W/MLIR.
 
@@ -31579,7 +31585,7 @@ resolvidos. CHK4 prova o builder
 caller-owned do graph, sem abrir filesystem. CHK5 prova o core bounded de
 aquisição/revalidação para a root física e os `SourceId` explicitamente
 solicitados, além do adapter Linux real ancorado em `openat2` quando essa
-capability está disponível. CHK6 prova um driver C11 interno caller-owned de
+capability está disponível. CHK6 prova um driver C23 interno caller-owned de
 descoberta local iterativa a partir de uma root explícita, compondo uma
 aquisição/revalidação CHK5, parser/module scan e graph CHK4. Ele entrega ao
 caller futuro os documentos em `document_order` e os imports resolvidos; não
@@ -31589,7 +31595,8 @@ driver publicam somente após seus preflights bounded; bytes, CST/facts da
 inalterados em falha.
 
 **W-1496 — aquisição ACQ0 interna e reutilizável (Forma vigente):** ACQ0 é
-uma camada C11 standalone, bounded e caller-owned ao redor de CHK6. Ela não
+uma camada C23 standalone, bounded e caller-owned ao redor de CHK6. A lane C11
+é somente recovery explícita. Ela não
 chama frontend ou D0, não seleciona política de filesystem ou contexto de
 projeto e não publica uma CLI. Um caller futuro pode executar ACQ0 diretamente.
 O `w check` público continua na composição CHK7 e no retry externo de CHK9. O
@@ -31597,7 +31604,8 @@ contrato executável de storage, retry, pipeline, lifetime e contexto está em
 [§24.3.6](#2436-acq0-aquisição-interna-reutilizável).
 
 **W-1497 — observação OWN0 guarded de candidatos `build.w` (Forma vigente):**
-OWN0 é uma fronteira C11 interna, bounded e caller-owned. Ela observa, em uma
+OWN0 é uma fronteira C23 interna, bounded e caller-owned. A lane C11 é somente
+recovery explícita. Ela observa, em uma
 única sessão retida, candidatos `build.w` da folha à root física ou a ausência
 em cada nível e exige uma segunda validação antes de publicar um fato
 reconfirmado. O guard com generation representa somente lifetime da sessão;
@@ -31608,7 +31616,8 @@ limites de evidência estão em
 [§24.3.7](#2437-own0-observação-guarded-de-candidatos-buildw).
 
 **W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
-MAN0 é uma fronteira C11 interna, bounded e caller-owned. Ela lê todos os
+MAN0 é uma fronteira C23 interna, bounded e caller-owned. A lane C11 é somente
+recovery explícita. Ela lê todos os
 candidatos de um guard OWN0 `LIVE_OBSERVED`, reconfirma o guard uma vez,
 compara uma segunda leitura byte-exact e só então publica records estruturais
 canônicos para `package` e `workspace`. MAN0 preserva fields desconhecidos,
@@ -31627,7 +31636,8 @@ CHK8 prova o adapter Windows real do mesmo provider. O adapter usa
 `OBJECT_ATTRIBUTES.RootDirectory`, `OBJ_DONT_REPARSE` e
 `FILE_OPEN_REPARSE_POINT`. Ele confirma o handle final com
 `FileAttributeTagInfo`, obtém identidade com `FILE_ID_INFO` e aceita somente
-arquivos regulares. O adapter é C11, caller-owned, sem heap e bounded. Ele
+arquivos regulares. O adapter primário é C23, caller-owned, sem heap e bounded.
+A lane C11 de recovery permanece explícita. Ele
 suporta root relativa e root absoluta drive-local. UNC retorna
 `UNSUPPORTED`; namespaces, devices, ADS e formas rooted inválidas retornam
 `INVALID`.
@@ -32369,7 +32379,8 @@ CHK8 prova o adapter Windows real do provider efêmero. O adapter usa
 `OBJECT_ATTRIBUTES.RootDirectory`, `OBJ_DONT_REPARSE` e
 `FILE_OPEN_REPARSE_POINT`. Ele confirma o handle final com
 `FileAttributeTagInfo`, obtém a identidade com `FILE_ID_INFO` e aceita somente
-arquivos regulares. O perfil é C11, caller-owned, sem heap e bounded. Ele
+arquivos regulares. O perfil primário é C23, caller-owned, sem heap e bounded.
+A lane C11 de recovery permanece explícita. Ele
 suporta root relativa e root absoluta drive-local. UNC retorna `UNSUPPORTED`.
 Namespaces, devices, ADS e formas rooted inválidas retornam `INVALID`.
 
@@ -32441,7 +32452,8 @@ normativo, compiler, backend ou runtime.
 repete a aquisição completa quando bytes ou CST precisam crescer e publica o
 output somente quando uma tentativa termina com sucesso.
 
-ACQ0 é uma camada C11 standalone, bounded e caller-owned ao redor de CHK6. Ela
+ACQ0 é uma camada C23 standalone, bounded e caller-owned ao redor de CHK6. A
+lane C11 é somente recovery explícita. Ela
 não chama frontend ou D0, não seleciona policy de filesystem ou contexto de
 projeto e não publica CLI. Um caller futuro pode executar ACQ0 diretamente.
 
@@ -32582,7 +32594,7 @@ e outro em uma root ancestral. MAN0 lê os dois pela sessão retida, reconfirma
 OWN0 uma vez, repete as duas leituras pelas mesmas identidades e publica dois
 documentos estruturais. MAN0 não escolhe qual documento é owner.
 
-**W-1498 — escopo MAN0 (Forma vigente):** `w_seed_manifest` é um parser C11
+**W-1498 — escopo MAN0 (Forma vigente):** `w_seed_manifest` é um parser C23
 próprio. Ele não chama `w_seed_parser`, frontend seed, Tree-sitter, JavaScript
 ou tooling host. Ele pode reutilizar somente os primitives seed de bytes,
 UTF-8, classificação Unicode e SHA-256. A saída é caller-owned, bounded e sem
@@ -33190,7 +33202,7 @@ decoder de schema, não resolve members, não integra WSP0 e não chama ACQ0,
 frontend, `w check` ou `w run`. O provenance MAN0 liga somente a sessão OWN0.
 Um composer posterior ainda deve ligar criptograficamente essa mesma source e
 root ao provider token ou receipt ACQ0 antes de aquisição ou execução. O core
-C11 e o gate focal exercitam o subset bounded de parser, normalizer, measure,
+C23 e o gate focal exercitam o subset bounded de parser, normalizer, measure,
 run, `program_from_output` e verify. O gate Linux real executa OWN0 primeiro,
 faz as duas waves pelas mesmas referências e verifica replacement, byte e
 binding mutation antes do commit; em host Windows, ele exige WSL Ubuntu e
@@ -33915,7 +33927,7 @@ CHK3 é a evidência de resolved-edge caller-owned. CHK4 acrescenta o graph
 builder caller-owned para os documentos e facts já fornecidos. CHK5 acrescenta
 o provider core de aquisição/revalidação e o adapter Linux `openat2` para
 requests explícitos, com stub fail-closed fora de Linux. CHK6 acrescenta o
-driver C11 interno caller-owned de discovery local iterativo: cada wave faz
+driver C23 interno caller-owned de discovery local iterativo: cada wave faz
 parse/scan e reacquire bounded, e o graph CHK4 publica somente a reachability
 alcançada. O driver entrega documentos em ordem lógica e imports resolvidos a
 um caller futuro, mas não chama frontend nem a CLI pública multi-file. As
@@ -33995,7 +34007,8 @@ emite C, não liga, não executa W e não implementa `w run`.
 
 O `benchmarkDisposition` do corte HLO0 é `deferred`, com task
 `hlo3-hello-world-runtime-benchmark`. HLO0 não mede compile, link, startup ou
-execution. HLO1 prova somente a execução do artefato C11 deste subset, sem
+execution. HLO1 prova somente a execução do artefato C conservador deste
+subset, compilado em modo C23, sem
 abrir execução W geral. Timing e resultados de performance continuam bloqueados
 por HIR geral, `native-process-console-provider`, `w-linker`,
 `w-run-driver` e `language-benchmark-runner`.
@@ -34010,7 +34023,7 @@ incorreto ou fora do subset retorna status sem alterar os records ou buffers do
 caller.
 
 O schema HLO1 é `w-seed-hlo1-1`. O arquivo começa exatamente com o comentário
-`/* w-seed-hlo1-1 */` seguido por LF. O output é um arquivo C11 sem terminador
+`/* w-seed-hlo1-1 */` seguido por LF. O output é um arquivo C conservador sem terminador
 implícito, limitado a `W_SEED_HLO1_MAX_C_BYTES`, com LF em todos os finais de
 linha. O corpo canônico usa somente um array `static const unsigned char` com
 os bytes hexadecimais `Hello, world!` seguidos por `0x0a`, `<stdio.h>`,
@@ -34019,7 +34032,7 @@ locale ou política de escaping dependente do compilador.
 
 Em `_WIN32`, o corpo inclui `<fcntl.h>` e `<io.h>` e chama
 `_setmode(_fileno(stdout), _O_BINARY)` antes de escrever. Nos demais hosts, ele
-usa stdio C11. Esse adapter CRT torna a observação LF consistente no Windows e
+usa stdio. O build primário compila o arquivo em modo C23. Esse adapter CRT torna a observação LF consistente no Windows e
 não é um provider W geral. A execução retorna `0` somente quando `fwrite`
 escreve todos os bytes e `fflush(stdout)` retorna sucesso. A emissão para o
 buffer caller-owned é all-or-nothing. O efeito externo em stdout não é
@@ -34028,13 +34041,13 @@ atômico.
 `w_seed_hlo1_emit` mede e monta o arquivo em storage local bounded e copia os
 bytes uma única vez após o preflight. Ele rejeita `NULL`, capacidade curta,
 overlap com o plano e qualquer output parcial. O resultado publica o tamanho
-requerido, o tamanho escrito e o SHA-256 do arquivo C11. O digest do plano
+requerido, o tamanho escrito e o SHA-256 do arquivo C conservador. O digest do plano
 continua cobrindo somente payload + LF. A API não prova sozinha a proveniência
 do source, porque o plano é um record caller-owned. Somente o gate integrado
-prova source → parser → frontend → HIR0 → HLO0 → HLO1 → compilador C11 → execução.
+prova source → parser → frontend → HIR0 → HLO0 → HLO1 → compilador C em modo C23 → execução.
 
 O gate HLO1 constrói o seed em Release fora de diretório temporário do repo,
-obtém o plano pela rota HIR0 verificada, compila o C gerado com C11, executa e
+obtém o plano pela rota HIR0 verificada, compila o C gerado em modo C23, executa e
 exige stdout `Hello, world!\n`, stderr vazio e exit `0`. Ausência de CMake,
 Ninja ou compilador produz `SKIP` explícito sem claim. Falha de configure,
 build, execução ou verificação quando a toolchain existe produz `FAIL`. O gate
@@ -34120,7 +34133,7 @@ write; qualquer erro preserva todos os buffers do caller. O HLO0 aceita apenas
 `program` e `hir_result`, verifica HIR0 novamente e seleciona o plano Hello
 somente pelos records e bytes HIR. A rota comprovada é
 `source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 →
-compilador C11 → execução`.
+compilador C em modo C23 → execução`.
 
 W-1494 é source-backed-current somente para esse subset HIR0 bounded. HIR
 geral, type checking normativo, lowering geral, backend nativo, linker,
@@ -34301,7 +34314,7 @@ root, a documentação e os casos de substituição. M4b atualizou as projeçõe
 registrou a evidência corrente. M5 concluiu a revisão final e reduziu o gate
 integrado para não repetir OWN0 dentro de MAN0.
 
-Os checks C11 do core cobrem os três `build.w` reais em `reference/`, uma
+Os checks C23 do core cobrem os três `build.w` reais em `reference/`, uma
 fixture workspace-only, package+workspace, comments, CRLF, canonical order,
 unknown fields preservados, duplicates, comma rules, forms proibidas, limits,
 capacity, alias e forgery. O gate de composição cobre todos os candidates de
@@ -34356,6 +34369,41 @@ track futura. O gate não cria stage, timing ou result e não é oracle de
 performance.
 
 ### 26.5 Fase 3 — memória, errors e C
+
+#### W-1500 — política de dialeto C controlado (Forma vigente)
+
+C23 é o padrão explícito de compilação de todo C controlado pelo projeto e das
+referências comparativas correntes. Isso inclui o seed CMake, a compilação em
+modo C23 do artefato C conservador gerado por HLO1, os probes e checkers C
+diretos e a baseline byte-scan-view do
+BMD. O seed aceita somente `W_SEED_C_STANDARD=23` (default) ou
+`W_SEED_C_STANDARD=11` (recovery explícito). O CMake exige o standard, mantém
+extensões desligadas e falha com uma mensagem clara para qualquer outro valor.
+
+GCC e Clang que aceitam `-std=c23` usam essa spelling. Uma toolchain antiga que
+aceita somente `-std=c2x` pode executar correctness, com o disclosure
+`c2x-preview (correctness-only; not a final C23 result)`, e nunca pode publicar
+resultado ou ranking final rotulado C23. Não há fallback silencioso para C11.
+MSVC sem C23 participa somente da lane de recovery explicitamente solicitada ou
+gera `SKIP` claro no gate principal.
+
+O código do seed continua compilável na lane C11 recovery. O artefato
+conservador permanece source-compatible entre as duas lanes. Headers de
+compatibilidade podem manter requisitos C11 quando isso for explícito. Essa
+política não cria requisito C23 implícito para uma ABI C externa. C é backend de
+validation, differential e recovery; MLIR continua o backend primário futuro e
+esta decisão não o desloca.
+
+`benchmarkDisposition` do seed é `compiler-lifecycle`. A receita C23 do BMD é
+somente correctness/estrutura nesta fase; não há novo timing ou result. O
+comando `bun run demo:seed-hello` usa a rota real do seed e do artefato gerado e
+publica exatamente `Hello, world!` no stdout. O nome e a documentação dizem
+seed demo, não `w run`.
+
+Os gates focais devem provar default C23 no seed, HLO1 e demo, recovery C11
+explícito, estrutura e byte-scan BMD, probes C diretos, índice/design freeze,
+links da cheatsheet e `git diff --check`. Uma toolchain ausente é `SKIP` claro;
+uma toolchain presente que falha é `FAIL`.
 
 **Exemplo:** um callback C com context executa cleanup uma vez em success, error
 e cancelamento.

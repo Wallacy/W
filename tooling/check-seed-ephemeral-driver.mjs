@@ -1,6 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { dialectArgs, dialectDisclosure, probeCDialect, requireCDialect } from "./c-dialect.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -147,6 +148,11 @@ async function runWslLinuxAdapter() {
   }
   const executable = `/tmp/w-seed-ephemeral-driver-${process.pid}`
   const sources = wslSourceArguments(wslRoot)
+  const wslCompiler = ["wsl.exe", "-d", "Ubuntu", "--", "gcc"]
+  const dialect = requireCDialect(
+    await probeCDialect(wslCompiler),
+    "WSL GCC",
+  )
   try {
     runRequired(
       "WSL Linux adapter compile",
@@ -156,7 +162,7 @@ async function runWslLinuxAdapter() {
         "Ubuntu",
         "--",
         "gcc",
-        "-std=c11",
+        ...dialectArgs(dialect),
         "-Wall",
         "-Wextra",
         "-Wpedantic",
@@ -177,6 +183,7 @@ async function runWslLinuxAdapter() {
       "SKIP adapter-linux-openat2=unsupported\nw_seed_ephemeral_driver_linux_tests: ok\n",
     ].map((line) => line.endsWith("\n") ? line.trimEnd().split("\n") : [line]))
     console.log(output.trimEnd())
+    console.log(`WSL C dialect: ${dialectDisclosure(dialect)}`)
     return "passed"
   } finally {
     const cleanup = spawn("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-f", executable])
@@ -196,12 +203,17 @@ async function runWslSanitizer() {
   const coreExecutable = `/tmp/w-seed-ephemeral-driver-asan-core-${process.pid}`
   const adapterExecutable = `/tmp/w-seed-ephemeral-driver-asan-adapter-${process.pid}`
   const flags = ["-fsanitize=address,undefined", "-fno-omit-frame-pointer"]
+  const wslCompiler = ["wsl.exe", "-d", "Ubuntu", "--", "gcc"]
+  const dialect = requireCDialect(
+    await probeCDialect(wslCompiler),
+    "WSL GCC",
+  )
   const common = [
     "-d",
     "Ubuntu",
     "--",
     "gcc",
-    "-std=c11",
+    ...dialectArgs(dialect),
     "-Wall",
     "-Wextra",
     "-Wpedantic",
@@ -240,6 +252,7 @@ async function runWslSanitizer() {
       ["SKIP adapter-linux-openat2=unsupported", "w_seed_ephemeral_driver_linux_tests: ok"],
     ])
     console.log("sanitizer-wsl=passed")
+    console.log(`WSL sanitizer C dialect: ${dialectDisclosure(dialect)}`)
     return "passed"
   } finally {
     const coreCleanup = spawn("wsl.exe", ["-d", "Ubuntu", "--", "rm", "-f", coreExecutable])

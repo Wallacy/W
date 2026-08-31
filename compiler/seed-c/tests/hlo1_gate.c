@@ -307,7 +307,7 @@ int main(int argc, char **argv) {
   const w_seed_hlo1_output output = {artifact, sizeof(artifact)};
   if (w_seed_hlo1_emit(&plan, &output, &result) != W_SEED_HLO1_OK ||
       result.written.c_bytes != result.required.c_bytes) {
-    (void)fprintf(stderr, "HLO1 gate: C11 emission failed\n");
+    (void)fprintf(stderr, "HLO1 gate: conservative C artifact emission failed\n");
     return 1;
   }
   if (fwrite(artifact, 1u, result.written.c_bytes, stdout) !=

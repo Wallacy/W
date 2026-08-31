@@ -1,11 +1,11 @@
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { dialectArgs, dialectDisclosure, probeCDialect, requireCDialect } from "./c-dialect.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
-const strictWarnings = [
-  "-std=c11",
+const strictWarningFlags = [
   "-Wall",
   "-Wextra",
   "-Wpedantic",
@@ -144,6 +144,10 @@ try {
     const sources = gateSources.map(
       (source) => `${wslRoot}/compiler/seed-c/${source}`,
     )
+    const dialect = requireCDialect(
+      await probeCDialect(["wsl.exe", "-d", "Ubuntu", "--", "gcc"]),
+      "WSL GCC",
+    )
     runRequired(
       "WSL Linux MAN0 real compile",
       "wsl.exe",
@@ -152,7 +156,8 @@ try {
         "Ubuntu",
         "--",
         "gcc",
-        ...strictWarnings,
+        ...dialectArgs(dialect),
+        ...strictWarningFlags,
         "-I",
         `${wslRoot}/compiler/seed-c/include`,
         ...sources,
@@ -167,13 +172,20 @@ try {
       root,
     )
     canonicalOutput(output, "WSL Linux MAN0 real gate")
+    console.log(`MAN0 C dialect: ${dialectDisclosure(dialect)}`)
   } else {
     const sources = gateSources.map((source) => resolve(seedDirectory, source))
+    const compiler = Bun.which(process.env.MANIFEST_CC ?? "gcc")
+    const dialect = requireCDialect(
+      await probeCDialect(compiler),
+      "MAN0 C compiler",
+    )
     runRequired(
       "Linux MAN0 real compile",
-      "gcc",
+      compiler,
       [
-        ...strictWarnings,
+        ...dialectArgs(dialect),
+        ...strictWarningFlags,
         "-I",
         resolve(seedDirectory, "include"),
         ...sources,
@@ -188,6 +200,7 @@ try {
       root,
     )
     canonicalOutput(output, "Linux MAN0 real gate")
+    console.log(`MAN0 C dialect: ${dialectDisclosure(dialect)}`)
   }
   console.log("MAN0 Linux gate: real OWN0+MAN0 two-wave; deterministic")
 } finally {

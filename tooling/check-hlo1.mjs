@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -48,18 +49,26 @@ async function assertCompiler(cacheDirectory, label) {
   const normalize = (value) => value.replaceAll("\\", "/").toLowerCase()
   assert(match && normalize(match[1]) === normalize(compiler),
     `${label} did not use the selected compiler`)
+  if (label.includes("seed")) {
+    assert(/^W_SEED_C_STANDARD:STRING=23$/mu.test(cache),
+      `${label} did not retain the C23 seed standard`)
+  }
 }
 
 const cmake = tool("cmake")
 const ninja = tool("ninja")
 const compiler = ["cc", "gcc", "clang", "cl"].map(tool).find(Boolean)
-if (!cmake || !ninja || !compiler) {
+const dialect = compiler ? await probeCDialect(compiler) : undefined
+if (!cmake || !ninja || !compiler || !dialect) {
   const missing = [
     ["cmake", cmake],
     ["ninja", ninja],
     ["C compiler", compiler],
   ].filter(([, value]) => !value).map(([name]) => name)
-  console.log(`HLO1: SKIP toolchain unavailable (${missing.join(", ")})`)
+  const reason = missing.length > 0
+    ? `toolchain unavailable (${missing.join(", ")})`
+    : "C23 dialect unavailable (C11 recovery is explicit only)"
+  console.log(`HLO1: SKIP ${reason}`)
   process.exit(0)
 }
 
@@ -79,7 +88,7 @@ try {
   const unit = run(resolve(buildDirectory, `w_seed_hlo1_tests${suffix}`), [])
   assert(unit.exitCode === 0, `unit tests failed: ${unit.stderrText.trim()}`)
   assert(unit.stderr.length === 0, "unit tests wrote to stderr")
-  assert(unit.stdoutText.includes("deterministic C11 emitter"),
+  assert(unit.stdoutText.includes("deterministic conservative C emitter"),
     "unit test witness is missing")
   const seedGate = resolve(buildDirectory, `w_seed_hlo1_gate${suffix}`)
   const canonical = run(seedGate, [canonicalFixture])
@@ -88,9 +97,9 @@ try {
   assert(canonical.stderr.length === 0, "canonical route wrote to stderr")
   assert(canonical.stdout.length > 0, "canonical route emitted no C bytes")
   await writeFile(join(artifactDirectory, "generated.c"), canonical.stdout)
-  await writeFile(join(artifactDirectory, "CMakeLists.txt"), `cmake_minimum_required(VERSION 3.20)
+  await writeFile(join(artifactDirectory, "CMakeLists.txt"), `cmake_minimum_required(VERSION 3.21)
 project(w_hlo1_generated C)
-set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD 23)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 add_executable(w_hlo1_generated generated.c)
@@ -124,7 +133,7 @@ endif()
     `commented canonical route failed: ${commented.stderrText.trim()}`)
   assert(commented.stderr.length === 0, "commented route wrote to stderr")
   assert(Buffer.from(commented.stdout).equals(Buffer.from(canonical.stdout)),
-    "commented canonical route changed the deterministic C11 artifact")
+    "commented canonical route changed the deterministic conservative C artifact")
 
   const adversarial = [
     ["restaurant-comment.w",
@@ -140,7 +149,7 @@ endif()
     assert(rejected.stdout.length === 0,
       `${name} produced partial C output`)
   }
-  console.log("HLO1: verified-HIR C11 emission and execution passed")
+  console.log(`HLO1: verified-HIR conservative C artifact emission and execution passed (${dialectDisclosure(dialect)})`)
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
   await rm(artifactDirectory, { recursive: true, force: true })

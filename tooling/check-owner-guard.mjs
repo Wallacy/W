@@ -2,6 +2,7 @@ import { existsSync } from "node:fs"
 import { mkdtemp, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
+import { dialectArgs, dialectDisclosure, probeCDialect, requireCDialect } from "./c-dialect.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -10,8 +11,7 @@ const expectedTests = [
   "w_seed_owner_guard_adapter_unit",
 ]
 const testPattern = "^w_seed_owner_guard_(unit|adapter_unit)$"
-const strictWarnings = [
-  "-std=c11",
+const strictWarningFlags = [
   "-Wall",
   "-Wextra",
   "-Wpedantic",
@@ -82,10 +82,16 @@ function wslPath(windowsPath) {
   return value
 }
 
-function runRequiredWslLinux(buildDirectory) {
+async function runRequiredWslLinux(buildDirectory) {
   if (process.platform !== "win32") return
   const wslRoot = wslPath(root)
   const wslBuild = wslPath(buildDirectory)
+  const wslCompiler = ["wsl.exe", "-d", "Ubuntu", "--", "gcc"]
+  const dialect = requireCDialect(
+    await probeCDialect(wslCompiler),
+    "WSL GCC",
+  )
+  const strictWarnings = [...dialectArgs(dialect), ...strictWarningFlags]
   const executable = `${wslBuild}/w_seed_owner_guard_adapter_wsl`
   const sources = [
     "w_seed_source.c",
@@ -115,6 +121,7 @@ function runRequiredWslLinux(buildDirectory) {
     ["-d", "Ubuntu", "--", executable],
     "w_seed_owner_guard_adapters: linux-native ok; windows-stub ok\n",
   )
+  console.log(`OWN0 C dialect: ${dialectDisclosure(dialect)}`)
 }
 
 const buildDirectory = await mkdtemp(join(tmpdir(), "w-owner-guard-"))
@@ -185,7 +192,7 @@ try {
       ? "w_seed_owner_guard_adapters: windows-disabled unsupported; linux-stub ok\n"
       : "w_seed_owner_guard_adapters: linux-native ok; windows-stub ok\n"
   runTwice("native OWN0 adapters", adapters, [], nativeExpected)
-  runRequiredWslLinux(buildDirectory)
+  await runRequiredWslLinux(buildDirectory)
   console.log(
     "OWN0 owner guard gate: core deterministic; Linux real; Windows fail-closed",
   )

@@ -187,8 +187,8 @@ function checkReadiness(readiness, name, errors, expectedStatus) {
 function checkBaselineRole(value, name, errors) {
   if (!checkExactKeys(value, name, ["primary", "independent", "role", "futurePerformanceRole", "futurePerformanceRecipe", "recipe"], errors)) return;
   if (value.primary !== "historical-w") push(errors, name + ".primary must be historical-w.");
-  if (JSON.stringify(value.independent) !== JSON.stringify(["c11", "rust"])) {
-    push(errors, name + ".independent must list c11 and rust.");
+  if (JSON.stringify(value.independent) !== JSON.stringify(["c23", "rust"])) {
+    push(errors, name + ".independent must list c23 and rust.");
   }
   if (value.role !== "correctness-reference-no-ranking") push(errors, name + ".role must be correctness-reference-no-ranking.");
   if (value.futurePerformanceRole !== "independent-comparison-after-equivalence") {
@@ -391,11 +391,11 @@ function checkBaselineEntry(baseline, name, errors) {
   checkExactKeys(baseline, name, [
     "id", "path", "digest", "recipePath", "recipeDigest", "language", "compileSteps", "invoke", "flags", "edition", "role", "futurePerformanceRole", "futurePerformanceRecipe", "output",
   ], errors);
-  if (!new Set(["c11", "rust"]).has(baseline.id)) push(errors, name + ".id must be c11 or rust.");
+  if (!new Set(["c23", "rust"]).has(baseline.id)) push(errors, name + ".id must be c23 or rust.");
   requiredString(baseline.path, name + ".path", errors);
   checkDigest(baseline.digest, name + ".digest", errors);
   checkFileDigest(baseline.path, baseline.digest, name, errors);
-  if (baseline.id === "c11") {
+  if (baseline.id === "c23") {
     requiredString(baseline.recipePath, name + ".recipePath", errors);
     checkDigest(baseline.recipeDigest, name + ".recipeDigest", errors);
     checkFileDigest(baseline.recipePath, baseline.recipeDigest, name + ".recipe", errors);
@@ -425,7 +425,7 @@ function checkBaselineEntry(baseline, name, errors) {
   }
   checkStringArray(baseline.flags, name + ".flags", errors);
   if (baseline.id === "rust" && baseline.edition !== "2021") push(errors, name + ".edition must be 2021.");
-  if (baseline.id === "c11" && baseline.edition !== null) push(errors, name + ".edition must be null for C11.");
+  if (baseline.id === "c23" && baseline.edition !== null) push(errors, name + ".edition must be null for C23.");
   if (baseline.compileSteps?.flat()?.some((item) => /cargo|lockfile/iu.test(item))) push(errors, name + ".compileSteps must not use Cargo or a lockfile.");
   if (baseline.role !== "correctness-reference-no-ranking") push(errors, name + ".role must be correctness-reference-no-ranking.");
   if (baseline.futurePerformanceRole !== "independent-comparison-after-equivalence") {
@@ -544,7 +544,7 @@ export function validateByteScanManifest(manifest, catalog = undefined) {
   checkInputClasses(manifest.inputs?.classes, "manifest.inputs.classes", errors);
   if (manifest.inputs?.setup !== "deterministic temporary files outside future timing") push(errors, "manifest.inputs.setup must be outside future timing.");
 
-  if (!Array.isArray(manifest.baselines) || manifest.baselines.length !== 2) push(errors, "manifest.baselines must contain c11 and rust.");
+  if (!Array.isArray(manifest.baselines) || manifest.baselines.length !== 2) push(errors, "manifest.baselines must contain c23 and rust.");
   const baselineIds = new Set();
   for (const [index, baseline] of (manifest.baselines ?? []).entries()) {
     const location = "manifest.baselines[" + index + "]";
@@ -552,7 +552,7 @@ export function validateByteScanManifest(manifest, catalog = undefined) {
     if (baselineIds.has(baseline?.id)) push(errors, location + ".id duplicates.");
     baselineIds.add(baseline?.id);
   }
-  if (JSON.stringify([...baselineIds]) !== JSON.stringify(["c11", "rust"])) push(errors, "manifest.baselines must use c11 and rust in order.");
+  if (JSON.stringify([...baselineIds]) !== JSON.stringify(["c23", "rust"])) push(errors, "manifest.baselines must use c23 and rust in order.");
   checkStringArray(manifest.futureMetrics, "manifest.futureMetrics", errors);
   checkReadiness(manifest.readiness, "manifest.readiness", errors, "source-oracle-ready");
   checkRestaurantCrosspoint(manifest.restaurantCrosspoint, "manifest.restaurantCrosspoint", errors);

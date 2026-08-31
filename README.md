@@ -19,7 +19,9 @@ arquivos de entrada.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
-MAN0 é o reader C11 guarded, caller-owned e bounded de manifests estruturais.
+MAN0 é o reader C controlado, compilado em modo C23, guarded, caller-owned e
+bounded de manifests estruturais. C11 é somente a lane explícita de
+recovery/compatibilidade do seed.
 Ele lê todos os candidates OWN0 em duas waves e publica somente depois de
 igualdade de bytes, bindings e digests. O gate Linux real usa a sessão retida;
 em host Windows, WSL Ubuntu é obrigatório e o adapter Windows permanece um

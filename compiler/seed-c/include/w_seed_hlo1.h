@@ -10,8 +10,10 @@
 extern "C" {
 #endif
 
-/* Internal HLO1 C11 emitter. It does not allocate, execute, link, or prove
- * source provenance. All input and output storage remains caller-owned. */
+/* Internal HLO1 deterministic C emitter. The primary build compiles it in
+ * C23 mode; the same conservative source remains available in explicit C11
+ * recovery. It does not allocate, execute, link, or prove source provenance.
+ * All input and output storage remains caller-owned. */
 #define W_SEED_HLO1_SCHEMA_VERSION "w-seed-hlo1-1"
 #define W_SEED_HLO1_MAX_C_BYTES 2048u
 
@@ -38,13 +40,14 @@ typedef struct {
   size_t capacity;
 } w_seed_hlo1_output;
 
-/* Build and measure the deterministic C11 artifact without writing output.
+/* Build and measure the deterministic conservative C artifact without writing
+ * output. The primary build compiles this source in C23 mode.
  * On any failure, counts and result are not modified. */
 w_seed_hlo1_status w_seed_hlo1_measure(const w_seed_hlo0_plan *plan,
                                         w_seed_hlo1_counts *counts,
                                         w_seed_hlo1_result *result);
 
-/* Emit one exact C11 artifact. Any non-OK return leaves all caller-owned
+/* Emit one exact conservative C artifact. Any non-OK return leaves all caller-owned
  * records and buffers unchanged. The return value carries the failure status. */
 w_seed_hlo1_status w_seed_hlo1_emit(const w_seed_hlo0_plan *plan,
                                      const w_seed_hlo1_output *output,

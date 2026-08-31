@@ -108,7 +108,7 @@
       "required": ["primary", "independent", "role", "futurePerformanceRole", "futurePerformanceRecipe", "recipe"],
       "properties": {
         "primary": { "const": "historical-w" },
-        "independent": { "const": ["c11", "rust"] },
+        "independent": { "const": ["c23", "rust"] },
         "role": { "const": "correctness-reference-no-ranking" },
         "futurePerformanceRole": { "const": "independent-comparison-after-equivalence" },
         "futurePerformanceRecipe": { "const": "pin-toolchain-and-equivalent-recipe" },
@@ -209,7 +209,7 @@
       "type": "object", "additionalProperties": false,
       "required": ["id", "path", "digest", "recipePath", "recipeDigest", "language", "compileSteps", "invoke", "flags", "edition", "role", "futurePerformanceRole", "futurePerformanceRecipe", "output"],
       "properties": {
-        "id": { "enum": ["c11", "rust"] },
+        "id": { "enum": ["c23", "rust"] },
         "path": { "type": "string", "minLength": 1 },
         "digest": { "$ref": "#/$defs/digest" },
         "recipePath": { "type": ["string", "null"] },

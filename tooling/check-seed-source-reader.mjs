@@ -290,7 +290,7 @@ async function main() {
       }
     }
     validateProbeCapacity(probe)
-    console.log("Seed C source reader: " + fixtures.length + " byte-preserving probes, C11 unit tests passed.")
+    console.log("Seed C source reader: " + fixtures.length + " byte-preserving probes, C unit tests passed.")
   } finally {
     await rm(buildDirectory, { recursive: true, force: true })
   }

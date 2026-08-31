@@ -63,8 +63,9 @@ o contrato do catálogo, enquanto `readiness.oracle: host-ready` registra a
 evidência corrente.
 
 As fontes W `learner` e `idiomatic` são lane `equivalent`; `frontier` é lane
-`open` somente pela estratégia física SIMD declarada. C11 e Rust são referências
-de correção independentes sem ranking agora; após equivalência, podem ter papel
+`open` somente pela estratégia física SIMD declarada. C23 e Rust são referências
+de correção independentes sem ranking agora; C11 é somente recovery explícito;
+após equivalência, podem ter papel
 de comparação independente com toolchain e recipe fixos. O baseline primário e
 a regressão futura continuam sendo W histórico. O checker usa CMakeLists
 versionado e `rustc --edition=2021`, valida stdout/exit completos e rejeita
@@ -178,7 +179,9 @@ bun run check:bmd:comparison-smoke
 O primeiro check é um gate estrutural rápido: valida protocolo, matriz, corpus,
 schema e runner host-side, sem compilar baselines de language. O
 `check:bmd:byte-scan` é o smoke de correctness separado: cria inputs
-temporários, executa o oracle e testa C11/Rust quando os toolchains existem.
+temporários, executa o oracle e testa C23/Rust quando os toolchains existem.
+Uma toolchain que só aceita c2x recebe disclosure correctness-only e não gera
+ranking final C23; C11 exige solicitação explícita de recovery.
 `check:bmd:parse` executa o parser Tree-sitter nos três sources W; isso é uma
 checagem de forma sintática e não execução W.
 O smoke BMD1 constrói o seed e executa uma medição real em diretório temporário.
