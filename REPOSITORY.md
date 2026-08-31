@@ -26,7 +26,7 @@ projeções. Quando uma projeção divergir, corrija sua fonte e regenere a saí
 | `reference/last-light/` | produto de referência, fontes `.w`, contratos e fixtures do design |
 | `reference/syntax-atlas/` | atlas de sintaxe e cobertura de parsing gerados |
 | `std/` | rascunho dos módulos da biblioteca padrão |
-| `tooling/` | máquinas, oracles, checkers, snapshots, índices, suítes e manifest da recipe MLIR0 |
+| `tooling/` | máquinas, oracles, checkers, snapshots, índices, suítes, platform support e manifest da recipe MLIR0 |
 | `tooling/tree-sitter-w/` | grammar.js, corpus, queries e CLI local do Tree-sitter |
 | `benchmarks/` | catálogo e receitas de benchmark; resultados só existem quando explicitamente gerados |
 | `portal/` | protótipo de editor/highlighting e seus contratos de fallback |
@@ -44,6 +44,7 @@ Fontes canônicas, testes, fixtures, manifests e snapshots necessários para
 reprodução são versionados. Entre as projeções geradas e verificadas estão:
 
 - `DESIGN-INDEX.md`, `DIAGNOSTICS.md` e `STUDIES.md`;
+- `PLATFORM-SUPPORT.md` (de `tooling/platform-support.json`);
 - `tooling/study-registry.json` e `reference/syntax-atlas/*`;
 - snapshots e bundles declarados pelos seus manifests.
 
@@ -127,6 +128,7 @@ bun run check:docs
 bun run check:studies
 bun run check
 bun run check:suite-manifest
+bun run check:platform-support
 bun run check:study-registry
 bun run study:registry
 ```
@@ -138,6 +140,12 @@ manifesto e a ordem podem ser inspecionados com:
 ```sh
 bun tooling/check-suite.mjs --list
 bun tooling/check-suite.mjs --dry-run --suite root-quick
+```
+
+Edite `tooling/platform-support.json` e regenere sua projeção com:
+
+```sh
+bun run platform:support
 ```
 
 ## Regra de aliases

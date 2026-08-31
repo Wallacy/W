@@ -1,0 +1,949 @@
+{
+  "$schema": "w-platform-support-1",
+  "version": 1,
+  "status": "operational-evidence",
+  "observed": "2026-08-31",
+  "benchmarkDisposition": {
+    "kind": "not-applicable",
+    "reason": "This record gates metadata, projection, and policy. It has no runtime or performance measurement."
+  },
+  "policy": {
+    "referenceBreadth": {
+      "goal": "at-least-rust-breadth",
+      "sources": [
+        {
+          "name": "Rust platform support",
+          "url": "https://doc.rust-lang.org/rustc/platform-support.html"
+        },
+        {
+          "name": "Rust target tier policy",
+          "url": "https://doc.rust-lang.org/rustc/target-tier-policy.html"
+        },
+        {
+          "name": "MLIR getting started",
+          "url": "https://mlir.llvm.org/getting_started/"
+        },
+        {
+          "name": "LLVM getting started",
+          "url": "https://llvm.org/docs/GettingStarted.html"
+        },
+        {
+          "name": "LLVM CMake target selection",
+          "url": "https://llvm.org/docs/CMake.html"
+        }
+      ],
+      "observed": "2026-08-31",
+      "importsRustTiers": false
+    },
+    "llvmTripleIsInsufficient": true,
+    "wslIsNotWindowsNative": true,
+    "promotionAxes": {
+      "target": [
+        "backend",
+        "runtime",
+        "hostAdapter",
+        "sdkProfile",
+        "linkerSysrootPackaging",
+        "ciEvidence"
+      ],
+      "compilerHost": [
+        "nativeToolchain",
+        "toolchainBundle",
+        "releasePackaging",
+        "ciEvidence"
+      ]
+    },
+    "dependencyCurrency": {
+      "currentEvidenceVersion": "20.1.2",
+      "currentEvidenceCurrencyStatus": "update-required",
+      "futureNativePlanPolicy": "latest-stable-exact-pin-after-currency-audit",
+      "pendingAuditTag": "pending-audit",
+      "auditBlocker": "repository-dependency-currency-audit"
+    }
+  },
+  "crossChecks": {
+    "mlir0Toolchain": {
+      "path": "tooling/mlir0-toolchain.json",
+      "targetTriple": "x86_64-unknown-linux-gnu",
+      "hostEvidence": "wsl-linux",
+      "windowsNative": false,
+      "currencyStatus": "update-required"
+    }
+  },
+  "targets": [
+    {
+      "id": "target-x86_64-unknown-linux-gnu",
+      "triple": "x86_64-unknown-linux-gnu",
+      "group": "desktop-server",
+      "targetSpec": {
+        "arch": "x86_64",
+        "os": "linux",
+        "abi": "gnu"
+      },
+      "hostProfile": "native-process@1",
+      "artifactKind": "native-executable",
+      "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
+      "sdkCapabilities": ["posix-write"],
+      "compilerVersionSource": "tooling/mlir0-toolchain.json",
+      "runtimeVersion": "w-seed-mlir0-1",
+      "state": "evidence",
+      "verificationLevel": null,
+      "scope": "w-seed-mlir0-1-print-literal",
+      "claim": null,
+      "axes": {
+        "backend": {
+          "status": "pass",
+          "evidence": [
+            {
+              "kind": "source",
+              "path": "compiler/seed-c/include/w_seed_mlir0.h",
+              "symbol": "w_seed_mlir0_emit",
+              "claim": "The seed exposes bounded measure and emit records for one explicit target."
+            },
+            {
+              "kind": "source",
+              "path": "compiler/seed-c/src/w_seed_mlir0.c",
+              "symbol": "build_artifact",
+              "claim": "The emitter renders deterministic builtin and LLVM dialect text from a verified HLO0 plan."
+            }
+          ]
+        },
+        "runtime": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "unit",
+              "path": "compiler/seed-c/tests/test_mlir0.c",
+              "symbol": "test_exact_and_deterministic",
+              "claim": "The unit checks deterministic output, bounded payloads, NUL bytes, aliases, and forged plans."
+            }
+          ]
+        },
+        "hostAdapter": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "check",
+              "path": "compiler/seed-c/tests/hlo1_gate.c",
+              "symbol": "W_SEED_MLIR0_GATE",
+              "claim": "The gate reuses the source, parser, frontend, HIR0, and HLO0 route before emission."
+            }
+          ]
+        },
+        "sdkProfile": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "manifest",
+              "path": "tooling/mlir0-toolchain.json",
+              "symbol": "execution",
+              "claim": "The manifest records payload output, empty stderr, and successful exit requirements."
+            }
+          ]
+        },
+        "linkerSysrootPackaging": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "check",
+              "path": "tooling/check-mlir0.mjs",
+              "symbol": "const products = [",
+              "claim": "The focal gate links LLVM IR with clang on the pinned Linux target."
+            },
+            {
+              "kind": "manifest",
+              "path": "tooling/mlir0-toolchain.json",
+              "symbol": "pipeline",
+              "claim": "The manifest records the mlir-opt, mlir-translate, and clang recipe."
+            }
+          ]
+        },
+        "ciEvidence": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "check",
+              "path": "tooling/check-mlir0.mjs",
+              "symbol": "const products = [",
+              "claim": "The local focal gate checks Hello, Restaurant, empty output, stderr, and exit status."
+            }
+          ]
+        }
+      },
+      "blockers": [
+        "runtime",
+        "hostAdapter",
+        "sdkProfile",
+        "linkerSysrootPackaging",
+        "ciEvidence"
+      ]
+    },
+    {
+      "id": "target-aarch64-unknown-linux-gnu",
+      "triple": "aarch64-unknown-linux-gnu",
+      "group": "desktop-server",
+      "targetSpec": { "arch": "aarch64", "os": "linux", "abi": "gnu" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-x86_64-pc-windows-msvc",
+      "triple": "x86_64-pc-windows-msvc",
+      "group": "desktop-server",
+      "targetSpec": { "arch": "x86_64", "os": "windows", "abi": "msvc" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-aarch64-pc-windows-msvc",
+      "triple": "aarch64-pc-windows-msvc",
+      "group": "desktop-server",
+      "targetSpec": { "arch": "aarch64", "os": "windows", "abi": "msvc" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-aarch64-apple-darwin",
+      "triple": "aarch64-apple-darwin",
+      "group": "desktop-server",
+      "targetSpec": { "arch": "aarch64", "os": "macos", "abi": "darwin" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-x86_64-apple-darwin",
+      "triple": "x86_64-apple-darwin",
+      "group": "desktop-server",
+      "targetSpec": { "arch": "x86_64", "os": "macos", "abi": "darwin" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-aarch64-linux-android",
+      "triple": "aarch64-linux-android",
+      "group": "mobile",
+      "targetSpec": { "arch": "aarch64", "os": "android", "abi": "android" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-x86_64-linux-android",
+      "triple": "x86_64-linux-android",
+      "group": "mobile",
+      "targetSpec": { "arch": "x86_64", "os": "android", "abi": "android" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-aarch64-apple-ios",
+      "triple": "aarch64-apple-ios",
+      "group": "mobile",
+      "targetSpec": { "arch": "aarch64", "os": "ios", "abi": "ios" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-aarch64-apple-ios-sim",
+      "triple": "aarch64-apple-ios-sim",
+      "group": "mobile",
+      "targetSpec": { "arch": "aarch64", "os": "ios-simulator", "abi": "ios-simulator" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-wasm32-wasip3",
+      "triple": "wasm32-wasip3",
+      "group": "webassembly",
+      "targetSpec": { "arch": "wasm32", "os": "wasi", "abi": "wasip3" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-thumbv7em-none-eabihf",
+      "triple": "thumbv7em-none-eabihf",
+      "group": "embedded",
+      "targetSpec": { "arch": "thumbv7em", "os": "none", "abi": "eabihf" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-riscv64gc-unknown-none-elf",
+      "triple": "riscv64gc-unknown-none-elf",
+      "group": "embedded",
+      "targetSpec": { "arch": "riscv64gc", "os": "none", "abi": "elf" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-nvptx64-nvidia-cuda",
+      "triple": "nvptx64-nvidia-cuda",
+      "group": "accelerator",
+      "targetSpec": { "arch": "nvptx64", "os": "cuda", "abi": "device" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-amdgcn-amd-amdhsa",
+      "triple": "amdgcn-amd-amdhsa",
+      "group": "accelerator",
+      "targetSpec": { "arch": "amdgcn", "os": "amdhsa", "abi": "device" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    },
+    {
+      "id": "target-spirv64-unknown-vulkan",
+      "triple": "spirv64-unknown-vulkan",
+      "group": "accelerator",
+      "targetSpec": { "arch": "spirv64", "os": "vulkan", "abi": "device" },
+      "hostProfile": null,
+      "artifactKind": null,
+      "toolchainRoles": [],
+      "sdkCapabilities": [],
+      "compilerVersionSource": null,
+      "runtimeVersion": null,
+      "state": "candidate",
+      "verificationLevel": null,
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "backend": { "status": "missing", "evidence": [] },
+        "runtime": { "status": "missing", "evidence": [] },
+        "hostAdapter": { "status": "missing", "evidence": [] },
+        "sdkProfile": { "status": "missing", "evidence": [] },
+        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+    }
+  ],
+  "compilerHosts": [
+    {
+      "id": "host-x86_64-pc-windows-msvc-wsl2",
+      "kind": "compiler-host-composite",
+      "outerHostTriple": "x86_64-pc-windows-msvc",
+      "toolExecutionTriple": "x86_64-unknown-linux-gnu",
+      "mode": "wsl2",
+      "nativeForOuterHost": false,
+      "state": "evidence",
+      "scope": "dev-only",
+      "claim": null,
+      "axes": {
+        "nativeToolchain": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "manifest",
+              "path": "tooling/mlir0-toolchain.json",
+              "symbol": "hostModes",
+              "claim": "The manifest records direct Linux execution and WSL Ubuntu execution."
+            }
+          ]
+        },
+        "toolchainBundle": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "manifest",
+              "path": "tooling/mlir0-toolchain.json",
+              "symbol": "toolchain",
+              "claim": "The manifest pins MLIR, LLVM, and Clang versions for the Linux execution lane."
+            }
+          ]
+        },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "check",
+              "path": "tooling/check-mlir0.mjs",
+            "symbol": "const mlirToolchainPresent =",
+              "claim": "The focal gate is local evidence and is not official host CI evidence."
+            }
+          ]
+        }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-linux-x86_64-native",
+      "kind": "compiler-host",
+      "platform": "linux",
+      "architecture": "x86_64",
+      "hostTriple": "x86_64-unknown-linux-gnu",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-linux-aarch64-native",
+      "kind": "compiler-host",
+      "platform": "linux",
+      "architecture": "aarch64",
+      "hostTriple": "aarch64-unknown-linux-gnu",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-windows-x86_64-native",
+      "kind": "compiler-host",
+      "platform": "windows",
+      "architecture": "x86_64",
+      "hostTriple": "x86_64-pc-windows-msvc",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-windows-aarch64-native",
+      "kind": "compiler-host",
+      "platform": "windows",
+      "architecture": "aarch64",
+      "hostTriple": "aarch64-pc-windows-msvc",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-macos-x86_64-native",
+      "kind": "compiler-host",
+      "platform": "macos",
+      "architecture": "x86_64",
+      "hostTriple": "x86_64-apple-darwin",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    },
+    {
+      "id": "host-macos-aarch64-native",
+      "kind": "compiler-host",
+      "platform": "macos",
+      "architecture": "aarch64",
+      "hostTriple": "aarch64-apple-darwin",
+      "mode": "native",
+      "state": "candidate",
+      "scope": null,
+      "claim": null,
+      "axes": {
+        "nativeToolchain": { "status": "missing", "evidence": [] },
+        "toolchainBundle": { "status": "missing", "evidence": [] },
+        "releasePackaging": { "status": "missing", "evidence": [] },
+        "ciEvidence": { "status": "missing", "evidence": [] }
+      },
+      "blockers": ["nativeToolchain", "toolchainBundle", "releasePackaging", "ciEvidence"]
+    }
+  ],
+  "crossCompilation": {
+    "baselineHosts": [
+      "host-linux-x86_64-native",
+      "host-windows-x86_64-native",
+      "host-macos-aarch64-native"
+    ],
+    "baselineTargets": [
+      "target-x86_64-unknown-linux-gnu",
+      "target-x86_64-pc-windows-msvc",
+      "target-aarch64-apple-darwin"
+    ],
+    "edges": [
+      {
+        "id": "edge-host-linux-x86_64-native-to-target-x86_64-unknown-linux-gnu",
+        "hostRef": "host-linux-x86_64-native",
+        "targetRef": "target-x86_64-unknown-linux-gnu",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-linux-x86_64-native-to-target-x86_64-pc-windows-msvc",
+        "hostRef": "host-linux-x86_64-native",
+        "targetRef": "target-x86_64-pc-windows-msvc",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-linux-x86_64-native-to-target-aarch64-apple-darwin",
+        "hostRef": "host-linux-x86_64-native",
+        "targetRef": "target-aarch64-apple-darwin",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-windows-x86_64-native-to-target-x86_64-unknown-linux-gnu",
+        "hostRef": "host-windows-x86_64-native",
+        "targetRef": "target-x86_64-unknown-linux-gnu",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-windows-x86_64-native-to-target-x86_64-pc-windows-msvc",
+        "hostRef": "host-windows-x86_64-native",
+        "targetRef": "target-x86_64-pc-windows-msvc",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-windows-x86_64-native-to-target-aarch64-apple-darwin",
+        "hostRef": "host-windows-x86_64-native",
+        "targetRef": "target-aarch64-apple-darwin",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-macos-aarch64-native-to-target-x86_64-unknown-linux-gnu",
+        "hostRef": "host-macos-aarch64-native",
+        "targetRef": "target-x86_64-unknown-linux-gnu",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-macos-aarch64-native-to-target-x86_64-pc-windows-msvc",
+        "hostRef": "host-macos-aarch64-native",
+        "targetRef": "target-x86_64-pc-windows-msvc",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      },
+      {
+        "id": "edge-host-macos-aarch64-native-to-target-aarch64-apple-darwin",
+        "hostRef": "host-macos-aarch64-native",
+        "targetRef": "target-aarch64-apple-darwin",
+        "state": "candidate",
+        "evidence": [],
+        "blockers": ["hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging", "buildExecution"]
+      }
+    ],
+    "developmentEvidence": [
+      {
+        "id": "edge-dev-wsl2-windows-to-x86_64-unknown-linux-gnu",
+        "hostRef": "host-x86_64-pc-windows-msvc-wsl2",
+        "targetRef": "target-x86_64-unknown-linux-gnu",
+        "state": "evidence",
+        "nativeHost": false,
+        "evidence": [
+          {
+            "kind": "manifest",
+            "path": "tooling/mlir0-toolchain.json",
+            "symbol": "hostModes",
+            "claim": "The manifest records WSL Linux tool execution for the development edge.",
+            "role": "development",
+            "executionMode": null
+          },
+          {
+            "kind": "manifest",
+            "path": "tooling/mlir0-toolchain.json",
+            "symbol": "toolchain",
+            "claim": "The manifest pins the MLIR, LLVM, and Clang toolchain used by the WSL Linux development edge.",
+            "role": "toolchain",
+            "executionMode": null
+          },
+          {
+            "kind": "check",
+            "path": "tooling/check-mlir0.mjs",
+            "symbol": "runRequired",
+            "claim": "The focal MLIR0 check provides local build evidence for the WSL Linux development edge.",
+            "role": "build",
+            "executionMode": null
+          },
+          {
+            "kind": "check",
+            "path": "tooling/check-mlir0.mjs",
+            "symbol": "invokeProgram",
+            "claim": "The focal MLIR0 check executes the Linux artifact locally for the WSL development edge.",
+            "role": "execution",
+            "executionMode": "local"
+          }
+        ],
+        "blockers": ["nativeHost", "hostEndpoint", "targetEndpoint", "toolchainSysrootLinkerPackaging"]
+      }
+    ]
+  },
+  "externalToolchainCandidates": [
+    {
+      "id": "portable-mlir-toolchain",
+      "status": "evaluation-only",
+      "license": "Apache-2.0",
+      "observedRelease": "2026.08.11",
+      "llvmTag": "llvmorg-22.1.8",
+      "publishedHostTriples": [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-pc-windows-msvc",
+        "aarch64-pc-windows-msvc",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin"
+      ],
+      "evidenceCapabilities": [
+        "per-platform-build-scripts",
+        "sha256-release-assets",
+        "release-attestation",
+        "verified-release-commit"
+      ],
+      "limitations": [
+        "third-party not W authority/support",
+        "version mismatch with current pinned 20.1.2",
+        "no completed W trust/SBOM/provenance audit",
+        "host binaries do not prove cross-compilation",
+        "Apple SDK/license not supplied/proven"
+      ]
+    }
+  ],
+  "nativeToolchainPlans": [
+    {
+      "id": "plan-windows-native-llvm-pending-audit",
+      "platform": "windows",
+      "architectures": ["x86_64", "aarch64"],
+      "status": "planned",
+      "source": { "repository": "llvm-project", "tag": "pending-audit" },
+      "projects": ["MLIR", "Clang", "LLD"],
+      "configuration": {
+        "buildType": "Release",
+        "generator": "Ninja",
+        "targets": ["X86", "AArch64"],
+        "linkerDrivers": ["lld-link", "ld.lld", "ld64.lld"]
+      },
+      "outputs": {
+        "status": "planned",
+        "pin": "required",
+        "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"],
+        "sha256": "required",
+        "sbom": "required",
+        "provenance": "required",
+        "signing": "required"
+      },
+      "validation": {
+        "ci": "required",
+        "smoke": "required",
+        "promotion": "blocked-until-all-evidence"
+      },
+      "gaps": [
+        "repository-dependency-currency-audit",
+        "Native Windows MLIR and LLVM bundle",
+        "Reproducible release outputs",
+        "SHA256, SBOM, provenance, and signing records",
+        "CI and native smoke evidence",
+        "SDK, sysroot, linker, and packaging evidence"
+      ]
+    },
+    {
+      "id": "plan-macos-native-llvm-pending-audit",
+      "platform": "macos",
+      "architectures": ["x86_64", "aarch64"],
+      "status": "planned",
+      "source": { "repository": "llvm-project", "tag": "pending-audit" },
+      "projects": ["MLIR", "Clang", "LLD"],
+      "configuration": {
+        "buildType": "Release",
+        "generator": "Ninja",
+        "targets": ["X86", "AArch64"],
+        "linkerDrivers": ["lld-link", "ld.lld", "ld64.lld"]
+      },
+      "outputs": {
+        "status": "planned",
+        "pin": "required",
+        "artifacts": ["mlir-opt", "mlir-translate", "clang", "lld", "llvm-config"],
+        "sha256": "required",
+        "sbom": "required",
+        "provenance": "required",
+        "signing": "required"
+      },
+      "validation": {
+        "ci": "required",
+        "smoke": "required",
+        "promotion": "blocked-until-all-evidence"
+      },
+      "gaps": [
+        "repository-dependency-currency-audit",
+        "Native macOS MLIR and LLVM bundle",
+        "Reproducible release outputs",
+        "SHA256, SBOM, provenance, and signing records",
+        "CI and native smoke evidence",
+        "SDK, sysroot, linker, and packaging evidence"
+      ]
+    }
+  ]
+}
