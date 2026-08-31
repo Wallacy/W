@@ -19,6 +19,12 @@ MLIR0: source → HIR0 → HLO0 → LLVM dialect → LLVM IR → clang/native, s
 por C source. Hello é o witness canônico, mas o mesmo caminho aceita payloads
 String variáveis e compara stdout exato. A evidência MLIR0 é Linux x86_64 sob
 WSL no checkout Windows, não suporte Windows nativo.
+[`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
+targets, compiler hosts e cross-compilation. O baseline primário tem nove
+edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
+de desenvolvimento fica fora da matriz nativa e não promove Windows. A
+evidência factual MLIR0 usa 20.1.2 e está marcada `update-required`; planos
+futuros aguardam currency audit e não ratificam essa versão.
 HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
 seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma exata de uma
 função/entry/block/call/argument. Os nomes target/handler são byte strings
@@ -166,6 +172,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
 | [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 LLVM-dialect terminal para um target e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
+| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

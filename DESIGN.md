@@ -27022,6 +27022,101 @@ SDK, como `std.process` e `std.device`.
 Uma linha de suporte declara target spec, host profile, artifact kind, roles de
 toolchain, SDK capabilities, compiler/runtime version, status e test evidence.
 
+**Forma vigente — W-1507:** `tooling/platform-support.json` é a fonte
+operacional de evidência e implementação da matriz. `PLATFORM-SUPPORT.md` é
+uma projeção humana determinística gerada dessa fonte. `DESIGN.md` continua a
+autoridade normativa. Uma triple aceita pelo LLVM nunca é evidence suficiente.
+
+Targets usam os estados `candidate`, `evidence`, `supported`, `deprecated` e
+`removed`. `candidate` e `evidence` sempre usam `verificationLevel: null`.
+`supported` exige exatamente um dos níveis `experimental`, `level-3`,
+`level-2`, `level-1` ou `long-term`. Cada linha declara os seis eixos
+`backend`, `runtime`, `hostAdapter`, `sdkProfile`,
+`linkerSysrootPackaging` e `ciEvidence`. Cada eixo tem status `pass`,
+`partial` ou `missing` e uma lista de evidence. `supported` exige `pass` e
+evidence não vazia em todos os eixos. A linha lista como blockers todos os
+eixos que não têm status `pass`.
+
+O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
+única linha `evidence`, com `verificationLevel: null` e scope
+`w-seed-mlir0-1-print-literal`. Seu backend tem status `pass`. Runtime,
+hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
+`partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
+Ela não declara target geral, SDK, packaging ou CI oficial. O manifest
+permanece pinado em MLIR/LLVM/Clang `20.1.2`: essa é a versão factual da
+evidence atual, marcada `currencyStatus: update-required`, e não a versão
+pretendida para bundles futuros.
+
+O catálogo mantém como `candidate` exatamente os targets
+`aarch64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`,
+`aarch64-pc-windows-msvc`, `aarch64-apple-darwin`, `x86_64-apple-darwin`,
+`aarch64-linux-android`, `x86_64-linux-android`, `aarch64-apple-ios`,
+`aarch64-apple-ios-sim`, `wasm32-wasip3`, `thumbv7em-none-eabihf`,
+`riscv64gc-unknown-none-elf`, `nvptx64-nvidia-cuda`, `amdgcn-amd-amdhsa` e
+`spirv64-unknown-vulkan`. Eles são agrupados em desktop/server, mobile,
+WebAssembly, embedded e accelerator. Targets de device usam os mesmos seis
+eixos. Eles não usam `N/A`.
+
+Compiler hosts formam uma coleção separada. Eles não são target rows. O estado
+atual é o host outer `x86_64-pc-windows-msvc` com tool execution
+`x86_64-unknown-linux-gnu`, mode `wsl2`, `nativeForOuterHost: false`, status
+`evidence` e scope dev-only. WSL nunca é Windows nativo. Hosts native
+candidates cobrem Linux x86_64/AArch64, Windows x86_64/AArch64 e macOS
+x86_64/AArch64. Seus eixos são `nativeToolchain`, `toolchainBundle`,
+`releasePackaging` e `ciEvidence`. No composite Windows+WSL,
+`nativeToolchain` é `partial`, nunca `pass`, e aparece em `blockers`, porque
+tools Linux não são um toolchain Windows nativo.
+
+`referenceBreadth.goal` é `at-least-rust-breadth`. As fontes oficiais e a data
+observada ficam no policy record. `importsRustTiers` é false. Essa meta é
+comparativa. Ela não herda claims ou tiers do Rust.
+
+Os bundles native de Windows e macOS permanecem planned. Cada plano usa
+`source.tag: pending-audit` sob a policy fechada
+`latest-stable-exact-pin-after-currency-audit`; o blocker/task
+`repository-dependency-currency-audit` deve fechar antes de substituir o
+sentinel por um tag estável exato. Os planos fixam MLIR, Clang e LLD, Release,
+Ninja, targets X86/AArch64, artifacts `mlir-opt`, `mlir-translate`, `clang`,
+`lld`, `llvm-config` e `configuration.linkerDrivers: ["lld-link", "ld.lld",
+"ld64.lld"]`. Outputs pinados exigem SHA256, SBOM, provenance, signing, CI e
+smoke antes de qualquer promoção. Drivers LLD não provam SDK ou licença Apple.
+`benchmarkDisposition` é `not-applicable` porque esta matriz é metadata,
+projection e policy gate sem runtime ou performance.
+
+`externalToolchainCandidates` contém exatamente um registro evaluation-only
+de ferramenta externa. Esse registro não pode declarar promoção, autoridade,
+suporte W ou evidência de cross-compilation; ele conserva limitações de
+licença/SDK, auditoria e proveniência e pode somente informar bootstrap,
+mirror ou rebuild de bundle futuro.
+
+Cross-compilation é a terceira dimensão explícita da matriz. O baseline
+primário usa os compiler hosts `x86_64-unknown-linux-gnu`,
+`x86_64-pc-windows-msvc` e `aarch64-apple-darwin`. Ele usa os mesmos três
+triples como emitted targets. `crossCompilation.edges` contém exatamente a
+matriz 3x3 de nove edges host→target, incluindo self edges. Cada edge tem ID
+determinístico, `hostRef`, `targetRef`, state, evidence e blockers.
+
+Os nove edges permanecem `candidate` enquanto os endpoints, toolchain,
+sysroot, linker, packaging, CI, build e execution não tiverem evidence. Um
+edge `supported` exige compiler host e target `supported`, pass de toolchain,
+sysroot, linker e packaging, além de evidence de build e execution. A
+execution evidence declara local, emulator, simulator ou remote runner.
+
+A edge de desenvolvimento outer Windows + tools Linux WSL2 → target Linux
+x86_64 fica em coleção separada, com `nativeHost: false`. Sua evidence separa
+as roles `development`, `toolchain`, `build` e `execution`; execution usa
+`executionMode: local` e as outras roles usam `null`. Ela não conta como edge
+nativa Windows→Linux. Seus blockers são derivados: `nativeHost`, endpoints e
+`toolchainSysrootLinkerPackaging`; `buildExecution` desaparece quando build e
+execution têm evidence. Linux↔Windows exige SDK, sysroot, object e linker
+explícitos. Todo Apple target exige Apple SDK, licença e provenance. O catálogo
+não pressupõe redistribuição de SDK. Evidence de remote execution é separada
+da evidence de build.
+
+A meta de distribuição W first-class exige que cada host primário compile para
+os outros dois. Este bundle registra a matriz e seus gates. Ele não implementa
+cross toolchains.
+
 | Verification level | Garantia |
 |---|---|
 | experimental | subset declarado, sem garantia de upgrade |
@@ -34438,8 +34533,9 @@ target não suportado e plano inválido falham fechados; falhas preservam record
 e buffer do caller. Em sucesso, `emit` copia exatamente o artifact e não
 acrescenta NUL implícito.
 
-O target é um record explícito com um único valor suportado:
-`x86_64-unknown-linux-gnu`. Outros valores são `UNSUPPORTED`. O emitter não
+O target é um record explícito com um único valor emitido pela seed:
+`x86_64-unknown-linux-gnu`. Outros valores são `UNSUPPORTED`. A linha tem
+somente evidence no catálogo W-1507 e não é target `supported`. O emitter não
 lê o host e fixa `llvm.target_triple` no módulo. O texto é LF-only e contém
 somente builtin e LLVM dialect. O payload HLO0 seguido de LF é codificado byte a
 byte como escapes hexadecimais `\XX`, inclusive NUL, aspas e barra invertida; o

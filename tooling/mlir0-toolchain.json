@@ -61,7 +61,7 @@
     "macos": "gap"
   },
   "emittedTargets": {
-    "supported": ["x86_64-unknown-linux-gnu"],
+    "evidence": ["x86_64-unknown-linux-gnu"],
     "wideMatrix": "gap"
   },
   "distribution": {

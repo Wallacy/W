@@ -85,7 +85,7 @@ function validateManifest(manifest) {
     manifest.hostMatrix?.windows === "wsl-linux-only" &&
     manifest.hostMatrix?.macos === "gap",
   "toolchain host evidence is invalid")
-  assert(JSON.stringify(manifest.emittedTargets?.supported) ===
+  assert(JSON.stringify(manifest.emittedTargets?.evidence) ===
     JSON.stringify([targetTriple]) && manifest.emittedTargets?.wideMatrix === "gap",
   "toolchain emitted-target evidence is invalid")
   assert(manifest.distribution?.windowsNativeMlir === "gap" &&

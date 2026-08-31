@@ -66,9 +66,9 @@ describe("check-suite manifest", () => {
       "tree-docs",
     ]);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(114);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(79);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(80);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(22);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(23);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(26);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(112);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
@@ -98,6 +98,21 @@ describe("check-suite manifest", () => {
       (step) => step.suite === "root-compiler")).toHaveLength(1);
     expect(loaded.suites["root-check"].steps.filter(
       (step) => step.suite === "tree-check")).toHaveLength(1);
+
+    const isPlatformSupport = (step) =>
+      step.package === "root" && step.script === "check:platform-support";
+    expect(loaded.suites["root-docs"].steps.filter(isPlatformSupport)).toHaveLength(1);
+    expect(loaded.suites["root-quick"].steps.filter(isPlatformSupport)).toHaveLength(1);
+    expect(loaded.suites["root-docs"].steps.slice(0, 3)).toEqual([
+      { package: "root", script: "check:diagnostic-catalog" },
+      { package: "root", script: "check:platform-support" },
+      { package: "root", script: "check:study-registry" },
+    ]);
+    expect(loaded.suites["root-quick"].steps.slice(0, 3)).toEqual([
+      { package: "root", script: "check:suite-manifest" },
+      { package: "root", script: "check:platform-support" },
+      { package: "root", script: "check:cleanup" },
+    ]);
 
     const isAcquisition = (step) =>
       step.package === "root" && step.script === "check:acquisition";

@@ -2248,6 +2248,85 @@
         "bun run check:seed-c11-recovery — shared seed remains available in explicit C11 recovery"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-platform-support-matrix",
+      "reviewItem": "catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.",
+      "decisions": ["W-1507"],
+      "task": "Record compiler hosts, emitted targets, and the primary 3x3 cross-compilation baseline in one evidence catalog with explicit promotion gates and adversarial policy checks.",
+      "selected": {
+        "language": "metadata",
+        "source": [
+          "tooling/platform-support.json",
+          "targets: evidence plus candidate rows",
+          "compilerHosts: separate from targets",
+          "crossCompilation: nine host-to-target edges plus WSL development evidence",
+          "externalToolchainCandidates: one evaluation-only third-party record; no W claim",
+          "dependencyCurrency: current evidence update-required; future plans pending-audit until audit"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "llvm-triple-only",
+          "language": "metadata-rejected",
+          "source": ["target triple accepted by LLVM", "support: true"],
+          "expectedDifference": "A triple does not prove backend, runtime, host adapter, SDK, linker/sysroot/packaging, or CI evidence."
+        },
+        {
+          "name": "merged-host-target-table",
+          "language": "metadata-rejected",
+          "source": ["host and emitted target in one row", "WSL mode: native Windows"],
+          "expectedDifference": "Compiler hosts and emitted targets have different axes and cannot share a row or promote WSL to native Windows."
+        },
+        {
+          "name": "import-rust-tier",
+          "language": "policy-rejected",
+          "source": ["referenceBreadth: at-least-rust-breadth", "importsRustTiers: true"],
+          "expectedDifference": "Rust is a breadth reference only. Its tiers do not become W claims or a copied support snapshot."
+        },
+        {
+          "name": "only-self-cross-matrix",
+          "language": "metadata-rejected",
+          "source": ["3x3 matrix with only host-to-same-target edges", "crossCompilation.edges"],
+          "expectedDifference": "The baseline must include cross-host or cross-target edges. Self edges alone do not prove cross-compilation breadth."
+        },
+        {
+          "name": "wsl-native-cross-edge",
+          "language": "metadata-rejected",
+          "source": ["WSL tools", "nativeHost: true", "Windows outer host"],
+          "expectedDifference": "WSL development evidence remains separate and cannot satisfy a native Windows cross-compilation edge."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "tooling/platform-support.json",
+          "symbol": "\"crossCompilation\": {",
+          "claim": "One machine-readable source records target rows, compiler hosts, the exact primary 3x3 edge matrix, evaluation-only external candidates, dependency currency policy, cross-checks, and planned native toolchains."
+        },
+        {
+          "path": "tooling/platform-support.mjs",
+          "symbol": "export function validatePlatformSupport",
+          "claim": "The checker enforces states, verification levels, axes, blockers, collection separation, cross-compilation references and pairs, WSL policy, manifest consistency, evaluation-only external records, and dependency currency sentinels."
+        },
+        {
+          "path": "PLATFORM-SUPPORT.md",
+          "symbol": "## Cross-compilation baseline",
+          "claim": "The generated document reports the 3x3 matrix, zero supported baseline edges, one WSL development edge outside the matrix with four evidence roles, evaluation-only external tooling, and separate current-versus-future dependency currency."
+        },
+        {
+          "path": "tooling/platform-support.test.mjs",
+          "symbol": "rejects an only-self cross-compilation matrix",
+          "claim": "The adversarial tests reject triple-only support, divergent blockers, conflated rows, incomplete or only-self matrices, WSL native edges, imported Rust tiers, candidate claims, non-native composite passes, evaluation promotion, and stale or floating future pins."
+        }
+      ],
+      "checks": [
+        "bun test tooling/platform-support.test.mjs — adversarial metadata and policy checks",
+        "bun tooling/platform-support.mjs --check — deterministic JSON and Markdown projection",
+        "bun run check:platform-support — light root gate with MLIR0 manifest cross-check",
+        "bun run check:suite-manifest — root-quick order includes the platform gate without an MLIR build",
+        "bun test tooling/platform-support.test.mjs — 3x3 edge matrix, endpoint, WSL, supported-edge, external-toolchain, and dependency-currency adversarial checks"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

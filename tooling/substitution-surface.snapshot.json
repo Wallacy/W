@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:8ce1fb6a5cca6a44cc40659644c51d4b8428ac3aac233b30a38b2e231947aa9f",
+  "corpusDigest": "sha256:c198ed2661c4f589715a5a0a5ab3e13c6b767b010e11f5d2cc4b3a2703f97c3d",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3792,6 +3792,90 @@
             "nonWhitespaceCodePoints": 39,
             "lines": 1,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-platform-support-matrix",
+      "task": {
+        "utf8Bytes": 171,
+        "codePoints": 171,
+        "nonWhitespaceCodePoints": 149,
+        "lines": 1,
+        "surfaceLexemes": 29
+      },
+      "selected": {
+        "name": "selected",
+        "language": "metadata",
+        "sourceDigest": "sha256:e58449f2447eb09b12325e662a388fa3de51b5313cbb96a2f8b2eb619b845e88",
+        "metrics": {
+          "utf8Bytes": 351,
+          "codePoints": 351,
+          "nonWhitespaceCodePoints": 317,
+          "lines": 6,
+          "surfaceLexemes": 60
+        }
+      },
+      "alternatives": [
+        {
+          "name": "llvm-triple-only",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:e716f2d903928b3bf06a9fa137932d1e2b29ec3787b4c7022812bc49b768e3e0",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 2,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "merged-host-target-table",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:7fcd6d33eaa5ae70f0ed82657629fd54b7ccd634615de584e28b6b61330f54d1",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "import-rust-tier",
+          "language": "policy-rejected",
+          "sourceDigest": "sha256:ffc7121a31be90e7d477bf40f933ec70886b2e7824b16005a9aaf1d19a5ea891",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "only-self-cross-matrix",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:224170bb5ada4830238958f9664889e665e2751c2d1253d01d15e4d103b90834",
+          "metrics": {
+            "utf8Bytes": 69,
+            "codePoints": 69,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 2,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "wsl-native-cross-edge",
+          "language": "metadata-rejected",
+          "sourceDigest": "sha256:e88b01791cc38cb44d07c9587f717c0df0b297d08ea86bcb24f0a56f25bf23db",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 3,
+            "surfaceLexemes": 8
           }
         }
       ]
