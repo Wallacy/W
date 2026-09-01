@@ -669,7 +669,7 @@
           },
           {
             "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-            "digest": "sha256:7bb634251a6743840c41d84eed08044277c4d8a372de39287129fbb6422929e6",
+            "digest": "sha256:85df67bd4f9739225b7207fe13951b51625fe7c67293fbefe8cf670992184eae",
             "claim": "ATOM2 study bundle and implementation gap receipt"
           }
         ],
@@ -1527,7 +1527,7 @@
         "canonicalSource": {
           "path": "reference/last-light/memory.w",
           "symbol": "installMenuObserver",
-          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
           "claim": "weak callback ownership"
         }
       },
@@ -1768,12 +1768,12 @@
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
-            "digest": "sha256:0cfd27e29c7f718f1bc35d183ce81da13170706a8b64254a88c93ae337049498",
+            "digest": "sha256:bc7f7e722cf182ebdf6eb529b8ed42951d1134f3e3d158a98ccc51d327f4af3e",
             "claim": "CYC1 gate manifest, roles, evidence, and stop condition"
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-            "digest": "sha256:b28fcaa00a67aa399edaabdf61a4214f0d2e211dd75ca2c25e40b3056f27d190",
+            "digest": "sha256:e14209417becd8fbb2a4445da275189ec89a9705f4d56917679b7bdf526a9e93",
             "claim": "CYC1 explicit-cycle study bundle and reserved witnesses"
           },
           {
@@ -1819,7 +1819,7 @@
             {
               "path": "reference/last-light/memory.w",
               "symbol": "installMenuObserver",
-              "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+              "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
               "claim": "MenuSection uses a weak parent edge and shared children, and the cycle oracle requires an explicit break or drain."
             }
           ]
@@ -2178,7 +2178,7 @@
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:8479430168f4769200a252d68f316fb7ee972d4d6b8f3bd34ad142c4062c307d",
+            "digest": "sha256:00e61bd08d45e3893a83179a957f42df896b39372246d766452e7cbfff711ed1",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
@@ -2318,7 +2318,7 @@
         "canonicalSource": {
           "path": "reference/last-light/supervision.w",
           "symbol": "orderCoordinators",
-          "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7",
+          "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc",
           "claim": "keyed supervisor service"
         }
       },
@@ -2556,7 +2556,7 @@
             {
               "path": "reference/last-light/supervision.w",
               "symbol": "fulfillOrder",
-              "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7",
+              "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc",
               "claim": "The order coordinator reports progress, gates events by generation, and compensates payment when serving fails."
             }
           ]

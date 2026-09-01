@@ -4,7 +4,7 @@
   "id": "DRC0",
   "decisions": ["W-1484", "W-1473", "W-1474", "W-1475"],
   "historicalResearchZeroThrough": "W-1459",
-  "activeResearchGates": ["W-1486"],
+  "activeResearchGates": ["W-1486", "W-1503"],
   "cases": [
     {
       "id": "DRC0-W-1484-current",

@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "export struct MenuItem",
-    "digest": "sha256:f17bd12386722685fef019275822b82152d88dcf217fe63eb5d89f6aaf233ef4"
+    "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde"
   },
   "sourceRefs": [
     {

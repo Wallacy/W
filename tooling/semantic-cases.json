@@ -346,7 +346,7 @@
       "rule": "W-786",
       "source": [
         "async fn chargeThroughProvider(store: ref Store): Receipt throws AppError {",
-        "  return try await transaction tx = store {",
+        "  return try await pipeline<transaction: { isolation: .serializable, access: .readWrite }> tx = store {",
         "    let receipt = try await tx.charge()",
         "    commit receipt",
         "  }",
@@ -3764,7 +3764,7 @@
       "failureEvidence": { "field": "effectSummary", "baselineValueDigest": "sha256:0c52f9868e24160d669798e9430172e00a001197e71f3357749f2e599035b045" },
       "source": [
         "async fn chargeInsideTransaction(store: ref Store, payments: ref PaymentService): Receipt throws AppError {",
-        "  return try await transaction tx = store {",
+        "  return try await pipeline<transaction: { isolation: .serializable, access: .readWrite }> tx = store {",
         "    let receipt = try await payments.charge()",
         "    commit receipt",
         "  }",
@@ -3778,7 +3778,7 @@
             "severity": "error",
             "primary": { "text": "payments.charge" },
             "labels": [
-              { "role": "transaction-owner", "selector": { "text": "transaction tx = store" } }
+              { "role": "transaction-owner", "selector": { "text": "pipeline<transaction: { isolation: .serializable, access: .readWrite }> tx = store" } }
             ],
             "facts": { "effect": "payments.charge", "expectedOwner": "tx", "provider": "store" },
             "notes": [],

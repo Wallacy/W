@@ -110,7 +110,7 @@
     },
     {
       "id": "E0-parent-cancel-propagates",
-      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "Task.checkCancellation" }],
+      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "Task#checkCancellation" }],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },

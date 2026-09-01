@@ -148,7 +148,7 @@ export service lastLight: RestaurantApi {
     let ref Order(course, ...) = order
     let stock = async pantry.reserve(course)
     let plan = spawn<.compute> optimize(order)
-    plan.cancel(reason: .menuChanged)
+    plan#cancel(reason: .menuChanged)
     let (stock, plan) = try await (stock, plan)
 
     defer async { await stock.release() }
@@ -315,10 +315,10 @@ async fn reserveTable(
   ledger: ref ServiceRef<TableLedgerApi>,
   request: take ReservationRequest,
 ): ReservationReceipt throws BookingError {
-  return try await transaction<
+  return try await pipeline<transaction: {
     isolation: .serializable,
     access: .readWrite,
-  > tx = ledger {
+  }> tx = ledger {
     let reservation = try await tx.reserve(take request)
     let receipt = try await tx.confirm(take reservation)
     commit receipt

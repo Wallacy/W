@@ -42,7 +42,7 @@
     { "path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038", "claim": "package recipe and resolution identity" },
     { "path": "reference/last-light/release_oracle.w", "symbol": "mirror", "digest": "sha256:fc7ac740c97011d7f6e88ba839b46da83d6617b505305c4e3e7f866ba092f08b", "claim": "artifact and receipt provenance" },
     { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "WAbi and foreign callback boundary" },
-    { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "callback lease and unregister drain" }
+    { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "callback lease and unregister drain" }
   ],
   "familySourceRefs": {
     "A": [ { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "REPL committed snapshot and invalidation facts" } ],

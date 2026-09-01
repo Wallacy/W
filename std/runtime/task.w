@@ -21,12 +21,12 @@ export enum TaskOutcome<Value, Failure: Error> {
   canceled(Cancellation)
 }
 
-export enum TaskGroupOrdering {
+export enum TaskOrdering {
   input
   completion
 }
 
-// Task.firstSettled and TaskGroup collect operations use this record. The
+// Task#firstSettled and pipeline task collect operations use this record. The
 // index refers to the consumed input array. The outcome keeps application
 // failure separate from structured cancellation.
 export struct TaskSettlement<Value, Failure: Error> {
@@ -127,9 +127,9 @@ test "task settlement preserves candidate position and outcome" {
   }
 }
 
-test "task group ordering keeps input and completion policies distinct" {
-  let stable: TaskGroupOrdering = .input
-  let scheduled: TaskGroupOrdering = .completion
+test "task ordering keeps input and completion policies distinct" {
+  let stable: TaskOrdering = .input
+  let scheduled: TaskOrdering = .completion
 
   expect stable == .input
   expect scheduled == .completion

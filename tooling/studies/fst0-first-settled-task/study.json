@@ -3,6 +3,8 @@
   "id": "FST0",
   "decision": "W-1481",
   "status": "complete-design-study",
+  "surfaceStatus": "retained-with-W-1509-facet-spelling",
+  "currentSurface": "Task#firstSettled(...); TaskSettlement and TaskOutcome remain normal-dot data",
   "title": "First-settled selection of existing structured tasks",
   "question": "Can W expose one-shot completion-order selection without hidden tasks, future drop, implicit placement, or early return before loser drain?",
   "data": "cases.json",

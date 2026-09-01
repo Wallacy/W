@@ -14,10 +14,10 @@
     { "id": "public-self-weak-constructor", "role": "rejected-witness", "language": "w-reserved", "path": "public-self-weak-constructor.txt", "digest": "sha256:b4cde22d5e6ca7cadf436ae3018f383022a82d4c9b7366610bda947ce2ef1fdb" }
   ],
   "sourceRefs": [
-    { "path": "../../../reference/last-light/memory.w", "symbol": "MenuSection", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "weak parent and shared children" },
-    { "path": "../../../reference/last-light/memory.w", "symbol": "installMenuObserver", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "weak callback capture" },
-    { "path": "../../../reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "cycle disposition oracle" },
-    { "path": "../../../reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b", "claim": "persistent FFI callback lease" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "MenuSection", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "weak parent and shared children" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "installMenuObserver", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "weak callback capture" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "expectedSharedCycleDisposition", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "cycle disposition oracle" },
+    { "path": "../../../reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "persistent FFI callback lease" },
     { "path": "../../../reference/last-light/app.w", "symbol": "shutdown", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29", "claim": "service drain at shutdown" },
     { "path": "../../../reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "call-cycle and service drain states" },
     { "path": "../../../reference/last-light/liveness_oracle.w", "symbol": "CommitGate", "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119", "claim": "cleanup and runtime quiescence gate" },

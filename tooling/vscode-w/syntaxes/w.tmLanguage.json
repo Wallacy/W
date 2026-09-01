@@ -7,6 +7,8 @@
     { "include": "#strings" },
     { "include": "#units" },
     { "include": "#numbers" },
+    { "include": "#pipeline-contract" },
+    { "include": "#behavior-bodies" },
     { "include": "#keywords" },
     { "include": "#declarations" },
     { "include": "#types" },
@@ -137,7 +139,7 @@
         },
         {
           "name": "keyword.control.w",
-          "match": "\\b(?:break|case|catch|commit|continue|defer|deinit|do|else|for|guard|if|in|lock|pipeline|repeat|return|switch|throw|transaction|while)\\b"
+          "match": "\\b(?:break|case|catch|commit|continue|defer|deinit|do|else|for|guard|if|in|lock|pipeline|repeat|return|switch|throw|while)\\b"
         },
         {
           "name": "keyword.declaration.w",
@@ -162,6 +164,56 @@
         {
           "name": "keyword.operator.w",
           "match": "\\b(?:any|as|each|get|init|is|modify|set|some|storage)\\b"
+        }
+      ]
+    },
+    "pipeline-contract": {
+      "patterns": [
+        {
+          "name": "meta.pipeline.contract.w",
+          "begin": "(\\bpipeline)(\\s*<)",
+          "beginCaptures": {
+            "1": { "name": "keyword.control.w" },
+            "2": { "name": "punctuation.definition.pipeline.contract.begin.w" }
+          },
+          "end": ">",
+          "endCaptures": {
+            "0": { "name": "punctuation.definition.pipeline.contract.end.w" }
+          },
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            {
+              "name": "keyword.control.contextual.w",
+              "match": "\\btransaction(?=\\s*:)"
+            }
+          ]
+        }
+      ]
+    },
+    "behavior-bodies": {
+      "patterns": [
+        {
+          "name": "meta.behavior.body.w",
+          "begin": "\\b(behavior)\\s+[A-Za-z_][A-Za-z0-9_]*(?:<[^>\\r\\n]+>)?\\s+for\\s+[^\\{\\r\\n]+\\{",
+          "beginCaptures": {
+            "1": { "name": "keyword.declaration.w" }
+          },
+          "end": "^\\}",
+          "patterns": [
+            { "include": "#comments" },
+            { "include": "#strings" },
+            {
+              "name": "entity.name.function.hook.w",
+              "match": "\\b(?:mut\\s+)?(willSet|didSet|willModify|didModify)(?=\\s*\\()",
+              "captures": {
+                "1": { "name": "entity.name.function.hook.w" }
+              }
+            },
+            { "include": "#keywords" },
+            { "include": "#operators" },
+            { "include": "#members" }
+          ]
         }
       ]
     },
@@ -249,7 +301,7 @@
       "patterns": [
         {
           "name": "keyword.operator.w",
-          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|\\*\\*=|<<=|>>=|&=|\\^=|\\|=|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%@=!<>~&^|?-]"
+          "match": ">\\.\\.<|>\\.\\.|\\?\\.|\\?\\?|\\.\\.<|\\.\\.\\.|=>|\\|>|(?<![\"#])#(?!#*\")|\\*\\*=|<<=|>>=|&=|\\^=|\\|=|==|!=|<=|>=|&&|\\|\\||<<|>>|\\+=|-=|\\*=|/=|%=|[+*/%@=!<>~&^|?-]"
         }
       ]
     }

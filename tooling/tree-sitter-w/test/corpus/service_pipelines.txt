@@ -10,7 +10,7 @@ async fn warm(
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(target, duration: duration)
     let ready = lease.preheat()
-    return (lease, ready)
+    commit (lease, ready)
   }
 
   return (lease, ready)
@@ -91,7 +91,7 @@ async fn warm(
                       (identifier)
                       (identifier))
                     (argument_list)))
-                (return_statement
+                (commit_statement
                   (tuple_expression
                     (tuple_element
                       (identifier))

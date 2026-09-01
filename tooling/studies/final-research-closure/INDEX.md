@@ -11,7 +11,7 @@ Os payloads permanecem em `tooling/frontend-freeze-cases.json`,
 `tooling/design-freeze-classification.json` e
 `tooling/hum0-human-review-protocol.json`. FRC0 referencia esses arquivos por
 digest. A máquina fecha W-001–W-1450, valida W-1451–W-1453 como
-`oracle-backed-current` e exige exatamente W-1486 como research gate
+`oracle-backed-current` e exige exatamente W-1486 e W-1503 como research gates
 post-snapshot depois de DRC0. O fechamento histórico Research=0 permanece
 válido até W-1459. Não há payload copiado,
 resultado humano/modelo ou evidence de implementação.

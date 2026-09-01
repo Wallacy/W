@@ -4,7 +4,7 @@
   "status": "complete-design-study",
   "decisions": ["W-1484", "W-1473", "W-1474", "W-1475"],
   "historicalResearchZeroThrough": "W-1459",
-  "activeResearchGates": ["W-1486"],
+  "activeResearchGates": ["W-1486", "W-1503"],
   "corpus": "../../design-research-closure-cases.json",
   "machine": "../../design-research-closure-machine.mjs",
   "checker": "../../check-design-research-closure.mjs",

@@ -1046,13 +1046,13 @@
       },
       "consumer": {
         "path": "reference/last-light/execution.w",
-        "symbols": ["TaskOutcome", "TaskGroupOrdering", "TaskSettlement", "TaskTimeout", "TaskLocal"]
+        "symbols": ["TaskOutcome", "TaskOrdering", "TaskSettlement", "TaskTimeout", "TaskLocal"]
       },
       "apis": [
         { "symbol": "CancellationReason", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskBudgetKind", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskOutcome", "kind": "enum", "profile": "value-contract" },
-        { "symbol": "TaskGroupOrdering", "kind": "enum", "profile": "value-contract" },
+        { "symbol": "TaskOrdering", "kind": "enum", "profile": "value-contract" },
         { "symbol": "TaskSettlement", "kind": "struct", "profile": "value-contract" },
         { "symbol": "TaskTimeout", "kind": "alias", "profile": "value-contract" },
         {
@@ -3528,7 +3528,7 @@
     {
       "id": "tgm0-task-group-ordering",
       "module": "std.runtime.task",
-      "surface": "TaskGroupOrdering",
+      "surface": "TaskOrdering",
       "kind": "symbol",
       "consumer": "reference/last-light/execution.w",
       "profile": "value-contract",

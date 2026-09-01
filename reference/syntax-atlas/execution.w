@@ -9,8 +9,9 @@ fn stage(allocator destination: ref Allocator, city: String): String {
   return city
 }
 
-fn prepare(city: String): String {
+fn prepare(city: String): (String, usize) {
   var result = city
+  var byteCount: usize = 0
   allocator scratch: .fixed<capacity: 256> {
     let ref name = city
     var copyOfName = city
@@ -20,12 +21,12 @@ fn prepare(city: String): String {
     let moved = take writableName
     result = moved
     let staged = stage(city)
-    let _ = staged
+    result = staged
   }
   allocator .fixed<capacity: 128> {
-    let _ = result.bytes.count
+    byteCount = result.bytes.count
   }
-  return result
+  return (result, byteCount)
 }
 // atlas:end allocator-and-bindings
 
@@ -83,16 +84,16 @@ fn directCall(values: Array<String>): String {
   return inspect(each values)
 }
 
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): (String, String, String, String, String) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
   let weakCapture = <[weak sharedValue]>() => sharedValue
-  let _ = copyCapture()
-  let _ = refCapture()
-  let _ = takeCapture()
-  let _ = weakCapture()
-  return target
+  let copied = copyCapture()
+  let referenced = refCapture()
+  let taken = takeCapture()
+  let weakened = weakCapture()
+  return (target, copied, referenced, taken, weakened)
 }
 // atlas:end execution-forms
 
@@ -114,16 +115,30 @@ async fn restricted(target: String): String throws String {
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
   let (lease, ready) = try await pipeline {
-    let lease = acquireLease(target)
-    let ready = prepareLease(lease)
-    return (lease, ready)
+    let lease = ovens.acquire(target)
+    let ready = lease.preheat()
+    commit (lease, ready)
+  }
+  let chained = try await pipeline ovens.acquire(target).preheat()
+  let outputs = try await pipeline<
+    tasks: .concurrent,
+    limit: 16,
+    ordering: .input,
+    errors: .failFast,
+  > each item in take items {
+    commit inspect(item)
   }
   let guarded = lock target as city {
     city
   }
-  let transactionValue = transaction<.serial> tx = target {
-    commit tx
+  let transactionValue = try await pipeline<transaction: {
+    isolation: .serializable,
+    access: .readWrite,
+  }> tx = store {
+    commit tx.read()
   }
+  let logical = target#label
+  let observed = (target#version).mutationEpoch
   let unsafeValue = unsafe {
     target
   }
@@ -132,8 +147,12 @@ async fn restricted(target: String): String throws String {
   let _ = range
   let _ = lease
   let _ = ready
+  let _ = chained
+  let _ = outputs
   let _ = guarded
   let _ = transactionValue
+  let _ = logical
+  let _ = observed
   let _ = unsafeValue
   let _ = pinned
   return target

@@ -227,7 +227,7 @@ export fn makeRequestMenuRoot(title: String): shared MenuSection {
 // must keep the owner stable in the task frame or reject the function.
 export async fn announceAfterYield(section: ref MenuSection): String {
   let title = section.title.scalars
-  await Task.yield()
+  await Task#yield()
   return title.materialize()
 }
 

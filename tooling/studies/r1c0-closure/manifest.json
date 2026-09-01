@@ -136,7 +136,7 @@
     {
       "id": "R1-assignment-unit",
       "path": "tooling/studies/r1-assignment-unit/bundle.json",
-      "digest": "sha256:d4fb3a64e24624295ce11d34888462ba304cb6e772a48e59986e11847f26ddae"
+      "digest": "sha256:cd11e7d2e05b3289cbafa41ab5c3cc0b275371bb36653e603dccc7268529fc70"
     },
     {
       "id": "R1-associated-members",
@@ -146,12 +146,12 @@
     {
       "id": "R1-atom2-atomic-contract",
       "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-      "digest": "sha256:7bb634251a6743840c41d84eed08044277c4d8a372de39287129fbb6422929e6"
+      "digest": "sha256:85df67bd4f9739225b7207fe13951b51625fe7c67293fbefe8cf670992184eae"
     },
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:eb37a2b1313c9759be292d74ae90b60a5eef441833af8673a8e31d74f8cb4293"
+      "digest": "sha256:59e1d49818db3915e5d0552120b1c882c012008f5aee53160815e33dfbc1cf8b"
     },
     {
       "id": "R1-borrow-expressivity",
@@ -171,7 +171,7 @@
     {
       "id": "R1-call-label-order",
       "path": "tooling/studies/r1-call-label-order/bundle.json",
-      "digest": "sha256:e806e3fe39354d40f5505bdc4d2237a2561fc14b64c5e061e4f74e95cb81b928"
+      "digest": "sha256:282ea5e4ddd847d94f3c6c63f0258b18678c42f4296cbc67e22487967252e96f"
     },
     {
       "id": "R1-callable-model-last-light",
@@ -206,7 +206,7 @@
     {
       "id": "R1-cyc1-explicit-cycle-lifecycle",
       "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-      "digest": "sha256:b28fcaa00a67aa399edaabdf61a4214f0d2e211dd75ca2c25e40b3056f27d190"
+      "digest": "sha256:e14209417becd8fbb2a4445da275189ec89a9705f4d56917679b7bdf526a9e93"
     },
     {
       "id": "R1-cyc2-conditional-liveness",
@@ -216,7 +216,7 @@
     {
       "id": "R1-data-declaration-surface",
       "path": "tooling/studies/r1-data-declaration-surface/bundle.json",
-      "digest": "sha256:4319c7eed0d25312e225a7c0ac91f89124f6aae96967720ce5d4ffdb88d59078"
+      "digest": "sha256:b8abae25a1d804bb76bfc465bf216afef03f15904555a7c183acc1f1771c5b1b"
     },
     {
       "id": "R1-delimited-value-surface",
@@ -231,12 +231,12 @@
     {
       "id": "R1-end-relative-access",
       "path": "tooling/studies/r1-end-relative-access/bundle.json",
-      "digest": "sha256:374ad000da96814df02f3ccb1288b7c8ee9f3da1bb18eeb18bb8fd48c8864e8f"
+      "digest": "sha256:c9e2eef5d0d1211bed47178606be851cc3990259aa7fc67003f05f9014acedcd"
     },
     {
       "id": "R1-fail-fast-last-light",
       "path": "tooling/studies/r1-fail-fast/bundle.json",
-      "digest": "sha256:9abdfdf863195a3b30c36229dee9b5adf70836cffe72d9ce56d924e0c20acbaf"
+      "digest": "sha256:4092ad0898541a279c413675a757c327f0a8ffeb9ec350c2b552dbd633849679"
     },
     {
       "id": "R1-fluent-self",
@@ -246,7 +246,7 @@
     {
       "id": "R1-gen1-incremental-suspension",
       "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-      "digest": "sha256:0eeb8ce7de1fc7b2363b5f4944a464725d6a8857e2673a6addacf9afed6baf90"
+      "digest": "sha256:54efd9693151e8a1eeec3e85ead60e8bc1d3e31ecf3061a861039f48af763d1e"
     },
     {
       "id": "R1-gen2-stream-yield",
@@ -256,7 +256,7 @@
     {
       "id": "R1-hrd0-hot-reload-dev",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "digest": "sha256:ad759ae65be7d4e2c80298b65f9f2f7532a3e9e7dde536445024112d02021f39"
+      "digest": "sha256:f1c2539f15b2849a0aaca6561e5b7a69ca73505961c060f5c5a56981160e9167"
     },
     {
       "id": "R1-imports-last-light",
@@ -281,7 +281,7 @@
     {
       "id": "R1-pkg1-project-transaction",
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "digest": "sha256:e928bf281376465ce2d2ebbbb4f51cb212948530286341f7304d4f32f000af54"
+      "digest": "sha256:082f50cdc2baddb9b65b0a125c8bb3f1b36600936d63b7ac4cdfafb10079b306"
     },
     {
       "id": "R1-post-test-loop",
@@ -311,7 +311,7 @@
     {
       "id": "R1-shared-construction",
       "path": "tooling/studies/r1-shared-construction/bundle.json",
-      "digest": "sha256:8ea930d746955efc1c45e19be3cc9bf5e584882c33d1533279cad45a30835ae9"
+      "digest": "sha256:b4d27bf5e396e04f59af411a11e162af36b28902f7be475eb76e18402fe58a08"
     },
     {
       "id": "R1-source-boundaries",
@@ -326,7 +326,7 @@
     {
       "id": "R1-spawn-domain-last-light",
       "path": "tooling/studies/r1-spawn-domain/bundle.json",
-      "digest": "sha256:7e5dc2a02a73043c08f3fd726ac3b102e88971a6c4777299191ae8ee690a8adc"
+      "digest": "sha256:9fdb1bc136b26b2a2485da7fa4393f79a8c6d343313719d318a1f381335367db"
     },
     {
       "id": "R1-static-contract-slots",
@@ -346,7 +346,7 @@
     {
       "id": "R1-syn2-dyn2-closure",
       "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
-      "digest": "sha256:0605aa3a6c3e4f6a36e2d8db8b3886fac1b86fc1ac376c24256b8a2cd2b04b6d"
+      "digest": "sha256:051c2da99dec13d0c4e223b658cb3170efae357243caf0e36075b87b3c9a4354"
     },
     {
       "id": "R1-tabular-adapters",
@@ -376,7 +376,7 @@
     {
       "id": "R1-weak-owner-acquisition",
       "path": "tooling/studies/r1-weak-owner-acquisition/bundle.json",
-      "digest": "sha256:647315dbd5a3fd80805e077519c775a6c5c0c1e38dec9cb3ee8df851318417c0"
+      "digest": "sha256:e40a96f4feac66d696edfed4b9f63ab281494e0fc66da6a99eebfd1a12f56d41"
     }
   ],
   "reusedArtifacts": [
@@ -456,7 +456,7 @@
       "id": "execution-ergonomics",
       "role": "execution",
       "path": "tooling/execution-ergonomics-cases.json",
-      "digest": "sha256:777e0c2a30432c37039de2685a55bc6f82d2be745a987e218fb69e89b92fd30d"
+      "digest": "sha256:34bae62ff94a41d2cc48008a4bbef9e91ede9e6cf9eb5b2197bf7e3023ddc5b9"
     },
     {
       "id": "execution-ergonomics-machine",
@@ -474,7 +474,7 @@
       "id": "execution-ergonomics-snapshot",
       "role": "execution",
       "path": "tooling/execution-ergonomics-results.snapshot.jsonl",
-      "digest": "sha256:c9a52479169c7a3e1feba3c5ee23f116f74b19bc8ffec9cce2945e33c13fbfb6"
+      "digest": "sha256:3772b6e4a2aed013ecbcc53f751594bb78ad7b21348ef597b22722ec78162b35"
     }
   ],
   "evidence": {

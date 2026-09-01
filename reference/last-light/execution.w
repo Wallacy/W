@@ -9,8 +9,8 @@ module execution<
 import { OrderId } from domain
 import { Ingredient, KitchenError, Mixture, Recipe } from kitchen
 import {
-  TaskGroupOrdering,
   TaskLocal,
+  TaskOrdering,
   TaskOutcome,
   TaskSettlement,
   TaskTimeout,
@@ -86,7 +86,7 @@ fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
 
 // The body infers maySuspend. The declaration does not repeat async.
 export fn inferredSuspension(job: take MixingJob): MixingResult throws BrigadeError {
-  await Task.yield()
+  await Task#yield()
   return try mixJob(take job)
 }
 
@@ -109,9 +109,9 @@ export fn executionForms(
 }
 
 async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError {
-  Task.checkCancellation()
-  await Task.yield()
-  Task.checkCancellation()
+  Task#checkCancellation()
+  await Task#yield()
+  Task#checkCancellation()
   return try mixJob(take job)
 }
 
@@ -145,14 +145,17 @@ export async fn mixBatch(
     throw .invalidParallelism(found: maximumParallelism, maximum: maximumParallelCooks)
   }
 
-  let worker: fn(take MixingJob): MixingResult throws BrigadeError = mixJob
+  let _ordering: TaskOrdering = .input
+  let _ = _ordering
 
-  return try await TaskGroup.parallelMap<.compute>(
-    take jobs,
+  return try await pipeline<
+    tasks: .parallel<.compute>,
     limit: maximumParallelism,
     ordering: .input,
-    using: worker,
-  )
+    errors: .failFast,
+  > each job in take jobs {
+    commit try mixJob(take job)
+  }
 }
 
 // Both batches create nested compute groups. They share one domain budget, so
@@ -170,18 +173,19 @@ export async fn mixAcrossTwoKitchens(
 export async fn inspectEveryFailure(
   jobs: take Array<MixingJob>,
   parallelism: usize,
-  ordering: TaskGroupOrdering,
 ): Array<TaskSettlement<MixingResult, BrigadeError>> throws BrigadeError {
   guard parallelism > 0 && parallelism <= maximumParallelCooks else {
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
 
-  return await TaskGroup.parallelCollect<.compute>(
-    take jobs,
+  return try await pipeline<
+    tasks: .parallel<.compute>,
     limit: parallelism,
-    ordering: ordering,
-    using: mixJob,
-  )
+    ordering: .completion,
+    errors: .collect,
+  > each job in take jobs {
+    commit try mixJob(take job)
+  }
 }
 
 export async fn closeBeforeTheLastCourse(
@@ -189,15 +193,15 @@ export async fn closeBeforeTheLastCourse(
   parallelism: usize,
 ): TaskOutcome<Array<MixingResult>, BrigadeError> {
   let batch = async mixBatch(take jobs, parallelism: parallelism)
-  batch.cancel(reason: .shutdown)
-  return await batch.outcome()
+  batch#cancel(reason: .shutdown)
+  return await (take batch)#outcome()
 }
 
 export async fn mixBeforeTheLastBell(
   job: take MixingJob,
   timeout: ClosingTimeout,
 ): TaskOutcome<MixingResult, BrigadeError> {
-  return await Task.withTimeout(
+  return await Task#withTimeout(
     for: timeout,
     input: take job,
     using: mixCooperatively,

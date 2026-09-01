@@ -21,7 +21,7 @@
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "BellLease",
-      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
+      "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f"
     },
     {
       "path": "../../../reference/last-light/abi.w",

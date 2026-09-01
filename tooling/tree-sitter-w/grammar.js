@@ -39,7 +39,6 @@ const CONTROL_KEYWORDS = [
   "return",
   "switch",
   "throw",
-  "transaction",
   "while",
   "yield",
 ];
@@ -119,8 +118,8 @@ const BINARY_OPERATORS = [
   ["&", 6],
   ["^", 5],
   ["|", 4],
-  ["&&", 3],
-  ["||", 2],
+    ["&&", 3],
+    ["||", 2],
 ];
 
 const ASSIGNMENT_OPERATORS = [
@@ -719,8 +718,19 @@ module.exports = grammar({
         optional($.generic_parameters),
         "for",
         field("logical_type", $.type),
-        $.behavior_body,
+        choice(
+          field("body", $.behavior_body),
+          seq("=", field("composition", $.behavior_composition)),
+        ),
+        optional(";"),
       ),
+
+    // A composition is nominal and closed. Each component has a stable alias
+    // so inherited facets remain qualified at every use site.
+    behavior_composition: ($) =>
+      seq("(", commaSep1($.behavior_component), optional(","), ")"),
+    behavior_component: ($) =>
+      seq(field("alias", $.identifier), ":", field("behavior", $.type)),
 
     behavior_body: ($) =>
       seq(
@@ -729,6 +739,8 @@ module.exports = grammar({
           choice(
             $.behavior_field_declaration,
             $.behavior_accessor,
+            $.behavior_facet_property,
+            $.behavior_hook,
             $.function_declaration,
           ),
         ),
@@ -781,6 +793,41 @@ module.exports = grammar({
       seq(
         field("name", $.identifier),
         optional(seq(":", field("type", $.type))),
+      ),
+    behavior_facet_property: ($) =>
+      seq(
+        "export",
+        optional("var"),
+        field("name", $.identifier),
+        ":",
+        field("type", $.type),
+        field("accessors", $.property_accessor_body),
+      ),
+    behavior_hook: ($) =>
+      seq(
+        optional(field("receiver_modifier", "mut")),
+        field("kind", choice("willSet", "didSet", "willModify", "didModify")),
+        field("parameters", $.behavior_hook_parameters),
+        field("body", $.block),
+      ),
+    behavior_hook_parameters: ($) =>
+      choice(
+        seq(
+          "(",
+          field("current", $.behavior_ref_parameter),
+          ",",
+          field("proposed", $.behavior_ref_parameter),
+          ")",
+        ),
+        seq("(", field("current", $.behavior_ref_parameter), ")"),
+        seq("(", ")"),
+      ),
+    behavior_ref_parameter: ($) =>
+      seq(
+        field("name", $.identifier),
+        ":",
+        "ref",
+        field("type", $.type),
       ),
 
     entry_declaration: ($) =>
@@ -1368,6 +1415,7 @@ module.exports = grammar({
     _expression: ($) =>
       choice(
         $.assignment_expression,
+        $.pipe_forward_expression,
         $.task_expression,
         $.bounded_range_expression,
         $.type_query_expression,
@@ -1380,6 +1428,7 @@ module.exports = grammar({
         $.call_expression,
         $.generic_application_expression,
         $.member_expression,
+        $.facet_expression,
         $.optional_member_expression,
         $.index_expression,
         $.closure_expression,
@@ -1387,7 +1436,6 @@ module.exports = grammar({
         $.pipeline_expression,
         $.stream_expression,
         $.lock_expression,
-        $.transaction_expression,
         $.unsafe_expression,
         $.if_expression,
         $.switch_expression,
@@ -1413,8 +1461,41 @@ module.exports = grammar({
 
     assignment_expression: ($) =>
       prec.right(
-        0,
+        -1,
         seq(field("left", $._expression), field("operator", choice(...ASSIGNMENT_OPERATORS)), field("right", $._expression)),
+      ),
+
+    // `|>` has a fixed slot: the right side is always a free-function call
+    // template. The semantic checker owns labels, ownership, and modifiers.
+    pipe_forward_expression: ($) =>
+      prec.left(
+        0,
+        seq(
+          field("left", $._expression),
+          "|>",
+          field("right", $.pipe_call_template),
+        ),
+      ),
+    pipe_call_template: ($) =>
+      seq(
+        repeat($.pipe_call_modifier),
+        field("function", $.pipe_callable_path),
+        optional(field("generic_arguments", $.generic_call_arguments)),
+        field("arguments", $.argument_list),
+      ),
+    // The path is syntactically qualified here, but semantic resolution must
+    // prove a free/static namespace. It must never become a value receiver or
+    // an extension/UFCS fallback.
+    pipe_callable_path: ($) =>
+      prec.right(seq($.identifier, repeat(seq(".", $.identifier)))),
+    pipe_call_modifier: ($) =>
+      choice(
+        "try",
+        seq("try", token.immediate("?")),
+        "await",
+        "sync",
+        "async",
+        seq("spawn", optional(field("task_contract", $.task_contract))),
       ),
 
     bounded_range_expression: ($) =>
@@ -1612,7 +1693,99 @@ module.exports = grammar({
         field("mode", choice("copy", "ref", "take", "weak")),
         field("name", $.identifier),
       ),
-    pipeline_expression: ($) => prec.right(seq("pipeline", $.block)),
+    pipeline_expression: ($) =>
+      prec.right(
+        20,
+        seq(
+          "pipeline",
+          optional(field("contract", $.pipeline_contract)),
+          choice(
+            field("body", $.block),
+            seq(
+              "each",
+              field("item", $.identifier),
+              "in",
+              field("source", $._expression),
+              field("body", $.block),
+            ),
+            seq(
+              field("binding", $.identifier),
+              "=",
+              field("source", $._expression),
+              field("body", $.block),
+            ),
+            field("chain", $.pipeline_chain),
+          ),
+        ),
+      ),
+    pipeline_chain: ($) =>
+      prec.left(
+        15,
+        seq(
+          field("source", choice($.identifier, $.parenthesized_expression)),
+          field("first", $.pipeline_call_step),
+          repeat1(field("step", $.pipeline_call_step)),
+        ),
+      ),
+    pipeline_call_step: ($) =>
+      seq(".", field("function", $.identifier), field("arguments", $.argument_list)),
+    pipeline_contract: ($) =>
+      seq(
+        token.immediate("<"),
+        commaSep1($.pipeline_contract_item),
+        optional(","),
+        ">",
+      ),
+    pipeline_contract_item: ($) =>
+      choice(
+        seq(
+          "transaction",
+          ":",
+          field(
+            "transaction",
+            choice($.pipeline_transaction_contract, $.contextual_member_expression),
+          ),
+        ),
+        seq("tasks", ":", field("tasks", $.pipeline_task_mode)),
+        seq("limit", ":", field("limit", $._expression)),
+        seq("ordering", ":", field("ordering", $.contextual_member_expression)),
+        seq("errors", ":", field("errors", $.contextual_member_expression)),
+      ),
+    pipeline_transaction_contract: ($) =>
+      seq(
+        "{",
+        "isolation",
+        ":",
+        field("isolation", $._expression),
+        ",",
+        "access",
+        ":",
+        field("access", $._expression),
+        optional(","),
+        "}",
+      ),
+    pipeline_task_mode: ($) =>
+      seq(
+        ".",
+        field("mode", $.identifier),
+        optional(seq("<", field("domain", $.contextual_member_expression), ">")),
+      ),
+    facet_expression: ($) =>
+      prec.left(
+        15,
+        seq(
+          field("object", $._expression),
+          "#",
+          field("path", $.facet_path),
+        ),
+      ),
+    facet_path: ($) =>
+      prec.right(
+        seq(
+          field("alias", $.identifier),
+          repeat(seq(".", field("facet", $.identifier))),
+        ),
+      ),
     stream_expression: ($) =>
       prec.right(
         -1,
@@ -1629,17 +1802,6 @@ module.exports = grammar({
           field("target", $._expression),
           "as",
           field("binding", $.identifier),
-          field("body", $.block),
-        ),
-      ),
-    transaction_expression: ($) =>
-      prec.right(
-        seq(
-          "transaction",
-          optional(field("contract", $.task_contract)),
-          field("binding", $.identifier),
-          "=",
-          field("source", $._expression),
           field("body", $.block),
         ),
       ),

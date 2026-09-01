@@ -205,10 +205,37 @@ behavior Initialized for Place {
   }
 }
 
+behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() { epoch = 0 }
+  export mutationEpoch: u64 { get => epoch }
+  mut didSet(current: ref Value) { epoch += 1 }
+  mut didModify(current: ref Value) { epoch += 1 }
+}
+
+// Facet observers enter through a named composition; a direct observer
+// application is not a property declaration form.
+behavior VersionedPlace for Place<String> =
+  (value: Initialized, version: Versioned)
+
+struct VersionedPlaceBox {
+  var VersionedPlace place: Place<String> = Place(id: "north", label: "square")
+}
+
 const DefaultLabel: String = "square"
 test "place label" for Place {
   let place = Place(id: "north", label: DefaultLabel)
   place.describe()
+}
+
+test "qualified facet path" for VersionedPlaceBox {
+  var box = VersionedPlaceBox()
+  box.place.title = "avenue"
+  let epoch = box.place#version.mutationEpoch
+  let title = (box.place#value).title
+  epoch
+  title
 }
 ```
 
@@ -369,8 +396,9 @@ fn stage(allocator destination: ref Allocator, city: String): String {
   return city
 }
 
-fn prepare(city: String): String {
+fn prepare(city: String): (String, usize) {
   var result = city
+  var byteCount: usize = 0
   allocator scratch: .fixed<capacity: 256> {
     let ref name = city
     var copyOfName = city
@@ -380,12 +408,12 @@ fn prepare(city: String): String {
     let moved = take writableName
     result = moved
     let staged = stage(city)
-    let _ = staged
+    result = staged
   }
   allocator .fixed<capacity: 128> {
-    let _ = result.bytes.count
+    byteCount = result.bytes.count
   }
-  return result
+  return (result, byteCount)
 }
 ```
 
@@ -457,16 +485,16 @@ fn directCall(values: Array<String>): String {
   return inspect(each values)
 }
 
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): (String, String, String, String, String) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
   let weakCapture = <[weak sharedValue]>() => sharedValue
-  let _ = copyCapture()
-  let _ = refCapture()
-  let _ = takeCapture()
-  let _ = weakCapture()
-  return target
+  let copied = copyCapture()
+  let referenced = refCapture()
+  let taken = takeCapture()
+  let weakened = weakCapture()
+  return (target, copied, referenced, taken, weakened)
 }
 ```
 
@@ -495,16 +523,30 @@ async fn restricted(target: String): String throws String {
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
   let (lease, ready) = try await pipeline {
-    let lease = acquireLease(target)
-    let ready = prepareLease(lease)
-    return (lease, ready)
+    let lease = ovens.acquire(target)
+    let ready = lease.preheat()
+    commit (lease, ready)
+  }
+  let chained = try await pipeline ovens.acquire(target).preheat()
+  let outputs = try await pipeline<
+    tasks: .concurrent,
+    limit: 16,
+    ordering: .input,
+    errors: .failFast,
+  > each item in take items {
+    commit inspect(item)
   }
   let guarded = lock target as city {
     city
   }
-  let transactionValue = transaction<.serial> tx = target {
-    commit tx
+  let transactionValue = try await pipeline<transaction: {
+    isolation: .serializable,
+    access: .readWrite,
+  }> tx = store {
+    commit tx.read()
   }
+  let logical = target#label
+  let observed = (target#version).mutationEpoch
   let unsafeValue = unsafe {
     target
   }
@@ -513,8 +555,12 @@ async fn restricted(target: String): String throws String {
   let _ = range
   let _ = lease
   let _ = ready
+  let _ = chained
+  let _ = outputs
   let _ = guarded
   let _ = transactionValue
+  let _ = logical
+  let _ = observed
   let _ = unsafeValue
   let _ = pinned
   return target
@@ -559,6 +605,11 @@ fn operatorSurface(payload: ref any Reflectable) {
   let coalesced = optionalValue ?? fallback
   let logical = ready || pending && enabled
   let bitwise = value | other ^ fallback & bits
+  let inspected = value |> inspect()
+  let pipedDecoded = value |> try json.decode<Document>()
+  let copied = copy value |> inspect()
+  let pipeAfterCoalescing = (optionalValue ?? fallback) |> inspect()
+  let coalescingAfterPipe = (value |> inspect()) ?? fallback
   let inverted = ~value
   let equal = value == other
   let related = value < other
@@ -636,6 +687,9 @@ fn operatorSurface(payload: ref any Reflectable) {
   let _ = coalesced
   let _ = logical
   let _ = bitwise
+  let _ = inspected
+  let _ = pipedDecoded
+  let _ = copied
   let _ = inverted
   let _ = equal
   let _ = related

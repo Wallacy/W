@@ -1,5 +1,9 @@
 # QOS0 — physical scheduling boundary
 
+> Historical W-1483 evidence. Current task placement uses the W-1511 pipeline
+> tasks mode; the legacy TaskGroup case labels below are retained as adversarial
+> evidence and do not define a source API.
+
 QOS0 closes the W 1.0 boundary between domain placement and physical
 scheduling policy. W source has no portable task priority or QoS surface.
 

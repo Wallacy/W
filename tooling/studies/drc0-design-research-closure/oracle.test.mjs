@@ -6,7 +6,7 @@ describe("DRC0 design research closure", () => {
     const result = deriveClosure(loadCorpus());
     expect(result.errors).toEqual([]);
     expect(result.researchGates).toEqual([]);
-    expect(result.activeResearchGates).toEqual(["W-1486"]);
+    expect(result.activeResearchGates).toEqual(["W-1486", "W-1503"]);
     expect(result.historicalResearchZeroThrough).toBe("W-1459");
     expect(Object.values(result.studyFacts).every((study) => study.valid)).toBe(true);
     expect(result.studyFacts.SYNC1.facts).toMatchObject({

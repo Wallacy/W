@@ -23,10 +23,48 @@ export behavior WrappedDegrees for u16 {
     defer { current %= 360_u16 }
     return inout current
   }
+
+  export mut fn reset() {
+    current = 0
+  }
 }
 
+export behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() {
+    epoch = 0
+  }
+
+  export mutationEpoch: u64 {
+    get => epoch
+  }
+
+  export mut fn resetMutationEpoch() {
+    epoch = 0
+  }
+
+  willSet(current: ref Value, proposed: ref Value) { }
+
+  mut didSet(current: ref Value) {
+    epoch += 1
+  }
+
+  willModify(current: ref Value) { }
+
+  mut didModify(current: ref Value) {
+    epoch += 1
+  }
+}
+
+// An observer is reachable through a named composition only. A direct
+// `var Versioned value = rhs` application is rejected; a zero-storage
+// composition would synthesize plain storage and still pass the RHS to it.
+export behavior VersionedDegrees for u16 =
+  (degrees: WrappedDegrees, version: Versioned)
+
 export struct Attitude {
-  var WrappedDegrees yaw: u16 = 0
+  var VersionedDegrees yaw: u16 = 0
 
   mut fn rotate(by delta: u16) {
     yaw += delta
@@ -39,6 +77,16 @@ test "attitude rotation wraps degrees" for Attitude {
   attitude.rotate(by: 25)
 
   expect attitude.yaw == 15
+
+  let beforeReset = attitude.yaw#version.mutationEpoch
+  expect beforeReset == 2
+
+  attitude.yaw#version.resetMutationEpoch()
+  expect attitude.yaw#version.mutationEpoch == 0
+
+  attitude.yaw#degrees.reset()
+  expect attitude.yaw == 0
+  expect attitude.yaw#version.mutationEpoch == 1
 }
 
 export type SatelliteId = u32

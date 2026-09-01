@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:e60c47c4d5642682fcaf81f4b4f1cf10cd756815aac25c986c37ab789059ea28",
+  "corpusDigest": "sha256:c9da4e14c16ce1aeec91119fb2df79c01892317225ce8b8a2473cf1001a2d957",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3936,6 +3936,78 @@
             "nonWhitespaceCodePoints": 48,
             "lines": 2,
             "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-fpp0-facets-pipe-pipeline",
+      "task": {
+        "utf8Bytes": 180,
+        "codePoints": 180,
+        "nonWhitespaceCodePoints": 157,
+        "lines": 1,
+        "surfaceLexemes": 30
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:dfc2f68095172ff20e9ed94f061478c873973fa4cdc5999ad8329a92c48a1581",
+        "metrics": {
+          "utf8Bytes": 401,
+          "codePoints": 401,
+          "nonWhitespaceCodePoints": 353,
+          "lines": 6,
+          "surfaceLexemes": 100
+        }
+      },
+      "alternatives": [
+        {
+          "name": "value-hash-fallback-or-reified-facet",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:80ed2edc02f0055cdb56fea8416bc49ca6a5aca2085cb1428853369408e906d0",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 3,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "ufcs-or-value-receiver-pipe",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:9f1f5a9ed36a6457a658e9d11a6ff558e6cf19e4a90ffaff073f812f697a107d",
+          "metrics": {
+            "utf8Bytes": 40,
+            "codePoints": 40,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 2,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "implicit-task-group-or-transaction",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:10ca3a40c5854e946983c71b201956fe8a9a5bf97d990e5260229abd97a06258",
+          "metrics": {
+            "utf8Bytes": 85,
+            "codePoints": 85,
+            "nonWhitespaceCodePoints": 75,
+            "lines": 3,
+            "surfaceLexemes": 16
+          }
+        },
+        {
+          "name": "observer-without-composition",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:f66de6e4c0a3896afa7b2f4490674f0629a637dce9a43f5554845a7315eff5c5",
+          "metrics": {
+            "utf8Bytes": 25,
+            "codePoints": 25,
+            "nonWhitespaceCodePoints": 21,
+            "lines": 1,
+            "surfaceLexemes": 5
           }
         }
       ]

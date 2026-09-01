@@ -6,7 +6,7 @@ W-1451 e W-1453 como `oracle-backed-current`. Ele exige a supersessão íntegra
 de W-1452 por W-1480. O snapshot mantém
 `Research=0` até esse limite. AEG0/SIMD1 preservam o fechamento histórico até
 W-1459. DRC0 fecha as gates posteriores W-1484, W-1473, W-1474 e W-1475 e
-preserva W-1471 como superseded; W-1486 é a única research gate ativa
+preserva W-1471 como superseded; W-1486 e W-1503 são as research gates ativas
 post-snapshot. FRC0 não compila,
 executa ou promove uma implementação W. Ele não cria registros humanos ou de
 modelos.
@@ -27,7 +27,7 @@ histórica, e W-1480 contém o contrato vigente.
 Os gaps de `w-compile`, `w-run`, compiler, runtime, provider, human-study e
 model-study permanecem missing. O estudo usa somente source refs, máquinas,
 snapshots e oracles host existentes. O stop condition rejeita qualquer Research
-residual fora de W-1486 e exige evidência PFU0 e fechamento DRC0 antes de
+residual fora de W-1486 e W-1503 e exige evidência PFU0 e fechamento DRC0 antes de
 recascade.
 
 Checks scoped:

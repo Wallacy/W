@@ -150,8 +150,9 @@ automática e execução resolvida dependem dos gates 24.3.1 e 24.3.2.
 
 ### 0.2 Princípios de produto
 
-**Exemplo:** `task.cancel(reason: .shutdown)` nomeia target, ação e motivo sem
-criar um statement especial.
+**Exemplo:** `task#cancel(reason: .shutdown)` nomeia target, ação e motivo sem
+criar um statement especial; a facet é um controle core, não um member de
+`Task` value.
 
 1. O source deve permitir prever a execução.
 2. O caminho comum deve ser leve.
@@ -1118,13 +1119,26 @@ unit_declaration = "export"? "unit" identifier
 extension_declaration = "extension" generic_parameters? type
                         conformance_clause? type_body ;
 behavior_declaration = "export"? "behavior" identifier generic_parameters?
-                       "for" type behavior_body ;
+                       "for" type (behavior_body | "=" behavior_composition) ;
+behavior_composition = "(" behavior_component ("," behavior_component)* ","? ")" ;
+behavior_component = identifier ":" type ;
 behavior_body = "{" behavior_member* "}" ;
 behavior_member = behavior_field_declaration
-                | behavior_accessor
-                | function_declaration ;
+                 | behavior_accessor
+                 | behavior_facet_property
+                 | behavior_hook
+                 | function_declaration ;
 behavior_field_declaration = "var" identifier ":" type
                              ("=" expression)? ";"? ;
+behavior_facet_property = "export" ("var")? identifier ":" type
+                          "{" behavior_property_accessor+ "}" ;
+behavior_property_accessor = "get" ("=>" expression | block)
+                           | "mut"? "set" parameter_list? block
+                           | "mut"? "modify" block ;
+behavior_hook = "mut"? "willSet" "(" "current" ":" "ref" type "," "proposed" ":" "ref" type ")" block
+              | "mut"? "didSet" "(" "current" ":" "ref" type ")" block
+              | "mut"? "willModify" "(" "current" ":" "ref" type ")" block
+              | "mut"? "didModify" "(" "current" ":" "ref" type ")" block ;
 behavior_accessor = behavior_initializer
                   | "mut"? behavior_accessor_kind
                     behavior_parameter_list? block ;
@@ -1905,13 +1919,19 @@ O bundle de evidência comparativa do núcleo está em
 ```ebnf
 expression = assignment_expression ;
 
-assignment_expression = coalescing_expression
-                      | place assignment_operator coalescing_expression ;
+assignment_expression = pipe_forward_expression
+                      | place assignment_operator pipe_forward_expression ;
 assignment_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%="
                     | "**=" | "<<=" | ">>=" | "&=" | "^=" | "|=" ;
 
+pipe_forward_expression = coalescing_expression
+                         | pipe_forward_expression "|>" pipe_call_template ;
+pipe_call_template = pipe_call_modifier* pipe_callable_path generic_call_arguments? argument_list ;
+pipe_callable_path = identifier ("." identifier)* ;
+pipe_call_modifier = "try" | "try?" | "await" | "sync" | "async"
+                   | "spawn" task_contract ;
 coalescing_expression = logical_or_expression
-                      | logical_or_expression "??" coalescing_expression ;
+                       | logical_or_expression "??" coalescing_expression ;
 logical_or_expression = logical_and_expression ("||" logical_and_expression)* ;
 logical_and_expression = bitwise_or_expression ("&&" bitwise_or_expression)* ;
 bitwise_or_expression = bitwise_xor_expression ("|" bitwise_xor_expression)* ;
@@ -1941,9 +1961,11 @@ postfix_expression = primary_expression postfix_suffix* ;
 postfix_suffix = generic_call_arguments
                | argument_list
                | "." (identifier | tuple_index)
+               | "#" facet_path
                | "?." (identifier | tuple_index)
                | index_suffix
                | immediate("?") ;
+facet_path = identifier ("." identifier)* ;
 ```
 
 `**` associa à direita. Seu lado direito aceita prefix. Seu lado esquerdo
@@ -1986,7 +2008,6 @@ primary_expression = identifier
                    | unsafe_expression
                    | pipeline_expression
                    | lock_expression
-                   | transaction_expression
                    | panic_expression ;
 
 contextual_member = "." identifier ;
@@ -2114,11 +2135,13 @@ caso, o semicolon separador é obrigatório e o formatter o preserva, como no
 exemplo acima.
 
 Closure blocks, `if` branches e `unsafe` blocks são value blocks. Switch case
-bodies usam a mesma regra para sua última expression. `pipeline` exige `return`.
-`transaction` exige `commit`.
+bodies usam a mesma regra para sua última expression. Toda região `pipeline`
+exige um terminal `commit`; a forma curta é a única exceção porque devolve o
+último call.
 
-`return` pertence à function, closure ou pipeline mais próxima. `if`, `switch`
-e `unsafe` não criam um return target. `commit` pertence somente à transaction.
+`return` pertence à function ou closure mais próxima. `if`, `switch`, `unsafe` e
+qualquer região `pipeline` não criam um return target. `commit` pertence à
+região `pipeline` ativa.
 
 ##### Closures e captures
 
@@ -2193,11 +2216,29 @@ policies que não cabem nos operators fechados.
 ##### Expressions restritas
 
 ```ebnf
-unsafe_expression = "unsafe" value_block ;
-pipeline_expression = "pipeline" pipeline_block ;
-lock_expression = "lock" expression "as" identifier value_block ;
-transaction_expression = "transaction" contract_arguments?
-                         identifier "=" expression transaction_block ;
+unsafe_expression = "unsafe" block ;
+pipeline_expression = "pipeline" pipeline_contract?
+                      (pipeline_block | pipeline_task_region
+                       | pipeline_transaction_region | pipeline_chain) ;
+pipeline_contract = "<" pipeline_contract_item
+                    ("," pipeline_contract_item)* [","] ">" ;
+pipeline_contract_item = "transaction" ":" pipeline_transaction_target
+                       | "tasks" ":" pipeline_task_mode
+                       | "limit" ":" expression
+                       | "ordering" ":" contextual_member
+                       | "errors" ":" contextual_member ;
+pipeline_task_mode = "." identifier ["<" contextual_member ">"] ;
+pipeline_transaction_target = pipeline_transaction_record | contextual_member ;
+pipeline_transaction_record = "{" "isolation" ":" expression
+                               "," "access" ":" expression [","] "}" ;
+pipeline_task_region = "each" identifier "in" expression pipeline_block ;
+pipeline_transaction_region = identifier "=" expression transaction_block ;
+pipeline_block = block ;
+transaction_block = block ;
+pipeline_chain = pipeline_chain_source pipeline_call_step pipeline_call_step+ ;
+pipeline_chain_source = identifier | parenthesized_expression ;
+pipeline_call_step = "." identifier argument_list ;
+lock_expression = "lock" expression "as" identifier block ;
 panic_expression = "panic" argument_list ;
 ```
 
@@ -2205,42 +2246,25 @@ panic_expression = "panic" argument_list ;
 ownership, bounds, cleanup, effects ou numeric policy. Seu resultado é o tail
 do block.
 
-`pipeline` constrói um DAG estático de dependent service calls. Cada caminho de
-success usa `return`. O pipeline não é first-class e não escapa como builder.
+`pipeline` possui três modos de região (`dependent`, `tasks` e `transaction`) e
+uma forma curta linear. Todos usam `pipeline_region` no HIR e um terminal
+`commit`; somente a forma curta entrega o resultado do último call sem escrever
+`commit`. O bloco dependent não é um builder e não escapa como valor.
 
-`transaction` recebe um provider nominal e cria um binding scoped. Cada caminho
-de success usa `commit`. `return`, nesting, pipeline e segundo provider ficam
-inválidos nesse body.
+`transaction` sem `pipeline` é rejeitado antes de W 1.0. O modo transacional
+nomeia um provider e seu contrato dentro da mesma região:
+`pipeline<transaction: { isolation: ..., access: ... }> tx = provider { ...
+commit value }`. `commit` plain escolhe o envelope final e não implica
+atomicidade; `commit` desse modo também solicita o commit atômico do provider.
+`unknownCommit` permanece tipado e não autoriza retry cego.
 
-**W-1504 — convergência pipeline/transaction (Pesquisa research-gated; não é
-Forma vigente):** a pipeline corrente é um DAG estático de calls dependentes com
-terminal `return`; a transaction corrente é uma região async estruturada de
-provider único com `commit` e permite compute, branch e loop local. A grammar e
-a Última Luz não mudam neste corte. A candidata primária é uma pipeline única
-com terminal `commit`, incluindo exatamente
-`pipeline<transaction: {isolation:..., access:...}> tx = provider { ... commit value }`;
-o keyword `transaction` pode ser removido antes de 1.0 somente se a evidência
-fechar essa migração. `commit` plain exporta o output envelope e não implica
-rollback; `commit` transacional também solicita atomic provider commit.
-
-O estudo compara sem escolher silenciosamente: (A) transaction em DAG estático,
-restringindo a transaction corrente e movendo controle dinâmico para method do
-provider; (B) um keyword com body shape e terminal contract dependentes do mode
-sobre uma `StructuredOperationRegion`; (C) control nodes/sent code, rejeitado salvo
-evidência de IR bounded; e (D) keyword separado. A policy candidata diz que
-pipeline query-only nunca produz `unknownOutcome`, mutation idempotente ou
-reconciliável exige `EffectId`, mutation não idempotente deve ser transacional ou
-ser rejeitada, e lost ACK antes/depois de node ou commit mantém incerteza typed
-(`unknownOutcome`/`unknownCommit`) quando não há fact de admission ou receipt do
-provider; se o provider provar não-admission, o outcome é conhecido e retry só é
-seguro segundo o contract. Sem esse fact não há retry cego. Cancel, drain, error
-precedence, capability/output ownership, multi-provider, nesting, branch em
-resultado remoto, defaults/contract de transaction e `w explain` entram nos
-casos. Parser/checker, HIR schema, effect classification, provider/transport
-oracle, fault injection de commit/ACK, decisão DAG/region, plano de migração da
-Última Luz, benchmarks de round-trip/contention e usability humana são gates;
-nenhuma syntax é ratificada antes deles. O ledger separado é
-[`W-1504`](tooling/studies/w1504-pipeline-transaction/task-ledger.json).
+**W-1504 — superseded por W-1511:** o estudo preserva a proveniência da antiga
+separação entre DAG com `return` e expressão `transaction` com `commit`. A
+decisão corrente é W-1511, que fecha a pipeline unificada, os schemas dos três
+modos, o terminal `commit`, a rejeição de nesting e da combinação
+`tasks`+`transaction`, e a migração de todas as superfícies. O ledger histórico é
+[`W-1504`](tooling/studies/w1504-pipeline-transaction/task-ledger.json); ele não
+é uma segunda decisão corrente.
 
 `panic` possui type `Never`. Seus argumentos seguem a avaliação comum. Panic
 não substitui typed error e não participa de `try?`.
@@ -2779,8 +2803,8 @@ o trabalho começa e evita mover uma árvore de expression por regra implícita.
 | `try` e `try?` | success type ou Option achatada | roteiam ou convertem somente recoverable error edges |
 | `await` | success type do async operation | cria suspension e cancellation point, não cria child |
 | `unsafe` | tail type do value block | concede unsafe operations somente ao block |
-| `pipeline` | declared pipeline result | DAG e dependent calls usam `return` como terminal local |
-| `transaction` | committed result | provider, binding, `commit` e abort ficam no owner local |
+| `pipeline` | declared pipeline result | regiões usam `commit`; a forma curta devolve o último call |
+| `pipeline<transaction: ...>` | committed result | provider, binding, `commit` e abort ficam no owner local |
 | `panic` | `Never` | termina a fault boundary e executa cleanup permitido pelo profile |
 
 Assignment, `return`, `throw`, `commit`, `break` e `continue` não duplicam um
@@ -4063,6 +4087,7 @@ menor para a maior força é:
 | Grupo | Formas | Associação |
 |---|---|---|
 | assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | não encadeável; resulta `()` |
+| pipe-forward | `\|>` | esquerda; somente call template explícito |
 | coalescing | `??` | direita |
 | logical OR | `\|\|` | esquerda e short-circuit |
 | logical AND | `&&` | esquerda e short-circuit |
@@ -4075,10 +4100,41 @@ menor para a maior força é:
 | multiplicative | `*`, `/`, `%`, `@` | esquerda |
 | prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita; power fica dentro do operand |
 | power | `**` | direita; o operand direito aceita prefix |
-| postfix | call, member, index, `?` | esquerda |
+| postfix | call, member, facet `#`, index, `?` | esquerda |
 
 Essa ordem faz `-2 ** 2` significar `-(2 ** 2)`. Ela permite `2.0 ** -3` sem
 trocar a associação de power.
+
+**W-1510 — pipe-forward (Forma vigente):** `|>` é um operador fixo,
+não-customizável, para fluxo local e sequencial de valores. Ele fica acima de
+assignment e abaixo de `??`/logical OR, é left-associative e não cria grafo,
+concorrência, `await`, `map`, `bind`, allocation ou promise. A única forma à
+direita é um call template de função livre com lista de argumentos:
+
+```w
+let label = input |> trim() |> lowercase() |> slug()
+expect label == "table-42"
+```
+
+Cada etapa expande `lhs |> f(args)` para `f(lhs, args)`, colocando o lhs uma
+única vez no primeiro parâmetro posicional `_`. O template não pode ter um
+primeiro parâmetro nomeado, ser uma função sem call, placeholder, member,
+UFCS, `:` ou `#`, nem usar fallback de resolução. Receiver, argumentos e cada
+lhs são avaliados uma vez e da esquerda para a direita. Assim `take source |>
+decode()`, `copy source |> inspect()` e `ref source |> inspect()` conservam a
+ownership escrita no lhs; não há `take` implícito e `inout` inválido segue o
+diagnóstico normal.
+
+Modificadores já legais do call podem permanecer no template (`try`, `try?`,
+`await`, `sync`, `async` e `spawn<domain>`). Eles não são adicionados pela
+pipe: `value |> async f()` produz um `Task`, e a próxima etapa recebe esse
+valor. `Option` e `Result` continuam valores comuns, sem map/bind automático.
+O formatter quebra antes de `|>`. `#` continua reservado para facet projection
+e `:` para labels; nenhum dos dois vira pipe genérico. A pipe não é UFCS: a
+ expansão fechada evita que adicionar um member ou uma extension mude a
+resolução de uma API existente. RHS inválido produz `W-PIPE-0001`, primeiro
+parâmetro rotulado `W-PIPE-0002`, placeholder/member/UFCS/label/facet
+`W-PIPE-0003` e ownership ou avaliação incompatível `W-PIPE-0004`.
 
 Uma assignment composta usa a operação correspondente. Ela preserva a policy
 de overflow e avalia o place uma vez. `&&=`, `||=`, `??=` e `@=` ficam
@@ -5717,7 +5773,10 @@ substituir o valor e, nesse caso, não cria um `drop` do valor antigo. O storage
 é descartado uma vez pelas regras normais do tipo ou por cleanup customizado
 declarado no tipo de backing; um property behavior não cria `deinit` nem tipo
 de backing oculto. A notificação externa é um método, service ou channel
-nomeado. `willSet`, `didSet` e observers implícitos são rejeitados.
+nomeado. `willSet`, `didSet` e observers implícitos continuam rejeitados como
+accessors ad hoc. Os hooks fechados `willSet`/`didSet`/`willModify`/`didModify`
+de um behavior observer nominal W-1512 são permitidos somente quando esse
+behavior é explicitamente aplicado ou composto.
 
 Não há supressão ou reentrada implícita de observer. Um acesso à mesma property
 dentro de um accessor faz o dispatch normal e pode recursar explicitamente;
@@ -10839,8 +10898,10 @@ Uma aplicação de `behavior` segue as fases normativas de
 [§8.4.1](#841-lifecycle-explícito-de-property): a inicialização escreve seu
 storage sem chamar accessors, atribuição simples usa `set`/replacement,
 mutação composta usa um único `modify` e `defer` retoma depois do borrow.
-Nenhum `behavior` adiciona `willSet`, `didSet`, observer implícito, tipo de
-backing ou `deinit` oculto.
+Nenhum `behavior` adiciona observer implícito, tipo de backing ou `deinit`
+oculto. Hooks `willSet`, `didSet`, `willModify` e `didModify` só existem em um
+behavior observer nominal explicitamente aplicado ou composto conforme
+W-1512; não aparecem por inferência da property.
 
 **W-1501 — behavior convergente (forma vigente):** dentro de um `behavior`, uma
 declaração `var name: Type` é, por definição, um backing field lógico. O field
@@ -10870,6 +10931,178 @@ compatibilidade antes de W 1.0: `storage var`, `input ...` e qualquer outro
 initializer/input spelling são rejeitados pela grammar e pelo diagnóstico
 semântico.
 
+**W-1509 — facet projection `#` (Forma vigente):** um behavior aplicado pode
+publicar facets somente por `export fn`/`export mut fn` e por computed facet
+properties escritas no próprio body. Um `fn` sem `export` continua helper do
+behavior. Backing fields, `init`, `get`, `set` e `modify` pertencem ao lifecycle
+da property e não viram members comuns. Facets de programa são síncronas,
+nonthrows, bounded, sem I/O, task, bloqueio, allocation geral oculta ou
+authority implícita; `mut` exige um place exclusivo. Facet `take` fica rejeitada
+neste bundle.
+
+```w
+export behavior WrappedDegrees for u16 {
+  var current: u16
+
+  init(initialValue: fn(): u16) {
+    current = initialValue() % 360_u16
+  }
+
+  get { return current }
+  mut set(newValue) {
+    current = newValue % 360_u16
+  }
+  mut modify {
+    defer { current %= 360_u16 }
+    return inout current
+  }
+
+  export mut fn reset() { current = 0 }
+}
+```
+
+`place#facet` resolve uma facet ligada estaticamente à declaration/place ou a um
+namespace core opaco. A facet pertence ao property place, portanto
+`attitude.yaw#reset()` é válido quando `yaw` usa esse behavior; `attitude#reset()`
+não é um fallback. Copiar o valor lógico perde a facet, e resolver uma facet não
+executa antes o getter lógico. Membro normal e facet homônimos formam namespaces
+distintos. A visibilidade efetiva é o mínimo da facet, do behavior e da
+property; `#` não é um marcador de private. Duplicidade e overload dentro do
+behavior seguem as regras normais. Composição nominal usa as regras de W-1512
+para resolver aliases e colisões; não há prioridade, e uma colisão
+core-facet/behavior de mesma assinatura ou um pedido de facet `take` é
+`W-FACET-0006`.
+
+V1 não reifica facets: `let f = place#reset`, `place#` e dynamic lookup são
+rejeitados com `W-FACET-0002`. Somente read/write imediato de computed facet ou
+chamada imediata é permitido. Um target que não seja property place/core,
+declaration ausente, efeito fora do teto ou falta de exclusividade produz
+`W-FACET-0001`, `W-FACET-0005`, `W-FACET-0003` ou `W-FACET-0004`.
+`TypeInfo` expõe somente o tipo lógico e metadata/API lógica exportada; nunca
+expõe layout físico, offsets ou backing. Backing e facets não aparecem como
+members comuns. `w explain property` lista o
+behavior, facets, efeitos e custo. A gramática postfix usa `# identifier` na
+mesma precedência de `.`, sem espaço no formatter. O path depois de `#` é uma
+sequência inteira resolvida namespace-first pelo alias; para acessar um member
+do valor retornado, use `(place#facet).member`, nunca `place#facet.member`.
+Raw strings `#"..."` e `#"""..."""` continuam tokens próprios e não são facets.
+
+Facets core são reservadas à linguagem. Neste primeiro conjunto, os controles
+ocultos de `Task` usam `task#cancel(reason: ...)`,
+`await (take task)#outcome()`, `Task#firstSettled(...)`,
+`Task#checkCancellation()`, `await Task#yield()` e
+`Task#withTimeout(...)`, `Task#withDeadline(...)` e o launcher
+`Task#spawn(...)` para um `ExecutionDomainRef` dinâmico. O initializer estático
+`spawn<domain> ...` continua a forma para domains conhecidos em compile time;
+ele não é substituído pela facet. `await task` continua o join simples. `TaskOutcome`,
+`TaskSettlement` e `Cancellation` são dados e conservam acesso normal por `.`.
+Um `SharedTask` observador não recebe facet de cancelamento. APIs reais de
+resources e bibliotecas (`lease.close`, stream/channel, atomics, filesystem e
+allocators) continuam members normais.
+
+**W-1512 — composição nominal de behaviors (Forma vigente):** múltiplos
+behaviors podem compor uma property somente por uma declaração nominal e
+estática. A forma estrutural é uma tuple rotulada na definição; a aplicação da
+property continua única:
+
+```w
+export behavior VersionedDegrees for u16 =
+  (degrees: WrappedDegrees, version: Versioned)
+
+export struct Attitude {
+  var VersionedDegrees yaw: u16 = 0
+}
+```
+
+Não há lista ad hoc na property, keywords `storage`/`input` ou uso de `|>` para
+composição. Não há observer implícito: hooks só existem em um behavior observer
+nominal explicitamente aplicado ou composto. A definição infere dois papéis.
+Um behavior de storage declara `get`/`set`/`modify` e possui o storage
+principal; um behavior observer não declara esses accessors, possui seu
+backing próprio, usa `init()` zero-slot e pode publicar facets e hooks:
+
+```w
+export behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() { epoch = 0 }
+
+  export mutationEpoch: u64 { get => epoch }
+  export mut fn resetMutationEpoch() { epoch = 0 }
+
+  willSet(current: ref Value, proposed: ref Value) { }
+  mut didSet(current: ref Value) { epoch += 1 }
+  willModify(current: ref Value) { }
+  mut didModify(current: ref Value) { epoch += 1 }
+}
+```
+
+Hooks que alteram backing exigem `mut` explícito; hooks sem `mut` não podem
+alterar backing. Hooks são sync, nonthrows, property-safe e recebem somente
+`ref`; não substituem, vetam, reentram a property nem adquirem authority.
+Assinatura, modifier, effect ou reentrância inválidos produzem
+`W-BEHAVIOR-0005`.
+
+Uma composição possui no máximo um behavior de storage. Zero storage usa o
+storage plain sintetizado; todo componente restante precisa ser observer. Dois
+storage behaviors são `W-BEHAVIOR-0003`: transformações como Clamp+Normalize
+cuja ordem altera o valor exigem um behavior novo explícito, sem prioridade
+automática. Alias duplicado, ciclo, path inexistente ou composição que não seja
+a tuple declarada produzem `W-BEHAVIOR-0002`/`W-BEHAVIOR-0004`. Um facet path
+que viola ownership da composição ou uso imediato produz `W-BEHAVIOR-0006`.
+
+Storage/plain inicializa primeiro e observers inicializam depois, em ordem
+lexical. Uma composição nominal sem behavior de storage usa o storage plain
+sintetizado; a aplicação direta de um observer, como `var Versioned value =
+rhs`, é rejeitada porque a aplicação de property continua selecionando o
+initializer one-slot. Em `set`/`modify`,
+`willSet`/`willModify` roda em ordem lexical, a operação de storage acontece uma
+vez e `didSet`/`didModify` roda em ordem inversa. `didModify` roda exatamente
+uma vez depois do borrow em toda saída estruturada que executaria o `defer` do
+`modify`, inclusive quando o caller termina com error; panic ou fault não
+fabrica cleanup. No drop, observers são descartados em ordem inversa e depois o
+storage. `didModify` observa uma mutation admission; não prova delta. Não há
+read hooks em v1.
+
+Uma facet `mut` de um componente storage disparada pelo path qualificado conta
+como logical mutation e percorre `willModify`/`didModify`. Uma facet de observer
+altera somente seu metadata e não reentra os hooks dos demais componentes.
+Facets herdadas são qualificadas pelo alias: `yaw#degrees.reset()` e
+`yaw#version.mutationEpoch` são paths estáticos únicos. O path inteiro depois de
+`#` é resolvido namespace-first pelo alias; para acessar um member do valor
+retornado, use `(yaw#version.mutationEpoch).member`. Guardar o prefixo
+`#degrees` continua rejeitado. Aplicação direta de um behavior de storage mantém
+`place#facet`; um observer só entra por composição nominal, inclusive quando
+essa composição usa storage plain sintetizado. Não há flatten ou reexport
+automático. Nested composites podem ser compostos recursivamente somente com
+path completo e rejeição de ciclo.
+
+A identidade composite, ABI e fingerprint incluem ordem, aliases, identities e
+specializations dos componentes e o schema de backing/drop/facets. `TypeInfo`
+continua uma property lógica; `w explain property` mostra a árvore, ordem dos
+hooks, facet paths e custo.
+
+O exemplo `VersionedDegrees` prova os dois benefícios: normalization pertence
+ao storage behavior/lifecycle e o epoch pertence à facet observer:
+
+```w
+var attitude = Attitude()
+attitude.yaw = 350
+attitude.yaw += 25
+expect attitude.yaw == 15
+let beforeReset = attitude.yaw#version.mutationEpoch
+expect beforeReset == 2
+attitude.yaw#version.resetMutationEpoch()
+expect attitude.yaw#version.mutationEpoch == 0
+attitude.yaw#degrees.reset()
+expect attitude.yaw == 0
+expect attitude.yaw#version.mutationEpoch == 1
+```
+
+O reset não apenas incrementa um campo invisível: ele demonstra que o mesmo
+property place conserva a normalização do storage behavior e publica a mutation
+observável no epoch do observer.
+
 Uma policy estática pertence ao tipo lógico. Use refinement, newtype ou value
 parameter do tipo. Uma dependência runtime pertence ao owner e entra por método,
 service ou channel nomeado. Um wrapper nominal explícito atende ao caso que
@@ -10882,9 +11115,11 @@ O uso de inicialização tardia continua simples:
 var Lazy heatProfile = deriveHeatProfile(model)
 ```
 
-Um behavior definido pelo programa aceita somente `init`, `get`, `set` e
-`modify` síncronos e sem `throws`. Ele não suspende, bloqueia, faz I/O, cria
-tasks ou adquire authority. Behavior não concede mobilidade ou atomicidade.
+Um behavior de storage definido pelo programa aceita somente `init`, `get`,
+`set` e `modify` síncronos e sem `throws`. Um behavior observer pode declarar
+somente os hooks explícitos de W-1512, sob o mesmo teto. Nenhum deles suspende,
+bloqueia, faz I/O, cria tasks ou adquire authority. Behavior não concede
+mobilidade ou atomicidade.
 
 `modify` pode usar `defer` como hook local pós-borrow. O hook executa uma vez
 depois que o borrow exclusivo termina, inclusive quando a operação do caller
@@ -11503,7 +11738,7 @@ suspension edge.
 ```w
 fn even(n: usize): Bool { return if n == 0 { true } else { await odd(n - 1) } }
 fn odd(n: usize): Bool {
-  await Task.yield()
+  await Task#yield()
   return if n == 0 { false } else { await even(n - 1) }
 }
 
@@ -11622,7 +11857,7 @@ let q = async func1()
 function type preserva `directEntry: available`. Para um body W visível, o
 compiler deriva esse facet por uma prova `neverSuspend` sobre a declaration
 inteira, antes de specialization estática ou path-sensitive. Nenhum caminho
-pode alcançar `await`, `Task.yield`, initializer `async` ou `spawn`, join,
+pode alcançar `await`, `Task#yield`, initializer `async` ou `spawn`, join,
 service ou I/O suspending, `defer async`, call bare ou `await` para callable
 `maySuspend`, ou `sync` para um type com `directEntry: absent`. Uma call `sync`
 para outra declaration ou function type com `directEntry: available` é aceita:
@@ -11700,7 +11935,7 @@ As regras são:
 1. cada child pertence ao scope criador;
 2. o scope não termina antes do cleanup de todos os children;
 3. `await` consome o handle e move um resultado owned;
-4. `task.cancel()` solicita cancelamento, mas não consome o handle;
+4. `task#cancel()` solicita cancelamento, mas não consome o handle;
 5. retorno antecipado cancela e faz join dos children restantes;
 6. esquecer ou destruir o handle não destaca a task;
 7. o compiler diagnostica um handle sem consumo.
@@ -11709,14 +11944,14 @@ As regras são:
 As expressions `async` e `spawn<domain>` são os únicos producers públicos do
 handle. Depois do staging, o launcher publica o child e seu handle ou produz o
 handle estruturado inline-canceled definido para budget exhaustion. Não existe
-constructor, field, layout ou conversão de `Task` na source surface. `cancel` é
-non-consuming. `await`, `join` e `outcome` consomem o handle e fecham a
-observação do child.
+constructor, field, layout ou conversão de `Task` na source surface.
+`task#cancel` é non-consuming. `await`, `join` e `(take task)#outcome()`
+consomem o handle e fecham a observação do child.
 
 Os companions públicos de task são source-backed em
 [`std/runtime/task.w`](std/runtime/task.w): `CancellationReason`,
 `TaskBudgetKind`, `TaskOutcome<Value, Failure: Error>`,
-`TaskGroupOrdering` e `TaskSettlement<Value, Failure: Error>`. Esses tipos não
+`TaskOrdering` e `TaskSettlement<Value, Failure: Error>`. Esses tipos não
 criam um constructor alternativo para `Task` e mantêm application error,
 cancellation, ordering e input index separados.
 
@@ -11763,7 +11998,7 @@ explícitos. W não copia um mapa task-local invisível.
 Uma API explícita expõe todos os outcomes sem transformar cancelamento em `E`:
 
 ```w
-let outcome: TaskOutcome<Menu, MenuError> = await task.outcome()
+let outcome: TaskOutcome<Menu, MenuError> = await (take task)#outcome()
 ```
 
 `TaskOutcome<T, E>` possui `.success(T)`, `.error(E)` e `.canceled(Cancellation)`.
@@ -11786,9 +12021,11 @@ Essa regra não espera um child lexicalmente anterior antes de cancelar os
 demais. Portanto, um child suspenso não impede fail-fast. A ordem lexical torna
 a arbitragem explícita; ela não promete que um child cancelado produziria o
 mesmo error se tivesse continuado. Código que precisa de todos os fatos usa
-`outcome()` ou uma variante `TaskGroup.*Collect`.
+`(take task)#outcome()` ou uma região `pipeline<tasks: ...>` com
+`errors: .collect`.
 
-`TaskGroup` aplica a mesma regra com a ordem indicada por `ordering`. Em
+Uma região `pipeline<tasks: ...>` aplica a mesma regra com a ordem indicada por
+`ordering`. Em
 `.input`, o error primário é o primeiro input entre os application errors que
 ficaram settled. Em `.completion`, o programa aceita que a escolha depende do
 scheduler. As variantes `collect` não cancelam por application error.
@@ -11798,22 +12035,20 @@ trace. Eles não entram em `E` sem uma conversão explícita da aplicação.
 
 #### 12.4.1 First-settled estruturado
 
-**W-1481 — `Task.firstSettled` (Forma vigente):** uma escolha one-shot por
+**W-1481 — `Task#firstSettled` (Forma vigente):** uma escolha one-shot por
 completion order consome handles de children já criados:
 
 ```w
 let primary = async readMenuMirror(take primaryRequest)
 let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
-let settlement = await Task.firstSettled(take [primary, fallback])
+let settlement = await Task#firstSettled(take [primary, fallback])
 ```
 
-A assinatura lógica é:
+A assinatura lógica mínima (descrição de contrato, não uma declaração W) é:
 
-```w
-async fn Task.firstSettled<Value, Failure: Error>(
-  _ tasks: take Array<Task<Value, Failure>>,
-): TaskSettlement<Value, Failure>?
-```
+| Operação | Entrada | Resultado | Ownership |
+| --- | --- | --- | --- |
+| `Task#firstSettled<Value, Failure>(take Array<Task<Value, Failure>>)` | handles já criados | `TaskSettlement<Value, Failure>?` | consome o array de handles |
 
 `TaskSettlement` contém `index` e `outcome: TaskOutcome<Value, Failure>`. O
 índice preserva a posição do handle no array consumido. O array vazio devolve
@@ -11848,13 +12083,13 @@ retornar antes do drain; deadline, cleanup grace e fault boundary seguem 12.12.
 
 Cancellation não é rollback. Bytes enviados, effects committed e state externo
 alterado por qualquer candidate permanecem observáveis. Portanto,
-`Task.firstSettled` é adequado para observação, cálculo ou operações idempotentes.
+`Task#firstSettled` é adequado para observação, cálculo ou operações idempotentes.
 Effectful hedging exige effect ID, deduplication ou compensation da aplicação.
 
 W não adiciona statement `select`, clauses condicionais, branch default,
 random fairness ou drop de future. A API também não significa first-success.
 Esse comportamento precisaria definir agregação de errors e effects dos attempts.
-`Task.withTimeout` continua a forma para timeout. Multiplexing persistente de
+`Task#withTimeout` continua a forma para timeout. Multiplexing persistente de
 channels ou streams usa um owner/service que publica numa edge explícita.
 
 ### 12.5 Cancelamento
@@ -11866,16 +12101,16 @@ export enum CancellationReason {
   superseded
 }
 
-report.cancel(reason: .userRequest)
-batch.cancel(reason: .shutdown)
+report#cancel(reason: .userRequest)
+batch#cancel(reason: .shutdown)
 ```
 
 Cancelamento é uma solicitação idempotente. Ele não usa `pthread_cancel` e não
 faz unwind assíncrono de foreign frames.
 
-`cancel` não é keyword nem statement. Ele é um método intrínseco do owner
-`Task<T, E>`. O método retorna `()` e não consome o handle. Um `SharedTask`
-observer não publica esse método. O type checker reconhece a operação para
+`cancel` não é keyword nem statement. Ele é uma facet intrínseca do owner
+`Task<T, E>`. A facet retorna `()` e não consome o handle. Um `SharedTask`
+observer não publica essa facet. O type checker reconhece a operação para
 preservar structured cancellation e trace.
 
 `CancellationReason` é fechado e contém somente motivos escolhidos por um
@@ -11930,16 +12165,16 @@ Uma task observa o sinal:
 - antes e depois de um suspension point;
 - em I/O que aceita cancelamento;
 - em uma boundary de task group;
-- em `Task.checkCancellation()` para loops longos.
+  - em `Task#checkCancellation()` para loops longos.
 
-`Task.checkCancellation()` só existe em código async. Ele executa uma saída de
+`Task#checkCancellation()` só existe em código async. Ele executa uma saída de
 controle distinta de `throws E`. `catch` não intercepta essa saída. Cleanup
 estruturado ainda executa. Uma API que precisa inspecionar cancelamento observa
 `TaskOutcome` no owner.
 
 Um body settled vence a corrida com cancellation. O caller recebe o outcome
 selecionado depois do cleanup. O sinal continua pendente no parent para o
-próximo suspension point ou `Task.checkCancellation()`. O runtime não injeta
+próximo suspension point ou `Task#checkCancellation()`. O runtime não injeta
 cancelamento entre statements:
 
 ```w
@@ -12210,7 +12445,7 @@ source.
 Os seguintes contratos não possuem slot `priority` ou `qos`:
 
 - initializer `async` e `spawn`;
-- `TaskGroup`, inclusive as famílias fechadas de W-1482;
+- regiões `pipeline<tasks: ...>`;
 - função e `Task`;
 - service call;
 - entry, service e seus descriptors.
@@ -12278,7 +12513,7 @@ deve cobrir vários targets e fechar estes contratos:
 - estudos humano e de modelos.
 
 **Rejeitado:** `priority` ou `qos` em `spawn`, initializer `async`, function,
-`TaskGroup`, service, entry ou descriptor. `Task.withPriority`,
+região `pipeline<tasks: ...>`, service, entry ou descriptor. `Task.withPriority`,
 `Task.currentPriority`, QoS portável de source/profile e priority como
 correctness, deadline ou authority também ficam fora.
 
@@ -12301,7 +12536,7 @@ let lane = try ctx.execution.openSerial(
 )
 defer async { await lane.close() }
 
-let task = try Task.spawn(
+let task = try Task#spawn(
   domain: lane.reference,
   input: take order,
   using: prepareOrder,
@@ -12451,7 +12686,7 @@ operacional:
 ```w
 import si from std
 let timeout: TaskTimeout = 250<si.ms>
-let outcome = await Task.withTimeout(
+let outcome = await Task#withTimeout(
   for: timeout,
   input: take request,
   using: fetchMenu,
@@ -12489,9 +12724,9 @@ nonfinite e out-of-range. Essa boundary deixa rounding visível.
 `TaskTimeout` é o alias `Duration<(0...)>`. Literais negativos falham no compile
 time. Um valor dinâmico precisa de narrowing antes da call. Ausência de timeout
 usa `none`; infinity não representa essa ausência.
-`Task.withTimeout` cria e drena um child lexical. Ele devolve
+`Task#withTimeout` cria e drena um child lexical. Ele devolve
 `TaskOutcome<T, E>` para tornar timeout observável sem inserir `E`. A variante
-`Task.withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
+`Task#withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
 Uma duração zero devolve cancellation antes de executar o body.
 
 **W-1314 — deadline é cancelamento estruturado, não alarme exato:**
@@ -12567,7 +12802,8 @@ estrutural. `outcome()` e as variantes `collect` permitem observá-la.
 
 Physical OOM segue a seção 11.5. Ele não finge ser budget exhaustion. Uma API
 que precisa recusar overload como dado recuperável usa admission explícita,
-como `tryCall`, `tryStart` ou uma operação `TaskGroup.try...`. A criação lexical
+como `tryCall`, `tryStart` ou uma operação de admission de uma região
+`pipeline<tasks: ...>`. A criação lexical
 continua pequena e não recebe `throws AllocationError`.
 
 Cada live task possui storage de queue intrusivo reservado. Portanto, um wakeup
@@ -12977,154 +13213,94 @@ dependencies, device loss, stale generation, budgets e equivalência
 CPU/device. Os oracles host não executam W, kernel, driver ou accelerator.
 Providers reais continuam sujeitos ao gate 24.3.2.
 
-### 12.8 Task groups e backpressure
+### 12.8 Pipeline de tasks e backpressure
 
-Estrutura estática usa initializer `async` ou `spawn<domain>`. Coleções dinâmicas usam
-`TaskGroup`. O primeiro SDK oferece:
-
-```w
-let pages = try await TaskGroup.concurrentMap(
-  take requests,
-  limit: 16,
-  ordering: .input,
-  using: fetchPage,
-)
-
-let mixtures = try await TaskGroup.parallelMap<.compute>(
-  take jobs,
-  limit: 8,
-  ordering: .input,
-  using: mixJob,
-)
-```
-
-`concurrentMap` usa children concorrentes. `parallelMap` adiciona intenção
-paralela e as provas de mobilidade. As duas APIs cancelam trabalho restante no
-primeiro error selecionado pela ordem declarada.
-
-**W-1482 — famílias fechadas de map/collect (Forma vigente):** a ordem é um
-valor nominal e não possui default:
+**W-1511 — pipeline unificada (Forma vigente):** `pipeline` é a única
+superfície de grafo de execução. Regiões `dependent`, `tasks` e `transaction`
+compartilham `pipeline_region`/HIR e o terminal `commit`, mas possuem schemas
+semânticos explícitos. Uma região dependent contém somente calls de service ou
+capability e projections estáticas com dependências explícitas. Compute local,
+controle local e functions ordinárias são rejeitados:
 
 ```w
-export enum TaskGroupOrdering {
-  input
-  completion
+let ready = try await pipeline {
+  let oven = ovens.acquire(recipe)
+  let heated = oven.preheat()
+  commit heated
 }
 ```
 
-As assinaturas lógicas da família concorrente são:
+`commit` escolhe o envelope final; sozinho não promete atomicidade. Cada caminho
+normal do bloco deve terminar em exatamente um `commit`, e `return` é rejeitado
+nesse corpo. A forma curta é reservada à cadeia linear de pelo menos dois calls
+de service/capability dependentes:
 
 ```w
-async fn TaskGroup.concurrentMap<Input, Output, Failure: Error>(
-  _ inputs: take Array<Input>,
-  limit: usize<(1...)>,
-  ordering: TaskGroupOrdering,
-  using operation: some async fn(take Input): Output throws Failure,
-): Array<Output> throws Failure
-
-async fn TaskGroup.concurrentCollect<Input, Output, Failure: Error>(
-  _ inputs: take Array<Input>,
-  limit: usize<(1...)>,
-  ordering: TaskGroupOrdering,
-  using operation: some async fn(take Input): Output throws Failure,
-): Array<TaskSettlement<Output, Failure>>
+let ready = try await pipeline ovens.acquire(recipe).preheat()
+expect ready.temperature == 180
 ```
 
-`parallelMap<domain>` e `parallelCollect<domain>` possuem os mesmos slots e
-resultados, mas exigem o domain estático explícito e capability `.parallel`.
-`concurrent...` herda o domain atual. Uma callable `neverSuspend` satisfaz o
-slot `some async fn`; callable mutável ou consuming não satisfaz uma operação
-que pode ser chamada por vários children.
+Ela entrega o resultado do último call, sem `commit`, e não aceita branch,
+fan-out ou local functional call. Fora da cadeia curta, o bloco é obrigatório.
 
-Os labels canônicos são somente `limit`, `ordering` e `using`.
-`maxParallelism`, `order` e `operation` não são aliases. `limit` é obrigatório,
-positivo e limita children vivos. Zero, valor negativo e sentinel unbounded não
-entram na API. O runtime pode executar menos children por causa de domain
-capacity, product quota ou host quota, mas nunca mais que `limit`.
+Uma região repetida exige quatro campos, sem defaults:
 
-A call avalia e move o array uma vez e mantém um único owner de admissão. Ela
-stages a callable uma vez. Cada item é movido para exatamente um child somente
-depois de obter um slot. Cancellation antes da admissão descarta o item no
-owner do group sem chamar a operação. Antes do primeiro child, a call valida o
-count e reserva a estrutura do resultado; overflow ou falha física seguem as
-regras de allocation/OOM sem publicar trabalho parcial.
-
-`map` usa fail-fast. O primeiro application error que fica body-settled solicita
-cancellation do trabalho restante. Depois do drain, `.input` seleciona o menor
-índice entre os application errors body-settled; `.completion` seleciona o
-primeiro settlement commit. Successes parciais são descartados e nenhum array
-parcial escapa. Child cancellation sem application error permanece control
-outcome. Panic ou fault encerra a fault boundary; nenhum deles vira `Failure`.
-
-`collect` não cancela siblings por application error ou child cancellation.
-Ele devolve um `TaskSettlement` para cada input. Em `.input`, o array fica em
-ordem de índice. Em `.completion`, o array segue os commits body-settled, mas
-cada record mantém o índice original; assim, `.error` e `.canceled` não perdem
-a identidade do input. Panic ou fault ainda encerra a fault boundary.
-
-Cancellation do parent observada antes da publicação cancela a admissão e os
-children, drena tudo e repropaga o control outcome sem array. Toda publicação
-ocorre depois de body, cleanup, outcome e drop dos children. Cancellation não é
-rollback; effects já committed permanecem observáveis.
-
-O array de input e o array final custam O(count). `limit` limita frames e
-trabalho admitido, não esses dois valores materializados nem o tamanho
-transitivo de cada item. Um source incremental usa os adapters de `Stream` da
-seção 12.9 e declara a própria capacity.
-
-Invariantes de execução:
-
-- `limit` controla children ativos;
-- a admissão mantém no máximo `limit` items entre staging e child ativo;
-- `.input` preserva a ordem do input;
-- `.completion` declara resultado dependente do scheduler;
-- o profile pode reduzir `limit`, mas não criar uma fila ilimitada;
-- cancellation fecha producer, children e resultados não consumidos.
-
-Uma builder API futura precisa declarar memória por item, deadline, fairness e
-policy de overload. O runtime nunca cria uma thread por item por default.
-
-`TaskGroup` é uma coleção dinâmica e homogênea de children admitidos em runtime.
-`pipeline` é um DAG estático de dependent service calls, promise pipelining e
-outcomes que podem ser `unknownOutcome`, conforme a seção 23.1.7. As duas
-formas podem compartilhar machinery de execution-graph no HIR e no runtime,
-mas conservam keywords e source surfaces distintas. Uma não é alias ou
-substituta da outra.
-
-#### 12.8.1 Paralelismo aninhado e capacity
-
-`limit` e domain capacity medem coisas diferentes:
-
-- `limit` limita children ativos e seus recursos lógicos;
-- domain capacity limita jobs que executam ao mesmo tempo;
-- host quota limita CPU física do product.
-
-Groups aninhados no mesmo domain compartilham o mesmo budget. Eles não criam
-pools independentes nem multiplicam `outerLimit * innerLimit` threads.
-
-**Exemplo:** duas kitchens usam `parallelMap<.compute>(limit: 8)`. Se o domain
-possui capacity 6, no máximo seis jobs CPU executam ao mesmo tempo. As duas
-arrays ainda podem manter até 16 children ativos conforme seus limites.
-
-Um parent que aguarda children não retém um worker necessário para esses
-children. O runtime pode liberar o permit, executar um child inline ou ajudar a
-fila do mesmo domain. Blocking code não usa o compute budget.
-
-Essa regra impede deadlock por pool exhaustion e reduz oversubscription. Ela não
-promete qual child executa em cada thread.
-
-O effective parallelism é limitado por source, domain, product e host. O
-runtime publica a medição; o programa não usa o número observado como resultado
-de domínio.
-
-```text
-effective ≤ source limit
-effective ≤ domain capacity
-effective ≤ product CPU quota
+```w
+let outputs = try await pipeline<
+  tasks: .concurrent,
+  limit: 16,
+  ordering: .input,
+  errors: .failFast,
+> each item in take items {
+  let output = processor.transform(take item)
+  commit output
+}
 ```
 
-NUMA, core type, work stealing e pinning são policies de profile expert. Eles
-não mudam `spawn`, ownership ou ordering.
+`tasks` é `.concurrent` ou `.parallel<.compute>` (com as provas de
+transferability e domain existentes); `limit` é positivo e limita children
+vivos; `ordering` é `.input` ou `.completion`; `errors` é `.failFast` ou
+`.collect`. Os quatro campos são obrigatórios. Uma instância bounded por input
+publica exatamente um resultado. Em `failFast`, o resultado de sucesso é
+`Array<Output>`; em `collect`, é
+`Array<TaskSettlement<Output, Failure>>`, com um settlement por input e índice
+preservado. Input e body são staged uma única vez, o result storage é preflight
+antes da primeira admission e cada item é movido somente depois da admission.
+O array custa O(count); o bound de children vivos é lógico e não promete um
+limite igual de execução física. Um stream usa seu adapter separado.
+
+`.failFast` arbitra o primeiro application error conforme a ordem de erro do
+modo, cancela e drena siblings e não publica um array parcial. `.collect` não
+converte falhas da aplicação em throw: devolve o array de settlements, enquanto
+boundary/cancellation continuam control outcomes. `ordering: .input` ordena
+outputs/settlements pelo índice; `.completion` preserva a ordem de conclusão,
+sem perder esse índice. Panic/fault continuam fault boundary. Cancellation do
+parent cancela admission e children, drena tudo e repropaga o control outcome;
+effects já committed não sofrem rollback. O drain remove cada child, waiter,
+buffer e receipt antes do envelope final.
+
+Nenhum namespace ou família de grupo é superfície W. O enum corrente é
+`TaskOrdering` e fica somente como dado de configuração quando um adapter
+precisar nomeá-lo. Ele não é alias de `pipeline`, e pipeline não é uma forma de
+concorrência implícita.
+
+O pipeline não combina `tasks` com `transaction`, e regiões aninhadas são
+rejeitadas em v1. Regras de transferability/domain do modo paralelo permanecem
+obrigatórias. `w explain pipeline` mostra modo, nós, cardinalidade, domain,
+efeitos, owner e uncertainty. O modo `transaction` está definido na seção
+12.13 e não cria transação distribuída por compartilhamento de HIR. Schema,
+terminator, combinação/nesting, cardinalidade/limit e ordering/errors inválidos
+produzem `W-PIPELINE-0001`, `W-PIPELINE-0002`, `W-PIPELINE-0003`,
+`W-PIPELINE-0004` ou `W-PIPELINE-0005`.
+
+#### 12.8.1 Proveniência W-1482 (superseded por W-1511)
+
+**Exemplo:** código novo usa `pipeline<tasks: ...> each item in take items { commit output }`; `TaskGroup` aparece somente como proveniência histórica.
+
+W-1482 é somente proveniência histórica; a superfície corrente é
+`pipeline<tasks: ...>` conforme W-1511. Consulte
+[`RATIONALE W-1482`](RATIONALE.md#3-ledger)
+para o registro removido.
 
 ### 12.9 Streams e channels
 
@@ -13438,7 +13614,7 @@ Capacity é obrigatória:
 - o design vigente não oferece channel unbounded.
 
 Um channel limita a fila. Ele não limita o número de tasks suspensas que tentam
-enviar. `TaskGroup.limit`, budgets do execution domain e a estrutura lexical
+enviar. O `limit` de uma região `pipeline<tasks: ...>`, budgets do execution domain e a estrutura lexical
 limitam esses frames.
 
 Capacity conta itens, não o tamanho transitivo de cada grafo. O resource lens
@@ -13533,8 +13709,8 @@ let buffered = telemetry.buffer(capacity: 8)
 
 O adapter cria um producer estruturado e um channel interno. O fim, o primeiro
 error terminal e cancellation fecham o mesmo scope. A ordem é preservada. Um
-adapter paralelo declara `limit` e `ordering: .input | .completion`, como
-`TaskGroup`.
+adapter paralelo declara `limit` e `ordering: .input | .completion`, como uma
+região de tasks.
 
 `ReadableStream<Item, Failure>` da seção 14.3.4 atende diretamente a este
 protocol. Ele não adiciona outro cursor, scheduler ou regra de terminal. Seu
@@ -13547,8 +13723,8 @@ capacity ou ownership. Um producer implementa `next()` como state machine ou
 usa um channel; `buffer(capacity:)` continua a única superfície de prefetch.
 
 **W-1230 — distribuição de trabalho por composição:** W não publica
-`WorkQueue<T>`. Uma coleção finita usa `TaskGroup.concurrentMap` ou
-`TaskGroup.parallelMap`. Um stream usa os adapters homônimos:
+`WorkQueue<T>`. Uma coleção finita usa uma região `pipeline<tasks: ...>`. Um
+stream usa adapters próprios:
 
 ```w
 let prepared = (take orders).parallelMap<.compute>(
@@ -13567,7 +13743,7 @@ Cada item entra em exatamente um child. `limit` inclui trabalho admitido ainda
 não entregue, inclusive child ativo ou result pronto. Existe no máximo um pull
 upstream adicional em voo. Cancellation e o primeiro `Failure` fecham a
 entrada, cancelam children e aguardam cleanup. `.input` e `.completion` mantêm
-o significado de `TaskGroup`. Essa composição preserva o owner único do source
+o significado do pipeline de tasks. Essa composição preserva o owner único do source
 e não cria um endpoint MPMC copiável.
 
 Uma mailbox de service cobre admission contínua com authority, restart ou
@@ -13580,7 +13756,7 @@ Uma opção de mode em `Channel` não esconde loss, fan-out ou conflation:
 | Necessidade | Forma corrente |
 |---|---|
 | vários producers, um consumer | `Channel<T>` MPSC |
-| coleção finita distribuída | `TaskGroup.concurrentMap` ou `parallelMap` |
+| coleção finita distribuída | região `pipeline<tasks: ...>` ou adapter de stream |
 | admission contínua de trabalho | mailbox de service + group ou worker instances |
 | duas branches estáticas | `ReadableStream.tee`, com duplicação e lag bounded explícitos |
 | subscribers dinâmicos | service com endpoint e policy próprios por subscriber |
@@ -14203,7 +14379,7 @@ contém uma representação posterior diferente do valor esperado.
 Cancellation antes do commit da notification remove o ticket e drena o
 registro. Depois do commit, a notification vence; `wait` devolve o valor, e o
 signal continua pendente para o próximo cancellation point. Destruir, mover ou
-abrir `withExclusive` sobre o wrapper exige zero waiters. `Task.withTimeout`
+abrir `withExclusive` sobre o wrapper exige zero waiters. `Task#withTimeout`
 compõe timeout sem outra variante de `wait`.
 
 O receiver precisa de identidade e endereço estáveis durante o slow path. Um
@@ -14247,7 +14423,7 @@ variable continua fora da safe std.
 **W-1255 — barreira cíclica rejeitada:** a safe std não oferece uma barreira
 reutilizável genérica. Perda, cancellation, retry e mudança de participantes
 exigem identity, generation, failure e shutdown próprios. Um phase local usa
-`TaskGroup`; reads/write epochs usam um domain com `.barrier`; participantes
+uma região `pipeline<tasks: ...>`; reads/write epochs usam um domain com `.barrier`; participantes
 duráveis usam service ou workflow. Um adapter especializado pode expor outro
 contrato sem criar uma primitive universal.
 
@@ -14607,11 +14783,11 @@ O profile portátil publica fairness condicional. Sob estas premissas:
 Uma task admitida e acordada executa novamente. O profile não promete um
 intervalo máximo.
 
-Nenhuma ordem relativa entre siblings é garantida. `Task.yield()` é um
+Nenhuma ordem relativa entre siblings é garantida. `Task#yield()` é um
 suspension point e uma hint de fairness; não é barrier nem coloca a task no fim
 de uma fila observável.
 
-**Exemplo:** um loop async sem `await` ou `Task.yield()` pode impedir progresso
+**Exemplo:** um loop async sem `await` ou `Task#yield()` pode impedir progresso
 num executor cooperativo. O compiler avisa e sugere `spawn<.compute>` ou um
 suspension point explícito.
 
@@ -14722,16 +14898,15 @@ O contrato não promete scheduler, clock, OS I/O, fairness absoluta, device
 scopes, distributed recovery ou terminação de user code. A estratégia física
 de reclamation continua uma escolha de provider.
 
-### 12.13 Transação estruturada
+### 12.13 Modo transaction da pipeline
 
-**Forma vigente:** `transaction` é uma expressão async ligada a um único
-provider nominal. O bloco recebe um borrow com escopo. `commit` seleciona o
-resultado e solicita o commit:
+**W-1511 — transaction como modo (Forma vigente):** `transaction` não é mais
+uma keyword/expression independente. A forma corrente liga um provider nominal
+à região unificada e exige um schema explícito:
 
 ```w
-let updated = try await transaction<
-  isolation: .readCommitted,
-  access: .readWrite,
+let updated = try await pipeline<
+  transaction: { isolation: .readCommitted, access: .readWrite },
 > tx = store {
   let world = try await tx.one(worldById, parameters: WorldKey(id: 42))
   let _ = try await tx.execute(updateWorld, parameters: nextWorld(world))
@@ -14739,9 +14914,43 @@ let updated = try await transaction<
 }
 ```
 
-Os argumentos em `<...>` constroem o `Contract` do provider. Os labels e os
-valores válidos vêm desse tipo. O bloco pode omitir `<...>` somente quando o
-contract fornece todos os defaults. O compiler não troca isolation, durability
+`.default` é aceito somente quando o contract do provider já o ratificou; não
+existe fallback silencioso de isolation, access ou durability. `tx` é um borrow
+scoped, não escapa e não pode ser capturado por trabalho que sobreviva à região.
+Cada caminho normal termina em um único `commit`; `return` e a combinação com
+`tasks` são rejeitados. Regiões aninhadas e múltiplos providers continuam
+rejeitados em v1.
+
+O provider continua responsável por begin, commit, abort, cleanup e receipts.
+`unknownCommit(EffectId)` é um resultado tipado quando a confirmação se perde;
+W nunca repete o body automaticamente. O modo não cria transação distribuída,
+não torna effects externos atômicos e não altera ownership de inputs movidos.
+`w explain pipeline` mostra mode `transaction`, provider, contract, nodes,
+effects, owner e uncertainty.
+
+#### 12.13.1 Escopo e lifecycle do modo `transaction`
+
+O modo `transaction` usa um provider nominal dentro de `pipeline_region`. O
+provider contract, o lifecycle e os receipts abaixo são correntes; somente a
+spelling independente `transaction ...` é rejeitada antes de W 1.0.
+
+O bloco recebe um borrow com escopo. `commit` seleciona o resultado e solicita o
+commit do provider:
+
+```w
+let updated = try await pipeline<transaction: {
+  isolation: .readCommitted,
+  access: .readWrite,
+}> tx = store {
+  let world = try await tx.one(worldById, parameters: WorldKey(id: 42))
+  let _ = try await tx.execute(updateWorld, parameters: nextWorld(world))
+  commit world
+}
+```
+
+Os valores em `transaction: { ... }` constroem o `Contract` do provider. Os
+labels e valores válidos vêm desse tipo. `.default` é permitido somente quando
+o provider o ratifica explicitamente; o compiler não troca isolation, durability
 ou access mode por fallback.
 
 `tx` é imutável e possui o tipo `ref Scope`. Ele não pode escapar, ser movido,
@@ -14756,12 +14965,13 @@ body com application error e solicita abort. Um `defer` síncrono termina antes
 do commit ou abort. `defer async`, `spawn` e initializer `async` permanecem rejeitados
 na baseline.
 
-#### 12.13.1 Forma curta e ausência de transaction ambient
+#### 12.13.2 Defaults explícitos e ausência de transaction ambient
 
-Quando o provider fornece um contract default, o bloco pode omitir `<...>`:
+Quando o provider ratifica seu contract default, o source pode escrevê-lo
+explicitamente:
 
 ```w
-let receipt = try await transaction tx = tableLedger {
+let receipt = try await pipeline<transaction: .default> tx = tableLedger {
   let reservation = try await tx.reserve(tableId: table, guestId: guest)
   let receipt = try await tx.confirm(reservation: take reservation)
   commit receipt
@@ -14769,18 +14979,18 @@ let receipt = try await transaction tx = tableLedger {
 ```
 
 Essa forma reduz ruído sem esconder o provider. `tx`, o corpo e `commit`
-continuam visíveis. A forma completa continua sendo necessária quando o caller
+continuam visíveis. A forma record continua sendo necessária quando o caller
 seleciona `isolation`, `access`, `durability` ou outro campo do contract.
 
-`try await transaction;` não é uma transaction W válida. A expressão não
-identifica provider, não cria um scope, não define o output e não possui um
-commit. W não usa uma transaction ambient escolhida por contexto, thread ou
-connection pool. Um adapter pode expor defaults, mas o source ainda nomeia o
-provider. Assim o compiler pode rejeitar uma call fora de `tx` e explicar qual
-efeito não pertence ao commit.
+`transaction` sem `pipeline` não é uma forma W válida. A spelling não identifica
+provider, não cria um scope, não define o output e não possui um commit. W não
+usa uma transaction ambient escolhida por contexto, thread ou connection pool.
+Um adapter pode expor defaults, mas o source ainda nomeia o provider. Assim o
+compiler pode rejeitar uma call fora de `tx` e explicar qual efeito não pertence
+ao commit.
 
-`transaction` mantém `tx`, provider, scope e capability explícitos. Um contexto
-com mais de um provider nunca escolhe um implicitamente.
+O modo `transaction` mantém `tx`, provider, scope e capability explícitos. Um
+contexto com mais de um provider nunca escolhe um implicitamente.
 
 O compiler conhece este protocol host:
 
@@ -14861,10 +15071,10 @@ struct TableTransactionContract {
 protocol TableLedgerApi:
   Transactional<TableTransaction, TableTransactionContract, BookingError> {}
 
-let receipt = try await transaction<
+let receipt = try await pipeline<transaction: {
   isolation: .serializable,
   access: .readWrite,
-> tx = tableLedger {
+}> tx = tableLedger {
   let reservation = try await tx.reserve(table, for: guest)
   let receipt = try await tx.confirm(reservation)
   commit receipt
@@ -15716,10 +15926,10 @@ async fn fulfillOrder(
 ): Receipt throws RestaurantError {
   let orderId = input.order.id
   work.report(.accepted)
-  Task.checkCancellation()
+  Task#checkCancellation()
 
   work.report(.reserving)
-  Task.checkCancellation()
+  Task#checkCancellation()
   work.report(.preparing)
   let dish = try await prepareDish(
     take input.order,
@@ -15776,7 +15986,7 @@ Ele não contém um mapa mutável task-local. Uma capability da aplicação prec
 de binding ou input explícito.
 
 A operação supervisionada é root de uma nova árvore. Dentro dela, initializers
-`async`, `spawn<domain>` e `TaskGroup` continuam estruturados. Esses children terminam antes
+`async`, `spawn<domain>` e regiões `pipeline<tasks: ...>` continuam estruturados. Esses children terminam antes
 do root.
 
 #### 13.7.3 Admission e transferência de ownership
@@ -17899,7 +18109,7 @@ código nativo, depois de provar o target correspondente.
 **W-1309 — controle não vira I/O error:** `wouldBlock` não sai de uma API async;
 o executor registra interest e suspende. Uma interrupção do sistema sem progress
 é repetida quando não representa cancellation ou signal observável. EOF continua
-`ReadStep.end`. Task deadline e `task.cancel()` produzem
+`ReadStep.end`. Task deadline e `task#cancel()` produzem
 `TaskOutcome.canceled`, não um `IoError`.
 
 `.timedOut` representa um timeout do protocolo, peer ou adapter que não é o
@@ -19901,7 +20111,7 @@ observável necessária, mas exige bounds e ownership na interface.
 #### 14.3.5 AbortSignal, AbortController e cancellation W
 
 **Forma vigente:** `std.abort` é o adapter Web explícito sobre cancellation W.
-Ele não substitui `Task.cancel`, `Task.checkCancellation`, `Cancellation` ou
+Ele não substitui `Task#cancel`, `Task#checkCancellation`, `Cancellation` ou
 `TaskOutcome.canceled`. O adapter existe para APIs que usam o contrato
 `AbortSignal`, em especial Fetch, Request e operações Web embutidas.
 
@@ -20137,7 +20347,7 @@ A classificação do profile é:
 | `AbortSignal` e `AbortController` | `adapted` | values de módulo, ownership e reason fechado substituem objects globais e `any` |
 | `aborted` e `reason` | `adapted` | reason `Copy` sai por valor e preserva first reason; não há identity Web |
 | `AbortSignal.abort` | `adapted` | default tipado `.requested(.userRequest)` |
-| `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task.withTimeout(0)` e torna o caso determinístico |
+| `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task#withTimeout(0)` e torna o caso determinístico |
 | `AbortSignal.any` | `adapted` | nome Web preservado; argumentos diretos e folhas pending únicas usam o mesmo fan-in explícito por result |
 | `throwIfAborted` | `adapted` | lança somente o enum fechado e tipado `AbortReason` |
 | `EventTarget`, `onabort`, `addEventListener` | `notApplicable` na baseline | `wait` fornece observação one-shot bounded; events gerais permanecem separados |
@@ -20255,10 +20465,10 @@ let rows = try await store.queryMany(
   maximumInFlight: 20,
 )
 
-let updated = try await transaction<
+let updated = try await pipeline<transaction: {
   isolation: .readCommitted,
   access: .readWrite,
-> tx = store {
+}> tx = store {
   let _ = try await tx.executeMany(updateWorld, parameters: take updates)
   commit take worlds
 }
@@ -20294,7 +20504,7 @@ cancellation, ele executa rollback e drena a conexão antes de devolvê-la ao
 pool.
 
 Uma perda de conexão depois de enviar commit produz
-`TransactionFailure.unknownCommit`. W não repete a transaction
+`TransactionFailure.unknownCommit`. W não repete o modo transaction
 automaticamente. Query read-only também não recebe retry implícito; a policy
 precisa considerar deadline, idempotência e progress.
 
@@ -23367,16 +23577,18 @@ orders.lazy.map((order) => audit(order)) // warning: iterator is never consumed
 for order in orders { audit(order) }
 ```
 
-Iteração não cria paralelismo implícito. Trabalho paralelo usa `TaskGroup` e
-declara bound e ordem:
+Iteração não cria paralelismo implícito. Trabalho paralelo usa uma região de
+tasks com bound, ordem e arbitration explícitos:
 
 ```w
-let results = try await TaskGroup.parallelMap<.compute>(
-  take jobs,
+let results = try await pipeline<
+  tasks: .parallel<.compute>,
   limit: cooks,
   ordering: .input,
-  using: cook,
-)
+  errors: .failFast,
+> each job in take jobs {
+  commit cook(take job)
+}
 ```
 
 #### 16.10.5 `Map`
@@ -24899,7 +25111,7 @@ O gate registra problema, alternativas, fonte primária, owner, workload,
 oracle e stop condition. Ele não cria sintaxe, API ou W-ID. No snapshot em que
 foi criado, ele não reabriu o fechamento histórico `Research=0`; as gates
 posteriores W-1471, depois substituída por W-1484, W-1473, W-1474 e W-1475 são
-independentes, e W-1486 é a única research gate ativa posterior.
+independentes, e W-1486 e W-1503 são as research gates ativas posteriores.
 
 A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
 bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
@@ -30803,7 +31015,7 @@ Um pipeline pode mover uma edge de stream para um único dependent node:
 let receipt = try await pipeline {
   let feed = satellites.follow(after: sequence)
   let receipt = archive.ingest(source: take feed)
-  return receipt
+  commit receipt
 }
 ```
 
@@ -30812,9 +31024,9 @@ consumer diretamente. Routes diferentes criam um relay bounded. O relay
 propaga créditos, terminal, cancellation e trace. Ele não materializa o stream
 completo. Copiar uma edge ou passá-la a dois nodes é erro de ownership.
 
-Retornar o stream pelo pipeline transfere seu root ao caller. Um stream órfão é
-resetado e drenado. Um pipeline continua sem rollback e não entra numa
-`transaction`.
+`commit` do stream pelo pipeline transfere seu root ao caller. Um stream órfão é
+resetado e drenado. Um pipeline continua sem rollback e não entra no modo
+`transaction` sem um provider explícito.
 
 No Component Model, a bridge usa `stream<T>` quando o item e o target permitem.
 Esse tipo também transfere ownership único do readable endpoint e permite que o
@@ -30995,7 +31207,7 @@ let mixture = spawn<.compute> mix(stock.ingredients, recipe: recipe)
 let (lease, ready) = try await pipeline {
   let lease = ovens.acquire(recipe.target, duration: recipe.duration)
   let ready = lease.preheat()
-  return (lease, ready)
+  commit (lease, ready)
 }
 ```
 
@@ -31010,7 +31222,7 @@ O body possui uma gramática semântica menor:
 
 - `let` nomeia uma call de service ou uma projection de node anterior;
 - uma call que retorna `()` pode aparecer como statement;
-- um único `return` final seleciona os resultados entregues ao caller;
+  - um único `commit` final seleciona os resultados entregues ao caller;
 - cada nome pode usar somente inputs locais ou nodes lexicamente anteriores;
 - argumentos aceitam values transferíveis, `take`, capabilities, constructors
   e projections verificáveis;
@@ -31029,7 +31241,7 @@ let ovens = switch useReserve {
 let (lease, ready) = try await pipeline {
   let lease = ovens.acquire(target, duration: duration)
   let ready = lease.preheat()
-  return (lease, ready)
+  commit (lease, ready)
 }
 ```
 
@@ -31037,7 +31249,7 @@ Um cálculo que depende de um resultado remoto fica depois do `await` ou vira
 uma operation de service. W não envia arithmetic, branch ou bytecode do caller
 para o peer. Uma operação remota `map` fica **Rejeitado**.
 
-O `return` pertence ao pipeline, não à função externa. Ele seleciona quais
+O `commit` pertence ao pipeline, não à função externa. Ele seleciona quais
 values atravessam de volta. No exemplo, `lease` mantém a capability viva e
 `ready` transfere o token owned. Um valor não selecionado fica no receiver até
 o último dependent e então executa drop. Uma capability órfã envia release. Se
@@ -31052,7 +31264,7 @@ no checker antes do envio:
 let receipt = try await pipeline {
   let stored = archive.store(take payload)
   let indexed = search.index(take payload) // error: payload was moved
-  return (stored, indexed)
+  commit (stored, indexed)
 }
 ```
 
@@ -31068,8 +31280,8 @@ route cria uma barreira: o runtime materializa a projection e continua pela
 route normal. A otimização muda; values, errors, ownership e trace não mudam.
 `w explain pipeline` mostra as ilhas previstas e o trace mostra as reais.
 
-O pipeline não é transaction. Um node anterior pode confirmar seu efeito antes
-de um dependent falhar. Cada operation mantém `callId`, `effectId`, deadline,
+O pipeline dependent não é o modo transaction. Um node anterior pode confirmar
+seu efeito antes de um dependent falhar. Cada operation mantém `callId`, `effectId`, deadline,
 rights e quota próprios. Admission limita nodes, depth, payload bytes, retained
 bytes e capability slots. Um pipeline sem edge dependente recebe warning e
 deve usar initializer `async` ou tuple join para concorrência comum.
@@ -33302,6 +33514,8 @@ interna do mesmo parser; não chama nem relaxa `measure`/`run` públicos.
 
 #### Alias, lifetime e report
 
+**Exemplo:** uma forgery ou alias em `program_from_output` preserva `destination` bitwise e publica um status fechado observável.
+
 MAN0 devolve `w_seed_manifest_result` por value. Por isso, o report terminal não
 possui range caller que possa sobrepor a publicação. Success e toda failure
 preenchem status, phase, error, backend/OWN0 status aplicável, candidate/byte
@@ -33398,6 +33612,8 @@ essa regra inclui o prefixo promovido de cada second buffer. Mutation, reuse ou
 growth de qualquer backing invalida a view antes do próximo acesso.
 
 #### Guard, duas waves e publicação
+
+**Exemplo:** uma mutation entre as duas waves falha antes do output `published`, e nenhum prefixo parcial é publicado.
 
 `w_seed_manifest_guarded_run` exige o objeto OWN0 original em
 `LIVE_OBSERVED`, disposition `CANDIDATES_OBSERVED` e pelo menos um candidate.
@@ -33756,7 +33972,7 @@ provider.
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e o fechamento histórico mantém `Research=0` até W-1459; W-1486 é a única research gate ativa |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e o fechamento histórico mantém `Research=0` até W-1459; W-1486 e W-1503 são as research gates ativas |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
 O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
@@ -33768,15 +33984,15 @@ preferência, score ou métrica manual é criado.
 
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
-source escape, categoria errada ou qualquer Research residual fora de W-1486. A máquina
+source escape, categoria errada ou qualquer Research residual fora de W-1486 e W-1503. A máquina
 exige W-1451–W-1453 como `oracle-backed-current` após PFU0 e os quatro casos
 DRC0 como fechamento independente. A cadeia
 estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
 preserva o fechamento histórico até W-1450, AEG0/SIMD1 preservam `Research=0`
-até W-1459 e DRC0 fecha somente as quatro gates anteriores a W-1486. W-1486
-permanece como a única research gate ativa. Isso não autoriza alegação de
+até W-1459 e DRC0 fecha somente as quatro gates anteriores às gates ativas W-1486
+e W-1503. Elas permanecem research gates ativas. Isso não autoriza alegação de
 implementação.
 
 #### 24.4.3 PFU0 — fechamento de usabilidade pré-freeze
@@ -33791,12 +34007,13 @@ permanece somente como decisão histórica superseded por W-1484.
 |---|---|---|---|
 | W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | Nenhuma forma alternativa é promovida. | Arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim. |
 | W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total. Separadamente, `Failure` terminal permanece no stream. `Channel` é sempre explícito (capacity, endpoints, ownership, backpressure e close); mailbox e `Stream` têm lifecycle próprio. | Nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos. | `stream fn`, client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso entre `ServiceFailure` e `Failure`. |
-| W-1453 | `get`, `set` e `modify` permanecem vigentes em stored/computed/behavior property. `init` bypassa accessors; assignment simples usa `set`/replacement; compound/mutating usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value/backing drop ocorre uma vez; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal, e sobreposição no borrow exclusivo falha. | Nenhuma promoção de observer spelling. | `willSet`/`didSet`, observers implícitos, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
+| W-1453 | `get`, `set` e `modify` permanecem vigentes em stored/computed/behavior property. `init` bypassa accessors; assignment simples usa `set`/replacement; compound/mutating usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value/backing drop ocorre uma vez; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal, e sobreposição no borrow exclusivo falha. Hooks fechados de observer nominal W-1512 são permitidos somente em behavior explicitamente aplicado/composto. | Nenhuma promoção de observer spelling ad hoc ou implícita. | `willSet`/`didSet` como accessor solto, observer implícito, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
 
 PFU0 cobre init, get, replace, modify-enter, borrow, resume, drop do valor
 antigo, drop do backing, reentry, panic/OOM e fronteiras de concurrency/service.
-O manifest candidate é aceito como current-control; os candidates de `stream fn`
-e `willSet`/`didSet` são rejected-route. O oracle host deriva os resultados de
+O manifest candidate é aceito como current-control; `stream fn` e
+`willSet`/`didSet` ad hoc são rejected-route, enquanto os hooks fechados de
+observer W-1512 são current-control. O oracle host deriva os resultados de
 facts e source refs, não executa W e não afirma compiler/runtime/provider.
 
 W-1480 substitui posteriormente somente a rejeição de client-stream e bidi em
@@ -33824,7 +34041,7 @@ deriva as rotas de facts. Ele rejeita `expected`, `result`, status caller-owned,
 ID-derived outcome e provider/runtime claims. Mutation guards cobrem ambient
 authority, fallback, plaintext/serialization, codec inference e stale
 source/digest. O fechamento histórico `Research=0` permanece obrigatório para
-todo W-001–W-1459; a única research gate ativa posterior é W-1486.
+todo W-001–W-1459; as research gates ativas posteriores são W-1486 e W-1503.
 
 AEG0 não promove provider. Continuam missing compiler, runtime, provider,
 target, FFI, stress, fault, rotation, zeroization e estudos humano/modelo.
@@ -33849,7 +34066,7 @@ snippets e claims proibidos em `DESIGN.md`, `CHEATSHEET.md` e Last Light. Ele
 não compila, executa ou mede W.
 
 O fechamento histórico `Research=0` permanece obrigatório para W-001–W-1459;
-a única research gate ativa posterior é W-1486. A classificação de W-1459 é
+as research gates ativas posteriores são W-1486 e W-1503. A classificação de W-1459 é
 `oracle-backed-current` por evidence do oracle host e design contract.
 Compiler, runtime, provider, native acceleration, ABI e measurements continuam
 missing. Nenhuma evidência de parse ou oracle promove implementação.
@@ -34530,6 +34747,8 @@ lane primária, C11 é recovery explícita, e falha de toolchain presente é FAI
 
 #### 26.4.1.2 W-1506 — ponte terminal MLIR0 para LLVM (Forma vigente)
 
+**Exemplo:** Hello, Restaurante e vazio atravessam MLIR0 e produzem stdout exato com LF, stderr vazio e exit zero.
+
 W-1506 acrescenta a primeira rota nativa real deste seed que não passa por
 source C: `source → parser/frontend → HIR0 verificada → plano HLO0 verificado →
 MLIR0 → mlir-opt verify → mlir-translate LLVM IR → clang LLVM IR/native link →
@@ -34763,6 +34982,8 @@ dessa célula e não adiciona evidência de benchmark, stage, timing ou result.
 
 #### 26.4.5 Reader MAN0 guarded e estrutural
 
+**Exemplo:** os três `build.w` e os casos adversariais de duplicate/capacity mostram resultados `accepted` e `rejected` observáveis.
+
 **W-1498 — MAN0 guarded structural data-only manifest reader (Forma vigente):**
 o bundle fecha a fronteira em cinco milestones. M1 registrou o contrato, o
 header e o skeleton CMake. M2 implementou o parser, normalizer, measure, run e
@@ -34946,7 +35167,7 @@ antes de sair do scope.
 - semantic checker para rejeitar slots `priority`/`qos` e APIs de task priority;
 - lifetime e scheduler state separados;
 - linear Task, body settled, cleanup e `TaskOutcome`;
-- cancellation snapshot bounded e `Task.checkCancellation()`;
+- cancellation snapshot bounded e `Task#checkCancellation()`;
 - fail-fast, drain e arbitragem lexical/input;
 - `TaskTimeout`, deadline monotônico e clock virtual;
 - `concurrentMap`/`parallelMap` bounded;

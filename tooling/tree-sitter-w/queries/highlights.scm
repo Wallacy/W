@@ -38,6 +38,13 @@
   "unit"
 ] @keyword.type
 
+(behavior_hook kind: [
+  "willSet"
+  "didSet"
+  "willModify"
+  "didModify"
+] @keyword)
+
 [
   "break"
   "case"
@@ -57,10 +64,11 @@
   "return"
   "switch"
   "throw"
-  "transaction"
   "while"
   "yield"
 ] @keyword.control
+
+(pipeline_contract_item "transaction" @keyword.control)
 
 [
   "abi"
@@ -172,6 +180,7 @@
   "<" "<=" ">" ">=" "==" "!=" "is"
   "&" "^" "|" "&&" "||" "??"
   "!" "~" "?."
+  "|>" "#"
   "is"
 ] @operator
 

@@ -122,7 +122,7 @@ async fn prepareDish(
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
     let ready = lease.preheat()
-    return (lease, ready)
+    commit (lease, ready)
   }
 
   defer async {

@@ -46,13 +46,13 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b",
+      "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564",
       "claim": "Property-safe getter."
     },
     {
       "path": "../../../reference/last-light/billing.w",
       "symbol": "mut set(newValue)",
-      "digest": "sha256:f17bd12386722685fef019275822b82152d88dcf217fe63eb5d89f6aaf233ef4",
+      "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde",
       "claim": "Property setter control."
     }
   ],

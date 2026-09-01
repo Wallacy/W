@@ -7,7 +7,7 @@ enum MixingError: Error {
 
 async fn controlledDelay(ticks: u16): () {
   for _ in 0..<ticks {
-    await Task.yield()
+    await Task#yield()
   }
 }
 

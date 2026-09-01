@@ -207,7 +207,7 @@
       "sourceRef": {
         "path": "reference/last-light/execution.w",
         "symbol": "let childTask = async mixJob",
-        "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b"
+        "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
       },
       "positive": {
         "formatterCases": [
@@ -245,7 +245,7 @@
       "sourceRef": {
         "path": "reference/last-light/allocation.w",
         "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
-        "digest": "sha256:1d89db249dba566955aec8ef5023dfaa01eca9b48553d399f18590ac2486a93b"
+        "digest": "sha256:78b2d746f900772a9b1f1f0716a5ab70f65466d77ea9bfe055fe8acb9859fb59"
       },
       "positive": {
         "formatterCases": [

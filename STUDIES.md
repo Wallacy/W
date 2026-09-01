@@ -16,7 +16,8 @@
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
-| `registered-research-bundle` | 3 |
+| `registered-research-bundle` | 2 |
+| `superseded-by-W-1511` | 1 |
 | **Total** | **74** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
@@ -118,10 +119,15 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 |---|---|---|---|---|
 | `HUM0` | Human and model review protocol for W ergonomics — `protocol-ready` | [`tooling/studies/hum0-human-review`](./tooling/studies/hum0-human-review/) | `HUM0` | `bun run check:hum0` |
 
-## Status: `registered-research-bundle` (3)
+## Status: `registered-research-bundle` (2)
 
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
 | `RDX0` | Binary-first distribution, static-first registry, signed execution, and provider research — `registered-research-bundle` | [`tooling/studies/rdx0-binary-registry-execution`](./tooling/studies/rdx0-binary-registry-execution/) | `—` | `bun run check:rdx0` |
 | `W-1503` | Finite allocation and placement evidence for W-1503 — `registered-research-bundle` | [`tooling/studies/w1503-allocation-placement`](./tooling/studies/w1503-allocation-placement/) | `—` | `bun run check:study-bundles` |
-| `W-1504` | Pipeline and transaction convergence evidence for W-1504 — `registered-research-bundle` | [`tooling/studies/w1504-pipeline-transaction`](./tooling/studies/w1504-pipeline-transaction/) | `—` | `bun run check:study-bundles` |
+
+## Status: `superseded-by-W-1511` (1)
+
+| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
+|---|---|---|---|---|
+| `W-1504` | Historical pipeline and transaction convergence registration for W-1504 — `superseded-by-W-1511` | [`tooling/studies/w1504-pipeline-transaction`](./tooling/studies/w1504-pipeline-transaction/) | `—` | `bun run check:study-bundles` |

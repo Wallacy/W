@@ -361,6 +361,7 @@ A tabela usa a ordem da menor para a maior força.
 | Grupo | Formas | Associação | Semântica curta |
 | --- | --- | --- | --- |
 | assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | não encadeável | Escreve no place uma vez e resulta em Unit (`()`). |
+| pipe-forward | `\|>` | esquerda | Expande `lhs \|> f(args)` para `f(lhs, args)`; exige call template e não cria task. |
 | coalescing | `??` | direita | Seleciona o fallback somente para ausência. |
 | logical OR | `\|\|` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
 | logical AND | `&&` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
@@ -375,13 +376,31 @@ A tabela usa a ordem da menor para a maior força.
 | multiplicative | `*`, `/`, `%`, `@` | esquerda | Multiplica, divide, calcula remainder ou faz matmul rank 1/2. |
 | prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita | Opera no operand subtree e respeita effects/ownership. |
 | power | `**` | direita | Potência. O lado direito aceita prefix. |
-| postfix | call, member `.member`, index `[index]`, `?`, optional member `?.member` | esquerda | Encadeia call, projection, indexação e propagação de Option. |
+| postfix | call, member `.member`, facet `#facet`, index `[index]`, `?`, optional member `?.member` | esquerda | Encadeia call, projection, facet, indexação e propagação de Option. |
 
 `-2 ** 2` significa `-(2 ** 2)`. `2 ** -3` significa `2 ** (-3)`.
 Assignment composta preserva a policy da operação e avalia o place uma vez.
 `a = b = c` continua rejeitado pelo contrato. O seed Pratt e a grammar atual
 formam uma árvore right-associative para este probe. O checker registra esse
 frontend/parser conformance gap. A associação sintática não é prova semântica.
+
+### Quatro superfícies que não se substituem
+
+| Forma | O que resolve | Uso mínimo e efeito observável |
+| --- | --- | --- |
+| `value.member` | Membro normal de um valor; `.`, sem fallback para `#`. | `receipt.id` lê data publicada pelo tipo. |
+| `place#facet` | Facet estática de um property place ou namespace core; exige read/write/call imediato. | `attitude.yaw#version.mutationEpoch` lê epoch; quando uma facet real retorna um valor, parentetize a facet inteira: `(place#facet).member`. O prefixo de alias não é reificável. |
+| `value \|> f()` | Fluxo local e sequencial; expande para `f(value)` exatamente uma vez. | `copy source \|> inspect()` preserva `copy`; o resultado é o retorno de `inspect`. |
+| `pipeline { ... commit }` | Grafo de execução com schema explícito; `commit` escolhe o envelope final. | `pipeline { let a = service(); commit a }` publica `a`; `commit` não promete atomicidade. |
+
+`#` tem a mesma precedência postfix de `.` e nunca significa private. O pipe é
+left-associative, fica acima de assignment e abaixo de `??`/logical OR. Use
+parênteses nas combinações que deixam a intenção explícita: `(x |> f()) ??
+fallback` e `(x ?? fallback) |> f()` são aceitas. `x |> f() ?? fallback` e
+`x |> f() || fallback` são rejeitadas por `W-PIPE-0001`, pois o RHS deve ser
+somente o call template; o parser de corpus pode formar a árvore de uma
+supergrammar, mas isso não equivale a aceitação semântica. Um pipe não faz
+await, map, bind, allocation ou promise e não é UFCS.
 
 `>..` e `>..<` são formas current do contrato e estão nas tabelas seed
 lexer/parser. O witness direto Tree-sitter dessas duas formas ainda falha. O
@@ -731,7 +750,16 @@ O bloco é uma amostra current / tree-sitter-parse-only. struct descreve valor
 com layout; object descreve identidade/estado; protocol descreve contrato; enum
 fecha cases. service, behavior, extension, type, alias, dimension e unit
 aparecem em fontes Last Light e têm regras próprias. Não suponha que object
-seja automaticamente shared.
+seja automaticamente shared. A declaração só ganha significado no uso: por
+exemplo, `Place(id: "A", label: "square").describe()` devolve
+`"square"`, e `Signal.alert(level: 1)` seleciona um case observável; um
+`Directory` só pode ser usado por sua operação `lookup` fornecida.
+
+```text
+let place = Place(id: "A", label: "square")
+let label = place.describe()
+expect label == "square"
+```
 
 ### Tipos compostos e estáticos
 
@@ -760,7 +788,13 @@ type Allowed = Signal<[.quiet, .alert]>
 Generics usam parâmetros de tipo, valor e associados. Heads como T: P & Q,
 conformances condicionais e some/any não são equivalentes a um where textual.
 A fonte [generics.w](reference/last-light/generics.w) concentra casos de
-contrato.
+contrato. Uma aplicação concreta preserva o tipo e o bound:
+
+```text
+let placeId: PlaceId = "A"
+let location: Location = (district: "north", number: 42)
+expect location.number == 42
+```
 
 ### Inicialização e propriedades
 
@@ -791,9 +825,8 @@ Um behavior reutiliza o mesmo lifecycle. `modify` permite um hook local depois
 do borrow sem copiar o valor anterior. Este witness é current e observável:
 `Attitude` atribui `350`, soma `25` por `modify` e observa `15`.
 
-<!-- w-example role=executable use=WrappedDegrees,Attitude observable=value -->
+<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude observable=value -->
 ```w
-// excerpt-source: reference/last-light/orbit.w::export behavior WrappedDegrees
 export behavior WrappedDegrees for u16 {
   var current: u16
 
@@ -813,31 +846,79 @@ export behavior WrappedDegrees for u16 {
     defer { current %= 360_u16 }
     return inout current
   }
+
+  export mut fn reset() {
+    current = 0
+  }
 }
 
+export behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() {
+    epoch = 0
+  }
+
+  export mutationEpoch: u64 {
+    get => epoch
+  }
+
+  export mut fn resetMutationEpoch() {
+    epoch = 0
+  }
+
+  willSet(current: ref Value, proposed: ref Value) { }
+
+  mut didSet(current: ref Value) {
+    epoch += 1
+  }
+
+  willModify(current: ref Value) { }
+
+  mut didModify(current: ref Value) {
+    epoch += 1
+  }
+}
+
+export behavior VersionedDegrees for u16 =
+  (degrees: WrappedDegrees, version: Versioned)
+
 export struct Attitude {
-  var WrappedDegrees yaw: u16 = 0
+  var VersionedDegrees yaw: u16 = 0
 
   mut fn rotate(by delta: u16) {
     yaw += delta
   }
 }
 
-test "attitude rotation wraps degrees" for Attitude {
+test "attitude rotation wraps degrees and observes epoch" for Attitude {
   var attitude = Attitude()
   attitude.yaw = 350
   attitude.rotate(by: 25)
 
   expect attitude.yaw == 15
+  expect attitude.yaw#version.mutationEpoch == 2
+
+  attitude.yaw#version.resetMutationEpoch()
+  expect attitude.yaw#version.mutationEpoch == 0
+
+  attitude.yaw#degrees.reset()
+  expect attitude.yaw == 0
+  expect attitude.yaw#version.mutationEpoch == 1
 }
 ```
 
 A baseline aceita `init()` para o caso zero-slot ou
 `init(initialValue: fn(): Value)` para o caso one-slot. O one-slot recebe o
 thunk do RHS. Todos os generic parameters do behavior são inferidos pelo tipo
-depois de `for`. Configuração estática pertence ao tipo lógico. Dependência
-runtime usa owner, método, service ou channel nomeado. `Behavior(...)`,
-`Behavior<...>`, múltiplos inputs e acesso ao backing não pertencem à baseline.
+depois de `for`. Configuração estática pertence ao tipo lógico. Um observer
+como `Versioned<Value>` só entra em uma composição nominal; `var Versioned
+value = rhs` é rejeitado porque o RHS seleciona o initializer one-slot. Uma
+composição sem storage sintetiza plain storage e encaminha o RHS a ele.
+Dependência runtime usa owner, método, service ou channel nomeado.
+`Behavior(...)`, `Behavior<...>`, múltiplos inputs e acesso ao backing não
+pertencem à baseline. `WrappedDegrees` faz a normalização no lifecycle de
+storage; ela não é uma facet.
 
 | Operação | Caminho da property |
 | --- | --- |
@@ -850,8 +931,21 @@ runtime usa owner, método, service ou channel nomeado. `Behavior(...)`,
 
 Accessors são síncronos, não lançam error e não fazem I/O, service call,
 blocking, task creation ou allocation geral oculta. Use método nomeado quando
-o custo precisa de `try`, `await` ou outro efeito visível. `willSet`, `didSet`,
-observer implícito e property `async`/`throws` não pertencem à baseline.
+o custo precisa de `try`, `await` ou outro efeito visível. `willSet` e `didSet`
+continuam rejeitados como accessors ad hoc ou observers implícitos; os hooks
+fechados `willSet`, `didSet`, `willModify` e `didModify` só existem no observer
+nominal explicitamente declarado e aplicado/composto. Hooks que alteram
+backing exigem `mut` explícito; sem `mut` eles recebem somente `ref` e não
+podem escrever.
+
+Na composição, storage/plain inicializa primeiro e observers inicializam em
+ordem lexical. Em set/modify, `will*` roda em ordem lexical, a operação de
+storage ocorre uma vez e `did*` roda em ordem inversa; no drop, observers
+desfazem em ordem inversa e storage depois. Uma facet `mut` do storage, como
+`yaw#degrees.reset()`, conta como logical mutation e percorre os hooks do
+observer. Uma facet de observer altera somente seu metadata. Aliases duplicados,
+cycles, paths ausentes, dois storage behaviors ou colisão core/behavior são
+diagnostics; não há prioridade ou flatten/reexport automático.
 
 ### Conversões, `is` e recuperação de tipo
 
@@ -963,7 +1057,16 @@ combina uma forma de parâmetro já usada em Last Light. Use
 [memory.w](reference/last-light/memory.w),
 [borrowed_values.w](reference/last-light/borrowed_values.w) e
 [borrow_expressivity.w](reference/last-light/borrow_expressivity.w) para
-distinguir borrow, move, copy, pin e allocation.
+distinguir borrow, move, copy, pin e allocation. O par de declarations tem uso
+concreto no call site:
+
+```text
+let city = "Paris"
+let staged = stage(destination, city)
+let moved = moveCity(take city)
+expect staged == "Paris"
+expect moved == "Paris"
+```
 ### Funções, labels e closures
 
 Esta unidade completa é source-backed de
@@ -972,16 +1075,16 @@ capture e as chamadas que os consomem.
 
 <!-- w-example role=executable use=captureModes observable=value -->
 ```w
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): (String, String, String, String, String) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
   let weakCapture = <[weak sharedValue]>() => sharedValue
-  let _ = copyCapture()
-  let _ = refCapture()
-  let _ = takeCapture()
-  let _ = weakCapture()
-  return target
+  let copied = copyCapture()
+  let referenced = refCapture()
+  let taken = takeCapture()
+  let weakened = weakCapture()
+  return (target, copied, referenced, taken, weakened)
 }
 
 test "capture modes preserve the target" for captureModes {
@@ -994,7 +1097,7 @@ test "capture modes preserve the target" for captureModes {
     ref borrowed,
     take moved,
     sharedValue,
-  ) == "target"
+  ) == ("target", "target", "borrowed", "moved", "shared")
 }
 ```
 
@@ -1017,8 +1120,9 @@ fn stage(allocator destination: ref Allocator, city: String): String {
   return city
 }
 
-fn prepare(city: String): String {
+fn prepare(city: String): (String, usize) {
   var result = city
+  var byteCount: usize = 0
   allocator scratch: .fixed<capacity: 256> {
     let ref name = city
     var copyOfName = city
@@ -1028,16 +1132,17 @@ fn prepare(city: String): String {
     let moved = take writableName
     result = moved
     let staged = stage(city)
-    let _ = staged
+    result = staged
   }
   allocator .fixed<capacity: 128> {
-    let _ = result.bytes.count
+    byteCount = result.bytes.count
   }
-  return result
+  return (result, byteCount)
 }
 
 test "allocator scopes preserve the staged city" for prepare {
-  expect prepare("city") == "city"
+  let prepared = prepare("city")
+  expect prepared == ("city", 4)
 }
 ```
 
@@ -1182,12 +1287,21 @@ TypeInfo.Case
 As views são read-only e duram o process-lifetime. Properties e cases seguem a
 ordem declarada da interface exportada. Não há layout, offset, size, address,
 backing storage ou lookup de method por nome. `TypeInfo` não possui constructor
-público, assignment ou mutation.
+público, assignment ou mutation. A consulta, e não um constructor, é o uso
+observável:
+
+```text
+let id = type of ReservationKey
+let ref info = info of ReservationKey
+expect info.id == id
+expect info.name == "ReservationKey"
+```
 
 ### Companions de execução e memória
 
-`Task<T, E>` é um handle `linear` e `opaque` cujo producer público é `async` ou
-`spawn<domain>`. Depois do staging, o launcher publica o child ou produz o
+`Task<T, E>` é um handle `linear` e `opaque` cujo producer público é `async`,
+`spawn<domain>` ou `Task#spawn` para um `ExecutionDomainRef` dinâmico. Depois
+do staging, o launcher publica o child ou produz o
 handle estruturado inline-canceled de budget exhaustion. Não existe constructor
 ou layout de `Task` na source surface. `cancel` não consome o handle. `await`,
 `join` e `outcome` consomem o handle.
@@ -1206,8 +1320,8 @@ export enum TaskOutcome<Value, Failure: Error> {
 
 <!-- w-example role=signature-reference -->
 ```w
-// excerpt-source: std/runtime/task.w::export enum TaskGroupOrdering
-export enum TaskGroupOrdering {
+// excerpt-source: std/runtime/task.w::export enum TaskOrdering
+export enum TaskOrdering {
   input
   completion
 }
@@ -1220,6 +1334,16 @@ export struct TaskSettlement<Value, Failure: Error> {
   export index: usize
   export outcome: TaskOutcome<Value, Failure>
 }
+```
+
+Os records são dados normais e podem ser observados por `.`; somente o handle
+e seus controls usam `#`:
+
+```text
+let outcome: TaskOutcome<u8, Never> = .success(42)
+let settlement = TaskSettlement(index: 1, outcome: outcome)
+expect settlement.index == 1
+expect settlement.outcome == outcome
 ```
 
 `Allocator` e `AllocatorLease` seguem as formas exatas de
@@ -1273,7 +1397,22 @@ export protocol AllocatorPlan {
 `AllocatorPlan` publica somente `descriptor` e `take fn open()` conforme a
 fonte std. O provider e o lowering continuam ausentes. Nenhum snippet desta
 seção afirma construction ou execução de core opaque. A conformance explícita a
-`Reflectable` é permitida e não constrói o descriptor no source.
+`Reflectable` é permitida e não constrói o descriptor no source. O uso mínimo
+usa a superfície source de allocator e observa o descriptor e os bytes dentro
+de um scope bounded:
+
+```text
+let descriptor = plan.descriptor
+try allocator scratch: plan {
+  let staged = "bounded record"
+  let byteCount = staged.bytes.count
+  expect descriptor.version >= 1
+  expect byteCount > 0
+}
+```
+
+O compiler/provider chama `open` e fecha o `AllocatorLease`; o source não chama
+`open` nem constrói ou fecha lease manualmente.
 
 ## Errors, effects e cleanup
 
@@ -1341,10 +1480,10 @@ export async fn reserveTableAtomically(
   tableId: TableId,
   guestId: GuestId,
 ): ReservationReceipt throws TransactionFailure<BookingError, BookingError> {
-  return try await transaction<
+  return try await pipeline<transaction: {
     isolation: .serializable,
     access: .readWrite,
-  > tx = ledger {
+  }> tx = ledger {
     let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
     let receipt = try await tx.confirm(reservation: take reservation)
     commit receipt
@@ -1466,7 +1605,7 @@ prova `neverSuspend` e cujo function type preserva
 `directEntry: available`. A call executa diretamente na mesma task, context e
 domain; não cria child, não suspende, não bloqueia thread, não reentra o event
 loop e não exige authority, quota ou provider. `try` continua tratando somente
-a error edge. Qualquer caminho que alcança `await`, `Task.yield`, child/join,
+a error edge. Qualquer caminho que alcança `await`, `Task#yield`, child/join,
 service ou I/O suspending, `defer async`, call bare/`await` para `maySuspend` ou
 `sync` para facet absent remove o facet, mesmo quando um cache hit parece
 provável. `sync` pode chamar outra direct entry available: a async entry publica
@@ -1478,18 +1617,56 @@ Uma forma `sync` inválida não vira call ordinary na prova do caller. Frontend
 semântico, function type/HIR/interface, dual-entry lowering/ABI, diagnostics e
 cross-module/erasure ainda estão missing.
 
-### TaskGroup, cancellation e TaskLocal
+### Tasks core, cancellation e TaskLocal
 
-Last Light usa TaskGroup.parallelMap, TaskGroup.parallelCollect,
-Task.checkCancellation(), Task.yield() e TaskLocal. Essas formas são
-oracle-backed-current / provider missing; veja
-[execution.w](reference/last-light/execution.w). A regra é estrutural:
-children pertencem ao parent, joins são observáveis e cancellation atravessa os
-pontos definidos pelo contrato.
+`Task<T, E>` é linear e opaque. `async` e `spawn<domain>` continuam launchers
+para domains conhecidos; `Task#spawn(domain: lane.reference, ...)` é a facet
+core para um `ExecutionDomainRef` dinâmico. Em todos os casos o owner lexical
+faz join ou consome um outcome:
 
-`TaskGroup` usa somente os labels `limit`, `ordering` e `using`. O limit é
-positivo e obrigatório. `map` usa fail-fast; `collect` observa todos os
-application errors e child cancellations sem perder o índice do input:
+| Intenção | Forma imediata | Resultado/efeito observável |
+| --- | --- | --- |
+| Cancelar child | `task#cancel(reason: .shutdown)` | Solicita cancellation; não consome o handle. |
+| Observar child | `await (take task)#outcome()` | `TaskOutcome<T, E>` mantém success, application error e cancellation separados. |
+| Join simples | `await task` | Aguarda e produz o valor ou propaga o error declarado. |
+| Escolher primeiro settlement | `await Task#firstSettled(take tasks)` | `TaskSettlement<T, E>?` preserva `index`; losers cancelam e drenam. |
+| Ponto cooperativo | `Task#checkCancellation()` | Retorna normalmente ou publica o control outcome de cancellation. |
+| Ceder | `await Task#yield()` | Suspende o child sem criar promise ou novo graph. |
+| Timeout | `await Task#withTimeout(for: timeout, input: take value, using: work)` | Devolve `TaskOutcome<T, E>` e drena o child. |
+| Deadline | `await Task#withDeadline(until: deadline, input: take value, using: work)` | Usa o `Deadline` do host; expiration solicita cancellation estruturada. |
+| Domain dinâmico | `try Task#spawn(domain: lane.reference, input: take value, using: work)` | Publica `Task<T, E>` após admission; failure de admission é observável. |
+
+O witness de cancellation exerce cancel e outcome sobre o mesmo handle:
+
+<!-- w-example role=signature-reference -->
+```w
+// excerpt-source: reference/last-light/execution.w::export async fn closeBeforeTheLastCourse
+export async fn closeBeforeTheLastCourse(
+  jobs: take Array<MixingJob>,
+  parallelism: usize,
+): TaskOutcome<Array<MixingResult>, BrigadeError> {
+  let batch = async mixBatch(take jobs, parallelism: parallelism)
+  batch#cancel(reason: .shutdown)
+  return await (take batch)#outcome()
+}
+```
+
+`Task#checkCancellation()` e `Task#yield()` são controles imediatos e
+cooperativos; `Task#withTimeout` e `Task#withDeadline` criam um child lexical
+bounded e retornam um outcome. `Task#spawn` não substitui
+`spawn<.compute>`: o primeiro resolve uma referência dinâmica, enquanto o
+segundo continua initializer estático para um domain conhecido.
+
+`pipeline<tasks: ...>` é a única região repetida. O caso fail-fast publica
+`Array<Output>`; o caso collect publica
+`Array<TaskSettlement<Output, Failure>>`, preserva o índice e não converte
+application failures em throw. Os quatro campos são obrigatórios:
+`tasks`, `limit` positivo, `ordering: .input | .completion` e
+`errors: .failFast | .collect`. Staging de input, preflight de result storage,
+move após admission, limite de children vivos (distinto da execução física),
+arbitration de error, cancellation/fault/drain e O(count) continuam parte do
+contrato. Uma instância bounded atende cada input e publica exatamente um
+resultado; stream adapters permanecem separados.
 
 <!-- w-example role=signature-reference -->
 ```w
@@ -1497,33 +1674,29 @@ application errors e child cancellations sem perder o índice do input:
 export async fn inspectEveryFailure(
   jobs: take Array<MixingJob>,
   parallelism: usize,
-  ordering: TaskGroupOrdering,
 ): Array<TaskSettlement<MixingResult, BrigadeError>> throws BrigadeError {
   guard parallelism > 0 && parallelism <= maximumParallelCooks else {
     throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
   }
 
-  return await TaskGroup.parallelCollect<.compute>(
-    take jobs,
+  return try await pipeline<
+    tasks: .parallel<.compute>,
     limit: parallelism,
-    ordering: ordering,
-    using: mixJob,
-  )
+    ordering: .completion,
+    errors: .collect,
+  > each job in take jobs {
+    commit try mixJob(take job)
+  }
 }
 ```
 
-Em `.input`, os settlements seguem o índice. Em `.completion`, seguem body
-settlement, mas cada record ainda contém o índice original. `limit` limita
-children vivos; não torna os arrays de input ou output sublineares. Parent
-cancellation e fault não retornam array parcial e todo caminho drena.
+Em `.input`, outputs e arbitration seguem o índice de input; em `.completion`,
+outputs seguem settlement físico e cada record mantém seu índice. `.failFast`
+cancela e drena após a falha de aplicação; `.collect` espera todos os
+settlements. Cancellation de parent e fault não publicam array parcial.
 
-`TaskGroup` é uma coleção dinâmica homogênea de children. `pipeline` é um DAG
-estático de dependent service calls, promise pipelining e `unknownOutcome`.
-As duas formas podem compartilhar machinery de execution-graph no HIR/runtime,
-mas mantêm keywords e source surfaces distintas.
-
-`Task.firstSettled` faz uma escolha one-shot por completion order. Ele consome
-handles já criados e não escolhe um domain:
+`Task#firstSettled` é uma escolha one-shot por completion order. Ele consome
+handles já criados, não cria child nem escolhe domain:
 
 <!-- w-example role=signature-reference -->
 ```w
@@ -1534,7 +1707,7 @@ export async fn firstMenuMirror(
 ): TaskSettlement<MirroredMenu, MenuMirrorError> {
   let primary = async readMenuMirror(take primaryRequest)
   let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
-  let settlement = await Task.firstSettled(take [primary, fallback])
+  let settlement = await Task#firstSettled(take [primary, fallback])
 
   return switch take settlement {
     case .some(let winner): take winner
@@ -1543,16 +1716,18 @@ export async fn firstMenuMirror(
 }
 ```
 
-O retorno é `TaskSettlement<Value, Failure>?`, com `index` e `outcome`. Array
+O retorno é `TaskSettlement<Value, Failure>?`, com `index` e `outcome`; array
 vazio devolve `none`. O winner pode ser success, application error ou child
 cancellation. A operação cancela e drena todos os losers antes de devolver.
-Parent cancellation observada antes da publicação suprime o settlement, drena
-todos e continua control outcome. Effects já committed não sofrem rollback. Não
-há statement `select`, first-success implícito ou task escondida.
+Não há namespace ou família de grupo separada, statement `select`,
+first-success implícito ou task escondida. `TaskLocal` continua um descriptor
+de binding imutável, observado com `TaskLocal<Value>.key(...).get()`; ele não é
+um canal de cancellation.
 
 ### Pipeline de service e promise pipelining
 
-Uma call dependente usa `pipeline`. O caso `OvenLease` mostra a ordem concreta:
+Uma cadeia dependente usa `pipeline` somente para service/capability calls e
+projections estáticas. O caso `OvenLease` mostra a ordem concreta:
 `acquire` devolve uma capability, `preheat` usa essa capability, e `bake` e
 `close` continuam usando o lease. O bloco abaixo é um excerpt exato de
 `prepareDish` em [restaurant.w](reference/last-light/restaurant.w), incluindo
@@ -1566,7 +1741,7 @@ o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
     let ready = lease.preheat()
-    return (lease, ready)
+    commit (lease, ready)
   }
 
   defer async {
@@ -1581,7 +1756,7 @@ o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
   return try await lease.bake(take mixture, readiness: take ready)
 ```
 
-O pipeline descreve um DAG estático de calls. Em uma rota remota, o caller
+O pipeline descreve um grafo estático de calls. Em uma rota remota, o caller
 pode enviar `preheat()` antes de receber a capability de `acquire()`. O
 resultado só fica observável depois do `await`. Error, cancelamento e
 `unknownOutcome` seguem o contrato de service/effect; o pipeline não presume
@@ -1591,12 +1766,36 @@ como no excerpt acima.
 
 <!-- w-example role=logical-contract -->
 ```text
-W-1504 Research (não vigente): o estudo considera uma forma futura
-`pipeline<transaction: ...> tx = provider { ... commit ... }`. Esta forma não
-é W executável nesta baseline. A forma corrente continua sendo
-`pipeline { ... return ... }` para pipelining e
-`transaction<isolation: ..., access: ...> tx = provider { ... commit ... }`
-para transações.
+Pipeline é a única superfície de grafo. A forma curta exige pelo menos dois
+service/capability call steps dependentes e devolve o último call:
+let ready = try await pipeline ovens.acquire(recipe).preheat()
+
+Um bloco dependent usa commit, não return:
+pipeline {
+  let acquired = ovens.acquire(recipe)
+  let prepared = acquired.preheat()
+  commit prepared
+}
+
+O modo repetido exige os quatro campos e publica exatamente um resultado por
+input. Fail-fast devolve Array<Output>:
+pipeline<tasks: .concurrent, limit: 16, ordering: .input, errors: .failFast>
+  each item in take items { commit process(item) }
+
+Collect devolve Array<TaskSettlement<Output, Failure>>, preserva index e não
+transforma application failure em throw:
+pipeline<tasks: .parallel<.compute>, limit: 16, ordering: .completion,
+  errors: .collect> each item in take items { commit try process(item) }
+
+Transação é um modo, com `.default` somente quando o provider o ratifica:
+pipeline<transaction: { isolation: .serializable, access: .readWrite }>
+  tx = provider { let value = try await tx.read(); commit value }
+
+`commit` escolhe o envelope terminal da região e não implica atomicidade. O
+`return` continua pertencendo à função enclosing; um bloco de pipeline com
+`return` é rejeitado. `tasks` e `transaction` não combinam e regiões não
+aninham em v1.
+Short syntax não aceita branch, fanout, local compute ou control flow.
 ```
 
 Contrafactual explicativa (não é excerpt source-backed): o mesmo trabalho com
@@ -1627,7 +1826,7 @@ let ready = try await lease.preheat()
 ```
 
 Use initializer `async` para siblings independentes. Use `pipeline` para dependências
-de service. Nenhuma forma implica runtime, rede ou provider disponível neste
+de service/capability. Nenhuma forma implica runtime, rede ou provider disponível neste
 checkout.
 
 ### Channels e streams
@@ -1672,8 +1871,8 @@ stream <[...]> { yield take/copy ... } é uma forma vigente e estreita. Generic
 generator, yield from, buffer oculto, channel bidirecional implícito, MPMC sem
 domínio e buffer infinito estão fora da forma vigente.
 
-No corpus de referência, `TaskGroup` e os initializers `async`/`spawn` mostram o lifecycle
-lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
+No corpus de referência, `pipeline<tasks: ...>` e os initializers `async`/`spawn`
+mostram o lifecycle lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
 channel abre capacidade e endpoints explícitos com `Channel<Order>.open(capacity: 1)`,
 envia/recebe, encerra o sender por drop e fecha ou drena o receiver conforme o
 contrato.
@@ -2573,7 +2772,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
 | Controlar allocation | allocator scratch e `.fixed<capacity:N>`; `memory.generalAllocator: .none` como policy de build | `.bounded<budget:N>` e `.stack<capacity:N>` são Pesquisa; placement físico continua separado | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; policy não é placement | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
 | Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
-| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, TaskGroup map/collect | `limit`, `ordering` e `using` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain e bounds explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
+| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, `pipeline<tasks: ...>` | `tasks`, `limit`, `ordering` e `errors` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain, bounds e arbitration explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
 | Expressar urgência | deadline + service isolada + admission/reserva/budget; domain só para placement | política física aparece somente em `w explain execution` e provider receipt | `priority`/`qos`, domain como safety, `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority` | Ordem garantida pelo contrato não muda; ordem unspecified e deadline/admission/winner podem variar entre traces permitidos | [DESIGN.md §12.6.2](DESIGN.md#1262-domain-placement-e-política-física-de-scheduling) · [BUILD.md](reference/last-light/BUILD.md#32-execution-profiles) |
 | Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
 | Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
@@ -2593,7 +2792,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .cr)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
 | Escolher ownership de callable | `fn`, `some fn`, `any fn`, `mut fn` e `take fn` separados (Forma vigente) | Capture `<[copy ...]>`, `<[ref ...]>`, `<[take ...]>` ou `<[weak ...]>`; erase só quando pedido | `fn` unificado que apaga modo e custo (Rejeitado por enquanto) | Modos mantêm ownership, mutação, erasure e allocation observáveis; a separação aumenta a assinatura e reduz inferência oculta | [DESIGN.md §7.5](DESIGN.md#75-valores-callable-e-closures) · [callables.w](reference/last-light/callables.w) |
 | Esperar siblings com fail-fast | Tuple `try await (left, right)` em join lexical (Forma vigente) | `try await left` e depois `try await right` (Forma vigente, mas não equivalente) | Gather detached, fire-and-forget ou task sem owner (Rejeitado) | Tuple cancela siblings no primeiro erro settled e drena cleanup; awaits sequenciais mudam observação, timing e cancel; escolha altera effects e custo | [DESIGN.md §12.4](DESIGN.md#124-join-erro-e-outcome) · [execution.w](reference/last-light/execution.w) |
-| Escolher primeiro settlement | `await Task.firstSettled(take tasks)` com `TaskSettlement?` (Forma vigente) | Tuple join ou `Task.withTimeout` quando a intenção é fail-fast ou timeout | `select` statement, first-success implícito, drop de future ou retorno antes do drain (Rejeitado) | Completion order vira resultado; losers cancelam e drenam, mas effects committed permanecem | [DESIGN.md §12.4.1](DESIGN.md#1241-first-settled-estruturado) · [task_settlement.w](reference/last-light/task_settlement.w) |
+| Escolher primeiro settlement | `await Task#firstSettled(take tasks)` com `TaskSettlement?` (Forma vigente) | Tuple join ou `Task#withTimeout` quando a intenção é fail-fast ou timeout | `select` statement, first-success implícito, drop de future ou retorno antes do drain (Rejeitado) | Completion order vira resultado; losers cancelam e drenam, mas effects committed permanecem | [DESIGN.md §12.4.1](DESIGN.md#1241-first-settled-estruturado) · [task_settlement.w](reference/last-light/task_settlement.w) |
 | Encerrar receiver consuming | `(take cursor).finish()` explicita a transferência antes do lookup (Forma vigente) | `take fn finish()` declara o member consuming e torna o contrato visível | `cursor.finish()` com inferência de receiver (Rejeitado; `W-OWNERSHIP-0011`) | O prefixo preserva a fronteira de ownership e o erro de uso; inferência esconderia move, cleanup e indisponibilidade posterior | [DESIGN.md §7.3](DESIGN.md#73-parâmetros-e-ownership) · [command.w](reference/last-light/command.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
 | Encadear envelopes de contrato | `StaticList<ServiceStage><(isValidStagePath(.member))>` sequencial (Forma vigente) | Typestate `StagePath` e transitions fechadas no mesmo domínio | `StaticList<[ServiceStage, (isValidStagePath(.member))]>` fused (`W-CONTRACT-0002`, Rejeitado) | Envelopes sequenciais preservam o kind de cada slot e a ordem de validação; fused economizaria tokens, mas perde schema e diagnóstico | [DESIGN.md §3.5.4](DESIGN.md#354-grammar-normativa-g2-tipos-e-contratos-angulares) · [domain.w](reference/last-light/domain.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
 
