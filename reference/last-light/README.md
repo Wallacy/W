@@ -878,7 +878,8 @@ Aceite:
 - sends sequenciais por sender preservam ordem;
 - sends concorrentes não ganham uma ordem global fictícia;
 - commit de send acontece antes de receive devolver o item;
-- collections usam `TaskGroup` e streams usam map concorrente ou paralelo
+- collections usam regiões `pipeline<tasks: ...>` e streams usam adapters
+  concorrentes ou paralelos
   bounded em vez de um receiver MPMC;
 - `ReadableStream.tee` cobre duas branches estáticas;
 - fan-out dinâmico pertence a um service que declara policy por subscriber;
@@ -1123,12 +1124,12 @@ A forma source está no `prepareDish`:
 let (lease, ready) = try await pipeline {
   let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
   let ready = lease.preheat()
-  return (lease, ready)
+  commit (lease, ready)
 }
 ```
 
 O bloco aceita somente um DAG estático de calls e projections. Ele não executa
-uma closure remota. O `return` seleciona os valores que voltam ao caller. Uma
+uma closure remota. O `commit` seleciona os valores que voltam ao caller. Uma
 ilha na mesma session pode usar um round trip; outra route cria uma barreira
 sem mudar a semântica.
 
@@ -1176,10 +1177,10 @@ container físico sem se tornar um reader de produção.
 `transaction_oracle.w` usa a mesma expressão com um `ServiceRef`:
 
 ```w
-let receipt = try await transaction<
+let receipt = try await pipeline<transaction: {
   isolation: .serializable,
   access: .readWrite,
-> tx = tableLedger {
+}> tx = tableLedger {
   let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
   let receipt = try await tx.confirm(reservation: take reservation)
   commit receipt
@@ -1569,26 +1570,32 @@ Cobertura atual:
 
 ### 3.16 Observatório do Cometa Paciente
 
-Famílias: task group, backpressure, ordering, cancellation e atomic metrics.
+Famílias: pipeline tasks, backpressure, ordering, cancellation e atomic metrics.
 
 Aceite:
 
-- `parallelMap` mantém no máximo `limit` children ativos;
+- `pipeline<tasks: .parallel<.compute>, limit: ..., ordering: ..., errors: ...>`
+  mantém no máximo `limit` children vivos;
 - a admissão mantém no máximo `limit` items staged ou em children ativos;
 - `.input` devolve resultados na ordem dos jobs;
-- `parallelCollect` preserva um settlement por job;
+- `errors: .collect` preserva um settlement por job;
 - cancelar o batch fecha producer e children;
-- `batch.cancel(reason: .shutdown)` preserva o handle para o join;
+- `task#cancel(reason: .shutdown)` preserva o handle para o join;
+- `Task#spawn(domain: lane.reference, input: take job, using: work)` é o
+  launcher facet para um `ExecutionDomainRef` dinâmico; `spawn<domain>` é o
+  initializer estático para domains conhecidos;
+- `Task#withDeadline(until: deadline, input: take job, using: work)` devolve
+  `TaskOutcome` e drena o child após expiration;
 - `cancel` não existe como statement ou keyword;
 - cada job move ownership para um child;
 - `shared BrigadeMetrics` cruza a boundary porque usa storage atomic;
 - um pointer C ou state mutável de service não pode ocupar o mesmo lugar;
 - `TaskOutcome` distingue success, application error e cancellation;
-- `TaskGroup.*Collect` preserva o índice do input em cada `TaskSettlement`,
+- pipeline tasks `.collect` preserva o índice do input em cada `TaskSettlement`,
   inclusive quando a ordem é `.completion`;
-- `TaskGroup` é uma coleção dinâmica homogênea, enquanto `pipeline` é um DAG
-  estático de calls dependentes, mesmo quando o HIR/runtime compartilha machinery;
-- `Task.firstSettled` consome handles existentes e publica somente após o drain
+- pipeline tasks é a região repetida para uma coleção finita; `pipeline` dependent
+  continua o DAG estático de calls, mesmo quando o HIR/runtime compartilha machinery;
+- `Task#firstSettled` consome handles existentes e publica somente após o drain
   dos losers.
 
 Timeline mínima:
@@ -2002,7 +2009,7 @@ Aceite:
 - cancellation depois da entrada foreign mantém owner e buffers até drain;
 - a correção não depende de dois jobs executarem simultaneamente;
 - scheduler replay pode trocar a ordem dos siblings sem trocar o resultado;
-- `Task.yield()` não funciona como barrier;
+- `Task#yield()` não funciona como barrier;
 - `mixBeforeTheLastBell` usa deadline monotônico e devolve `TaskOutcome`;
 - `TaskTimeout` usa nanoseconds exatos; ausência de timeout não usa infinity;
 - body settled vence cancellation posterior e só fica visível após cleanup;
@@ -2121,7 +2128,7 @@ scheduler, runtime ou provider.
 O spelling `try sync` do Atlas chama a ordinary entry de uma declaration
 `async fn` concreta cujo body visível prova `neverSuspend`. `fetch` permanece
 aceito porque seu body apenas retorna `city`. Se qualquer caminho ganhar
-`await`, `Task.yield`, initializer child, join, service ou I/O suspending,
+`await`, `Task#yield`, initializer child, join, service ou I/O suspending,
 `defer async`, call bare/`await` para `maySuspend` ou `sync` para facet absent,
 `directEntry` passa a `absent` e o mesmo call site deixa de compilar.
 
@@ -2804,7 +2811,7 @@ Aceite:
   transacional;
 - o adapter PostgreSQL envia uma boundary `Sync` por statement;
 - `/updates` modifica cada valor antes da resposta e confirma a transação;
-- `/updates` usa `transaction<...> tx = store` e encerra com `commit`;
+- `/updates` usa `pipeline<transaction: ...> tx = store` e encerra com `commit`;
 - o transaction scope não escapa e só aceita efeitos derivados de `tx`;
 - uma perda depois de `COMMIT` gera `unknownCommit`; não há retry implícito;
 - fortunes escapam HTML no template adapter;
@@ -3185,7 +3192,7 @@ O Book deve mostrar pares lado a lado:
 | falha de envio | enum devolve `T` | Boolean, panic ou perda do item |
 | close de channel | último sender ou receiver gracioso; drop do receiver aborta | qualquer sender fecha globalmente |
 | prefetch | adapter `buffer(capacity:)` explícito | watermark na assinatura ou buffer invisível |
-| distribuição de trabalho | `TaskGroup`/Stream map bounded ou mailbox de service | `WorkQueue` MPMC universal |
+| distribuição de trabalho | pipeline tasks/Stream adapter bounded ou mailbox de service | `WorkQueue` MPMC universal |
 | fan-out | `tee` estático ou service com policy por subscriber | `Broadcast` com lag/replay implícitos |
 | state mais recente | `SnapshotCell` e notification específica | `Watch` que esconde conflation e lifecycle |
 | quota por recurso | mailbox com authority | `WeightedChannel` chamado de limite de memória |

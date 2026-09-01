@@ -22,10 +22,13 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - `struct`, `object`, `service`, `enum`, `protocol`, aliases refinados e `foreign c`;
 - stored fields, computed properties e property requirements;
 - bindings, patterns nominais, `mut fn`/`take fn`, ownership e behaviors;
+- composition nominal, hooks de behavior e facets `#` com paths qualificados;
+- pipe-forward `|>` e regiões `pipeline` com contracts e `commit`;
 - borrowed result types, optional bindings owned e iteration
   `ref`/`inout`/`copy`/`take`;
 - array repeat `[value; count]` e literals de Array/Map;
-- `try`/`await`, `for try await`, initializers `async`/`spawn<domain>` e `Task.cancel()`;
+- `try`/`await`, `for try await`, initializers `async`/`spawn<domain>` e
+  `task#cancel()`;
 - `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `entry { ... }`, descriptors nomeados, service declarations e `import service`;
@@ -38,6 +41,12 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - queries de highlights, locals e folds;
 - declaração `allocator` nomeada ou anônima, plans built-in e custom;
 - casos estruturais internos, incluindo a superfície integrada vigente.
+
+Tree-sitter reconhece uma supergrammar para recuperação estrutural. Em
+particular, `x |> f() ?? fallback` e `x |> f() || fallback` podem aparecer como
+um `pipe_forward_expression` seguido de `binary_expression` na CST, mas a
+aceitação semântica exige parênteses e emite `W-PIPE-0001`; use
+`(x |> f()) ?? fallback` ou `(x ?? fallback) |> f()`.
 
 Na raiz de módulo, a projeção Tree-sitter mantém declarations em ordem normal e
 rejeita statements top-level fora de um descriptor `entry`. A execução sempre

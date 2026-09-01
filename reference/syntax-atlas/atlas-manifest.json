@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:3ef485d6154a039fd1f7d7806ba7ec3d9168fbdbe95e688ec1b69fcf4b31dfe7",
-    "publicRuleSetDigest": "sha256:b982b531fb03cf3c544d050f622de37e9bf37d093b9bd68874a08027bce77fe6"
+    "digest": "sha256:e7f29013be3ccb15b9ac528957c7fe0a595f47c7866f319a587094eab1b5f760",
+    "publicRuleSetDigest": "sha256:fcddb2cb450a3c693f4156700110b6d75bea15c0c166ccda534ebce842737265"
   },
   "sourceFiles": [
     "build.w",
@@ -163,7 +163,31 @@
       ]
     },
     {
+      "name": "behavior_component",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_composition",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
       "name": "behavior_declaration",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_facet_property",
       "surface": "direct",
       "reason": "Direct source construction shown in the data-declarations atlas block.",
       "markers": [
@@ -174,6 +198,22 @@
       "name": "behavior_field_declaration",
       "surface": "direct",
       "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_hook",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_hook_parameters",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
       "markers": [
         "data-declarations"
       ]
@@ -210,6 +250,14 @@
     },
     {
       "name": "behavior_parameter_list",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_ref_parameter",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -552,6 +600,22 @@
       "reason": "Direct source construction shown in the data-declarations atlas block.",
       "markers": [
         "data-declarations"
+      ]
+    },
+    {
+      "name": "facet_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
+      ]
+    },
+    {
+      "name": "facet_path",
+      "surface": "composed",
+      "reason": "Composed by the execution-forms atlas block.",
+      "markers": [
+        "execution-forms"
       ]
     },
     {
@@ -1059,9 +1123,89 @@
       ]
     },
     {
+      "name": "pipe_call_modifier",
+      "surface": "composed",
+      "reason": "Composed by the operators atlas block.",
+      "markers": [
+        "operators"
+      ]
+    },
+    {
+      "name": "pipe_call_template",
+      "surface": "composed",
+      "reason": "Composed by the operators atlas block.",
+      "markers": [
+        "operators"
+      ]
+    },
+    {
+      "name": "pipe_callable_path",
+      "surface": "composed",
+      "reason": "Composed by the operators atlas block.",
+      "markers": [
+        "operators"
+      ]
+    },
+    {
+      "name": "pipe_forward_expression",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the operators atlas block.",
+      "markers": [
+        "operators"
+      ]
+    },
+    {
+      "name": "pipeline_call_step",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "pipeline_chain",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "pipeline_contract",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "pipeline_contract_item",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
       "name": "pipeline_expression",
       "surface": "direct",
       "reason": "Direct source construction shown in the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "pipeline_task_mode",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
+      "markers": [
+        "restricted-expressions"
+      ]
+    },
+    {
+      "name": "pipeline_transaction_contract",
+      "surface": "composed",
+      "reason": "Composed by the restricted-expressions atlas block.",
       "markers": [
         "restricted-expressions"
       ]
@@ -1374,14 +1518,6 @@
       "reason": "Direct source construction shown in the control-flow atlas block.",
       "markers": [
         "control-flow"
-      ]
-    },
-    {
-      "name": "transaction_expression",
-      "surface": "direct",
-      "reason": "Direct source construction shown in the restricted-expressions atlas block.",
-      "markers": [
-        "restricted-expressions"
       ]
     },
     {
@@ -2140,12 +2276,18 @@
         "associated_type_requirement",
         "behavior_accessor",
         "behavior_body",
+        "behavior_component",
+        "behavior_composition",
         "behavior_declaration",
+        "behavior_facet_property",
         "behavior_field_declaration",
+        "behavior_hook",
+        "behavior_hook_parameters",
         "behavior_initializer",
         "behavior_initializer_parameters",
         "behavior_parameter",
         "behavior_parameter_list",
+        "behavior_ref_parameter",
         "computed_property_declaration",
         "conformance_clause",
         "const_declaration",
@@ -2187,14 +2329,14 @@
           "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
         }
       ],
-      "snippetDigest": "sha256:5f77f35c94fd1346ebf3ca1d74f7faab9b03e8f03932047b8a04842f1ee0e0fb",
-      "snippetBytes": 1393
+      "snippetDigest": "sha256:e61dbd78101e3846c321f83668484c39223d89c497f471e527a47422c1b97aa8",
+      "snippetBytes": 2156
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 138,
+      "line": 165,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2234,7 +2376,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 107,
+      "line": 134,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2279,7 +2421,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 187,
+      "line": 214,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2312,7 +2454,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 162,
+      "line": 189,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2371,17 +2513,17 @@
         {
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b"
+          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f"
         }
       ],
-      "snippetDigest": "sha256:3e5f0bf2ddd60ed598df5a1a4adbcfaf82f20efb71ad3693c9b6343703f876c4",
-      "snippetBytes": 519
+      "snippetDigest": "sha256:06899e8ebf02ac5caecc9e60d29a4f74f426a5899ec1d0d73f495cc1235caac3",
+      "snippetBytes": 573
     },
     {
       "id": "control-flow",
       "file": "execution.w",
       "order": 8,
-      "line": 32,
+      "line": 33,
       "title": "Control flow and cleanup",
       "family": "control",
       "designStatus": "current",
@@ -2412,7 +2554,7 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b"
+          "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
         }
       ],
       "snippetDigest": "sha256:30d0e60ebfb7fcf756948c087e8fb6bcd49f002cb8d057b0187f8887bc464f02",
@@ -2422,7 +2564,7 @@
       "id": "execution-forms",
       "file": "execution.w",
       "order": 9,
-      "line": 62,
+      "line": 63,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -2433,6 +2575,8 @@
         "argument_expansion",
         "argument_list",
         "call_expression",
+        "facet_expression",
+        "facet_path",
         "generic_application_expression",
         "generic_call_arguments",
         "index_expression",
@@ -2452,17 +2596,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b"
+          "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
         }
       ],
-      "snippetDigest": "sha256:2efe84b02240ced2050463d2ccd60a57ae65b9b2ac59f6781a07fd4496787062",
-      "snippetBytes": 1012
+      "snippetDigest": "sha256:2d02fe04fc39177c779c207c409a994ba5bbe2afa7271395ec7dca7de72ee1bc",
+      "snippetBytes": 1110
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 99,
+      "line": 100,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2482,8 +2626,13 @@
         "lock_expression",
         "one_sided_range_expression",
         "panic_expression",
+        "pipeline_call_step",
+        "pipeline_chain",
+        "pipeline_contract",
+        "pipeline_contract_item",
         "pipeline_expression",
-        "transaction_expression",
+        "pipeline_task_mode",
+        "pipeline_transaction_contract",
         "unsafe_expression"
       ],
       "designRefs": [
@@ -2493,11 +2642,11 @@
         {
           "path": "reference/last-light/transaction_oracle.w",
           "symbol": "reserveTableAtomically",
-          "digest": "sha256:826f5e1d09e74678401fa6502d0f5da167fc00cd0802041f4367f246837af663"
+          "digest": "sha256:150d2b1d51f9bd467ff7c948deee0475bd70f825681a45df276c6bb437e719ab"
         }
       ],
-      "snippetDigest": "sha256:225ad64d9ff213f982ae5a2eda628a0d3e74dc46cc6324b2d334716de06bd3a1",
-      "snippetBytes": 971
+      "snippetDigest": "sha256:22bc48924450337053236840f0c27e0c0068fd0437890bf6aee69303e7022e1e",
+      "snippetBytes": 1442
     },
     {
       "id": "operators",
@@ -2509,7 +2658,12 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only-provider-missing",
       "root": "module",
-      "grammarRefs": [],
+      "grammarRefs": [
+        "pipe_call_modifier",
+        "pipe_call_template",
+        "pipe_callable_path",
+        "pipe_forward_expression"
+      ],
       "designRefs": [
         "3.5.6",
         "5.6",
@@ -2518,14 +2672,14 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:1b3e7c87124a95d7cf239a9389bb7fa535ce0e553a86182df82855f9f003771c",
-      "snippetBytes": 5744
+      "snippetDigest": "sha256:f9cdc21f68bc3aaa04a9f14421e34ce61d86d1a3b270a770ca49294dfc67f4ca",
+      "snippetBytes": 6068
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 147,
+      "line": 166,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2553,7 +2707,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 224,
+      "line": 251,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2579,7 +2733,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 176,
+      "line": 195,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2673,6 +2827,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:ecdefaba5bc320e6ca29ea445f7cb6579759b120367ef0f57e9674cb071bdba6"
+    "coverageDigest": "sha256:dbd3ffd985398d89b60a72cff2713d3d92e190fc5a5bceb448b6717b89bca721"
   }
 }

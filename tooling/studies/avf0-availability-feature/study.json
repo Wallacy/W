@@ -39,9 +39,9 @@
   ],
   "sourceRefs": [
     { "path": "reference/last-light/build.w", "symbol": "targetVariants: [\"native-terminal::posix\"]", "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038", "claim": "package resolution keeps static feature selection outside runtime policy" },
-    { "path": "reference/last-light/billing.w", "symbol": "gatewayUnavailable", "digest": "sha256:f17bd12386722685fef019275822b82152d88dcf217fe63eb5d89f6aaf233ef4", "claim": "provider-backed operation already has an explicit unavailable outcome" },
+    { "path": "reference/last-light/billing.w", "symbol": "gatewayUnavailable", "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde", "claim": "provider-backed operation already has an explicit unavailable outcome" },
     { "path": "reference/last-light/synchronization.w", "symbol": "SnapshotCell<PublishedMenu>", "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961", "claim": "immutable atomic publication composes with runtime configuration" },
-    { "path": "reference/last-light/billing.w", "symbol": "export service billing: BillingApi {", "digest": "sha256:f17bd12386722685fef019275822b82152d88dcf217fe63eb5d89f6aaf233ef4", "claim": "billing composes provider availability, effects, generation, and fallback" }
+    { "path": "reference/last-light/billing.w", "symbol": "export service billing: BillingApi {", "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde", "claim": "billing composes provider availability, effects, generation, and fallback" }
   ],
   "officialRefs": [
     { "url": "https://blog.cloudflare.com/flagship/", "claim": "local evaluation, targeting, deterministic percentage rollout, and audit history" },

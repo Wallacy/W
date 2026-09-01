@@ -233,7 +233,7 @@ async fn relay(
   return try await pipeline {
     let feed = telemetry.follow(after: sequence)
     let receipt = archive.ingest(source: take feed)
-    return receipt
+    commit receipt
   }
 }
 
@@ -353,5 +353,5 @@ async fn relay(
                         (identifier)
                         (unary_expression
                           (identifier))))))
-                (return_statement
+                (commit_statement
                   (identifier))))))))))

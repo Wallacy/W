@@ -1,7 +1,7 @@
 {
   "$schema": "w-std-api-surface-snapshot-1",
   "status": "generated-design-projection",
-  "catalogDigest": "fb2a306c1ccb4a7e29f0a70a3a4e07680bf3d1ce9adb292ba0e6466b7e4fe724",
+  "catalogDigest": "0f936e95b7c670c219bd30dd04358070a0dbbdfb4046988dd2206ec7f9b8f6b7",
   "summary": {
     "modules": 32,
     "catalogedApis": 436,
@@ -7414,7 +7414,7 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "8b14bb18fd1246aee45d06ca175652b7d341a4ac4e8f99768503346e9b7556ac",
+      "catalogedDeclarationsDigest": "65c722a42a6522434b2d57743f641c3163970c9cf27ba0a084f0e03e051d09e8",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -7431,15 +7431,6 @@
           "signature": "export enum TaskBudgetKind",
           "declarationDigest": "6190218b5c92db3ef176788e449c3a5275319e212f44f4e2226e4296947b4d74",
           "line": 11,
-          "profile": "value-contract",
-          "status": "draft"
-        },
-        {
-          "symbol": "TaskGroupOrdering",
-          "kind": "enum",
-          "signature": "export enum TaskGroupOrdering",
-          "declarationDigest": "78b2a6c61697367e259c7f83d5421988626489d41220e4221c22c217b66bfdd4",
-          "line": 24,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7482,6 +7473,15 @@
               "profile": "task-local-scope"
             }
           ],
+          "status": "draft"
+        },
+        {
+          "symbol": "TaskOrdering",
+          "kind": "enum",
+          "signature": "export enum TaskOrdering",
+          "declarationDigest": "33974bd0cc9fd1df43745771e13258d39afe962dc45fa973922921ea6b04e1ca",
+          "line": 24,
+          "profile": "value-contract",
           "status": "draft"
         },
         {
@@ -10393,7 +10393,7 @@
     {
       "id": "tgm0-task-group-ordering",
       "module": "std.runtime.task",
-      "surface": "TaskGroupOrdering",
+      "surface": "TaskOrdering",
       "status": "draft",
       "profile": "value-contract",
       "consumer": "reference/last-light/execution.w"

@@ -29,9 +29,11 @@ permite language mode icons e não possui associação mais específica para `.w
   `pin`;
 - queries contextuais `type of` e `info of`; `info` e `of` continuam nomes
   comuns fora dessas frases;
+- facets `#` com paths qualificados, composition de behaviors e hooks;
+- pipe-forward fixo `|>` com callable path e lista de argumentos;
 - contratos de capture `<[copy name, take other]>` em closures;
 - declaração lexical `allocator` com plans fixed/bounded/custom;
-- blocos estruturados `pipeline` e `transaction`, com `commit`;
+- regiões unificadas `pipeline` (dependent, tasks e transaction), com `commit`;
 - pares, comentário e indentação básicos do editor.
 
 O destaque é tolerante a código incompleto, mas não substitui parser/CST. Em

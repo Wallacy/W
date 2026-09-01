@@ -1,16 +1,17 @@
 {
   "$schema": "w-w1504-pipeline-transaction-ledger-1",
   "id": "W-1504",
-  "status": "registered-research-bundle",
-  "title": "Pipeline and transaction convergence evidence for W-1504",
+  "status": "superseded-by-W-1511",
+  "title": "Historical pipeline and transaction convergence registration for W-1504",
+  "supersededBy": "W-1511",
   "languageSurface": "none",
   "statePolicy": {
     "registrationOnly": true,
-    "syntaxPromotionRequiresEvidence": true,
+    "syntaxPromotionRequiresEvidence": false,
     "grammarEdits": false,
     "lastLightEdits": false,
-    "currentSurfacePreserved": true,
-    "promotionRule": "No syntax migration before parser/checker/HIR, effect, provider/transport, fault, benchmark and human gates produce independent evidence."
+    "currentSurfacePreserved": false,
+    "promotionRule": "Superseded by W-1511; retain this bundle only as historical provenance and do not promote its separate source surfaces."
   },
   "contractRefs": [
     "DESIGN.md §3.2",
@@ -22,7 +23,7 @@
     {
       "path": "DESIGN.md",
       "symbol": "W-1504",
-      "claim": "Current pipeline and transaction boundary, candidate primary surface and fork gate."
+      "claim": "Historical pipeline and transaction boundary, candidate primary surface and fork gate; superseded by W-1511."
     },
     {
       "path": "RATIONALE.md",
@@ -32,17 +33,17 @@
     {
       "path": "reference/last-light/service_oracle.w",
       "symbol": "PipelineBodyCase",
-      "claim": "Current static dependent-call DAG oracle and typed pipeline uncertainty."
+      "claim": "Historical static dependent-call DAG oracle and typed pipeline uncertainty, before W-1511 superseded this registration."
     },
     {
       "path": "reference/last-light/transaction_oracle.w",
       "symbol": "expectedTransactionOutcome",
-      "claim": "Current single-provider transaction commit and typed commit uncertainty oracle."
+      "claim": "Historical single-provider transaction commit and typed commit uncertainty oracle, before W-1511 superseded this registration."
     },
     {
       "path": "reference/last-light/BUILD.md",
       "symbol": "pipeline and transaction",
-      "claim": "Current build note keeps pipeline and transaction source surfaces distinct."
+      "claim": "Historical build note recorded distinct pipeline and transaction source surfaces."
     }
   ],
   "officialRefs": [
@@ -72,16 +73,16 @@
     }
   ],
   "currentBoundary": {
-    "pipeline": "Static dependent-call DAG with a return terminal; current grammar and Last Light remain unchanged.",
-    "transaction": "Single-provider async structured region with a commit terminal; local compute, branch and loop are allowed; current grammar and Last Light remain unchanged.",
-    "sharedInternal": "HIR/runtime may share a StructuredOperationRegion or Graph as an implementation candidate, but the source surfaces do not unify in the current design.",
-    "noSyntaxEdits": "This ledger records research only; it does not change grammar, corpus, parser projections or Last Light."
+    "pipeline": "Historical static dependent-call DAG with a return terminal; W-1511 supersedes this source contract.",
+    "transaction": "Historical single-provider async structured region with a commit terminal; W-1511 supersedes this source contract.",
+    "sharedInternal": "Historical research considered shared HIR/runtime machinery; W-1511 now owns the current pipeline_region decision.",
+    "noSyntaxEdits": "This registration records historical research only; W-1511 owns all current grammar, corpus, parser projection and Last Light edits."
   },
   "candidatePrimary": {
-    "status": "research/open",
+    "status": "superseded",
     "plain": "pipeline with a commit terminal",
     "transactional": "pipeline<transaction: {isolation:..., access:...}> tx = provider { ... commit value }",
-    "keyword": "The transaction keyword may be removed before 1.0 only if evidence supports the migration.",
+    "keyword": "Historical hypothesis: the transaction keyword could be removed before 1.0; W-1511 now rejects the standalone source form.",
     "plainCommit": "Exports an output envelope and does not imply rollback.",
     "transactionalCommit": "Also requests an atomic provider commit.",
     "defaults": "Isolation, access, provider capability and failure defaults remain evidence questions; no default is ratified by this ledger."
@@ -89,7 +90,7 @@
   "forks": [
     {
       "id": "A-static-dag-transaction",
-      "status": "open",
+      "status": "superseded-by-W-1511",
       "hypothesis": "Restrict the current transaction body to a static dependent-call DAG and move dynamic control into a provider method.",
       "risk": "A remote branch or loop may become hidden provider behavior, weakening source-visible ownership, diagnostics and cancellation boundaries.",
       "evidenceRequired": [
@@ -101,7 +102,7 @@
     },
     {
       "id": "B-mode-dependent-region",
-      "status": "open",
+      "status": "superseded-by-W-1511",
       "hypothesis": "One pipeline keyword selects a mode-dependent body shape and terminal contract over a StructuredOperationRegion; each mode has its own terminal, with the candidate primary converging on commit.",
       "risk": "Mode-dependent grammar can make body shape, effect classification and error precedence ambiguous to users and tools.",
       "evidenceRequired": [
@@ -113,7 +114,7 @@
     },
     {
       "id": "C-control-nodes-sent-code",
-      "status": "guarded-open",
+      "status": "superseded-by-W-1511",
       "hypothesis": "Represent control nodes or sent code in a bounded IR so a pipeline can carry remote branch/loop behavior.",
       "promotionRule": "Reject unless bounded IR, capability, isolation, cancellation, security and provider evidence proves the representation without hidden general execution.",
       "risk": "Sent control can hide an unbounded remote program, alter authority and make commit/error behavior non-local.",
@@ -126,7 +127,7 @@
     },
     {
       "id": "D-separate-keyword",
-      "status": "open",
+      "status": "superseded-by-W-1511",
       "hypothesis": "Keep transaction as a separate source keyword and let pipeline remain a static DAG with return.",
       "tradeoff": "Preserves clear body-shape and atomicity signals, but retains two source concepts and duplicates some tooling/runtime machinery.",
       "evidenceRequired": [
@@ -252,7 +253,7 @@
         "current": ["registered-research-boundary", "official-primary-references"],
         "missing": ["parser-checker", "HIR-schema", "effect-classification", "provider-transport-oracle", "commit-ACK-faults", "DAG-region-decision", "Last-Light-migration", "round-trip-contention-benchmarks", "human-usability"]
       },
-      "stopCondition": "Stop and keep the current grammar if any gate is missing, if benchmark values/errors differ, or if human evidence cannot distinguish a plain output commit from a transactional atomic commit."
+      "stopCondition": "Historical stop condition: do not promote this registration; W-1511 owns the current grammar and source migration."
     }
   ],
   "blockers": [

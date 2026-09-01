@@ -5,7 +5,7 @@ module context_local_oracle
 export enum ContextBoundary {
   directCall
   asyncChild
-  taskGroupChild
+  pipelineTasksChild
   spawnedChild
   serviceCall
   wireCall
@@ -28,7 +28,7 @@ export const fn taskLocalVisibility(
   return switch boundary {
     case .directCall: .currentBinding
     case .asyncChild: .currentBinding
-    case .taskGroupChild: .currentBinding
+    case .pipelineTasksChild: .currentBinding
     case .spawnedChild: .currentBinding
     case .serviceCall: .defaultValue
     case .wireCall: .defaultValue

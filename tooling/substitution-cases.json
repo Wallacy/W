@@ -2385,6 +2385,63 @@
         "bun run check:platform-support — successor tag object, peeled commit, native-plan blocker, and no-support-promotion gate"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-fpp0-facets-pipe-pipeline",
+      "reviewItem": "FPP0 facets, pipe-forward e pipeline unificada contra projeções implícitas, UFCS e grafo sem schema",
+      "decisions": ["W-1509", "W-1510", "W-1511", "W-1512"],
+      "task": "Exercise the closed FPP0 source surfaces: immediate qualified facets and nominal behavior composition, a static callable pipe-forward step, and explicit pipeline modes with commit.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "export behavior VersionedDegrees for u16 = (degrees: WrappedDegrees, version: Versioned<u16>)",
+          "var VersionedDegrees yaw: u16 = 350_u16",
+          "yaw#degrees.reset()",
+          "let normalized = copy source |> try json.decode<Document>()",
+          "let output = try await pipeline ovens.acquire(...).preheat()",
+          "pipeline<tasks: .concurrent, limit: 16, ordering: .input, errors: .collect> each item in take items { commit transform(item) }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "value-hash-fallback-or-reified-facet",
+          "language": "w-rejected",
+          "source": ["let copy = yaw", "copy#reset", "yaw#degrees"] ,
+          "expectedDifference": "A facet belongs to the property place, uses an immediate qualified path, and cannot be copied, dynamically looked up, or treated as private member fallback."
+        },
+        {
+          "name": "ufcs-or-value-receiver-pipe",
+          "language": "w-rejected",
+          "source": ["value |> receiver.method()", "value |> f(_)"],
+          "expectedDifference": "Pipe-forward resolves a free or static callable path with one positional first slot; it does not use a receiver value, UFCS fallback, or placeholder."
+        },
+        {
+          "name": "implicit-task-group-or-transaction",
+          "language": "w-rejected",
+          "source": ["TaskGroup.concurrentMap(items)", "transaction { return value }", "pipeline { return value }"],
+          "expectedDifference": "Graph execution uses pipeline schemas and one commit terminal; standalone transaction, TaskGroup families, and pipeline return are not current forms."
+        },
+        {
+          "name": "observer-without-composition",
+          "language": "w-rejected",
+          "source": ["var Versioned value = rhs"],
+          "expectedDifference": "An observer does not become a direct initializer. It enters a nominal composition; zero storage behaviors synthesize plain storage for that composition."
+        }
+      ],
+      "sourceRefs": [
+        { "path": "DESIGN.md", "symbol": "W-1509 — facet projection", "claim": "Current facet projection, Task controls, composition paths and immediate-use restrictions." },
+        { "path": "tooling/tree-sitter-w/grammar.js", "symbol": "pipeline_chain", "claim": "Current syntax nodes for qualified facets, pipe-forward and pipeline chain forms." },
+        { "path": "tooling/tree-sitter-w/test/corpus/fpp0_facets_pipe_pipeline.txt", "symbol": "VersionedDegrees", "claim": "Parser corpus exercises composition, facets, pipe-forward and pipeline modes." },
+        { "path": "reference/last-light/orbit.w", "symbol": "VersionedDegrees", "claim": "Last Light composition witness observes normalization, epoch and qualified facet use." },
+        { "path": "std/runtime/task.w", "symbol": "TaskOrdering", "claim": "Current Task data ordering type after the TaskGroup rename." }
+      ],
+      "checks": [
+        "bun run check:tree-sitter — FPP0 grammar generation and corpus parse",
+        "bun tooling/syntax-atlas.mjs --check — operator and facet projection",
+        "bun tooling/diagnostic-catalog.mjs --check — immediate facet, pipe and pipeline restrictions",
+        "Last Light focal parse — composition and pipeline witnesses"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

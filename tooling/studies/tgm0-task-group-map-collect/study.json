@@ -3,6 +3,8 @@
   "id": "TGM0",
   "decision": "W-1482",
   "status": "complete-design-study",
+  "surfaceStatus": "superseded-by-W-1511",
+  "currentSurface": "pipeline<tasks: ...> with TaskOrdering; TaskSettlement remains normal-dot data",
   "title": "Closed finite TaskGroup map and collect families",
   "question": "Can W bound dynamic structured work while preserving input identity, fail-fast arbitration, drain, and the distinction between logical concurrency and physical capacity?",
   "data": "cases.json",

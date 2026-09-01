@@ -9,11 +9,11 @@
 > Este documento não cria uma autoridade nova.
 > Não edite este arquivo. Use `bun tooling/diagnostic-catalog.mjs --write`.
 
-- Catalog digest: `sha256:709fe448e7da262c8726d90eecd63b33de60b6793e511f6098e1812ff187fee7`
-- Entries: `312`
-- Families: `47`
-- Design references: `218` exact, `94` family
-- States: `active` 309, `reserved` 3
+- Catalog digest: `sha256:b9c86c5a58c70f69495a2b68c08eca0794789764007f82c754c4e7a9a460eb2a`
+- Entries: `332`
+- Families: `51`
+- Design references: `238` exact, `94` family
+- States: `active` 329, `reserved` 3
 
 ## Como ler
 
@@ -31,6 +31,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 
 - [`W-ALLOCATOR`](#w-allocator) — 11 entradas
 - [`W-ATOMIC`](#w-atomic) — 16 entradas
+- [`W-BEHAVIOR`](#w-behavior) — 5 entradas
 - [`W-BORROW`](#w-borrow) — 12 entradas
 - [`W-CAPABILITY`](#w-capability) — 1 entrada
 - [`W-CONST`](#w-const) — 7 entradas
@@ -42,6 +43,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - [`W-EFFECT`](#w-effect) — 2 entradas
 - [`W-EXPORT`](#w-export) — 7 entradas
 - [`W-EXPR`](#w-expr) — 4 entradas
+- [`W-FACET`](#w-facet) — 6 entradas
 - [`W-FLOW`](#w-flow) — 2 entradas
 - [`W-FMT`](#w-fmt) — 2 entradas
 - [`W-FOREIGN`](#w-foreign) — 9 entradas
@@ -58,6 +60,8 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - [`W-OWNERSHIP`](#w-ownership) — 8 entradas
 - [`W-PARSE`](#w-parse) — 29 entradas
 - [`W-PATTERN`](#w-pattern) — 6 entradas
+- [`W-PIPE`](#w-pipe) — 4 entradas
+- [`W-PIPELINE`](#w-pipeline) — 5 entradas
 - [`W-PLACEMENT`](#w-placement) — 4 entradas
 - [`W-PRESENTATION`](#w-presentation) — 10 entradas
 - [`W-PROCESS`](#w-process) — 3 entradas
@@ -658,6 +662,108 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
   - none
 
 - Design authority: `exact` `W-ATOMIC-0016` — [23.9 ATOM0-G1 — contrato atômico fechado](DESIGN.md#239-atom0-g1-contrato-atômico-fechado)
+
+### W-BEHAVIOR
+
+#### W-BEHAVIOR-0002
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a behavior composition is not a nominal labeled tuple
+
+- `requiredFacts`:
+  - `actual`: `string`
+  - `behavior`: `string`
+  - `expected`: `string-set`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-BEHAVIOR-0002` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-BEHAVIOR-0003
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a behavior composition contains more than one storage behavior
+
+- `requiredFacts`:
+  - `behavior`: `string`
+  - `components`: `string[]`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-BEHAVIOR-0003` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-BEHAVIOR-0004
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a behavior alias is duplicated, cyclic, or has no facet path
+
+- `requiredFacts`:
+  - `alias`: `string`
+  - `behavior`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-BEHAVIOR-0004` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-BEHAVIOR-0005
+
+- `state`: `active`
+- `phase`: `semantic.effect`
+- `severity`: `error`
+- `meaning`: a behavior observer hook has an invalid signature or effect
+
+- `requiredFacts`:
+  - `behavior`: `string`
+  - `hook`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-BEHAVIOR-0005` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-BEHAVIOR-0006
+
+- `state`: `active`
+- `phase`: `semantic.ownership`
+- `severity`: `error`
+- `meaning`: a behavior facet path violates composition ownership or immediate-use rules
+
+- `requiredFacts`:
+  - `path`: `string`
+  - `place`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-BEHAVIOR-0006` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
 
 ### W-BORROW
 
@@ -2490,6 +2596,128 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
   - none
 
 - Design authority: `exact` `W-EXPR-0007` — [Diagnostics e recovery](DESIGN.md#diagnostics-e-recovery)
+
+### W-FACET
+
+#### W-FACET-0001
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a facet target is not a property place or declared core namespace
+
+- `requiredFacts`:
+  - `facet`: `string`
+  - `place`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0001` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-FACET-0002
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a facet projection is reified or dynamically looked up
+
+- `requiredFacts`:
+  - `expected`: `string-set`
+  - `projection`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0002` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-FACET-0003
+
+- `state`: `active`
+- `phase`: `semantic.effect`
+- `severity`: `error`
+- `meaning`: a facet violates the synchronous nonthrowing property-safe ceiling
+
+- `requiredFacts`:
+  - `effect`: `string`
+  - `facet`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0003` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-FACET-0004
+
+- `state`: `active`
+- `phase`: `semantic.ownership`
+- `severity`: `error`
+- `meaning`: a mutable facet does not have an exclusive property place
+
+- `requiredFacts`:
+  - `facet`: `string`
+  - `ownership`: `string`
+  - `place`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0004` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-FACET-0005
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a facet is not declared by the applied behavior or a core namespace
+
+- `requiredFacts`:
+  - `declarations`: `string[]`
+  - `facet`: `string`
+  - `place`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0005` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
+
+#### W-FACET-0006
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: a facet collides with a behavior or core facet or requests unsupported take
+
+- `requiredFacts`:
+  - `collision`: `string`
+  - `facet`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-FACET-0006` — [10. Property behaviors](DESIGN.md#10-property-behaviors)
 
 ### W-FLOW
 
@@ -4596,6 +4824,190 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
   - none
 
 - Design authority: `exact` `W-PATTERN-0007` — [Diagnostics](DESIGN.md#diagnostics)
+
+### W-PIPE
+
+#### W-PIPE-0001
+
+- `state`: `active`
+- `phase`: `source.parse`
+- `severity`: `error`
+- `meaning`: pipe-forward RHS must be an explicit free-function call template
+
+- `requiredFacts`:
+  - `actual`: `string`
+  - `construct`: `string`
+  - `expected`: `string-set`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPE-0001` — [5.6 Operadores, assignment e identidade](DESIGN.md#56-operadores-assignment-e-identidade)
+
+#### W-PIPE-0002
+
+- `state`: `active`
+- `phase`: `semantic.type`
+- `severity`: `error`
+- `meaning`: the first pipe parameter must be a positional slot
+
+- `requiredFacts`:
+  - `function`: `string`
+  - `parameter`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPE-0002` — [5.6 Operadores, assignment e identidade](DESIGN.md#56-operadores-assignment-e-identidade)
+
+#### W-PIPE-0003
+
+- `state`: `active`
+- `phase`: `source.parse`
+- `severity`: `error`
+- `meaning`: pipe-forward does not accept placeholders, members, UFCS, colon, or facet lookup
+
+- `requiredFacts`:
+  - `actual`: `string`
+  - `construct`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPE-0003` — [5.6 Operadores, assignment e identidade](DESIGN.md#56-operadores-assignment-e-identidade)
+
+#### W-PIPE-0004
+
+- `state`: `active`
+- `phase`: `semantic.ownership`
+- `severity`: `error`
+- `meaning`: pipe-forward ownership or single-evaluation rules are invalid
+
+- `requiredFacts`:
+  - `lhs`: `string`
+  - `mode`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPE-0004` — [5.6 Operadores, assignment e identidade](DESIGN.md#56-operadores-assignment-e-identidade)
+
+### W-PIPELINE
+
+#### W-PIPELINE-0001
+
+- `state`: `active`
+- `phase`: `source.parse`
+- `severity`: `error`
+- `meaning`: a pipeline mode or contract schema is missing or invalid
+
+- `requiredFacts`:
+  - `actual`: `string`
+  - `expected`: `string-set`
+  - `mode`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPELINE-0001` — [12.8 Pipeline de tasks e backpressure](DESIGN.md#128-pipeline-de-tasks-e-backpressure)
+
+#### W-PIPELINE-0002
+
+- `state`: `active`
+- `phase`: `semantic.flow`
+- `severity`: `error`
+- `meaning`: a pipeline region uses return instead of its commit terminal
+
+- `requiredFacts`:
+  - `mode`: `string`
+  - `reason`: `string`
+  - `terminator`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPELINE-0002` — [12.8 Pipeline de tasks e backpressure](DESIGN.md#128-pipeline-de-tasks-e-backpressure)
+
+#### W-PIPELINE-0003
+
+- `state`: `active`
+- `phase`: `semantic.flow`
+- `severity`: `error`
+- `meaning`: pipeline modes are combined or nested in a forbidden way
+
+- `requiredFacts`:
+  - `modes`: `string[]`
+  - `reason`: `string`
+  - `region`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPELINE-0003` — [12.8 Pipeline de tasks e backpressure](DESIGN.md#128-pipeline-de-tasks-e-backpressure)
+
+#### W-PIPELINE-0004
+
+- `state`: `active`
+- `phase`: `semantic.flow`
+- `severity`: `error`
+- `meaning`: a tasks pipeline violates positive limit, per-input cardinality, or commit rules
+
+- `requiredFacts`:
+  - `input`: `string`
+  - `limit`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPELINE-0004` — [12.8 Pipeline de tasks e backpressure](DESIGN.md#128-pipeline-de-tasks-e-backpressure)
+
+#### W-PIPELINE-0005
+
+- `state`: `active`
+- `phase`: `semantic.flow`
+- `severity`: `error`
+- `meaning`: a tasks pipeline has invalid ordering or error policy
+
+- `requiredFacts`:
+  - `errors`: `string`
+  - `ordering`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-PIPELINE-0005` — [12.8 Pipeline de tasks e backpressure](DESIGN.md#128-pipeline-de-tasks-e-backpressure)
 
 ### W-PLACEMENT
 

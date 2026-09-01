@@ -1,5 +1,9 @@
 # TGM0 — closed TaskGroup map and collect families
 
+> Historical W-1482 evidence. The current source surface is
+> `pipeline<tasks: ...>` with `TaskOrdering`; the TaskGroup spellings below are
+> retained only to preserve the study record.
+
 TGM0 closes the finite dynamic-task surface. The selected calls use only
 `limit`, `ordering`, and `using`. `concurrent...` inherits the current domain;
 `parallel...<domain>` requires an explicit domain with parallel capability.

@@ -15,7 +15,7 @@
     {
       "path": "../../../reference/last-light/supervision.w",
       "symbol": "OrderCoordinatorApi",
-      "digest": "sha256:329069e4689ee57e05749e7463a5e6bcd2d378d97887a3af550eacc672dbe5f7"
+      "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc"
     },
     {
       "path": "../../../reference/last-light/service_recovery_oracle.w",

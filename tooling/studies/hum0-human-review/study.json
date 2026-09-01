@@ -6,7 +6,7 @@
   "title": "Human and model review protocol for W ergonomics",
   "protocol": {
     "path": "../../hum0-human-review-protocol.json",
-    "digest": "sha256:91aebfce60b1c0ef3b7fd68d6ba5f64ca3dd692d0ae490afbfd9eb75b23f7674"
+    "digest": "sha256:cb5539b3e9f072e25dd0986276edb12e0aec963d382aa9feea54642facd8f362"
   },
   "bundle": false,
   "variants": 0,

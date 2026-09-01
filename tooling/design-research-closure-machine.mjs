@@ -8,7 +8,7 @@ import { loadData as loadLlm0, validate as validateLlm0 } from "./studies/llm0-t
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export const decisions = Object.freeze(["W-1484", "W-1473", "W-1474", "W-1475"]);
-export const activeResearchGates = Object.freeze(["W-1486"]);
+export const activeResearchGates = Object.freeze(["W-1486", "W-1503"]);
 export const historicalResearchZeroThrough = "W-1459";
 
 export function loadCorpus() {
@@ -17,13 +17,13 @@ export function loadCorpus() {
 
 function validateSync1() {
   const accepted = deriveExecutionErgonomics("async fn func(): Value throws String { return value }\nlet y = try sync func()");
-  const suspending = deriveExecutionErgonomics("async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()");
+  const suspending = deriveExecutionErgonomics("async fn func(): Value { await Task#yield(); return value }\nlet y = sync func()");
   const dynamicPath = deriveExecutionErgonomics("async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
     functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
   });
-  const inferred = deriveExecutionErgonomics("fn inferredMay(): Value { await Task.yield(); return value }\nlet y = sync inferredMay()");
+  const inferred = deriveExecutionErgonomics("fn inferredMay(): Value { await Task#yield(); return value }\nlet y = sync inferredMay()");
   const ordinary = deriveExecutionErgonomics("fn ordinary(): Value { return value }\nlet y = sync ordinary()");
-  const bare = deriveExecutionErgonomics("async fn func(): Value { await Task.yield(); return value }\nlet y = func()");
+  const bare = deriveExecutionErgonomics("async fn func(): Value { await Task#yield(); return value }\nlet y = func()");
   const protocol = deriveExecutionErgonomics("protocol Loader { async fn load(): Value }\nlet y = sync load()");
   const foreign = deriveExecutionErgonomics("foreign c { async fn load(): Value }\nlet y = sync load()");
   const indirect = deriveExecutionErgonomics("let y = sync worker()", {

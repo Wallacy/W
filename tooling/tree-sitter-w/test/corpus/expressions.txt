@@ -609,13 +609,13 @@ async fn execute(
   let ready = try await pipeline {
     let lease = ovens.acquire()
     let ready = lease.preheat()
-    return ready
+    commit ready
   }
 
-  let receipt = try await transaction<
+  let receipt = try await pipeline<transaction: {
     isolation: .serializable,
     access: .readWrite,
-  > tx = store {
+  }> tx = store {
     let value = try await tx.read()
     commit value
   }
@@ -680,23 +680,21 @@ async fn execute(
                       (identifier)
                       (identifier))
                     (argument_list)))
-                (return_statement
+                (commit_statement
                   (identifier)))))))
       (binding_declaration
         (pattern
           (identifier))
         (unary_expression
           (unary_expression
-            (transaction_expression
-              (task_contract
-                (identifier)
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier)))
-                (identifier)
-                (static_argument_value
-                  (contextual_member_expression
-                    (identifier))))
+            (pipeline_expression
+              (pipeline_contract
+                (pipeline_contract_item
+                  (pipeline_transaction_contract
+                    (contextual_member_expression
+                      (identifier))
+                    (contextual_member_expression
+                      (identifier)))))
               (identifier)
               (identifier)
               (block

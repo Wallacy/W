@@ -3,6 +3,8 @@
   "id": "QOS0",
   "decision": "W-1483",
   "status": "complete-design-study",
+  "surfaceStatus": "retained-by-W-1483; task placement is expressed by W-1511 pipeline tasks",
+  "currentSurface": "pipeline<tasks: .parallel<domain>, ...>; no portable priority or QoS slot",
   "classification": "implementation-evidence-gap",
   "title": "Domain placement without portable task priority or QoS",
   "question": "Can physical scheduling policy vary without creating a source priority surface or changing W semantic contracts?",

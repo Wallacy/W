@@ -97,10 +97,37 @@ behavior Initialized for Place {
   }
 }
 
+behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() { epoch = 0 }
+  export mutationEpoch: u64 { get => epoch }
+  mut didSet(current: ref Value) { epoch += 1 }
+  mut didModify(current: ref Value) { epoch += 1 }
+}
+
+// Facet observers enter through a named composition; a direct observer
+// application is not a property declaration form.
+behavior VersionedPlace for Place<String> =
+  (value: Initialized, version: Versioned)
+
+struct VersionedPlaceBox {
+  var VersionedPlace place: Place<String> = Place(id: "north", label: "square")
+}
+
 const DefaultLabel: String = "square"
 test "place label" for Place {
   let place = Place(id: "north", label: DefaultLabel)
   place.describe()
+}
+
+test "qualified facet path" for VersionedPlaceBox {
+  var box = VersionedPlaceBox()
+  box.place.title = "avenue"
+  let epoch = box.place#version.mutationEpoch
+  let title = (box.place#value).title
+  epoch
+  title
 }
 // atlas:end data-declarations
 

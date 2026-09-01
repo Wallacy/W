@@ -1,7 +1,11 @@
 # FST0 — first-settled structured task selection
 
+> Historical W-1481 evidence. The current spelling is the core facet
+> `Task#firstSettled`; `TaskSettlement` and `TaskOutcome` remain data accessed
+> with `.`.
+
 FST0 closes the undefined `race` reference in the concurrency contract. The
-selected API is `Task.firstSettled`. It consumes an array of existing lexical
+selected API is the core facet `Task#firstSettled`. It consumes an array of existing lexical
 task handles and returns the selected index plus `TaskOutcome`.
 
 The API creates no task and selects no execution domain. The caller creates

@@ -20,6 +20,7 @@ const paths = {
 const assignment = ["=", "+=", "-=", "*=", "/=", "%=", "**=", "<<=", ">>=", "&=", "^=", "|="];
 const groups = [
   { name: "assignment", forms: assignment, associativity: "not-chainable" },
+  { name: "pipe-forward", forms: ["|>"], associativity: "left" },
   { name: "coalescing", forms: ["??"], associativity: "right" },
   { name: "logical-or", forms: ["||"], associativity: "left" },
   { name: "logical-and", forms: ["&&"], associativity: "left" },
@@ -271,7 +272,8 @@ function tableLabels(text, heading) {
 
 function assertRelativePrecedence(errors, values, label) {
   const expected = [
-    ["assignment", ["="], "coalescing", ["??"]],
+    ["assignment", ["="], "pipe-forward", ["|>"]],
+    ["pipe-forward", ["|>"], "coalescing", ["??"]],
     ["coalescing", ["??"], "logical-or", ["||"]],
     ["logical-or", ["||"], "logical-and", ["&&"]],
     ["logical-and", ["&&"], "bitwise-or", ["|"]],
@@ -423,7 +425,7 @@ function check() {
   const lexerBlock = extractBlock(lexerSource, "static const char *const operators[] = {", "  };\n  const size_t start");
   const lexerOperators = extractQuoted(lexerBlock);
 
-  const designOrder = ["assignment", "coalescing", "logical OR", "logical AND", "bitwise", "equality", "relation", "range", "shift", "additive", "multiplicative", "prefix", "power", "postfix"];
+  const designOrder = ["assignment", "pipe-forward", "coalescing", "logical OR", "logical AND", "bitwise", "equality", "relation", "range", "shift", "additive", "multiplicative", "prefix", "power", "postfix"];
   const designLabels = tableLabels(design, "### 5.6 Operadores");
   if (JSON.stringify(designLabels.slice(0, designOrder.length)) !== JSON.stringify(designOrder)) fail(errors, "DESIGN operator table order or labels drifted");
 
@@ -448,7 +450,14 @@ function check() {
     if (form !== "@" && parserTable.get(form)?.precedence !== undefined && !Number.isInteger(precedence)) fail(errors, `grammar precedence is not numeric for ${form}`);
   }
   const grammarValues = new Map([...grammar.binary.entries(), ...assignment.map((form) => [form, 0])]);
+  // The pipe has a dedicated grammar rule, not a seed binary-operator entry.
+  // Keep its conceptual slot between assignment (-1) and coalescing (1).
+  grammarValues.set("=", -1);
+  grammarValues.set("|>", 0);
   const parserValues = new Map([...parserTable.entries()].map(([form, entry]) => [form, entry.precedence]));
+  // The seed parser does not lower pipe expressions yet; this slot checks the
+  // documented order without pretending that seed parsing is implemented.
+  parserValues.set("|>", 1.5);
   parserValues.set("is", 9);
   parserValues.set("in", 9);
   assertRelativePrecedence(errors, grammarValues, "grammar");
@@ -499,7 +508,7 @@ function check() {
   for (const vector of ["0b0010_1000", "0x1234", "0x3412", "0x2c48", "0xfe", "0x7f"]) {
     if (!lastLightNumerics.includes(vector)) fail(errors, `Last Light numerics is missing bit primitive vector ${vector}`);
   }
-  for (const form of [...assignment, "??", "|", "^", "&", "<<", ">>", "**", "in", "is", "...", "..<", "@", "?."]) {
+  for (const form of [...assignment, "|>", "??", "|", "^", "&", "<<", ">>", "**", "in", "is", "...", "..<", "@", "?."]) {
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing a ${form} witness`);
   }
   for (const term of ["checked*", "wrapping*", "saturating*", "overflowing*"]) {

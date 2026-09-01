@@ -2691,6 +2691,206 @@
     { "code": "W-ATOMIC-0013", "state": "active", "profile": "atomic-type", "meaning": "a canonical atomic bit encoding has invalid direction, order, signed code, enum code, or nonzero high bits" },
     { "code": "W-ATOMIC-0014", "state": "active", "profile": "atomic-effect", "meaning": "an atomic load, store, exchange, or compare-exchange is a suspension or cancellation point" },
     { "code": "W-ATOMIC-0015", "state": "active", "profile": "atomic-effect", "meaning": "a fallback that blocks a thread is used in signal, freestanding, cooperative, or nonblocking context" },
-    { "code": "W-ATOMIC-0016", "state": "active", "profile": "atomic-effect", "meaning": "parking and thread-blocking facts are conflated or the separate Atomic.wait maySuspend API is hidden" }
+    { "code": "W-ATOMIC-0016", "state": "active", "profile": "atomic-effect", "meaning": "parking and thread-blocking facts are conflated or the separate Atomic.wait maySuspend API is hidden" },
+    {
+      "code": "W-BEHAVIOR-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a behavior composition is not a nominal labeled tuple",
+      "requiredFacts": { "behavior": "string", "actual": "string", "expected": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-BEHAVIOR-0003",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a behavior composition contains more than one storage behavior",
+      "requiredFacts": { "behavior": "string", "components": "string[]", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-BEHAVIOR-0004",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a behavior alias is duplicated, cyclic, or has no facet path",
+      "requiredFacts": { "behavior": "string", "alias": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-BEHAVIOR-0005",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a behavior observer hook has an invalid signature or effect",
+      "requiredFacts": { "behavior": "string", "hook": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-BEHAVIOR-0006",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a behavior facet path violates composition ownership or immediate-use rules",
+      "requiredFacts": { "place": "string", "path": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0001",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a facet target is not a property place or declared core namespace",
+      "requiredFacts": { "place": "string", "facet": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a facet projection is reified or dynamically looked up",
+      "requiredFacts": { "projection": "string", "reason": "string", "expected": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0003",
+      "state": "active",
+      "phase": "semantic.effect",
+      "defaultSeverity": "error",
+      "meaning": "a facet violates the synchronous nonthrowing property-safe ceiling",
+      "requiredFacts": { "facet": "string", "effect": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0004",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "a mutable facet does not have an exclusive property place",
+      "requiredFacts": { "place": "string", "facet": "string", "ownership": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0005",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a facet is not declared by the applied behavior or a core namespace",
+      "requiredFacts": { "place": "string", "facet": "string", "declarations": "string[]" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-FACET-0006",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "a facet collides with a behavior or core facet or requests unsupported take",
+      "requiredFacts": { "facet": "string", "collision": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPE-0001",
+      "state": "active",
+      "phase": "source.parse",
+      "defaultSeverity": "error",
+      "meaning": "pipe-forward RHS must be an explicit free-function call template",
+      "requiredFacts": { "actual": "string", "construct": "string", "expected": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPE-0002",
+      "state": "active",
+      "phase": "semantic.type",
+      "defaultSeverity": "error",
+      "meaning": "the first pipe parameter must be a positional slot",
+      "requiredFacts": { "function": "string", "parameter": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPE-0003",
+      "state": "active",
+      "phase": "source.parse",
+      "defaultSeverity": "error",
+      "meaning": "pipe-forward does not accept placeholders, members, UFCS, colon, or facet lookup",
+      "requiredFacts": { "actual": "string", "construct": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPE-0004",
+      "state": "active",
+      "phase": "semantic.ownership",
+      "defaultSeverity": "error",
+      "meaning": "pipe-forward ownership or single-evaluation rules are invalid",
+      "requiredFacts": { "lhs": "string", "mode": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPELINE-0001",
+      "state": "active",
+      "phase": "source.parse",
+      "defaultSeverity": "error",
+      "meaning": "a pipeline mode or contract schema is missing or invalid",
+      "requiredFacts": { "mode": "string", "actual": "string", "expected": "string-set" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPELINE-0002",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a pipeline region uses return instead of its commit terminal",
+      "requiredFacts": { "mode": "string", "terminator": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPELINE-0003",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "pipeline modes are combined or nested in a forbidden way",
+      "requiredFacts": { "modes": "string[]", "region": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPELINE-0004",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a tasks pipeline violates positive limit, per-input cardinality, or commit rules",
+      "requiredFacts": { "limit": "string", "input": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    },
+    {
+      "code": "W-PIPELINE-0005",
+      "state": "active",
+      "phase": "semantic.flow",
+      "defaultSeverity": "error",
+      "meaning": "a tasks pipeline has invalid ordering or error policy",
+      "requiredFacts": { "ordering": "string", "errors": "string", "reason": "string" },
+      "labelRoles": {},
+      "fixes": {}
+    }
   ]
 }

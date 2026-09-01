@@ -62,7 +62,7 @@ fn inspectDirect(course: ref TrackedCourse): u64 {
 }
 
 fn inspectAfterYield(course: ref TrackedCourse): u64 {
-  await Task.yield()
+  await Task#yield()
   return course.orderId ^ course.revision
 }
 
@@ -74,8 +74,8 @@ fn finishCourseAfterYield(course: take TrackedCourse): TrackedCourse {
   let cleanupLedger = copy course.ledger
   defer { cleanupLedger.recordCleanup() }
 
-  await Task.yield()
-  Task.checkCancellation()
+  await Task#yield()
+  Task#checkCancellation()
   course.revision += 1
   return take course
 }
@@ -84,8 +84,8 @@ fn discardCourseAfterYield(course: take TrackedCourse) {
   let cleanupLedger = copy course.ledger
   defer { cleanupLedger.recordCleanup() }
 
-  await Task.yield()
-  Task.checkCancellation()
+  await Task#yield()
+  Task#checkCancellation()
 }
 
 fn incrementRevision(ledger: inout RevisionLedger): u64 {
@@ -130,16 +130,16 @@ export fn cancelTrackedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<TrackedCourse, Never> {
   let task = async finishCourseAfterYield(take course)
-  task.cancel(reason: .shutdown)
-  return await task.outcome()
+  task#cancel(reason: .shutdown)
+  return await (take task)#outcome()
 }
 
 export fn cancelDiscardedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<(), Never> {
   let task = async discardCourseAfterYield(take course)
-  task.cancel(reason: .shutdown)
-  return await task.outcome()
+  task#cancel(reason: .shutdown)
+  return await (take task)#outcome()
 }
 
 test "the four forms preserve explicit ownership" for fourOwnershipForms {

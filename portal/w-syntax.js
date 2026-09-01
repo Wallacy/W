@@ -7,12 +7,12 @@
     "alias", "any", "as", "async", "atomic", "await", "behavior", "break", "capture", "case", "catch",
     "const", "continue", "copy", "defer", "deinit", "dimension", "do", "else", "entry", "enum", "export", "extension",
     "false", "fn", "for", "foreign", "from", "get", "guard", "if", "import", "in", "inout", "is", "let", "modify",
-    "mut", "object", "package", "panic", "protocol", "ref", "return", "service", "set", "shared", "some",
+    "mut", "object", "package", "panic", "pipeline", "protocol", "ref", "return", "service", "set", "shared", "some",
     "spawn", "struct", "switch", "take", "test", "throw", "throws", "true", "try", "type", "unit", "unsafe", "var",
     "weak", "while",
   ]);
   const pairedDelimiters = { "(": ")", "[": "]", "{": "}" };
-  const operators = [">..<", ">..", "...", "..<", "=>", "??", "?.", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];
+  const operators = [">..<", ">..", "...", "..<", "|>", "=>", "??", "?.", "**", "==", "!=", "<=", ">=", "+=", "-=", "*=", "/=", "%=", "&&", "||", "<<", ">>"];
 
   function scan(source) {
     const tokens = [];
@@ -51,6 +51,13 @@
         return /\b(?:type|info)\s+$/u.test(source.slice(0, start)) && startsQuerySubject(source.slice(end));
       }
       return false;
+    }
+
+    function isContextualPipelineLabel(value, start, end) {
+      if (value !== "transaction") return false;
+      const before = source.slice(0, start);
+      const after = source.slice(end);
+      return /\bpipeline\s*<(?:(?!>)[\s\S])*$/u.test(before) && /^\s*:/u.test(after);
     }
 
     while (index < source.length) {
@@ -131,7 +138,7 @@
         while (source[index + hashCount] === "#") hashCount += 1;
         if (source[index + hashCount] !== '"') {
           advance();
-          add("unknown", start, startLine, startColumn);
+          add("operator", start, startLine, startColumn);
           continue;
         }
         advance(hashCount + 1);
@@ -182,7 +189,9 @@
       const identifier = rest.match(/^[\p{L}_][\p{L}\p{N}_]*/u);
       if (identifier) {
         advance(identifier[0].length);
-        const isKeyword = keywords.has(identifier[0]) || isContextualQueryWord(identifier[0], start, index);
+        const isKeyword = keywords.has(identifier[0])
+          || isContextualQueryWord(identifier[0], start, index)
+          || isContextualPipelineLabel(identifier[0], start, index);
         add(isKeyword ? "keyword" : "identifier", start, startLine, startColumn);
         continue;
       }

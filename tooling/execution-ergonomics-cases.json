@@ -170,7 +170,7 @@
     {
       "id": "EE-POS-await-may",
       "kind": "positive",
-      "source": "fn load(): Value { await Task.yield(); return value }\nlet result = await load()",
+      "source": "fn load(): Value { await Task#yield(); return value }\nlet result = await load()",
       "expect": { "callee": "load", "suspension": "may", "callForm": "await", "sourceSpelling": "inferred" }
     },
     {
@@ -183,19 +183,19 @@
     {
       "id": "EE-POS-spawn-may",
       "kind": "positive",
-      "source": "fn work(value): Value { await Task.yield(); return value }\nlet child = spawn<.compute> work(input)\nlet value = await child",
+      "source": "fn work(value): Value { await Task#yield(); return value }\nlet child = spawn<.compute> work(input)\nlet value = await child",
       "expect": { "childForm": "spawn", "childAccepts": ["never", "may"] }
     },
     {
       "id": "EE-POS-scc-inference",
       "kind": "positive",
-      "source": "fn even(n) { if n == 0 { return true }; return await odd(n - 1) }\nfn odd(n) { await Task.yield(); return if n == 0 { false } else { await even(n - 1) } }",
+      "source": "fn even(n) { if n == 0 { return true }; return await odd(n - 1) }\nfn odd(n) { await Task#yield(); return if n == 0 { false } else { await even(n - 1) } }",
       "expect": { "sccSuspension": "may", "members": ["even", "odd"] }
     },
     {
       "id": "EE-INFO-public-widening",
       "kind": "information",
-      "source": "export fn publicCall(value): Value { await Task.yield(); return value }",
+      "source": "export fn publicCall(value): Value { await Task#yield(); return value }",
       "input": { "publicContract": { "previous": "never", "current": "may", "exported": true } },
       "expect": { "sourceBreaking": true, "widening": true }
     },
@@ -258,7 +258,7 @@
       "id": "EE-NEG-sync-explicit-await",
       "kind": "negative",
       "decisionIds": ["W-1484"],
-      "source": "async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()",
+      "source": "async fn func(): Value { await Task#yield(); return value }\nlet y = sync func()",
       "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent", "blocksThread": false }
     },
     {
@@ -310,7 +310,7 @@
     {
       "id": "EE-NEG-sync-inferred-may",
       "kind": "negative",
-      "source": "fn inferredMay(): Value { await Task.yield(); return value }\nlet y = sync inferredMay()",
+      "source": "fn inferredMay(): Value { await Task#yield(); return value }\nlet y = sync inferredMay()",
       "expect": { "callee": "inferredMay", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false }
     },
     {
@@ -322,7 +322,7 @@
     {
       "id": "EE-NEG-bare-explicit-async",
       "kind": "negative",
-      "source": "async fn func(): Value { await Task.yield(); return value }\nlet w = func()",
+      "source": "async fn func(): Value { await Task#yield(); return value }\nlet w = func()",
       "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0001" }
     },
     {
@@ -454,7 +454,7 @@
     {
       "id": "EE-NEG-barrier-may-suspend",
       "kind": "negative",
-      "source": "fn replace(state: inout Menu): u64 { await Task.yield(); return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
+      "source": "fn replace(state: inout Menu): u64 { await Task#yield(); return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": { "diagnostic": "W-SUSPEND-0004" }
     },
@@ -478,7 +478,7 @@
     {
       "id": "EE-POS-dynamic-serial-drain",
       "kind": "positive",
-      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task#spawn(domain: lane.reference, operation: work)\nawait lane.close()",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {
@@ -558,7 +558,7 @@
     {
       "id": "EE-NEG-dynamic-serial-closed-admission",
       "kind": "negative",
-      "source": "let lane = try execution.openSerial(limits: limits)\nawait lane.close()\nlet task = try Task.spawn(domain: lane.reference, operation: work)",
+      "source": "let lane = try execution.openSerial(limits: limits)\nawait lane.close()\nlet task = try Task#spawn(domain: lane.reference, operation: work)",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {
@@ -661,7 +661,7 @@
     {
       "id": "EE-NEG-dynamic-serial-drain-suspended",
       "kind": "negative",
-      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task#spawn(domain: lane.reference, operation: work)\nawait lane.close()",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {

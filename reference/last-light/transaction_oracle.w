@@ -54,10 +54,10 @@ export async fn reserveTableAtomically(
   tableId: TableId,
   guestId: GuestId,
 ): ReservationReceipt throws TransactionFailure<BookingError, BookingError> {
-  return try await transaction<
+  return try await pipeline<transaction: {
     isolation: .serializable,
     access: .readWrite,
-  > tx = ledger {
+  }> tx = ledger {
     let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
     let receipt = try await tx.confirm(reservation: take reservation)
     commit receipt

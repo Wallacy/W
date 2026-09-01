@@ -62,7 +62,7 @@ export async fn supersedeBlackHoleTelemetry<Client: TelemetryClient>(
   )
 
   controller.abort(reason: .requested(.superseded))
-  return await pending.outcome()
+  return await (take pending)#outcome()
 }
 
 // The incoming handler owns only observation. Its Request signal mirrors the

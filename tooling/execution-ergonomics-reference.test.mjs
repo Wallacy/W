@@ -244,14 +244,14 @@ test("complete ordered call shapes separate arities and reject real overlap", ()
 test("suspension is inferred monotonically and child accepts sync or may", () => {
   const result = deriveExecutionErgonomics(`
     fn syncWorker(value) { return value }
-    fn asyncWorker(value) { await Task.yield(); return value }
+    fn asyncWorker(value) { await Task#yield(); return value }
     fn caller(value) {
       let local = async syncWorker(value)
       let remote = spawn<.compute> asyncWorker(value)
       return try await (local, remote)
     }
     fn even(n) { if n == 0 { return true }; return await odd(n - 1) }
-    fn odd(n) { await Task.yield(); return if n == 0 { false } else { await even(n - 1) } }
+    fn odd(n) { await Task#yield(); return if n == 0 { false } else { await even(n - 1) } }
   `, { publicContract: { previous: "never", current: "may", exported: true } })
   assert.deepEqual(result.forms, {
     direct: "same-task/neverSuspend",
@@ -301,7 +301,7 @@ test("sync uses only a proven direct entry and never blocks or creates a task", 
   assert.equal(accepted.suspension.tryOrthogonal, true)
   assert.equal(accepted.suspension.declarations.find((item) => item.name === "func").directEntry, "available")
 
-  const suspending = deriveExecutionErgonomics("async fn func(): Value { await Task.yield(); return value }\nlet y = sync func()")
+  const suspending = deriveExecutionErgonomics("async fn func(): Value { await Task#yield(); return value }\nlet y = sync func()")
   assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0005"))
   assert.equal(suspending.suspension.syncCalls[0].eligible, false)
   assert.equal(suspending.suspension.syncCalls[0].partialEffectsBeforeRejection, false)
@@ -313,11 +313,11 @@ test("sync uses only a proven direct entry and never blocks or creates a task", 
   assert.equal(dynamicPath.suspension.declarations.find((item) => item.name === "cached").directEntryProof.beforeSpecialization, true)
   assert.equal(dynamicPath.suspension.declarations.find((item) => item.name === "cached").directEntryProof.dynamicReadinessUsed, false)
 
-  const inferred = deriveExecutionErgonomics("fn inferredMay() { await Task.yield(); return value }\nlet y = sync inferredMay()")
+  const inferred = deriveExecutionErgonomics("fn inferredMay() { await Task#yield(); return value }\nlet y = sync inferredMay()")
   assert.ok(summarizeDiagnostics(inferred).includes("W-SUSPEND-0005"))
   const ordinary = deriveExecutionErgonomics("fn ordinary() { return value }\nlet y = sync ordinary()")
   assert.ok(summarizeDiagnostics(ordinary).includes("W-SUSPEND-0005"))
-  const bare = deriveExecutionErgonomics("async fn func() { await Task.yield(); return value }\nlet w = func()")
+  const bare = deriveExecutionErgonomics("async fn func() { await Task#yield(); return value }\nlet w = func()")
   assert.ok(summarizeDiagnostics(bare).includes("W-SUSPEND-0001"))
 })
 
@@ -491,7 +491,7 @@ test("barrier dispatch orders read epochs and requires a closed access graph", (
 
 test("barrier bodies cannot suspend and serial domains accept the marker", () => {
   const suspending = deriveExecutionErgonomics(`
-    fn write(state: inout Menu) { await Task.yield(); return state.revision }
+    fn write(state: inout Menu) { await Task#yield(); return state.revision }
     let update = spawn<.catalog, .barrier> write(inout menu)
   `, { domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] } })
   assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0004"))

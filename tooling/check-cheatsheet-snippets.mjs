@@ -207,7 +207,15 @@ function findDeclarationScopes(source) {
     const lineEnd = masked.indexOf("\n", token.end)
     const statementEnd = lineEnd < 0 ? source.length : lineEnd
     const hasBody = open >= 0 && (lineEnd < 0 || open < statementEnd || keyword === "test")
-    const end = hasBody ? matchingBrace(masked, open) : statementEnd
+    let end = hasBody ? matchingBrace(masked, open) : statementEnd
+    if (!hasBody && keyword === "behavior") {
+      const equals = masked.indexOf("=", token.end)
+      const tupleOpen = masked.indexOf("(", token.end)
+      if (equals >= 0 && tupleOpen >= 0 && tupleOpen > equals) {
+        const tupleClose = masked.indexOf(")", tupleOpen + 1)
+        if (tupleClose >= 0) end = tupleClose + 1
+      }
+    }
     const name = keyword === "test" ? null : next.word
     const declaration = { keyword, name, start: token.start, end, bodyStart: hasBody ? open + 1 : end }
     if (keyword !== "test" && keyword !== "entry" && name) declarations.push(declaration)
@@ -241,7 +249,9 @@ function hasApplicationUse(text, name) {
 function hasTypedApplication(source, name) {
   const escaped = name.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
   const masked = maskWSource(source)
-  return new RegExp(`(?:\\b(?:let|var|ref|inout)\\s+\\w+\\s*:\\s*|\\bvar\\s+)${escaped}\\b`, "u").test(masked)
+  const typed = new RegExp(`(?:\\b(?:let|var|ref|inout)\\s+\\w+\\s*:\\s*|\\bvar\\s+)${escaped}\\b`, "u")
+  const compositionAlias = new RegExp(`\\b[A-Za-z_]\\w*\\s*:\\s*${escaped}\\b`, "u")
+  return typed.test(masked) || compositionAlias.test(masked)
 }
 
 function hasObservable(text, kind) {
@@ -315,7 +325,7 @@ function validateExecutableExample(fence, source, metadata) {
     }
     const appliedAsBehavior = declaration?.keyword === "behavior" && scopes.declarations.some((candidate) => {
       if (candidate.name === name) return false
-      return hasTypedApplication(source.slice(candidate.bodyStart, candidate.end), name)
+      return hasTypedApplication(source.slice(candidate.start, candidate.end), name)
     })
     if (!reachable.has(name) && !appliedAsBehavior) {
       errors.push(lineNumberedError(fence, `example-use ${name} has no application in a test or entry consumer`))

@@ -17,7 +17,7 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "executionForms",
-      "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b"
+      "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
     },
     {
       "path": "../../../reference/last-light/state_transitions.w",
@@ -27,7 +27,7 @@
     {
       "path": "../../../reference/last-light/ownership_execution_oracle.w",
       "symbol": "fourOwnershipForms",
-      "digest": "sha256:fd790ae767b0de58f2240bb6e200423ba49441c38ed883cde10d14d6ac16cd3c"
+      "digest": "sha256:a9cc6a248473280c2c5aa5dcd6f2ef06c588a10ac1adf7c3063378bbb54b7879"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
@@ -47,7 +47,7 @@
     {
       "path": "../../../reference/last-light/restaurant.w",
       "symbol": "prepareDish",
-      "digest": "sha256:db7c06b5dcf9e55d9f44bfb64b5100c97d59a7a0840b37f1e02bd48883fcb0d3"
+      "digest": "sha256:939042393a77883ec00c92f30952315e96319c1a5b23c870b3940d4a29b7be0e"
     }
   ],
   "helpers": [

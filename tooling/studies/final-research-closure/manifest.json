@@ -13,13 +13,13 @@
       "id": "FRC0-corpus",
       "role": "corpus",
       "path": "tooling/final-research-closure-cases.json",
-      "digest": "sha256:56373a355151248fd6fb99c64199ba267bf1d7ad8a4610c622d2ef1d9f710843"
+      "digest": "sha256:443bb2b53314f62dae0e5d07ccc548440413a5df3797b2a6e1989343750aa511"
     },
     {
       "id": "FRC0-machine",
       "role": "machine",
       "path": "tooling/final-research-closure-machine.mjs",
-      "digest": "sha256:374fc1053f9a3e5b4d8105374b4e1b79181341227f6d8437933fc54bc4763041"
+      "digest": "sha256:af69f9147e9ef9e4d34087de0e1c61160c3ae663d400fb28801a0996d5ddc276"
     },
     {
       "id": "FRC0-root-checker",
@@ -37,55 +37,55 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:b88e0c523b182b0b456ff938d022bc97b840c59988544d23af4994dde350d4ea"
+      "digest": "sha256:e435d34ef41f7e8a1f3934b519d51213a38a1011142af5392d2fd827a9852cd0"
     },
     {
       "id": "FRC0-oracle",
       "role": "oracle",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "digest": "sha256:946168bab35b37b1c0ef6b5b78346784deded3ec705ffde4e310fe96a5202ddf"
+      "digest": "sha256:ba6769cc9e84c668d3dd9bb5ba8617b5a5e9283e88ef0ad89e3af9ae189e35b6"
     },
     {
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:ffff514e1f8c15e153d6379f084c1327b6687fde5f05ab4743a1a5b36aeafe23"
+      "digest": "sha256:0ce95d221933bcd56cc18542db53d55feeae25c1ec789b81b0b659a74f16c53d"
     },
     {
       "id": "FRC0-study",
       "role": "study",
       "path": "tooling/studies/final-research-closure/study.json",
-      "digest": "sha256:b159e1ff823389fecfa1877c41d6d2a1c659ee4e22183e9545dc51389adf9063"
+      "digest": "sha256:044fb21486931ffb80503915073dea7bd0573cef22b7dedc852533e3a27de405"
     },
     {
       "id": "FRC0-readme",
       "role": "readme",
       "path": "tooling/studies/final-research-closure/README.md",
-      "digest": "sha256:e9aaefa897f2677ffb66134c17a44ae7228de12c5d932d3fddaa3092436fb86b"
+      "digest": "sha256:91caa318d6397468e4f1d14f1f228465cae5024b09d31f0106227f4fb2ff7254"
     },
     {
       "id": "FRC0-study-index",
       "role": "study-index",
       "path": "tooling/studies/final-research-closure/INDEX.md",
-      "digest": "sha256:d3726f74697397ba0de08a2606642fc3bf791721600e59c49e65cd64534cd6d3"
+      "digest": "sha256:340359bb464f3aaba79f67e52f9d8b9a53d9500031a9745047b47d8a9ed907cc"
     },
     {
       "id": "FRC0-current",
       "role": "current",
       "path": "tooling/studies/final-research-closure/current.w",
-      "digest": "sha256:986e2d4ce962f730a01f0085c7431efcb0343e25470b51ab4474a392f4253dd2"
+      "digest": "sha256:bd5826d1f769deebd3453f3d3367c232eb07a8c00b58709d4b4443ec8bcdd59d"
     },
     {
       "id": "FRC0-adversarial",
       "role": "adversarial",
       "path": "tooling/studies/final-research-closure/adversarial.w",
-      "digest": "sha256:0af7456b3467f852062bad4b834528220c80a21c055b809a1ff69d3df731f7b1"
+      "digest": "sha256:2a310e77431b6e9cae5957a351950853042bb5015312ceed8fb6636708348bea"
     },
     {
       "id": "FRC0-fz0-corpus",
       "role": "fz0-corpus",
       "path": "tooling/frontend-freeze-cases.json",
-      "digest": "sha256:0c9e38cc76aeac0bca666cbf5863410a4fa07d8c9b41e7d7fc253603e7fdc283"
+      "digest": "sha256:938840eb90bbf20c653a89b4be789fc69499b774b6d07b73ae14ec16e3e9861d"
     },
     {
       "id": "FRC0-fz0-checker",
@@ -97,7 +97,7 @@
       "id": "FRC0-fz0-snapshot",
       "role": "fz0-snapshot",
       "path": "tooling/frontend-freeze.snapshot.jsonl",
-      "digest": "sha256:6195fce8d08628fe62307f0ae1f41c682326bcec4752879a42e7054d4db2d513"
+      "digest": "sha256:c515cb4fd69c2b2b1edb0bea9130da7627fb33ec15a231f0c2ca5571dca760f0"
     },
     {
       "id": "FRC0-fz0-formatter",
@@ -109,7 +109,7 @@
       "id": "FRC0-fz0-semantic",
       "role": "fz0-semantic",
       "path": "tooling/semantic-cases.json",
-      "digest": "sha256:93180eaed10b3cdd7e77e8171fda979eea99f11fc4d1bcff4d804a144bb00366"
+      "digest": "sha256:0e22703fa1d537a1ed4ffd9a6d7d27746d4201f23b9ce2d6428741a4c89db437"
     },
     {
       "id": "FRC0-fz0-module-run",
@@ -121,13 +121,13 @@
       "id": "FRC0-fz0-diagnostics",
       "role": "fz0-diagnostics",
       "path": "tooling/diagnostic-catalog.json",
-      "digest": "sha256:709fe448e7da262c8726d90eecd63b33de60b6793e511f6098e1812ff187fee7"
+      "digest": "sha256:b9c86c5a58c70f69495a2b68c08eca0794789764007f82c754c4e7a9a460eb2a"
     },
     {
       "id": "FRC0-hum0-protocol",
       "role": "hum0-protocol",
       "path": "tooling/hum0-human-review-protocol.json",
-      "digest": "sha256:91aebfce60b1c0ef3b7fd68d6ba5f64ca3dd692d0ae490afbfd9eb75b23f7674"
+      "digest": "sha256:cb5539b3e9f072e25dd0986276edb12e0aec963d382aa9feea54642facd8f362"
     },
     {
       "id": "FRC0-hum0-machine",
@@ -151,7 +151,7 @@
       "id": "FRC0-hum0-study",
       "role": "hum0-study",
       "path": "tooling/studies/hum0-human-review/study.json",
-      "digest": "sha256:2a7c58f41f705c026faa986338eb8c6be0c71efdcd6a99ca263dd985dd1645a2"
+      "digest": "sha256:7e32ffff0456b9a7a6ad3858a807ef265a9c702470889a18539805a3d59f838a"
     },
     {
       "id": "FRC0-hum0-oracle",
@@ -175,25 +175,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:a3ebeb75fb27adb47df830be3f6edd13ce12d043d97867a9fc461962831ef8f0"
+      "digest": "sha256:8876c5dc131745d0b9cd6fa00207fe0426dff540e7f5120f51fc2ad9e561b0e9"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:8dace11f720580e11e92bc94ed84239a0dd919daef83ab392fdb7c9ce43e301e"
+      "digest": "sha256:643c1a2ea645cc94d2bed2b0bc6b5cc12700f1e0c0e59895814e6246afb4b147"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:6da385deb873d2415004cb92aff77cfc1817b180a257fcc313943ab976c975cd"
+      "digest": "sha256:4a3a696f0b52d6668c95b6d13369dbe4966a3f52819199faf4dc3ab1a9ba6e35"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:b35e4274666e738623a4fb34d7bb142921947da47e93d2ad3c4df1e95aaed676"
+      "digest": "sha256:a5910642d1909d6c22b969eac196567ff28274da99af53331e9db696a80c22cf"
     }
   ],
   "evidence": {
@@ -217,5 +217,5 @@
     ],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or Research residual outside W-1486. Wait for Sol review before canonical recascade."
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or Research residual outside W-1486 and W-1503. Wait for Sol review before canonical recascade."
 }

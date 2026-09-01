@@ -1,0 +1,749 @@
+==================
+FPP0 facets, pipe-forward, and unified pipeline forms
+==================
+
+export behavior WrappedDegrees for u16 {
+  var degrees: u16
+
+  init(initialValue: fn(): u16) { degrees = initialValue() % 360_u16 }
+
+  get { return degrees }
+  mut set(newValue) { degrees = newValue % 360_u16 }
+  mut modify {
+    defer { degrees %= 360_u16 }
+    return inout degrees
+  }
+
+  export mut fn reset() {
+    degrees = 0
+  }
+}
+
+export behavior Versioned<Value> for Value {
+  var epoch: u64
+
+  init() {
+    epoch = 0
+  }
+
+  export mutationEpoch: u64 {
+    get => epoch
+  }
+
+  willSet(current: ref Value, proposed: ref Value) { }
+
+  mut didSet(current: ref Value) {
+    epoch += 1
+  }
+
+  willModify(current: ref Value) { }
+
+  mut didModify(current: ref Value) {
+    epoch += 1
+  }
+}
+
+export behavior VersionedDegrees for u16 =
+  (degrees: WrappedDegrees, version: Versioned)
+
+export struct Attitude {
+  var VersionedDegrees yaw: u16 = 0
+}
+
+fn use(
+  ovens: ref OvenService,
+  store: ref Store,
+  task: take Task<Outcome>,
+  items: take Array<Item>,
+  recipe: Recipe,
+  bytes: Bytes,
+): Result {
+  var attitude = Attitude()
+  attitude.yaw = 350_u16
+  attitude.yaw += 25_u16
+  expect attitude.yaw == 15_u16
+  let normalized = copy attitude.yaw |> clamp(0, 360) |> inspect()
+  let asyncResult = normalized |> async decode()
+  let decoded = bytes |> try json.decode<Document>()
+  let transaction = 1
+  let raw = #"raw#facet"#
+  let ready = try await pipeline ovens.acquire(recipe).preheat()
+  let committed = try await pipeline {
+    let acquired = ovens.acquire(recipe)
+    let prepared = acquired.preheat()
+    commit prepared
+  }
+  let receipt = try await pipeline<transaction: {
+    isolation: .readCommitted,
+    access: .readWrite,
+  }> tx = store {
+    let value = tx.read()
+    commit value
+  }
+  let defaultReceipt = try await pipeline<transaction: .default> tx = store {
+    commit tx.read()
+  }
+  let outputs = try await pipeline<
+    tasks: .concurrent,
+    limit: 16,
+    ordering: .input,
+    errors: .collect,
+  > each item in take items {
+    commit item |> inspect()
+  }
+  let epoch = attitude.yaw#version.mutationEpoch
+  expect epoch == 2
+  attitude.yaw#version.resetMutationEpoch()
+  expect attitude.yaw#version.mutationEpoch == 0
+  attitude.yaw#degrees.reset()
+  expect attitude.yaw == 0_u16
+  expect attitude.yaw#version.mutationEpoch == 1
+  let outcome = await (take task)#outcome()
+  close(ready, committed, receipt, defaultReceipt, outputs, epoch, outcome, asyncResult, decoded)
+}
+
+---
+
+(source_file
+  (behavior_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (behavior_field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_accessor
+        (behavior_initializer
+          (behavior_initializer_parameters
+            (type
+              (type_name
+                (type_identifier))))
+          (block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (binary_expression
+                  (call_expression
+                    (identifier)
+                    (argument_list))
+                  (number_literal)))))))
+      (behavior_accessor
+        (block
+          (return_statement
+            (identifier))))
+      (behavior_accessor
+        (behavior_parameter_list
+          (behavior_parameter
+            (identifier)))
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (binary_expression
+                (identifier)
+                (number_literal))))))
+      (behavior_accessor
+        (block
+          (defer_statement
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number_literal)))))
+          (return_statement
+            (unary_expression
+              (identifier)))))
+      (function_declaration
+        (declaration_prefix)
+        (identifier)
+        (parameter_list)
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal)))))))
+  (behavior_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (generic_parameters
+      (generic_parameter
+        (identifier)))
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_body
+      (behavior_field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_accessor
+        (behavior_initializer
+          (behavior_initializer_parameters)
+          (block
+            (expression_statement
+              (assignment_expression
+                (identifier)
+                (number_literal))))))
+      (behavior_facet_property
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (property_accessor_body
+          (get_accessor
+            (accessor_implementation
+              (identifier)))))
+      (behavior_hook
+        (behavior_hook_parameters
+          (behavior_ref_parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier))))
+          (behavior_ref_parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block))
+      (behavior_hook
+        (behavior_hook_parameters
+          (behavior_ref_parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal)))))
+      (behavior_hook
+        (behavior_hook_parameters
+          (behavior_ref_parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block))
+      (behavior_hook
+        (behavior_hook_parameters
+          (behavior_ref_parameter
+            (identifier)
+            (type
+              (type_name
+                (type_identifier)))))
+        (block
+          (expression_statement
+            (assignment_expression
+              (identifier)
+              (number_literal)))))))
+  (behavior_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type
+      (type_name
+        (type_identifier)))
+    (behavior_composition
+      (behavior_component
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (behavior_component
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))))
+  (struct_declaration
+    (declaration_prefix)
+    (type_identifier)
+    (type_body
+      (field_declaration
+        (identifier))
+      (field_declaration
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))
+        (number_literal))))
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))
+          (type_arguments
+            (type_argument
+              (type
+                (type_name
+                  (type_identifier)))))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (call_expression
+          (identifier)
+          (argument_list)))
+      (expression_statement
+        (assignment_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal)))
+      (expression_statement
+        (assignment_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (pipe_forward_expression
+          (pipe_forward_expression
+            (unary_expression
+              (member_expression
+                (identifier)
+                (identifier)))
+            (pipe_call_template
+              (pipe_callable_path
+                (identifier))
+              (argument_list
+                (argument
+                  (number_literal))
+                (argument
+                  (number_literal)))))
+          (pipe_call_template
+            (pipe_callable_path
+              (identifier))
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (pipe_forward_expression
+          (identifier)
+          (pipe_call_template
+            (pipe_call_modifier)
+            (pipe_callable_path
+              (identifier))
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (pipe_forward_expression
+          (identifier)
+          (pipe_call_template
+            (pipe_call_modifier)
+            (pipe_callable_path
+              (identifier)
+              (identifier))
+            (generic_call_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier)))))
+            (argument_list))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (number_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (raw_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (pipeline_chain
+                (identifier)
+                (pipeline_call_step
+                  (identifier)
+                  (argument_list
+                    (argument
+                      (identifier))))
+                (pipeline_call_step
+                  (identifier)
+                  (argument_list)))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list
+                      (argument
+                        (identifier)))))
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list)))
+                (commit_statement
+                  (identifier)))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (pipeline_contract
+                (pipeline_contract_item
+                  (pipeline_transaction_contract
+                    (contextual_member_expression
+                      (identifier))
+                    (contextual_member_expression
+                      (identifier)))))
+              (identifier)
+              (identifier)
+              (block
+                (binding_declaration
+                  (pattern
+                    (identifier))
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list)))
+                (commit_statement
+                  (identifier)))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (pipeline_contract
+                (pipeline_contract_item
+                  (contextual_member_expression
+                    (identifier))))
+              (identifier)
+              (identifier)
+              (block
+                (commit_statement
+                  (call_expression
+                    (member_expression
+                      (identifier)
+                      (identifier))
+                    (argument_list))))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (unary_expression
+            (pipeline_expression
+              (pipeline_contract
+                (pipeline_contract_item
+                  (pipeline_task_mode
+                    (identifier)))
+                (pipeline_contract_item
+                  (number_literal))
+                (pipeline_contract_item
+                  (contextual_member_expression
+                    (identifier)))
+                (pipeline_contract_item
+                  (contextual_member_expression
+                    (identifier))))
+              (identifier)
+              (unary_expression
+                (identifier))
+              (block
+                (commit_statement
+                  (pipe_forward_expression
+                    (identifier)
+                    (pipe_call_template
+                      (pipe_callable_path
+                        (identifier))
+                      (argument_list)))))))))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (facet_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (facet_path
+            (identifier)
+            (identifier))))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (identifier)
+          (number_literal)))
+      (expression_statement
+        (call_expression
+          (facet_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (facet_path
+              (identifier)
+              (identifier)))
+          (argument_list)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (facet_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (facet_path
+              (identifier)
+              (identifier)))
+          (number_literal)))
+      (expression_statement
+        (call_expression
+          (facet_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (facet_path
+              (identifier)
+              (identifier)))
+          (argument_list)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (member_expression
+            (identifier)
+            (identifier))
+          (number_literal)))
+      (expression_statement
+        (identifier))
+      (expression_statement
+        (binary_expression
+          (facet_expression
+            (member_expression
+              (identifier)
+              (identifier))
+            (facet_path
+              (identifier)
+              (identifier)))
+          (number_literal)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (unary_expression
+          (call_expression
+            (facet_expression
+              (parenthesized_expression
+                (unary_expression
+                  (identifier)))
+              (facet_path
+                (identifier)))
+            (argument_list))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (argument_list
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))
+            (argument
+              (identifier))))))))
+
+==================
+Pipe precedence requires explicit grouping around coalescing
+==================
+
+fn pipePrecedence(x: Value?, fallback: Value, f: fn(Value): Value): Value {
+  let left = (x |> f()) ?? fallback
+  let right = (x ?? fallback) |> f()
+  return right
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (function_type
+            (function_type_parameter
+              (type
+                (type_name
+                  (type_identifier))))
+            (type
+              (type_name
+                (type_identifier)))))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (parenthesized_expression
+            (pipe_forward_expression
+              (identifier)
+              (pipe_call_template
+                (pipe_callable_path
+                  (identifier))
+                (argument_list))))
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (pipe_forward_expression
+          (parenthesized_expression
+            (binary_expression
+              (identifier)
+              (identifier)))
+          (pipe_call_template
+            (pipe_callable_path
+              (identifier))
+            (argument_list))))
+      (return_statement
+        (identifier)))))
+
+==================
+Pipe RHS is a call template; trailing binary needs semantic W-PIPE-0001
+==================
+
+fn invalidPipeRhs(x: Value, fallback: Value): Value {
+  // Tree-sitter accepts this CST supergrammar shape; semantic checking rejects
+  // the unparenthesized binary suffix because RHS must be one call template.
+  let badCoalescing = x |> f() ?? fallback
+  let badLogical = x |> f() || fallback
+  return badCoalescing
+}
+
+---
+
+(source_file
+  (function_declaration
+    (identifier)
+    (parameter_list
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (type
+          (type_name
+            (type_identifier)))))
+    (type
+      (type_name
+        (type_identifier)))
+    (block
+      (comment)
+      (comment)
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (pipe_forward_expression
+            (identifier)
+            (pipe_call_template
+              (pipe_callable_path
+                (identifier))
+              (argument_list)))
+          (identifier)))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (binary_expression
+          (pipe_forward_expression
+            (identifier)
+            (pipe_call_template
+              (pipe_callable_path
+                (identifier))
+              (argument_list)))
+          (identifier)))
+      (return_statement
+        (identifier)))))

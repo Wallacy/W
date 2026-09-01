@@ -12,7 +12,7 @@
   "sourceRefs": [
     { "path": "../../../reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Explicit capability binding and projection." },
     { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational clock and deadline boundary." },
-    { "path": "../../../reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "Context random capability projection." },
+    { "path": "../../../reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "Context random capability projection." },
     { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Explicit source, options, and typed codec error." },
     { "path": "../../../reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Credential and channel lifecycle events." }
   ],

@@ -226,10 +226,10 @@ async fn updateWorlds(
     world.randomNumber = context.random.integer(in: 1...10_000)
   }
 
-  return try await transaction<
+  return try await pipeline<transaction: {
     isolation: .readCommitted,
     access: .readWrite,
-  > tx = store {
+  }> tx = store {
     var updates = Array<WorldUpdate>(minimumCapacity: result.count)
 
     for world in result {

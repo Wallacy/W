@@ -185,19 +185,22 @@ O startup negocia `exact` por raiz quando os wire schema digests são iguais. Um
 compatibility map seleciona `compatible` nos outros casos aceitos. O package não
 escolhe o profile por conveniência ou por target.
 
-A expressão `pipeline` entra no `ServiceIR` como um DAG de calls dependentes. O
-linker divide o grafo em ilhas de route. O runtime preserva effect IDs, cleanup
-e incerteza quando uma barreira impede o fast path. O build não transforma o
-pipeline em uma transaction nem em uma closure remota.
+A expressão `pipeline` entra no `ServiceIR` como a região única de execution
+graph. O modo dependent continua um DAG de calls dependentes; tasks e
+transaction usam seus schemas próprios. O linker divide o grafo em ilhas de
+route. O runtime preserva effect IDs, cleanup e incerteza quando uma barreira
+impede o fast path. O build não transforma o pipeline em uma closure remota nem
+cria uma transaction sem o modo e provider explícitos.
 
 Uma edge `some Stream<Item, Failure>` também entra no `ServiceIR`. O linker usa
 ligação direta dentro da mesma route. Outra route recebe um relay bounded com
 créditos de items e bytes. `Failure` precisa aceitar `ServiceFailure`.
 
-`transaction<...> tx = provider { ...; commit value }` usa um único provider
-nominal. O product fixa seus limits e capabilities. Um binding local pode usar
-uma conexão direta. Um binding wRPC usa um scope remoto com lease. Nenhum
-placement compõe duas capabilities numa transação distribuída implícita.
+`pipeline<transaction: { ... }> tx = provider { ...; commit value }` usa um
+único provider nominal; `.default` só é aceito quando o provider o ratifica
+explicitamente. O product fixa seus limits e capabilities. Um binding local
+pode usar uma conexão direta. Um binding wRPC usa um scope remoto com lease.
+Nenhum placement compõe duas capabilities numa transação distribuída implícita.
 
 As capabilities padrão, como clock e random, entram no contexto tipado do host
 pelo envelope do product. Recursos nomeados, como database e cache, entram como

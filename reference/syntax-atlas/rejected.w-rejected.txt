@@ -18,3 +18,5 @@ This file is not W source. The checker must not parse it.
 - TypeId.of<ReservationKey>()                [W-EXPR-0006: postfix core não fornecido]
 - type(of: value)                            [superfície legada não fornecida]
 - value as? Ticket as? OrderId               [W-TYPE-0124: resultado optional borrowed não é source válido]
+- x |> f() ?? fallback                     [W-PIPE-0001: suffixo binary não parentetizado não é call template]
+- x |> f() || fallback                     [W-PIPE-0001: suffixo lógico não parentetizado não é call template]

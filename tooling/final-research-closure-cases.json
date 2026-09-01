@@ -29,7 +29,7 @@
     },
     "gate": "PFU0-pre-freeze-usability"
   },
-  "activeResearchGates": ["W-1486"],
+  "activeResearchGates": ["W-1486", "W-1503"],
   "reuse": {
     "W-707": [
       "tooling/frontend-freeze-cases.json",

@@ -19,6 +19,10 @@ O bloco demonstra precedência, bitwise, shifts, power, coalescing, `in`, `is`,
 `bitWidth`, counts, `reversedBits` e `reversedBytes`. Essas APIs são nomes
 portáveis, não novos tokens de operador. O bloco é
 parse-only e não prova type-check, runtime ou provider.
+O parser mantém uma supergrammar para recuperação: o atlas aceita as formas
+parentetizadas `(x |> f()) ?? fallback` e `(x ?? fallback) |> f()`, enquanto o
+adversarial `x |> f() ?? fallback`/`x |> f() || fallback` é rejeitado
+semanticamente por `W-PIPE-0001` porque o RHS deve ser um call template único.
 Para a matriz semântica, leia [`Operadores, bits e política numérica`](../../CHEATSHEET.md#operadores-bits-e-política-numérica).
 Para o limite de custo, leia [`Performance e custo`](../../CHEATSHEET.md#performance-e-custo).
 

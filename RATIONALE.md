@@ -178,6 +178,7 @@ O corpus compara, no mínimo:
 - parser estrutural data-only em batch/two-wave contra seleção de owner, schema decode acoplado, parser executável/host ou first-wave publish.
 - behavior convergente com plain `var` e initializer zero/one-slot contra `storage`/`input` e shim pré-1.0
 - contratos core opaque e views estáveis contra declarations construtíveis, metadata universal e layout público
+- FPP0 facets, pipe-forward e pipeline unificada contra projeções implícitas, UFCS e grafo sem schema
 
 ### 1.1 Cobertura de substituições
 
@@ -208,7 +209,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 87 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 88 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -1965,7 +1966,8 @@ sempre possui um valor, conflates por equality e também não fecha. A
 oferece FIFO MPMC bounded, mas não define task scope, cancellation ou ownership
 estruturado.
 
-Essas diferenças não escolhem um default para W. A baseline compõe `TaskGroup`,
+Essas diferenças não escolhem um default para W. A baseline compõe
+`pipeline<tasks: ...>`,
 `Stream`, `Channel`, services, `ReadableStream.tee` e `SnapshotCell`. Um adapter
 especializado pode oferecer outra policy, mas precisa nomear loss, replay,
 close, failure, duplication, limits e owner graph. `WeightedChannel` também não
@@ -2032,7 +2034,7 @@ para usar condition, futex ou parking internamente.
 
 `Once` raw também não entra. Const/module initialization resolve o caso
 estático. `var Lazy` cobre o caso tardio sem publicar uma primitive de estado.
-W-1255 rejeita a barreira cíclica genérica: TaskGroup, domain barrier ou service
+W-1255 rejeita a barreira cíclica genérica: pipeline tasks, domain barrier ou service
 já carregam identity, saída e failure no lifecycle correto.
 
 Atomic waiting possui uma fronteira menor. O
@@ -2935,7 +2937,7 @@ O índice gerado usa esta tabela somente como projeção.
 | `for try await` | **Possível agora** | sugar local para `next()`; borrow do cursor e effects permanecem visíveis |
 | `Channel<T>` MPSC bounded | **Provável** | ownership e estados estão fechados; fairness, cancellation e custo exigem protótipo |
 | permits de channel | **Provável** | capability linear fecha capacity; close e suspension longa exigem oracle |
-| WorkQueue, broadcast, watch e weighted channel | **Rejeitado na baseline** | TaskGroup, Stream, services, tee e SnapshotCell compõem os casos sem esconder loss ou accounting |
+| WorkQueue, broadcast, watch e weighted channel | **Rejeitado na baseline** | pipeline tasks, Stream, services, tee e SnapshotCell compõem os casos sem esconder loss ou accounting |
 | `ByteSource`/`ByteSink` async-first | **Possível agora** | short progress, EOF e errors possuem resultados fechados |
 | read por append em reserva privada de `Bytes` | **Possível agora** | initialized count e commit ocultam storage ainda não inicializado |
 | cancellation de I/O com completion drain | **Provável** | backends possuem completion; runtime e borrow checker precisam de oracle |
@@ -2955,7 +2957,7 @@ O índice gerado usa esta tabela somente como projeção.
 | `ReadWriteLock<T>` na safe std | **Rejeitado** | domain barrier, SnapshotCell e lock exclusivo cobrem a baseline com menos policy |
 | condition variable na safe std | **Rejeitado** | channel, task outcome e service unem evento, ownership e cancellation |
 | `Atomic.wait/notify` suspensivo | **Possível agora** | fast path, tickets, cancellation, lifetime, ABA e provider possuem contratos fechados; runtime real e benchmark continuam gates |
-| barreira cíclica/reutilizável | **Rejeitado** | W-1255 usa TaskGroup, domain barrier ou service conforme o lifecycle; uma primitive universal esconderia perda, generation e failure |
+| barreira cíclica/reutilizável | **Rejeitado** | W-1255 usa pipeline tasks, domain barrier ou service conforme o lifecycle; uma primitive universal esconderia perda, generation e failure |
 | `SnapshotCell<T>` | **Possível agora** | `read`, `snapshot` e `publish` fecham versões, edges e reclamation sem API RCU no caller |
 | RCU genérico safe | **Rejeitado** | reclamation, ABA e leitura longa exigem adapter `unsafe` especializado |
 | facts trusted para FFI e synchronization customizada | **Possível agora** | somente provider ou foreign interface fixa target, digest e negative facts |
@@ -5835,7 +5837,7 @@ resultado humano ou resultado de modelo.
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
 | W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
-| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed; o fechamento histórico foi estendido até W-1459 e W-1486 é a única research gate ativa posterior |
+| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed; o fechamento histórico foi estendido até W-1459 e W-1486 e W-1503 são as research gates ativas posteriores |
 | W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
 
 O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
@@ -5851,13 +5853,13 @@ O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
 R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
-source escape, categoria errada e qualquer `Research` residual fora de W-1486.
+source escape, categoria errada e qualquer `Research` residual fora de W-1486 e W-1503.
 W-1471,
 W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; W-1484 substituiu
 depois a semântica blocking de W-1471, e DRC0 fecha W-1484, W-1473, W-1474 e
 W-1475. FRC0 preserva os gaps de implementação, registra o fechamento histórico
-até W-1459 e não promove compiler, runtime ou provider; W-1486 permanece a
-única research gate ativa.
+até W-1459 e não promove compiler, runtime ou provider; W-1486 e W-1503
+permanecem as research gates ativas.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
@@ -5980,8 +5982,8 @@ registra alternativas observáveis. O owner recebe a decisão operacional. O
 workload e o oracle fixam a medição. A stop condition encerra a busca sem
 promover um resultado local a claim geral. O seed pode crescer quando um novo
 hotspot exigir outra alternativa, mas não muda a semântica nem reabre o
-fechamento histórico `Research=0`; W-1486 é a única research gate ativa
-posterior.
+fechamento histórico `Research=0`; W-1486 e W-1503 são as research gates ativas
+posteriores.
 
 | Domínio | Problema, alternativas e fonte primária | Owner | Workload e oracle | Stop condition |
 |---|---|---|---|---|
@@ -6008,8 +6010,8 @@ o target, o workload, o provider ou o oracle mudar.
 PFU0 fornece a evidência host-only para três decisões depois do snapshot
 histórico FRC0. W-1451, W-1452 e W-1453 são agora
 `oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico,
-estendido por AEG0/SIMD1 até W-1459. W-1486 é a única research gate ativa
-posterior.
+estendido por AEG0/SIMD1 até W-1459. W-1486 e W-1503 são as research gates
+ativas posteriores.
 As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois. W-1484
 substituiu a interpretação blocking de W-1471; DRC0 fecha W-1484, W-1473,
 W-1474 e W-1475. PFU0 não trata a máquina host como compiler, runtime, provider
@@ -6042,7 +6044,7 @@ Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/studies/pfu0-pre-freeze-usability/`. As fontes reutilizadas são os
 contratos de build.w, stream/Channel/mailbox e property no atlas de Last Light;
 os digests são verificados pelo checker. O stop condition rejeita qualquer
-Research residual fora de W-1486, stale digest ou caller echo. A decisão de freeze usa
+Research residual fora de W-1486 e W-1503, stale digest ou caller echo. A decisão de freeze usa
 o resultado PFU0 e não afirma compiler, runtime ou provider.
 
 ### 1.39 AEG0 — App Essentials Gate
@@ -6060,7 +6062,7 @@ testemunhos finos. Ele não cria syntax, keyword, manifest field ou provider.
 | W-1458 | Crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned. Secret/key handle é opaque, move-only e nonextractable por default, com purpose/audience/generation scope. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | `std.crypto` universal, vault/global lookup, plaintext/env lookup, secret no wire, algorithm string, fallback ou downgrade | provider, compiler, runtime, HSM/keystore, rotation, zeroization, FFI e estudos continuam missing |
 
 AEG0 manteve o fechamento histórico `Research=0` no snapshot até W-1459;
-W-1486 é a única research gate ativa posterior. O oracle aceita os seis casos
+W-1486 e W-1503 são as research gates ativas posteriores. O oracle aceita os seis casos
 correntes (dois paths de crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority ambiental,
 fallback, plaintext/serialization, codec inference e source/digest stale. A
 máquina é host-only. Ela não afirma execução W nem readiness de provider.
@@ -6138,7 +6140,7 @@ SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
 continuam missing. No limite W-1459, o fechamento histórico `Research=0`
 permaneceu; as gates posteriores W-1471, sua sucessora W-1484, W-1473, W-1474
-e W-1475 não pertencem a SIMD1, e W-1486 é a única research gate ativa.
+e W-1475 não pertencem a SIMD1, e W-1486 e W-1503 são as research gates ativas.
 
 ## 2. Proveniência
 
@@ -6224,7 +6226,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-039 | execution domain (retired) | forma anterior `async/spawn<.domain>` sem label; W-1160/W-1162 aceitam também `<domain: .name>` no mesmo slot | alias duplo no mesmo slot; `on .name` (**Rejeitado por enquanto**); descriptor-only |
 | W-040 | Task | linear, lexical, one-await | Future clonável; detached default |
 | W-041 | grupos | lexical e bounded | queue ilimitada; thread pool exposto |
-| W-042 | solicitação de cancelamento | `task.cancel(reason:)` intrínseco; reasons do caller são separados de deadline, budget e saída estrutural | statement `cancel` (**Rejeitado por enquanto**); budget como reason; async thread cancellation |
+| W-042 | solicitação de cancelamento | `task#cancel(reason:)` é facet core; reasons do caller são separados de deadline, budget e saída estrutural | statement `cancel` (**Rejeitado por enquanto**); budget como reason; async thread cancellation |
 | W-043 | erro concorrente | primário lexical + anexos | primeiro a concluir; aggregate always |
 | W-044 | atomics | `var atomic`, seq-cst comum e contratos estáticos de order; detalhes W-440–453 | C-like default; wrapper obrigatório; lock oculto em `var` comum |
 | W-045 | nomes de mobilidade | `transferable`/`shareable` derivados; detalhes em W-424–429 | `Send`/`Sync` públicos; runtime checks |
@@ -6537,7 +6539,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-352 | capacity aninhada | groups no mesmo domain compartilham budget; parent aguardando não retém permit | pool por group; produto dos limits |
 | W-353 | liveness paralela | simultaneidade nunca é necessária para correção | spin wait entre children; thread por child |
 | W-354 | fairness | eventual sob budgets bounded e jobs non-blocking; sem ordem entre siblings | FIFO scheduler como semântica; queue ilimitada |
-| W-355 | priority e deadline | deadline monotônico vira cancellation e `Task.withTimeout` cria child lexical; W-1483 retira priority portável do source | `.background` como domain; priority garante prazo; deadline wall-clock |
+| W-355 | priority e deadline | deadline monotônico vira cancellation e `Task#withTimeout` cria child lexical; W-1483 retira priority portável do source | `.background` como domain; priority garante prazo; deadline wall-clock |
 | W-356 | executor dinâmico (retired) | direção anterior deixava `ExecutionDomainRef` provável; W-1175 fecha somente lane serial bounded e mantém executor custom em runtime unsafe | detached escondida; protocol comum substitui scheduler |
 | W-357 | bytes de String | view read-only; mutação somente por operação que preserva UTF-8 | byte mutation com validação posterior; storage exposto |
 | W-358 | conversão UTF-8 | view valida; String copia; adoption transfere carrier sem allocation e devolve o mesmo owner no erro | cópia implícita em todas; reuse opcional |
@@ -6868,9 +6870,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-683 | unknown e capability | ordinary value descarta unknown; relay explícito preserva block canônico; capability usa ordinal e table fora do codec | unknown sidecar oculto; endpoint no payload; bytes com capability como content address |
 | W-684 | suspensão observável | journal guarda alarm privado; `WorkSnapshot` publica duração restante com clamp em zero | expor wake `Instant`; usar snapshot como history; `sleep(until: Instant)` durável |
 | W-685 | lifecycle de compatibilidade | pre-1.0 não preserva formas descartadas; pós-1.0 toda deprecation exige replacement, migration e milestone de remoção | shim pre-1.0; suporte indefinido; remoção sem aviso após 1.0 |
-| W-686 | source de pipeline | `try await pipeline { let ...; return ... }`; body é DAG estático e não valor first-class | builder fluente; closure record-replay; promise lazy universal |
+| W-686 | source de pipeline (histórico; superseded-by-W-1511) | Registrou `try await pipeline { let ...; return ... }` como DAG estático. A forma corrente é `pipeline` unificada com `commit`; este registro preserva o spelling antigo somente como proveniência. | builder fluente; closure record-replay; promise lazy universal |
 | W-687 | falha de pipeline | dependents bloqueiam, independentes cancelam e drenam; qualquer unknown outcome domina e leva todos os effect IDs | primeiro error esconde incerteza; rollback presumido; exatamente uma mutation |
-| W-688 | source de transaction | `try await transaction<...> tx = provider { ...; commit value }`; contract pertence ao provider e commit fecha cada caminho de sucesso | method call como forma idiomática; provider implícito; `return` ambíguo; commit manual fora do scope |
+| W-688 | source de transaction (histórico; superseded-by-W-1511) | Registrou `try await transaction<...> tx = provider { ...; commit value }`. A forma corrente é `pipeline<transaction: { ... }> tx = provider { ...; commit value }`; este registro preserva a keyword antiga somente como proveniência. | method call como forma idiomática; provider implícito; `return` ambíguo; commit manual fora do scope |
 | W-689 | boundary de transaction | um provider nominal, scope borrowed não escapante, output após confirmação e `unknownCommit(EffectId)` após dúvida | retry automático; cancellation significa rollback; devolver output incerto; restaurar owners consumidos |
 | W-690 | composição transacional | somente effects derivados de `tx`; múltiplos providers usam workflow e compensação; nesting e pipeline ficam fora da baseline | transação distribuída implícita; 2PC default; chamada externa aparentemente atômica; savepoint como nested commit |
 | W-691 | failure de service stream | `Failure` é `ServiceFailure` ou possui uma injeção total única; `Never` remoto é rejeitado; abertura e terminal são fases distintas | boundary error oculto; segundo error channel; `done()` posterior; disconnect vira fim normal |
@@ -6957,7 +6959,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-772 | value block | último expression sem semicolon produz o result somente em contextos nomeados; semicolon preserva discard | todo block retorna tail; function com retorno implícito; formatter remove discard marker |
 | W-773 | call e avaliação | receiver, argumentos, literals e operands avaliam da esquerda para a direita; labels não reordenam; caminhos condicionais são lazy | ordem não especificada; avaliação por parameter order; optimizer avalia caminho não selecionado |
 | W-774 | prefix de effect e ownership | `try await` é canônico; prefix cobre seu subtree; consuming receiver usa `(take value).method()` | `await try`; effect inferido no caller; take receiver sem grouping; force unwrap |
-| W-775 | expressions restritas | `unsafe` produz tail; pipeline usa `return`; transaction usa `commit`; panic produz Never | block geral como value; pipeline builder first-class; return em transaction; unsafe desliga checks |
+| W-775 | expressions restritas | `unsafe` produz tail; pipeline usa `commit`; o modo transaction usa `commit`; panic produz Never | block geral como value; pipeline builder first-class; `return` em pipeline/transaction; unsafe desliga checks |
 | W-776 | grammar normativa G5 | tokens, owners, boundaries, commit points e recovery integram G0–G4 sem type information | type-directed parse; newline como boundary; parser gerado como autoridade |
 | W-777 | statement partition | parser consome a maior expression no owner atual; semicolon força boundary e permanece quando partition ou tail muda | automatic semicolon insertion; newline encerra expression; remover todo semicolon |
 | W-778 | leitura de contract | `<` imediato compromete type application, contract ou generic call; relation exige trivia antes de `<` | resolver pelo type checker; reinterpretar envelope incompleto como relation; exigir turbofish |
@@ -7412,7 +7414,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1227 | retention, restart e shutdown | queues, outputs, journal, dedup, tombstones e restart window são bounded; drain fecha admission e aguarda owners/commit/quarantine | restart infinito, compaction que perde record vivo, shutdown com output ou turn pendente |
 | W-1228 | evidence SR0 | fixture Última Luz e machine/checker/snapshot/test host cobrem 48 casos, 392 operações e 17 testes sem executar W, database, network ou provider | expected echo, fault booleano sem record real, completion não registrada, chamar model de runtime ou exactly-once proof |
 | W-1229 | accounting de channel | capacity mede itens; payload refinado pode limitar bytes carregados; quotas de itens/bytes/trabalho pertencem à mailbox com authority | `WeightedChannel`, callback de peso, peso do caller chamado de memória real |
-| W-1230 | distribuição de trabalho | collections usam TaskGroup; streams usam concurrentMap/parallelMap bounded; services cobrem admission contínua e distribuição entre instances | `WorkQueue` MPMC, receiver compartilhado, child detached, fila ilimitada |
+| W-1230 | distribuição de trabalho | collections usam `pipeline<tasks: ...>` bounded; streams usam adapters concorrentes/paralelos; services cobrem admission contínua e distribuição entre instances | `WorkQueue` MPMC, receiver compartilhado, child detached, fila ilimitada |
 | W-1231 | fan-out explícito | tee fecha duas branches estáticas; service fecha subscribers dinâmicos e nomeia loss/replay/close/failure/duplication | `Broadcast` universal, policy de lag implícita, cópia escondida por channel mode |
 | W-1232 | latest state separado de eventos | SnapshotCell mantém versão corrente; adapter específico publica revisão depois do snapshot e prova wake sem perda | `Watch` universal, conflation/equality/lifecycle escondidos, state tratado como event history |
 | W-1233 | uma syntax de ilha | `fn<Language>` contém body inline; source separado é nó foreign-unit do build graph; builder agrupa units internas | syntax de unit nomeada, arquivo externo como module W, staticlib por função |
@@ -7437,7 +7439,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1252 | UDP direcional | socket inteiro serializa; split consuming cria receive/send halves únicos, permite uma operação por direção e libera o control block após ambos drenarem | Arc/shared socket no source, múltiplos receivers, protocol genérico sem segundo transporte, drop de um half fechar o sibling |
 | W-1253 | radix explícito | parse/format usam radix refinado 2...36, ASCII, lowercase default e uppercase opcional sem mudar Display | locale, prefixo ou whitespace implícito, radix runtime inválido, canonical decimal variável |
 | W-1254 | C Exchange N0 | bridge Python pode usar table estática como fast path call-scoped, non-owning, não suspensivo e no current producer stream; metadata morre no retorno e uma lease mantém o producer até o work receipt drenar; N1 usa carrier versioned | expor na std, reter DLTensor temporário, liberar producer antes do drain, atravessar suspension, esconder fallback ou tratar otimização como semântica |
-| W-1255 | barreira cíclica | safe std não inclui primitive genérica; phase local usa TaskGroup, epochs usam domain barrier e participantes duráveis usam service/workflow | participant loss implícita, reset de generation silencioso, cancellation sem outcome, barreira universal |
+| W-1255 | barreira cíclica | safe std não inclui primitive genérica; phase local usa `pipeline<tasks: ...>`, epochs usam domain barrier e participantes duráveis usam service/workflow | participant loss implícita, reset de generation silencioso, cancellation sem outcome, barreira universal |
 | W-1256 | primeiro shared declarativo | initializer de binding/stored field anotado `shared T` cria o primeiro owner; expression/return usam binding local e `take`; SHC0 fecha allocator custom com `try` fora do tipo e paths de origin do control block | `share`/`try share` current; promotion por overload, argumento ou return; ARC/retain implícito; wrapper nominal obrigatório |
 | W-1257 | lock da linguagem | `lock`, `await lock` e `try lock` abrem body scoped sobre `shared T`; body não suspende, não lança application error e não escapa dependency | Mutex/AsyncMutex wrapper, guard, unlock manual, await no body, body repetido |
 | W-1258 | gate e lifecycle | HIR/interface preservam allocation/place/access; overlapping concurrent access usa a mesma gate; unlock publica release/acquire; cancellation e drop drenam; sem poisoning ou cross-boundary | análise textual global, gate cruzar process, plain read disputar write, FIFO host como prova |
@@ -7598,7 +7600,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1413 | reexport explícito | `export * from path` e `export { A, B as C } from path`; `export { A }` permanece export coletivo local | `export import`, facade com keyword import ou alias implícito fora de braces |
 | W-1414 | input tipado de behavior | behavior declara `input name: Type`; callable `input initialValue: fn(): Value` é slot explícito, sem hidden capture/inference, com type/effect checks normais | identifier solto como input, storage que substitui slot, captura ambiental ou callable sem type |
 | W-1415 | roots físicos unificados | somente package/workspace são roots; `resolution` e `deployments` são fields aninhados, owner único é package isolado ou workspace, identities/digests permanecem separados e publication exclui esses fields | `lock`/`deployment` root independente, package member com resolution duplicada, deployment dentro de SemanticInterfaceKey ou resolver que reescreve metadata |
-| W-1416 | pipeline e labels observáveis | pipeline de atlas usa duas calls dependentes e labels demonstram `continue` para loop externo, preservando DAG/driver/cleanup vigentes | pipeline com somente return local, continue que reinicia token do label, goto, label em statement arbitrário ou salto não lexical |
+| W-1416 | pipeline e labels observáveis | pipeline de atlas usa duas calls dependentes e `commit`; labels demonstram `continue` para loop externo, preservando DAG/driver/cleanup vigentes | pipeline sem dependência ou sem `commit`, continue que reinicia token do label, goto, label em statement arbitrário ou salto não lexical |
 | W-1417 | identidade split e transação do root | owner basis exclui `resolution`/`deployments` e deriva `ownerDigest`; resolution e deployments têm digests próprios; `w resolve` altera somente resolution; add/remove/update fazem compare-and-replace com validation, temp sibling, cleanup e reducers POSIX/Windows independentes; `atomicVisible` e `crashDurable` são outcomes separados e durability exige provider receipt | `workspaceDigest` misturado com resolution, sidecar obrigatório, merge automático, last-write-wins, patch in-place, temp path exposto, receipt caller-owned, durability inferida de flag, resolver/fetch oculto ou alegação de compiler/runtime/provider |
 | W-1418 | default de protocol sem herança | protocol contém somente requirements; o módulo do protocol publica defaults em `extension Protocol`; conformance registra default ou witness próprio; implementação nominal vence; overlap e ambiguidade exigem member explícito; defaults não têm storage nem ampliam ownership/effects; body fica fora do SemanticInterfaceKey | body inline no protocol, herança de fields/initializer/deinit, `super`, protected, linearização, prioridade por import, extension externa trocando witness ou dispatch runtime oculto |
 | W-1419 | três camadas de feature | package feature é graph estático aditivo; availability é proof de target/provider; runtime feature é policy tipada dentro do programa já autorizado | uma única flag que seleciona dependency, prova API e muda comportamento runtime |
@@ -7635,7 +7637,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1450 | SEC0 evidence/admission implementation evidence gap | ASIC0 fecha profile, side-channel, patch e ordered deployment/hardening receipts como evidence/admission contracts, não security conformance; produção ainda exige compiler/runtime/provider, hardware/sandbox, attestation verifier, secret lifecycle, FFI, fault, stress e local-split evidence | **implementation-evidence-gap**; missing compiler, runtime, provider, hardware, sandbox, attestation verifier, secret lifecycle, FFI, fault/stress e local-split |
 | W-1451 | manifest de projeto unificado | `build.w` direto e data-only por diretório contém um ou dois records top-level em qualquer ordem, pelo menos um e no máximo um `package` e um `workspace`, sem wrapper físico `build.w {}`; package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only e package+workspace atribuem esses fields ao workspace e o package os omite; `workspace.members` aponta para diretórios cujo `build.w` contém `package`; schemas `w.package/1` e `w.workspace/1` permanecem; package inline, nested workspace member, glob, scan ambiental, source executável, arquivo vazio/duplicado e owners duplicados são rejeitados; `package.w`/`workspace.w` são removidos sem shim pré-1.0 | oracle-backed-current; PFU0-W-1451-current fornece o controle host-oracle e o candidate de manifest é aceito |
 | W-1452 | streaming de saída de service | APIs de service retornam explicitamente `some Stream<Item, Failure>`; a chamada via `ServiceRef` sempre acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`; separadamente, o `Failure` terminal permanece no stream e deve admitir `ServiceFailure`; `Channel` exige capacity, endpoints, ownership, backpressure e `close` explícitos; mailbox e `Stream` mantêm lifecycle distinto; `stream fn` é rejeitada por capturas, lifecycle e erro ambíguos; client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem await e closed-turn change ficam fora | oracle-backed-current; PFU0-W-1452-current fecha o retorno explícito e rejeita o candidate `stream fn` |
-| W-1453 | lifecycle de property | `get`/`set`/`modify` permanecem vigentes em property stored, computed e behavior; `init` bypassa accessors; assignment simples usa `set`/replacement e nunca `modify`; mutation compound usa `modify` uma vez, sem get-copy-set; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value e backing storage drop ocorrem uma vez pelas regras explícitas; cleanup customizado fica no backing type sem `deinit` oculto; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal e sobreposição no borrow exclusivo falha; `willSet`/`didSet` e observers implícitos são rejeitados | oracle-backed-current; PFU0-W-1453-current fecha o lifecycle e rejeita o candidate observer |
+| W-1453 | lifecycle de property | `get`/`set`/`modify` permanecem vigentes em property stored, computed e behavior; `init` bypassa accessors; assignment simples usa `set`/replacement e nunca `modify`; mutation compound usa `modify` uma vez, sem get-copy-set; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value e backing storage drop ocorrem uma vez pelas regras explícitas; cleanup customizado fica no backing type sem `deinit` oculto; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal e sobreposição no borrow exclusivo falha. Hooks fechados `will*`/`did*` só são permitidos em behavior observer nominal explicitamente composto por W-1512; `willSet`/`didSet` soltos, observer implícito e aplicação direta do observer continuam rejeitados. | oracle-backed-current; PFU0-W-1453-current fecha o lifecycle e rejeita o candidate observer |
 | W-1454 | arquitetura de capability comum | capability nominal não forjável, sem initializer público; provider/profile/digest são explícitos; owner ou lease liga root+generation; cada operação declara effect/error/ownership/bounds/complexity/cancellation; values portáveis são separados de handles locais; child task recebe borrow/move explícito; service/process faz host rebind; test provider é explícito; não há lookup ambiental | oracle-backed-current; AEG0-W-1454-current fecha a fronteira comum e rejeita authority ambiental, handle wire e child implícito |
 | W-1455 | tempo civil explícito | `std.time` operacional não muda. `UtcTimestamp` é `WireValue` portable; `Instant` e `Deadline` continuam locais. Civil date, local datetime, timezone e calendar são values explícitos. Conversão exige provider/database profile com version/digest e zone/calendar/profile explícitos. DST gap/fold rejeita por default ou exige policy. Locale/calendar/timezone não são ambientais. Wall clock não dirige deadline. Leap-second/smear policy fica no profile sem conversão automática e não há conversão implícita | oracle-backed-current; AEG0-W-1455-current fecha package/profile civil separado e rejeita wall clock global, deadline civil e timezone implícito |
 | W-1456 | perfis de random | package/profile geral separa secure provider-backed de deterministic explicit-seed. Secure não aceita seed, fallback ou downgrade e exige bytes bounded, integer uniforme checked e erro tipado. Deterministic é replayable e não satisfaz secure. Draw order é owner-local, sem inheritance entre task/service/process. Context HTTP projeta o mesmo contrato. Somente seed/profile determinístico pode entrar em test receipt; secure seed/draw/bytes não entram em receipt/log/diagnostic. Handles não são WireValue | oracle-backed-current; AEG0-W-1456-current fecha secure/deterministic e rejeita seeded secure, fallback e inheritance implícita |
@@ -7661,12 +7663,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1475 | readiness de training e inference | Direção vigente: LLM0 inventaria a cobertura existente de Tensor/shape/value parameters, broadcast/reduction/numeric mode, f16/bf16/quant direction, views/strides, Device/Queue/Launch, DLPack, ownership, streams/backpressure/services, deterministic RNG/profile e packages/receipts; gaps de training e inference são classificados como core, std/API, typed IR/compiler, runtime/provider, tooling/evidence ou application framework, com default de não inflar o core | oracle-backed-current por `DRC0-W-1475-current`; [`LLM0`](tooling/studies/llm0-training-inference/) fecha o ownership map e os dois workloads, não framework, kernel, provider ou performance. Fontes primárias registradas no estudo foram verificadas em 2026-08-25 |
 | W-1476 | teste de tipo e recuperação borrowed | Proveniência histórica: `is` exigia `reflect.Reflectable` e `reflect.downcast<T>(ref existential)` retornava `ref T?`; downcast owned, `as`/`as?`/`as!`, cast por string, type pattern e smart cast ficavam fora | **superseded por W-1492** para identidade dinâmica sem conformance, `as?` borrowed e queries de tipo. A linha preserva a proveniência e não define a forma vigente |
 | W-1477 | scatter read e transferência posicional | `io.ReadBatch` é owner move-only de segments com capacity fixa e initialized counts privados; `io.readMany` preenche a concatenação em ordem e retorna `data`, `end` ou `full`, com fallback de uma leitura. `io.TransferPlan` possui intervalo, progresso e scratch reservado; `io.transfer` liga `SnapshotByteSource` a `ByteSink`, diferencia source end de limit, preserva sufixo não committed e pode selecionar operação nativa somente por capability interna. `IoSliceMut`, `inout view Bytes...`, probe `isVectored`, syscall pública e promessa universal de zero-copy ficam fora | current design contract em DESIGN §14.2.11, std.io draft e Última Luz; compiler/runtime, provider SPI, cross-target fault tests, receipts de estratégia e benchmarks continuam implementation-evidence gaps. Fontes primárias de `readv`, `WSARecv`, `sendfile`, `TransmitFile` e Rust vectored I/O foram verificadas em 2026-08-25 |
-| W-1478 | aplicação fechada e hook pós-borrow de behavior | behavior aceita zero ou um input, exatamente `initialValue: fn(): Value`; cada parâmetro generic deve ser inferido unicamente pelo tipo lógico depois de `for`; a aplicação usa somente o nome nominal, sem argumentos, generic arguments, composição ou backing access. `modify` pode usar `defer` uma vez após o borrow e observa mutation admission, inclusive término com error, sem copiar `oldValue`. Policy estática pertence ao tipo; dependência runtime usa owner, método, service ou channel nomeado | current design contract em DESIGN §10 e witness `WrappedDegrees` em `reference/last-light/orbit.w`: `set` normaliza a entrada, `modify` normaliza depois do borrow e `Attitude.rotate` observa `350 + 25 = 15`. Swift SE-0258 foi verificado como alternativa de argumentos, backing e projection em 2026-08-25 |
+| W-1478 | aplicação fechada e hook pós-borrow de behavior (superseded-by-W-1501/W-1512) | Registrou a aplicação one-slot `initialValue: fn(): Value` e o lifecycle de `modify`. A forma corrente mantém esse initializer para behavior de storage e reserva `will*`/`did*` a observers nominais explicitamente compostos; observer aplicado diretamente não é aceito. | histórico preservado; DESIGN §10 e `reference/last-light/orbit.w` exercem W-1501/W-1512 |
 | W-1479 | projeção nominal borrowed de aggregate | Uma API que suprime properties declara um aggregate nominal lifetime-dependent: `ref Field` para place completo, `view Carrier` para extent verificável e valor owned para snapshot/cópia; constructor ou método nomeado escolhe fields e o HIR preserva origins por field. Protocol menor limita methods, aggregate borrowed expõe dados sem copiar e DTO owned permite escape. `view Object`, `view Nominal`, field mask, derivação estrutural, `Viewable` universal e recuperação de authority omitida ficam fora | current design contract em DESIGN §16.2 e witness `PublicCourse` em `views.w`; parser de aggregates e borrows existe como seed, mas checker de origins por field, diagnostics e execução do borrow continuam implementation-evidence gaps |
 | W-1480 | direções de service stream sem Channel implícito | Service operation usa o mesmo carrier em posições diretas: `take some Stream<Item, Failure>` no parâmetro forma client-streaming, `some Stream<Item, Failure>` no resultado forma server-streaming, ambos formam bidirectional e nenhum forma unary; input transfere o readable owner, output permanece opaque, items são owned/transferable/WireValue, Failure admite ServiceFailure e cada edge preserva créditos, ordem, terminal, cancellation e drain. Channel.receive pode fornecer input após Channel.open com capacity explícita. Stream nested, input sem take, item borrowed/non-wire, any Stream publicado, stream fn, Channel/capacity implícito e open sem await ficam fora; W-1480 substitui somente a rejeição client/bidi de W-1452 | current design contract em DESIGN §23.1.5, estudo host SVC0 e witness `service_streaming.w`; semantic checker, ServiceIR lowering, runtime pumps, providers, cross-route faults, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de gRPC, WebAssembly Component Model e Cloudflare RPC foram verificadas em 2026-08-25 |
-| W-1481 | first-settled de tasks estruturadas | `Task.firstSettled` consome `Array<Task<Value, Failure>>` já criada, não cria child nem escolhe domain e devolve `TaskSettlement<Value, Failure>?` com index e `TaskOutcome`; vazio devolve none; o arm registra todos os handles, candidates já settled usam menor index e o primeiro settlement posterior usa completion order sem desempate por índice; winner fica fixo, losers recebem cancellation e a call aguarda body/cleanup/outcome/drop antes de publicar; parent cancellation observada antes da publicação suprime o settlement, drena todos e permanece control outcome; effects committed não sofrem rollback. Handles heterogêneos/duplicados, statement select, branch/default/fairness implícitos, first-success, future drop e multiplexing persistente ficam fora | current design contract em DESIGN §12.4.1, estudo host FST0, `TaskSettlement` em std.runtime e witness `task_settlement.w`; semantic checker, runtime wake/CAS, provider conformance, cross-domain fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift structured concurrency, Tokio select, Go select e Kotlin select foram verificadas em 2026-08-25 |
-| W-1482 | famílias TaskGroup map/collect fechadas | `TaskGroup.concurrentMap`/`parallelMap<domain>` e `concurrentCollect`/`parallelCollect<domain>` usam somente labels `limit`, `ordering`, `using`; limit é `usize<(1...)>` explícito e limita children vivos, enquanto domain/product/host podem reduzir execução física; input e callable são staged uma vez, cada item move uma vez após admission, e result storage é reservado antes do primeiro child. Map usa fail-fast e publica só success total; collect não cancela por application error/child cancellation e retorna um `TaskSettlement` por input, preservando index em `.completion`. Parent cancellation/fault suprime o array e todo caminho drena; array input/output continua O(count). Labels alternativos, zero/unbounded, callable mutável/consuming, parallel sem domain/capability, collect sem index ou retorno parcial ficam fora | current design contract em DESIGN §12.8, estudo host TGM0, `TaskGroupOrdering`/`TaskSettlement` em std.runtime e witness `inspectEveryFailure` no Restaurante; semantic checker, intrinsic lowering, runtime admission, cross-domain provider, fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift TaskGroup, Rust futures, Go errgroup e Kotlin coroutines foram verificadas em 2026-08-26 |
-| W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, `TaskGroup`, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel ou service garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
+| W-1481 | first-settled de tasks estruturadas | `Task#firstSettled` consome `Array<Task<Value, Failure>>` já criada, não cria child nem escolhe domain e devolve `TaskSettlement<Value, Failure>?` com index e `TaskOutcome`; vazio devolve none; o arm registra todos os handles, candidates já settled usam menor index e o primeiro settlement posterior usa completion order sem desempate por índice; winner fica fixo, losers recebem cancellation e a call aguarda body/cleanup/outcome/drop antes de publicar; parent cancellation observada antes da publicação suprime o settlement, drena todos e permanece control outcome; effects committed não sofrem rollback. O controle é facet core; `TaskSettlement` e `TaskOutcome` continuam dados com `.`. Handles heterogêneos/duplicados, statement select, branch/default/fairness implícitos, first-success, future drop e multiplexing persistente ficam fora | current design contract em DESIGN §12.4.1, estudo host FST0, `TaskSettlement` em std.runtime e witness `task_settlement.w`; semantic checker, runtime wake/CAS, provider conformance, cross-domain fault/liveness tests, performance e estudos humano/modelo continuam implementation-evidence gaps. Fontes primárias de Swift structured concurrency, Tokio select, Go select e Kotlin select foram verificadas em 2026-08-25 |
+| W-1482 | famílias TaskGroup map/collect fechadas (superseded-by-W-1511) | Registro histórico preservado: `TaskGroup.concurrentMap`/`parallelMap<domain>` e `concurrentCollect`/`parallelCollect<domain>` usavam labels `limit`, `ordering`, `using`; limitava children vivos, fazia staging/admission/result preflight e mantinha index, settlement, cancellation e drain. A superfície corrente é `pipeline<tasks: ...>` com `tasks`, `limit`, `ordering` e `errors`; os contratos de staging, admission, arbitration, ordering, index, fault/cancellation, drain e O(count) continuam normativos em W-1511. | histórico preservado no estudo TGM0 e nas fontes antigas; não é superfície corrente nem API namespace |
+| W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, pipeline tasks, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel, service ou pipeline tasks garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
 | W-1484 | direct entry `sync` com prova `neverSuspend` | `sync f()` é uma call direta na mesma task/context/domain, sem Task, suspensão, thread blocking, event-loop reentry, authority, quota, provider, fallback ou `blocksThread`; exige spelling explícito `async fn` e `directEntry: available`, derivado sobre todo o body antes de specialization. A async entry continua publicando `suspension: may`, enquanto `sync` seleciona a direct entry `neverSuspend`. A prova aceita `sync` para outro facet available e compõe essas dependências por ponto fixo, inclusive SCCs sem provar termination; await/bare maySuspend, sync para facet absent e sync inválido para ordinary tornam o caller absent. Function type/HIR/WInterface preservam o facet; export concrete que o remove quebra source/API e muda `SemanticInterfaceKey`; protocol/foreign/interface bodyless e erasure sem facet não aceitam sync; overload resolve antes do facet; ordinary e async entries podem coexistir pela ABI W-1163 | oracle-backed-current por `DRC0-W-1484-current` e SYNC1; W-1484 substitui somente a semântica blocking de W-1471. Semantic checker, type/HIR/interface, dual-entry lowering/ABI, cross-module/erasure, diagnostics e estudos humano/modelo continuam missing. Swift SE-0296, Kotlin coroutines basics e Rust `Future` foram verificados em 2026-08-26; são precedentes de potential suspension e da separação entre suspension, polling e thread blocking, não execução W |
 | W-1485 | inventário de módulos locais no contexto efêmero | Fora de package ou workspace, o parent lógico do source root explícito forma uma root efêmera por invocation. O provider abre e confirma a root e cada source alcançado. Um import não-std parser-validado normaliza sua spelling completa para NFC e mapeia, a partir da root e nunca do importer, `a.b` para `a/b.w`; `std` e `std.*` pertencem somente ao provider std, e um source local nunca os sombreia. Um import não-std ausente falha como dependency externa indisponível e orienta package ou workspace, sem fallback, scan ou fetch. A root usa module path do header ou stem lógico, aceita header diferente do stem e resolve um import desse path para a própria root. Source descoberto usa o import como module path, recebe o último componente sem header e exige esse componente com header; outro nome e multi-file exigem package ou workspace. `SourceId` é `PackagePath` root-relative e module path é separado; canonical token e physical display são provenance. Cada source exige facts do mesmo provider, root e source/provider owner token (não package/workspace owner), containment `inside`, canonical token único e snapshot estável de bytes e digest. Escape, symlink escape, fact ausente, alias, colisão NFC e mutation falham. Somente imports, reexports e service-import origins explícitos expandem. O grafo é acíclico. Inventory tem root ordinal 0 e depois ordena `SourceId` por bytes UTF-8 NFC. Edges ordenam source ordinal, origin e target ordinal. Limits são do profile/provider. A recipe usa apenas `{SourceId,modulePath,digest}` e edges lógicos ordenados. | oracle-backed-current por RU0 host-only em `tooling/ephemeral-module-graph-machine.mjs`, com casos positivos e adversariais em `tooling/module-run-cases.json` e `tooling/module-run-reference.test.mjs`; CHK3 acrescenta scanner C caller-owned de origins, frontend seed de identities separadas e edges resolvidos explícitos, além do adapter D0 com índice de documento; CHK4 acrescenta o graph builder caller-owned; CHK5 acrescenta o core bounded de aquisição/revalidação e o adapter Linux real com `openat2`, enquanto o stub não-Linux permanece fail-closed; CHK6 acrescenta o driver C interno, compilado em modo C23 na lane primária, caller-owned de discovery local iterativo bounded; uma toolchain c2x-preview é correctness-only, e C11 permanece recovery explícita, compondo aquisição/revalidação CHK5, parser/module scan e graph CHK4 e entregando documentos em ordem lógica e imports resolvidos para um caller futuro; não chama frontend nem abre `w check` público multi-file; waves não são transação única de snapshot e candidates antigos podem ser readquiridos, enquanto CHK4 publica somente reachable; capacity provenance do parser é evidência interna, sem novo mapping D0; CHK7 acrescenta composição interna caller-owned CHK6→frontend→D0 JSON-only, com preflight integral; todo o trabalho falível termina antes do commit, o JSONL é copiado uma vez para o buffer final e `jsonl_length` é atualizado sem novo ramo falível; em qualquer falha, o JSONL final e `jsonl_length` permanecem inalterados; a fixture prova import/call de root para child e `W-SEM-0001` em `child.w`; CHK8 acrescenta o adapter Windows real com `NtCreateFile`, identidade por `FILE_ID_INFO`, revalidação e gate nativo Windows mais Linux real via WSL; limita-se a esse diagnostic e não abre CLI pública, filesystem novo, provider std, package/workspace ou frontend completo; CHK9 acrescenta `check_host`, storage adaptativo, retry bounded e a rota pública `w check` para root explícita efêmera e imports locais alcançáveis; o gate prova Last Light, Restaurant multifile com child nested e diagnóstico determinístico, barriers de missing/std/cycle, identidade/UTF-8/parse/frontend, limites e escape por symlink/junction; o perfil usa SourceId lógico e caminho físico somente para display. NFC completo, std provider, owner detection, package/workspace, diagnostics completos, compiler, runtime e conformance multiplataforma continuam implementation-evidence gaps |
 | W-1486 | programa bounded de pesquisa binary-first registry/execution | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada está aprovada como baseline do estudo. Canonical signing payload, protocol/security/provider evidence e as stop conditions das oito tasks RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated; não há claim de implementação de registry, compiler, runner, sandbox, provider ou attestation verifier | O bundle RDX0 registra a direção, as dependencies, os outputs observáveis, os cases negativos e as stop conditions; a classificação research-gated usa a seção RDX0 como authority e exige evidence nova antes de promoção |
@@ -7687,14 +7689,18 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1499 | composição interna BND0 caller-owned ACQ0→OWN0→MAN0 | BND0 compõe resultados completos de ACQ0 e MAN0 por uma link síncrona presa ao guard OWN0. A validação calcula facts, receipts, bindings, link digest e generation antes de uma publicação única no destination caller-owned. O Linux aceita somente `linux-openat2-v2` e reconcilia tokens com `STATX_MNT_ID_UNIQUE`, device major/minor e inode. Alias, copy, stale, mutation, mismatch, boundary, I/O, unsupported e fault falham fechados; adapters ausentes não publicam. `verify` recompõe a relação com os mesmos descriptors e scratch. | `implementation-evidence-gap` no geral, com subevidência Linux bounded em `test_source_binding_linux_gate.c` e `check:source-binding`; Windows operacional, schema/WSP0, produto público, backend/runtime e vínculo ACQ0 geral permanecem gaps. `test_source_binding.c` cobre publicação all-or-nothing, statuses, alias/copy e stub não-Linux. `benchmarkDisposition` é `compiler-lifecycle`, sem stage, timing ou result |
 | W-1500 | política de dialeto C23 controlado | C23 é o padrão explícito do C controlado, do seed CMake, do artefato HLO1 gerado, dos probes/checkers diretos e da baseline BMD byte-scan-view. O seed tem default `W_SEED_C_STANDARD=23` e aceita somente `23|11`; C11 é recovery/compatibilidade explícita, sem fallback silencioso. GCC/Clang usam `-std=c23`; somente `-std=c2x` recebe disclosure correctness-only e não produz resultado/ranking final C23; MSVC sem C23 gera SKIP principal ou roda recovery explícito. O código continua compilável na lane C11 recovery e a ABI C externa permanece separada. C é validation/differential/recovery; MLIR continua backend primário futuro. `benchmarkDisposition` é `compiler-lifecycle` para o seed e a recipe C23 do BMD permanece sem timing/result. `bun run demo:seed-hello` reproduz a rota real e exige stdout exato `Hello, world!` | `DESIGN.md` W-1500, `compiler/seed-c/CMakeLists.txt`, `tooling/c-dialect.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-seed-c11-recovery.mjs`, `tooling/demo-seed-hello.mjs`, `benchmarks/byte-scan-view.manifest.json` e gates focais; categoria `source-backed-current` para a política e `oracle-backed-current` para BMD correctness |
 | W-1501 | behavior convergente sem shim pré-1.0 | Behavior usa plain `var` como backing field oculto de reflection. `init()` é zero-slot e `init(initialValue: fn(): Value)` é a única forma one-slot, recebendo o thunk do RHS; get, set, modify e defer preservam o lifecycle e a inferência de generics. `storage`, `input` e o keyword global `storage` deixam de ser spellings aceitos, sem compatibilidade histórica. | `source-backed-current` no behavior canônico, Last Light e witness `WrappedDegrees` em `orbit.w`; o teste de `Attitude` exercita assignment, `modify` e resultado observável `15`. Compiler/runtime de behavior e provider permanecem gaps |
-| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis de process-lifetime, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers, com `cancel` non-consuming e `await`/`join`/`outcome` consuming; os companions e os contratos de `Allocator`/`AllocatorLease` seguem as fontes públicas em `std`. Raw String preserva JSON visível e `'λ'` continua `UnicodeScalar`; `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, enquanto `TaskGroup` dinâmico e `pipeline` DAG permanecem keywords distintas, mesmo quando compartilham machinery HIR/runtime | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
+| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis de process-lifetime, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles core usam facets (`task#cancel`, `(take task)#outcome`, `Task#firstSettled`, `Task#checkCancellation`, `Task#yield`, `Task#withTimeout`, `Task#withDeadline`, `Task#spawn` para domain dinâmico) e `await task` continua join, enquanto `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e `'λ'` continua `UnicodeScalar`; `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
 | W-1503 | pesquisa finita de allocation e placement | `memory.generalAllocator: .none` é policy de build sem allocator geral/root e não escolhe placement; `.fixed<capacity:N>` é lexical current; `.bounded<budget:N>` e `.stack<capacity:N>` permanecem Research. `no-general-allocation`, `no-allocation`, `dynamic-allocation-forbid`, storage classes, escape, frames, returns, ABI e linker precisam de provas separadas. `product` é conceito de seleção de manifest/artifact; `product<...>` não é declaração genérica de source nem candidato | `research-gated`; ledger W-1503 registra tasks, cases, blockers, stop conditions e refs primárias; HIR taxonomy, escape/stack summaries, verified-HIR, MLIR, async frame, target/linker/provider, diagnostics e benchmarks continuam missing; nenhuma syntax nova é ratificada |
-| W-1504 | convergência pipeline/transaction research-gated | A pipeline current é DAG estático de calls dependentes com `return`; a transaction current é região async estruturada de provider único com `commit` e compute/branch/loop local. A candidata primária é pipeline única com terminal `commit`, incluindo `pipeline<transaction: {isolation:..., access:...}> tx = provider { ... commit value }`; plain commit exporta envelope sem rollback e transactional commit também solicita atomic provider commit. Grammar e Última Luz permanecem inalteradas até os gates fecharem | `research-gated`; forks A/B/C/D, effects/retry/uncertainty, provider/transport, fault injection, parser/checker/HIR, decisão DAG/region, migração, benchmarks e usability continuam gates; ledger W-1504 separado, sem ratificação de syntax |
+| W-1504 | convergência pipeline/transaction (superseded) | Registrou a antiga pipeline DAG com `return` e a expressão `transaction` separada com `commit`; preservado como proveniência e não como decisão corrente | `superseded-by-W-1511`; o ledger histórico permanece registration-only e não autoriza uma segunda grammar |
 | W-1505 | subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 | W-1505 remove a especialização Hello-only sem abrir HIR geral. HIR0/W-1494 continua a representação intermediária bounded de schema fechado, mais ampla que a seleção final. A forma exata seguinte pertence somente ao seletor HLO0 aplicado a uma HIR0 verificada: exatamente um module, um entry `.default` e uma função alvo zero-parameter/Unit/sync/nonthrows/safe/no-borrow, um block, uma call host-prelude `print`, um argumento positional `String` literal e uma requirement `Console`. HLO0 sobe para `w-seed-hlo0-2`, aceita target/handler como byte strings derivados da HIR0 verificada, não vazios, com canonical zero-tail e igualdade exata, e carrega o literal `String` inteiro (0..`W_SEED_HLO0_MAX_PAYLOAD` bytes, inclusive NUL quando publicado). O profile continua `native-process@1`, slot `.default`, callee `print`, requirement `Console`, policies/effects e shape do seletor permanecem exatos; o verifier isolado do plano comprova somente a representação zero-tail e a igualdade de target/handler, não source provenance nem identifier válido; stdout é payload + LF com tamanho checked e SHA-256 correspondente, tail é zero e exit é success. HLO1 mantém `w-seed-hlo1-1`; HLO1/RUN0 usam o verifier HLO0 compartilhado, sem heap e sem bypass. Hello, o witness Restaurante `Table 42 remains open` e vazio atravessam source → parser → frontend → HIR0 → HLO0 → HLO1/RUN0; trivia preserva o artefato e comentário com `print`, noop, duas calls e formas fora do subset falham sem saída parcial. W-1505 supersede W-1491, W-1493 e W-1495 somente nos milestones Hello-only; W-1494 permanece current. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only agora, sem timing/result; C23 é primary, C11 recovery explícita, toolchain ausente é SKIP e toolchain presente que falha é FAIL | `source-backed-current` para este subset bounded; units e `check:hlo0`, `check:hlo1`, `check:run0` demonstram os produtos e rejeições reais, enquanto HIR geral, backend/MLIR, runtime/provider W, `w run` e performance continuam gaps/deferred. Não há alteração de grammar, portal, registry ou estudos W-1503/W-1504 |
 
 | W-1506 | primeira rota nativa MLIR0 seed-only para LLVM | `w_seed_mlir0` consome somente plano HLO0 verificado e acrescenta a rota source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → native link, sem passar por C source. O schema é `w-seed-mlir0-1`; measure/emit são caller-owned, bounded, determinísticos, sem heap e all-or-nothing, com status, required, written e digest. O limite é 4096 bytes, comprovado em compile time pela soma de cada literal fixo, quatro campos decimais bounded e três bytes para cada um dos no máximo 257 bytes de payload+LF escapados. O único target emitido é `x86_64-unknown-linux-gnu`, fixado no `llvm.target_triple`; outros targets são `UNSUPPORTED`. A linha tem somente evidence no catálogo W-1507 e não é target supported. O texto usa somente builtin e LLVM dialect, LF, nenhum NUL terminal implícito, global privado de tamanho exato, payload+LF em `\XX`, uma call POSIX `write` com fd 1, comparação do retorno e `main` físico. HLO1 C23 continua bootstrap/auditoria/recovery e MLIR0 é primário somente para este subset. O gate real verifica MLIR, traduz LLVM IR, compila com clang `-x ir --target=...`, executa Hello, Restaurante e vazio com stdout byte a byte, stderr vazio e exit zero; trivia é idêntica e formas adversariais não emitem artifact. `hostEvidence` é `wsl-linux` e `windowsNative` é false: a prova é Linux x86_64 em WSL, não Windows nativo. A matriz de compiler hosts é separada da matriz de emitted targets; Linux, Windows e macOS são hosts futuros, Windows nativo requer bundle MLIR/LLVM próprio pinado/assinado/reproduzível e macOS requer equivalente por arquitetura. A meta futura de targets não herda claims/tier do Rust; promoção exige backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging e CI evidence. W dialect, lowering HIR geral, targets adicionais, provider ABI, linker/runtime, distribuição/packaging MLIR, `w run` e performance permanecem gaps/tasks. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only, sem timing/result | Fontes primárias: [MLIR C API](https://mlir.llvm.org/docs/CAPI/), [LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/), [LLVM IR target](https://mlir.llvm.org/docs/TargetLLVMIR/) e [LLVM target triple](https://llvm.org/docs/LangRef.html#target-triple); evidência local em `compiler/seed-c/include/w_seed_mlir0.h`, `compiler/seed-c/src/w_seed_mlir0.c`, `compiler/seed-c/tests/test_mlir0.c`, `compiler/seed-c/tests/hlo1_gate.c`, `tooling/mlir0-toolchain.json` e `tooling/check-mlir0.mjs`. Categoria `source-backed-current` somente para a ponte bounded; C API, custom W dialect, matriz/hosts/packaging e backend geral não são implementados |
 | W-1507 | catálogo operacional de compiler hosts, emitted targets e cross-compilation | `tooling/platform-support.json` é a fonte operacional única para targets emitted, compiler hosts, cross-compilation, evidence, policy e planos native, com `PLATFORM-SUPPORT.md` como projeção determinística. Targets usam `candidate`, `evidence`, `supported`, `deprecated` e `removed`; candidate/evidence têm verification nulo, supported exige exatamente `experimental`, `level-3`, `level-2`, `level-1` ou `long-term`, e cada row exige os seis eixos `backend`, `runtime`, `hostAdapter`, `sdkProfile`, `linkerSysrootPackaging` e `ciEvidence`. Supported exige todos os eixos `pass` com evidence não vazia; blockers são exatamente os eixos não-pass. Hoje há zero targets supported: `x86_64-unknown-linux-gnu` só tem evidence `w-seed-mlir0-1-print-literal`, backend pass e cinco eixos partial, sem claim geral de target, SDK, packaging ou CI; há exatamente 15 candidates. Hosts são distintos: outer Windows `x86_64-pc-windows-msvc` usa tools Linux `x86_64-unknown-linux-gnu` via WSL2, `nativeForOuterHost: false`, evidence dev-only, `nativeToolchain: partial` e esse eixo em `blockers`; os candidates native cobrem Linux, Windows e macOS em x86_64/AArch64. Cross-compilation é a terceira dimensão: os hosts/targets primários nativos são `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e `aarch64-apple-darwin`, com matriz completa 3×3 de 9 edges host→target, incluindo self edges; hoje 0/9 são supported e todas são candidate. Cada edge tem id determinístico, refs, state, evidence e blockers; supported exige endpoints supported, toolchain/sysroot/linker/packaging pass e evidence separada de build e execução. A edge WSL é development, `nativeHost: false`, publica roles development/toolchain/build/execution com execução local, tem blockers nativeHost/endpoints/toolchainSysrootLinkerPackaging sem `buildExecution`, fica fora dos 9 e não satisfaz Windows→Linux nativo. Linux↔Windows requer SDK/sysroot/object/linker explícitos; Apple exige SDK, licença e provenance, sem pressupor redistribuição; remote execution é distinto de build; este bundle não implementa cross toolchains. MLIR0 `20.1.2` permanece versão factual da evidence/gate atual com `currencyStatus: update-required`, não versão futura. Planos native Linux/Windows/macOS são planned com source exact `llvmorg-23.1.0`, tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; a evidence Linux atual em WSL não satisfaz o plano successor. O blocker real é `native-build-acquisition-provenance` para build ou aquisição, outputs, SHA256, SBOM, provenance, signing, CI e smoke, e o pin não promove suporte nativo. Rejeitam pin histórico, `latest` e `nightly`, e declaram artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. `externalToolchainCandidates` é evaluation-only e não promove claim W, host ou edge. A política fixa `referenceBreadth.goal: at-least-rust-breadth`, fontes oficiais, observed date `2026-08-31` e `importsRustTiers: false`; a meta não herda claims ou tiers do Rust. O checker rejeita matriz incompleta/duplicada/only-self, refs indefinidos, WSL nativo, composite não-nativo com nativeToolchain pass, host/target conflated, gates/blockers divergentes, states/levels desconhecidos, claims em candidates, versões futuras flutuantes e manifest MLIR0 divergente. `benchmarkDisposition` é `not-applicable`: o bundle é metadata, projection e policy gate sem runtime/performance | Fontes primárias: [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html); evidence local em `tooling/platform-support.json`, `tooling/platform-support.mjs`, `PLATFORM-SUPPORT.md`, `tooling/platform-support.test.mjs` e `tooling/mlir0-toolchain.json`. Categoria `source-backed-current` somente para matriz, checker e projeção; não é implementação de backend, runtime, SDK, packaging ou CI |
 | W-1508 | catálogo operacional de dependency currency | `tooling/dependency-currency.json` é a fonte máquina única para currency operacional e `DEPENDENCIES.md` é a projeção humana determinística. Managed ativos usam latest stable exata sem selectors floating; compatibility floors e recipes permanecem separados e não sobem por currency; evidence histórica é preservada, Unicode `17.0.0` permanece intacto e observações de ambiente não alegam pin exato. MLIR `20.1.2` continua evidence histórica, enquanto `23.1.0` é successor selected/not promoted com tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; planos native usam esse pin exato e permanecem bloqueados por `native-build-acquisition-provenance`. O checker cruza package, lock, workflow, README e platform reais, valida URLs/SHAs/tags coerentes e mutações adversariais, e `source-backed-current` fica limitado ao catálogo, checker e projeção | `source-backed-current` somente para metadata operacional, com checker e projection reais; não promove semântica W, suporte de host/target, CMake/Ninja ou toolchain native |
+| W-1509 | facets ligadas a property places | `#` projeta somente facets declaradas em behavior ou core namespace; `export fn`/`export mut fn` e computed facets são property-safe, imediatas e não reificáveis; Task controls usam `#`, incluindo `Task#withDeadline` e `Task#spawn` para um `ExecutionDomainRef` dinâmico; `spawn<domain>` continua initializer estático, e data/resource APIs mantêm `.` | `source-backed-current` para contrato/documentação/corpus/projeções; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: compiler/lowering/runtime/provider e workload property-safe ainda não fechados; nenhum timing ou resultado foi coletado |
+| W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; RHS é call template livre com lista de argumentos e lhs posicional único; modifiers/ownership são explícitos e não há UFCS, placeholder, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletada |
+| W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
+| W-1512 | composição nominal e observers property-safe | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage, observers têm hooks/facets e ordem lexical/inversa, paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -7989,7 +7995,7 @@ transport.
 
 W-1481 fecha outra frase sem contrato. A seção de join dizia que APIs `race`
 aceitavam completion order, mas não definia input, vazio, outcome, winner,
-cancellation ou drain. `Task.firstSettled` nomeia a semântica e trabalha sobre
+cancellation ou drain. `Task#firstSettled` nomeia a semântica e trabalha sobre
 handles existentes. Assim, `async` e `spawn<domain>` continuam os únicos pontos
 que criam child e escolhem placement.
 
@@ -8033,11 +8039,12 @@ explicita que limitar execução física não limita coroutines concorrentes. W
 separa `limit` lógico de domain capacity pelo mesmo motivo, sem herdar as outras
 policies dessas bibliotecas.
 
-No Restaurante, `inspectEveryFailure` agora recebe `TaskGroupOrdering` e devolve
-`Array<TaskSettlement<...>>`. Em `.completion`, um forno que falha cedo ainda é
-identificável por `index`; em `.input`, o mesmo record permite reconstrução
-estável. O estudo TGM0 também exige preflight do array de resultado antes dos
-effects e distingue fail-fast de collection sem transformar panic em error.
+No Restaurante, `inspectEveryFailure` agora recebe `TaskOrdering` e devolve
+`Array<TaskSettlement<...>>` pelo modo `pipeline<tasks: ...>`. Em `.completion`,
+um forno que falha cedo ainda é identificável por `index`; em `.input`, o mesmo
+record permite reconstrução estável. O estudo TGM0 também exige preflight do
+array de resultado antes dos effects e distingue fail-fast de collection sem
+transformar panic em error.
 
 W-1473 fecha uma fronteira de performance, não uma API. File mapping,
 anonymous virtual memory e device memory possuem owners, permissions,
@@ -8902,11 +8909,12 @@ backing storage ou dispatch por nome.
 O contrato de execução preserva a fonte pública real. `Task` permanece linear e
 opaque. Os únicos producers públicos são `async` e `spawn<domain>`. Depois do
 staging, o launcher publica o child ou produz o handle estruturado
-inline-canceled de budget exhaustion. `cancel` não o consome e `await`, `join`
-e `outcome` consomem o handle. `TaskOutcome`,
-`TaskSettlement` e `TaskGroupOrdering` são os records e enums publicados em
-`std/runtime/task.w`. `Allocator`, `AllocatorLease`, `AllocatorPlanDescriptor`
-e `AllocatorPlan` seguem `std/memory/contracts.w`; a rationale não inventa um
+inline-canceled de budget exhaustion. `task#cancel` não o consome e `await`,
+`join` e `(take task)#outcome()` consomem o handle. `TaskOutcome`,
+`TaskSettlement` e `TaskOrdering` são os records e enums publicados em
+`std/runtime/task.w`; controles core são facets e esses records continuam dados
+com `.`. `Allocator`, `AllocatorLease`, `AllocatorPlanDescriptor` e
+`AllocatorPlan` seguem `std/memory/contracts.w`; a rationale não inventa um
 constructor de Task nem um layout de allocator.
 
 O raw delimiter já existente é suficiente para manter JSON legível em
@@ -8923,10 +8931,13 @@ O initializer `async` é o launcher em ambos `asyncFunction()` e
 `ordinaryFunction()`. A declaration do callee muda o facet de suspensão, não a
 árvore de ownership. `async fn` permite suspensão, mas `maySuspend` depende da
 body/HIR e pode coexistir com `directEntry: available`/`neverSuspend` para
-`sync`; uma function ordinary também pode inferir `maySuspend`. `TaskGroup`
-continua uma coleção dinâmica homogênea.
-`pipeline` continua um DAG estático de calls dependentes, promise pipelining e
-`unknownOutcome`. Lowering compartilhado não unifica a source surface.
+`sync`; uma function ordinary também pode inferir `maySuspend`. O modo
+`pipeline<tasks: ...>` é a região corrente para uma coleção dinâmica homogênea,
+com schema explícito e `TaskOrdering`.
+`pipeline` unifica os modos dependent, tasks e transaction em um
+`pipeline_region`/HIR comum, sem promise implícita; `unknownOutcome` e
+`unknownCommit` permanecem tipados. Lowering compartilhado não esconde os
+schemas da source surface.
 
 A evidência é documental e source-backed. Os gates de parser, snippets e
 contratos std verificam forma e provenance. Não há afirmação de compiler,
@@ -8996,16 +9007,14 @@ e [LLVM coroutines/HALO](https://llvm.org/docs/Coroutines.html). O ledger
 tasks, cases, blockers, stop conditions e a fronteira de evidência sem criar
 uma nova grammar ou contaminar o estudo R1 de capability.
 
-#### W-1504 — convergência pipeline/transaction research-gated
+#### W-1504 — convergência pipeline/transaction research-gated (superseded por W-1511)
 
-W-1504 é um estudo separado do estudo de allocation/placement e não altera grammar,
-corpus, parser, atlas, highlighting ou Última Luz neste corte. A superfície
-current mantém as duas formas com sinais diferentes: `pipeline` é um DAG
-estático de calls dependentes e termina cada caminho de success com `return`;
-`transaction` é uma região async estruturada de um provider único, termina com
-`commit` e permite compute, branch e loop local. HIR e runtime podem compartilhar
-uma `StructuredOperationRegion` ou `Graph` como machinery interna candidata,
-mas isso não unifica os keywords nem os contracts current.
+W-1504 é um estudo separado do estudo de allocation/placement. Ele registrou a
+antiga fronteira em que `pipeline` era um DAG estático com `return` e
+`transaction` era uma região async separada com `commit`. Essa fronteira e sua
+proposta research-gated foram superseded por W-1511; o texto e o ledger abaixo
+preservam somente proveniência histórica e não definem grammar, corpus, atlas,
+highlighting ou Última Luz correntes.
 
 A candidata primária em pesquisa é uma pipeline única com terminal `commit`.
 Sua forma transacional candidata é exatamente
@@ -9054,4 +9063,158 @@ decisão static DAG versus region e plano de migração da Última Luz. O estudo
 também exige benchmarks de round-trip, contention, cancel/drain e values/errors
 equivalentes, além de usability humana. Até todos esses gates existirem, o
 ledger [`W-1504`](tooling/studies/w1504-pipeline-transaction/task-ledger.json)
-permanece registration-only e nenhuma syntax é ratificada.
+ permanece registration-only e nenhuma syntax é ratificada.
+
+#### W-1509 — facets ligadas a property places
+
+W-1509 fecha a distinção que faltava entre um member de valor e uma facet
+compiler-owned. O ponto `.` continua resolvendo somente a API lógica do valor;
+`place#facet` resolve uma facet declarada no behavior aplicado ou uma facet
+intrínseca de namespace core. Não existe fallback entre os namespaces e uma
+facet não é uma API de terceiros que possa ser adicionada a um tipo existente.
+O desenho escolhe `export fn`/`export mut fn` e computed facet properties dentro
+do behavior, mantendo backing fields invisíveis e os accessors `init`/`get`/
+`set`/`modify` no lifecycle da property.
+
+O teto property-safe explica por que facets não são um escape para efeitos:
+elas são síncronas, nonthrows, bounded, sem I/O, task, bloqueio, allocation
+geral oculta ou authority implícita. Uma facet mutating exige place exclusivo e
+`take` facet fica fora deste bundle. A resolução é estática e imediata:
+`attitude.yaw#reset()` opera no place da property, enquanto copiar `yaw` perde
+a ligação. Reificação (`let f = place#reset`, `place#` e dynamic lookup) é
+rejeitada. `TypeInfo` e membros normais não ganham backing/facets; `w explain
+property` é a superfície de observação de behavior, effects e custo.
+
+O witness composto `VersionedDegrees` foi escolhido porque cada facet tem
+benefício observável: `yaw#version.mutationEpoch` mede uma mutation admission,
+`yaw#version.resetMutationEpoch()` restaura o metadata do observer e
+`yaw#degrees.reset()` altera o valor pelo storage behavior sem expor backing.
+A leitura de epoch e o resultado após reset demonstram o contrato; um contador
+isolado sem uso não seria evidência suficiente.
+
+Task é a primeira família core. Controls como `task#cancel`,
+`(take task)#outcome`, `Task#firstSettled`, `Task#checkCancellation`,
+`Task#yield`, `Task#withTimeout`, `Task#withDeadline` e `Task#spawn` (somente
+para `ExecutionDomainRef` dinâmico) usam `#`; o initializer estático
+`spawn<domain>` permanece para domains conhecidos em compile time.
+`TaskOutcome`, `TaskSettlement` e `Cancellation` continuam data e usam `.`.
+`SharedTask` observador não recebe
+cancel facet. Resource/library APIs permanecem métodos normais. O resultado é
+`source-backed-current` para o contrato documental, grammar, corpus, exemplos e
+diagnostics; compiler, lowering, runtime e provider continuam gaps. O
+`benchmarkDisposition` deste plano é `required`, com status `blocked/deferred`.
+Os blockers são compiler/lowering/runtime/provider e uma matriz property-safe
+que exercite lookup por place, mutation e custo. Nenhum timing ou resultado foi
+coletado.
+
+#### W-1510 — pipe-forward explícito
+
+W-1510 escolhe uma pipe fixa e pequena para fluxo local/sequencial. A expansão
+`lhs |> f(args)` é `f(lhs, args)` com o lhs uma única vez no primeiro parâmetro
+posicional. Exigir uma lista de argumentos no RHS elimina bare function,
+placeholder e fallback UFCS/member; manter modifiers call-side (`try`, `await`,
+`async`, `spawn<domain>`) deixa suspensão, ownership e erro visíveis. Optional e
+Result não são mapeados implicitamente. A precedência abaixo de `??`/logical OR
+e acima de assignment, com associatividade à esquerda, fecha a interpretação
+sem criar promise, allocation, graph ou concorrência.
+
+A rejeição de UFCS é uma escolha de estabilidade: adicionar um member ou
+extension não pode alterar a resolução de uma cadeia escrita como pipe. O
+formatter e o syntax atlas mostram a quebra antes de `|>`; `:` e `#` conservam
+seus significados de labels e facets. A evidência atual é source-backed para
+grammar/corpus/formatter/highlighting e não afirma execução W. O
+`benchmarkDisposition` deste plano é `required`, com status `deferred`; os
+blockers são checker/compiler, execução de modifiers e uma comparação de fluxo
+equivalente. Nenhuma medição, timing ou resultado foi coletado.
+
+#### W-1511 — pipeline unificada
+
+W-1511 fecha a convergência que W-1504 deixou em pesquisa. `pipeline` passa a
+ser a única superfície de execution graph. Os modos `dependent`, `tasks` e
+`transaction` compartilham `pipeline_region`/HIR e `commit`, mas schemas e
+restrições permanecem explícitos. O bloco dependent usa `commit`, e a forma
+curta é somente uma cadeia de dois ou mais calls de service/capability; ela
+entrega o último resultado sem permitir branch, fan-out ou function local.
+
+O modo `tasks` exige `tasks`, `limit`, `ordering` e `errors`, sem defaults.
+`.concurrent` e `.parallel<domain>` conservam as provas de domain e
+transferability. `.failFast` cancela/drena e devolve `Array<Output>`; `.collect`
+devolve `Array<TaskSettlement<Output, Failure>>`, preserva o índice e não
+transforma application failures em throw. Cada input tem uma instância bounded
+e um commit. `TaskGroup.*` e `TaskGroupOrdering` são apenas spelling histórico;
+a superfície corrente é `pipeline<tasks: ...>` com `TaskOrdering`.
+
+O modo `transaction` usa a forma
+`pipeline<transaction: { isolation: ..., access: ... }> tx = provider { ...
+commit value }`. A antiga expressão `transaction` é rejeitada antes de 1.0;
+`unknownCommit` continua tipado e não há retry cego. `tasks`+`transaction`,
+nesting e transação distribuída implícita são rejeitados.
+
+O bundle é `source-backed-current` para design, grammar, corpus, Last Light,
+std, diagnostics e projeções; parser/formatter gates exercem a superfície, mas
+não constituem compiler/runtime/provider. O `benchmarkDisposition` deste plano
+é `required`, com status `blocked/deferred`: HIR, provider/runtime, round-trip,
+contention, fault e cancel/drain continuam blockers e não foram executados.
+Nenhum timing ou resultado foi coletado. W-1511 é a única decisão corrente para
+pipeline/transaction; W-1504 permanece somente como proveniência histórica.
+
+#### W-1512 — composição nominal e observers property-safe
+
+W-1512 fecha a composição de behaviors como uma extensão da decisão W-1509,
+sem abrir uma lista ad hoc na aplicação nem sobrecarregar `|>`. A definição usa
+uma tuple rotulada e estática, por exemplo
+`export behavior VersionedDegrees for u16 = (degrees: WrappedDegrees, version:
+Versioned)`, enquanto a property continua com uma única aplicação
+`var VersionedDegrees yaw: u16 = 0`.
+
+O papel de storage é inferido pela presença de `get`/`set`/`modify`; no máximo
+um componente pode ocupá-lo. Uma composição nominal sem storage usa storage
+plain sintetizado; aplicação direta de um observer, como `var Versioned value =
+rhs`, é rejeitada porque o RHS seleciona o initializer one-slot da aplicação.
+Os demais componentes são observers: têm backing próprio, `init()` zero-slot,
+facets e hooks opcionais `willSet`/`didSet`/`willModify`/`didModify`. Hooks
+recebem somente `ref`, são sync, nonthrows e property-safe; os que alteram
+backing exigem `mut` explícito, e sem `mut` não alteram backing. Não substituem,
+vetam ou reentram na property, e não adquirem authority. Dois storage behaviors,
+alias duplicado, ciclo ou path ausente são diagnostics, não uma prioridade
+implícita. Clamp+Normalize cuja ordem altera o valor exige um behavior novo
+nomeado.
+
+Storage/plain inicializa antes dos observers. `will*` segue ordem lexical, o
+storage executa uma vez e `did*` segue ordem inversa; drop faz observers inversos
+e depois storage. `didModify` observa admission, não delta. A facet mutating do
+componente storage percorre esses hooks; uma facet de observer altera somente o
+metadata próprio. Facets herdadas permanecem qualificadas (`#degrees.reset`,
+`#version.mutationEpoch`) e o prefixo não pode ser guardado. Nested composites
+só são aceitos com path completo e cycle rejection.
+
+`VersionedDegrees` dá uma razão observável para a composição: `WrappedDegrees`
+normaliza o valor e `Versioned` publica epoch/reset. A evidência source-backed
+inclui declaration, aplicação, mutation, ordem e resultado; não há claim de
+compiler/runtime/provider. O `benchmarkDisposition` deste plano é `required`,
+com status `blocked/deferred`: composição no checker/lowering, ABI/fingerprint,
+runtime/provider de hooks e round-trip/cancel-drain continuam blockers. Nenhum
+timing ou resultado foi coletado.
+
+O plano de evidência é separado por decisão: FCT0 cobre lookup, place,
+immediate use e custo de facets W-1509; CMP0 cobre composição, aliases, ordem,
+hooks e fingerprint W-1512; PIP0 cobre expansão, precedência, avaliação única e
+modifiers W-1510; PLN0 cobre schemas, cardinalidade, admission, arbitration,
+drain e uncertainty W-1511. Cada plano permanece `required` e sem timing ou
+resultado: FCT0/CMP0/PLN0 estão `blocked` por compiler/lowering/runtime/provider
+e PIP0 está `deferred` até checker/compiler e execução equivalente existirem.
+
+O contraste de `#` com TypeScript `private` é intencional: `#` é uma projeção
+estática de uma property place para uma facet de behavior/core, não um marcador
+de encapsulamento lexical; a visibilidade continua sendo a mínima de
+facet/behavior/property. As fontes primárias já registradas dão precedentes
+limitados, não semântica W: [Swift projected values](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/properties/#Projected-Values-for-Property-Wrappers)
+e [protocol composition](https://docs.swift.org/swift-book/documentation/the-swift-programming-language/protocols/#Combining-Protocols),
+[Kotlin delegated properties](https://kotlinlang.org/docs/delegated-properties.html),
+[TypeScript decorators](https://www.typescriptlang.org/docs/handbook/2/decorators.html)
+e [private class members](https://www.typescriptlang.org/docs/handbook/2/classes.html#private),
+[F# pipelining](https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/functions/#function-composition-and-pipelining)
+e [D pseudo-members/UFCS](https://dlang.org/spec/function.html#pseudo-member-functions).
+Elas sustentam, respectivamente, projection/composition, lifecycle delegation,
+ordenação e privacidade explícitas, fluxo por primeiro argumento e a rejeição
+de um fallback UFCS dinâmico; não promovem implementação, benchmark ou API W.
