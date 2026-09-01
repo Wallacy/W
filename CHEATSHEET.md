@@ -97,7 +97,8 @@ válido.
 
 ### Hello World verified-HIR-backed
 
-```w executable use=main observable=effect
+<!-- w-example role=executable use=main observable=effect -->
+```w
 fn main() { print("Hello, world!") }
 entry(main)
 ```
@@ -210,7 +211,8 @@ falham fechadas.
 Esta é uma amostra curta do atlas. Ela é current / Forma vigente,
 tree-sitter-parse-only, implementation-gap.
 
-```w executable use=runHello observable=effect
+<!-- w-example role=executable use=runHello observable=effect -->
+```w
 module hello
 
 import std.text
@@ -317,7 +319,8 @@ Contrato: [DESIGN.md §5](DESIGN.md#5-source-nomes-e-edição) e
 Este trecho é current / tree-sitter-parse-only / source-backed, reduzido de
 [reference/syntax-atlas/SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md).
 
-```w executable use=values observable=value
+<!-- w-example role=executable use=values observable=value -->
+```w
 fn values(): String {
   let count = 1_000
   let ratio = 0.5e2
@@ -464,7 +467,8 @@ de inferir precedência de uma forma nova.
 Contrato: [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade). O atlas
 marca estas formas como current / tree-sitter-parse-only.
 
-```w signature-reference
+<!-- w-example role=signature-reference -->
+```w
 module atlas_language<
   domains: [.serial],
 >
@@ -692,7 +696,8 @@ Contrato: [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões),
 
 ### Formas de declaração
 
-```w signature-reference
+<!-- w-example role=signature-reference -->
+```w
 export struct Place<ID> : Hashable {
   id: ID
   var label: String = "square"
@@ -730,7 +735,8 @@ seja automaticamente shared.
 
 ### Tipos compostos e estáticos
 
-```w signature-reference
+<!-- w-example role=signature-reference -->
+```w
 type PlaceId = String
 alias MaybePlace = Place<String>?
 type Location = (district: String, number: u16)
@@ -762,7 +768,8 @@ Use Type(field: value) e init(...) com labels. Propriedades podem ter get,
 set e modify, mas o acesso ainda obedece ownership. Um deinit não substitui
 defer nem uma política de cleanup de async.
 
-```w executable use=Cursor observable=value
+<!-- w-example role=executable use=Cursor observable=value -->
+```w
 object Cursor {
   var storedIndex: usize
 
@@ -784,7 +791,8 @@ Um behavior reutiliza o mesmo lifecycle. `modify` permite um hook local depois
 do borrow sem copiar o valor anterior. Este witness é current e observável:
 `Attitude` atribui `350`, soma `25` por `modify` e observa `15`.
 
-```w excerpt executable use=WrappedDegrees,Attitude observable=value
+<!-- w-example role=executable use=WrappedDegrees,Attitude observable=value -->
+```w
 // excerpt-source: reference/last-light/orbit.w::export behavior WrappedDegrees
 export behavior WrappedDegrees for u16 {
   var current: u16
@@ -850,7 +858,8 @@ observer implícito e property `async`/`throws` não pertencem à baseline.
 W faz conversão implícita somente quando ela é total, exata e possui uma rota
 única. Narrowing e parsing usam constructors ou APIs nomeadas:
 
-```w executable use=conversionExamples observable=value
+<!-- w-example role=executable use=conversionExamples observable=value -->
+```w
 fn conversionExamples(): i32 throws Error {
   let wide: u16 = 120_u8
   let narrow = try u8(exactly: wide)
@@ -873,7 +882,8 @@ metadata estrutural. Layout físico e word count ainda são gaps de medição.
 Para usar o valor concreto, recupere um borrow. Este exemplo mantém a chave
 local no próprio trecho para que a conversão e o valor observado sejam reais:
 
-```w executable use=ReservationKey,inspectReservation observable=value
+<!-- w-example role=executable use=ReservationKey,inspectReservation observable=value -->
+```w
 struct ReservationKey: Hashable {
   orderId: u64
 }
@@ -899,7 +909,8 @@ flow-sensitive. `as` aparece somente em import/reexport e
 
 Queries de tipo são prefixas e não são calls:
 
-```w signature-reference
+<!-- w-example role=signature-reference -->
+```w
 fn queryExamples(value: ref any Reflectable) {
   let id = type of ReservationKey
   let dynamicId = type of value
@@ -936,7 +947,8 @@ Contrato: [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
 | shared T, weak T, view T | Capacidades de acesso diferentes; não são sinônimos de ponteiros C. |
 | var atomic x | Estado atômico com ordem de memória indicada na operação. |
 
-```w signature-reference
+<!-- w-example role=signature-reference -->
+```w
 fn stage(allocator destination: ref Allocator, city: String): String {
   return city
 }
@@ -958,7 +970,8 @@ Esta unidade completa é source-backed de
 [execution.w](reference/syntax-atlas/execution.w). Ela mostra quatro modos de
 capture e as chamadas que os consomem.
 
-```w executable use=captureModes observable=value
+<!-- w-example role=executable use=captureModes observable=value -->
+```w
 fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): String {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
@@ -998,7 +1011,8 @@ Esta unidade completa é source-backed de
 [execution.w](reference/syntax-atlas/execution.w). Os três scopes vivem no
 corpo de `prepare`.
 
-```w executable use=stage,prepare observable=value
+<!-- w-example role=executable use=stage,prepare observable=value -->
+```w
 fn stage(allocator destination: ref Allocator, city: String): String {
   return city
 }
@@ -1049,7 +1063,8 @@ Esta unidade completa é source-backed de
 [execution.w](reference/syntax-atlas/execution.w). O `guard` está dentro de
 um corpo enclosing.
 
-```w executable use=walk observable=value
+<!-- w-example role=executable use=walk observable=value -->
+```w
 fn walk(values: Array<i32>): i32 throws String {
   var total = 0
   rows: for ref value in values {
@@ -1085,7 +1100,8 @@ test "walk returns the accumulated control-flow value" for walk {
 
 ### Patterns
 
-```w executable use=Signal,classify observable=value
+<!-- w-example role=executable use=Signal,classify observable=value -->
+```w
 enum Signal {
   quiet
   alert(level: u8)
@@ -1178,7 +1194,8 @@ ou layout de `Task` na source surface. `cancel` não consome o handle. `await`,
 Os records e enums seguintes são excerpts exatos de
 [`std/runtime/task.w`](std/runtime/task.w):
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/runtime/task.w::export enum TaskOutcome
 export enum TaskOutcome<Value, Failure: Error> {
   success(Value)
@@ -1187,7 +1204,8 @@ export enum TaskOutcome<Value, Failure: Error> {
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/runtime/task.w::export enum TaskGroupOrdering
 export enum TaskGroupOrdering {
   input
@@ -1195,7 +1213,8 @@ export enum TaskGroupOrdering {
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/runtime/task.w::export struct TaskSettlement
 export struct TaskSettlement<Value, Failure: Error> {
   export index: usize
@@ -1207,7 +1226,8 @@ export struct TaskSettlement<Value, Failure: Error> {
 [`std/memory/contracts.w`](std/memory/contracts.w). O alias não introduz um
 constructor separado ou um layout público:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/memory/contracts.w::export struct AllocatorPlanDescriptor
 export struct AllocatorPlanDescriptor: Copy & Equatable {
   providerDigest: [u8; 32]
@@ -1218,12 +1238,14 @@ export struct AllocatorPlanDescriptor: Copy & Equatable {
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/memory/contracts.w::export alias AllocatorLease
 export alias AllocatorLease = Allocator
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/memory/contracts.w::export struct Allocator
 export struct Allocator {
   handle: AllocatorHandle
@@ -1239,7 +1261,8 @@ export struct Allocator {
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: std/memory/contracts.w::export protocol AllocatorPlan
 export protocol AllocatorPlan {
   const descriptor: AllocatorPlanDescriptor
@@ -1267,7 +1290,8 @@ Contrato: [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) e
 | Falta de memória | OutOfMemory/carrier definido pelo contrato | panic genérico |
 | Invariante | guard ... else throw ou precondition do contrato | Conversão silenciosa |
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/failure.w::export fn optionalGuestName
 export fn optionalGuestName(input: ref String): GuestName? {
   return try? GuestName(input)
@@ -1290,7 +1314,8 @@ diagnósticos ainda é um gap do frontend/runtime.
 Os exemplos abaixo são excerpts exatos e observáveis das fontes Last Light.
 Cada trecho mostra o valor, o effect ou o diagnostic que justifica a forma.
 
-```w excerpt executable use=ThreadApologyLedger observable=value
+<!-- w-example role=executable use=ThreadApologyLedger observable=value -->
+```w
 // excerpt-source: reference/last-light/synchronization.w::test "a scoped synchronous lock returns an owned snapshot"
 test "a scoped synchronous lock returns an owned snapshot" {
   let ledger = ThreadApologyLedger()
@@ -1308,7 +1333,8 @@ test "a scoped synchronous lock returns an owned snapshot" {
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/transaction_oracle.w::export async fn reserveTableAtomically
 export async fn reserveTableAtomically(
   ledger: ref ServiceRef<TableLedgerApi>,
@@ -1326,7 +1352,8 @@ export async fn reserveTableAtomically(
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/hardware.w::export protocol AromaProbeApi
 export protocol AromaProbeApi {
   async fn sample(): ProbeSample throws ProbeError
@@ -1342,7 +1369,8 @@ tratam. Assim, `try` não recebe um segundo significado como try-block.
 
 ### Cleanup
 
-```w excerpt executable use=decodeWithCleanup observable=diagnostic
+<!-- w-example role=executable use=decodeWithCleanup observable=diagnostic -->
+```w
 // excerpt-source: reference/last-light/failure.w::test "structured failure executes cleanup once"
 test "structured failure executes cleanup once" for decodeWithCleanup {
   var trace = Array<CleanupStep>()
@@ -1375,7 +1403,8 @@ O trecho seguinte é o call site source-backed de `execution.w`. Ele é uma
 referência de assinatura e de join; os tipos `MixingJob` e o provider do
 executor permanecem fora de um teste local.
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/execution.w::export async fn mixPair
 export async fn mixPair(
   left: take MixingJob,
@@ -1397,7 +1426,8 @@ promessa de scheduler ou runtime disponível.
 Os dois initializers abaixo criam o mesmo child estruturado no domain lexical
 atual. O teste usa dois valores locais e observa o resultado dos dois joins:
 
-```w executable use=asyncFunction,ordinaryFunction,sameChildLaunchers observable=value
+<!-- w-example role=executable use=asyncFunction,ordinaryFunction,sameChildLaunchers observable=value -->
+```w
 async fn asyncFunction(): i32 {
   return 1
 }
@@ -1461,7 +1491,8 @@ pontos definidos pelo contrato.
 positivo e obrigatório. `map` usa fail-fast; `collect` observa todos os
 application errors e child cancellations sem perder o índice do input:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/execution.w::export async fn inspectEveryFailure
 export async fn inspectEveryFailure(
   jobs: take Array<MixingJob>,
@@ -1494,7 +1525,8 @@ mas mantêm keywords e source surfaces distintas.
 `Task.firstSettled` faz uma escolha one-shot por completion order. Ele consome
 handles já criados e não escolhe um domain:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/task_settlement.w::export async fn firstMenuMirror
 export async fn firstMenuMirror(
   primaryRequest: take MenuMirrorRequest,
@@ -1526,7 +1558,8 @@ Uma call dependente usa `pipeline`. O caso `OvenLease` mostra a ordem concreta:
 `prepareDish` em [restaurant.w](reference/last-light/restaurant.w), incluindo
 o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/restaurant.w::prepareDish
   let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)
 
@@ -1556,7 +1589,8 @@ rollback nem liberação automática de uma capability intermediária. O
 `defer async` de `close` só existe depois de o pipeline publicar o lease,
 como no excerpt acima.
 
-```text logical-contract
+<!-- w-example role=logical-contract -->
+```text
 W-1504 Research (não vigente): o estudo considera uma forma futura
 `pipeline<transaction: ...> tx = provider { ... commit ... }`. Esta forma não
 é W executável nesta baseline. A forma corrente continua sendo
@@ -1568,7 +1602,8 @@ para transações.
 Contrafactual explicativa (não é excerpt source-backed): o mesmo trabalho com
 awaits sequenciais é mais simples, mas cria uma barreira entre cada call:
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: contrafactual
 let lease = try await ovens.acquire(recipe.target, duration: recipe.duration)
 let ready = try await lease.preheat()
@@ -1583,7 +1618,8 @@ round trips adicionais. Ela não faz promise pipelining.
 Um initializer `async` expressa children independentes que o parent deve aguardar. Ele não
 expressa a dependência `lease → preheat` sem primeiro aguardar o lease:
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: composed
 let leaseTask = async ovens.acquire(recipe.target, duration: recipe.duration)
 let lease = try await leaseTask
@@ -1596,7 +1632,8 @@ checkout.
 
 ### Channels e streams
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/streams.w::export async fn inspectMenuLines
 export async fn inspectMenuLines<E: Error>(
   source: take some Stream<view String, E>,
@@ -1619,7 +1656,8 @@ O bloco compiler-owned de GEN2 é a forma vigente para um producer pull curto.
 Ele é uma referência de contrato lógico, não um teste executável: a origem do
 stream entra como parâmetro e o provider continua sendo um gap.
 
-```w logical-contract
+<!-- w-example role=logical-contract -->
+```w
 export fn yieldOrders(source: take some Stream<Order, OrderFailure>): some Stream<Order, OrderFailure> {
   return stream <[take source]> {
     var cursor = take source
@@ -1642,7 +1680,8 @@ contrato.
 
 Service streaming usa o mesmo `Stream`, com direção definida pela posição:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/service_streaming.w::export protocol MenuExchangeApi
 export protocol MenuExchangeApi {
   async fn summarize(
@@ -1684,7 +1723,8 @@ Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
 O teste source-backed abaixo usa valores locais e observa a view sem inventar
 um owner, texto ou tensor externo:
 
-```w excerpt executable use=serviceTemperatures observable=value
+<!-- w-example role=executable use=serviceTemperatures observable=value -->
+```w
 // excerpt-source: reference/last-light/views.w::test "a read-only view does not expose owner capacity"
 test "a read-only view does not expose owner capacity" for serviceTemperatures {
   var readings = [2.70, 42.0, 273.15, 0.0]
@@ -1714,7 +1754,8 @@ Para suprimir properties sem copiar o conteúdo, declare uma projeção nominal
 borrowed. Use `ref` para um field completo e `view` somente para uma janela de
 um carrier que define view:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/views.w::export struct MenuCourse
 export struct MenuCourse {
   title: String
@@ -1747,7 +1788,8 @@ Esta unidade completa é source-backed de
 [synchronization.w](reference/last-light/synchronization.w). O objeto mantém
 estado compartilhado e publica snapshots por lock.
 
-```w executable use=ApologyLedgerState,ThreadApologyLedger observable=value
+<!-- w-example role=executable use=ApologyLedgerState,ThreadApologyLedger observable=value -->
+```w
 export struct ApologyLedgerState: Duplicable {
   revision: u64
   messages: Array<String>
@@ -1882,7 +1924,8 @@ Os providers std.fs, std.net e std.http ainda são gaps.
 Scatter read usa um único owner para que memória ainda não inicializada nunca
 vaze como `view`. O wrapper source-backed mantém `source` e `batch` explícitos:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/io.w::export async fn readRecipeEnvelope
 export async fn readRecipeEnvelope<
   Failure: Error,
@@ -1908,7 +1951,8 @@ plan e o wrapper de transferência são excerpts exactos; a mesma chamada pode
 baixar para `sendfile`/`TransmitFile` ou usar o scratch reservado, mas isso não
 muda o resultado:
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/io.w::export fn recipeTransferPlan
 export fn recipeTransferPlan(
   offset: FileOffset,
@@ -1922,7 +1966,8 @@ export fn recipeTransferPlan(
 }
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/io.w::export async fn transferRecipeArchiveStep
 export async fn transferRecipeArchiveStep<
   Failure: Error,
@@ -1987,7 +2032,8 @@ Fontes:
 [json.w](reference/last-light/json.w) e
 [wire_oracle.w](reference/last-light/wire_oracle.w).
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/data_formats.w::export struct TabularTelemetryRow
 export struct TabularTelemetryRow: data.Row {
   sequence: u64
@@ -2023,7 +2069,8 @@ Array<Any> nem infira device por uma operação.
 
 ### Device e kernel
 
-```w excerpt executable use=forecastKernel observable=value
+<!-- w-example role=executable use=forecastKernel observable=value -->
+```w
 // excerpt-source: reference/last-light/ai_harness.w::export const lastLightKernels
 // The compiler closes this module-scope family. Products materialize only the
 // finite kernel specializations reachable from their launch sites.
@@ -2206,7 +2253,8 @@ masking nos bits, não no pointer. O bloco é uma referência de contrato lógic
 current, não uma chamada executável: `pointer` e `mask` são parâmetros de uma
 fronteira unsafe que ainda exige prova de bounds, lifetime e authority.
 
-```w logical-contract
+<!-- w-example role=logical-contract -->
+```w
 unsafe fn maskedPointer<T>(
   pointer: c.ptr<T>,
   mask: Address.Bits,
@@ -2227,7 +2275,8 @@ Contrato: [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
 
 ### Foreign e ABI
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/abi.w::export unsafe fn<abi: .c> ll_horizon_checksum_v1
 export unsafe fn<abi: .c> ll_horizon_checksum_v1(
   data: c.ptr<c.uchar>,
@@ -2401,7 +2450,8 @@ execução.
 Excerpt de `recoverGuest`: `guests` e `guestId` entram na consulta e o
 resultado é um `ref Guest` ou `ServiceLookupError`.
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/failure.w::recoverGuest
     return try requireGuest(guests, id: guestId)
 ```
@@ -2409,7 +2459,8 @@ resultado é um `ref Guest` ou `ServiceLookupError`.
 Excerpt de `decodeWithCleanup`: o scope registra o cleanup antes de operar e o
 fecha na saída normal ou de erro.
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/failure.w::decodeWithCleanup
   defer { cleanupTrace.append(.closed) }
 ```
@@ -2419,7 +2470,8 @@ funções diferentes; elas não formam uma sequência executável nova.
 
 ### Stream e channel
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: composed
 // entrada: dois valores Order -> channel bounded
 let (output, input) = Channel<Order>.open(capacity: 1)
@@ -2440,7 +2492,8 @@ consomem os outcomes de envio e mantêm o erro de channel explícito.
 
 ### Quantity e matriz
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: composed
 // entrada: unidades de duração equivalentes
 let fromSeconds: PhysicalDuration = 30<si.s>
@@ -2455,7 +2508,8 @@ entram e produzem um valor canônico. Para uma matriz, o excerpt de
 [horizon.w](reference/last-light/horizon.w) mantém shape e modo numérico no
 call site:
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: composed
 // entrada: features de window + matriz de calibration
 let calibrated = window.features @ calibration
@@ -2468,13 +2522,15 @@ Aqui a entrada é `window` mais `calibration`; o resultado é a matriz centrada.
 
 ### Package, module e invocation
 
-```w excerpt logical-contract
+<!-- w-example role=logical-contract -->
+```w
 // excerpt-kind: manifest-fragment
 module: "app"
 entry: "LastLightTui"
 ```
 
-```w excerpt signature-reference
+<!-- w-example role=signature-reference -->
+```w
 // excerpt-source: reference/last-light/app.w::entry LastLightTui
 entry LastLightTui(runTuiEntry)
 ```
