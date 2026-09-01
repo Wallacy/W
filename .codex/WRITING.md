@@ -37,20 +37,21 @@ essa exceção com `logical-contract` ou `signature-reference`.
 Não use um tail identifier isolado sem o contexto que define sua origem,
 operação e consumo.
 
-### Informações das fences do CHEATSHEET
+### Fences do CHEATSHEET
 
-Use somente estas informações humanas:
+Use somente `w` ou `text` na informação da fence. Isso preserva a renderização
+e o syntax highlighting em leitores Markdown diferentes.
 
-- `w executable use=<names> observable=<value|effect|diagnostic>`
-- `w excerpt executable use=<names> observable=<value|effect|diagnostic>`
-- `w logical-contract` e `w excerpt logical-contract`
-- `w signature-reference` e `w excerpt signature-reference`
-- `text logical-contract`
+Coloque o metadata de validação em um comentário HTML imediatamente antes da
+fence. O comentário é infraestrutura invisível e não pertence ao exemplo:
+
+- `<!-- w-example role=executable use=<names> observable=<value|effect|diagnostic> -->`
+- `<!-- w-example role=logical-contract -->`
+- `<!-- w-example role=signature-reference -->`
 
 Os blocos `logical-contract` e `signature-reference` são exemptions explícitas.
-Eles documentam contrato ou assinatura e não alegam execução.
-Um `w excerpt` deve manter `// excerpt-source:` ou `// excerpt-kind:` como a
-primeira linha do corpo.
+Eles documentam contrato ou assinatura e não alegam execução. Um excerpt deve
+manter `// excerpt-source:` ou `// excerpt-kind:` na primeira linha do corpo.
 
 ## Inglês
 

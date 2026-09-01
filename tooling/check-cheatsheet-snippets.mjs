@@ -9,6 +9,7 @@ const excerptKinds = new Set(["composed", "contrafactual", "manifest-fragment"])
 const exampleRoles = new Set(["executable", "logical-contract", "signature-reference"])
 const observableKinds = new Set(["value", "effect", "diagnostic"])
 const excerptMetadataPattern = /^\/\/ excerpt-(?:source|kind):/u
+const exampleDirectiveMarker = /w-example/u
 const declarationKeywords = new Set([
   "behavior",
   "dimension",
@@ -35,51 +36,61 @@ function lineNumberedError(fence, message) {
 
 function parseFenceInfo(info) {
   const normalized = info.trim()
-  if (normalized === "w") return { kind: "w", role: null, uses: [], observable: null, errors: [] }
-  if (normalized === "w excerpt") return { kind: "w excerpt", role: null, uses: [], observable: null, errors: [] }
-  if (normalized === "text") return { kind: "text", role: null, uses: [], observable: null, errors: [] }
-
-  const baseMatch = normalized.match(/^(w excerpt|w|text)\s+(.+)$/u)
-  if (!baseMatch) return null
-  const [base, ...fields] = baseMatch[2].split(/\s+/u)
-  const errors = []
-  const role = base
-  if (!exampleRoles.has(role)) return null
-  if (baseMatch[1] === "text" && role !== "logical-contract") {
-    errors.push("text fences only accept logical-contract role")
+  if (normalized === "" || normalized === "w" || normalized === "text") {
+    return { kind: normalized, role: null, uses: [], observable: null, errors: [] }
   }
-  const values = { role, uses: [], observable: null, errors }
-  const seen = new Set(["role"])
+  return null
+}
+
+function parseExampleDirective(line, lineNumber) {
+  const error = (message) => `CHEATSHEET.md:${lineNumber}: ${message}`
+  const match = line.match(/^\s*<!--\s*w-example(?:\s+(.+?))?\s*-->\s*$/u)
+  const values = { role: null, uses: [], observable: null, errors: [] }
+  if (!match) {
+    values.errors.push(error("malformed w-example directive"))
+    return values
+  }
+
+  const fields = match[1]?.split(/\s+/u) ?? []
+  const seen = new Set()
   for (const field of fields) {
     const separator = field.indexOf("=")
-    const key = separator < 0 ? field : field.slice(0, separator)
-    const value = separator < 0 ? "" : field.slice(separator + 1)
+    if (separator < 1) {
+      values.errors.push(error("w-example directive fields must use key=value"))
+      continue
+    }
+    const key = field.slice(0, separator)
+    const value = field.slice(separator + 1)
     if (seen.has(key)) {
-      errors.push(`duplicate fence metadata key ${key}`)
+      values.errors.push(error(`duplicate w-example directive key ${key}`))
       continue
     }
     seen.add(key)
-    if (key === "use") {
+    if (key === "role") {
+      if (!exampleRoles.has(value)) values.errors.push(error(`unknown w-example role ${value || "(empty)"}`))
+      else values.role = value
+    } else if (key === "use") {
       if (!value || !value.split(",").every((name) => /^[A-Za-z_][A-Za-z0-9_]*$/u.test(name))) {
-        errors.push("fence use must list identifier names separated by commas")
+        values.errors.push(error("w-example use must list identifier names separated by commas"))
       } else {
         values.uses = value.split(",")
       }
     } else if (key === "observable") {
-      if (!observableKinds.has(value)) errors.push(`invalid fence observable ${value || "(empty)"}`)
+      if (!observableKinds.has(value)) values.errors.push(error(`invalid w-example observable ${value || "(empty)"}`))
       else values.observable = value
     } else {
-      errors.push(`unknown fence metadata key ${key}`)
+      values.errors.push(error(`unknown w-example directive key ${key}`))
     }
   }
-  if ((role === "logical-contract" || role === "signature-reference") && (values.uses.length > 0 || values.observable !== null)) {
-    errors.push("logical contract or signature reference cannot define use or observable")
+  if (!seen.has("role")) values.errors.push(error("w-example directive requires role=..."))
+  if (values.role === "executable") {
+    if (!seen.has("use") || values.uses.length === 0) values.errors.push(error("executable w-example requires use=..."))
+    if (!seen.has("observable") || values.observable === null) values.errors.push(error("executable w-example requires observable=..."))
   }
-  if (role === "executable") {
-    if (values.uses.length === 0 && !fields.some((field) => field === "use=")) errors.push("executable fence requires use=...")
-    if (values.observable === null && !fields.some((field) => field === "observable=")) errors.push("executable fence requires observable=...")
+  if ((values.role === "logical-contract" || values.role === "signature-reference") && (seen.has("use") || seen.has("observable"))) {
+    values.errors.push(error("logical-contract or signature-reference cannot define use or observable"))
   }
-  return { kind: baseMatch[1], ...values }
+  return values
 }
 
 function maskWSource(source) {
@@ -322,56 +333,80 @@ function validateFenceRole(fence, source, metadata) {
   const declarations = findDeclarationScopes(source).declarations
   if (declarations.length === 0) return []
   if (metadata.role !== "executable") {
-    return [lineNumberedError(fence, "declaration-bearing W fence requires example-role: executable or an explicit logical-contract/signature-reference exemption")]
+    return [lineNumberedError(fence, "declaration-bearing W fence requires an immediately preceding w-example role directive")]
   }
   return validateExecutableExample(fence, source, metadata)
 }
 
 /**
  * Extract fenced blocks and report malformed or unsupported fence metadata.
- * The parser intentionally accepts only the three documented fence infos.
+ * Markdown fence infos stay portable. Example metadata lives in a preceding
+ * invisible directive and is attached only when that directive is immediate.
  */
 export function extractFences(markdown) {
   const lines = normalizeLf(markdown).split("\n")
   const fences = []
   const errors = []
   let open = null
+  let pendingDirective = null
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index]
-    const marker = line.match(/^\s*(`{3,}|~{3,})([^`]*)$/u)
-    if (!open && marker) {
-      const markerText = marker[1]
-      open = {
-        char: markerText[0],
-        length: markerText.length,
-        info: marker[2].trim(),
-        startLine: index + 1,
-        body: [],
-      }
-      continue
-    }
-
     if (open) {
       const close = line.match(/^\s*(`{3,}|~{3,})\s*$/u)
       if (close && close[1][0] === open.char && close[1].length >= open.length) {
         const fence = { ...open, endLine: index + 1, body: open.body.join("\n") }
         const parsedInfo = parseFenceInfo(fence.info)
         fence.infoKind = parsedInfo?.kind ?? null
-        fence.exampleMetadata = parsedInfo ?? { role: null, uses: [], observable: null, errors: [] }
+        fence.exampleMetadata = open.exampleMetadata
         if (parsedInfo === null) {
           errors.push(lineNumberedError(fence, `unknown fence info ${JSON.stringify(fence.info || "(empty)")}`))
-        } else {
-          for (const error of parsedInfo.errors) errors.push(lineNumberedError(fence, error))
+          if (/^(?:w|text)\s+/u.test(fence.info)) {
+            errors.push(lineNumberedError(fence, "w-example metadata must be in the immediately preceding HTML comment, not the fence info string"))
+          }
         }
         fences.push(fence)
         open = null
         continue
       }
       open.body.push(line)
+      continue
+    }
+
+    if (pendingDirective && index !== pendingDirective.lineIndex + 1) {
+      errors.push(`CHEATSHEET.md:${pendingDirective.lineNumber}: orphan w-example directive`)
+      pendingDirective = null
+    }
+
+    if (exampleDirectiveMarker.test(line)) {
+      if (pendingDirective) {
+        errors.push(`CHEATSHEET.md:${pendingDirective.lineNumber}: duplicate w-example directive`)
+      }
+      const metadata = parseExampleDirective(line, index + 1)
+      errors.push(...metadata.errors)
+      pendingDirective = { lineIndex: index, lineNumber: index + 1, metadata }
+      continue
+    }
+
+    const marker = line.match(/^\s*(`{3,}|~{3,})([^`]*)$/u)
+    if (marker) {
+      const markerText = marker[1]
+      const metadata = pendingDirective?.metadata ?? { role: null, uses: [], observable: null, errors: [] }
+      open = {
+        char: markerText[0],
+        length: markerText.length,
+        info: marker[2].trim(),
+        startLine: index + 1,
+        body: [],
+        exampleMetadata: metadata,
+      }
+      pendingDirective = null
     }
   }
 
+  if (pendingDirective) {
+    errors.push(`CHEATSHEET.md:${pendingDirective.lineNumber}: orphan w-example directive`)
+  }
   if (open) {
     errors.push(`CHEATSHEET.md:${open.startLine}: unclosed ${open.char.repeat(open.length)} fence`)
   }
@@ -505,32 +540,33 @@ export function validateCheatsheetText(markdown, options = {}) {
 
   for (const fence of extracted.fences) {
     if (fence.infoKind === "w") {
-      counts.w += 1
       if (fence.body.trim().length === 0) {
         errors.push(lineNumberedError(fence, "plain w fence body must not be empty or whitespace-only"))
         continue
       }
       const metadata = fence.exampleMetadata
-      errors.push(...metadata.errors)
-      if (metadata.role === null) errors.push(lineNumberedError(fence, "W fence requires a role in the fence info"))
-      errors.push(...validateFenceRole(fence, fence.body, metadata))
-      units.push(fence)
+      const firstLine = fence.body.split("\n", 1)[0] ?? ""
+      if (firstLine.startsWith("// excerpt-")) {
+        counts.excerpt += 1
+        const excerpt = validateExcerptMetadata(fence, repository)
+        errors.push(...excerpt.errors)
+        if (excerpt.kind === "source") counts.source += 1
+        else if (excerpt.kind && Object.hasOwn(counts, excerpt.kind)) counts[excerpt.kind] += 1
+        errors.push(...validateFenceRole(fence, excerpt.body, metadata))
+        excerpts.push({ fence, ...excerpt })
+      } else {
+        counts.w += 1
+        errors.push(...validateFenceRole(fence, fence.body, metadata))
+        units.push(fence)
+      }
       continue
     }
-    if (fence.infoKind === "w excerpt") {
-      counts.excerpt += 1
-      const metadata = validateExcerptMetadata(fence, repository)
-      errors.push(...metadata.errors)
-      if (metadata.kind === "source") counts.source += 1
-      else if (metadata.kind && Object.hasOwn(counts, metadata.kind)) counts[metadata.kind] += 1
-      if (fence.exampleMetadata.role === null) errors.push(lineNumberedError(fence, "W excerpt requires a role in the fence info"))
-      errors.push(...fence.exampleMetadata.errors)
-      errors.push(...validateFenceRole(fence, metadata.body, fence.exampleMetadata))
-      excerpts.push({ fence, ...metadata })
-      continue
-    }
-    if (fence.infoKind === "text") {
+    if (fence.infoKind === "text" || fence.infoKind === "") {
       counts.text += 1
+      if (fence.exampleMetadata.role !== null && fence.exampleMetadata.role !== "logical-contract") {
+        errors.push(lineNumberedError(fence, "text fence directives only accept role=logical-contract"))
+      }
+      continue
     }
   }
 
