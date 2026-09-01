@@ -860,7 +860,7 @@
       "id": "E1-cancel-request-is-not-completion",
       "references": [
         { "path": "../reference/last-light/liveness_oracle.w", "symbol": "RuntimeWaitPhase" },
-        { "path": "../reference/last-light/execution.w", "symbol": "Task#checkCancellation" }
+        { "path": "../reference/last-light/execution.w", "symbol": "execution#checkCancellation" }
       ],
       "decisions": ["W-966"],
       "operations": [
@@ -878,7 +878,7 @@
       "id": "E1-cancel-before-submit-drains-locally",
       "references": [
         { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CancelDisposition" },
-        { "path": "../reference/last-light/execution.w", "symbol": "Task#checkCancellation" }
+        { "path": "../reference/last-light/execution.w", "symbol": "execution#checkCancellation" }
       ],
       "decisions": ["W-966", "W-970"],
       "operations": [

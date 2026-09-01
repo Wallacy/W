@@ -86,7 +86,7 @@ fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
 
 // The body infers maySuspend. The declaration does not repeat async.
 export fn inferredSuspension(job: take MixingJob): MixingResult throws BrigadeError {
-  await Task#yield()
+  await execution#yield()
   return try mixJob(take job)
 }
 
@@ -109,9 +109,9 @@ export fn executionForms(
 }
 
 async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError {
-  Task#checkCancellation()
-  await Task#yield()
-  Task#checkCancellation()
+  execution#checkCancellation()
+  await execution#yield()
+  execution#checkCancellation()
   return try mixJob(take job)
 }
 

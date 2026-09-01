@@ -9,7 +9,7 @@
 > Este documento não cria uma autoridade nova.
 > Não edite este arquivo. Use `bun tooling/diagnostic-catalog.mjs --write`.
 
-- Catalog digest: `sha256:b9c86c5a58c70f69495a2b68c08eca0794789764007f82c754c4e7a9a460eb2a`
+- Catalog digest: `sha256:528561684c94c1ab3d2d7517a1a3bf3c73abea7deb41c148e468b97597ee7c42`
 - Entries: `332`
 - Families: `51`
 - Design references: `238` exact, `94` family
@@ -41,6 +41,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - [`W-DLPACK`](#w-dlpack) — 32 entradas
 - [`W-DOC`](#w-doc) — 2 entradas
 - [`W-EFFECT`](#w-effect) — 2 entradas
+- [`W-EXECUTION`](#w-execution) — 3 entradas
 - [`W-EXPORT`](#w-export) — 7 entradas
 - [`W-EXPR`](#w-expr) — 4 entradas
 - [`W-FACET`](#w-facet) — 6 entradas
@@ -64,7 +65,6 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - [`W-PIPELINE`](#w-pipeline) — 5 entradas
 - [`W-PLACEMENT`](#w-placement) — 4 entradas
 - [`W-PRESENTATION`](#w-presentation) — 10 entradas
-- [`W-PROCESS`](#w-process) — 3 entradas
 - [`W-RUN`](#w-run) — 16 entradas
 - [`W-SEM`](#w-sem) — 1 entrada
 - [`W-SESSION`](#w-session) — 28 entradas
@@ -2350,6 +2350,68 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
   - `propagate-error-and-suspension`: `review`
 
 - Design authority: `exact` `W-EFFECT-0011` — [Diagnostics](DESIGN.md#diagnostics-1)
+
+### W-EXECUTION
+
+#### W-EXECUTION-0001
+
+- `state`: `active`
+- `phase`: `source.capability`
+- `severity`: `error`
+- `meaning`: the execution contextual root is unavailable in the current runtime phase
+
+- `requiredFacts`:
+  - `member`: `string`
+  - `profile`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-EXECUTION-0001` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
+
+#### W-EXECUTION-0002
+
+- `state`: `active`
+- `phase`: `semantic.ownership`
+- `severity`: `error`
+- `meaning`: a root-bound authority or borrow obtained from execution crosses its structured boundary; value copying does not make the crossing legal
+
+- `requiredFacts`:
+  - `boundary`: `string`
+  - `member`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-EXECUTION-0002` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
+
+#### W-EXECUTION-0003
+
+- `state`: `active`
+- `phase`: `source.capability`
+- `severity`: `error`
+- `meaning`: an execution member or facet is unavailable in the selected target or product profile
+
+- `requiredFacts`:
+  - `member`: `string`
+  - `profile`: `string`
+  - `reason`: `string`
+
+- `labelRoles`:
+  - none
+
+- `fixes`:
+  - none
+
+- Design authority: `exact` `W-EXECUTION-0003` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
 
 ### W-EXPORT
 
@@ -5318,67 +5380,6 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
   - none
 
 - Design authority: `family` `W-PRESENTATION-*` — [Notebook e export reproduzível](DESIGN.md#notebook-e-export-reproduzível)
-
-### W-PROCESS
-
-#### W-PROCESS-0001
-
-- `state`: `active`
-- `phase`: `source.capability`
-- `severity`: `error`
-- `meaning`: process projection is unavailable outside a native-process entry root
-
-- `requiredFacts`:
-  - `profile`: `string`
-  - `projection`: `string`
-  - `reason`: `string`
-
-- `labelRoles`:
-  - none
-
-- `fixes`:
-  - none
-
-- Design authority: `exact` `W-PROCESS-0001` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
-
-#### W-PROCESS-0002
-
-- `state`: `active`
-- `phase`: `semantic.ownership`
-- `severity`: `error`
-- `meaning`: a process projection or authority crosses its structured entry-root boundary; value copying does not make the crossing legal
-
-- `requiredFacts`:
-  - `boundary`: `string`
-  - `projection`: `string`
-  - `reason`: `string`
-
-- `labelRoles`:
-  - none
-
-- `fixes`:
-  - none
-
-- Design authority: `exact` `W-PROCESS-0002` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
-
-#### W-PROCESS-0003
-
-- `state`: `active`
-- `phase`: `source.capability`
-- `severity`: `error`
-- `meaning`: process.ctx is not an intrinsic alias for process.context
-
-- `requiredFacts`:
-  - `canonical`: `string`
-  - `member`: `string`
-
-- `labelRoles`:
-  - none
-
-- `fixes`:
-  - none
-
-- Design authority: `exact` `W-PROCESS-0003` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
 
 ### W-RUN
 

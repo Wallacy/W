@@ -3,14 +3,15 @@
   "status": "design-oracle-input",
   "cases": [
     {
-      "id": "PR0-POS-root-projections-reuse-owner",
+      "id": "PR0-POS-explicit-handler-binding-reuses-owner",
       "kind": "positive",
-      "decisions": ["W-1296"],
+      "decisions": ["W-1296", "W-1513"],
       "input": {
         "subject": "arguments",
-        "operation": "project",
+        "operation": "bindHandler",
         "root": true,
         "profile": "native-process",
+        "signatureRequests": true,
         "ownerId": "args@root-1"
       },
       "expect": {
@@ -19,21 +20,23 @@
         "repeatedOwnerId": "args@root-1",
         "copies": 0,
         "rootBound": true,
-        "readOnly": true
+        "readOnly": true,
+        "explicitParameter": true
       }
     },
     {
-      "id": "PR0-NEG-projection-outside-native-root",
+      "id": "PR0-NEG-binding-outside-native-root",
       "kind": "negative",
       "decisions": ["W-1296"],
       "input": {
         "subject": "arguments",
-        "operation": "project",
+        "operation": "bindHandler",
         "root": false,
         "profile": "library",
+        "signatureRequests": true,
         "ownerId": "none"
       },
-      "expect": { "accepted": false, "reason": "projectionUnavailable" }
+      "expect": { "accepted": false, "reason": "explicitBindingUnavailable" }
     },
     {
       "id": "PR0-POS-get-borrows-native-bytes",
@@ -290,12 +293,12 @@
       }
     },
     {
-      "id": "PR0-POS-short-clock-projection-reuses-context",
+      "id": "PR0-POS-contextual-clock-projection-reuses-owner",
       "kind": "positive",
-      "decisions": ["W-1296", "W-1298", "W-1311"],
+      "decisions": ["W-1296", "W-1298", "W-1311", "W-1513"],
       "input": {
         "subject": "context",
-        "operation": "shortProjection",
+        "operation": "contextualProjection",
         "root": true,
         "profile": "native-process",
         "member": "clock",
@@ -304,8 +307,8 @@
       "expect": {
         "accepted": true,
         "member": "clock",
-        "shortProjection": "process.clock()",
-        "equivalentTo": "process.context.clock()",
+        "contextualProjection": "execution.clock()",
+        "explicitProjection": "ctx.clock()",
         "sameIdentity": true,
         "sameOrigin": true,
         "sameAuthority": true,
@@ -390,12 +393,12 @@
       "expect": { "accepted": false, "reason": "hostSuspendPolicyUnsupported", "requested": "excluded", "providerCalled": true }
     },
     {
-      "id": "PR0-POS-short-deadline-projection-reuses-context",
+      "id": "PR0-POS-contextual-deadline-projection-reuses-owner",
       "kind": "positive",
-      "decisions": ["W-1296", "W-1298", "W-1312"],
+      "decisions": ["W-1296", "W-1298", "W-1312", "W-1513"],
       "input": {
         "subject": "context",
-        "operation": "shortProjection",
+        "operation": "contextualProjection",
         "root": true,
         "profile": "native-process",
         "member": "deadline",
@@ -404,8 +407,8 @@
       "expect": {
         "accepted": true,
         "member": "deadline",
-        "shortProjection": "process.deadline",
-        "equivalentTo": "process.context.deadline",
+        "contextualProjection": "execution.deadline",
+        "explicitProjection": "ctx.deadline",
         "sameIdentity": true,
         "sameOrigin": true,
         "rootBound": true,

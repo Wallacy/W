@@ -170,7 +170,7 @@
     {
       "id": "EE-POS-await-may",
       "kind": "positive",
-      "source": "fn load(): Value { await Task#yield(); return value }\nlet result = await load()",
+      "source": "fn load(): Value { await execution#yield(); return value }\nlet result = await load()",
       "expect": { "callee": "load", "suspension": "may", "callForm": "await", "sourceSpelling": "inferred" }
     },
     {
@@ -183,19 +183,19 @@
     {
       "id": "EE-POS-spawn-may",
       "kind": "positive",
-      "source": "fn work(value): Value { await Task#yield(); return value }\nlet child = spawn<.compute> work(input)\nlet value = await child",
+      "source": "fn work(value): Value { await execution#yield(); return value }\nlet child = spawn<.compute> work(input)\nlet value = await child",
       "expect": { "childForm": "spawn", "childAccepts": ["never", "may"] }
     },
     {
       "id": "EE-POS-scc-inference",
       "kind": "positive",
-      "source": "fn even(n) { if n == 0 { return true }; return await odd(n - 1) }\nfn odd(n) { await Task#yield(); return if n == 0 { false } else { await even(n - 1) } }",
+      "source": "fn even(n) { if n == 0 { return true }; return await odd(n - 1) }\nfn odd(n) { await execution#yield(); return if n == 0 { false } else { await even(n - 1) } }",
       "expect": { "sccSuspension": "may", "members": ["even", "odd"] }
     },
     {
       "id": "EE-INFO-public-widening",
       "kind": "information",
-      "source": "export fn publicCall(value): Value { await Task#yield(); return value }",
+      "source": "export fn publicCall(value): Value { await execution#yield(); return value }",
       "input": { "publicContract": { "previous": "never", "current": "may", "exported": true } },
       "expect": { "sourceBreaking": true, "widening": true }
     },
@@ -258,7 +258,7 @@
       "id": "EE-NEG-sync-explicit-await",
       "kind": "negative",
       "decisionIds": ["W-1484"],
-      "source": "async fn func(): Value { await Task#yield(); return value }\nlet y = sync func()",
+      "source": "async fn func(): Value { await execution#yield(); return value }\nlet y = sync func()",
       "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent", "blocksThread": false }
     },
     {
@@ -310,7 +310,7 @@
     {
       "id": "EE-NEG-sync-inferred-may",
       "kind": "negative",
-      "source": "fn inferredMay(): Value { await Task#yield(); return value }\nlet y = sync inferredMay()",
+      "source": "fn inferredMay(): Value { await execution#yield(); return value }\nlet y = sync inferredMay()",
       "expect": { "callee": "inferredMay", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false }
     },
     {
@@ -322,7 +322,7 @@
     {
       "id": "EE-NEG-bare-explicit-async",
       "kind": "negative",
-      "source": "async fn func(): Value { await Task#yield(); return value }\nlet w = func()",
+      "source": "async fn func(): Value { await execution#yield(); return value }\nlet w = func()",
       "expect": { "callee": "func", "diagnostic": "W-SUSPEND-0001" }
     },
     {
@@ -454,7 +454,7 @@
     {
       "id": "EE-NEG-barrier-may-suspend",
       "kind": "negative",
-      "source": "fn replace(state: inout Menu): u64 { await Task#yield(); return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
+      "source": "fn replace(state: inout Menu): u64 { await execution#yield(); return state.revision }\nlet update = spawn<.catalog, .barrier> replace(inout menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": { "diagnostic": "W-SUSPEND-0004" }
     },
@@ -693,46 +693,47 @@
       "expect": { "dynamicStatus": "rejected", "dynamicError": "poolUnavailable", "dynamicPhase": "absent" }
     },
     {
-      "id": "EE-POS-implicit-process-projections",
+      "id": "EE-POS-contextual-execution-root",
       "kind": "positive",
-      "source": "let args = process.args\nlet context = process.context\nprint(args.count)\nlet _ = context",
+      "decisions": ["W-1513"],
+      "source": "entry { let clock = execution.clock(); execution#checkCancellation(); print(clock.now()) }",
       "input": { "root": true, "profile": "native-process" },
-      "expect": { "projections": ["args", "context"], "readOnly": true }
+      "expect": { "executionMembers": ["clock"], "executionFacets": ["checkCancellation"], "contextual": true }
     },
     {
-      "id": "EE-NEG-process-non-root",
+      "id": "EE-NEG-execution-non-root",
       "kind": "negative",
-      "source": "module library\nlet context = process.context",
+      "source": "module library\nlet clock = execution.clock()",
       "input": { "root": false, "profile": "library" },
-      "expect": { "diagnostic": "W-PROCESS-0001" }
+      "expect": { "diagnostic": "W-EXECUTION-0001" }
     },
     {
-      "id": "EE-NEG-process-escape",
+      "id": "EE-NEG-execution-escape",
       "kind": "negative",
-      "source": "entry(run)\nfn save(): ref Context { return process.context }",
+      "source": "entry(run)\nfn save() { return execution }",
       "input": { "root": true, "profile": "native-process" },
-      "expect": { "diagnostic": "W-PROCESS-0002" }
+      "expect": { "diagnostic": "W-EXECUTION-0002" }
     },
     {
-      "id": "EE-NEG-process-service-crossing",
+      "id": "EE-NEG-execution-service-crossing",
       "kind": "negative",
-      "source": "entry(run)\nservice.send(process.context)",
+      "source": "entry(run)\nservice.send(execution)",
       "input": { "root": true, "profile": "native-process" },
-      "expect": { "diagnostic": "W-PROCESS-0002" }
+      "expect": { "diagnostic": "W-EXECUTION-0002" }
     },
     {
-      "id": "EE-NEG-process-serialization",
+      "id": "EE-NEG-execution-serialization",
       "kind": "negative",
-      "source": "entry(run)\nserialize(process.context)",
+      "source": "entry(run)\nserialize(execution)",
       "input": { "root": true, "profile": "native-process" },
-      "expect": { "diagnostic": "W-PROCESS-0002" }
+      "expect": { "diagnostic": "W-EXECUTION-0002" }
     },
     {
-      "id": "EE-NEG-process-ctx-alias",
+      "id": "EE-NEG-execution-member-unavailable",
       "kind": "negative",
-      "source": "entry(run)\nlet value = process.ctx",
-      "input": { "root": true, "profile": "native-process" },
-      "expect": { "diagnostic": "W-PROCESS-0003" }
+      "source": "entry(run)\nawait execution#yield()",
+      "input": { "root": true, "profile": "fpga-region", "unavailableMembers": ["yield"] },
+      "expect": { "diagnostic": "W-EXECUTION-0003" }
     },
     {
       "id": "EE-POS-doc-example",
@@ -755,13 +756,13 @@
     {
       "id": "EE-NEG-doc-example-ambient",
       "kind": "negative",
-      "source": "/// @example\n/// call: readFile(process.args)\n/// result: \"data\"\nfn readFile(path: String): String { return path }",
+      "source": "/// @example\n/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
       "expect": { "diagnostic": "W-DOC-0005" }
     },
     {
       "id": "EE-POS-doc-example-fixture",
       "kind": "positive",
-      "source": "/// @example\n/// call: readFile(process.args)\n/// result: \"data\"\nfn readFile(path: String): String { return path }",
+      "source": "/// @example\n/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
       "input": { "fixture": "args-fixture" },
       "expect": { "terminal": "result", "hermetic": true }
     },

@@ -1385,8 +1385,8 @@
             "claim": "SYN1 problem-first scope, two publication boundaries, real Tree-sitter/source-shape evidence, target registry fixture, navigation requirement, C2 comparison, and D rejection."
           },
           {
-      "path": "tooling/syn1-typed-generation-cases.json",
-      "digest": "sha256:599b16d07cd48402f12c8d099f4ffd540f5662124b81854cb954c8b6f28752a7",
+            "path": "tooling/syn1-typed-generation-cases.json",
+            "digest": "sha256:599b16d07cd48402f12c8d099f4ffd540f5662124b81854cb954c8b6f28752a7",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
@@ -1400,8 +1400,8 @@
             "claim": "SYN2/DYN2 closure promotes the bounded generated module-set design and records implementation-evidence gaps."
           },
           {
-      "path": "tooling/syn2-dyn2-closure-cases.json",
-      "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+            "path": "tooling/syn2-dyn2-closure-cases.json",
+            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
             "claim": "SYN2/DYN2 exact 17-case corpus binds current, rejected, and implementation-boundary decisions."
           }
         ]
@@ -1527,7 +1527,7 @@
         "canonicalSource": {
           "path": "reference/last-light/memory.w",
           "symbol": "installMenuObserver",
-          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
           "claim": "weak callback ownership"
         }
       },
@@ -1819,7 +1819,7 @@
             {
               "path": "reference/last-light/memory.w",
               "symbol": "installMenuObserver",
-              "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+              "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
               "claim": "MenuSection uses a weak parent edge and shared children, and the cycle oracle requires an explicit break or drain."
             }
           ]
@@ -2178,12 +2178,12 @@
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:00e61bd08d45e3893a83179a957f42df896b39372246d766452e7cbfff711ed1",
+            "digest": "sha256:0c6f84e847f1b63839db0e5d885ec2ec5338b890448441820b591418d353d890",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
             "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-            "digest": "sha256:caaee4ef1c02aaf7305de206b548d1355c7fb8fdb078a9a8bbd8583279f4f0ee",
+            "digest": "sha256:9c5aadc699c39b2f5dfa25163a49d759ab90e100e2feb7f40f00c1524cad8899",
             "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
           }
         ]
@@ -2318,7 +2318,7 @@
         "canonicalSource": {
           "path": "reference/last-light/supervision.w",
           "symbol": "orderCoordinators",
-          "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc",
+          "digest": "sha256:a4650f59ff1734d51a198b6185aa2000a55274cb428e0917310f1b9793ce065f",
           "claim": "keyed supervisor service"
         }
       },
@@ -2556,7 +2556,7 @@
             {
               "path": "reference/last-light/supervision.w",
               "symbol": "fulfillOrder",
-              "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc",
+              "digest": "sha256:a4650f59ff1734d51a198b6185aa2000a55274cb428e0917310f1b9793ce065f",
               "claim": "The order coordinator reports progress, gates events by generation, and compensates payment when serving fails."
             }
           ]
@@ -2949,8 +2949,8 @@
             "claim": "DYN2 closes typed A/B routes and the bounded read-only GenerationReference design while preserving implementation gaps."
           },
           {
-      "path": "tooling/syn2-dyn2-closure-cases.json",
-      "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
+            "path": "tooling/syn2-dyn2-closure-cases.json",
+            "digest": "sha256:aff9008cebbc0cd9691726ef496a92651a1b9cd2feade811c60eb79943da6c84",
             "claim": "DYN2 exact cases bind generation identity, cleanup/fault, and rejected dynamic boundaries."
           }
         ]

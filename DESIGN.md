@@ -5459,7 +5459,7 @@ export struct Money {
   minorUnits: i128
   currency: Currency
 
-  export const zeroCredits = Money(minorUnits: 0, currency: .cr)
+  export const zeroCredits = Money(minorUnits: 0, currency: .ww)
 }
 
 export enum Course {
@@ -8502,7 +8502,7 @@ Reflectable
 
 TypeKind = scalar | struct | object | enum | refinement | enumSubset
 
-TypeInfo                         // view imutável, estável durante o process-lifetime
+TypeInfo                         // view imutável, estável durante a runtime instance
   id: TypeId
   name: view String
   kind: TypeKind
@@ -8521,7 +8521,7 @@ TypeInfo.Case
   payloadTypes: view [TypeId]
 ```
 
-Cada `view` é uma view read-only de process-lifetime. A lista de properties e
+Cada `view` é uma view read-only da runtime instance. A lista de properties e
 cases preserva a ordem declarada e a interface exportada. O contrato não
 expõe layout, offset, size, address, backing storage ou lookup de method por
 nome. `TypeInfo` não possui constructor público, assignment ou mutation.
@@ -10988,9 +10988,10 @@ do valor retornado, use `(place#facet).member`, nunca `place#facet.member`.
 Raw strings `#"..."` e `#"""..."""` continuam tokens próprios e não são facets.
 
 Facets core são reservadas à linguagem. Neste primeiro conjunto, os controles
-ocultos de `Task` usam `task#cancel(reason: ...)`,
-`await (take task)#outcome()`, `Task#firstSettled(...)`,
-`Task#checkCancellation()`, `await Task#yield()` e
+ocultos de um handle `Task` usam `task#cancel(reason: ...)` e
+`await (take task)#outcome()`. Os controles da execução corrente usam
+`execution#checkCancellation()` e `await execution#yield()`. As operações
+`Task#firstSettled(...)`,
 `Task#withTimeout(...)`, `Task#withDeadline(...)` e o launcher
 `Task#spawn(...)` para um `ExecutionDomainRef` dinâmico. O initializer estático
 `spawn<domain> ...` continua a forma para domains conhecidos em compile time;
@@ -11738,7 +11739,7 @@ suspension edge.
 ```w
 fn even(n: usize): Bool { return if n == 0 { true } else { await odd(n - 1) } }
 fn odd(n: usize): Bool {
-  await Task#yield()
+  await execution#yield()
   return if n == 0 { false } else { await even(n - 1) }
 }
 
@@ -11801,11 +11802,11 @@ Os diagnostics desta policy são:
 | `W-PLACEMENT-0002` | `spawn` não informa um domínio explícito ou informa um domínio inexistente |
 | `W-PLACEMENT-0003` | domínio concorrente não oferece `barrierDispatch` |
 | `W-OWNERSHIP-0012` | loans de dispatch não formam uma sequência fechada num único domínio |
-| `W-PROCESS-0001` | projection process fora do root/profile válido |
-| `W-PROCESS-0002` | projeção ou authority de process cruza a boundary do entry-root (escape, service crossing ou serialização); value-copy não torna o crossing legal |
-| `W-PROCESS-0003` | `process.ctx` não é alias intrínseco de `process.context` |
+| `W-EXECUTION-0001` | raiz contextual `execution` usada fora de uma execução runtime válida |
+| `W-EXECUTION-0002` | authority ou borrow root-bound obtido de `execution` escapa, é serializado ou cruza service/device/entry boundary |
+| `W-EXECUTION-0003` | member ou facet pedido em `execution` não existe no target/profile selecionado |
 | `W-TIME-0001` | request ativo de `hostSuspend` usa `.unspecified` ou não é suportado pelo provider |
-| `W-TIME-0002` | aquisição de clock não possui authority explícita de process/Context |
+| `W-TIME-0002` | aquisição de clock não possui authority explícita de `execution` ou de um `Context` recebido |
 | `W-UNIT-0001` | literal usa unit não qualificada sem binding importado da projection correspondente (`std.si`, `std.iec` ou outra) |
 | `W-DOC-0003` | example sem terminal único `result` ou `error` |
 | `W-DOC-0005` | example usa effect ambiental sem fixture explícito |
@@ -11857,7 +11858,7 @@ let q = async func1()
 function type preserva `directEntry: available`. Para um body W visível, o
 compiler deriva esse facet por uma prova `neverSuspend` sobre a declaration
 inteira, antes de specialization estática ou path-sensitive. Nenhum caminho
-pode alcançar `await`, `Task#yield`, initializer `async` ou `spawn`, join,
+pode alcançar `await`, `execution#yield`, initializer `async` ou `spawn`, join,
 service ou I/O suspending, `defer async`, call bare ou `await` para callable
 `maySuspend`, ou `sync` para um type com `directEntry: absent`. Uma call `sync`
 para outra declaration ou function type com `directEntry: available` é aceita:
@@ -12165,16 +12166,16 @@ Uma task observa o sinal:
 - antes e depois de um suspension point;
 - em I/O que aceita cancelamento;
 - em uma boundary de task group;
-  - em `Task#checkCancellation()` para loops longos.
+  - em `execution#checkCancellation()` para loops longos.
 
-`Task#checkCancellation()` só existe em código async. Ele executa uma saída de
+`execution#checkCancellation()` só existe em código async. Ele executa uma saída de
 controle distinta de `throws E`. `catch` não intercepta essa saída. Cleanup
 estruturado ainda executa. Uma API que precisa inspecionar cancelamento observa
 `TaskOutcome` no owner.
 
 Um body settled vence a corrida com cancellation. O caller recebe o outcome
 selecionado depois do cleanup. O sinal continua pendente no parent para o
-próximo suspension point ou `Task#checkCancellation()`. O runtime não injeta
+próximo suspension point ou `execution#checkCancellation()`. O runtime não injeta
 cancelamento entre statements:
 
 ```w
@@ -12568,7 +12569,7 @@ export enum TaskAdmissionError<Input>: Error {
 restaura o binding movido. Um `catch` pode recuperar e tentar outra policy; a
 propagação comum faz cleanup do error e de seu payload.
 
-O root recebe a authority por `process.context.execution` e pode passá-la. A
+O root recebe a authority pela raiz contextual `execution` e pode passá-la. A
 lane preserva FIFO no primeiro start e executa um segmento runnable por vez.
 Suspension libera o permit; outro job admitido pode progredir. Lanes distintas
 também podem progredir juntas. `close()` faz `open -> closing -> drained`,
@@ -12623,13 +12624,12 @@ nanoseconds, o adapter mantém a quantity física ou devolve erro de range.
 
 **W-1311 — Clock é authority explícita:** o runtime pode medir tempo para
 scheduling, deadline e trace sem conceder a capability `.clock`. O programa só
-lê o relógio quando um `Context` projeta `time.Clock`. `process.clock()` é uma
-projection curta vigente e equivalente a `process.context.clock()` por identity,
-origin, authority e lifetime. Em um native-process entry, `process.deadline` tem
-a mesma value identity, origin e lifetime de `process.context.deadline`. `Deadline`
-não é authority; a projection mantém `authorityExpanded: false`. A availability
-de cada alias é a mesma da projection longa correspondente. `ctx.clock()` continua
-quando `Context` é parâmetro. Não existe `Clock()`, `Clock.current`, `time.clock()` sem
+lê o relógio quando a execução corrente ou um `Context` explícito projeta
+`time.Clock`. `execution.clock()` é a forma contextual única. Ela preserva
+identity, origin, authority e lifetime do owner concedido pelo host. Em uma
+execução com deadline, `execution.deadline` preserva value identity, origin e
+lifetime sem ampliar authority. `ctx.clock()` continua quando `Context` é um
+parâmetro explícito. Não existe `Clock()`, `Clock.current`, `time.clock()` sem
 authority, clock global,
 lookup ambiental ou ambient authority. Cada projection retém um owner no mesmo
 root quando a projection longa possui owner. `Deadline` permanece root-bound
@@ -12665,11 +12665,12 @@ publica somente que o resultado não pode ser inferido. Um profile que exige
 `.included` ou `.excluded` rejeita um provider `.unspecified` antes da execução.
 O mesmo fato cobre hibernate e VM pause. `await` e task suspension não entram.
 
-`process.clock()` adquire o relógio root default e pode retornar o fato
+`execution.clock()` adquire o relógio root default e pode retornar o fato
 `.unspecified`; quando o `Context` concede essa capability, essa projection é
 simples e nonthrowing. A ausência da capability é uma falha de availability de
-compile/link. A seleção ativa é `try process.clock(hostSuspend: .included)`;
-`try process.context.clock(hostSuspend: .excluded)` é a forma longa equivalente.
+compile/link. A seleção ativa contextual é
+`try execution.clock(hostSuspend: .included)`. Código reutilizável que recebe
+um `Context` usa `try ctx.clock(hostSuspend: .excluded)`.
 O argumento ativo tem o tipo estreito
 `HostSuspendPolicy<[.included, .excluded]>`; o literal `.unspecified` é
 diagnostic em compile time, não um request ativo. Provider unsupported para um
@@ -12739,7 +12740,7 @@ faz rollback e não transforma o error da aplicação.
 
 ```w
 import si from std
-let clock = process.context.clock()
+let clock = execution.clock()
 let started = clock.now()
 let deadline = try clock.deadline(after: 250<si.ms>)
 let remaining = clock.remaining(until: deadline)
@@ -14783,11 +14784,11 @@ O profile portátil publica fairness condicional. Sob estas premissas:
 Uma task admitida e acordada executa novamente. O profile não promete um
 intervalo máximo.
 
-Nenhuma ordem relativa entre siblings é garantida. `Task#yield()` é um
+Nenhuma ordem relativa entre siblings é garantida. `execution#yield()` é um
 suspension point e uma hint de fairness; não é barrier nem coloca a task no fim
 de uma fila observável.
 
-**Exemplo:** um loop async sem `await` ou `Task#yield()` pode impedir progresso
+**Exemplo:** um loop async sem `await` ou `execution#yield()` pode impedir progresso
 num executor cooperativo. O compiler avisa e sugere `spawn<.compute>` ou um
 suspension point explícito.
 
@@ -15189,21 +15190,19 @@ Statements soltos não são um entry implícito. Um source sem descriptor de ent
 declare `entry { ... }` ou `entry(functionName)`. Assim, importar o source nunca
 executa código de módulo.
 
-Num profile `native-process`, as projections podem ser usadas explicitamente no
-próprio body de um entry ou função:
+Quando o product concede tempo à execução corrente, um entry pode usar a raiz
+contextual target-neutral:
 
 ```w
-let arguments = process.args
-let root = process.context
-print("argument count: ${arguments.count}")
-let _ = root
+let clock = execution.clock()
+let started = clock.now()
+print("execution started at ${started}")
 ```
 
-`arguments` e `root` são bindings escritos pelo programa. Eles não são
-parâmetros ou variáveis `args`/`ctx` injetados pelo wrapper. O acesso continua
-profile-gated e aparece no audit; `process.context` é a spelling canônica e
-`process.ctx` não é alias intrínseco. `ctx` permanece um nome local válido para
-um parâmetro explícito.
+`execution` não é um object, módulo ou singleton. O compiler resolve essa raiz
+somente dentro da execução runtime selecionada e registra cada capability no
+audit. Um handler que precisa de argumentos ou de um `std.process.Context`
+recebe esses owners explicitamente na assinatura.
 
 `w explain product` mostra o descriptor explícito, sync/async, requirements e o
 digest do body. O descriptor `.default` só pode aparecer uma vez; entries
@@ -15212,11 +15211,9 @@ mais `entry(fnName)` para arguments, `Context`, return customizado ou typed
 errors públicos.
 
 O profile precisa declarar um adapter de body simples. `native-process@1`
-adapta `fn(): ()` para seu main portátil. O host mantém os owners canônicos de
-`Arguments` e `Context` no entry root, mas o wrapper não os recebe como
-parâmetros, não cria bindings `args`/`ctx` e devolve success. O source só os
-observa quando escreve `process.args` ou `process.context`. APIs alcançáveis
-ainda precisam das capabilities do profile; `print` usa seu lowering
+adapta `fn(): ()` para seu main portátil. O wrapper não cria bindings
+`args`/`ctx` e não expõe argumentos ou process context implicitamente. APIs
+alcançáveis ainda precisam das capabilities do profile; `print` usa seu lowering
 declarado. `w explain product` mostra o wrapper e essas requirements. Um
 profile que não declara essa adaptação rejeita a forma curta.
 
@@ -15341,8 +15338,7 @@ no programa. Um signal registration é runtime e não pertence a esses bindings
 estáticos.
 
 O source não contém objetos globais arbitrários `device`, `app`, `audio` ou
-`accelerator`. `process.args` e `process.context` são a exceção estreita de
-projections intrínsecas read-only descrita abaixo. Nomes como `process.signal` e
+`accelerator`. Nomes como `process.signal` e
 `device.interrupt` são IDs de slot na metadata versionada do host profile. Eles
 aparecem no package e na recipe, não como assignments executados pela aplicação.
 
@@ -15372,30 +15368,33 @@ event handlers dinâmicos. Esses registries não alteram o host ABI.
 
 `Context` é uma capability tipada. Ele não é um mapa universal de environment.
 
-**W-1167 — projections de process:** para roots `native-process`, o compiler
-expõe duas projections intrínsecas e read-only do root que usa os tipos de
-`std.process`:
+**W-1513 — raiz contextual `execution` (Forma vigente):** toda execução runtime
+selecionada possui uma raiz contextual target-neutral. Ela não é um valor, um
+object, um módulo, um namespace importável ou um singleton. A raiz só publica
+members e facets concedidos pelo product e pelo target:
 
 ```w
-let args = process.args
-let context = process.context
+let clock = execution.clock()
+let deadline = execution.deadline
+execution#checkCancellation()
+await execution#yield()
 ```
 
-`process.args` possui tipo `ref std.process.Arguments` e aponta para o único
-snapshot imutável do root. `process.context` possui tipo
-`ref std.process.Context` e aponta para o context nominal desse root. Uma nova
-leitura não duplica argv ou capabilities. O profile host concede somente os
-bindings declarados. O acesso adiciona um operational effect e um requirement
-explícitos. Audit e reachability incluem o acesso.
+`.` acessa dados ou capabilities tipadas; `#` acessa somente controles core
+imediatos e não reificáveis. `execution#yield()` e
+`execution#checkCancellation()` podem estar ausentes em um target que não
+fornece cooperação ou cancelamento; essa ausência é erro de compile/link, nunca
+um no-op runtime. `execution.clock()`, `execution.deadline` e
+`execution.openSerial(...)` preservam o owner e os limites concedidos. A raiz
+não pode ser armazenada, passada, retornada, serializada nem atravessar
+entry/service/device boundaries. Código reutilizável recebe a capability
+estreita ou um context nominal como parâmetro.
 
-Não existe um singleton ambiental mutável. O projection ref não pode ser
-serializado, atravessar service ou sobreviver ao entry root e à sua structured
-tree; um teste ou script deve fornecer fixture explícito.
-
-Uma ref não pode escapar do entry root, ser serializada, cruzar service ou
-outlive a structured tree. Profiles não-process rejeitam a projection.
-Testes e scripts injetam fixtures explícitos ou rejeitam o requirement ausente.
-Handlers reutilizáveis e testáveis continuam recebendo argumentos explícitos.
+`std.process` permanece um módulo normal e opcional para hosts com processos.
+`Arguments`, `Context`, stdio, signals, child process e exit continuam nele.
+Nenhuma forma `process.*` é uma raiz contextual. Um handler que precisa de
+argumentos ou de `process.Context` declara os parâmetros. Em GPU, FPGA, Wasm,
+browser, firmware e bare metal, `execution` pode existir sem `std.process`.
 
 #### 13.2.1 Entry, product e modo de execução
 
@@ -15926,10 +15925,10 @@ async fn fulfillOrder(
 ): Receipt throws RestaurantError {
   let orderId = input.order.id
   work.report(.accepted)
-  Task#checkCancellation()
+  execution#checkCancellation()
 
   work.report(.reserving)
-  Task#checkCancellation()
+  execution#checkCancellation()
   work.report(.preparing)
   let dish = try await prepareDish(
     take input.order,
@@ -20111,7 +20110,7 @@ observável necessária, mas exige bounds e ownership na interface.
 #### 14.3.5 AbortSignal, AbortController e cancellation W
 
 **Forma vigente:** `std.abort` é o adapter Web explícito sobre cancellation W.
-Ele não substitui `Task#cancel`, `Task#checkCancellation`, `Cancellation` ou
+Ele não substitui `Task#cancel`, `execution#checkCancellation`, `Cancellation` ou
 `TaskOutcome.canceled`. O adapter existe para APIs que usam o contrato
 `AbortSignal`, em especial Fetch, Request e operações Web embutidas.
 
@@ -21344,12 +21343,10 @@ aceitam handles permanecem privados. O provider continua **missing**; o source
 fixa a interface e não afirma acesso ao processo real.
 
 **W-1296 — um único root, nenhuma variável oculta:** `native-process@1` cria um
-owner de `Arguments` e um owner de `Context` antes de chamar o descriptor. Um
-handler explícito recebe esses owners. Um entry body explícito sem parâmetros
-mantém os owners no root e só recebe suas projections quando escreve
-`process.args` ou `process.context`. Não existe body implícito. O namespace
-contextual `process` não é um object da std, não pode ser guardado e não contém
-`ctx` como alias.
+owner de `Arguments` e um owner de `Context` antes de chamar um descriptor cuja
+assinatura pede esses valores. Um handler explícito recebe esses owners. Um
+entry body sem parâmetros não recebe nem projeta argumentos ou process context.
+Não existe body implícito ou namespace contextual `process`.
 
 **W-1297 — argv preserva texto nativo:** `Arguments` mantém ordem e quantidade
 exatas. Cada item é `OsString`, porque Unix pode fornecer bytes que não são
@@ -23129,9 +23126,14 @@ conter bytes que não são UTF-8. Em Windows, ele pode conter unidades UTF-16
 sem pareamento.
 
 ```w
-guard let native = process.args.get(0) else return
-let text: String = try native.toString()
-let label: String = native.displayLossy()
+import process from std
+
+fn decodeFirstArgument(args: ref process.Arguments): String? throws DecodeError {
+  guard let native = args.get(0) else return none
+  let text: String = try native.toString()
+  print(native.displayLossy())
+  return text
+}
 ```
 
 `std.fs.Path` preserva a representação nativa. `std.fs.Utf8Path` exige UTF-8
@@ -35167,7 +35169,7 @@ antes de sair do scope.
 - semantic checker para rejeitar slots `priority`/`qos` e APIs de task priority;
 - lifetime e scheduler state separados;
 - linear Task, body settled, cleanup e `TaskOutcome`;
-- cancellation snapshot bounded e `Task#checkCancellation()`;
+- cancellation snapshot bounded e `execution#checkCancellation()`;
 - fail-fast, drain e arbitragem lexical/input;
 - `TaskTimeout`, deadline monotônico e clock virtual;
 - `concurrentMap`/`parallelMap` bounded;

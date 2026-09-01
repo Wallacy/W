@@ -62,7 +62,7 @@
     },
     {
       "id": "E0-cancel-monotonic-idempotent",
-      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch.cancel(reason: .shutdown)" }],
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch#cancel(reason: .shutdown)" }],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -110,7 +110,7 @@
     },
     {
       "id": "E0-parent-cancel-propagates",
-      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "Task#checkCancellation" }],
+      "references": [{ "path": "../reference/last-light/supervision.w", "symbol": "execution#checkCancellation" }],
       "operations": [
         { "op": "reserveTask", "task": "root" },
         { "op": "publishTask", "task": "root", "id": "root-start" },
@@ -435,7 +435,7 @@
     },
     {
       "id": "E0-cancel-does-not-publish-state",
-      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch.cancel(reason: .shutdown)" }],
+      "references": [{ "path": "../reference/last-light/execution.w", "symbol": "batch#cancel(reason: .shutdown)" }],
       "decisions": ["W-441"],
       "operations": [
         { "op": "reserveTask", "task": "root" },

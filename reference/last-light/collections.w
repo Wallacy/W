@@ -45,11 +45,11 @@ export fn foldDiagnosticBits(rows: ref Array<Array<u8>>): u32 {
 
 test "Map iteration is independent from its randomized hash seed" {
   var prices: Map<String, Money> = [
-    "nebula broth": Money(minorUnits: 1_200, currency: .cr),
-    "horizon cake": Money(minorUnits: 4_242, currency: .cr),
+    "nebula broth": Money(minorUnits: 1_200, currency: .ww),
+    "horizon cake": Money(minorUnits: 4_242, currency: .ww),
   ]
 
-  prices["nebula broth"] = Money(minorUnits: 1_300, currency: .cr)
+  prices["nebula broth"] = Money(minorUnits: 1_300, currency: .ww)
   expect prices.keys.collect() == ["nebula broth", "horizon cake"]
 
   guard let removed = prices.removeValue(for: "nebula broth") else panic("fixture key is missing")

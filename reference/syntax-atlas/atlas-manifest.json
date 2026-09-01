@@ -2326,7 +2326,7 @@
         {
           "path": "reference/last-light/domain.w",
           "symbol": "export enum Course",
-          "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+          "digest": "sha256:4bd095c8972f909326d4f6cdf4eb2b10b8b91b737e8623bbe1a8a90dfa0c82c5"
         }
       ],
       "snippetDigest": "sha256:e61dbd78101e3846c321f83668484c39223d89c497f471e527a47422c1b97aa8",
@@ -2513,7 +2513,7 @@
         {
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f"
+          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586"
         }
       ],
       "snippetDigest": "sha256:06899e8ebf02ac5caecc9e60d29a4f74f426a5899ec1d0d73f495cc1235caac3",
@@ -2554,7 +2554,7 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
+          "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
         }
       ],
       "snippetDigest": "sha256:30d0e60ebfb7fcf756948c087e8fb6bcd49f002cb8d057b0187f8887bc464f02",
@@ -2596,17 +2596,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
+          "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
         }
       ],
-      "snippetDigest": "sha256:2d02fe04fc39177c779c207c409a994ba5bbe2afa7271395ec7dca7de72ee1bc",
-      "snippetBytes": 1110
+      "snippetDigest": "sha256:a19affeeed1338431ec65bc0743474d3225c3bd9842cbf58d252ebd92b6f5c76",
+      "snippetBytes": 1298
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 100,
+      "line": 105,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2679,7 +2679,7 @@
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 166,
+      "line": 171,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2733,7 +2733,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 195,
+      "line": 200,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2827,6 +2827,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:dbd3ffd985398d89b60a72cff2713d3d92e190fc5a5bceb448b6717b89bca721"
+    "coverageDigest": "sha256:ca0c8ad08d754a73dfd9fe9d21e312df8b6a21e6fd7b4cb4090ec3a584cb3cca"
   }
 }

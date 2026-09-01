@@ -1866,7 +1866,7 @@ Aceite:
 - `info of T` retorna `ref TypeInfo` somente para `T: Reflectable`;
 - `info of value` exige concrete `Reflectable` ou composição existential com `Reflectable`;
 - `TypeKind` fecha `scalar`, `struct`, `object`, `enum`, `refinement` e
-  `enumSubset`, e `TypeInfo` expõe views process-lifetime sem layout ou offsets;
+  `enumSubset`, e `TypeInfo` expõe views da runtime instance sem layout ou offsets;
 - `TypeId` é opaque, local ao build, `Copy`/`Equatable`/`Hashable` e não
   serializável;
 - `value as? T` retorna `ref T?` borrowed e avalia o source uma vez;
@@ -2009,7 +2009,7 @@ Aceite:
 - cancellation depois da entrada foreign mantém owner e buffers até drain;
 - a correção não depende de dois jobs executarem simultaneamente;
 - scheduler replay pode trocar a ordem dos siblings sem trocar o resultado;
-- `Task#yield()` não funciona como barrier;
+- `execution#yield()` não funciona como barrier;
 - `mixBeforeTheLastBell` usa deadline monotônico e devolve `TaskOutcome`;
 - `TaskTimeout` usa nanoseconds exatos; ausência de timeout não usa infinity;
 - body settled vence cancellation posterior e só fica visível após cleanup;
@@ -2128,7 +2128,7 @@ scheduler, runtime ou provider.
 O spelling `try sync` do Atlas chama a ordinary entry de uma declaration
 `async fn` concreta cujo body visível prova `neverSuspend`. `fetch` permanece
 aceito porque seu body apenas retorna `city`. Se qualquer caminho ganhar
-`await`, `Task#yield`, initializer child, join, service ou I/O suspending,
+`await`, `execution#yield`, initializer child, join, service ou I/O suspending,
 `defer async`, call bare/`await` para `maySuspend` ou `sync` para facet absent,
 `directEntry` passa a `absent` e o mesmo call site deixa de compilar.
 
@@ -2422,13 +2422,13 @@ alega execução enquanto `std.net@1` e a capability do host estiverem missing.
 `process_oracle.w` fixa os valores da entry root nativa. `Arguments` preserva
 cada argumento como `OsString`; `Context` projeta somente as capabilities do
 produto, inclusive o `time.Clock` monotônico quando `.clock` está presente;
-`ExitCode` separa conclusão portátil de fault. `process.args` e
-`process.context` tomam empréstimos do mesmo owner do root. Dentro de um entry,
-`process.clock()` é uma projection curta com a mesma identity, origin, authority
-e lifetime de `process.context.clock()`. `process.deadline`
-preserva value identity, origin e lifetime de `process.context.deadline`, sem
-ampliar authority (`authorityExpanded: false`). A availability de cada alias é a
-da projection longa correspondente. Eles não criam um singleton ambiental. PR0
+`ExitCode` separa conclusão portátil de fault. Arguments e Context entram por
+parâmetros explícitos. A raiz contextual target-neutral `execution` projeta
+clock, deadline e controles disponíveis no product sem criar um process
+singleton. `execution.clock()` preserva identity, origin, authority e lifetime;
+`execution.deadline` preserva value identity, origin e lifetime sem ampliar
+authority (`authorityExpanded: false`). Cada member tem availability própria e
+não cria um singleton ambiental. PR0
 deriva stdio, signals e drain em um oracle host, mas
 não executa W, o scheduler, o sistema operacional ou o provider
 `std.process@1`.
@@ -2443,10 +2443,10 @@ de HOST/SO suspend e deadline de 100 ms, included alcança, excluded não alcan�
 e unspecified exige um case explícito se o profile o exigir. O oracle não
 executa W, timer, scheduler, sistema operacional ou o provider `std.time@1`.
 Tempo civil não faz parte da capability `.clock`.
-`process.clock()` seleciona o relógio root default sem throw quando a
+`execution.clock()` seleciona o relógio root default sem throw quando a
 capability está disponível e pode relatar `.unspecified`;
-`try process.clock(hostSuspend: .included)` e
-`try process.context.clock(hostSuspend: .excluded)` são seleções ativas e
+`try execution.clock(hostSuspend: .included)` e
+`try ctx.clock(hostSuspend: .excluded)` são seleções ativa contextual e explícita,
 usam `HostSuspendPolicy<[.included, .excluded]>`; `.unspecified` é rejeitado
 no compile time. Providers unsupported ainda podem falhar antes do trabalho.
 Uma lease de reserva exige `.included`; o

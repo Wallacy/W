@@ -147,7 +147,7 @@ export enum Currency {
 
 export const fn currencyCode(currency: Currency): String {
   return switch currency {
-    case .cr: "CR"
+    case .ww: "WW"
     case .usd: "USD"
     case .brl: "BRL"
   }
@@ -157,7 +157,7 @@ export struct Money {
   export minorUnits: i128
   export currency: Currency
 
-  export const zeroCredits = Money(minorUnits: 0, currency: .cr)
+  export const zeroCredits = Money(minorUnits: 0, currency: .ww)
 
   export const init(minorUnits value: i128, currency: Currency) {
     self.minorUnits = value

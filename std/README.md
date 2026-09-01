@@ -98,9 +98,9 @@ Ele acompanha somente children estruturados e drena antes do pop. O provider
 thread com task ou fiber. O provider `std.runtime.thread-local@1` continua
 missing. `time/contracts.w` materializa `Duration` signed e exata, `Clock`
 monotônico root-scoped e os values opacos `Instant` e `Deadline`. A capability
-`.clock` não concede wall clock. `process.clock()` seleciona o root default sem
+`.clock` não concede wall clock. `execution.clock()` seleciona o root default sem
 throw quando a capability está disponível;
-`process.clock(hostSuspend: .included/.excluded)` faz seleção ativa e pode
+`execution.clock(hostSuspend: .included/.excluded)` faz seleção ativa e pode
 falhar antes do trabalho; o slot rejeita `.unspecified` em compile time.
 `Clock.hostSuspendPolicy` é inspeção passiva. O
 provider `std.time@1` continua missing.
@@ -144,8 +144,8 @@ além do deadline do próprio root. `Input`
 mantém um cursor e produz linhas UTF-8 bounded. `Output` preserva progress e não
 intercala bytes de calls admitidas. Signal registrations são geracionais e
 estruturadas. O provider `std.process@1` continua missing. O módulo não cria um
-singleton `process`; `process.args` e `process.context` são projections do
-compiler limitadas ao entry root.
+singleton contextual; Arguments e Context entram por parâmetros explícitos.
+`execution` é a raiz target-neutral separada desse módulo.
 `fs/contracts.w` materializa `FileSystem` como uma capability ligada a uma raiz.
 `Path` preserva bytes Unix ou unidades UTF-16 Windows; `Utf8Path` faz conversão
 fallible, e ambos usam `copy` por `Duplicable`. `File<rights>` usa rights
@@ -255,16 +255,16 @@ injection, sanitizers, leak, limits e fuzzing.
 `Context`, `Input`, `Output`, `ExitCode`, `Signal` e o registry de signals.
 Named imports são recomendados.
 Um namespace alias, como `process.Arguments`, continua válido. O módulo não
-fornece um singleton ambiental geral chamado `process`; as duas projections
-intrínsecas abaixo são a exceção estreita para roots `native-process`. Os SDKs
+fornece um singleton contextual chamado `process`. Os SDKs
 de target podem fornecer namespaces como `std.device`, `std.mobile` e
 `std.audio`. Seus tipos
 participam das assinaturas dos handlers que um product liga por `hostBindings`.
 Os nomes dos slots pertencem ao host profile, não a esses módulos.
 
-Somente um root `native-process` pode usar as projections intrínsecas
-read-only `process.args` e `process.context`. O profile concede os bindings e o
-compiler registra o effect/requirement; roots de teste, script e não-processo
+Somente um root `native-process` pode materializar Arguments e Context de
+`std.process`, e somente uma assinatura explícita recebe esses owners. O profile
+concede os bindings e o compiler registra o effect/requirement; roots de teste,
+script e não-processo
 usam fixtures explícitos ou recebem diagnostic.
 
 O rascunho fixa nove fronteiras:

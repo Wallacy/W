@@ -17,7 +17,7 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "executionForms",
-      "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
+      "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
     },
     {
       "path": "../../../reference/last-light/state_transitions.w",
@@ -27,7 +27,7 @@
     {
       "path": "../../../reference/last-light/ownership_execution_oracle.w",
       "symbol": "fourOwnershipForms",
-      "digest": "sha256:a9cc6a248473280c2c5aa5dcd6f2ef06c588a10ac1adf7c3063378bbb54b7879"
+      "digest": "sha256:60a1eb4bcc0afb74df4d98d91ff6c6bb6a954df86ab59c162bac1dd32c7f8b36"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",

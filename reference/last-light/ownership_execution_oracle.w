@@ -62,7 +62,7 @@ fn inspectDirect(course: ref TrackedCourse): u64 {
 }
 
 fn inspectAfterYield(course: ref TrackedCourse): u64 {
-  await Task#yield()
+  await execution#yield()
   return course.orderId ^ course.revision
 }
 
@@ -74,8 +74,8 @@ fn finishCourseAfterYield(course: take TrackedCourse): TrackedCourse {
   let cleanupLedger = copy course.ledger
   defer { cleanupLedger.recordCleanup() }
 
-  await Task#yield()
-  Task#checkCancellation()
+  await execution#yield()
+  execution#checkCancellation()
   course.revision += 1
   return take course
 }
@@ -84,8 +84,8 @@ fn discardCourseAfterYield(course: take TrackedCourse) {
   let cleanupLedger = copy course.ledger
   defer { cleanupLedger.recordCleanup() }
 
-  await Task#yield()
-  Task#checkCancellation()
+  await execution#yield()
+  execution#checkCancellation()
 }
 
 fn incrementRevision(ledger: inout RevisionLedger): u64 {

@@ -47,7 +47,7 @@
       "family": "civil",
       "variant": "current",
       "decisions": ["W-1455"],
-      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
+      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
       "observations": {
         "operationalStdTimeUnchanged": true,
         "civilPackageSeparate": true,
@@ -75,7 +75,7 @@
       "family": "random",
       "variant": "current",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": {
         "secureProviderBacked": true,
         "secureSeedAccepted": false,
@@ -203,7 +203,7 @@
       "family": "civil",
       "variant": "rejected",
       "decisions": ["W-1455"],
-      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
+      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
       "observations": { "operationalStdTimeUnchanged": true, "civilPackageSeparate": false, "utcTimestampDistinct": false, "civilValuesExplicit": false, "conversionProvider": false, "databaseProfile": false, "profileVersionDigest": false, "dstPolicy": "ambient", "localeExplicit": false, "calendarExplicit": false, "timezoneExplicit": false, "noAmbientCivil": false, "wallClockDrivesDeadline": true, "leapSecondPolicy": "automatic", "smearPolicy": "automatic", "automaticConversion": true }
     },
     {
@@ -211,7 +211,7 @@
       "family": "random",
       "variant": "rejected",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": { "secureProviderBacked": true, "secureSeedAccepted": true, "secureFallback": false, "secureDowngrade": false, "exactBoundedBytes": true, "uniformCheckedInteger": true, "typedErrors": true, "deterministicExplicitSeed": true, "deterministicReplayable": true, "deterministicSatisfiesSecure": true, "drawOrderOwnerLocal": true, "implicitInheritance": false, "contextProjectsSameContract": true, "handlesWireValue": false, "testReceiptPortable": true, "deterministicReceiptSeedProfileOnly": true, "secureSeedDrawBytesNotInReceiptLogDiagnostic": false }
     },
     {
@@ -219,7 +219,7 @@
       "family": "random",
       "variant": "rejected",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:2021ebd06c480ef2bc9df3e8a95ca562cdcc64ff5816b28e2ff579bcf46336f5", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": { "secureProviderBacked": true, "secureSeedAccepted": false, "secureFallback": true, "secureDowngrade": true, "exactBoundedBytes": true, "uniformCheckedInteger": false, "typedErrors": false, "deterministicExplicitSeed": false, "deterministicReplayable": false, "deterministicSatisfiesSecure": false, "drawOrderOwnerLocal": false, "implicitInheritance": true, "contextProjectsSameContract": false, "handlesWireValue": true, "testReceiptPortable": false, "deterministicReceiptSeedProfileOnly": false, "secureSeedDrawBytesNotInReceiptLogDiagnostic": false }
     },
     {

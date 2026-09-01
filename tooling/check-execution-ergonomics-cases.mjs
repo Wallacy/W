@@ -54,10 +54,10 @@ const requiredIds = new Set([
   "EE-NEG-dynamic-serial-aggregate-limit",
   "EE-NEG-dynamic-serial-closed-admission",
   "EE-NEG-dynamic-concurrent-lane",
-  "EE-POS-implicit-process-projections",
-  "EE-NEG-process-escape",
-  "EE-NEG-process-service-crossing",
-  "EE-NEG-process-serialization",
+  "EE-POS-contextual-execution-root",
+  "EE-NEG-execution-escape",
+  "EE-NEG-execution-service-crossing",
+  "EE-NEG-execution-serialization",
   "EE-POS-doc-example",
   "EE-POS-doc-example-two-blocks",
   "EE-NEG-doc-example-ambient",
@@ -210,8 +210,9 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
       if (expected.barrierEdges && JSON.stringify(sequence.edges) !== JSON.stringify(expected.barrierEdges)) errors.push(`${item.id}: barrier edges`)
     }
   }
-  if (expected.projections && JSON.stringify(result.process.projections) !== JSON.stringify(expected.projections)) errors.push(`${item.id}: process projections`)
-  if (expected.readOnly !== undefined && result.process.readOnly !== expected.readOnly) errors.push(`${item.id}: process read-only`)
+  if (expected.executionMembers && JSON.stringify(result.execution.members) !== JSON.stringify(expected.executionMembers)) errors.push(`${item.id}: execution members`)
+  if (expected.executionFacets && JSON.stringify(result.execution.facets) !== JSON.stringify(expected.executionFacets)) errors.push(`${item.id}: execution facets`)
+  if (expected.contextual !== undefined && result.execution.contextual !== expected.contextual) errors.push(`${item.id}: execution contextual root`)
   if (expected.terminal && result.doctest.examples[0]?.terminals[0]?.kind !== expected.terminal) errors.push(`${item.id}: doctest terminal`)
   if (expected.exampleCount !== undefined && result.doctest.examples.length !== expected.exampleCount) errors.push(`${item.id}: doctest example count`)
   if (expected.hermetic !== undefined && result.doctest.hermetic !== expected.hermetic) errors.push(`${item.id}: doctest hermetic`)

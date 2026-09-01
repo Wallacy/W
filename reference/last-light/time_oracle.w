@@ -46,18 +46,17 @@ test "duration remains portable signed data" {
 }
 
 // Compile-fail assays:
-// In a native-process entry body, `process.clock()` equals `process.context.clock()`
-// by identity, origin, authority, and lifetime. `process.deadline` equals
-// `process.context.deadline` by value identity, origin, and lifetime. Deadline
-// is not authority; its short projection keeps `authorityExpanded: false`.
+// `execution.clock()` preserves identity, origin, authority, and lifetime from
+// the host-granted owner. `execution.deadline` preserves value identity,
+// origin, and lifetime without expanding authority.
 // A provider profile with 60 ms active time, 50 ms HOST/SO suspension, and a
 // 100 ms deadline reaches the deadline with `.included`, does not with
 // `.excluded`, and remains unknown with `.unspecified`.
 // let ambient = time.Clock()
 // let global = time.Clock.current()
-// let clock = process.clock() // nonthrowing when Context grants the capability
-// let selected = try process.clock(hostSuspend: .included)
-// let longForm = try process.context.clock(hostSuspend: .excluded)
+// let clock = execution.clock() // nonthrowing when the product grants it
+// let selected = try execution.clock(hostSuspend: .included)
+// let explicit = try ctx.clock(hostSuspend: .excluded)
 // The active slot is HostSuspendPolicy<[.included, .excluded]>; `.unspecified`
 // is a compile-time diagnostic. A valid but unsupported case fails before work.
 // An unqualified `clock()` without Context is rejected by W-TIME-0002.

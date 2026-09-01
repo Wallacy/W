@@ -1138,21 +1138,28 @@ function derivePlacement(source, input = {}, suspension = { declarations: [] }) 
   }
 }
 
-function deriveProcess(source, input = {}) {
-  const projections = [...new Set([...source.matchAll(/process\.(args|context|ctx)\b/g)].map((match) => match[1]))]
-  const root = input.root ?? /\bentry\b/.test(source)
-  const profile = input.profile ?? (root ? "native-process" : "non-process")
+function deriveExecution(source, input = {}) {
+  const members = [...new Set([...source.matchAll(/\bexecution\.(clock|deadline|openSerial)\b/g)].map((match) => match[1]))]
+  const facets = [...new Set([...source.matchAll(/\bexecution#(yield|checkCancellation)\b/g)].map((match) => match[1]))]
+  const root = input.root ?? (members.length > 0 || facets.length > 0 || /\bentry\b/.test(source))
+  const profile = input.profile ?? (root ? "runtime" : "library")
   const diagnostics = []
-  if (projections.includes("ctx")) diagnostics.push({ code: "W-PROCESS-0003", member: "process.ctx", canonical: "process.context" })
-  if (projections.some((projection) => projection !== "ctx") && (!root || profile !== "native-process")) diagnostics.push({ code: "W-PROCESS-0001", profile })
-  if (/return\s+(?:ref\s+)?process\.context\b/.test(source)) diagnostics.push({ code: "W-PROCESS-0002", reason: "entry-root escape" })
-  if (/\bservice(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)?\s*\([^)]*\bprocess\.context\b/.test(source)) {
-    diagnostics.push({ code: "W-PROCESS-0002", reason: "service crossing" })
+  if ((members.length > 0 || facets.length > 0) && !root) {
+    diagnostics.push({ code: "W-EXECUTION-0001", profile, reason: "runtime root unavailable" })
   }
-  if (/\bserialize(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)?\s*\([^)]*\bprocess\.context\b/.test(source)) {
-    diagnostics.push({ code: "W-PROCESS-0002", reason: "serialization" })
+  for (const member of [...members, ...facets]) {
+    if ((input.unavailableMembers ?? []).includes(member)) {
+      diagnostics.push({ code: "W-EXECUTION-0003", member, profile, reason: "target capability unavailable" })
+    }
   }
-  return { root, profile, projections, readOnly: projections.some((projection) => projection !== "ctx"), diagnostics }
+  if (/return\s+(?:ref\s+)?execution\b/.test(source)) diagnostics.push({ code: "W-EXECUTION-0002", reason: "execution-root reification" })
+  if (/\bservice(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)?\s*\([^)]*\bexecution\b/.test(source)) {
+    diagnostics.push({ code: "W-EXECUTION-0002", reason: "service crossing" })
+  }
+  if (/\bserialize(?:\.[A-Za-z_][A-Za-z0-9_]*|[A-Za-z_][A-Za-z0-9_]*)?\s*\([^)]*\bexecution\b/.test(source)) {
+    diagnostics.push({ code: "W-EXECUTION-0002", reason: "serialization" })
+  }
+  return { root, profile, members, facets, contextual: members.length > 0 || facets.length > 0, diagnostics }
 }
 
 function deriveDoctest(source, input = {}) {
@@ -1186,7 +1193,7 @@ function deriveDoctest(source, input = {}) {
   const diagnostics = []
   for (const example of examples) {
     if (!example.call || example.terminals.length !== 1) diagnostics.push({ code: "W-DOC-0003", reason: "terminal" })
-    const ambient = /process\.(args|context)|fetch\s*\(|readFile\s*\(|clock\s*\(|network\s*\(/.test(example.call ?? "")
+    const ambient = /execution(?:\.|#)|fetch\s*\(|readFile\s*\(|clock\s*\(|network\s*\(/.test(example.call ?? "")
     if (ambient && !input.fixture) diagnostics.push({ code: "W-DOC-0005", reason: "ambient effect" })
   }
   return { examples, diagnostics, hermetic: examples.length > 0 && diagnostics.length === 0, releasePayload: false }
@@ -1352,7 +1359,7 @@ export function deriveExecutionErgonomics(source, input = {}) {
     labels: { ...labels, generic },
     suspension,
     placement: derivePlacement(clean, input, suspension),
-    process: deriveProcess(clean, input),
+    execution: deriveExecution(clean, input),
     doctest: deriveDoctest(source, input),
     dynamicSerial: deriveDynamicSerial(input.dynamicSerial),
     std: deriveStd(input.std),
@@ -1371,7 +1378,7 @@ export function summarizeDiagnostics(result) {
     .concat(result.labels.generic.diagnostics)
     .concat(result.suspension.diagnostics)
     .concat(result.placement.diagnostics)
-    .concat(result.process.diagnostics)
+    .concat(result.execution.diagnostics)
     .concat(result.doctest.diagnostics)
     .concat(result.std.hasTierField ? [{ code: "W-STD-0001" }] : [])
     .map((diagnostic) => diagnostic.code)

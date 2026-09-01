@@ -64,7 +64,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   results.push({ id: item.id, kind: item.kind, decisions: item.decisions, result })
 }
 
-for (const decision of ["W-1296", "W-1297", "W-1298", "W-1299", "W-1300", "W-1301", "W-1311"]) {
+for (const decision of ["W-1296", "W-1297", "W-1298", "W-1299", "W-1300", "W-1301", "W-1311", "W-1513"]) {
   if (!decisions.has(decision)) errors.push(`missing decision ${decision}`)
 }
 

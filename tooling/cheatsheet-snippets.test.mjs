@@ -32,7 +32,7 @@ describe("cheatsheet snippet checker", () => {
   test("accepts the current extraction and inventory", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
-    expect(result.counts.w).toBe(20)
+    expect(result.counts.w).toBe(22)
     expect(result.counts.source).toBe(30)
     expect(result.counts.composed).toBe(4)
     expect(result.counts.contrafactual).toBe(1)

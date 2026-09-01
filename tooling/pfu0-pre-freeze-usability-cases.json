@@ -577,7 +577,7 @@
       "source": {
         "path": "reference/last-light/execution.w",
         "symbol": "completionCount: u64 { get }",
-        "digest": "sha256:f4a131a67e415c3f3bc8e24b92e309a9ab4aff565391bd80e4feff3634906e0b",
+        "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d",
         "claim": "Current property accessors expose a property-safe getter."
       },
       "observations": {
@@ -620,9 +620,9 @@
         "W-1453"
       ],
       "source": {
-        "path": "reference/last-light/billing.w",
+        "path": "reference/last-light/orbit.w",
         "symbol": "mut set(newValue)",
-        "digest": "sha256:e7eb825ab12b662922b58ebb6aced9e35648fe188b54684a1a9c8aed09b58310",
+        "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
         "claim": "Current setter lifecycle is a comparison control for local hooks."
       },
       "observations": {
@@ -670,9 +670,9 @@
         "W-1453"
       ],
       "source": {
-        "path": "reference/last-light/billing.w",
+        "path": "reference/last-light/orbit.w",
         "symbol": "mut set(newValue)",
-        "digest": "sha256:e7eb825ab12b662922b58ebb6aced9e35648fe188b54684a1a9c8aed09b58310",
+        "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
         "claim": "Current setter is the control against hidden observer state."
       },
       "observations": {

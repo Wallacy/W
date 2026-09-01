@@ -69,10 +69,10 @@ extension PriceTable: PricingPolicy {
 
 export fn loadPriceTable(): PriceTable {
   return PriceTable(prices: [
-    .nebulaBroth: Money(minorUnits: 1_200, currency: .cr),
-    .photonSouffle: Money(minorUnits: 1_900, currency: .cr),
-    .quietSalad: Money(minorUnits: 900, currency: .cr),
-    .horizonCake: Money(minorUnits: 4_242, currency: .cr),
+    .nebulaBroth: Money(minorUnits: 1_200, currency: .ww),
+    .photonSouffle: Money(minorUnits: 1_900, currency: .ww),
+    .quietSalad: Money(minorUnits: 900, currency: .ww),
+    .horizonCake: Money(minorUnits: 4_242, currency: .ww),
   ])
 }
 
@@ -158,10 +158,10 @@ test "pricing keeps currency and integer minor units" for quote {
   let policy: any PricingPolicy = table
   let value = try quote(policy, course: .horizonCake)
 
-  expect value.currency == Currency.cr
+  expect value.currency == Currency.ww
   expect value.minorUnits == 4_242
   expect Money.zeroCredits.minorUnits == 0
-  expect Money(majorUnits: 42, currency: .cr).minorUnits == 4_200
+  expect Money(majorUnits: 42, currency: .ww).minorUnits == 4_200
   expect menu.count == 4
   expect menu.last?.label == "Horizon cake"
 }

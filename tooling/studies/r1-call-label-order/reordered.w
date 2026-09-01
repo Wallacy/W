@@ -15,11 +15,11 @@ struct Money {
 }
 
 fn price(): Money {
-  return Money(currency: .cr, majorUnits: 42)
+  return Money(currency: .ww, majorUnits: 42)
 }
 
 test "reordered labels keep the Money outcome" for price {
   let value = price()
   expect value.minorUnits == 4_200
-  expect value.currency == .cr
+  expect value.currency == .ww
 }
