@@ -5,7 +5,7 @@
   "status": "complete-design-study",
   "surfaceStatus": "superseded-by-W-1511",
   "currentSurface": "pipeline<tasks: ...> with TaskOrdering; TaskSettlement remains normal-dot data",
-  "title": "Closed finite TaskGroup map and collect families",
+  "title": "Pipeline task map and collect evidence",
   "question": "Can W bound dynamic structured work while preserving input identity, fail-fast arbitration, drain, and the distinction between logical concurrency and physical capacity?",
   "data": "cases.json",
   "oracle": "oracle.mjs",
@@ -39,5 +39,5 @@
       "scope": "physical parallelism limit is distinct from the number of concurrently live coroutines"
     }
   ],
-  "stopCondition": "Stop when call labels, positive bound, domains, staging, per-item ownership, result preflight, map arbitration, collect identity, parent cancellation, faults, drain, and logical-versus-physical capacity are explicit without adding a general TaskGroup builder."
+  "stopCondition": "Stop when call labels, positive bound, domains, staging, per-item ownership, result preflight, map arbitration, collect identity, parent cancellation, faults, drain, and logical-versus-physical capacity are explicit without adding a separate unbounded task-group builder API."
 }

@@ -71,14 +71,14 @@ const policySignatures = [
 
 const rejected = ["custom/user operators", "unary +", "++", "--", "postfix force unwrap", "&&=", "||=", "??=", "@="];
 const lexicalOperators = [
-  ">..<", "...", "..<", ">..", "**=", "<<=", ">>=", "?.", "??", "=>", "==", "!=", "<=", ">=", "&&", "||",
+  ">..<", "...", "..<", ">..", "**=", "<<=", ">>=", "|>", "?.", "??", "=>", "==", "!=", "<=", ">=", "&&", "||",
   "+=", "-=", "*=", "/=", "%=", "&=", "^=", "|=", "**", "<<", ">>",
 ];
 const binaryInventory = [
   "@", "*", "/", "%", "+", "-", "<<", ">>", "<", "<=", ">", ">=", "is", "in", "==", "!=", "&", "^", "|", "&&", "||",
 ];
 const parserInventory = [
-  ...assignment, "??", "||", "&&", "|", "^", "&", "==", "!=", "<", "<=", ">", ">=", "...", "..<", ">..", ">..<", "<<", ">>", "+", "-", "*", "/", "%", "@", "**",
+  ...assignment, "|>", "??", "||", "&&", "|", "^", "&", "==", "!=", "<", "<=", ">", ">=", "...", "..<", ">..", ">..<", "<<", ">>", "+", "-", "*", "/", "%", "@", "**",
 ];
 
 function read(file) {
@@ -455,11 +455,8 @@ function check() {
   grammarValues.set("=", -1);
   grammarValues.set("|>", 0);
   const parserValues = new Map([...parserTable.entries()].map(([form, entry]) => [form, entry.precedence]));
-  // The seed parser does not lower pipe expressions yet; this slot checks the
-  // documented order without pretending that seed parsing is implemented.
-  parserValues.set("|>", 1.5);
-  parserValues.set("is", 9);
-  parserValues.set("in", 9);
+  parserValues.set("is", 10);
+  parserValues.set("in", 10);
   assertRelativePrecedence(errors, grammarValues, "grammar");
   assertRelativePrecedence(errors, parserValues, "seed parser");
   assertAssociativity(errors, grammar, parserTable);

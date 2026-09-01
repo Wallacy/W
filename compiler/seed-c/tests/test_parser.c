@@ -1136,172 +1136,123 @@ static bool test_async_function_shapes(void) {
   return true;
 }
 
-static bool test_transaction_shapes(void) {
-  static const char transaction_text[] =
-      "async fn settle(table:TableId,guest:GuestId):Receipt throws LedgerError{"
-      "return try await transaction tx=tableLedger{"
-      "let reservation=try await tx.reserve(tableId:table,guestId:guest)"
-      "let receipt=try await tx.confirm(reservation:take reservation)"
-      "commit receipt}}\n";
-  fixture value;
-  CHECK(fixture_init(&value, transaction_text,
-                     sizeof(value.nodes) / sizeof(value.nodes[0]),
-                     sizeof(value.issues) / sizeof(value.issues[0])));
-  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
-  CHECK(value.result.issue_count == 0);
-  CHECK(check_leaf_partition(&value));
-  CHECK(check_tree_links(&value));
-  CHECK(count_kind(&value, W_SEED_CST_TRANSACTION_EXPRESSION) == 1);
-  CHECK(count_kind(&value, W_SEED_CST_COMMIT_STATEMENT) == 1);
-  const w_seed_cst_index transaction =
-      first_kind(&value, W_SEED_CST_TRANSACTION_EXPRESSION);
-  CHECK(transaction != W_SEED_CST_NONE);
-  CHECK(has_direct_text(&value, transaction, W_SEED_CST_WORD, "transaction"));
-  CHECK(has_direct_text(&value, transaction, W_SEED_CST_WORD, "tx"));
-  const w_seed_cst_index transaction_block =
-      direct_child_after(&value, transaction, W_SEED_CST_BLOCK, 0);
-  CHECK(transaction_block != W_SEED_CST_NONE);
-  const w_seed_cst_index commit =
-      direct_child_after(&value, transaction_block,
-                         W_SEED_CST_COMMIT_STATEMENT, 0);
-  CHECK(commit != W_SEED_CST_NONE);
-  CHECK(node_span_text(&value, commit, "commit receipt"));
-  const w_seed_cst_index commit_expression =
-      direct_child_after(&value, commit, W_SEED_CST_EXPRESSION, 0);
-  CHECK(commit_expression != W_SEED_CST_NONE);
-  CHECK(node_span_text(&value, commit_expression, "receipt"));
-  const w_seed_cst_index return_statement =
-      first_kind(&value, W_SEED_CST_RETURN_STATEMENT);
-  CHECK(return_statement != W_SEED_CST_NONE);
-  const w_seed_cst_index return_expression =
-      direct_child_after(&value, return_statement, W_SEED_CST_EXPRESSION, 0);
-  CHECK(return_expression != W_SEED_CST_NONE);
-  CHECK(has_direct_text(&value, return_expression, W_SEED_CST_WORD, "try"));
-  CHECK(has_direct_text(&value, return_expression, W_SEED_CST_WORD, "await"));
-
-  fixture repeat;
-  CHECK(fixture_init(&repeat, transaction_text,
-                     sizeof(repeat.nodes) / sizeof(repeat.nodes[0]),
-                     sizeof(repeat.issues) / sizeof(repeat.issues[0])));
-  CHECK(repeat.result.status == W_SEED_PARSE_COMPLETE);
-  CHECK(repeat.result.node_count == value.result.node_count);
-  CHECK(repeat.result.leaf_count == value.result.leaf_count);
-  CHECK(memcmp(repeat.nodes, value.nodes,
-               value.result.node_count * sizeof(value.nodes[0])) == 0);
-
-  static const struct {
-    const char *text;
-    size_t transaction_count;
-    size_t commit_count;
-  } semantic_forms[] = {
-      {"fn f(){commit value}\n", 0, 1},
-      {"fn f(){commit}\n", 0, 1},
-      {"fn f(){return transaction outer=provider{"
-       "commit transaction inner=provider{commit value}}}\n",
-       2,
-       2},
+static bool test_pipeline_shapes(void) {
+  static const char *const positive[] = {
+      "fn f(){return pipeline{commit value}}\n",
+      "fn f(){return pipeline source.first().second()}\n",
+      "fn f(){return pipeline<tasks:.parallel<.compute>,limit:16,ordering:.input,errors:.collect> each item in source{commit item}}\n",
+      "fn f(){return pipeline<transaction:{isolation:.serializable,access:.readWrite}> tx=provider{commit tx}}\n",
   };
-  for (size_t index = 0;
-       index < sizeof(semantic_forms) / sizeof(semantic_forms[0]); index += 1) {
-    fixture semantic;
-    CHECK(fixture_init(&semantic, semantic_forms[index].text,
-                       sizeof(semantic.nodes) / sizeof(semantic.nodes[0]),
-                       sizeof(semantic.issues) / sizeof(semantic.issues[0])));
-    CHECK(semantic.result.status == W_SEED_PARSE_COMPLETE);
-    CHECK(semantic.result.issue_count == 0);
-    CHECK(check_leaf_partition(&semantic));
-    CHECK(check_tree_links(&semantic));
-    CHECK(count_kind(&semantic, W_SEED_CST_TRANSACTION_EXPRESSION) ==
-          semantic_forms[index].transaction_count);
-    CHECK(count_kind(&semantic, W_SEED_CST_COMMIT_STATEMENT) ==
-          semantic_forms[index].commit_count);
-    const w_seed_cst_index semantic_commit =
-        first_kind(&semantic, W_SEED_CST_COMMIT_STATEMENT);
-    CHECK(semantic_commit != W_SEED_CST_NONE);
-    if (index == 1) {
-      CHECK(direct_child_after(&semantic, semantic_commit,
-                               W_SEED_CST_EXPRESSION, 0) == W_SEED_CST_NONE);
+  for (size_t index = 0; index < sizeof(positive) / sizeof(positive[0]);
+       index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, positive[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+    CHECK(count_kind(&value, W_SEED_CST_PIPELINE_EXPRESSION) == 1);
+    CHECK(count_kind(&value, W_SEED_CST_COMMIT_STATEMENT) ==
+          (index == 1 ? 0u : 1u));
+    const w_seed_cst_index pipeline =
+        first_kind(&value, W_SEED_CST_PIPELINE_EXPRESSION);
+    CHECK(pipeline != W_SEED_CST_NONE);
+    CHECK((index == 1) ||
+          direct_child_after(&value, pipeline, W_SEED_CST_BLOCK, 0) !=
+              W_SEED_CST_NONE);
+    if (index == 3) {
+      const w_seed_cst_index contract =
+          direct_child_after(&value, pipeline, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+      CHECK(contract != W_SEED_CST_NONE);
+      CHECK(has_direct_text(&value, contract, W_SEED_CST_WORD, "transaction"));
+      CHECK(has_direct_text(&value, pipeline, W_SEED_CST_WORD, "tx"));
     }
     if (index == 2) {
-      const w_seed_cst_index outer =
-          first_kind(&semantic, W_SEED_CST_TRANSACTION_EXPRESSION);
-      const w_seed_cst_index outer_block =
-          direct_child_after(&semantic, outer, W_SEED_CST_BLOCK, 0);
-      CHECK(outer_block != W_SEED_CST_NONE);
-      const w_seed_cst_index outer_commit =
-          direct_child_after(&semantic, outer_block,
-                             W_SEED_CST_COMMIT_STATEMENT, 0);
-      CHECK(outer_commit != W_SEED_CST_NONE);
-      const w_seed_cst_index outer_expression =
-          direct_child_after(&semantic, outer_commit, W_SEED_CST_EXPRESSION, 0);
-      CHECK(outer_expression != W_SEED_CST_NONE);
-      const w_seed_cst_index inner =
-          direct_child_after(&semantic, outer_expression,
-                             W_SEED_CST_TRANSACTION_EXPRESSION, 0);
-      CHECK(inner != W_SEED_CST_NONE);
-      const w_seed_cst_index inner_block =
-          direct_child_after(&semantic, inner, W_SEED_CST_BLOCK, 0);
-      CHECK(inner_block != W_SEED_CST_NONE);
-      CHECK(direct_child_after(&semantic, inner_block,
-                               W_SEED_CST_COMMIT_STATEMENT, 0) !=
-            W_SEED_CST_NONE);
+      const w_seed_cst_index contract =
+          direct_child_after(&value, pipeline, W_SEED_CST_CONTRACT_ENVELOPE, 0);
+      CHECK(contract != W_SEED_CST_NONE);
+      CHECK(node_span_text(
+          &value, contract,
+          "<tasks:.parallel<.compute>,limit:16,ordering:.input,errors:.collect>"));
+      CHECK(has_direct_text(&value, pipeline, W_SEED_CST_WORD, "each"));
+      CHECK(has_direct_text(&value, pipeline, W_SEED_CST_WORD, "item"));
+      const w_seed_cst_index source =
+          direct_child_after(&value, pipeline, W_SEED_CST_EXPRESSION, 0);
+      CHECK(source != W_SEED_CST_NONE);
+      CHECK(node_span_text(&value, source, "source"));
+      const w_seed_cst_index block =
+          direct_child_after(&value, pipeline, W_SEED_CST_BLOCK, 0);
+      CHECK(block != W_SEED_CST_NONE);
+      const w_seed_cst_index commit =
+          direct_child_after(&value, block, W_SEED_CST_COMMIT_STATEMENT, 0);
+      CHECK(commit != W_SEED_CST_NONE);
+      CHECK(node_span_text(&value, commit, "commit item"));
     }
-    fixture semantic_repeat;
-    CHECK(fixture_init(&semantic_repeat, semantic_forms[index].text,
-                       sizeof(semantic_repeat.nodes) /
-                           sizeof(semantic_repeat.nodes[0]),
-                       sizeof(semantic_repeat.issues) /
-                           sizeof(semantic_repeat.issues[0])));
-    CHECK(semantic_repeat.result.status == W_SEED_PARSE_COMPLETE);
-    CHECK(semantic_repeat.result.issue_count == 0);
-    CHECK(semantic_repeat.result.node_count == semantic.result.node_count);
-    CHECK(semantic_repeat.result.leaf_count == semantic.result.leaf_count);
-    CHECK(memcmp(semantic_repeat.nodes, semantic.nodes,
-                 semantic.result.node_count * sizeof(semantic.nodes[0])) == 0);
+    if (index == 1) {
+      CHECK(count_direct_kind(&value, pipeline, W_SEED_CST_PUNCTUATION) >= 6);
+    }
   }
 
-  static const struct {
-    const char *text;
-    w_seed_parse_status status;
-    w_seed_parse_issue_kind issue;
-  } recovered[] = {
-      {"fn f(){return transaction = provider{commit value}}\n",
-       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
-      {"fn f(){return transaction tx provider{commit value}}\n",
-       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
-      {"fn f(){return transaction tx= {commit value}}\n",
-       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN},
-      {"fn f(){return transaction tx=provider}\n",
-       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
-      {"fn f(){return transaction tx=provider{commit value\n",
-       W_SEED_PARSE_RECOVERED, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE},
-      {"fn f(){commit value else}\n", W_SEED_PARSE_RECOVERED,
-       W_SEED_PARSE_ISSUE_NO_CONTINUATION_OWNER},
+  fixture bare;
+  CHECK(fixture_init(&bare, "fn f(){return transaction}\n",
+                     sizeof(bare.nodes) / sizeof(bare.nodes[0]),
+                     sizeof(bare.issues) / sizeof(bare.issues[0])));
+  CHECK(bare.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(bare.result.issue_count == 0);
+  CHECK(count_kind(&bare, W_SEED_CST_PIPELINE_EXPRESSION) == 0);
+  CHECK(check_leaf_partition(&bare));
+  CHECK(check_tree_links(&bare));
+
+  fixture legacy;
+  CHECK(fixture_init(&legacy,
+                     "fn f(){return transaction tx=provider{commit value}}\n",
+                     sizeof(legacy.nodes) / sizeof(legacy.nodes[0]),
+                     sizeof(legacy.issues) / sizeof(legacy.issues[0])));
+  CHECK(legacy.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(legacy.result.issue_count >= 1);
+  CHECK(count_kind(&legacy, W_SEED_CST_PIPELINE_EXPRESSION) == 0);
+  CHECK(check_leaf_partition(&legacy));
+  CHECK(check_tree_links(&legacy));
+
+  static const char *const recovered[] = {
+      "fn f(){return pipeline source.first()}\n",
+      "fn f(){return value#}\n",
+      "fn f(){return value#facet.}\n",
+      "fn f(){return pipeline<transaction:{isolation:.serializable,access:.readWrite> tx=provider{commit tx}}\n",
   };
   for (size_t index = 0; index < sizeof(recovered) / sizeof(recovered[0]);
        index += 1) {
-    fixture malformed;
-    CHECK(fixture_init(&malformed, recovered[index].text,
-                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
-                       sizeof(malformed.issues) / sizeof(malformed.issues[0])));
-    CHECK(malformed.result.status == recovered[index].status);
-    CHECK(malformed.result.issue_count >= 1);
-    CHECK(malformed.issues[0].kind == recovered[index].issue);
-    CHECK(check_leaf_partition(&malformed));
-    CHECK(check_tree_links(&malformed));
+    fixture value;
+    CHECK(fixture_init(&value, recovered[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_RECOVERED);
+    CHECK(value.result.issue_count >= 1);
+    CHECK(count_kind(&value, W_SEED_CST_PIPELINE_EXPRESSION) <= 1);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
   }
 
-  fixture contract;
-  CHECK(fixture_init(&contract,
-                     "fn f(){return transaction<.serializable> tx=provider{"
-                     "commit value}}\n",
-                     sizeof(contract.nodes) / sizeof(contract.nodes[0]),
-                     sizeof(contract.issues) / sizeof(contract.issues[0])));
-  CHECK(contract.result.status == W_SEED_PARSE_FATAL);
-  CHECK(contract.result.issue_count == 1);
-  CHECK(contract.issues[0].kind == W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
-  CHECK(check_leaf_partition(&contract));
-  CHECK(check_tree_links(&contract));
+  fixture facet;
+  CHECK(fixture_init(&facet, "fn f(){return value#core.version}\n",
+                     sizeof(facet.nodes) / sizeof(facet.nodes[0]),
+                     sizeof(facet.issues) / sizeof(facet.issues[0])));
+  CHECK(facet.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(facet.result.issue_count == 0);
+  CHECK(check_leaf_partition(&facet));
+  CHECK(check_tree_links(&facet));
+
+  fixture raw;
+  CHECK(fixture_init(&raw, "fn f(){return #\"raw # path\"#}\n",
+                     sizeof(raw.nodes) / sizeof(raw.nodes[0]),
+                     sizeof(raw.issues) / sizeof(raw.issues[0])));
+  CHECK(raw.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(raw.result.issue_count == 0);
+  CHECK(count_kind(&raw, W_SEED_CST_PIPELINE_EXPRESSION) == 0);
+  CHECK(check_leaf_partition(&raw));
+  CHECK(check_tree_links(&raw));
   return true;
 }
 
@@ -2954,9 +2905,19 @@ static bool test_phase3_callable_closure_capture(void) {
   CHECK(memcmp(malformed_callable.nodes, malformed_callable_repeat.nodes,
                malformed_callable.result.node_count *
                    sizeof(malformed_callable.nodes[0])) == 0);
-  CHECK(memcmp(malformed_callable.issues, malformed_callable_repeat.issues,
-               malformed_callable.result.issue_count *
-                   sizeof(malformed_callable.issues[0])) == 0);
+  for (size_t issue_index = 0;
+       issue_index < malformed_callable.result.issue_count; issue_index += 1) {
+    const w_seed_parse_issue *left = &malformed_callable.issues[issue_index];
+    const w_seed_parse_issue *right =
+        &malformed_callable_repeat.issues[issue_index];
+    CHECK(left->kind == right->kind &&
+          left->primary.start_byte == right->primary.start_byte &&
+          left->primary.end_byte == right->primary.end_byte &&
+          left->owner.start_byte == right->owner.start_byte &&
+          left->owner.end_byte == right->owner.end_byte &&
+          left->actual_kind == right->actual_kind &&
+          left->expected_mask == right->expected_mask);
+  }
 
   static const struct {
     const char *text;
@@ -3255,7 +3216,7 @@ int main(void) {
       test_phase2_import_binding_test_forms() &&
       test_borrow_clause_shapes() &&
       test_async_function_shapes() &&
-      test_transaction_shapes() &&
+      test_pipeline_shapes() &&
       test_language_lock_shapes() &&
       test_phase2_parameter_and_argument_shapes() &&
       test_phase2_parameter_requirements() &&

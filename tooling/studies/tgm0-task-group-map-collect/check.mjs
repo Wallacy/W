@@ -14,4 +14,4 @@ const accepted = checked.results.filter((item) => item.status === "accepted");
 const rejected = checked.results.filter((item) => item.status === "rejected");
 if (accepted.length !== 9 || rejected.length !== 17) errors.push("TGM0 route counts drifted");
 if (errors.length) { console.error(errors.join("\n")); process.exitCode = 1; }
-else console.log("TGM0 TaskGroup: 9 current routes accepted, 17 implicit or unsafe routes rejected.");
+else console.log("TGM0 pipeline task evidence: 9 current routes accepted, 17 implicit or unsafe routes rejected.");

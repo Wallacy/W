@@ -550,7 +550,7 @@ static bool punctuation_byte(uint8_t byte) {
 static bool scan_punctuation(w_seed_lexer *lexer, w_seed_lex_item *item) {
   static const char *const operators[] = {
       ">..<", "...", "..<", ">..", "**=", "<<=", ">>=", "?.", "??",
-      "=>",   "==",  "!=",  "<=",  ">=",  "&&",  "||",  "+=", "-=",
+      "=>",   "==",  "!=",  "<=",  ">=",  "&&",  "||",  "|>", "+=", "-=",
       "*=",   "/=",  "%=",  "&=",  "^=",  "|=",  "**",  "<<", ">>",
   };
   const size_t start = lexer->cursor;

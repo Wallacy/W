@@ -7697,9 +7697,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1506 | primeira rota nativa MLIR0 seed-only para LLVM | `w_seed_mlir0` consome somente plano HLO0 verificado e acrescenta a rota source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → native link, sem passar por C source. O schema é `w-seed-mlir0-1`; measure/emit são caller-owned, bounded, determinísticos, sem heap e all-or-nothing, com status, required, written e digest. O limite é 4096 bytes, comprovado em compile time pela soma de cada literal fixo, quatro campos decimais bounded e três bytes para cada um dos no máximo 257 bytes de payload+LF escapados. O único target emitido é `x86_64-unknown-linux-gnu`, fixado no `llvm.target_triple`; outros targets são `UNSUPPORTED`. A linha tem somente evidence no catálogo W-1507 e não é target supported. O texto usa somente builtin e LLVM dialect, LF, nenhum NUL terminal implícito, global privado de tamanho exato, payload+LF em `\XX`, uma call POSIX `write` com fd 1, comparação do retorno e `main` físico. HLO1 C23 continua bootstrap/auditoria/recovery e MLIR0 é primário somente para este subset. O gate real verifica MLIR, traduz LLVM IR, compila com clang `-x ir --target=...`, executa Hello, Restaurante e vazio com stdout byte a byte, stderr vazio e exit zero; trivia é idêntica e formas adversariais não emitem artifact. `hostEvidence` é `wsl-linux` e `windowsNative` é false: a prova é Linux x86_64 em WSL, não Windows nativo. A matriz de compiler hosts é separada da matriz de emitted targets; Linux, Windows e macOS são hosts futuros, Windows nativo requer bundle MLIR/LLVM próprio pinado/assinado/reproduzível e macOS requer equivalente por arquitetura. A meta futura de targets não herda claims/tier do Rust; promoção exige backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging e CI evidence. W dialect, lowering HIR geral, targets adicionais, provider ABI, linker/runtime, distribuição/packaging MLIR, `w run` e performance permanecem gaps/tasks. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only, sem timing/result | Fontes primárias: [MLIR C API](https://mlir.llvm.org/docs/CAPI/), [LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/), [LLVM IR target](https://mlir.llvm.org/docs/TargetLLVMIR/) e [LLVM target triple](https://llvm.org/docs/LangRef.html#target-triple); evidência local em `compiler/seed-c/include/w_seed_mlir0.h`, `compiler/seed-c/src/w_seed_mlir0.c`, `compiler/seed-c/tests/test_mlir0.c`, `compiler/seed-c/tests/hlo1_gate.c`, `tooling/mlir0-toolchain.json` e `tooling/check-mlir0.mjs`. Categoria `source-backed-current` somente para a ponte bounded; C API, custom W dialect, matriz/hosts/packaging e backend geral não são implementados |
 | W-1507 | catálogo operacional de compiler hosts, emitted targets e cross-compilation | `tooling/platform-support.json` é a fonte operacional única para targets emitted, compiler hosts, cross-compilation, evidence, policy e planos native, com `PLATFORM-SUPPORT.md` como projeção determinística. Targets usam `candidate`, `evidence`, `supported`, `deprecated` e `removed`; candidate/evidence têm verification nulo, supported exige exatamente `experimental`, `level-3`, `level-2`, `level-1` ou `long-term`, e cada row exige os seis eixos `backend`, `runtime`, `hostAdapter`, `sdkProfile`, `linkerSysrootPackaging` e `ciEvidence`. Supported exige todos os eixos `pass` com evidence não vazia; blockers são exatamente os eixos não-pass. Hoje há zero targets supported: `x86_64-unknown-linux-gnu` só tem evidence `w-seed-mlir0-1-print-literal`, backend pass e cinco eixos partial, sem claim geral de target, SDK, packaging ou CI; há exatamente 15 candidates. Hosts são distintos: outer Windows `x86_64-pc-windows-msvc` usa tools Linux `x86_64-unknown-linux-gnu` via WSL2, `nativeForOuterHost: false`, evidence dev-only, `nativeToolchain: partial` e esse eixo em `blockers`; os candidates native cobrem Linux, Windows e macOS em x86_64/AArch64. Cross-compilation é a terceira dimensão: os hosts/targets primários nativos são `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e `aarch64-apple-darwin`, com matriz completa 3×3 de 9 edges host→target, incluindo self edges; hoje 0/9 são supported e todas são candidate. Cada edge tem id determinístico, refs, state, evidence e blockers; supported exige endpoints supported, toolchain/sysroot/linker/packaging pass e evidence separada de build e execução. A edge WSL é development, `nativeHost: false`, publica roles development/toolchain/build/execution com execução local, tem blockers nativeHost/endpoints/toolchainSysrootLinkerPackaging sem `buildExecution`, fica fora dos 9 e não satisfaz Windows→Linux nativo. Linux↔Windows requer SDK/sysroot/object/linker explícitos; Apple exige SDK, licença e provenance, sem pressupor redistribuição; remote execution é distinto de build; este bundle não implementa cross toolchains. MLIR0 `20.1.2` permanece versão factual da evidence/gate atual com `currencyStatus: update-required`, não versão futura. Planos native Linux/Windows/macOS são planned com source exact `llvmorg-23.1.0`, tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; a evidence Linux atual em WSL não satisfaz o plano successor. O blocker real é `native-build-acquisition-provenance` para build ou aquisição, outputs, SHA256, SBOM, provenance, signing, CI e smoke, e o pin não promove suporte nativo. Rejeitam pin histórico, `latest` e `nightly`, e declaram artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. `externalToolchainCandidates` é evaluation-only e não promove claim W, host ou edge. A política fixa `referenceBreadth.goal: at-least-rust-breadth`, fontes oficiais, observed date `2026-08-31` e `importsRustTiers: false`; a meta não herda claims ou tiers do Rust. O checker rejeita matriz incompleta/duplicada/only-self, refs indefinidos, WSL nativo, composite não-nativo com nativeToolchain pass, host/target conflated, gates/blockers divergentes, states/levels desconhecidos, claims em candidates, versões futuras flutuantes e manifest MLIR0 divergente. `benchmarkDisposition` é `not-applicable`: o bundle é metadata, projection e policy gate sem runtime/performance | Fontes primárias: [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html); evidence local em `tooling/platform-support.json`, `tooling/platform-support.mjs`, `PLATFORM-SUPPORT.md`, `tooling/platform-support.test.mjs` e `tooling/mlir0-toolchain.json`. Categoria `source-backed-current` somente para matriz, checker e projeção; não é implementação de backend, runtime, SDK, packaging ou CI |
 | W-1508 | catálogo operacional de dependency currency | `tooling/dependency-currency.json` é a fonte máquina única para currency operacional e `DEPENDENCIES.md` é a projeção humana determinística. Managed ativos usam latest stable exata sem selectors floating; compatibility floors e recipes permanecem separados e não sobem por currency; evidence histórica é preservada, Unicode `17.0.0` permanece intacto e observações de ambiente não alegam pin exato. MLIR `20.1.2` continua evidence histórica, enquanto `23.1.0` é successor selected/not promoted com tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; planos native usam esse pin exato e permanecem bloqueados por `native-build-acquisition-provenance`. O checker cruza package, lock, workflow, README e platform reais, valida URLs/SHAs/tags coerentes e mutações adversariais, e `source-backed-current` fica limitado ao catálogo, checker e projeção | `source-backed-current` somente para metadata operacional, com checker e projection reais; não promove semântica W, suporte de host/target, CMake/Ninja ou toolchain native |
-| W-1509 | facets ligadas a property places | `#` projeta somente facets declaradas em behavior ou core namespace; `export fn`/`export mut fn` e computed facets são property-safe, imediatas e não reificáveis; Task controls usam `#`, incluindo `Task#withDeadline` e `Task#spawn` para um `ExecutionDomainRef` dinâmico; `spawn<domain>` continua initializer estático, e data/resource APIs mantêm `.` | `source-backed-current` para contrato/documentação/corpus/projeções; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: compiler/lowering/runtime/provider e workload property-safe ainda não fechados; nenhum timing ou resultado foi coletado |
-| W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; RHS é call template livre com lista de argumentos e lhs posicional único; modifiers/ownership são explícitos e não há UFCS, placeholder, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletada |
-| W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
+| W-1509 | facets ligadas a property places | `#` projeta somente facets declaradas em behavior ou core namespace; `export fn`/`export mut fn` e computed facets são property-safe, imediatas e não reificáveis; Task controls usam `#`, incluindo `Task#withDeadline` e `Task#spawn` para um `ExecutionDomainRef` dinâmico; `spawn<domain>` continua initializer estático, e data/resource APIs mantêm `.` | `source-backed-current` para contrato/documentação/corpus/projeções e o witness bounded do seed parser; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: compiler/lowering/runtime/provider e workload property-safe ainda não fechados; nenhum timing ou resultado foi coletado |
+| W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; RHS é call template livre com lista de argumentos e lhs posicional único; modifiers/ownership são explícitos e não há UFCS, placeholder, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting e os witnesses bounded de lexer/parser; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletado |
+| W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates, incluindo parser/formatter bounded e frontend unsupported; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
 | W-1512 | composição nominal e observers property-safe | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage, observers têm hooks/facets e ordem lexical/inversa, paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
@@ -9085,6 +9085,11 @@ a ligação. Reificação (`let f = place#reset`, `place#` e dynamic lookup) é
 rejeitada. `TypeInfo` e membros normais não ganham backing/facets; `w explain
 property` é a superfície de observação de behavior, effects e custo.
 
+O witness bounded do seed parser preserva `place#identifier(.identifier)*`,
+inclusive place parenthesized e uma raw string sem colisão lexical; path
+incompleto produz recovery. Isto é evidência de sintaxe e span, não prova de
+facet immediate-use, resolução, lowering ou execução.
+
 O witness composto `VersionedDegrees` foi escolhido porque cada facet tem
 benefício observável: `yaw#version.mutationEpoch` mede uma mutation admission,
 `yaw#version.resetMutationEpoch()` restaura o metadata do observer e
@@ -9102,10 +9107,12 @@ para `ExecutionDomainRef` dinâmico) usam `#`; o initializer estático
 cancel facet. Resource/library APIs permanecem métodos normais. O resultado é
 `source-backed-current` para o contrato documental, grammar, corpus, exemplos e
 diagnostics; compiler, lowering, runtime e provider continuam gaps. O
-`benchmarkDisposition` deste plano é `required`, com status `blocked/deferred`.
+`benchmarkDisposition` da feature é `required`, com status `blocked/deferred`.
 Os blockers são compiler/lowering/runtime/provider e uma matriz property-safe
 que exercite lookup por place, mutation e custo. Nenhum timing ou resultado foi
-coletado.
+coletado. O bundle bounded de migração do seed parser/formatter tem
+`benchmarkDisposition: compiler-lifecycle` como classificação de execução do
+compilador; isso não substitui o benchmark `required` desta feature.
 
 #### W-1510 — pipe-forward explícito
 
@@ -9118,14 +9125,22 @@ Result não são mapeados implicitamente. A precedência abaixo de `??`/logical 
 e acima de assignment, com associatividade à esquerda, fecha a interpretação
 sem criar promise, allocation, graph ou concorrência.
 
+O lexer/parser C bounded emite `|>` como um token e cobre precedência abaixo de
+`??`/OR, associatividade à esquerda, calls com argumentos e casos adversariais
+de recovery. O corpus de formatter mantém pares CST e snapshot D0; nenhuma
+dessas evidências mede execução ou equivalência de fluxo.
+
 A rejeição de UFCS é uma escolha de estabilidade: adicionar um member ou
 extension não pode alterar a resolução de uma cadeia escrita como pipe. O
 formatter e o syntax atlas mostram a quebra antes de `|>`; `:` e `#` conservam
 seus significados de labels e facets. A evidência atual é source-backed para
 grammar/corpus/formatter/highlighting e não afirma execução W. O
-`benchmarkDisposition` deste plano é `required`, com status `deferred`; os
+`benchmarkDisposition` da feature é `required`, com status `deferred`; os
 blockers são checker/compiler, execução de modifiers e uma comparação de fluxo
-equivalente. Nenhuma medição, timing ou resultado foi coletado.
+equivalente. Nenhuma medição, timing ou resultado foi coletado. O bundle
+bounded de migração do seed parser/formatter é `compiler-lifecycle` somente
+como classificação de execução do compilador; o benchmark da feature permanece
+`required`.
 
 #### W-1511 — pipeline unificada
 
@@ -9150,12 +9165,21 @@ commit value }`. A antiga expressão `transaction` é rejeitada antes de 1.0;
 `unknownCommit` continua tipado e não há retry cego. `tasks`+`transaction`,
 nesting e transação distribuída implícita são rejeitados.
 
+O seed parser C bounded publica `PIPELINE` para bloco dependent, cadeia curta,
+tasks e transaction com contract, preserva `commit` estrutural e rejeita a
+forma standalone legada. O formatter F0 usa a forma corrente
+`pipeline<transaction: { ... }> tx = provider { ... commit ... }`; o frontend
+marca a família como unsupported. O parser pode aceitar supergrammar, portanto
+owner, cardinalidade, schemas e nesting continuam responsabilidade do checker.
+
 O bundle é `source-backed-current` para design, grammar, corpus, Last Light,
-std, diagnostics e projeções; parser/formatter gates exercem a superfície, mas
-não constituem compiler/runtime/provider. O `benchmarkDisposition` deste plano
-é `required`, com status `blocked/deferred`: HIR, provider/runtime, round-trip,
+std, diagnostics e projeções; os gates bounded de parser/formatter exercem a superfície, mas
+não constituem compiler/runtime/provider. O `benchmarkDisposition` da feature é
+`required`, com status `blocked/deferred`: HIR, provider/runtime, round-trip,
 contention, fault e cancel/drain continuam blockers e não foram executados.
-Nenhum timing ou resultado foi coletado. W-1511 é a única decisão corrente para
+Nenhum timing ou resultado foi coletado. O bundle bounded de migração do seed
+parser/formatter é `compiler-lifecycle` somente para essa execução do compilador;
+o benchmark da feature permanece `required`. W-1511 é a única decisão corrente para
 pipeline/transaction; W-1504 permanece somente como proveniência histórica.
 
 #### W-1512 — composição nominal e observers property-safe

@@ -85,18 +85,22 @@ repetidos `[expression; expression]`, `for` com marcador opcional
 `ref`/`inout`/`copy`, um binder WORD, `in expression` e bloco, labels para
 `repeat`, `for` ou bloco, `break`/`continue`, argumentos posicionais ou
 `label: expression`, declarações `async fn` e `export async fn`, e os prefixos
-sintáticos `copy`/`take`/`pin`/`inout`/`ref`, a expressão estruturada
-`transaction identifier = expression { ... }` e o statement `commit` com
-expression opcional. O parser Pratt
+sintáticos `copy`/`take`/`pin`/`inout`/`ref`. A expressão estruturada
+`pipeline` aceita bloco dependente, cadeia curta com dois ou mais passos
+`.name(args)`, tasks `pipeline<tasks: ...> each item in expression { ... }` e
+transaction `pipeline<transaction: { ... }> tx = provider { ... }`; `commit`
+permanece um statement estrutural com expression opcional. O parser Pratt
 delimitado também reconhece tuple types e tuple expressions com dois ou mais
 itens, inclusive trailing comma, e o statement
 `spawn<.domain>` ou `let name = spawn<domain: .domain> expression`. O parser
 mantém `()` e `(expression)` como formas unitária e parenthesized. `(T)` e
 `(T,)` não são aceitos como tuple type, e `(expression,)` não é aceito como
-tuple expression. O parser Pratt é usado pelos vinte e sete casos F0
+tuple expression. O parser Pratt é usado pelos vinte e oito casos F0
 selecionados. A tabela de
-reconhecimento inclui atribuições compostas, coalescing, operadores lógicos e
-bitwise, comparações, ranges, shifts, aritmética, `@`, potência e `in`/`is`;
+reconhecimento inclui atribuições compostas, pipe `|>` left-associative abaixo
+de `??`/OR, coalescing, operadores lógicos e bitwise, comparações, ranges,
+shifts, aritmética, `@`, potência e `in`/`is`; postfix `#identifier` e paths
+estáticos qualificados também são preservados, sem afirmar immediate use;
 isso é reconhecimento sintático, não uma declaração de semântica, tipos ou
 validade contextual. O CST é
 flat e caller-owned: cada nó usa `first_child`/`next_sibling`, as folhas raw e
@@ -191,7 +195,7 @@ de expression mantém `>>` como shift. Newline continua trivia. Recovery só cri
 internos têm mapping futuro para D0, mas não são diagnósticos D0. `manifest`,
 members/methods dentro de enum são recuperados como unsupported; declarations
 além de `fn`/`struct`/`enum`/`type`/`alias`/`test`/`entry`, patterns e bare
-closures, semântica de effects/async/lock, contratos de transaction,
+closures, semântica de effects/async/lock, contratos de pipeline,
 AST/HIR,
 name/type resolution e formatter normativo permanecem fora; `foreign` falha fechado antes
 do body. `unsafe fn<C>` e `export unsafe fn<C>` são aceitos somente pela ilha C
@@ -199,10 +203,14 @@ validada abaixo; `unsafe fn` sem tag de linguagem permanece STOP. Imports só
 aparecem antes de qualquer declaration; `export` aceita `fn`, `const fn`,
 `async fn`, `struct`, `enum`, `type` e `alias` nesta fatia. Enum generics são reconhecidos
 sintaticamente, mas continuam unsupported no frontend.
-`transaction` não aceita argumentos de contract nesta fatia. Statements
-`commit` e transactions aninhadas são reconhecidos sintaticamente em qualquer
-block. O parser não valida owner, provider, nesting, commit, rollback, effects
-ou atomicidade. `const fn` e `export const fn` preservam o modifier no CST e
+As quatro formas de `pipeline` são uma supergrammar sintática nesta fatia. O
+parser não valida owner, provider, nesting, commit, rollback, effects, schemas
+ou atomicidade; o frontend publica a família como unsupported e checker,
+lowering e runtime permanecem gaps. `transaction` bare continua um identifier,
+e a forma legada `transaction tx = provider { ... }` não produz
+`pipeline_expression` nem é uma forma corrente completa. Statements `commit`
+podem aparecer em qualquer block, porque owner e cardinalidade pertencem à
+validação semântica futura. `const fn` e `export const fn` preservam o modifier no CST e
 são as únicas formas const desta fatia. `const async fn`, `const unsafe fn`,
 `async const fn`, duplicatas e `const` sem `fn` falham fechado. `static` e
 receiver modifiers permanecem fora; `unsafe` sem uma ilha de linguagem também
@@ -249,7 +257,7 @@ C23 sem heap, path, locale, clock ou environment. A API recebe buffers de
 tokens, grupos e output do caller, mede antes de escrever e rejeita
 CST recuperado/fatal. A renderização usa a estrutura CST e as folhas raw; não
 carrega o oracle JSON nem procura IDs ou digests em runtime. O gate compara os
-28 pares de [`formatter-cases.json`](../../tooling/formatter-cases.json),
+31 pares de [`formatter-cases.json`](../../tooling/formatter-cases.json),
 reparseia o output, verifica a assinatura CST recursiva, idempotência, capacity
 all-or-nothing e preservação byte-a-byte de `FOREIGN_BODY`. A política de
 quebra usa a coluna preferida 120 sobre largura sem trivia e é uma política
@@ -295,12 +303,12 @@ validados com:
 
     bun tooling/check-seed-parser.mjs
 
-O formatter seed compara os 28 outputs canônicos, reparses e prova a
+O formatter seed compara os 31 outputs canônicos, reparses e prova a
 idempotência, assinatura CST, capacidade e foreign body:
 
     bun tooling/check-seed-formatter.mjs
 
-O adapter D0 compara os 28 records `W-FMT-0001` byte-a-byte ao snapshot e
+O adapter D0 compara os 31 records `W-FMT-0001` byte-a-byte ao snapshot e
 valida records lex/parse com JSON.parse e schema/ordem determinísticos:
 
     bun tooling/check-seed-diagnostic.mjs

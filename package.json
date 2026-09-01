@@ -60,6 +60,7 @@
     "check:seed-test-exits": "bun test tooling/check-seed-test-exits.test.mjs && bun tooling/check-seed-test-exits.mjs",
     "check:seed-lexer": "bun tooling/check-seed-lexer.mjs",
     "check:seed-parser": "bun tooling/check-seed-parser.mjs",
+    "check:surface-migration": "bun tooling/check-surface-migration.mjs",
     "check:seed-module-scan": "bun tooling/check-seed-module-scan.mjs",
     "check:seed-ephemeral-graph": "bun tooling/check-seed-ephemeral-graph.mjs",
     "check:seed-ephemeral-provider": "bun tooling/check-seed-ephemeral-provider.mjs",

@@ -413,7 +413,7 @@ static bool is_unsupported_word(w_seed_parser *parser) {
       "protocol", "type",      "alias",     "dimension", "unit",
       "extension", "behavior", "const",
       "static",   "unsafe",    "async",     "mut",      "take",
-      "allocator", "spawn",    "switch",    "for",      "transaction",
+      "allocator", "spawn",    "switch",    "for",
       "foreign",  "captures",  "package",  "workspace",
   };
   for (size_t index = 0; index < sizeof(words) / sizeof(words[0]); index += 1) {
@@ -478,31 +478,202 @@ static bool parse_function_type(w_seed_parser *parser, size_t start);
 static bool parse_closure_expression(w_seed_parser *parser, bool value_context);
 static bool parse_capture_expression(w_seed_parser *parser, bool value_context);
 static bool parse_enum_declaration(w_seed_parser *parser);
+static bool parse_pipeline_contract(w_seed_parser *parser, size_t head_end);
+static bool parse_pipeline_call_step(w_seed_parser *parser);
+static bool parse_pipeline_chain(w_seed_parser *parser);
+static bool parse_primary(w_seed_parser *parser, bool value_context);
+static bool parse_argument(w_seed_parser *parser);
 
-static bool parse_transaction_expression(w_seed_parser *parser) {
-  const size_t start = current_span(parser).start_byte;
-  if (push_node(parser, W_SEED_CST_TRANSACTION_EXPRESSION, start) ==
-      W_SEED_CST_NONE)
-    return false;
-  (void)consume_text(parser, "transaction", NULL);
-  if (current_is_text(parser, "<")) {
-    stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
+static bool parse_pipeline_expression(w_seed_parser *parser,
+                                      bool value_context);
+
+static bool parse_pipeline_contract_object(w_seed_parser *parser) {
+  if (!expect_text(parser, "{", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
     return false;
   }
-  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+  if (current_is_text(parser, "}")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  while (true) {
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+        !parse_static_value(parser)) {
+      return false;
+    }
+    if (current_is_text(parser, ",")) {
+      (void)consume_text(parser, ",", NULL);
+      if (current_is_text(parser, "}")) break;
+      continue;
+    }
+    if (current_is_text(parser, "}")) break;
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  return expect_text(parser, "}", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+}
+
+/* Pipeline contracts use the same CST envelope as other static contracts.
+ * The parser records the object fields and static values only.  Validation of
+ * field names, cardinality, and the transaction owner remains a later phase.
+ */
+static bool parse_pipeline_contract(w_seed_parser *parser, size_t head_end) {
+  if (!current_is_text(parser, "<")) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (start != head_end) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_SPACED_HEAD,
+                       current_span(parser), W_SEED_PARSE_EXPECT_PUNCTUATION);
+    return false;
+  }
+  if (push_node(parser, W_SEED_CST_CONTRACT_ENVELOPE, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "<", NULL);
+  if (current_is_text(parser, ">") || current_is_double_gt(parser)) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
     pop_node(parser, parser->last_token_end);
     return false;
   }
-  (void)consume_current(parser, NULL);
-  if (!expect_text(parser, "=", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
-      !parse_expression(parser, 1, false) ||
-      !parse_block(parser, false)) {
+  while (true) {
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    const bool transaction = current_is_text(parser, "transaction");
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    if (transaction && current_is_text(parser, "{")) {
+      if (!parse_pipeline_contract_object(parser)) {
+        pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+    } else if (!parse_static_value(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    if (!current_is_text(parser, ",")) break;
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, ">") || current_is_double_gt(parser)) break;
+  }
+  if (current_is_text(parser, ">")) {
+    (void)consume_text(parser, ">", NULL);
+  } else if (current_is_double_gt(parser)) {
+    w_seed_parse_token_view view;
+    (void)consume_virtual_close(parser, &view);
+  } else {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
     pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return false;
   }
   pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_pipeline_call_step(w_seed_parser *parser) {
+  if (!expect_text(parser, ".", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    return false;
+  }
+  if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  if (!expect_text(parser, "(", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+    return false;
+  }
+  if (!current_is_text(parser, ")")) {
+    if (!parse_argument(parser)) return false;
+    while (current_is_text(parser, ",")) {
+      (void)consume_text(parser, ",", NULL);
+      if (current_is_text(parser, ")")) break;
+      if (!parse_argument(parser)) return false;
+    }
+  }
+  return expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE);
+}
+
+static bool parse_pipeline_chain(w_seed_parser *parser) {
+  if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+    (void)consume_current(parser, NULL);
+  } else if (current_is_text(parser, "(")) {
+    if (!parse_primary(parser, false)) return false;
+  } else {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  size_t step_count = 0;
+  while (current_is_text(parser, ".")) {
+    if (!parse_pipeline_call_step(parser)) return false;
+    step_count += 1;
+  }
+  if (step_count < 2u) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    return false;
+  }
+  return true;
+}
+
+static bool parse_pipeline_expression(w_seed_parser *parser,
+                                      bool value_context) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_PIPELINE_EXPRESSION, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "pipeline", NULL);
+  if (current_is_text(parser, "<") &&
+      !parse_pipeline_contract(parser, parser->last_token_end)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  if (current_is_text(parser, "{")) {
+    if (!parse_block(parser, value_context)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (current_is_text(parser, "each")) {
+    (void)consume_text(parser, "each", NULL);
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, "in", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+        !parse_expression(parser, 1, false) || !parse_block(parser, value_context)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+             next_is_text(parser, "=")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, "=", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+        !parse_expression(parser, 1, false) || !parse_block(parser, value_context)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+  } else if (!parse_pipeline_chain(parser)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
 }
 
@@ -593,15 +764,15 @@ static binary_info binary_operator(w_seed_parser *parser) {
       {"*=", 1, true},   {"/=", 1, true},  {"%=", 1, true},
       {"**=", 1, true},  {"<<=", 1, true}, {">>=", 1, true},
       {"&=", 1, true},   {"^=", 1, true},  {"|=", 1, true},
-      {"??", 2, true},   {"||", 3, false}, {"&&", 4, false},
-      {"|", 5, false},   {"^", 6, false},  {"&", 7, false},
-      {"==", 8, false},  {"!=", 8, false}, {"<", 9, false},
-      {"<=", 9, false},  {">", 9, false},  {">=", 9, false},
-      {"...", 10, false}, {"..<", 10, false}, {">..", 10, false},
-      {">..<", 10, false}, {"<<", 11, false}, {">>", 11, false},
-      {"+", 12, false},  {"-", 12, false}, {"*", 13, false},
-      {"/", 13, false},  {"%", 13, false}, {"@", 13, false},
-      {"**", 14, true},
+      {"|>", 2, false},  {"??", 3, true},  {"||", 4, false},
+      {"&&", 5, false},  {"|", 6, false},  {"^", 7, false},
+      {"&", 8, false},   {"==", 9, false}, {"!=", 9, false},
+      {"<", 10, false},  {"<=", 10, false}, {">", 10, false},
+      {">=", 10, false}, {"...", 11, false}, {"..<", 11, false},
+      {">..", 11, false}, {">..<", 11, false}, {"<<", 12, false},
+      {">>", 12, false}, {"+", 13, false}, {"-", 13, false},
+      {"*", 14, false},   {"/", 14, false}, {"%", 14, false},
+      {"@", 14, false},   {"**", 15, true},
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -612,7 +783,7 @@ static binary_info binary_operator(w_seed_parser *parser) {
     }
   }
   if (current_is_text(parser, "in") || current_is_text(parser, "is")) {
-    info.precedence = 9;
+    info.precedence = 10;
   }
   return info;
 }
@@ -901,8 +1072,8 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
     pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
     return true;
   }
-  if (current_is_text(parser, "transaction")) {
-    return parse_transaction_expression(parser);
+  if (current_is_text(parser, "pipeline")) {
+    return parse_pipeline_expression(parser, value_context);
   }
   if (current_is_text(parser, "lock")) {
     return parse_lock_expression(parser);
@@ -1070,6 +1241,25 @@ static bool parse_postfix(w_seed_parser *parser, bool value_context) {
       }
       continue;
     }
+    if (current_is_text(parser, "#")) {
+      (void)consume_text(parser, "#", NULL);
+      if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        return false;
+      }
+      (void)consume_current(parser, NULL);
+      while (current_is_text(parser, ".")) {
+        (void)consume_text(parser, ".", NULL);
+        if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+          append_missing(parser, current_span(parser).start_byte,
+                         W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+          return false;
+        }
+        (void)consume_current(parser, NULL);
+      }
+      continue;
+    }
     if (current_is_text(parser, ".") || current_is_text(parser, "?.")) {
       (void)consume_current(parser, NULL);
       if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
@@ -1177,6 +1367,15 @@ static bool parse_static_value(w_seed_parser *parser) {
       return false;
     }
     (void)consume_current(parser, NULL);
+    /* Contextual values such as `.parallel<.compute>` may carry an
+     * attached static contract.  Keep this syntax in the same envelope as
+     * named quantity values; semantic validation remains a later phase. */
+    while (current_is_text(parser, "<") &&
+           current_span(parser).start_byte == parser->last_token_end) {
+      if (!parse_contract_envelope(parser, parser->last_token_end, false)) {
+        return false;
+      }
+    }
     return true;
   }
   if (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
@@ -1840,8 +2039,6 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "var")) return parse_var_statement(parser);
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
   if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
-  if (current_is_text(parser, "transaction"))
-    return parse_expression_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
   if (current_is_text(parser, "guard")) return parse_guard_statement(parser);
   if (current_is_text(parser, "repeat")) return parse_repeat_statement(parser);

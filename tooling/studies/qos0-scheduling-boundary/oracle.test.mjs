@@ -10,13 +10,13 @@ const expected = new Map([
   ["QOS0-current-allergy-shared-domain", ["accepted", "allergySafeSuccess"]],
   ["QOS0-current-allergy-deadline-cancellation", ["accepted", "allergySafeCancellationOrRejection"]],
   ...[
-    "spawn-priority", "async-priority", "task-group-priority",
+    "spawn-priority", "async-priority", "pipeline-tasks-priority",
     "function-priority", "task-priority", "service-call-priority",
     "entry-priority", "service-priority", "service-descriptor-priority",
     "profile-priority",
   ].map((id) => [`QOS0-${id}`, ["rejected", "portablePrioritySlotRejected"]]),
   ...[
-    "spawn-qos", "async-qos", "task-group-qos", "function-qos", "task-qos",
+    "spawn-qos", "async-qos", "pipeline-tasks-qos", "function-qos", "task-qos",
     "service-call-qos", "entry-qos", "service-qos", "service-descriptor-qos",
     "profile-qos",
   ]

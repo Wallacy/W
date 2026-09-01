@@ -24,7 +24,7 @@ const selectedIds = [
   "F0-consuming-receiver-grouping",
   "F0-const-call-parameter",
   "F0-effect-prefix-order",
-  "F0-structured-transaction",
+  "F0-structured-pipeline-transaction",
   "F0-language-lock",
   "F0-borrows-clause-source-order",
   "F0-optional-label-slots",
@@ -66,7 +66,7 @@ const CST = Object.freeze({
   EXPECT: 36,
   ARGUMENT: 37,
   FOR: 38,
-  TRANSACTION: 39,
+  PIPELINE: 39,
   COMMIT: 40,
   BORROW_CLAUSE: 41,
   BORROW_PAIR: 42,
@@ -608,32 +608,36 @@ function assertAsyncTrivia(parsed, bytes, label) {
   }
 }
 
-function assertStructuredTransaction(parsed, bytes, label) {
+function assertStructuredPipeline(parsed, bytes, label) {
   assertClean(parsed, label)
-  const transactions = parsed.nodes.filter((node) => node.kind === CST.TRANSACTION)
+  const pipelines = parsed.nodes.filter((node) => node.kind === CST.PIPELINE)
   const commits = parsed.nodes.filter((node) => node.kind === CST.COMMIT)
-  if (transactions.length !== 1 || commits.length !== 1) {
-    fail(`${label} does not contain one transaction and one commit`)
+  if (pipelines.length !== 1 || commits.length !== 1) {
+    fail(`${label} does not contain one pipeline and one commit`)
   }
-  const transaction = transactions[0]
-  const transactionWords = directKind(parsed, transaction.index, CST.WORD)
+  const pipeline = pipelines[0]
+  const pipelineWords = directKind(parsed, pipeline.index, CST.WORD)
     .map((node) => nodeText(parsed, bytes, node))
-  if (!transactionWords.includes("transaction") || !transactionWords.includes("tx")) {
-    fail(`${label} transaction does not preserve keyword and binding leaves`)
+  const contracts = directKind(parsed, pipeline.index, CST.CONTRACT_ENVELOPE)
+  if (!pipelineWords.includes("pipeline") || !pipelineWords.includes("tx") ||
+      contracts.length !== 1 ||
+      !directKind(parsed, contracts[0].index, CST.WORD)
+        .some((node) => nodeText(parsed, bytes, node) === "transaction")) {
+    fail(`${label} pipeline does not preserve keyword, contract, and binding leaves`)
   }
-  const providerExpressions = directKind(parsed, transaction.index, CST.EXPRESSION)
+  const providerExpressions = directKind(parsed, pipeline.index, CST.EXPRESSION)
   if (providerExpressions.length !== 1 ||
       nodeText(parsed, bytes, providerExpressions[0]).trim() !== "tableLedger") {
-    fail(`${label} transaction provider expression is not source-shaped`)
+    fail(`${label} pipeline provider expression is not source-shaped`)
   }
-  const transactionBlocks = directKind(parsed, transaction.index, CST.BLOCK)
-  if (transactionBlocks.length !== 1) {
-    fail(`${label} transaction does not own one BLOCK directly`)
+  const pipelineBlocks = directKind(parsed, pipeline.index, CST.BLOCK)
+  if (pipelineBlocks.length !== 1) {
+    fail(`${label} pipeline does not own one BLOCK directly`)
   }
-  const blockCommits = directKind(parsed, transactionBlocks[0].index, CST.COMMIT)
+  const blockCommits = directKind(parsed, pipelineBlocks[0].index, CST.COMMIT)
   if (blockCommits.length !== 1 ||
       nodeText(parsed, bytes, blockCommits[0]).trim() !== "commit receipt") {
-    fail(`${label} transaction block does not own source-shaped COMMIT`)
+    fail(`${label} pipeline block does not own source-shaped COMMIT`)
   }
   const commitExpressions = directKind(parsed, blockCommits[0].index, CST.EXPRESSION)
   if (commitExpressions.length !== 1 ||
@@ -642,13 +646,74 @@ function assertStructuredTransaction(parsed, bytes, label) {
   }
   const returnNode = parsed.nodes.find((node) => node.kind === CST.RETURN)
   const returnExpression = returnNode && directKind(parsed, returnNode.index, CST.EXPRESSION)[0]
-  if (!returnExpression) fail(`${label} transaction return expression is missing`)
+  if (!returnExpression) fail(`${label} pipeline return expression is missing`)
   const effectWords = descendants(parsed, returnExpression.index)
     .filter((node) => node.kind === CST.WORD)
     .map((node) => nodeText(parsed, bytes, node))
   if (!effectWords.includes("try") || !effectWords.includes("await")) {
-    fail(`${label} transaction return does not preserve try/await leaves`)
+    fail(`${label} pipeline return does not preserve try/await leaves`)
   }
+}
+
+function assertPipelineWitness(parsed, bytes, label, form) {
+  assertClean(parsed, label)
+  const pipelines = parsed.nodes.filter((node) => node.kind === CST.PIPELINE)
+  if (pipelines.length !== 1) fail(`${label} does not contain one PIPELINE node`)
+  const pipeline = pipelines[0]
+  const text = nodeText(parsed, bytes, pipeline)
+  const directWords = directKind(parsed, pipeline.index, CST.WORD)
+    .map((node) => nodeText(parsed, bytes, node))
+  const directBlocks = directKind(parsed, pipeline.index, CST.BLOCK)
+  const directContracts = directKind(parsed, pipeline.index, CST.CONTRACT_ENVELOPE)
+  const directExpressions = directKind(parsed, pipeline.index, CST.EXPRESSION)
+  const commits = parsed.nodes.filter((node) => node.kind === CST.COMMIT)
+
+  if (!directWords.includes("pipeline")) {
+    fail(`${label} does not preserve the pipeline keyword leaf`)
+  }
+  if (form === "dependent-block") {
+    if (directBlocks.length !== 1 || commits.length !== 1 || directContracts.length !== 0) {
+      fail(`${label} dependent block ownership drifted`)
+    }
+    return
+  }
+  if (form === "short-chain") {
+    if (directBlocks.length !== 0 || directContracts.length !== 0 || commits.length !== 0 ||
+        !/^pipeline\s+(?:\([^\n]+\)|[A-Za-z_][A-Za-z0-9_]*)\.[A-Za-z_][A-Za-z0-9_]*\([^\n]*\)\.[A-Za-z_][A-Za-z0-9_]*\([^\n]*\)$/u
+          .test(text.trim())) {
+      fail(`${label} short-chain source/step shape drifted`)
+    }
+    return
+  }
+  if (form === "tasks") {
+    const contractText = directContracts.length === 1
+      ? nodeText(parsed, bytes, directContracts[0]).trim()
+      : ""
+    const blockCommit = directBlocks.length === 1
+      ? directKind(parsed, directBlocks[0].index, CST.COMMIT)
+      : []
+    if (directBlocks.length !== 1 || directContracts.length !== 1 || commits.length !== 1 ||
+        !directWords.includes("each") || !directWords.includes("item") ||
+        directExpressions.length !== 1 ||
+        nodeText(parsed, bytes, directExpressions[0]).trim() !== "source" ||
+        contractText !== "<tasks:.parallel<.compute>,limit:16,ordering:.input,errors:.collect>" ||
+        blockCommit.length !== 1 ||
+        nodeText(parsed, bytes, blockCommit[0]).trim() !== "commit item") {
+      fail(`${label} task pipeline ownership drifted`)
+    }
+    return
+  }
+  if (form === "transaction") {
+    if (directBlocks.length !== 1 || directContracts.length !== 1 || commits.length !== 1 ||
+        !directWords.includes("tx") || directExpressions.length !== 1 ||
+        nodeText(parsed, bytes, directExpressions[0]).trim() !== "tableLedger" ||
+        !directKind(parsed, directContracts[0].index, CST.WORD)
+          .some((node) => nodeText(parsed, bytes, node) === "transaction")) {
+      fail(`${label} transaction pipeline ownership drifted`)
+    }
+    return
+  }
+  fail(`${label} has unknown pipeline witness form ${form}`)
 }
 
 function assertLanguageLock(parsed, bytes, label, { lockCount = 1, prefix = null } = {}) {
@@ -1109,9 +1174,9 @@ async function main() {
         assertAsyncFunction(inputParsed, input, `${id}:input`)
         assertAsyncFunction(outputParsed, output, `${id}:output`)
       }
-      if (id === "F0-structured-transaction") {
-        assertStructuredTransaction(inputParsed, input, `${id}:input`)
-        assertStructuredTransaction(outputParsed, output, `${id}:output`)
+      if (id === "F0-structured-pipeline-transaction") {
+        assertStructuredPipeline(inputParsed, input, `${id}:input`)
+        assertStructuredPipeline(outputParsed, output, `${id}:output`)
       }
       if (id === "F0-language-lock") {
         assertLanguageLock(inputParsed, input, `${id}:input`)
@@ -1405,17 +1470,23 @@ async function main() {
       ["lone-const-stop", Buffer.from("const\n"), "fatal", 6],
       ["unsafe-function-stop", Buffer.from("unsafe fn f(){}\n"), "fatal", 6],
       ["receiver-function-stop", Buffer.from("take fn f(){}\n"), "fatal", 6],
-      ["transaction-simple", Buffer.from("fn f(){return transaction tx=provider{commit value}}\n"), "complete"],
-      ["transaction-commit-outside", Buffer.from("fn f(){commit value}\n"), "complete"],
-      ["transaction-commit-empty", Buffer.from("fn f(){commit}\n"), "complete"],
-      ["transaction-nested", Buffer.from("fn f(){return transaction outer=provider{commit transaction inner=provider{commit value}}}\n"), "complete"],
-      ["transaction-missing-binding", Buffer.from("fn f(){return transaction = provider{commit value}}\n"), "recovered", 1],
-      ["transaction-missing-equals", Buffer.from("fn f(){return transaction tx provider{commit value}}\n"), "recovered", 1],
-      ["transaction-missing-provider", Buffer.from("fn f(){return transaction tx= {commit value}}\n"), "recovered", 1],
-      ["transaction-missing-block", Buffer.from("fn f(){return transaction tx=provider}\n"), "recovered", 2],
-      ["transaction-missing-close", Buffer.from("fn f(){return transaction tx=provider{commit value\n"), "recovered", 2],
-      ["transaction-malformed-commit", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
-      ["transaction-contract-stop", Buffer.from("fn f(){return transaction<.serializable> tx=provider{commit value}}\n"), "fatal", 6],
+      ["pipeline-dependent-block", Buffer.from("fn f(){return pipeline{commit value}}\n"), "complete"],
+      ["pipeline-short-chain", Buffer.from("fn f(){return pipeline source.first().second()}\n"), "complete"],
+      ["pipeline-tasks", Buffer.from("fn f(){return pipeline<tasks:.parallel<.compute>,limit:16,ordering:.input,errors:.collect> each item in source{commit item}}\n"), "complete"],
+      ["pipeline-transaction", Buffer.from("fn f(){return pipeline<transaction:{isolation:.serializable,access:.readWrite}> tx=tableLedger{commit receipt}}\n"), "complete"],
+      ["pipe-associativity", Buffer.from("fn f(){return source |> first() |> second()}\n"), "complete"],
+      ["pipe-precedence", Buffer.from("fn f(){return source |> first() ?? fallback}\n"), "complete"],
+      ["qualified-facet", Buffer.from("fn f(){return value#core.version}\n"), "complete"],
+      ["parenthesized-facet", Buffer.from("fn f(){return (value)#core.version}\n"), "complete"],
+      ["raw-string-facet-noncollision", Buffer.from("fn f(){return #\"raw # path\"#}\n"), "complete"],
+      ["legacy-transaction-rejected", Buffer.from("fn f(){return transaction tx=provider{commit value}}\n"), "recovered", 1],
+      ["facet-missing-path", Buffer.from("fn f(){return value#}\n"), "recovered", 1],
+      ["facet-missing-segment", Buffer.from("fn f(){return value#core.}\n"), "recovered", 1],
+      ["pipeline-missing-chain-step", Buffer.from("fn f(){return pipeline source.first()}\n"), "recovered", 1],
+      ["pipeline-missing-contract-close", Buffer.from("fn f(){return pipeline<transaction:{isolation:.serializable,access:.readWrite> tx=provider{commit value}}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
+      ["commit-outside-pipeline", Buffer.from("fn f(){commit value}\n"), "complete"],
+      ["commit-empty", Buffer.from("fn f(){commit}\n"), "complete"],
+      ["commit-malformed", Buffer.from("fn f(){commit value else}\n"), "recovered", 3],
       ["allocator-anonymous-contextual-call", Buffer.from("fn stage(allocator memory:ref Allocator,title:ref String,dishes menuDishes:ref Array<String>):MenuSnapshot{allocator .fixed<capacity:64<iec.KiB>>{let snapshot=stage(ref title,dishes:ref dishes)}}\n"), "complete"],
       ["allocator-named-override", Buffer.from("fn caller(allocator memory:ref Allocator,title:ref String){allocator scratch:.fixed<capacity:64<iec.KiB>>{let snapshot=stage(allocator:ref memory,ref title)}}\n"), "complete"],
       ["allocator-nested", Buffer.from("fn nested(){allocator outer:.fixed<capacity:64<iec.KiB>>{allocator inner:.fixed<capacity:64<iec.KiB>>{let local=Array<String>()}let portable=Array<String>(allocator:outer)}}\n"), "complete"],
@@ -1581,24 +1652,14 @@ async function main() {
       }
       if (label === "for-marker-vector") assertMarkerVector(parsed, bytes)
       if (label === "for-take-iterable") assertClean(parsed, label)
-      if (label === "transaction-simple" || label === "transaction-commit-outside" ||
-          label === "transaction-commit-empty" || label === "transaction-nested") {
-        assertClean(parsed, label)
-        const transactions = parsed.nodes.filter((node) => node.kind === CST.TRANSACTION)
-        const commits = parsed.nodes.filter((node) => node.kind === CST.COMMIT)
-        const expectedCounts = {
-          "transaction-simple": [1, 1],
-          "transaction-commit-outside": [0, 1],
-          "transaction-commit-empty": [0, 1],
-          "transaction-nested": [2, 2],
-        }[label]
-        if (transactions.length !== expectedCounts[0] || commits.length !== expectedCounts[1]) {
-          fail(`${label} has ${transactions.length} TRANSACTION and ${commits.length} COMMIT nodes`)
-        }
-        if (label === "transaction-commit-empty" &&
-            directKind(parsed, commits[0].index, CST.EXPRESSION).length !== 0) {
-          fail(`${label} unexpectedly owns an EXPRESSION`)
-        }
+      const pipelineForms = {
+        "pipeline-dependent-block": "dependent-block",
+        "pipeline-short-chain": "short-chain",
+        "pipeline-tasks": "tasks",
+        "pipeline-transaction": "transaction",
+      }
+      if (pipelineForms[label]) {
+        assertPipelineWitness(parsed, bytes, label, pipelineForms[label])
         const repeated = invoke(probe, bytes, `${label}:repeat`, status, issue)
         if (parsed.signature !== repeated.signature) {
           fail(`${label} CST signature is not deterministic`)

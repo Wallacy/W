@@ -162,13 +162,13 @@ static bool test_numbers_and_relation(void) {
 static bool test_longest_punctuation(void) {
   static const size_t lengths[] = {
       4, 3, 3, 3, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2, 2,
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
   };
   fixture fixture_value;
   CHECK(fixture_init(
       &fixture_value,
       ">..< ... ..< >.. **= >>= <<= ?. ?? => += -= *= /= %= &= ^= |= "
-      "<< >> ** == != <= >= && ||"));
+      "<< >> ** == != <= >= && || |>"));
   w_seed_lex_item item;
   for (size_t index = 0; index < sizeof(lengths) / sizeof(lengths[0]);
        index += 1) {

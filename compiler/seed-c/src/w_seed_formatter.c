@@ -692,6 +692,7 @@ static bool word_like(const fmt_writer *writer, size_t index) {
          !punctuation_token(writer, index, ",") &&
          !punctuation_token(writer, index, ";") &&
          !punctuation_token(writer, index, ":") &&
+         !punctuation_token(writer, index, "#") &&
          !punctuation_token(writer, index, ".") &&
          !punctuation_token(writer, index, "?.") &&
          !punctuation_token(writer, index, "<") &&
@@ -704,6 +705,7 @@ static bool word_like(const fmt_writer *writer, size_t index) {
          !punctuation_token(writer, index, "%") &&
          !punctuation_token(writer, index, "&&") &&
          !punctuation_token(writer, index, "||") &&
+         !punctuation_token(writer, index, "|>") &&
          !punctuation_token(writer, index, "==") &&
          !punctuation_token(writer, index, "!=") &&
          !punctuation_token(writer, index, "<=") &&
@@ -715,13 +717,17 @@ static bool word_like(const fmt_writer *writer, size_t index) {
 static bool angle_compact(const fmt_writer *writer, size_t index,
                           size_t token_count) {
   if (!punctuation_token(writer, index, "<")) return false;
+  const size_t previous = previous_significant(writer->buffers, index);
+  // Pipeline contracts are source-visible angle envelopes even when their
+  // fields use an object literal. Keep the current spelling compact at the
+  // pipeline head; the interior object remains formatted normally.
+  if (previous != SIZE_MAX && token_text(writer, previous, "pipeline")) return true;
   const size_t next = next_significant(writer->buffers, token_count, index);
   if (next == SIZE_MAX || punctuation_token(writer, next, "=") ||
       punctuation_token(writer, next, "&&") ||
       punctuation_token(writer, next, "||")) {
     return false;
   }
-  const size_t previous = previous_significant(writer->buffers, index);
   if (punctuation_token(writer, next, "[") ||
       (punctuation_token(writer, next, "(") && previous != SIZE_MAX &&
        punctuation_token(writer, previous, ">"))) {
@@ -808,6 +814,7 @@ static bool binary_operator(const fmt_writer *writer, size_t index) {
          punctuation_token(writer, index, ">=") ||
          punctuation_token(writer, index, "&&") ||
          punctuation_token(writer, index, "||") ||
+         punctuation_token(writer, index, "|>") ||
          punctuation_token(writer, index, "=>");
 }
 
@@ -834,6 +841,7 @@ static bool needs_space(const fmt_writer *writer, size_t index,
   if (punctuation_token(writer, index, ",") ||
       punctuation_token(writer, index, ";") ||
       punctuation_token(writer, index, ":") ||
+      punctuation_token(writer, index, "#") ||
       punctuation_token(writer, index, ")") ||
        punctuation_token(writer, index, "]") ||
        punctuation_token(writer, index, ".") ||
@@ -857,7 +865,8 @@ static bool needs_space(const fmt_writer *writer, size_t index,
   if (punctuation_token(writer, previous, "(") ||
       punctuation_token(writer, previous, "[") ||
       punctuation_token(writer, previous, ".") ||
-      punctuation_token(writer, previous, "?.")) {
+      punctuation_token(writer, previous, "?.") ||
+      punctuation_token(writer, previous, "#")) {
     return false;
   }
   if (punctuation_token(writer, previous, ",") ||
