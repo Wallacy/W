@@ -6,11 +6,11 @@
   "decisions": ["W-1454", "W-1455", "W-1456", "W-1457", "W-1458"],
   "gate": "AEG0-app-essentials-gate",
   "question": "Do explicit capability, civil, random, codec, and secret contracts reject ambient and fallback routes without claiming implementation?",
-  "corpus": { "path": "../../aeg0-app-essentials-gate-cases.json", "digest": "sha256:f0ddddbcfaefd573ff0df9e139bf4cb4f10d0d4c9ac329485bf37dcfa65f743c" },
+  "corpus": { "path": "../../aeg0-app-essentials-gate-cases.json", "digest": "sha256:81014ce6009336fb18855efedafc5ff35d79d4fce1d6845414e6c22d071c0748" },
   "machine": { "path": "../../aeg0-app-essentials-gate-machine.mjs", "digest": "sha256:5aabce5fe6cd0167fd72b3a1720ae9687b27af232c8b8079b793419ae3a70ca6" },
   "sourceRefs": [
     { "path": "../../../reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Capability boundary." },
-    { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9", "claim": "Operational time boundary." },
+    { "path": "../../../reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8", "claim": "Operational time boundary." },
     { "path": "../../../reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "Random context boundary." },
     { "path": "../../../reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Typed codec boundary." },
     { "path": "../../../reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Lifecycle boundary." }

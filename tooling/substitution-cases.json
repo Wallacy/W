@@ -1270,13 +1270,13 @@
       "task": "Construct Money with the same values and report a collision only for an unordered policy after a default and reverse-label overload.",
       "selected": {
         "language": "w",
-        "source": ["let value = Money(majorUnits: 42, currency: .cr)"]
+        "source": ["let value = Money(majorUnits: 42, currency: .ww)"]
       },
       "alternatives": [
         {
           "name": "reordered-labels",
           "language": "w-research",
-          "source": ["let value = Money(currency: .cr, majorUnits: 42)"],
+          "source": ["let value = Money(currency: .ww, majorUnits: 42)"],
           "expectedDifference": "Reordering is a research alternative because call shape is an ordered sequence before type ranking."
         },
         {
@@ -1630,7 +1630,7 @@
       "selected": {
         "language": "w",
         "source": [
-          "let clock = try process.clock(hostSuspend: .included)",
+          "let clock = try execution.clock(hostSuspend: .included)",
           "let policy: HostSuspendPolicy = clock.hostSuspendPolicy",
           "// included, excluded, unspecified describe HOST/SO suspension only"
         ]

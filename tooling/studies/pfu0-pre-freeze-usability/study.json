@@ -12,7 +12,7 @@
   "question": "Does the bounded host oracle close the three decisions without changing ownership, stream, service, or property contracts?",
   "corpus": {
     "path": "../../pfu0-pre-freeze-usability-cases.json",
-    "digest": "sha256:96195a4c68c4b08c2bcb8ca4fbb647d256f19121c19c2473cb670dab0e9e9766"
+    "digest": "sha256:77755da5a400e0b6920416400bccd6efcccd73c309eda003856f47246936b421"
   },
   "machine": {
     "path": "../../pfu0-pre-freeze-usability-machine.mjs",
@@ -46,13 +46,13 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564",
+      "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d",
       "claim": "Property-safe getter."
     },
     {
-      "path": "../../../reference/last-light/billing.w",
+      "path": "../../../reference/last-light/orbit.w",
       "symbol": "mut set(newValue)",
-      "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde",
+      "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
       "claim": "Property setter control."
     }
   ],

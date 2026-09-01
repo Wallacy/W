@@ -2,12 +2,13 @@ import assert from "node:assert/strict"
 import test from "node:test"
 import { deriveProcessRoot } from "./process-root-machine.mjs"
 
-test("process projections reuse one root owner without source bindings", () => {
+test("explicit process handler bindings reuse one root owner", () => {
   const result = deriveProcessRoot({
     subject: "arguments",
-    operation: "project",
+    operation: "bindHandler",
     root: true,
     profile: "native-process",
+    signatureRequests: true,
     ownerId: "args@root-1",
   })
   assert.equal(result.accepted, true)

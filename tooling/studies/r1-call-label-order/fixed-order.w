@@ -15,11 +15,11 @@ struct Money {
 }
 
 fn price(): Money {
-  return Money(majorUnits: 42, currency: .cr)
+  return Money(majorUnits: 42, currency: .ww)
 }
 
 test "fixed declaration order keeps the Money outcome" for price {
   let value = price()
   expect value.minorUnits == 4_200
-  expect value.currency == .cr
+  expect value.currency == .ww
 }

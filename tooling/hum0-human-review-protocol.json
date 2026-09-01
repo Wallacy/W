@@ -193,7 +193,7 @@
           "id": "menu-root",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
           "claim": "Shared menu root construction"
         },
         {
@@ -514,7 +514,7 @@
           "id": "mix-pair",
           "path": "reference/last-light/execution.w",
           "symbol": "export async fn mixPair",
-          "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564",
+          "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d",
           "claim": "Async execution form and domain preference"
         }
       ],
@@ -522,13 +522,13 @@
         {
           "id": "execution-ergonomics-cases",
           "path": "tooling/execution-ergonomics-cases.json",
-          "digest": "sha256:34bae62ff94a41d2cc48008a4bbef9e91ede9e6cf9eb5b2197bf7e3023ddc5b9",
+          "digest": "sha256:d75915a2936f06c3b2a13d67bbddf4af91320defcaaec57602d90d3dfe41c82a",
           "claim": "Execution labels, ownership operations, suspension, and placement cases"
         },
         {
           "id": "execution-ergonomics-reference",
           "path": "tooling/execution-ergonomics-reference.test.mjs",
-          "digest": "sha256:158ab55fa3a3938ea33b398b1888937c2f0e9d7058d549c0313a6f15d202b3e1",
+          "digest": "sha256:cb67c24fb853c3aa755fb181fc3f1f6bb8858ca6975dc1b74cbc55b1c5650650",
           "claim": "Independent execution form assertions"
         }
       ],
@@ -1163,14 +1163,14 @@
           "id": "bell-lease",
           "path": "reference/last-light/memory.w",
           "symbol": "export object BellLease",
-          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
           "claim": "Callback lease ownership and cleanup"
         },
         {
           "id": "watch-closing-bell",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn watchClosingBell",
-          "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
           "claim": "Callback admission and lease creation"
         },
         {

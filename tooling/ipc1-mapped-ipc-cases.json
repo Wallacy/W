@@ -1390,7 +1390,7 @@
       "id": "observer-install",
       "path": "reference/last-light/memory.w",
       "symbol": "export fn installMenuObserver",
-      "digest": "sha256:85f9af938e8d2a1f375036e8201235f78c0ff4e70ef8d0d25383c009ee20197b",
+      "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
       "claim": "Last Light explicit callback lease source."
     }
   ],

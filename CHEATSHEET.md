@@ -1265,7 +1265,7 @@ Reflectable
 
 TypeKind = scalar | struct | object | enum | refinement | enumSubset
 
-TypeInfo                         // view imutável, estável durante o process-lifetime
+TypeInfo                         // view imutável, estável durante a runtime instance
   id: TypeId
   name: view String
   kind: TypeKind
@@ -1284,7 +1284,7 @@ TypeInfo.Case
   payloadTypes: view [TypeId]
 ```
 
-As views são read-only e duram o process-lifetime. Properties e cases seguem a
+As views são read-only e duram a runtime instance. Properties e cases seguem a
 ordem declarada da interface exportada. Não há layout, offset, size, address,
 backing storage ou lookup de method por nome. `TypeInfo` não possui constructor
 público, assignment ou mutation. A consulta, e não um constructor, é o uso
@@ -1605,7 +1605,7 @@ prova `neverSuspend` e cujo function type preserva
 `directEntry: available`. A call executa diretamente na mesma task, context e
 domain; não cria child, não suspende, não bloqueia thread, não reentra o event
 loop e não exige authority, quota ou provider. `try` continua tratando somente
-a error edge. Qualquer caminho que alcança `await`, `Task#yield`, child/join,
+a error edge. Qualquer caminho que alcança `await`, `execution#yield`, child/join,
 service ou I/O suspending, `defer async`, call bare/`await` para `maySuspend` ou
 `sync` para facet absent remove o facet, mesmo quando um cache hit parece
 provável. `sync` pode chamar outra direct entry available: a async entry publica
@@ -1630,8 +1630,8 @@ faz join ou consome um outcome:
 | Observar child | `await (take task)#outcome()` | `TaskOutcome<T, E>` mantém success, application error e cancellation separados. |
 | Join simples | `await task` | Aguarda e produz o valor ou propaga o error declarado. |
 | Escolher primeiro settlement | `await Task#firstSettled(take tasks)` | `TaskSettlement<T, E>?` preserva `index`; losers cancelam e drenam. |
-| Ponto cooperativo | `Task#checkCancellation()` | Retorna normalmente ou publica o control outcome de cancellation. |
-| Ceder | `await Task#yield()` | Suspende o child sem criar promise ou novo graph. |
+| Ponto cooperativo | `execution#checkCancellation()` | Retorna normalmente ou publica o control outcome de cancellation. |
+| Ceder | `await execution#yield()` | Suspende a execução corrente sem criar promise ou novo graph. |
 | Timeout | `await Task#withTimeout(for: timeout, input: take value, using: work)` | Devolve `TaskOutcome<T, E>` e drena o child. |
 | Deadline | `await Task#withDeadline(until: deadline, input: take value, using: work)` | Usa o `Deadline` do host; expiration solicita cancellation estruturada. |
 | Domain dinâmico | `try Task#spawn(domain: lane.reference, input: take value, using: work)` | Publica `Task<T, E>` após admission; failure de admission é observável. |
@@ -1651,7 +1651,7 @@ export async fn closeBeforeTheLastCourse(
 }
 ```
 
-`Task#checkCancellation()` e `Task#yield()` são controles imediatos e
+`execution#checkCancellation()` e `execution#yield()` são controles imediatos e
 cooperativos; `Task#withTimeout` e `Task#withDeadline` criam um child lexical
 bounded e retornam um outcome. `Task#spawn` não substitui
 `spawn<.compute>`: o primeiro resolve uma referência dinâmica, enquanto o
@@ -2190,7 +2190,39 @@ plan conserva o sufixo pendente. Zero-copy não é promessa portátil; consulte
 `w explain io` para estratégia, fallback, scratch e motivo de perda do fast
 path.
 
-### HTTP, web e processo
+### Execution, HTTP, web e processo
+
+`execution` é a raiz contextual target-neutral. Ela não é object, módulo ou
+singleton. `.` projeta dados/capabilities; `#` usa controles core imediatos.
+Cada member depende do product e do target. Ausência é erro de compile/link,
+nunca no-op runtime.
+
+<!-- w-example role=executable use=reportExecutionTime observable=effect -->
+```w
+async fn reportExecutionTime(): () {
+  execution#checkCancellation()
+  let clock = execution.clock()
+  let started = clock.now()
+  await execution#yield()
+  print("elapsed: ${clock.duration(from: started, to: clock.now())}")
+}
+
+entry(reportExecutionTime)
+```
+
+`std.process` é opcional e descreve um processo real. Arguments e Context são
+parâmetros explícitos; não existem projections contextuais para esses owners.
+
+<!-- w-example role=executable use=reportArguments observable=effect -->
+```w
+import process from std
+
+fn reportArguments(args: ref process.Arguments): () {
+  print("argument count: ${args.count}")
+}
+
+entry(reportArguments)
+```
 
 HTTP, web bodies, process, time e filesystem aparecem como interfaces tipadas e
 capabilities. Um snippet de http.Request não prova servidor, socket, TLS,
@@ -2789,7 +2821,7 @@ domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
 | Transformar collection | Pipeline lazy sem side-effect: `tickets.lazy.filter(...).map(...).take(...).collect()` (Forma vigente) | Loop explícito com `for`, `append` e `break` (Forma vigente para controle e side-effect) | Comprehension (Rejeitado por enquanto) | Pipeline adia custo até `collect`; loop expõe controle, effects e ownership; ambos preservam ordem e limite | [DESIGN.md §16](DESIGN.md#16-texto-bytes-e-collections) · [collections.w](reference/last-light/collections.w) |
 | Acessar índice ou fim | `get(index)` e `.last`; `suffix` somente quando o carrier o publica (Forma vigente por carrier) | `count - 1` após guard (alternativa explícita) | `[-1]` ou syntax relativa especial (Rejeitado por enquanto) | APIs nominais deixam bounds e `Option` visíveis; arithmetic exige guard; suffix pode preservar view e borrow do carrier | [DESIGN.md §16.2](DESIGN.md#162-views-índices-e-slices) · [collections.w](reference/last-light/collections.w) · [billing.w](reference/last-light/billing.w) |
 | Ajustar shapes tensor | `means.broadcast(to: [samples, 6])` com shape checked (Forma vigente) | Scalar expansion conforme o contrato do carrier (Forma vigente, sem shape inferido) | Broadcast implícito entre shapes diferentes ou dotted broadcast (Rejeitado por enquanto) | Shape explícito compra diagnóstico e autoridade de device; a operação custa tokens, mas evita mismatch e eixos ocultos | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [horizon.w](reference/last-light/horizon.w) · [ai_harness.w](reference/last-light/ai_harness.w) |
-| Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .cr)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
+| Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .ww)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
 | Escolher ownership de callable | `fn`, `some fn`, `any fn`, `mut fn` e `take fn` separados (Forma vigente) | Capture `<[copy ...]>`, `<[ref ...]>`, `<[take ...]>` ou `<[weak ...]>`; erase só quando pedido | `fn` unificado que apaga modo e custo (Rejeitado por enquanto) | Modos mantêm ownership, mutação, erasure e allocation observáveis; a separação aumenta a assinatura e reduz inferência oculta | [DESIGN.md §7.5](DESIGN.md#75-valores-callable-e-closures) · [callables.w](reference/last-light/callables.w) |
 | Esperar siblings com fail-fast | Tuple `try await (left, right)` em join lexical (Forma vigente) | `try await left` e depois `try await right` (Forma vigente, mas não equivalente) | Gather detached, fire-and-forget ou task sem owner (Rejeitado) | Tuple cancela siblings no primeiro erro settled e drena cleanup; awaits sequenciais mudam observação, timing e cancel; escolha altera effects e custo | [DESIGN.md §12.4](DESIGN.md#124-join-erro-e-outcome) · [execution.w](reference/last-light/execution.w) |
 | Escolher primeiro settlement | `await Task#firstSettled(take tasks)` com `TaskSettlement?` (Forma vigente) | Tuple join ou `Task#withTimeout` quando a intenção é fail-fast ou timeout | `select` statement, first-success implícito, drop de future ou retorno antes do drain (Rejeitado) | Completion order vira resultado; losers cancelam e drenam, mas effects committed permanecem | [DESIGN.md §12.4.1](DESIGN.md#1241-first-settled-estruturado) · [task_settlement.w](reference/last-light/task_settlement.w) |

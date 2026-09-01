@@ -676,7 +676,7 @@ indexing uma forma semântica válida.
 
 #### 1.3.12 Ordem de labels em calls
 
-**Exemplo:** `Money(majorUnits: 42, currency: .cr)` produz 4.200 minor units.
+**Exemplo:** `Money(majorUnits: 42, currency: .ww)` produz 4.200 minor units.
 Uma chamada com labels reordenados produz o mesmo resultado hipotético no
 estudo.
 
@@ -1546,8 +1546,8 @@ humano e estudo de modelos permanecem missing.
 
 #### 1.3.24 Múltiplos initializers por forma
 
-**Exemplo:** `Money(minorUnits: 4_200, currency: .cr)` e
-`Money(majorUnits: 42, currency: .cr)` constroem o mesmo valor por duas formas
+**Exemplo:** `Money(minorUnits: 4_200, currency: .ww)` e
+`Money(majorUnits: 42, currency: .ww)` constroem o mesmo valor por duas formas
 de call disjuntas. As declarations usam `minorUnits value:` e
 `majorUnits value:`: o primeiro nome é o label externo e `value` é interno.
 
@@ -1644,10 +1644,10 @@ no bundle.
 O bundle [`r1-suspend-accounting-names`](tooling/studies/r1-suspend-accounting-names)
 fica como evidência histórica. A decisão ASC0 atual usa `HostSuspendPolicy` com
 `included`, `excluded` e `unspecified`. `Clock.hostSuspendPolicy` é uma
-inspection passiva; a aquisição default é `process.clock()` nonthrowing quando
-o Context concede a capability, e a seleção ativa é
-`try process.clock(hostSuspend: .included)` (ou a forma longa
-`process.context.clock(...)`). O request ativo usa o tipo estreito
+inspection passiva; a aquisição contextual default é `execution.clock()`
+nonthrowing quando o host concede a capability, e a seleção ativa é
+`try execution.clock(hostSuspend: .included)`. Um handler reutilizável que
+recebe `Context` usa `ctx.clock(...)`. O request ativo usa o tipo estreito
 `HostSuspendPolicy<[.included, .excluded]>`; `.unspecified` é diagnostic em
 compile time, não uma solicitação. Provider unsupported para um case válido
 continua uma falha typed antes do trabalho.
@@ -7351,7 +7351,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1164 | standard library plana | availability deriva de target facts, capabilities, effects, provider status/digest e reachability; não há tier field | distribuição por tier, source shipping que força link, availability global |
 | W-1165 | caminho de memória | value/ref/inout/take/copy e scopes estruturados formam o caminho normal; `region` sai da Forma vigente; Arena é API avançada | region syntax vigente, promoção unique→shared, Arena em tutorial normal |
 | W-1166 | contrato atômico | atomics são operations/order/extent; lowering LLVM direto ou fallback declarado; `lockFree: true` rejeita fallback | atomics como interrupt/block, weakening silencioso, atomic para ownership |
-| W-1167 | projections de process | `process.args` e `process.context` são projections intrínsecas read-only limitadas ao native-process root e ao host profile | hidden args/ctx, singleton universal, Context global |
+| W-1167 | projections de process (superseded-by-W-1513) | Registrou as projections contextuais antigas do root native-process. W-1513 remove essa superfície antes de 1.0; argumentos e `process.Context` agora entram somente por assinatura explícita. | proveniência preservada; nenhuma compatibilidade de source |
 | W-1168 | exemplos de documentação | `///` e `/** ... */` suportam `@example` com terminal único; runner gera teste hermético e omite release payload | doctest ambient, múltiplos terminals, measurement universal |
 | W-1169 | terminologia retirada | labels numéricos são históricos e não aparecem em catálogo, snapshot ou docs atuais | renomear tiers como levels, manter enforcement tier |
 | W-1170 | comparativos de execução | Swift, GCD, Go, Java, P2300, Koka, libdill, LLVM e MLIR formam gates comparativos sem definir W ou virar dependency | backend externo como autoridade, comparação sem diferença observável |
@@ -7480,7 +7480,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
 | W-1294 | uma abstração de allocator | ASC0 usa um `Allocator` owner/capability com plan lexical; origin preserva instance, lifetime, mobility e deallocator; `Arena` é apenas lowering interno | `Allocator<(.arena)>` source-visible, `Allocator<(.crossDomain)>`, provider enum fechado, API Arena pública |
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
-| W-1296 | root de processo único | host cria Arguments e Context; handler explícito recebe owners e entry curto empresta via `process.args`/`process.context`; `process.clock()` preserva identity/origin/authority/lifetime da projection longa, e `process.deadline` preserva value identity/origin/lifetime sem ampliar authority | descartar argv, injetar args/ctx, singleton process, lookup global ou duplicar projections |
+| W-1296 | root de processo único (restringido por W-1513) | host cria Arguments e Context somente quando a assinatura do handler pede esses owners; entry curto não recebe argumentos ou process context implicitamente | descartar argv, injetar args/ctx, singleton process ou lookup global |
 | W-1297 | argumentos nativos | Arguments preserva OsString ordenado, empresta por get/iteração e oferece comparação textual exata sem lossy decode | Array<String>, locale, normalização, cópia por projection ou acesso sem bound |
 | W-1298 | Context por capability | getters retornam owners retidos root-scoped; reachability exige stdio/network/clock/signals/services individualmente | mapa universal, capability opcional runtime, Context serializable ou getter ambiental |
 | W-1299 | stdio de processo | Input usa um cursor ByteSource e stream de linhas UTF-8 bounded; Output usa progress e calls sem byte interleaving | readline global, decode lossy, newline implícito, collect ou concorrência sem admission |
@@ -7495,7 +7495,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1308 | IoError portátil | kind fechado, operação lógica W e cause opaco bounded; adapter de domínio pode promover o snapshot | errno público, syscall como operação, cause serializável ou enum non-exhaustive |
 | W-1309 | controle de I/O | wouldBlock suspende, interrupção sem progress repete, EOF usa ReadStep e cancellation usa TaskOutcome | transformar controle em IoError ou oferecer retryable Boolean |
 | W-1310 | Duration operacional | total signed exato de nanoseconds em i128, layout opaco, arithmetic checked e conversão de unit exata; quantities físicas ficam em Pesquisa | unsigned duration, float, infinity, wraparound, picoseconds no baseline ou layout público |
-| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; `process.clock()`/`ctx.clock()` são default nonthrowing quando capability está disponível; `hostSuspend:` é seleção ativa com slot estreito included/excluded; runtime interno não concede leitura à aplicação | global clock, constructor público, lookup ambiental, `time.clock()` sem Context, `Clock.current` ou `.monotonicClock` paralelo |
+| W-1311 | Clock por capability | `.clock` projeta owner monotônico root-scoped; `execution.clock()`/`ctx.clock()` são default nonthrowing quando capability está disponível; `hostSuspend:` é seleção ativa com slot estreito included/excluded; runtime interno não concede leitura à aplicação | global clock, constructor público, lookup ambiental, `time.clock()` sem authority, `Clock.current` ou `.monotonicClock` paralelo |
 | W-1312 | origem temporal local | Instant e Deadline são opacos, dependem do root e não cruzam service/wire/storage/foreign; Duration cruza | raw ticks públicos, serializar Instant, comparar roots ou identity generic na syntax |
 | W-1313 | profile monotônico honesto | now não regride; resolução positiva e `HostSuspendPolicy` descreve somente suspensão do HOST/SO; included, excluded e unspecified afetam deadline de modo explícito; exemplo de sleep/hibernate/VM pause no restaurante | frequência constante universal, bool do caller, inferir política unspecified, tratar await/coroutine como suspensão do host ou timing como prova |
 | W-1314 | expiration estruturada | deadline relativo nonnegative, zero imediato, nunca early; retorno pode atrasar e expiration cancela com cleanup drain | matar thread, alarme exato, rollback, error da aplicação ou liberar recursos cedo |
@@ -7515,7 +7515,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1328 | plans fixed, bounded e custom | `PRC0-W-1328-current` e `PRC0-W-1328-adversarial` fecham admission, custom lease, typed drops e close ordering no ASC0 oracle; `.fixed`/custom contract continuam design, e `.bounded` permanece Research | autoridade PRC0; provider/lowering gap reutiliza W-1333; não alegar O(1), raw provider ou fallback oculto |
 | W-1329 | lifecycle, escape e rehome | close drena children/waits/loans/dependents, executa drops tipados e só então reclaim; unwind é uniforme; origin local sobrevive a `await` na mesma task com owner/lifetime estáveis, mas exige `rehome` antes de spawn/service/channel | reset comum, detached work, escape unchecked, drop após bulk release |
 | W-1330 | parâmetro contextual de allocator (estendido por W-1349/W-1350) | primeiro e único slot `allocator name: ref Allocator` entra signature/resource facts/ABI/HIR, publica conclusão contextual de call e preserva function type/callable/lifecycle facts | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação sem slot, ABI foreign escondida |
-| W-1331 | aquisição ativa de clock | `process.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
+| W-1331 | aquisição ativa de clock | `execution.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
 | W-1332 | binding explícito de units | `250<ms>` exige import seletivo/flattened de `std.si`; `import si from std` exige `250<si.ms>`; registry ambient não existe | ms global, qualificação inconsistente, source sem binding |
 | W-1333 | evidence ASC0 | Last Light, corpus, parser, HIR, ASC0 e `PRC0-W-1328-current`/`PRC0-W-1328-adversarial` cobrem allocator scope, admission, lease, typed drops e units; nenhum declara compiler/runtime/provider implementado | manter `implementation-evidence-gap`; expected echo, check como execução, compatibility pre-1.0 |
 | W-1334 | construction contract SHC0 | `let root: shared T = try T(allocator: memory, ...)` mantém `shared T` como prefixo, exige binding/field explícito, cobre payload e `result.$controlBlock`, separa `initializerThrows` do `failure` do site, colapsa edges com o mesmo error type e exige error set exato/único quando são distintos, rejeita `share`/`try share`/container público | try no tipo, promotion em call/return/inference, wrapper nominal, allocation site arbitrário, união implícita ou error set com extras/duplicatas |
@@ -7689,7 +7689,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1499 | composição interna BND0 caller-owned ACQ0→OWN0→MAN0 | BND0 compõe resultados completos de ACQ0 e MAN0 por uma link síncrona presa ao guard OWN0. A validação calcula facts, receipts, bindings, link digest e generation antes de uma publicação única no destination caller-owned. O Linux aceita somente `linux-openat2-v2` e reconcilia tokens com `STATX_MNT_ID_UNIQUE`, device major/minor e inode. Alias, copy, stale, mutation, mismatch, boundary, I/O, unsupported e fault falham fechados; adapters ausentes não publicam. `verify` recompõe a relação com os mesmos descriptors e scratch. | `implementation-evidence-gap` no geral, com subevidência Linux bounded em `test_source_binding_linux_gate.c` e `check:source-binding`; Windows operacional, schema/WSP0, produto público, backend/runtime e vínculo ACQ0 geral permanecem gaps. `test_source_binding.c` cobre publicação all-or-nothing, statuses, alias/copy e stub não-Linux. `benchmarkDisposition` é `compiler-lifecycle`, sem stage, timing ou result |
 | W-1500 | política de dialeto C23 controlado | C23 é o padrão explícito do C controlado, do seed CMake, do artefato HLO1 gerado, dos probes/checkers diretos e da baseline BMD byte-scan-view. O seed tem default `W_SEED_C_STANDARD=23` e aceita somente `23|11`; C11 é recovery/compatibilidade explícita, sem fallback silencioso. GCC/Clang usam `-std=c23`; somente `-std=c2x` recebe disclosure correctness-only e não produz resultado/ranking final C23; MSVC sem C23 gera SKIP principal ou roda recovery explícito. O código continua compilável na lane C11 recovery e a ABI C externa permanece separada. C é validation/differential/recovery; MLIR continua backend primário futuro. `benchmarkDisposition` é `compiler-lifecycle` para o seed e a recipe C23 do BMD permanece sem timing/result. `bun run demo:seed-hello` reproduz a rota real e exige stdout exato `Hello, world!` | `DESIGN.md` W-1500, `compiler/seed-c/CMakeLists.txt`, `tooling/c-dialect.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-seed-c11-recovery.mjs`, `tooling/demo-seed-hello.mjs`, `benchmarks/byte-scan-view.manifest.json` e gates focais; categoria `source-backed-current` para a política e `oracle-backed-current` para BMD correctness |
 | W-1501 | behavior convergente sem shim pré-1.0 | Behavior usa plain `var` como backing field oculto de reflection. `init()` é zero-slot e `init(initialValue: fn(): Value)` é a única forma one-slot, recebendo o thunk do RHS; get, set, modify e defer preservam o lifecycle e a inferência de generics. `storage`, `input` e o keyword global `storage` deixam de ser spellings aceitos, sem compatibilidade histórica. | `source-backed-current` no behavior canônico, Last Light e witness `WrappedDegrees` em `orbit.w`; o teste de `Attitude` exercita assignment, `modify` e resultado observável `15`. Compiler/runtime de behavior e provider permanecem gaps |
-| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis de process-lifetime, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles core usam facets (`task#cancel`, `(take task)#outcome`, `Task#firstSettled`, `Task#checkCancellation`, `Task#yield`, `Task#withTimeout`, `Task#withDeadline`, `Task#spawn` para domain dinâmico) e `await task` continua join, enquanto `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e `'λ'` continua `UnicodeScalar`; `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
+| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles de handle usam facets e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e `'λ'` continua `UnicodeScalar`; `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
 | W-1503 | pesquisa finita de allocation e placement | `memory.generalAllocator: .none` é policy de build sem allocator geral/root e não escolhe placement; `.fixed<capacity:N>` é lexical current; `.bounded<budget:N>` e `.stack<capacity:N>` permanecem Research. `no-general-allocation`, `no-allocation`, `dynamic-allocation-forbid`, storage classes, escape, frames, returns, ABI e linker precisam de provas separadas. `product` é conceito de seleção de manifest/artifact; `product<...>` não é declaração genérica de source nem candidato | `research-gated`; ledger W-1503 registra tasks, cases, blockers, stop conditions e refs primárias; HIR taxonomy, escape/stack summaries, verified-HIR, MLIR, async frame, target/linker/provider, diagnostics e benchmarks continuam missing; nenhuma syntax nova é ratificada |
 | W-1504 | convergência pipeline/transaction (superseded) | Registrou a antiga pipeline DAG com `return` e a expressão `transaction` separada com `commit`; preservado como proveniência e não como decisão corrente | `superseded-by-W-1511`; o ledger histórico permanece registration-only e não autoriza uma segunda grammar |
 | W-1505 | subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 | W-1505 remove a especialização Hello-only sem abrir HIR geral. HIR0/W-1494 continua a representação intermediária bounded de schema fechado, mais ampla que a seleção final. A forma exata seguinte pertence somente ao seletor HLO0 aplicado a uma HIR0 verificada: exatamente um module, um entry `.default` e uma função alvo zero-parameter/Unit/sync/nonthrows/safe/no-borrow, um block, uma call host-prelude `print`, um argumento positional `String` literal e uma requirement `Console`. HLO0 sobe para `w-seed-hlo0-2`, aceita target/handler como byte strings derivados da HIR0 verificada, não vazios, com canonical zero-tail e igualdade exata, e carrega o literal `String` inteiro (0..`W_SEED_HLO0_MAX_PAYLOAD` bytes, inclusive NUL quando publicado). O profile continua `native-process@1`, slot `.default`, callee `print`, requirement `Console`, policies/effects e shape do seletor permanecem exatos; o verifier isolado do plano comprova somente a representação zero-tail e a igualdade de target/handler, não source provenance nem identifier válido; stdout é payload + LF com tamanho checked e SHA-256 correspondente, tail é zero e exit é success. HLO1 mantém `w-seed-hlo1-1`; HLO1/RUN0 usam o verifier HLO0 compartilhado, sem heap e sem bypass. Hello, o witness Restaurante `Table 42 remains open` e vazio atravessam source → parser → frontend → HIR0 → HLO0 → HLO1/RUN0; trivia preserva o artefato e comentário com `print`, noop, duas calls e formas fora do subset falham sem saída parcial. W-1505 supersede W-1491, W-1493 e W-1495 somente nos milestones Hello-only; W-1494 permanece current. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only agora, sem timing/result; C23 é primary, C11 recovery explícita, toolchain ausente é SKIP e toolchain presente que falha é FAIL | `source-backed-current` para este subset bounded; units e `check:hlo0`, `check:hlo1`, `check:run0` demonstram os produtos e rejeições reais, enquanto HIR geral, backend/MLIR, runtime/provider W, `w run` e performance continuam gaps/deferred. Não há alteração de grammar, portal, registry ou estudos W-1503/W-1504 |
@@ -7701,6 +7701,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; RHS é call template livre com lista de argumentos e lhs posicional único; modifiers/ownership são explícitos e não há UFCS, placeholder, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting e os witnesses bounded de lexer/parser; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletado |
 | W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates, incluindo parser/formatter bounded e frontend unsupported; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
 | W-1512 | composição nominal e observers property-safe | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage, observers têm hooks/facets e ordem lexical/inversa, paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
+| W-1513 | raiz contextual de execução target-neutral | `execution` substitui a raiz contextual `process`; `.` projeta dados/capabilities, `#` expõe controles imediatos, e `std.process` permanece módulo opcional de host com owners explícitos | `oracle-backed-current` para DESIGN, Last Light, EE e PR0; `benchmarkDisposition: not-applicable`, pois a mudança remove aliases e reloca resolução sem alterar o algoritmo runtime; checker/lowering/provider target-neutral continuam gaps |
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8902,7 +8903,7 @@ core que não pode ser redeclarado pelo programa. Tipos do programa podem
 declarar conformance explícita e receber o witness e a synthesis do compiler.
 `TypeKind` fecha `scalar`, `struct`, `object`, `enum`, `refinement` e
 `enumSubset`. `TypeInfo` e suas `Property` e `Case` são views read-only,
-estáveis durante o process-lifetime, e não possuem constructor público. Esta
+estáveis durante a runtime instance, e não possuem constructor público. Esta
 forma permite queries pesquisáveis sem prometer offset, size, address,
 backing storage ou dispatch por nome.
 
@@ -9097,9 +9098,10 @@ benefício observável: `yaw#version.mutationEpoch` mede uma mutation admission,
 A leitura de epoch e o resultado após reset demonstram o contrato; um contador
 isolado sem uso não seria evidência suficiente.
 
-Task é a primeira família core. Controls como `task#cancel`,
-`(take task)#outcome`, `Task#firstSettled`, `Task#checkCancellation`,
-`Task#yield`, `Task#withTimeout`, `Task#withDeadline` e `Task#spawn` (somente
+Task é a primeira família core. Controls de handle como `task#cancel` e
+`(take task)#outcome` usam `#`. Controles da execução corrente usam
+`execution#checkCancellation` e `execution#yield`. `Task#firstSettled`,
+`Task#withTimeout`, `Task#withDeadline` e `Task#spawn` (somente
 para `ExecutionDomainRef` dinâmico) usam `#`; o initializer estático
 `spawn<domain>` permanece para domains conhecidos em compile time.
 `TaskOutcome`, `TaskSettlement` e `Cancellation` continuam data e usam `.`.
@@ -9242,3 +9244,31 @@ e [D pseudo-members/UFCS](https://dlang.org/spec/function.html#pseudo-member-fun
 Elas sustentam, respectivamente, projection/composition, lifecycle delegation,
 ordenação e privacidade explícitas, fluxo por primeiro argumento e a rejeição
 de um fallback UFCS dinâmico; não promovem implementação, benchmark ou API W.
+
+#### W-1513 — raiz contextual de execução target-neutral
+
+W-1513 corrige a direção de dependência do antigo root contextual. Uma execução
+lógica existe em native process, Wasm instance, browser worker, GPU queue,
+kernel, FPGA region, firmware e bare metal. Um processo do sistema operacional
+é somente um provider possível. Por isso, `execution` é a raiz contextual e
+`std.process` volta a ser apenas um módulo opcional de host.
+
+A raiz não é um object ou namespace importável. Ela não pode ser reificada.
+Members com `.` projetam capabilities ou fatos tipados, como clock, deadline e
+execution authority. Facets com `#` controlam a execução corrente sem fabricar
+um receiver, como yield e cancellation check. Essa divisão mantém APIs normais
+em `.` e reserva `#` para o control plane imediato.
+
+Argumentos, process context, stdio, signals, child process e exit continuam em
+`std.process`. Um handler declara `process.Arguments` ou `process.Context` na
+assinatura quando precisa desses owners. A forma curta de entry não recebe um
+atalho ambiental. Isso melhora teste e audit, e remove a duplicação entre uma
+projection curta e outra longa do mesmo owner.
+
+Availability é estática. Um target sem scheduler cooperativo rejeita
+`execution#yield`; um target sem cancellation rejeita
+`execution#checkCancellation`; um product sem clock rejeita
+`execution.clock()`. Nenhuma operação vira no-op ou lookup ambiental. A
+implementação de checker, lowering e providers target-neutral permanece um gap.
+O `benchmarkDisposition` é `not-applicable`: o bundle muda resolução e remove
+aliases, mas não escolhe algoritmo runtime nem publica claim de performance.

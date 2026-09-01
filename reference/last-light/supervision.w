@@ -55,10 +55,10 @@ async fn fulfillOrder(
 ): Receipt throws RestaurantError {
   let orderId = input.order.id
   work.report(.accepted)
-  Task#checkCancellation()
+  execution#checkCancellation()
 
   work.report(.reserving)
-  Task#checkCancellation()
+  execution#checkCancellation()
   work.report(.preparing)
 
   let dish = try await prepareDish(

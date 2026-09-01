@@ -21,11 +21,11 @@ struct Money {
 }
 
 fn exactPrice(value: i128): Money {
-  return Money(value: .minorUnits(value), currency: .cr)
+  return Money(value: .minorUnits(value), currency: .ww)
 }
 
 fn majorPrice(value: i64): Money {
-  return Money(value: .majorUnits(value), currency: .cr)
+  return Money(value: .majorUnits(value), currency: .ww)
 }
 
 test "one mode initializer constructs the same value" for majorPrice {

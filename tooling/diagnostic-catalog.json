@@ -1143,13 +1143,13 @@
       "fixes": {}
     },
     {
-      "code": "W-PROCESS-0001",
+      "code": "W-EXECUTION-0001",
       "state": "active",
       "phase": "source.capability",
       "defaultSeverity": "error",
-      "meaning": "process projection is unavailable outside a native-process entry root",
+      "meaning": "the execution contextual root is unavailable in the current runtime phase",
       "requiredFacts": {
-        "projection": "string",
+        "member": "string",
         "profile": "string",
         "reason": "string"
       },
@@ -1157,13 +1157,13 @@
       "fixes": {}
     },
     {
-      "code": "W-PROCESS-0002",
+      "code": "W-EXECUTION-0002",
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "a process projection or authority crosses its structured entry-root boundary; value copying does not make the crossing legal",
+      "meaning": "a root-bound authority or borrow obtained from execution crosses its structured boundary; value copying does not make the crossing legal",
       "requiredFacts": {
-        "projection": "string",
+        "member": "string",
         "boundary": "string",
         "reason": "string"
       },
@@ -1171,14 +1171,15 @@
       "fixes": {}
     },
     {
-      "code": "W-PROCESS-0003",
+      "code": "W-EXECUTION-0003",
       "state": "active",
       "phase": "source.capability",
       "defaultSeverity": "error",
-      "meaning": "process.ctx is not an intrinsic alias for process.context",
+      "meaning": "an execution member or facet is unavailable in the selected target or product profile",
       "requiredFacts": {
         "member": "string",
-        "canonical": "string"
+        "profile": "string",
+        "reason": "string"
       },
       "labelRoles": {},
       "fixes": {}

@@ -207,7 +207,7 @@
       "sourceRef": {
         "path": "reference/last-light/execution.w",
         "symbol": "let childTask = async mixJob",
-        "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564"
+        "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
       },
       "positive": {
         "formatterCases": [

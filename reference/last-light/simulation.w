@@ -396,7 +396,7 @@ test "the quiet orbit completes without losing an order" for simulateShift {
   expect report.unfinished == 0
   expect report.ticksRun == 7
   expect report.revenue.minorUnits == 6_342
-  expect report.revenue.currency == Currency.cr
+  expect report.revenue.currency == Currency.ww
   expect report.energyUsed > 0<si.J>
 }
 

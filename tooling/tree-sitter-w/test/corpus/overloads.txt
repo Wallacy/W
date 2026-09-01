@@ -25,7 +25,7 @@ fn expectedEnergy(power: Power, duty: DutyCycle, during duration: Duration): Ene
 }
 
 fn quote(): Money {
-  return Money(majorUnits: 42, currency: .cr)
+  return Money(majorUnits: 42, currency: .ww)
 }
 
 ---

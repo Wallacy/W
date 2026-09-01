@@ -467,12 +467,17 @@ async fn fetch(city: String): String throws String {
 }
 
 async fn runTasks(): String throws String {
+  execution#checkCancellation()
+  let clock = execution.clock()
+  let started = clock.now()
   let direct = try sync fetch("north")
   let concurrent = async fetch("east")
   let parallel = spawn<.compute> fetch("south")
   let first = try await concurrent
   let second = try await parallel
+  await execution#yield()
   let optional = try? await fetch("west")
+  print("elapsed: ${clock.duration(from: started, to: clock.now())}")
   return first + second + direct + optional?
 }
 

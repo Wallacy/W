@@ -1,14 +1,9 @@
 // Native process entry values and capability projections.
 //
 // The module exports nominal wrappers. It does not create a global process
-// object. The narrow `process.args`, `process.context`, and `process.clock()`
-// `process.deadline` spellings are compiler projections available only inside a
-// native-process entry root. `process.clock()` preserves identity, origin,
-// authority, and lifetime from `process.context.clock()`. `process.deadline`
-// preserves value identity, origin, and lifetime from `process.context.deadline`.
-// Deadline is not authority, so the short projection does not expand it.
-// Each short projection has the availability of its long projection.
-// `ctx.clock()` remains valid when Context is a parameter. The default call is
+// object or contextual namespace. `execution` is the target-neutral contextual
+// root. Process Arguments and Context enter reusable code only as explicit
+// parameters. `ctx.clock()` remains valid when Context is a parameter. The default call is
 // nonthrowing when the capability is available; active policy selection is
 // fallible and accepts only included/excluded. No global lookup or
 // `Clock.current` exists.

@@ -95,7 +95,7 @@ export service diningRoom: DiningRoomApi {
 test "an authorization cannot enter the dining room" {
   let payment = PaymentProof(
     paymentId: 10,
-    amount: Money(minorUnits: 4_242, currency: .cr),
+    amount: Money(minorUnits: 4_242, currency: .ww),
     state: .authorized,
   )
 

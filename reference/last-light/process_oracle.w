@@ -34,25 +34,22 @@ test "portable signals are explicit values" {
   expect signals[0] != signals[1]
 }
 
-// Compile-fail assays:
-// In a native-process entry body, the short projections are equivalent:
-// let clock = process.clock()
+// Contextual-execution assays:
+// `execution` is target-neutral and `std.process` remains an explicit host API.
+// let clock = execution.clock()
 // let started = clock.now()
-// let deadline = process.deadline
+// let deadline = execution.deadline
 // let elapsed = clock.duration(from: started, to: clock.now())
-// `process.clock()` keeps identity, origin, authority, and lifetime from
-// `process.context.clock()`. `process.deadline` keeps value identity, origin,
-// and lifetime from `process.context.deadline`; Deadline is not authority, so
-// the short projection keeps `authorityExpanded: false`.
-// Each short projection has the availability of its long projection.
-// `process.clock()` selects the product default and may report
+// `execution.clock()` keeps identity, origin, authority, and lifetime from the
+// host-granted owner. `execution.deadline` keeps value identity, origin, and
+// lifetime without expanding authority. Each projection is availability-gated.
+// `execution.clock()` selects the product default and may report
 // `.unspecified`; it is nonthrowing when the Context capability is available.
-// `try process.clock(hostSuspend: .included)` and the long
-// `try process.context.clock(hostSuspend: .excluded)` select an active policy.
+// `try execution.clock(hostSuspend: .included)` selects an active policy.
+// Reusable code with an explicit Context uses `ctx.clock(...)`.
 // Restaurant reservation leases require `.included`; kitchen active-work
 // budgets require `.excluded`; unsupported or unspecified active requests are
 // rejected before work starts.
-// entry { serialize(process.context) }
-// entry { service.send(process.context) }
-// entry { let hidden = process.ctx }
-// let libraryContext = process.context
+// entry { serialize(execution) }
+// entry { service.send(execution) }
+// let moduleClock = execution.clock()

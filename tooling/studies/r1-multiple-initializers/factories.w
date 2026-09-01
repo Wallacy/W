@@ -17,11 +17,11 @@ struct Money {
 }
 
 fn exactPrice(value: i128): Money {
-  return Money(minorUnits: value, currency: .cr)
+  return Money(minorUnits: value, currency: .ww)
 }
 
 fn majorPrice(value: i64): Money {
-  return Money.fromMajorUnits(value, currency: .cr)
+  return Money.fromMajorUnits(value, currency: .ww)
 }
 
 test "a factory constructs the same value" for majorPrice {

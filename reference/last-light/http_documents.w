@@ -650,7 +650,7 @@ test "command document rejects noncanonical or unexpected payloads" {
 test "app response omits trace id and writes kind first" {
   let response = AppResponse.placed(Receipt(
     orderId: 42,
-    total: Money(minorUnits: 4_242, currency: .cr),
+    total: Money(minorUnits: 4_242, currency: .ww),
     traceId: Trace.current.id,
   ))
   let document = AppResponseDocument(response: ref response)

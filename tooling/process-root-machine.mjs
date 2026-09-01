@@ -45,9 +45,9 @@ function encodeNativeText(kind, value) {
 }
 
 function deriveArguments(input) {
-  if (input.operation === "project") {
-    if (input.root !== true || input.profile !== "native-process") {
-      return { accepted: false, reason: "projectionUnavailable" }
+  if (input.operation === "bindHandler") {
+    if (input.root !== true || input.profile !== "native-process" || input.signatureRequests !== true) {
+      return { accepted: false, reason: "explicitBindingUnavailable" }
     }
     return {
       accepted: true,
@@ -56,6 +56,7 @@ function deriveArguments(input) {
       copies: 0,
       rootBound: true,
       readOnly: true,
+      explicitParameter: true,
     }
   }
 
@@ -137,7 +138,7 @@ function deriveContext(input) {
       providerCalled: true,
     }
   }
-  if (input.operation === "shortProjection") {
+  if (input.operation === "contextualProjection") {
     if (!(input.member === "clock" || input.member === "deadline")) {
       return { accepted: false, reason: "unknownMember" }
     }
@@ -153,8 +154,8 @@ function deriveContext(input) {
     return {
       accepted: true,
       member: input.member,
-      shortProjection: input.member === "clock" ? "process.clock()" : "process.deadline",
-      equivalentTo: input.member === "clock" ? "process.context.clock()" : "process.context.deadline",
+      contextualProjection: input.member === "clock" ? "execution.clock()" : "execution.deadline",
+      explicitProjection: input.member === "clock" ? "ctx.clock()" : "ctx.deadline",
       sameIdentity: true,
       sameOrigin: true,
       ...(input.member === "clock" ? { sameAuthority: true } : {}),
