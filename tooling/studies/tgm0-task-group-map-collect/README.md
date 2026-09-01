@@ -1,12 +1,14 @@
-# TGM0 — closed TaskGroup map and collect families
+# TGM0 — pipeline task map and collect evidence
 
-> Historical W-1482 evidence. The current source surface is
-> `pipeline<tasks: ...>` with `TaskOrdering`; the TaskGroup spellings below are
-> retained only to preserve the study record.
+> Historical W-1482 evidence. The directory and decision retain this
+> provenance; the current source surface is `pipeline<tasks: ...>` with
+> `TaskOrdering`.
 
-TGM0 closes the finite dynamic-task surface. The selected calls use only
-`limit`, `ordering`, and `using`. `concurrent...` inherits the current domain;
-`parallel...<domain>` requires an explicit domain with parallel capability.
+TGM0 records the finite map/collect evidence from W-1482. Its historical call
+model used only `limit`, `ordering`, and `using`; the current W-1511 spelling is
+`pipeline<tasks: ...>`. The historical `concurrent...` form inherited the
+current domain and `parallel...<domain>` required an explicit domain with
+parallel capability.
 
 The positive limit bounds live children. It does not make the consumed input
 array or final result array sublinear. The input and callable are staged once,

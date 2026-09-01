@@ -30,7 +30,7 @@ const expected = new Map([
   ["TGM0-active-limit-exceeded", ["rejected", "activeChildLimitExceeded"]],
 ]);
 
-describe("TGM0 closed TaskGroup map and collect families", () => {
+describe("TGM0 pipeline task map and collect evidence", () => {
   test("derives every current and rejected route", () => {
     const checked = validate(loadCases());
     expect(checked.errors).toEqual([]);

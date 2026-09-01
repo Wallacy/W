@@ -4486,14 +4486,14 @@ static bool kind_is_statement(w_seed_cst_kind kind) {
          kind == W_SEED_CST_COMMIT_STATEMENT ||
          kind == W_SEED_CST_ALLOCATOR_BLOCK ||
          kind == W_SEED_CST_SPAWN_STATEMENT ||
-         kind == W_SEED_CST_TRANSACTION_EXPRESSION;
+         kind == W_SEED_CST_PIPELINE_EXPRESSION;
 }
 
 static bool kind_is_unsupported_owner(w_seed_cst_kind kind) {
   return kind == W_SEED_CST_ARRAY || kind == W_SEED_CST_REPEAT_STATEMENT ||
          kind == W_SEED_CST_FOR_STATEMENT ||
          kind == W_SEED_CST_CONTRACT_ENVELOPE ||
-         kind == W_SEED_CST_TRANSACTION_EXPRESSION ||
+         kind == W_SEED_CST_PIPELINE_EXPRESSION ||
          kind == W_SEED_CST_COMMIT_STATEMENT ||
          kind == W_SEED_CST_LOCK_EXPRESSION ||
          kind == W_SEED_CST_SPAWN_STATEMENT ||
@@ -11661,6 +11661,17 @@ static bool normalize_expression_node(frontend_context *context,
   if (switch_owner_exact) {
     return normalize_switch_expression(context, switch_node, expression_index,
                                        expected, actual_out, root_out);
+  }
+  const uint32_t pipeline_node =
+      first_direct_kind(doc, expression_node, W_SEED_CST_PIPELINE_EXPRESSION);
+  if (pipeline_node != W_SEED_CST_NONE) {
+    /* The seed parser owns the current pipeline shape.  Frontend support for
+     * checking and lowering is a later gap, so record the structural owner as
+     * unsupported before the generic expression fallback runs. */
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_NODE,
+        doc->nodes[pipeline_node].raw_span,
+        text_from_span(doc, doc->nodes[pipeline_node].raw_span));
   }
   frontend_expression_parser parser;
   parser.context = context;

@@ -18,8 +18,8 @@
 |---|---:|
 | linhas de `DESIGN.md` | 35328 |
 | tokens aproximados de `DESIGN.md` | 400800 |
-| linhas de `RATIONALE.md` | 9221 |
-| tokens aproximados de `RATIONALE.md` | 230400 |
+| linhas de `RATIONALE.md` | 9245 |
+| tokens aproximados de `RATIONALE.md` | 230800 |
 | seções numeradas | 27 |
 | seções terminais com evidência local | 375/375 |
 | decisões | 1512 (W-001–W-1512) |
@@ -28,8 +28,8 @@
 | requisitos de ratificação comparativa | 88 |
 | casos de substituição estruturados | 88/88 |
 | decisões referenciadas por casos R0 | 186/1512 |
-| decisões classificadas para design freeze | 1512/1512 (825 implementation-evidence-gap; 65 superseded; 103 source-backed-current; 509 oracle-backed-current; 8 rejected; 2 research-gated) |
-| decisões com evidência legada de fonte/oráculo | 552/1512 (186 source + 410 oracle + 8 explícitas; 52 overlaps) |
+| decisões classificadas para design freeze | 1512/1512 (823 implementation-evidence-gap; 68 superseded; 103 source-backed-current; 508 oracle-backed-current; 8 rejected; 2 research-gated) |
+| decisões com evidência legada de fonte/oráculo | 551/1512 (186 source + 412 oracle + 8 explícitas; 55 overlaps) |
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
 | formas R0 com baseline estática | 246 |
@@ -39,7 +39,7 @@
 | casos R0 promovidos a R1 | 69/88 |
 | protocolo HUM0 | 8 slices/32 tasks; 0 human records/0 model records; structure-only |
 | casos do corpus Tree-sitter | 135 |
-| pares canônicos do formatter F0 | 28 |
+| pares canônicos do formatter F0 | 31 |
 | casos/operações do kernel de memória M1 | 185/606 (79 aceitos + 106 rejeitados) |
 | casos/operações do control block shared SHC0 | 45/84 (16 aceitos + 6 errors + 3 faults + 20 rejeitados) |
 | casos/operações do kernel de allocation físico A0 | 48/123 (15 aceitos + 33 rejeitados) |
@@ -77,7 +77,7 @@
 | matriz host SDM0 | 30 (8 oracle aceitos + 22 oracle rejeitados; 3 outcomes aceitos + 5 rejeitados; 24 decisões) |
 | outcomes SemanticResult S0 | 158 |
 | snapshots de diagnostic D0 | 79 |
-| snapshots F0 no formato D0 | 28 |
+| snapshots F0 no formato D0 | 31 |
 | codes D0 catalogados | 332/239 |
 | sources W no root do Última Luz | 107 |
 | sources W em todo o Última Luz | 112 |
@@ -176,7 +176,7 @@ A estimativa de tokens usa bytes divididos por quatro. Use o valor somente para 
 |---:|---:|---:|---|
 | 1 | 15–6144 | 98000 | Evidência comparativa |
 | 2 | 6145–6174 | 500 | Proveniência |
-| 3 | 6175–9221 | 131800 | Ledger |
+| 3 | 6175–9245 | 132200 | Ledger |
 
 ## Bundles de leitura
 

@@ -8,9 +8,9 @@ que retorna `some Stream<Item, Failure>` e faz apenas
 O problema é concreto: alguns producers lineares precisam repetir o mesmo
 boilerplate de cursor, terminal e transferência de ownership. O estudo não
 trata `yield` como uma segunda semântica de task, como callback push ou como
-frame público. `Channel`, `buffer(capacity:)`, `TaskGroup` e `Stream<view T,E>`
-continuam sendo as formas para diálogo, backpressure, trabalho paralelo e
-views borrowed.
+frame público. `Channel`, `buffer(capacity:)`, `pipeline<tasks: ...>` e
+`Stream<view T,E>` continuam sendo as formas para diálogo, backpressure,
+trabalho paralelo e views borrowed.
 
 O corpus usa símbolos reais de `reference/last-light/` como âncoras e fixtures
 pareados para a superfície corrente e a superfície candidata. A métrica é

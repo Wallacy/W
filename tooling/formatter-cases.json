@@ -425,20 +425,62 @@
       "requiredSemicolons": []
     },
     {
-      "id": "F0-structured-transaction",
-      "decisions": ["W-688", "W-705", "W-708", "W-775"],
+      "id": "F0-structured-pipeline-transaction",
+      "decisions": ["W-705", "W-708", "W-775", "W-1511"],
       "input": {
         "lines": [
-          "async fn settle(table:TableId,guest:GuestId):Receipt throws LedgerError{return try await transaction tx=tableLedger{let reservation=try await tx.reserve(tableId:table,guestId:guest) let receipt=try await tx.confirm(reservation:take reservation) commit receipt}}"
+          "async fn settle(table:TableId,guest:GuestId):Receipt throws LedgerError{return try await pipeline<transaction:{isolation:.serializable,access:.readWrite}> tx=tableLedger{let reservation=try await tx.reserve(tableId:table,guestId:guest) let receipt=try await tx.confirm(reservation:take reservation) commit receipt}}"
         ]
       },
       "output": [
         "async fn settle(table: TableId, guest: GuestId): Receipt throws LedgerError {",
-        "  return try await transaction tx = tableLedger {",
+        "  return try await pipeline<transaction: { isolation: .serializable, access: .readWrite }> tx = tableLedger {",
         "    let reservation = try await tx.reserve(tableId: table, guestId: guest)",
         "    let receipt = try await tx.confirm(reservation: take reservation)",
         "    commit receipt",
         "  }",
+        "}"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-facet-path-spacing",
+      "decisions": ["W-1509"],
+      "input": {
+        "lines": [
+          "fn facet(){let result=attitude.yaw#degrees.reset()}"
+        ]
+      },
+      "output": [
+        "fn facet() { let result = attitude.yaw#degrees.reset() }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-pipe-chain-spacing",
+      "decisions": ["W-1510"],
+      "input": {
+        "lines": [
+          "fn chain(){let result=source|>first()|>second()}"
+        ]
+      },
+      "output": [
+        "fn chain() { let result = source |> first() |> second() }"
+      ],
+      "requiredSemicolons": []
+    },
+    {
+      "id": "F0-structured-pipeline-tasks",
+      "decisions": ["W-1511"],
+      "input": {
+        "lines": [
+          "fn f(){let x=0 pipeline<tasks:.parallel<.compute>,limit:16,ordering:.input,errors:.collect> each item in s{commit item}}"
+        ]
+      },
+      "output": [
+        "fn f() {",
+        "  let x = 0",
+        "  pipeline<tasks: .parallel<.compute>, limit: 16, ordering: .input, errors: .collect> each item in s { commit item }",
         "}"
       ],
       "requiredSemicolons": []

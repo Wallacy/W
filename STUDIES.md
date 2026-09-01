@@ -34,7 +34,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | `QOS0` | Domain placement without portable task priority or QoS — `complete-design-study` | [`tooling/studies/qos0-scheduling-boundary`](./tooling/studies/qos0-scheduling-boundary/) | `—` | `bun run check:qos0` |
 | `SEA0` | Simulated effects, deferred approval, and deterministic test infrastructure — `complete-design-study` | [`tooling/studies/sea0-simulated-effects-approval`](./tooling/studies/sea0-simulated-effects-approval/) | `—` | `bun run check:sea0` |
 | `SVC0` | Directional service streams without implicit channels — `complete-design-study` | [`tooling/studies/svc0-service-stream-directions`](./tooling/studies/svc0-service-stream-directions/) | `—` | `bun run check:svc0` |
-| `TGM0` | Closed finite TaskGroup map and collect families — `complete-design-study` | [`tooling/studies/tgm0-task-group-map-collect`](./tooling/studies/tgm0-task-group-map-collect/) | `—` | `bun run check:tgm0` |
+| `TGM0` | Pipeline task map and collect evidence — `complete-design-study` | [`tooling/studies/tgm0-task-group-map-collect`](./tooling/studies/tgm0-task-group-map-collect/) | `—` | `bun run check:tgm0` |
 
 ## Status: `design-oracle-input` (60)
 

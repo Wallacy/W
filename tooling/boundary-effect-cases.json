@@ -432,7 +432,7 @@
     },
     {
       "id": "B0-transaction-body-runs-once",
-      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "transaction<" }],
+      "references": [{ "path": "../reference/last-light/transaction_oracle.w", "symbol": "pipeline<transaction:" }],
       "operations": [
         { "op": "createTransaction", "transaction": "booking", "effectId": "effect-booking", "provider": "tableLedger" },
         { "op": "beginTransaction", "transaction": "booking" },

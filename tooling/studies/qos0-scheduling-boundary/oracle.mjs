@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const sourceSurfaces = new Set([
-  "none", "spawn", "async", "TaskGroup", "function", "Task",
+  "none", "spawn", "async", "pipelineTasks", "function", "Task",
   "serviceCall", "entry", "service", "serviceDescriptor", "executionProfile",
 ]);
 const prioritySemanticRoles = new Set(["none", "correctness", "deadline", "authority"]);
