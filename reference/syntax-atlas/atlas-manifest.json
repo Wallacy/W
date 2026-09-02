@@ -1893,7 +1893,7 @@
       "construction": "take ownership",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "take writableName"
+      "witness": "take copyOfName"
     },
     {
       "id": "ownership-shared",
@@ -2447,8 +2447,8 @@
           "digest": "sha256:9ae24ffbed1ef3cee289fa7ea3b014ce4d66a176be209065e586403561bf15ad"
         }
       ],
-      "snippetDigest": "sha256:09e0ebf38d4ae5b9c4cedeea811584ccc47bcfc313df3615992c1e802c5d1659",
-      "snippetBytes": 536
+      "snippetDigest": "sha256:2e452c9dd308d05601f8a525b9ef79cf564cd94b95cb9ca6231fff40edc735ac",
+      "snippetBytes": 583
     },
     {
       "id": "patterns",
@@ -2493,7 +2493,7 @@
       "id": "allocator-and-bindings",
       "file": "execution.w",
       "order": 7,
-      "line": 7,
+      "line": 11,
       "title": "Allocator scopes and bindings",
       "family": "ownership",
       "designStatus": "current",
@@ -2516,14 +2516,14 @@
           "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586"
         }
       ],
-      "snippetDigest": "sha256:06899e8ebf02ac5caecc9e60d29a4f74f426a5899ec1d0d73f495cc1235caac3",
-      "snippetBytes": 573
+      "snippetDigest": "sha256:c70f7d9a427bcc6c0c3e14486174dc9a1cdd9972d8648612d760230a3fb0b13f",
+      "snippetBytes": 595
     },
     {
       "id": "control-flow",
       "file": "execution.w",
       "order": 8,
-      "line": 33,
+      "line": 38,
       "title": "Control flow and cleanup",
       "family": "control",
       "designStatus": "current",
@@ -2554,17 +2554,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
+          "digest": "sha256:e6d2e4738e20b6a46920b3a2b5d8273d027e35a99b6e072cb8b34d0337a6de73"
         }
       ],
-      "snippetDigest": "sha256:30d0e60ebfb7fcf756948c087e8fb6bcd49f002cb8d057b0187f8887bc464f02",
-      "snippetBytes": 478
+      "snippetDigest": "sha256:4c0d8082c00deec360a100b094a3f1c119756719403e9ac24ef02dfccc794547",
+      "snippetBytes": 634
     },
     {
       "id": "execution-forms",
       "file": "execution.w",
       "order": 9,
-      "line": 63,
+      "line": 76,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -2596,17 +2596,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
+          "digest": "sha256:e6d2e4738e20b6a46920b3a2b5d8273d027e35a99b6e072cb8b34d0337a6de73"
         }
       ],
-      "snippetDigest": "sha256:a19affeeed1338431ec65bc0743474d3225c3bd9842cbf58d252ebd92b6f5c76",
-      "snippetBytes": 1298
+      "snippetDigest": "sha256:047b627b087d783727e2418043ffa5c88e606d345b0520df22b821175bb24c25",
+      "snippetBytes": 1420
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 105,
+      "line": 126,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2645,8 +2645,8 @@
           "digest": "sha256:150d2b1d51f9bd467ff7c948deee0475bd70f825681a45df276c6bb437e719ab"
         }
       ],
-      "snippetDigest": "sha256:22bc48924450337053236840f0c27e0c0068fd0437890bf6aee69303e7022e1e",
-      "snippetBytes": 1442
+      "snippetDigest": "sha256:6fa9b67d8b2847490cb671ec53ce9d0527340098a8aa5137d1bbc854b1a6ae85",
+      "snippetBytes": 1446
     },
     {
       "id": "operators",
@@ -2672,14 +2672,14 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:f9cdc21f68bc3aaa04a9f14421e34ce61d86d1a3b270a770ca49294dfc67f4ca",
-      "snippetBytes": 6068
+      "snippetDigest": "sha256:1204558d7680d9add75e8c22ee91d2319462fbe337b16ea9bcd07c2114bfaa5b",
+      "snippetBytes": 6095
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 171,
+      "line": 192,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2700,14 +2700,14 @@
           "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
         }
       ],
-      "snippetDigest": "sha256:62c2c0992fd1b104a7765682023edd3dfb1cd6a3c3276ecc351ddadda8a8b64a",
-      "snippetBytes": 598
+      "snippetDigest": "sha256:94b8ff8c4b6845006b79d326fb66ceb9f35f87e61ef6e7f6f2a278fb0afeceb7",
+      "snippetBytes": 610
     },
     {
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 251,
+      "line": 252,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2733,7 +2733,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 200,
+      "line": 221,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2827,6 +2827,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:ca0c8ad08d754a73dfd9fe9d21e312df8b6a21e6fd7b4cb4090ec3a584cb3cca"
+    "coverageDigest": "sha256:534c70aa469d7efc937ba3521e04c30df604ed044d88f5610dfb3eea08ae50a3"
   }
 }

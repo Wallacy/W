@@ -259,7 +259,7 @@
       "id": "E1-cleanup-budget-rejected",
       "references": [
         { "path": "../reference/last-light/liveness_oracle.w", "symbol": "CommitGate" },
-        { "path": "../reference/last-light/execution.w", "symbol": "Task#withTimeout" }
+        { "path": "../reference/last-light/execution.w", "symbol": "Task.withTimeout" }
       ],
       "decisions": ["W-965", "W-970"],
       "operations": [

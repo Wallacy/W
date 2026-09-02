@@ -201,7 +201,7 @@ export async fn mixBeforeTheLastBell(
   job: take MixingJob,
   timeout: ClosingTimeout,
 ): TaskOutcome<MixingResult, BrigadeError> {
-  return await Task#withTimeout(
+  return await Task.withTimeout(
     for: timeout,
     input: take job,
     using: mixCooperatively,

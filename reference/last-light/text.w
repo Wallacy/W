@@ -154,12 +154,15 @@ test "byte slices validate both scalar boundaries" {
 
 test "raw and multiline strings keep exact content" {
   let raw = #"C:\last-light\${notInterpolation}"#
+  let seconds: u64 = 30
+  let envelope = #"{"value":#${seconds},"unit":"s"}"#
   let menu = """
     broth
       horizon-cake
     """
 
   expect raw == "C:\\last-light\\${notInterpolation}"
+  expect envelope == #"{"value":30,"unit":"s"}"#
   expect menu == "broth\n  horizon-cake"
 }
 

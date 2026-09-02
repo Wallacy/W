@@ -2081,6 +2081,7 @@
           "  export index: usize",
           "  export outcome: TaskOutcome<Value, Failure>",
           "}",
+          "let rawEnvelope = #\"{\"value\":#${seconds},\"unit\":\"s\"}\"#",
           "export alias AllocatorLease = Allocator"
         ]
       },
@@ -2100,6 +2101,7 @@
       ],
       "sourceRefs": [
         { "path": "reference/last-light/reflection.w", "symbol": "ReservationKey/reservationKeyInfo", "claim": "Opt-in Reflectable conformance and type/metadata queries." },
+        { "path": "reference/last-light/text.w", "symbol": "raw and multiline strings keep exact content", "claim": "Raw String keeps normal interpolation text literal and enables only the hash-prefixed interpolation marker." },
         { "path": "std/runtime/task.w", "symbol": "TaskOutcome/TaskSettlement", "claim": "Opaque task companion records and outcomes." },
         { "path": "std/memory/contracts.w", "symbol": "Allocator/AllocatorLease", "claim": "Allocator lease contract and source-neutral descriptor." }
       ],
@@ -2390,14 +2392,16 @@
       "id": "R0-fpp0-facets-pipe-pipeline",
       "reviewItem": "FPP0 facets, pipe-forward e pipeline unificada contra projeções implícitas, UFCS e grafo sem schema",
       "decisions": ["W-1509", "W-1510", "W-1511", "W-1512"],
-      "task": "Exercise the closed FPP0 source surfaces: immediate qualified facets and nominal behavior composition, a static callable pipe-forward step, and explicit pipeline modes with commit.",
+      "task": "Exercise the closed FPP0 source surfaces: immediate qualified facets and nominal behavior composition, a multi-stage functional pipe-forward chain, ordinary Task combinators, and explicit pipeline modes with commit.",
       "selected": {
         "language": "w",
         "source": [
           "export behavior VersionedDegrees for u16 = (degrees: WrappedDegrees, version: Versioned<u16>)",
           "var VersionedDegrees yaw: u16 = 350_u16",
           "yaw#degrees.reset()",
-          "let normalized = copy source |> try json.decode<Document>()",
+          "task#cancel(reason: .shutdown)",
+          "let outcome = await Task.withDeadline(until: deadline, input: take job, using: work)",
+          "let normalized = copy source |> trim() |> try json.decode<Document>() |> validate()",
           "let output = try await pipeline ovens.acquire(...).preheat()",
           "pipeline<tasks: .concurrent, limit: 16, ordering: .input, errors: .collect> each item in take items { commit transform(item) }"
         ]
@@ -2429,7 +2433,7 @@
         }
       ],
       "sourceRefs": [
-        { "path": "DESIGN.md", "symbol": "W-1509 — facet projection", "claim": "Current facet projection, Task controls, composition paths and immediate-use restrictions." },
+        { "path": "DESIGN.md", "symbol": "W-1509 — facet projection", "claim": "Current facet projection, immediate Task controls, ordinary Task combinators, composition paths and immediate-use restrictions." },
         { "path": "tooling/tree-sitter-w/grammar.js", "symbol": "pipeline_chain", "claim": "Current syntax nodes for qualified facets, pipe-forward and pipeline chain forms." },
         { "path": "tooling/tree-sitter-w/test/corpus/fpp0_facets_pipe_pipeline.txt", "symbol": "VersionedDegrees", "claim": "Parser corpus exercises composition, facets, pipe-forward and pipeline modes." },
         { "path": "reference/last-light/orbit.w", "symbol": "VersionedDegrees", "claim": "Last Light composition witness observes normalization, epoch and qualified facet use." },

@@ -38,10 +38,6 @@ export async fn firstMenuMirror(
 ): TaskSettlement<MirroredMenu, MenuMirrorError> {
   let primary = async readMenuMirror(take primaryRequest)
   let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
-  let settlement = await Task#firstSettled(take [primary, fallback])
-
-  return switch take settlement {
-    case .some(let winner): take winner
-    case .none: panic("two menu mirrors cannot form an empty selection")
-  }
+  let candidates: [Task<MirroredMenu, MenuMirrorError>; 2] = [primary, fallback]
+  return await (take candidates).firstSettled()
 }

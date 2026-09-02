@@ -23,8 +23,8 @@ O parser mantém uma supergrammar para recuperação: o atlas aceita as formas
 parentetizadas `(x |> f()) ?? fallback` e `(x ?? fallback) |> f()`, enquanto o
 adversarial `x |> f() ?? fallback`/`x |> f() || fallback` é rejeitado
 semanticamente por `W-PIPE-0001` porque o RHS deve ser um call template único.
-Para a matriz semântica, leia [`Operadores, bits e política numérica`](../../CHEATSHEET.md#operadores-bits-e-política-numérica).
-Para o limite de custo, leia [`Performance e custo`](../../CHEATSHEET.md#performance-e-custo).
+For usage examples, read [`Operators and pipe-forward`](../../CHEATSHEET.md#operators-and-pipe-forward).
+For explicit overflow and bit APIs, read [`Numeric policies and bit primitives`](../../CHEATSHEET.md#numeric-policies-and-bit-primitives).
 
 `>..` e `>..<` continuam formas current do contrato e das tabelas seed
 lexer/parser. O witness direto Tree-sitter dessas formas está em um gap

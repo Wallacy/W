@@ -1139,7 +1139,7 @@ function derivePlacement(source, input = {}, suspension = { declarations: [] }) 
 }
 
 function deriveExecution(source, input = {}) {
-  const members = [...new Set([...source.matchAll(/\bexecution\.(clock|deadline|openSerial)\b/g)].map((match) => match[1]))]
+  const members = [...new Set([...source.matchAll(/\bexecution\.([A-Za-z_][A-Za-z0-9_]*)\b/g)].map((match) => match[1]))]
   const facets = [...new Set([...source.matchAll(/\bexecution#(yield|checkCancellation)\b/g)].map((match) => match[1]))]
   const root = input.root ?? (members.length > 0 || facets.length > 0 || /\bentry\b/.test(source))
   const profile = input.profile ?? (root ? "runtime" : "library")

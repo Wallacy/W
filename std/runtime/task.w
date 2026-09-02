@@ -26,7 +26,7 @@ export enum TaskOrdering {
   completion
 }
 
-// Task#firstSettled and pipeline task collect operations use this record. The
+// Collection.firstSettled and pipeline task collect operations use this record. The
 // index refers to the consumed input array. The outcome keeps application
 // failure separate from structured cancellation.
 export struct TaskSettlement<Value, Failure: Error> {

@@ -32,10 +32,10 @@ describe("cheatsheet snippet checker", () => {
   test("accepts the current extraction and inventory", () => {
     const result = validateCheatsheetText(cheatsheet, { repositoryRoot })
     expect(result.errors).toEqual([])
-    expect(result.counts.w).toBe(22)
-    expect(result.counts.source).toBe(30)
-    expect(result.counts.composed).toBe(4)
-    expect(result.counts.contrafactual).toBe(1)
+    expect(result.counts.w).toBe(28)
+    expect(result.counts.source).toBe(0)
+    expect(result.counts.composed).toBe(0)
+    expect(result.counts.contrafactual).toBe(0)
     expect(result.counts["manifest-fragment"]).toBe(1)
   })
 
@@ -66,42 +66,36 @@ describe("cheatsheet snippet checker", () => {
   })
 
   test("rejects malformed excerpt metadata", () => {
-    const candidate = mutate(
-      cheatsheet,
-      "<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind: composed\n// entrada: dois valores Order",
-      "<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind composed\n// entrada: dois valores Order",
-    )
+    const candidate = cheatsheet + "\n<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind composed\nlet value = 1\n```\n"
     expect(errorsFor(candidate).some((error) => error.includes("invalid excerpt metadata"))).toBe(true)
   })
 
   test("rejects path escape, absolute path, and history path", () => {
-    const escape = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "../reference/last-light/restaurant.w::prepareDish")
+    const sourceExcerpt = (source) => cheatsheet + `\n<!-- w-example role=signature-reference -->\n\`\`\`w\n// excerpt-source: ${source}\nfn example() {}\n\`\`\`\n`
+    const escape = sourceExcerpt("../reference/last-light/execution.w::example")
     expect(errorsFor(escape).some((error) => error.includes("must not escape"))).toBe(true)
 
-    const absolute = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "C:/outside.w::prepareDish")
+    const absolute = sourceExcerpt("C:/outside.w::example")
     expect(errorsFor(absolute).some((error) => error.includes("must be relative"))).toBe(true)
 
-    const history = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "history/archive/restaurant.w::prepareDish")
+    const history = sourceExcerpt("history/archive/execution.w::example")
     expect(errorsFor(history).some((error) => error.includes("history or generated"))).toBe(true)
   })
 
   test("rejects missing source and missing symbol", () => {
-    const missingSource = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "reference/last-light/missing.w::prepareDish")
+    const sourceExcerpt = (source) => cheatsheet + `\n<!-- w-example role=signature-reference -->\n\`\`\`w\n// excerpt-source: ${source}\nfn example() {}\n\`\`\`\n`
+    const missingSource = sourceExcerpt("reference/last-light/missing.w::example")
     expect(errorsFor(missingSource).some((error) => error.includes("source file does not exist"))).toBe(true)
 
-    const missingSymbol = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "reference/last-light/restaurant.w::notPresent")
+    const missingSymbol = sourceExcerpt("reference/last-light/execution.w::notPresent")
     expect(errorsFor(missingSymbol).some((error) => error.includes("symbol is missing"))).toBe(true)
 
-    const emptySymbol = mutate(cheatsheet, "reference/last-light/restaurant.w::prepareDish", "reference/last-light/restaurant.w::")
+    const emptySymbol = sourceExcerpt("reference/last-light/execution.w::")
     expect(errorsFor(emptySymbol).some((error) => error.includes("symbol must not be empty"))).toBe(true)
   })
 
   test("rejects a source excerpt whose body is not LF-normalized exact content", () => {
-    const candidate = mutate(
-      cheatsheet,
-      "  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)",
-      "  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.otherRecipe)",
-    )
+    const candidate = cheatsheet + "\n<!-- w-example role=signature-reference -->\n```w\n// excerpt-source: reference/last-light/execution.w::export async fn closeBeforeTheLastCourse\nfn wrong() {}\n```\n"
     expect(errorsFor(candidate).some((error) => error.includes("LF-normalized exact content"))).toBe(true)
   })
 
@@ -145,18 +139,10 @@ describe("cheatsheet snippet checker", () => {
   })
 
   test("rejects duplicate and invalid metadata", () => {
-    const duplicate = mutate(
-      cheatsheet,
-      "<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind: composed\n// entrada: dois valores Order",
-      "<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind: composed\n// excerpt-kind: composed\n// entrada: dois valores Order",
-    )
+    const duplicate = cheatsheet + "\n<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind: composed\n// excerpt-kind: composed\nlet value = 1\n```\n"
     expect(errorsFor(duplicate).some((error) => error.includes("duplicate excerpt metadata"))).toBe(true)
 
-    const invalid = mutate(
-      cheatsheet,
-      "// excerpt-kind: contrafactual\nlet lease = try await ovens.acquire",
-      "// excerpt-kind: unknown\nlet lease = try await ovens.acquire",
-    )
+    const invalid = cheatsheet + "\n<!-- w-example role=logical-contract -->\n```w\n// excerpt-kind: unknown\nlet value = 1\n```\n"
     expect(errorsFor(invalid).some((error) => error.includes("invalid excerpt metadata"))).toBe(true)
   })
 

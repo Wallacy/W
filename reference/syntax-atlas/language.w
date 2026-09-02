@@ -216,10 +216,11 @@ fn values(): () {
   let count = 1_000
   let ratio = 0.5e2
   let distance = 9.81<m/s^2>
-  let speed = 12km
-  let bytes = 64KiB
+  let speed = 12<km>
+  let bytes = 64<KiB>
   let text = "city"
   let raw = #"raw city"#
+  let rawInterpolated = #"city #${count}"#
   let multiline = """north
 south"""
   let scalar = 'N'

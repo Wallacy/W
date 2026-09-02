@@ -5,6 +5,7 @@ Text and byte literals
 fn literals(): Bytes {
   let normal = "order ${id}\u{2026}"
   let raw = #"C:\orders\${id}"#
+  let rawInterpolated = #"{"value":#${id},"unit":"s"}"#
   let multiline = """broth
 cake"""
   let rawMultiline = #"""${literal}
@@ -28,6 +29,10 @@ C:\last-light"""#
         (pattern
           (identifier))
         (string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (raw_string_literal))
       (binding_declaration
         (pattern
           (identifier))
