@@ -9,7 +9,7 @@
 > Este documento não cria uma autoridade nova.
 > Não edite este arquivo. Use `bun tooling/diagnostic-catalog.mjs --write`.
 
-- Catalog digest: `sha256:528561684c94c1ab3d2d7517a1a3bf3c73abea7deb41c148e468b97597ee7c42`
+- Catalog digest: `sha256:ec8616bdd2e139c45366f84d804e9bb8e678c52a909a8943accf151b221d8439`
 - Entries: `332`
 - Families: `51`
 - Design references: `238` exact, `94` family
@@ -2666,7 +2666,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: a facet target is not a property place or declared core namespace
+- `meaning`: a facet target is not a property place or a declared immediate core control target
 
 - `requiredFacts`:
   - `facet`: `string`
@@ -2746,7 +2746,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: a facet is not declared by the applied behavior or a core namespace
+- `meaning`: a facet is not declared by the applied behavior or the immediate core control target
 
 - `requiredFacts`:
   - `declarations`: `string[]`

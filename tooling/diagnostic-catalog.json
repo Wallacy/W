@@ -2748,7 +2748,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a facet target is not a property place or declared core namespace",
+      "meaning": "a facet target is not a property place or a declared immediate core control target",
       "requiredFacts": { "place": "string", "facet": "string", "reason": "string" },
       "labelRoles": {},
       "fixes": {}
@@ -2788,7 +2788,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a facet is not declared by the applied behavior or a core namespace",
+      "meaning": "a facet is not declared by the applied behavior or the immediate core control target",
       "requiredFacts": { "place": "string", "facet": "string", "declarations": "string[]" },
       "labelRoles": {},
       "fixes": {}

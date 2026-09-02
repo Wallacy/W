@@ -478,7 +478,7 @@
     {
       "id": "EE-POS-dynamic-serial-drain",
       "kind": "positive",
-      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task#spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {
@@ -558,7 +558,7 @@
     {
       "id": "EE-NEG-dynamic-serial-closed-admission",
       "kind": "negative",
-      "source": "let lane = try execution.openSerial(limits: limits)\nawait lane.close()\nlet task = try Task#spawn(domain: lane.reference, operation: work)",
+      "source": "let lane = try execution.openSerial(limits: limits)\nawait lane.close()\nlet task = try Task.spawn(domain: lane.reference, operation: work)",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {
@@ -661,7 +661,7 @@
     {
       "id": "EE-NEG-dynamic-serial-drain-suspended",
       "kind": "negative",
-      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task#spawn(domain: lane.reference, operation: work)\nawait lane.close()",
+      "source": "let lane = try execution.openSerial(limits: limits)\nlet task = try Task.spawn(domain: lane.reference, operation: work)\nawait lane.close()",
       "input": {
         "functionTypes": [{ "name": "close", "suspension": "may" }],
         "dynamicSerial": {
@@ -733,6 +733,14 @@
       "kind": "negative",
       "source": "entry(run)\nawait execution#yield()",
       "input": { "root": true, "profile": "fpga-region", "unavailableMembers": ["yield"] },
+      "expect": { "diagnostic": "W-EXECUTION-0003" }
+    },
+    {
+      "id": "EE-NEG-execution-no-ambient-authority",
+      "kind": "negative",
+      "decisions": ["W-1513"],
+      "source": "entry(run)\nlet files = execution.filesystem()",
+      "input": { "root": true, "profile": "native-process", "unavailableMembers": ["filesystem"] },
       "expect": { "diagnostic": "W-EXECUTION-0003" }
     },
     {

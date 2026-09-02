@@ -2040,7 +2040,8 @@ Uma construction move-only usa `Array.generate` ou outra API nomeada.
 
 Literals numéricos permanecem exatos até a materialização. String interpolation
 avalia cada expression na ordem source e escreve no mesmo destino String. Raw
-strings e byte strings não possuem interpolation.
+strings mantêm `${...}` literal e aceitam somente o marker opt-in `#${...}`;
+byte strings não possuem interpolation.
 
 ##### Calls e postfix
 
@@ -4116,6 +4117,11 @@ let label = input |> trim() |> lowercase() |> slug()
 expect label == "table-42"
 ```
 
+A cadeia com duas ou mais etapas é o uso primário da superfície. Uma única
+etapa continua válida, mas demonstra somente a regra de forwarding, não o ganho
+de composição funcional. `pipeline` permanece distinta porque representa um
+graph e pode exigir `commit`; `|>` somente encadeia valores e calls locais.
+
 Cada etapa expande `lhs |> f(args)` para `f(lhs, args)`, colocando o lhs uma
 única vez no primeiro parâmetro posicional `_`. O template não pode ter um
 primeiro parâmetro nomeado, ser uma função sem call, placeholder, member,
@@ -5720,7 +5726,7 @@ export struct PaymentProof {
 }
 
 object Cursor {
-  var storedIndex: usize
+  var storedIndex: usize = 0
 
   var index: usize {
     get => storedIndex
@@ -10961,8 +10967,9 @@ export behavior WrappedDegrees for u16 {
 }
 ```
 
-`place#facet` resolve uma facet ligada estaticamente à declaration/place ou a um
-namespace core opaco. A facet pertence ao property place, portanto
+`place#facet` resolve uma facet ligada estaticamente à declaration/place ou a
+um controle imediato de handle/context core opaco. A facet pertence ao
+property place, portanto
 `attitude.yaw#reset()` é válido quando `yaw` usa esse behavior; `attitude#reset()`
 não é um fallback. Copiar o valor lógico perde a facet, e resolver uma facet não
 executa antes o getter lógico. Membro normal e facet homônimos formam namespaces
@@ -10990,12 +10997,14 @@ Raw strings `#"..."` e `#"""..."""` continuam tokens próprios e não são facet
 Facets core são reservadas à linguagem. Neste primeiro conjunto, os controles
 ocultos de um handle `Task` usam `task#cancel(reason: ...)` e
 `await (take task)#outcome()`. Os controles da execução corrente usam
-`execution#checkCancellation()` e `await execution#yield()`. As operações
-`Task#firstSettled(...)`,
-`Task#withTimeout(...)`, `Task#withDeadline(...)` e o launcher
-`Task#spawn(...)` para um `ExecutionDomainRef` dinâmico. O initializer estático
-`spawn<domain> ...` continua a forma para domains conhecidos em compile time;
-ele não é substituído pela facet. `await task` continua o join simples. `TaskOutcome`,
+`execution#checkCancellation()` e `await execution#yield()`. `#` não cria
+associated functions nem substitui methods. Algoritmos sobre collections usam
+members normais, como `(take tasks).firstSettled()`. Factories e combinators
+associados usam o namespace compile-time normal, como `Task.withTimeout(...)`,
+`Task.withDeadline(...)` e `Task.spawn(...)` para um `ExecutionDomainRef`
+dinâmico. O initializer estático `spawn<domain> ...` continua a forma para
+domains conhecidos em compile time; ele não é substituído pela associated
+function. `await task` continua o join simples. `TaskOutcome`,
 `TaskSettlement` e `Cancellation` são dados e conservam acesso normal por `.`.
 Um `SharedTask` observador não recebe facet de cancelamento. APIs reais de
 resources e bibliotecas (`lease.close`, stream/channel, atomics, filesystem e
@@ -11019,8 +11028,11 @@ Não há lista ad hoc na property, keywords `storage`/`input` ou uso de `|>` par
 composição. Não há observer implícito: hooks só existem em um behavior observer
 nominal explicitamente aplicado ou composto. A definição infere dois papéis.
 Um behavior de storage declara `get`/`set`/`modify` e possui o storage
-principal; um behavior observer não declara esses accessors, possui seu
-backing próprio, usa `init()` zero-slot e pode publicar facets e hooks:
+principal da property. Um behavior observer não declara esses accessors. Seus
+fields são metadata auxiliar do componente, não um segundo storage lógico da
+property; eles não podem substituir o valor, participar do getter ou ser
+observados como members normais. O observer usa `init()` zero-slot e pode
+publicar facets e hooks:
 
 ```w
 export behavior Versioned<Value> for Value {
@@ -12036,24 +12048,28 @@ trace. Eles não entram em `E` sem uma conversão explícita da aplicação.
 
 #### 12.4.1 First-settled estruturado
 
-**W-1481 — `Task#firstSettled` (Forma vigente):** uma escolha one-shot por
-completion order consome handles de children já criados:
+**W-1481 — `firstSettled` em uma collection de tasks (Forma vigente):** uma
+escolha one-shot por completion order consome handles de children já criados:
 
 ```w
 let primary = async readMenuMirror(take primaryRequest)
 let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
-let settlement = await Task#firstSettled(take [primary, fallback])
+let candidates: [Task<MirroredMenu, MenuMirrorError>; 2] = [primary, fallback]
+let settlement = await (take candidates).firstSettled()
 ```
 
 A assinatura lógica mínima (descrição de contrato, não uma declaração W) é:
 
 | Operação | Entrada | Resultado | Ownership |
 | --- | --- | --- | --- |
-| `Task#firstSettled<Value, Failure>(take Array<Task<Value, Failure>>)` | handles já criados | `TaskSettlement<Value, Failure>?` | consome o array de handles |
+| `(take Array<Task<Value, Failure>>).firstSettled()` | quantidade conhecida somente em runtime | `TaskSettlement<Value, Failure>?` | consome o array de handles |
+| `(take [Task<Value, Failure>; N]).firstSettled()`, `N > 0` | quantidade nonempty provada estaticamente | `TaskSettlement<Value, Failure>` | consome o fixed array de handles |
 
 `TaskSettlement` contém `index` e `outcome: TaskOutcome<Value, Failure>`. O
 índice preserva a posição do handle no array consumido. O array vazio devolve
-`.none`. A call não usa `try`, porque application error e cancellation do child
+`.none`. Um literal com expected type fixed e `N > 0` seleciona a segunda forma;
+ele não precisa materializar uma possibilidade impossível de vazio. A call não
+usa `try`, porque application error e cancellation do child
 permanecem casos de `TaskOutcome`. Cancellation do parent continua um control
 outcome e não materializa `TaskSettlement`.
 
@@ -12084,13 +12100,13 @@ retornar antes do drain; deadline, cleanup grace e fault boundary seguem 12.12.
 
 Cancellation não é rollback. Bytes enviados, effects committed e state externo
 alterado por qualquer candidate permanecem observáveis. Portanto,
-`Task#firstSettled` é adequado para observação, cálculo ou operações idempotentes.
+`firstSettled` é adequado para observação, cálculo ou operações idempotentes.
 Effectful hedging exige effect ID, deduplication ou compensation da aplicação.
 
 W não adiciona statement `select`, clauses condicionais, branch default,
 random fairness ou drop de future. A API também não significa first-success.
 Esse comportamento precisaria definir agregação de errors e effects dos attempts.
-`Task#withTimeout` continua a forma para timeout. Multiplexing persistente de
+`Task.withTimeout` continua a forma para timeout. Multiplexing persistente de
 channels ou streams usa um owner/service que publica numa edge explícita.
 
 ### 12.5 Cancelamento
@@ -12537,7 +12553,7 @@ let lane = try ctx.execution.openSerial(
 )
 defer async { await lane.close() }
 
-let task = try Task#spawn(
+let task = try Task.spawn(
   domain: lane.reference,
   input: take order,
   using: prepareOrder,
@@ -12687,7 +12703,7 @@ operacional:
 ```w
 import si from std
 let timeout: TaskTimeout = 250<si.ms>
-let outcome = await Task#withTimeout(
+let outcome = await Task.withTimeout(
   for: timeout,
   input: take request,
   using: fetchMenu,
@@ -12725,9 +12741,9 @@ nonfinite e out-of-range. Essa boundary deixa rounding visível.
 `TaskTimeout` é o alias `Duration<(0...)>`. Literais negativos falham no compile
 time. Um valor dinâmico precisa de narrowing antes da call. Ausência de timeout
 usa `none`; infinity não representa essa ausência.
-`Task#withTimeout` cria e drena um child lexical. Ele devolve
+`Task.withTimeout` cria e drena um child lexical. Ele devolve
 `TaskOutcome<T, E>` para tornar timeout observável sem inserir `E`. A variante
-`Task#withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
+`Task.withDeadline(until:input:using:)` recebe um `Deadline` do mesmo host.
 Uma duração zero devolve cancellation antes de executar o body.
 
 **W-1314 — deadline é cancelamento estruturado, não alarme exato:**
@@ -14380,7 +14396,7 @@ contém uma representação posterior diferente do valor esperado.
 Cancellation antes do commit da notification remove o ticket e drena o
 registro. Depois do commit, a notification vence; `wait` devolve o valor, e o
 signal continua pendente para o próximo cancellation point. Destruir, mover ou
-abrir `withExclusive` sobre o wrapper exige zero waiters. `Task#withTimeout`
+abrir `withExclusive` sobre o wrapper exige zero waiters. `Task.withTimeout`
 compõe timeout sem outra variante de `wait`.
 
 O receiver precisa de identidade e endereço estáveis durante o slow path. Um
@@ -15386,7 +15402,12 @@ imediatos e não reificáveis. `execution#yield()` e
 fornece cooperação ou cancelamento; essa ausência é erro de compile/link, nunca
 um no-op runtime. `execution.clock()`, `execution.deadline` e
 `execution.openSerial(...)` preservam o owner e os limites concedidos. A raiz
-não pode ser armazenada, passada, retornada, serializada nem atravessar
+somente projeta facts, controls e capabilities já concedidos pelo product e
+pelo target. Ela não descobre authority, enumera recursos do host, faz lookup
+ambient nem fabrica acesso a filesystem, network, device, allocator ou
+telemetry. Uma operação como `execution.openSerial(...)` só deriva uma lane
+bounded da authority de scheduling já concedida; ela não amplia essa authority.
+A raiz não pode ser armazenada, passada, retornada, serializada nem atravessar
 entry/service/device boundaries. Código reutilizável recebe a capability
 estreita ou um context nominal como parâmetro.
 
@@ -20346,7 +20367,7 @@ A classificação do profile é:
 | `AbortSignal` e `AbortController` | `adapted` | values de módulo, ownership e reason fechado substituem objects globais e `any` |
 | `aborted` e `reason` | `adapted` | reason `Copy` sai por valor e preserva first reason; não há identity Web |
 | `AbortSignal.abort` | `adapted` | default tipado `.requested(.userRequest)` |
-| `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task#withTimeout(0)` e torna o caso determinístico |
+| `AbortSignal.timeout` | `adapted` | timer-resource independente; zero já abortado alinha a `Task.withTimeout(0)` e torna o caso determinístico |
 | `AbortSignal.any` | `adapted` | nome Web preservado; argumentos diretos e folhas pending únicas usam o mesmo fan-in explícito por result |
 | `throwIfAborted` | `adapted` | lança somente o enum fechado e tipado `AbortReason` |
 | `EventTarget`, `onabort`, `addEventListener` | `notApplicable` na baseline | `wait` fornece observação one-shot bounded; events gerais permanecem separados |
@@ -22209,9 +22230,9 @@ let tickJson: String = #"{"value":30,"unit":"s"}"#
 let lambda: UnicodeScalar = 'λ'
 ```
 
-O raw String preserva as aspas JSON sem escapes e não adiciona interpolation.
-`'λ'` continua um `UnicodeScalar`, não um `String`. Esta decisão reutiliza a
-grammar existente e não cria uma forma nova de literal.
+O raw String preserva as aspas JSON sem escapes. `${...}` continua literal;
+somente o marker opt-in `#${...}` interpola, conforme 16.5. `'λ'` continua um
+`UnicodeScalar`, não um `String`.
 
 A forma recomendada é um object redundante para debug e interoperabilidade
 humana. O schema declara os members na ordem `value`, depois `unit`. O encoder
@@ -22983,12 +23004,21 @@ let invalid = "Last" "Light" // Erro: falta `+` ou interpolação.
 ### 16.5 Literais de texto e bytes
 
 Uma string normal aceita escapes e interpolação `${expression}`. Uma raw string
-usa o par `#"` e `"#`. Ela desativa escapes e interpolação.
+usa o par `#"` e `"#`. Ela desativa escapes e mantém `${expression}` como
+texto literal. Quando o conteúdo raw precisa de um valor, a forma opt-in
+`#${expression}` interpola sem reativar escapes:
 
 ```w
 let normal = "line\norder ${order.id}\u{2026}"
 let raw = #"C:\orders\${notInterpolation}"#
+let envelope = #"{"value":#${order.id},"unit":"s"}"#
 ```
+
+O `#` faz parte do marker de interpolação raw. Assim, JSON, templates e shell
+text podem conservar `${...}` literalmente; somente `#${...}` avalia uma
+expression. A interpolação raw baixa para a mesma construção única com
+`Display.write` da string normal. Ela não cria escaping JSON, SQL ou shell e
+não torna conteúdo externo confiável.
 
 Uma string multiline normal permite interpolação. Uma raw multiline combina
 o delimitador raw com as regras de multiline.
@@ -23001,6 +23031,7 @@ let card = """
 
 let template = #"""
   ${thisStaysLiteral}
+  order: #${order.id}
   C:\last-light
   """#
 ```

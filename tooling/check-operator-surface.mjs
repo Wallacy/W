@@ -100,6 +100,12 @@ function requireCodeForms(errors, text, label, forms) {
   }
 }
 
+function requireSourceForms(errors, text, label, forms) {
+  for (const form of forms) {
+    if (!text.includes(form)) fail(errors, `${label} is missing ${form}`);
+  }
+}
+
 function normalizeBits(value, width) {
   return BigInt.asUintN(width, BigInt(value));
 }
@@ -431,9 +437,9 @@ function check() {
 
   for (const group of groups) {
     requireCodeForms(errors, design, `DESIGN ${group.name}`, group.forms.filter((form) => !["call", "member", "index"].includes(form)));
-    requireCodeForms(errors, rootCheatsheet, `root CHEATSHEET ${group.name}`, group.forms.filter((form) => !["call", "member", "index"].includes(form)));
+    requireSourceForms(errors, rootCheatsheet, `root CHEATSHEET ${group.name}`, group.forms.filter((form) => !["call", "member", "index"].includes(form)));
   }
-  if (!rootCheatsheet.includes("`?.member`")) fail(errors, "root CHEATSHEET postfix optional member is missing");
+  if (!rootCheatsheet.includes("?.")) fail(errors, "root CHEATSHEET postfix optional member is missing");
   for (const form of assignment) {
     if (!grammar.assignments.includes(form)) fail(errors, `grammar assignment table is missing ${form}`);
     if (!parserTable.has(form)) fail(errors, `seed parser table is missing ${form}`);
@@ -476,17 +482,15 @@ function check() {
   for (const form of namedNumeric) {
     if (!design.includes(form)) fail(errors, `DESIGN numeric policy is missing ${form}`);
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing ${form}`);
+    if (!rootCheatsheet.includes(form)) fail(errors, `root CHEATSHEET numeric example is missing ${form}`);
   }
   const designPolicyMatrix = extractBlock(design, "As policies numéricas têm um inventário fechado.", "`overflowingX` devolve");
-  const rootPolicyMatrix = extractBlock(rootCheatsheet, "#### Matriz fechada de policies integer", "| Qual forma usar");
   for (const [name, returnType] of policySignatures) {
     const signature = `\`${name} -> ${returnType}\``;
     if (!designPolicyMatrix.includes(signature)) fail(errors, `DESIGN closed policy matrix is missing ${signature}`);
-    if (!rootPolicyMatrix.includes(signature)) fail(errors, `root CHEATSHEET closed policy matrix is missing ${signature}`);
   }
   for (const form of rejectedNumeric) {
     if (designPolicyMatrix.includes(`\`${form}`)) fail(errors, `DESIGN closed policy matrix presents rejected numeric policy ${form}`);
-    if (rootPolicyMatrix.includes(`\`${form}`)) fail(errors, `root CHEATSHEET closed policy matrix presents rejected numeric policy ${form}`);
   }
   for (const form of rejectedNumeric) {
     if (atlasSource.includes(form)) fail(errors, `operators.w presents rejected numeric policy ${form}`);
@@ -508,9 +512,6 @@ function check() {
   for (const form of [...assignment, "|>", "??", "|", "^", "&", "<<", ">>", "**", "in", "is", "...", "..<", "@", "?."]) {
     if (!atlasSource.includes(form)) fail(errors, `operators.w is missing a ${form} witness`);
   }
-  for (const term of ["checked*", "wrapping*", "saturating*", "overflowing*"]) {
-    if (!rootCheatsheet.includes(term)) fail(errors, `root CHEATSHEET numeric policy is missing ${term}`);
-  }
   for (const term of ["carryingAdd", "borrowingSubtract", "fullMultiply", "toBits", "fromBits", "toBytes", "fromBytes", "tensor.matmul", "tensor.contract", "isSameInstance", "place uma vez"]) {
     if (!design.includes(term) && !rootCheatsheet.includes(term)) fail(errors, `operator policy text is missing ${term}`);
   }
@@ -526,7 +527,7 @@ function check() {
     if (!present) fail(errors, `rejected-form inventory is missing ${term}`);
     if (grammarSource.includes(`"${term}"`) || lexerSource.includes(`"${term}"`) || parserSource.includes(`{"${term}"`)) fail(errors, `rejected form ${term} appears in an accepted operator table`);
   }
-  if (!design.includes("Assignment produz `()`") || !rootCheatsheet.includes("Assignment composta preserva")) fail(errors, "assignment result/place-once contract is missing");
+  if (!design.includes("Assignment produz `()`")) fail(errors, "assignment result/place-once contract is missing");
   if (!design.includes("isSameInstance") || !rootCheatsheet.includes("isSameInstance")) fail(errors, "identity API distinction is missing");
   if (!grammarSource.includes("optional_member_expression") || !grammarSource.includes('token.immediate("?")')) fail(errors, "grammar optional postfix/member surface is missing");
 

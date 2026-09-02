@@ -4,6 +4,10 @@ import std.runtime.task
 import { Stream, Channel } from std.stream
 // atlas:end module-run-root
 
+enum AtlasError: Error {
+  failed
+}
+
 // atlas:begin allocator-and-bindings
 fn stage(allocator destination: ref Allocator, city: String): String {
   return city
@@ -18,7 +22,8 @@ fn prepare(city: String): (String, usize) {
     let inout writableName = copyOfName
     var atomic count: usize = 0
     count += 1
-    let moved = take writableName
+    writableName = name
+    let moved = take copyOfName
     result = moved
     let staged = stage(city)
     result = staged
@@ -31,7 +36,16 @@ fn prepare(city: String): (String, usize) {
 // atlas:end allocator-and-bindings
 
 // atlas:begin control-flow
-fn walk(values: Array<i32>): i32 throws String {
+enum WalkError: Error {
+  negativeTotal
+}
+
+fn requireNonnegative(value: i32): i32 throws WalkError {
+  guard value >= 0 else { throw .negativeTotal }
+  return value
+}
+
+fn walk(values: Array<i32>): i32 throws WalkError {
   var total = 0
   rows: for ref value in values {
     for column in [value] {
@@ -50,22 +64,21 @@ fn walk(values: Array<i32>): i32 throws String {
     total += 1
   } while total < 4
   do {
-    if total > 8 { break }
-  } catch {
+    total = try requireNonnegative(total)
+  } catch .negativeTotal {
     total = 0
   }
-  guard total >= 0 else { throw "negative" }
   defer { total += 1 }
   return total
 }
 // atlas:end control-flow
 
 // atlas:begin execution-forms
-async fn fetch(city: String): String throws String {
+async fn fetch(city: String): String throws AtlasError {
   return city
 }
 
-async fn runTasks(): String throws String {
+async fn runTasks(): String throws AtlasError {
   execution#checkCancellation()
   let clock = execution.clock()
   let started = clock.now()
@@ -89,11 +102,19 @@ fn directCall(values: Array<String>): String {
   return inspect(each values)
 }
 
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): (String, String, String, String, String) {
+object CaptureBox {
+  value: String
+}
+
+fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared CaptureBox): (String, String, String, String, String?) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
-  let weakCapture = <[weak sharedValue]>() => sharedValue
+  let weakCapture = <[weak sharedValue]>() => if let owner = sharedValue {
+    .some(copy owner.value)
+  } else {
+    .none
+  }
   let copied = copyCapture()
   let referenced = refCapture()
   let taken = takeCapture()
@@ -115,7 +136,7 @@ fn prepareLease(lease: AtlasLease): String {
   return lease.target
 }
 
-async fn restricted(target: String): String throws String {
+async fn restricted(target: String): String throws AtlasError {
   let captured = <[copy target]>(name) => name
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
@@ -169,7 +190,7 @@ fn panicExample(message: String): String {
 // atlas:end restricted-expressions
 
 // atlas:begin stream-and-channel
-async fn consume(source: Stream<view String, String>, channel: Channel<String><.receive>): String throws String {
+async fn consume(source: Stream<view String, AtlasError>, channel: Channel<String><.receive>): String throws AtlasError {
   var result = ""
   for try await ref item in source {
     result = result + item
@@ -178,7 +199,7 @@ async fn consume(source: Stream<view String, String>, channel: Channel<String><.
   return result
 }
 
-async fn send(channel: Channel<String><.send>, value: String): String throws String {
+async fn send(channel: Channel<String><.send>, value: String): String throws AtlasError {
   await channel.send(take value)
   return "sent"
 }

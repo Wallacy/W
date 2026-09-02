@@ -18,8 +18,8 @@ describe("syntax atlas coverage checker", () => {
 
   test("generated header links normative operator and performance guidance", () => {
     expect(coverage).toContain("`language.w`, `execution.w`, `operators.w`, and `build.w`");
-    expect(coverage).toContain("../../CHEATSHEET.md#operadores-bits-e-política-numérica");
-    expect(coverage).toContain("../../CHEATSHEET.md#performance-e-custo");
+    expect(coverage).toContain("../../CHEATSHEET.md#operators-and-pipe-forward");
+    expect(coverage).toContain("../../CHEATSHEET.md#numeric-policies-and-bit-primitives");
   });
 
   test("rejects an unlisted marker", () => {
@@ -101,7 +101,7 @@ describe("syntax atlas coverage checker", () => {
     const source = snapshot.blocks.find((block) => block.id === "execution-forms").snippet;
     const variant = snapshot.variants.find((entry) => entry.id === "execution-sync");
     expect(source).toContain('let direct = try sync fetch("north")');
-    expect(source).toContain("async fn fetch(city: String): String throws String");
+    expect(source).toContain("async fn fetch(city: String): String throws AtlasError");
     expect(variant).toMatchObject({
       construction: "direct neverSuspend entry; requires explicit async fn and a declaration-wide static proof",
       evidenceStatus: "tree-sitter-parse-only-compiler-runtime-missing",

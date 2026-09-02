@@ -1581,10 +1581,11 @@ Aceite:
 - `errors: .collect` preserva um settlement por job;
 - cancelar o batch fecha producer e children;
 - `task#cancel(reason: .shutdown)` preserva o handle para o join;
-- `Task#spawn(domain: lane.reference, input: take job, using: work)` é o
-  launcher facet para um `ExecutionDomainRef` dinâmico; `spawn<domain>` é o
+- `Task.spawn(domain: lane.reference, input: take job, using: work)` é o
+  launcher associado normal para um `ExecutionDomainRef` dinâmico;
+  `spawn<domain>` é o
   initializer estático para domains conhecidos;
-- `Task#withDeadline(until: deadline, input: take job, using: work)` devolve
+- `Task.withDeadline(until: deadline, input: take job, using: work)` devolve
   `TaskOutcome` e drena o child após expiration;
 - `cancel` não existe como statement ou keyword;
 - cada job move ownership para um child;
@@ -1595,7 +1596,7 @@ Aceite:
   inclusive quando a ordem é `.completion`;
 - pipeline tasks é a região repetida para uma coleção finita; `pipeline` dependent
   continua o DAG estático de calls, mesmo quando o HIR/runtime compartilha machinery;
-- `Task#firstSettled` consome handles existentes e publica somente após o drain
+- `(take tasks).firstSettled()` consome handles existentes e publica somente após o drain
   dos losers.
 
 Timeline mínima:

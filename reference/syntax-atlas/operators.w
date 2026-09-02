@@ -25,7 +25,7 @@ fn operatorSurface(payload: ref any Reflectable) {
   let coalesced = optionalValue ?? fallback
   let logical = ready || pending && enabled
   let bitwise = value | other ^ fallback & bits
-  let inspected = value |> inspect()
+  let inspected = value |> normalize() |> inspect() |> render()
   let pipedDecoded = value |> try json.decode<Document>()
   let copied = copy value |> inspect()
   let pipeAfterCoalescing = (optionalValue ?? fallback) |> inspect()

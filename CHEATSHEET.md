@@ -1,1211 +1,642 @@
-# Cheatsheet W
+# W language cheatsheet
 
-> **Rascunho de design · agosto de 2026**
->
-> W ainda não tem compiler W completo, runtime, SDK, package manager ou
-> providers de standard library. O target bootstrap `w` executa `w check` no
-> perfil CHK9 de root efêmera local e imports alcançáveis, com o mapping
-> bounded de diagnostics CHK10. Este arquivo é um
-> mapa de leitura para a superfície proposta. Ele não promete que um snippet
-> execute.
+> Design draft. Every example is a complete syntax unit: it declares a feature,
+> uses it, and shows an observable result. Some units are design/source evidence
+> until the corresponding compiler or runtime feature exists.
 
-Este cheatsheet usa a forma integrada de DESIGN.md e os casos do produto de
-referência [Última Luz](reference/last-light/README.md). A edição segue a
-inspiração editorial do [QuickRef de Rust](https://quickref.me/rust), mas a
-autoridade continua sendo DESIGN.md. A fonte .w, os oracles e o atlas são
-evidência de design ou de parsing, não uma implementação.
+## Contents
 
-Este arquivo é o cheatsheet editorial. Ele explica rotas de uso, contexto e
-trocas. O arquivo [SYNTAX-COVERAGE.md do atlas](reference/syntax-atlas/SYNTAX-COVERAGE.md)
-é uma projeção gerada dos snippets marcados e registra somente evidência
-`tree-sitter-parse-only`. O atlas não substitui esta orientação e não deve ser
-editado manualmente.
+- [Program and entry](#program-and-entry)
+- [Modules, imports, exports, and reexports](#modules-imports-exports-and-reexports)
+- [Documentation and tests](#documentation-and-tests)
+- [Literals and interpolation](#literals-and-interpolation)
+- [Collections and ranges](#collections-and-ranges)
+- [Operators and pipe-forward](#operators-and-pipe-forward)
+- [Numeric policies and bit primitives](#numeric-policies-and-bit-primitives)
+- [Functions, labels, defaults, and rest](#functions-labels-defaults-and-rest)
+- [Structs, objects, enums, and extensions](#structs-objects-enums-and-extensions)
+- [Protocols, generics, and static contracts](#protocols-generics-and-static-contracts)
+- [Compile-time values and specialization](#compile-time-values-and-specialization)
+- [Properties, behaviors, and facets](#properties-behaviors-and-facets)
+- [Option, conversion, and type queries](#option-conversion-and-type-queries)
+- [Ownership, borrows, and views](#ownership-borrows-and-views)
+- [Callable values and captures](#callable-values-and-captures)
+- [Control flow and patterns](#control-flow-and-patterns)
+- [Errors and cleanup](#errors-and-cleanup)
+- [Allocator scopes](#allocator-scopes)
+- [Unsafe, addresses, and bit operations](#unsafe-addresses-and-bit-operations)
+- [Async, spawn, sync, and await](#async-spawn-sync-and-await)
+- [Tasks and cancellation](#tasks-and-cancellation)
+- [Bounded task pipelines](#bounded-task-pipelines)
+- [Service and transaction pipelines](#service-and-transaction-pipelines)
+- [Streams and channels](#streams-and-channels)
+- [Shared state, atomics, and locks](#shared-state-atomics-and-locks)
+- [Execution context and process entry](#execution-context-and-process-entry)
+- [Units, matrices, tensors, and SIMD](#units-matrices-tensors-and-simd)
+- [Foreign code and ABI](#foreign-code-and-abi)
+- [Packages and workspaces](#packages-and-workspaces)
 
-## Índice
-
-- [Como ler este arquivo](#como-ler-este-arquivo)
-- [Primeira rota](#primeira-rota)
-- [Source, léxico e formatter](#source-léxico-e-formatter)
-- [Módulos, imports e visibilidade](#módulos-imports-e-visibilidade)
-- [Declarações, tipos e contratos](#declarações-tipos-e-contratos)
-- [Bindings, callables e ownership](#bindings-callables-e-ownership)
-- [Controle, patterns, generics e reflexão](#controle-patterns-generics-e-reflexão)
-- [Errors, effects e cleanup](#errors-effects-e-cleanup)
-- [Async, tasks, channels, streams e yield](#async-tasks-channels-streams-e-yield)
-- [Shared, weak, lazy, atomic, locks e SnapshotCell](#shared-weak-lazy-atomic-locks-e-snapshotcell)
-- [Services, recovery e capabilities](#services-recovery-e-capabilities)
-- [I/O, texto, bytes e collections](#io-texto-bytes-e-collections)
-- [Operadores, bits e política numérica](#operadores-bits-e-política-numérica)
-- [Números, units, Quantity, dados e serialização](#números-units-quantity-dados-e-serialização)
-- [Tensors, devices e custo](#tensors-devices-e-custo)
-- [FFI, foreign bodies e segurança](#ffi-foreign-bodies-e-segurança)
-- [Package, build, CLI, REPL e Jupyter](#package-build-cli-repl-e-jupyter)
-- [Receitas de uso](#receitas-de-uso)
-- [Mesmo objetivo, várias formas](#mesmo-objetivo-várias-formas)
-- [Índices rápidos](#índices-rápidos)
-- [Evidência, limites e validação](#evidência-limites-e-validação)
-
-## Como ler este arquivo
-
-### Maturidade
-
-W está em fase de projeto. Os estados normativos de §0 são separados dos
-qualificadores de evidência. **Forma vigente** significa que a forma está
-integrada ao design e ao produto de referência. **Direção** é um princípio
-estável que limita futuras soluções. **Pesquisa** é uma hipótese ou baseline.
-**Rejeitado por enquanto** e **Rejeitado** não são formas atuais.
-
-#### Estados normativos de §0
-
-| Estado | Leitura segura |
-| --- | --- |
-| Forma vigente / current | Forma corrente de source ou contrato. Verifique a âncora de DESIGN.md. |
-| Direção / direction | Princípio ou decisão de produto que limita soluções futuras. |
-| Pesquisa / research | Hipótese ou baseline com escopo declarado; não copie como regra. |
-| Rejeitado por enquanto | Alternativa não adotada sem evidência nova. |
-| Rejeitado / rejected | Alternativa fora do W atual. Reabrir exige necessidade e evidência novas. |
-
-A classificação ativa do design freeze tem uma entrada research-gated:
-W-1486 (`RDX0-binary-registry-execution`). O fechamento histórico `Research=0`
-permanece válido até W-1459. A direção candidate RDX0 e suas oito tasks não
-são implementação; canonical signing payload, protocol/security/provider
-evidence e stop conditions aguardam evidence e revisão. Pesquisa histórica
-encerrada é um qualificador de proveniência em history, não um estado de §0.
-
-#### Qualificadores de evidência, não estados
-
-| Qualificador | Leitura segura |
-| --- | --- |
-| implementation-gap | O contrato pode estar vigente, mas compiler, runtime, CLI, std ou provider ainda faltam. |
-| tree-sitter-parse-only | O snippet passou pelo parser de referência. Não houve type-check, lowering ou execução. |
-| oracle-backed-current | Um oracle host registra uma decisão de design. Oracle não é runtime. |
-| source-backed | O texto vem de um arquivo .w de Última Luz ou do atlas. |
-
-Quando uma linha mostra uma alternativa, ela fica em célula própria e recebe
-Não use ou Rejeitado. Um bloco com esse rótulo nunca é apresentado como W
-válido.
-
-### Rota de leitura
-
-1. Leia [DESIGN.md §0](DESIGN.md#0-como-ler-este-documento) para a autoridade e os estados.
-2. Use o [índice gerado](DESIGN-INDEX.md) para localizar uma decisão.
-3. Compare o contrato com os [oracles e fontes da Última Luz](reference/last-light/README.md).
-4. Trate o [atlas sintático](reference/syntax-atlas/SYNTAX-COVERAGE.md) como uma
-   projeção parse-only. Ele é gerado e não deve ser editado.
-
-## Primeira rota
-
-### Hello World verified-HIR-backed
+## Program and entry
 
 <!-- w-example role=executable use=main observable=effect -->
 ```w
-fn main() { print("Hello, world!") }
+module hello
+
+fn main() {
+  print("Hello, world!")
+}
+
 entry(main)
 ```
 
-Esta é a primeira forma mínima ligada ao frontend seed, à HIR0 verificada e ao
-plano HLO0. No profile `native-process@1`, `print` é um símbolo normal do host
-prelude que exige `Console`; não é intrinsic nem global implícito. O lowering
-copia os facts necessários para uma HIR0 caller-owned; o verifier recompõe o
-semantic digest antes de qualquer consumidor. HIR0/W-1494 continua uma
-representação bounded mais ampla; é o seletor HLO0 W-1505, sobre HIR0 verificada,
-que exige exatamente um module e um entry `.default`, uma função alvo zero-parameter/Unit
-sync, nonthrows, safe e no-borrow, um block, uma call host-prelude `print` e um
-argumento posicional `String` literal. O plano HLO0 usa schema `w-seed-hlo0-2`,
-copia as byte strings target/handler derivadas da HIR0, iguais, não vazias e
-zero-tail, e deriva o payload da HIR0; não fixa nome ou texto. O verifier de
-plano isolado confirma somente essa representação, não source provenance nem
-identifier válido.
+## Modules, imports, exports, and reexports
 
-O payload tem de zero a 256 bytes, com preservação byte a byte (inclusive NUL),
-tail zero, LF acrescentado, stdout checked e SHA-256 sobre payload+LF. HLO0 não
-acessa buffers do frontend e não executa W. O gate comprova a rota
-source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 com Hello,
-`Table 42 remains open` e string vazia.
-
-HLO1 usa o mesmo plano validado para emitir e executar um artefato C conservador
-bounded, compilado em modo C23. O corpo C usa stdio e um array hexadecimal
-`unsigned char` com o payload seguido de LF; no Windows, o adapter CRT
-acrescenta `<fcntl.h>`/`<io.h>` e usa `_setmode` para preservar LF. Trivia
-preserva o artefato. Comentário contendo `print`, noop, duas calls e formas fora
-do subset não produzem C. Isso prova apenas a emissão e execução do artefato C
-do subset verified-HIR-backed e não cria `w run`, execução W geral, HIR geral,
-runtime W, Console provider geral ou w-linker.
-
-RUN0 consome o mesmo plano pelo verifier HLO0 compartilhado. O adapter interno
-faz preflight antes do sink e chama o callback uma vez. O result registra bytes
-tentados, bytes aceitos e status de flush sem prometer rollback externo. O gate
-test-only prova o pipeline até RUN0 com os três payloads e source de até 4096
-bytes, inclusive.
-O fluxo funcional é
-`source → parser/frontend → HIR0 → HLO0 → verify HLO0 → RUN0 sink`. O gate
-também prova short write, flush failed, sources adversariais e repetição.
-
-MLIR0 é a primeira rota nativa real sem C source para esta mesma fatia:
-`source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → clang/native`.
-`w_seed_mlir0` consome apenas o plano HLO0 verificado, usa a API bounded
-caller-owned `measure`/`emit`, não aloca e não chama MLIR C API. O texto privado
-`w-seed-mlir0-1` fixa `x86_64-unknown-linux-gnu`, `llvm.target_triple`, um
-global de tamanho exato e payload+LF em escapes `\XX`; faz uma call POSIX
-`write` com fd 1, compara o comprimento e usa `main` físico. HLO1 continua
-bootstrap/auditoria/recovery. O gate `bun run check:mlir0` verifica Hello,
-`Table 42 remains open` e vazio byte a byte depois de `mlir-opt`,
-`mlir-translate` e `clang -x ir --target=...`; trivia permanece idêntica e
-inputs adversariais não publicam MLIR. O manifest fixa MLIR/LLVM/Clang 20.1.2.
-A evidência é `hostEvidence: wsl-linux` em Linux x86_64 sob WSL, não host
-Windows nativo. Hosts futuros Linux/Windows/macOS e emitted targets são
-matrizes separadas; Windows native, macOS, packaging e targets adicionais são
-gaps, e LLVM aceitar uma triple não basta para support.
-
-Use `bun run check:hlo0` para validar o plano. Use `bun run check:hlo1` para a
-emissão C em modo C23 e `bun run check:run0` para a execução interna. HLO1 gera `SKIP`
-explícito quando a toolchain está ausente. Uma falha com a toolchain presente é
-`FAIL`. RUN0 é somente evidência interna. Ele não publica `w run`, aquisição
-pública ou geral de source, seleção de contexto ou owner, workspace, backend,
-linker, runtime ou provider geral. ACQ0 cobre somente a aquisição interna
-bounded no contexto efêmero já fornecido.
-
-O `benchmarkDisposition` de HLO0/HLO1/RUN0 é `compiler-lifecycle`. O oracle de correção
-corresponde somente à célula ready `clean × check-end-to-end` de W-1488.
-Nenhuma etapa RUN0 ou de execução se torna um estágio medido. `startup` e
-`execution` permanecem na track `product-runtime` e deferred. Não registre
-timing ou result neste corte. `hlo3-hello-world-runtime-benchmark` permanece
-deferred.
-
-### HIR0 verificada do seed
-
-`w_seed_hir0` é uma representação intermediária fechada, bounded, caller-owned
-e sem heap. Ela publica módulos, identidades, `Unit`, `String`, funções,
-qualifiers, parâmetros com labels HIR, blocks e ordem, constantes como byte
-slices copiados, calls host-prelude, argumentos tipados/ordinais, requirements
-nominais, terminators e entry com target e slot. O HLO0 recebe somente a HIR0
-e seu receipt; ele chama `w_seed_hir0_verify` novamente e não recebe source,
-CST ou pointers do frontend.
-Essa HIR0/W-1494 é mais ampla que a seleção HLO0 e pode carregar múltiplas
-funções e records correspondentes de blocks, calls, arguments e values dentro
-do schema bounded; W-1505 aplica a forma mais estreita somente após a verificação.
-
-O semantic digest cobre os records e bytes field-by-field com encoding
-explícito, sem padding, spans ou provenance. O provenance digest cobre a
-identidade do source, `module.source_sha256`, comprimento e spans dos records
-HIR; o receipt serializa counts, semantic_digest e provenance_digest.
-Assim, comentário ou whitespace podem mudar provenance sem mudar semantic
-digest. `measure`, `run` e `program_from_output` são all-or-nothing e falham
-sem alterar buffers em capacity curta, truncamento, alias, overlap ou record
-forjado. A rota comprovada é
-`source → parser → frontend → lower HIR0 → verify HIR0 → HLO0 → HLO1 → C (modo C23) → execução`.
-Isto é uma evidência limitada ao subset; HIR geral, backend nativo, linker,
-runtime e `w run` continuam gaps.
-
-O subset HIR0 aceita exatamente um document, um module e um entry no slot
-`.default`; essa é a fronteira intermediária, não o shape completo do seletor
-HLO0. Nomes de function duplicados, ranges com gap/overlap e records
-órfãos falham. `symbols` é apenas um índice auxiliar validado na ordem
-module → parâmetros → function → entry. Labels host named/external copiam o
-nome, positional usa label vazio e `OPTIONAL` exige o label na call; a forma
-sem label não é lowerada por HIR0. Famílias frontend sem record HIR0 também
-falham fechadas.
-
-### Um arquivo de source
-
-Esta é uma amostra curta do atlas. Ela é current / Forma vigente,
-tree-sitter-parse-only, implementation-gap.
-
-<!-- w-example role=executable use=runHello observable=effect -->
+<!-- w-example role=executable use=greeting observable=value -->
 ```w
-module hello
-
-import std.text
-
-fn runHello() {
-  let greeting = "hello"
-  print(greeting)
-}
-
-entry Hello(runHello)
-```
-
-O nome do módulo e os imports pertencem ao source. Um package e um workspace
-são records de manifesto no único root físico [build.w](reference/last-light/build.w),
-não módulos W comuns.
-
-### Comandos planejados
-
-O target bootstrap `w` executa `w check` no perfil CHK9 de root efêmera local.
-As demais rotas abaixo são uma interface prevista, não uma CLI disponível:
-
-| Objetivo | Forma prevista | Estado |
-| --- | --- | --- |
-| Rodar arquivo único | `w run path/file.w` | Direção + implementation-gap |
-| Construir package | `w build` | Direção + provider missing |
-| Abrir sessão | `w repl` | Direção + implementation-gap |
-| Verificar um source ou graph local | `w check path/file.w [--json]` | Forma vigente executável no perfil CHK9 bounded, com mapping CHK10 subset |
-| Verificar um package | `w package check [package]` | Direção + implementation-gap |
-| Verificar um workspace | `w workspace check` | Direção + implementation-gap |
-| Exportar notebook | `w notebook export` | Direção + provider/implementation-gap |
-
-`w check path/file.w` usa o source indicado como root da verificação e carrega
-o module graph alcançável já definido pela resolution vigente. Ele não
-transforma os outros products do owner em roots implícitos. O comando usa o
-contexto de module-run do package, workspace ou contexto efêmero. Ele não exige
-nem seleciona `entry`.
-
-O comando lê a resolution vigente, mas não busca, resolve, atualiza ou instala
-dependencies. Ele não executa build action, backend, link ou runtime. Ele não
-gera artifact. `w package check [package]` verifica o package e seu module
-graph. `w workspace check` verifica os members selecionados e sua resolution
-compartilhada. Os três scopes são distintos.
-
-Com `--json`, stdout contém somente JSONL D0. O renderer humano escreve em
-stderr. CHK9 usa uma root explícita em contexto efêmero e imports locais
-alcançáveis root-relative. A rota aceita até 64 sources, 4096 edges, depth 64,
-16 MiB por source e agregado, CST de 32768 por source e 262144 agregados.
-Source bytes, CST e JSON staging/final crescem adaptativamente. Linux exige
-`openat2`; Windows exige `NtCreateFile`; outras capabilities falham fechadas.
-Owner detection, resolução externa, provider `std`, package/workspace e o
-frontend normativo completo continuam gaps. O comando não executa build,
-backend, link ou runtime e não gera artifact.
-
-O driver interno `w_seed_check_driver` fornece evidência bounded de um path
-source → parser → frontend → D0. Ele aceita até 16 MiB e mapeia somente
-`W-SEM-0001`. O gate cobre `platform.w`, sua inversão negativa e as barreiras
-de source, parse e frontend. O target bootstrap `w` reutiliza o mesmo núcleo
-privado. O driver não resolve package ou workspace.
-
-CHK3 também fornece evidência interna caller-owned para origins e edges. O
-scanner preserva spans exatos de `module` e imports diretos; o frontend separa
-`logical_source_id`, `module_id` completo e `local_module_name`. Em modo de
-resolution completa, cada import recebe exatamente um edge local ou external
-fornecido pelo resolver, e lookup, receipt e output usam esse target exato.
-Header não substitui a identidade completa, e o adapter D0 recebe o índice de
-documento esperado. Isso não implementa provider, owner discovery, loader de
-filesystem, package/workspace, reexport/service-import ou multi-file `w check`.
-
-O [gate da Última Luz](reference/last-light/BUILD.md) separa parser,
-checker, HIR, lowering, runtime, toolchain e provider. Não use um comando
-planejado como evidência de que uma camada existe.
-
-### Checklist de primeira leitura
-
-- Trate um arquivo único como módulo normal. Declare uma `fn` e um `entry`
-  explícito. Statements finais não formam um entry.
-- Prefira imports explícitos e nomes qualificados. A resolução de package,
-  target e provider depende de manifestos e de um contexto de resolução.
-- Faça ownership e effects visíveis no call site. take, ref, inout, await,
-  spawn e unsafe não são decoração.
-- Para qualquer snippet, confira a etiqueta de evidência e o arquivo Last
-  Light ligado na mesma seção.
-
-## Source, léxico e formatter
-
-Contrato: [DESIGN.md §5](DESIGN.md#5-source-nomes-e-edição) e
-[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
-
-### Regras de source
-
-| Item | Forma corrente |
-| --- | --- |
-| Codificação | UTF-8 com normalização NFC; identificadores e texto preservam Unicode. |
-| Keywords | ASCII minúsculo. |
-| Comentário de linha | // comentário |
-| Comentário de bloco | /* comentário */ |
-| Documentação | /// e /** ... */, ligada ao item seguinte. |
-| Statements | ; é aceito na migração, mas o formatter escolhe a forma canônica. |
-| Names | O nome exportado e o caminho de import são parte da interface. |
-| Formatter | Deve preservar parse e significado; divergências são um gate de design. |
-
-### Literais e collections
-
-Este trecho é current / tree-sitter-parse-only / source-backed, reduzido de
-[reference/syntax-atlas/SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md).
-
-<!-- w-example role=executable use=values observable=value -->
-```w
-fn values(): String {
-  let count = 1_000
-  let ratio = 0.5e2
-  let distance = 9.81<m/s^2>
-  let speed = 12km
-  let bytes = 64KiB
-  let text = "city"
-  let raw = #"raw city"#
-  let multiline = """north
-south"""
-  let scalar = 'N'
-  let byte = b'\x4e'
-  let enabled = true
-  let point = (north: 1, east: 2)
-  let list = [1, 2, 3]
-  let map = ["north": 1]
-  let repeated = [0; 4]
-  let selected = (point).north
-  return text
-}
-
-test "literal values are evaluated" for values {
-  expect values() == "city"
-}
-```
-
-Literal 12km, 64KiB e 9.81<m/s^2> exigem resolução de units e não provam um
-provider numérico. A semântica de Quantity está em
-[DESIGN.md §15](DESIGN.md#15-números-ranges-e-unidades) e no oracle
-[quantity_oracle.w](reference/last-light/quantity_oracle.w).
-
-## Operadores, bits e política numérica
-
-### Operadores de consulta rápida
-
-A tabela usa a ordem da menor para a maior força.
-
-| Grupo | Formas | Associação | Semântica curta |
-| --- | --- | --- | --- |
-| assignment | `=`, `+=`, `-=`, `*=`, `/=`, `%=`, `**=`, `<<=`, `>>=`, `&=`, `^=`, `\|=` | não encadeável | Escreve no place uma vez e resulta em Unit (`()`). |
-| pipe-forward | `\|>` | esquerda | Expande `lhs \|> f(args)` para `f(lhs, args)`; exige call template e não cria task. |
-| coalescing | `??` | direita | Seleciona o fallback somente para ausência. |
-| logical OR | `\|\|` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
-| logical AND | `&&` | esquerda, short-circuit | Avalia o lado direito somente quando necessário. |
-| bitwise OR | `\|` | esquerda | Opera nos bits do mesmo tipo integer. |
-| bitwise XOR | `^` | esquerda | Opera nos bits do mesmo tipo integer. |
-| bitwise AND | `&` | esquerda | Opera nos bits do mesmo tipo integer. |
-| equality | `==`, `!=` | não encadeável | Compara valores conforme o contrato de tipo. |
-| relation | `<`, `<=`, `>`, `>=`, `is`, `in` | não encadeável | Compara, testa tipo/case sem narrowing ou testa membership em Range ou tuple finita. |
-| range | `...`, `..<`, `>..`, `>..<` | não encadeável | Cria um range com limites inclusivos ou exclusivos. |
-| shift | `<<`, `>>` | esquerda | Move bits com contagem `UInt`. |
-| additive | `+`, `-` | esquerda | Soma ou subtrai conforme a policy numérica. |
-| multiplicative | `*`, `/`, `%`, `@` | esquerda | Multiplica, divide, calcula remainder ou faz matmul rank 1/2. |
-| prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita | Opera no operand subtree e respeita effects/ownership. |
-| power | `**` | direita | Potência. O lado direito aceita prefix. |
-| postfix | call, member `.member`, facet `#facet`, index `[index]`, `?`, optional member `?.member` | esquerda | Encadeia call, projection, facet, indexação e propagação de Option. |
-
-`-2 ** 2` significa `-(2 ** 2)`. `2 ** -3` significa `2 ** (-3)`.
-Assignment composta preserva a policy da operação e avalia o place uma vez.
-`a = b = c` continua rejeitado pelo contrato. O seed Pratt e a grammar atual
-formam uma árvore right-associative para este probe. O checker registra esse
-frontend/parser conformance gap. A associação sintática não é prova semântica.
-
-### Quatro superfícies que não se substituem
-
-| Forma | O que resolve | Uso mínimo e efeito observável |
-| --- | --- | --- |
-| `value.member` | Membro normal de um valor; `.`, sem fallback para `#`. | `receipt.id` lê data publicada pelo tipo. |
-| `place#facet` | Facet estática de um property place ou namespace core; exige read/write/call imediato. | `attitude.yaw#version.mutationEpoch` lê epoch; quando uma facet real retorna um valor, parentetize a facet inteira: `(place#facet).member`. O prefixo de alias não é reificável. |
-| `value \|> f()` | Fluxo local e sequencial; expande para `f(value)` exatamente uma vez. | `copy source \|> inspect()` preserva `copy`; o resultado é o retorno de `inspect`. |
-| `pipeline { ... commit }` | Grafo de execução com schema explícito; `commit` escolhe o envelope final. | `pipeline { let a = service(); commit a }` publica `a`; `commit` não promete atomicidade. |
-
-`#` tem a mesma precedência postfix de `.` e nunca significa private. O pipe é
-left-associative, fica acima de assignment e abaixo de `??`/logical OR. Use
-parênteses nas combinações que deixam a intenção explícita: `(x |> f()) ??
-fallback` e `(x ?? fallback) |> f()` são aceitas. `x |> f() ?? fallback` e
-`x |> f() || fallback` são rejeitadas por `W-PIPE-0001`, pois o RHS deve ser
-somente o call template; o parser de corpus pode formar a árvore de uma
-supergrammar, mas isso não equivale a aceitação semântica. Um pipe não faz
-await, map, bind, allocation ou promise e não é UFCS.
-
-`>..` e `>..<` são formas current do contrato e estão nas tabelas seed
-lexer/parser. O witness direto Tree-sitter dessas duas formas ainda falha. O
-atlas registra o gap de parser. Esse texto não afirma parse-only para essas
-duas formas.
-
-### Política numérica e custo
-
-| Superfície | Contrato |
-| --- | --- |
-| Operators integer | `+`, `-`, `*`, `/`, `%`, unary `-`, integer `**` usam arithmetic checked. Overflow e divisor inválido causam panic em runtime e diagnostic em const evaluation. |
-| APIs named | `checked*` retorna `Result`; `wrapping*`, `saturating*` e `overflowing*` nomeiam a policy escolhida. |
-| Multiprecision | `carryingAdd`, `borrowingSubtract` e `fullMultiply` expõem carry, borrow e produto completo. |
-| Shifts e bits | `checkedShift*`, `wrappingShift*`, `maskedShift*`, `logicalShiftRight`, `rotatedLeft` e `rotatedRight` tornam a intenção explícita. |
-| Representação | `toBits`/`fromBits` e APIs endian `toBytes`/`fromBytes` usam `.little`, `.big` ou `.native` sem alterar o valor. |
-| `@` | Rank 1 e rank 2 usam a família fechada. Integer é checked e float usa mode `.strict`. Não há broadcast implícito. |
-| SIMD e tensor | Use APIs nomeadas, como `tensor.matmul`, `tensor.contract` e `materialize`. Não há operator extra. |
-| Otimização | Um operator não é hint de branchless, SIMD, unchecked ou fast-math. O optimizer só preserva semantics, panic, effects, ownership e numeric policy. |
-| Compound assignment | O place é resolvido uma vez. A operação lê, calcula e escreve no mesmo place. |
-
-#### Matriz fechada de policies integer
-
-Cada nome é uma API associada. `overflowingX` retorna os low wrapped bits e a
-flag de overflow.
-
-| Operação | Checked | Wrapping | Saturating | Overflowing | Outra forma nomeada |
-| --- | --- | --- | --- | --- | --- |
-| add | `checkedAdd -> Result<T, ArithmeticError>` | `wrappingAdd -> T` | `saturatingAdd -> T` | `overflowingAdd -> (T, Bool)` | — |
-| subtract | `checkedSubtract -> Result<T, ArithmeticError>` | `wrappingSubtract -> T` | `saturatingSubtract -> T` | `overflowingSubtract -> (T, Bool)` | — |
-| multiply | `checkedMultiply -> Result<T, ArithmeticError>` | `wrappingMultiply -> T` | `saturatingMultiply -> T` | `overflowingMultiply -> (T, Bool)` | — |
-| negate | `checkedNegate -> Result<T, ArithmeticError>` | `wrappingNegate -> T` | `saturatingNegate -> T` | `overflowingNegate -> (T, Bool)` | — |
-| power | `checkedPower -> Result<T, ArithmeticError>` | `wrappingPower -> T` | `saturatingPower -> T` | `overflowingPower -> (T, Bool)` | — |
-| divide | `checkedDivide -> Result<T, ArithmeticError>` | — | — | — | `euclideanDivide -> T` |
-| remainder | `checkedRemainder -> Result<T, ArithmeticError>` | — | — | — | `euclideanRemainder -> T` |
-| left shift | `checkedShiftLeft -> Result<T, ArithmeticError>` | `wrappingShiftLeft -> T` | — | — | `maskedShiftLeft -> T` |
-| right shift | `checkedShiftRight -> Result<T, ArithmeticError>` | — | — | — | `maskedShiftRight -> T`, `logicalShiftRight -> T` |
-| rotate left | — | — | — | — | `rotatedLeft -> T` |
-| rotate right | — | — | — | — | `rotatedRight -> T` |
-
-`maskedShiftLeft` e `maskedShiftRight` aplicam count módulo da largura.
-`logicalShiftRight` explicita preenchimento zero. `rotatedLeft` e
-`rotatedRight` reduzem `UInt` módulo da largura. `saturatingNegate` clampa o
-resultado matemático, inclusive unsigned (`x > 0` produz zero). `checkedDivide`
-rejeita divisor zero e `signed.min / -1`; `checkedRemainder` rejeita somente
-divisor zero, e `signed.min % -1` produz `0`. W não publica
-wrapping, saturating ou overflowing divide/remainder.
-
-`euclideanDivide` e `euclideanRemainder` são associated functions integer que
-retornam `T`. Para `b != 0`, satisfazem `a == b * q + r` e
-`0 <= r < abs(b)`, com `abs(b)` matemático. Para signed integer, ambos aceitam
-divisor positivo ou negativo. Divide rejeita divisor zero e `signed.min / -1`; remainder rejeita
-somente divisor zero e retorna `0` em `signed.min % -1`. Em unsigned, coincidem
-com `/` e `%`.
-
-| Qual forma usar | Forma corrente | Limite |
-| --- | --- | --- |
-| Álgebra booleana de bits | `&`, `\|`, `^`, `~`, `<<`, `>>` | Operadores fixos. Não há operator definido pelo usuário. |
-| Aritmética checked | `+`, `-`, `*`, `/`, `%`, `**` ou `checked*` | Overflow e divisor inválido permanecem explícitos. |
-| Policy de overflow | `wrapping*`, `saturating*`, `overflowing*` | Nomeie a policy. Nenhum profile muda os operadores básicos. |
-| Multiprecision | `carryingAdd`, `borrowingSubtract`, `fullMultiply` | Use `BigInt` ou `BigUInt` quando a largura fixa não basta. |
-| Primitiva portátil de bits | `bitWidth`, `countOnes`, `countZeros`, `countLeadingZeros`, `countTrailingZeros`, `reversedBits`, `reversedBytes` | APIs puras, const-evaluable e sem allocation. Não prometem tempo constante. |
-| FMA explícito | `math.fma(a, b, c)` | `a * b + c` não vira FMA em mode strict. |
-| SIMD, tensor ou device explícito | `tensor.matmul`, `tensor.contract`, `materialize` e APIs de device | Transfer e shape ficam nomeados. Não há operator de performance. |
-| Otimização ou PGO | profile, facts e `w explain performance` | PGO orienta otimização. Não altera value, panic, effects ou numeric policy. |
-
-`%` mantém a semântica checked do operador: divisor zero causa panic; em signed,
-`signed.min % -1` é `0`, enquanto somente `signed.min / -1` é erro.
-
-Não existe **performance operator**. Intrinsics, instruções e fallback podem
-implementar primitives portáteis. Crypto com exigência de side-channel usa seu
-package, provider ou profile e publica evidence própria.
-
-Não existem custom/user operators, unary `+`, `++`, `--`, postfix force unwrap,
-`&&=`, `||=`, `??=` ou `@=`. `isSameInstance` é uma API nomeada de identidade.
-Ela não é uma segunda forma de `is`.
-
-Consulte a hierarquia normativa em
-[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) antes
-de inferir precedência de uma forma nova.
-
-## Módulos, imports e visibilidade
-
-Contrato: [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade). O atlas
-marca estas formas como current / tree-sitter-parse-only.
-
-<!-- w-example role=signature-reference -->
-```w
-module atlas_language<
+module greeting<
   domains: [.serial],
 >
 
-import std.text
+import text from std
 import { String as Text } from std.text
-export * from atlas.foundation
-export { FoundationPlace as BasePlace } from atlas.foundation
-import domain { District } from atlas.domain
-import service { RemoteCatalog<key: String> } from atlas.catalog
-import service atlas.catalog as catalog
+import * from std.memory
+export * from greeting.domain
+export { Place as PublicPlace } from greeting.domain
+
+export fn greeting(name: Text): Text {
+  return text.join(["Hello, ", name])
+}
+
+test "imports resolve names used by exported declarations" for greeting {
+  expect greeting("W") == "Hello, W"
+}
 ```
 
-| Forma | Uso | Limite de evidência |
-| --- | --- | --- |
-| import std.text | Import ordinário de módulo | Parser e contrato; std ainda é rascunho. |
-| import { Name as Alias } from path | Seleção e renomeação | A resolução depende do package context. |
-| import domain { ... } | Carrega a interface de um domain | domain não implica process isolation disponível. |
-| import service { ... } | Referência a service | Services são direção e têm provider gap. |
-| export * from path | Reexportação explícita | Não transforma a unidade em um barrel sem contrato. |
-| module name<domains: [...]> | Declara capabilities/domains do módulo | O domínio precisa ser compatível com o target. |
+## Documentation and tests
 
-Visibilidade (private, internal, public/export) acompanha a interface do módulo.
-Não use o [portal](portal/README.md) como fonte de regras de import: é um
-protótipo congelado.
-
-### Import local em invocation efêmera
-
-Esta é uma forma de design de W-1485. Com uma root explícita fora de package ou
-workspace, a origin local é root-relative: `import platform.native` procura
-`platform/native.w`, e não um path relativo ao importer. `std` permanece no
-provider de standard library e não é sombreado por `std.w` local.
-
-```text
-module app
-
-import command
-import platform.native
-import std.io
-```
-
-O exemplo é oracle-backed e não uma promessa de execução. CHK3 fornece origins
-e edges explícitos caller-owned; CHK4 fornece o graph builder caller-owned.
-CHK5 fornece aquisição e revalidação somente para a root e os `SourceId`
-explicitamente solicitados pelo caller, com evidência real do adapter Linux
-quando `openat2` está disponível. CHK6 fornece um driver C23 interno; C11 é
-somente recovery explícito. O driver caller-owned de discovery local iterativo
-compõe CHK5, parser/module scan
-e CHK4 em waves bounded e entrega documentos em `document_order` e imports
-resolvidos a um caller futuro. O driver não chama o frontend nem abre a CLI
-pública `w check` multi-file. CHK9 usa essa composição na boundary pública
-somente para a root efêmera local.
-
-### ACQ0 — aquisição interna compartilhada
-
-`w_seed_acquisition_storage` possui as arenas adaptativas de bytes e CST usadas
-ao redor de CHK6. O owner é caller-owned e não pode ser copiado. Init exige
-objeto zero. Growth é bounded e transacional. Uma nova execução, growth
-bem-sucedido, reuse, destroy ou mutation de backing invalida views anteriores;
-growth que falha ou não faz trabalho preserva essas views.
-
-`w_seed_acquisition_retry_apply` valida o envelope CHK6 completo. Somente bytes
-do provider e nodes do parser são resizable. `w_seed_acquisition_pipeline_run`
-preflighta todos os ranges, exige um range explícito para o contexto mutável do
-backend e executa `bind → CHK6 → retry` com limite finito. O callback confiável
-pode escrever somente seus out-parameters e esse contexto. Todos os backings
-exigem acesso exclusivo durante a chamada.
-
-Em falha, o output publicado do driver permanece bitwise inalterado; storage,
-scratch e descriptors vinculados podem mudar. Em sucesso, `document_count` e
-os counts do graph delimitam os ranges válidos. Somente a última wave estável
-é publicada; ACQ0 não prova um snapshot global do filesystem entre waves.
-
-CHK9 reutiliza storage, bind e a lane `DRIVER` de retry. A rota pública
-continua a repetir CHK7 completo e preserva bytes, exits e renderers. ACQ0 é
-standalone e não chama frontend/D0, não escolhe policy de filesystem e não
-publica CLI. Use `bun run check:acquisition` para o gate focal. Owner detection,
-package/workspace, provider `std`, resolver geral e contexto público/geral
-continuam gaps.
-
-O `benchmarkDisposition` de ACQ0 é `compiler-lifecycle`. O gate fornece somente
-o oracle de correção do benchmark existente `bmd1-seed-check-lifecycle`, célula
-ready `clean × check-end-to-end`; não adiciona stage, timing ou result.
-`startup` e `execution` permanecem `product-runtime` deferred.
-
-### OWN0 — observação guarded de build.w
-
-`w_seed_owner_guard` observa candidates `build.w` da folha à root física em
-uma sessão bounded com handles retidos. O primeiro fato é somente
-`CANDIDATES_OBSERVED` ou `NO_CANDIDATE_OBSERVED`. Depois de reconfirmar source,
-ancestry, root, cada candidate e cada ausência na mesma sessão, o guard publica
-`CANDIDATES_RECONFIRMED` ou `NO_CANDIDATE_RECONFIRMED`.
-
-O guard é caller-owned, generation-tagged e não copiável. Candidate refs são
-descritivas e só valem com o guard vivo. Candidate, marker inválido, I/O,
-capacity, capability ausente, mutation, reparse ou boundary bloqueia fallback.
-Nenhum estado autoriza contexto efêmero, seleciona owner, lê manifest ou cria
-snapshot/lease global.
-
-O adapter Linux real usa `openat2` e `STATX_MNT_ID_UNIQUE`; o gate executa
-Linux nativo e, em host Windows, exige WSL Ubuntu. O adapter Windows permanece
-incondicionalmente `UNSUPPORTED` fail-closed neste bundle porque a capability
-não foi promovida e o parent `..` relativo por handle e a localidade ainda não
-foram comprovados. Probes bem-sucedidos continuam somente diagnósticos.
-Use `bun run check:owner-guard`. A classificação geral permanece
-`implementation-evidence-gap`; a evidência Linux é somente a fatia bounded.
-`w check` e `w run` não usam OWN0 neste corte. Um composer MAN0/WSP0 futuro
-ainda deve vincular a source OWN0 ao token/receipt ACQ0.
-
-O `benchmarkDisposition` é `compiler-lifecycle` somente como track futura.
-OWN0 não integra o `w check` medido por BMD1, e seu gate não é oracle dessa
-célula. Não há nova evidência de benchmark, stage, timing ou result.
-
-### MAN0 — reader guarded estrutural data-only
-
-`w_seed_manifest` lê todos os candidates observados por OWN0 em batch. A
-primeira wave faz parse e measure; depois de uma única revalidação, a segunda
-wave usa as mesmas referências. Length, bytes, bindings e os digests de
-backend/core precisam coincidir antes de run, verify e publicação
-all-or-nothing. O core C23 é caller-owned, bounded e não usa heap; C11 é
-somente recovery explícito.
-
-Os checks do core exercitam parser, normalizer, `program_from_output`, verify,
-capacity, alias e forgeries. O gate root executa MAN0 depois de OWN0 e o gate
-Linux real cobre as duas waves e as mutações de byte, replacement e binding.
-Em host Windows, o gate exige WSL Ubuntu e saída byte-idêntica em duas
-execuções; a factory Windows é somente um stub direto `UNSUPPORTED`
-fail-closed.
-
-MAN0 é data-only: não seleciona owner, não acopla schema, não integra ACQ0 ou
-WSP0 e não constitui produto público. A classificação permanece
-`implementation-evidence-gap`; Windows operacional, vínculo ACQ0, schema
-decoder, WSP0 e produto público continuam gaps. Use
-`bun run check:seed-manifest` para o gate focal.
-
-As waves CHK6 não formam uma transação única de snapshot. Candidates de waves
-anteriores podem ser readquiridos, mas o CHK4 é a autoridade de reachability e
-publica somente nodes alcançados; bytes, CST e facts da última wave estável
-alimentam o graph. NFC completo, provider std, package/workspace e resolução
-externa continuam gaps. CHK9 cobre somente imports locais alcançáveis. A
-proveniência de capacity preservada pelo parser é evidência interna, sem novo
-mapping D0 público. A API CHK5 isolada não faz discovery pelo raw import path.
-
-CHK7 compõe internamente CHK6, frontend seed e D0 em uma API caller-owned
-JSON-only. Todo o trabalho falível termina antes do commit: ela preflighta todos
-os diagnostics por `document_index`, copia o JSONL uma vez para o buffer final e
-então atualiza `jsonl_length`, sem novo ramo falível; qualquer falha deixa ambos
-inalterados. A fixture prova
-import/call de `root` para `child` e `W-SEM-0001` em `child.w`, de modo
-determinístico. O corte mapeia somente `W-SEM-0001` e não abre CLI pública,
-filesystem novo, provider `std`, package/workspace ou frontend completo.
-
-CHK8 fornece o adapter Windows interno do provider efêmero. Ele usa
-`NtCreateFile` relativo a um `HANDLE` de diretório, rejeita reparse points e
-objetos que não sejam arquivos regulares, e confirma identidade por
-`FILE_ID_INFO`. O perfil aceita root relativa e root absoluta drive-local.
-UNC retorna `UNSUPPORTED`; namespaces, devices, ADS e formas rooted inválidas
-retornam `INVALID`. O adapter é caller-owned, sem heap e bounded, e herda do
-core a revalidação e a publicação all-or-nothing.
-
-O teste Windows cobre nested child, hardlink alias, junction final e
-intermediário, mutation, replacement, removal, UTF-8 físico e limites. O gate
-separa os targets Linux e Windows, exige `windows-real=passed` em Windows,
-prova Linux real via WSL no host Windows e executa os stubs fail-closed. CHK8
-é adapter interno e não habilita `w check` público multi-file.
-
-### CHK9 — `w check` público em root efêmera
-
-`w check path/file.w [--json]` é a rota pública executável para uma root
-explícita em contexto efêmero. Ela alcança somente imports locais
-root-relative. Linux exige `openat2`; Windows exige `NtCreateFile`.
-Outras plataformas ou capabilities ausentes falham fechadas.
-
-A root usa basename ASCII `[A-Za-z_][A-Za-z0-9_]*.w` como `SourceId`.
-O core/provider aceita diretório físico codificado em UTF-8, e o gate Windows
-prova cwd Unicode; um path Unicode recebido por `argv` narrow não está provado
-e permanece gap. Header override altera o module path da root, não o
-`SourceId`. Sources filhos usam paths root-relative.
-
-O bootstrap aceita até 64 sources, 4096 edges, depth 64, 16 MiB por source
-e agregado, CST de 32768 por source e 262144 agregado, e JSON staging/final
-até 64 MiB. Source, CST e JSON crescem por retry bounded que repete a
-composição CHK6 → CHK7.
-
-Exit `0` é clean. Exit `1` é diagnostic mapeável. Exit `2` é invocation,
-source, parse, unsupported, barrier ou capacity. Exit `3` é allocation,
-invariant, renderer ou falha de escrita. JSON usa `SourceId` lógico. Human usa
-path físico somente para display.
-
-O gate prova o witness single-source e o Restaurant multifile com child nested,
-diagnostic determinístico, source inalcançado, missing/std/cycle, limites,
-identidade, UTF-8, parse, frontend e symlink/junction escape. O witness público
-de `W-MATCH-0001` usa `missingCases` set byte-sorted e label source-backed
-`match-subject`, com JSON repetível e exit `1`. Package, workspace, provider
-`std`, NFC completo e frontend normativo permanecem gaps.
-
-### CHK10 — diagnostics frontend estruturados
-
-O carrier frontend `w-seed-frontend-9` é caller-owned e append-only. Cada record
-publica `code`, `primary`, `document_index` e ranges exatos de facts, items e
-labels. STRING usa `text`; INTEGER usa `integer_value`; ARRAY/SET usam a faixa
-de `diagnostic_items`. O adapter preflighta profile e comprimento, schema,
-fact keys/types, UTF-8, sets únicos em ordem de bytes, grupos/ordem/cardinalidade
-de labels, SourceIds válidos e únicos, documentos, spans e counts exatos antes
-de medir ou escrever JSON.
-
-O mapping fechado cobre exatamente estes 17 codes: `W-SEM-0001`,
-`W-TYPE-0120`, `W-TYPE-0121`, `W-TYPE-0122`, `W-LABEL-0005`, `W-LABEL-0006`,
-`W-MATCH-0001`, `W-MATCH-0002`, `W-MATCH-0003`, `W-CONST-0001`,
-`W-CONTRACT-0001`, `W-CONTRACT-0002`, `W-CONTRACT-0003`, `W-CONTRACT-0004`,
-`W-GENERIC-0001`, `W-GENERIC-0002` e `W-GENERIC-0003`; outros codes continuam
-`UNSUPPORTED`. JSON é all-or-nothing no preflight e conserva SourceId lógico;
-human compartilha a validação e usa paths físicos para primary e labels, com
-summary específico. A evidência inclui matrix 17/17, caso cross-document,
-sets determinísticos, três diagnostics em ordem e o witness público Restaurant
-de `W-MATCH-0001`. Isto é uma fatia bounded de mapping, não frontend completo
-nem `w check` completo; package/workspace, provider `std`, resolution externa,
-owner detection e diagnostics fora dos 17 profiles continuam gaps.
-
-## Declarações, tipos e contratos
-
-Contrato: [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões),
-[DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
-[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
-
-### Formas de declaração
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=clamp observable=value -->
 ```w
-export struct Place<ID> : Hashable {
-  id: ID
+/// Limits a value to an inclusive interval.
+///
+/// @example
+/// call: clamp(4, minimum: 0, maximum: 3)
+/// result: 3
+fn clamp(value: i32, named minimum: i32, named maximum: i32): i32 {
+  return value.max(minimum).min(maximum)
+}
+
+test "clamp preserves an internal value" for clamp {
+  expect clamp(2, minimum: 0, maximum: 3) == 2
+}
+```
+
+## Literals and interpolation
+
+<!-- w-example role=executable use=literalSummary observable=value -->
+```w
+fn literalSummary(seconds: u64): String {
+  let integer: i32 = 1_000
+  let hexadecimal = 0xff
+  let ratio: f64 = 0.5e2
+  let enabled: Bool = true
+  let scalar: UnicodeScalar = 'λ'
+  let byte: u8 = b'W'
+  let byteString = b"W"
+  let text = "${integer}:${hexadecimal}:${ratio}:${enabled}:${scalar}:${byte}"
+  let raw = #"{"value":#${seconds},"unit":"s"}"#
+  let literalMarker = #"${seconds}"#
+  let multiline = """north
+south"""
+  return raw + literalMarker + multiline + text + "${byteString.count}"
+}
+
+test "raw strings opt into interpolation" for literalSummary {
+  expect literalSummary(30).starts(with: #"{"value":30,"unit":"s"}"#)
+  expect literalSummary(30).contains(#"${seconds}"#)
+}
+```
+
+## Collections and ranges
+
+<!-- w-example role=executable use=collectionSummary observable=value -->
+```w
+fn collectionSummary(): (i32, i32, usize, i32) {
+  let tuple = (north: 1, east: 2)
+  let fixed: [i32; 4] = [0; 4]
+  let values = [1, 2, 3, 4]
+  let scores = ["north": 7, "south": 9]
+  let selected = values.lazy
+    .filter((value) => value % 2 == 0)
+    .map((value) => value * 10)
+    .take(2)
+    .collect()
+
+  var closed = 0
+  for value in 1...3 { closed += value }
+
+  var halfOpen = 0
+  for value in 1..<3 { halfOpen += value }
+
+  let inner = values[1>..<3]
+  let rightClosed = values[1>..3]
+  guard let north = scores["north"] else panic("fixture key is missing")
+  return (tuple.east, north, fixed.count + inner.count + rightClosed.count, closed + halfOpen + selected[0])
+}
+
+test "collections expose labels, bounds, and counts" for collectionSummary {
+  expect collectionSummary() == (2, 7, 7, 29)
+}
+```
+
+## Operators and pipe-forward
+
+<!-- w-example role=executable use=addOne,double,renderNumber,operatorSummary observable=value -->
+```w
+fn addOne(value: i32): i32 { return value + 1 }
+fn double(value: i32): i32 { return value * 2 }
+fn renderNumber(value: i32): String { return "${value}" }
+
+fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
+  var flags: u8 = 0b0001
+  flags |= 0b0100
+  flags <<= 1
+
+  let rendered = 20
+    |> addOne()
+    |> double()
+    |> renderNumber()
+
+  let relation = (flags & 0b1010) == 0b1010 && !false
+  let xor = flags ^ 0b0011
+  let power = 2 ** 5
+  let quotient = 10 / 2
+  let remainder = 10 % 3
+  let rangeCheck = 2 in 1...3
+  let optional: i32? = .none
+  let fallback = optional ?? 7
+  return (rendered, flags, relation, xor, power, quotient, remainder, rangeCheck, fallback)
+}
+
+test "operators and pipe-forward produce values" for operatorSummary {
+  var assigned = 8
+  assigned += 2
+  assigned -= 1
+  assigned *= 2
+  assigned /= 3
+  assigned %= 5
+  assigned **= 2
+  assigned <<= 1
+  assigned >>= 1
+  assigned &= 0b0011
+  assigned ^= 0b0010
+  assigned |= 0b0100
+
+  expect operatorSummary() == ("42", 10, true, 9, 32, 5, 1, true, 7)
+  expect assigned == 7
+  expect (0b1000 >> 2) == 2
+  expect (~0_u8) == 0xff
+  expect 2 <= 2 && 3 >= 2
+  expect 1 != 2 || false
+}
+```
+
+## Numeric policies and bit primitives
+
+<!-- w-example role=logical-contract -->
+```w
+fn numericPolicies(value: u16, other: u16): (u16, u16, usize) {
+  let checkedAdd = u16.checkedAdd(value, other)
+  let checkedSubtract = u16.checkedSubtract(value, other)
+  let checkedMultiply = u16.checkedMultiply(value, other)
+  let checkedNegate = u16.checkedNegate(value)
+  let checkedDivide = u16.checkedDivide(value, other)
+  let checkedRemainder = u16.checkedRemainder(value, other)
+  let checkedPower = u16.checkedPower(value, other)
+  let checkedShiftLeft = u16.checkedShiftLeft(value, other)
+  let checkedShiftRight = u16.checkedShiftRight(value, other)
+
+  let wrapped = u16.wrappingAdd(value, other)
+  let wrappingSubtract = u16.wrappingSubtract(value, other)
+  let wrappingMultiply = u16.wrappingMultiply(value, other)
+  let wrappingNegate = u16.wrappingNegate(value)
+  let wrappingPower = u16.wrappingPower(value, other)
+  let wrappingShiftLeft = u16.wrappingShiftLeft(value, other)
+
+  let saturated = u16.saturatingAdd(value, other)
+  let saturatingSubtract = u16.saturatingSubtract(value, other)
+  let saturatingMultiply = u16.saturatingMultiply(value, other)
+  let saturatingNegate = u16.saturatingNegate(value)
+  let saturatingPower = u16.saturatingPower(value, other)
+
+  let overflow = u16.overflowingAdd(value, other)
+  let overflowingSubtract = u16.overflowingSubtract(value, other)
+  let overflowingMultiply = u16.overflowingMultiply(value, other)
+  let overflowingNegate = u16.overflowingNegate(value)
+  let overflowingPower = u16.overflowingPower(value, other)
+
+  let euclideanDivide = i32.euclideanDivide(-7, 3)
+  let euclideanRemainder = i32.euclideanRemainder(-7, 3)
+  let carry = u16.carryingAdd(value, other)
+  let borrow = u16.borrowingSubtract(value, other)
+  let full = u16.fullMultiply(value, other)
+  let maskedLeft = u16.maskedShiftLeft(value, other)
+  let maskedRight = u16.maskedShiftRight(value, other)
+  let logicalRight = u16.logicalShiftRight(value, other)
+  let rotatedLeft = u16.rotatedLeft(value, other)
+  let rotatedRight = u16.rotatedRight(value, other)
+
+  let bits = value.toBits()
+  let fromBits = u16.fromBits(bits)
+  let bytes = value.toBytes(order: .big)
+  let fromBytes = u16.fromBytes(bytes, order: .big)
+  let bitWidth = u16.bitWidth
+  let countOnes = u16.countOnes(value)
+  let countZeros = u16.countZeros(value)
+  let countLeadingZeros = u16.countLeadingZeros(value)
+  let countTrailingZeros = u16.countTrailingZeros(value)
+  let reversedBits = u16.reversedBits(value)
+  let reversedBytes = u16.reversedBytes(value)
+
+  let _ = checkedAdd
+  let _ = checkedSubtract
+  let _ = checkedMultiply
+  let _ = checkedNegate
+  let _ = checkedDivide
+  let _ = checkedRemainder
+  let _ = checkedPower
+  let _ = checkedShiftLeft
+  let _ = checkedShiftRight
+  let _ = wrappingSubtract
+  let _ = wrappingMultiply
+  let _ = wrappingNegate
+  let _ = wrappingPower
+  let _ = wrappingShiftLeft
+  let _ = saturatingSubtract
+  let _ = saturatingMultiply
+  let _ = saturatingNegate
+  let _ = saturatingPower
+  let _ = overflow
+  let _ = overflowingSubtract
+  let _ = overflowingMultiply
+  let _ = overflowingNegate
+  let _ = overflowingPower
+  let _ = euclideanDivide
+  let _ = euclideanRemainder
+  let _ = carry
+  let _ = borrow
+  let _ = full
+  let _ = maskedLeft
+  let _ = maskedRight
+  let _ = logicalRight
+  let _ = rotatedLeft
+  let _ = rotatedRight
+  let _ = fromBits
+  let _ = fromBytes
+  let _ = countOnes
+  let _ = countZeros
+  let _ = countLeadingZeros
+  let _ = countTrailingZeros
+  let _ = reversedBits
+  let _ = reversedBytes
+  return (wrapped, saturated, bitWidth)
+}
+
+test "numeric policies name overflow and representation" for numericPolicies {
+  expect numericPolicies(8, 2) == (10, 10, 16)
+}
+```
+
+## Functions, labels, defaults, and rest
+
+<!-- w-example role=executable use=labelled,join observable=value -->
+```w
+fn labelled(
+  value: String,
+  named audit: String,
+  _ note: String,
+  to destination: String,
+  title: String = "city",
+): String {
+  return value + audit + note + destination + title
+}
+
+fn join(separator: String, each values: String...): String {
+  return values.joined(separator: separator)
+}
+
+test "call labels and rest arguments keep their shape" for labelled {
+  let labels = labelled("n", audit: "o", "r", to: "t", title: "h")
+  let values = ["east", "west"]
+  expect labels == "north"
+  expect join("/", each values) == "east/west"
+}
+```
+
+## Structs, objects, enums, and extensions
+
+<!-- w-example role=executable use=Place,Counter,Signal,describe observable=value -->
+```w
+struct Place {
+  id: u64
   var label: String = "square"
 
-  init(id: ID, label: String) {
+  init(id: u64, label: String) {
     self.id = id
     self.label = label
   }
 
-  fn describe(): String {
-    return label
-  }
+  deinit { label }
 }
 
-object Ward {
-  var name: String
+object Counter {
+  var value: i32
+  mut fn increment() { value += 1 }
 }
 
-protocol Directory<Key> {
-  type Value: Hashable
-  fn lookup(key: Key): Value
-}
-
-enum Signal: Error {
+enum Signal {
   quiet
   alert(level: u8)
 }
-```
 
-O bloco é uma amostra current / tree-sitter-parse-only. struct descreve valor
-com layout; object descreve identidade/estado; protocol descreve contrato; enum
-fecha cases. service, behavior, extension, type, alias, dimension e unit
-aparecem em fontes Last Light e têm regras próprias. Não suponha que object
-seja automaticamente shared. A declaração só ganha significado no uso: por
-exemplo, `Place(id: "A", label: "square").describe()` devolve
-`"square"`, e `Signal.alert(level: 1)` seleciona um case observável; um
-`Directory` só pode ser usado por sua operação `lookup` fornecida.
+extension Place {
+  fn describe(): String { return "${id}:${label}" }
+}
 
-```text
-let place = Place(id: "A", label: "square")
-let label = place.describe()
-expect label == "square"
-```
-
-### Tipos compostos e estáticos
-
-<!-- w-example role=signature-reference -->
-```w
-type PlaceId = String
-alias MaybePlace = Place<String>?
-type Location = (district: String, number: u16)
-type Digest = [u8; 32]
-type Callback = some fn(String): String
-type SmallText = Array<u8><(.count <= 64)>
-type Allowed = Signal<[.quiet, .alert]>
-```
-
-| Construção | Intenção |
-| --- | --- |
-| type Name = T | Nome de um tipo fechado ou de um refinement. |
-| alias Name = T | Alias de leitura; não cria identidade nova. |
-| T<(predicate)> | Refinement verificado no contrato estático. |
-| Enum<[cases]> | Subconjunto estático de cases. |
-| (label: T, ...) | Tuple nomeada. |
-| [T; N] | Array de tamanho estático. |
-| some fn(...) | Callable opaco com uma implementação concreta por valor. |
-| any fn(...) | Existential callable com custo e mobilidade explícitos. |
-
-Generics usam parâmetros de tipo, valor e associados. Heads como T: P & Q,
-conformances condicionais e some/any não são equivalentes a um where textual.
-A fonte [generics.w](reference/last-light/generics.w) concentra casos de
-contrato. Uma aplicação concreta preserva o tipo e o bound:
-
-```text
-let placeId: PlaceId = "A"
-let location: Location = (district: "north", number: 42)
-expect location.number == 42
-```
-
-### Inicialização e propriedades
-
-Use Type(field: value) e init(...) com labels. Propriedades podem ter get,
-set e modify, mas o acesso ainda obedece ownership. Um deinit não substitui
-defer nem uma política de cleanup de async.
-
-<!-- w-example role=executable use=Cursor observable=value -->
-```w
-object Cursor {
-  var storedIndex: usize
-
-  var index: usize {
-    get => storedIndex
-    set(value) => storedIndex = value
-    modify { return inout storedIndex }
+fn describe(signal: Signal): String {
+  return switch signal {
+    case .quiet: "quiet"
+    case .alert(let level): "alert:${level}"
   }
 }
 
-test "Cursor assignment uses its property accessors" for Cursor {
-  var cursor = Cursor()
-  cursor.index = 3
-  expect cursor.index == 3
+test "nominal declarations expose their members" for Place {
+  let place = Place(id: 7, label: "north")
+  let counter = Counter(value: 0)
+  let signal: Signal = .alert(level: 2)
+  let Place(id, ...) = place
+  let (description, observedCount) = (place.describe(), counter.value)
+  counter.increment()
+  expect id == 7
+  expect description == "7:north"
+  expect observedCount == 0
+  expect counter.value == 1
+  expect counter.isSameInstance(as: counter)
+  expect describe(signal) == "alert:2"
 }
 ```
 
-Um behavior reutiliza o mesmo lifecycle. `modify` permite um hook local depois
-do borrow sem copiar o valor anterior. Este witness é current e observável:
-`Attitude` atribui `350`, soma `25` por `modify` e observa `15`.
+## Protocols, generics, and static contracts
+
+<!-- w-example role=logical-contract -->
+```w
+protocol Source<Item> {
+  fn item(at index: usize): Item
+}
+
+protocol Counted {
+  fn count(): usize
+}
+
+protocol Catalog<Item>: Source<Item> & Counted {}
+
+struct Shelf<T> {
+  items: Array<T>
+}
+
+enum Mode { fast; strict }
+alias StringShelf = Shelf<String>
+type AllowedMode = Mode<[.strict]>
+type Digest = [u8; 32]
+
+extension<T: Equatable> Shelf<T>: Catalog {
+  fn item(at index: usize): T { return items[index] }
+  fn count(): usize { return items.count }
+}
+
+const fn isSmall(value: u16): Bool { return value <= 64 }
+type SmallCount = u16<(isSmall(.member))>
+
+test "generic conformances preserve the concrete item" for Shelf {
+  let shelf: StringShelf = Shelf(items: ["north", "south"])
+  let count: SmallCount = try SmallCount(shelf.count())
+  let mode: AllowedMode = .strict
+  let digest: Digest = [0; 32]
+  expect shelf.item(at: 1) == "south"
+  expect count == 2
+  expect mode == .strict
+  expect digest.count == 32
+}
+```
+
+## Compile-time values and specialization
+
+<!-- w-example role=logical-contract -->
+```w
+const DefaultColumns: usize = 4
+
+const fn isPositive(value: usize): Bool { return value > 0 }
+
+struct StaticWindow<
+  rows: usize<(isPositive(.member))>,
+  columns: usize,
+> {
+  values: [[f32; columns]; rows]
+}
+
+static const fn zeroWindow<rows: usize>(): StaticWindow<rows: rows, columns: DefaultColumns> {
+  return StaticWindow(values: [[0.0; DefaultColumns]; rows])
+}
+
+test "static values select a finite specialization" for zeroWindow {
+  let window = zeroWindow<rows: 2>()
+  expect window.values.count == 2
+  expect window.values[0].count == DefaultColumns
+}
+```
+
+## Properties, behaviors, and facets
 
 <!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude observable=value -->
 ```w
-export behavior WrappedDegrees for u16 {
+behavior WrappedDegrees for u16 {
   var current: u16
 
-  init(initialValue: fn(): u16) {
-    current = initialValue() % 360_u16
-  }
-
-  get {
-    return current
-  }
-
-  mut set(newValue) {
-    current = newValue % 360_u16
-  }
-
+  init(initialValue: fn(): u16) { current = initialValue() % 360_u16 }
+  get { return current }
+  mut set(newValue) { current = newValue % 360_u16 }
   mut modify {
     defer { current %= 360_u16 }
     return inout current
   }
 
-  export mut fn reset() {
-    current = 0
-  }
+  export mut fn reset() { current = 0 }
 }
 
-export behavior Versioned<Value> for Value {
+behavior Versioned<Value> for Value {
   var epoch: u64
-
-  init() {
-    epoch = 0
-  }
-
-  export mutationEpoch: u64 {
-    get => epoch
-  }
-
-  export mut fn resetMutationEpoch() {
-    epoch = 0
-  }
-
-  willSet(current: ref Value, proposed: ref Value) { }
-
-  mut didSet(current: ref Value) {
-    epoch += 1
-  }
-
-  willModify(current: ref Value) { }
-
-  mut didModify(current: ref Value) {
-    epoch += 1
-  }
+  init() { epoch = 0 }
+  export mutationEpoch: u64 { get => epoch }
+  export mut fn resetMutationEpoch() { epoch = 0 }
+  willSet(current: ref Value, proposed: ref Value) {}
+  mut didSet(current: ref Value) { epoch += 1 }
+  willModify(current: ref Value) {}
+  mut didModify(current: ref Value) { epoch += 1 }
 }
 
-export behavior VersionedDegrees for u16 =
+behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
 
-export struct Attitude {
+struct Attitude {
   var VersionedDegrees yaw: u16 = 0
-
-  mut fn rotate(by delta: u16) {
-    yaw += delta
-  }
+  mut fn rotate(by delta: u16) { yaw += delta }
 }
 
-test "attitude rotation wraps degrees and observes epoch" for Attitude {
+test "behavior composition exposes qualified facets" for Attitude {
   var attitude = Attitude()
   attitude.yaw = 350
   attitude.rotate(by: 25)
-
   expect attitude.yaw == 15
   expect attitude.yaw#version.mutationEpoch == 2
-
-  attitude.yaw#version.resetMutationEpoch()
-  expect attitude.yaw#version.mutationEpoch == 0
-
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
-  expect attitude.yaw#version.mutationEpoch == 1
 }
 ```
 
-A baseline aceita `init()` para o caso zero-slot ou
-`init(initialValue: fn(): Value)` para o caso one-slot. O one-slot recebe o
-thunk do RHS. Todos os generic parameters do behavior são inferidos pelo tipo
-depois de `for`. Configuração estática pertence ao tipo lógico. Um observer
-como `Versioned<Value>` só entra em uma composição nominal; `var Versioned
-value = rhs` é rejeitado porque o RHS seleciona o initializer one-slot. Uma
-composição sem storage sintetiza plain storage e encaminha o RHS a ele.
-Dependência runtime usa owner, método, service ou channel nomeado.
-`Behavior(...)`, `Behavior<...>`, múltiplos inputs e acesso ao backing não
-pertencem à baseline. `WrappedDegrees` faz a normalização no lifecycle de
-storage; ela não é uma facet.
+## Option, conversion, and type queries
 
-| Operação | Caminho da property |
-| --- | --- |
-| Inicialização do storage | Escreve o storage e não chama `set` ou `modify`. |
-| Leitura | Chama `get`; um getter borrowed não move field move-only. |
-| `property = value` | Chama `set` ou substitui o storage; nunca chama `modify`. |
-| `property += value` ou call `mutating` | Abre `modify` exatamente uma vez; não usa get-copy-set oculto. |
-| Fim do `return inout` | Retoma `defer` uma vez depois do borrow, inclusive quando a operação termina com error. |
-| Substituição/drop | Destrói o valor antigo e o backing storage uma vez. |
-
-Accessors são síncronos, não lançam error e não fazem I/O, service call,
-blocking, task creation ou allocation geral oculta. Use método nomeado quando
-o custo precisa de `try`, `await` ou outro efeito visível. `willSet` e `didSet`
-continuam rejeitados como accessors ad hoc ou observers implícitos; os hooks
-fechados `willSet`, `didSet`, `willModify` e `didModify` só existem no observer
-nominal explicitamente declarado e aplicado/composto. Hooks que alteram
-backing exigem `mut` explícito; sem `mut` eles recebem somente `ref` e não
-podem escrever.
-
-Na composição, storage/plain inicializa primeiro e observers inicializam em
-ordem lexical. Em set/modify, `will*` roda em ordem lexical, a operação de
-storage ocorre uma vez e `did*` roda em ordem inversa; no drop, observers
-desfazem em ordem inversa e storage depois. Uma facet `mut` do storage, como
-`yaw#degrees.reset()`, conta como logical mutation e percorre os hooks do
-observer. Uma facet de observer altera somente seu metadata. Aliases duplicados,
-cycles, paths ausentes, dois storage behaviors ou colisão core/behavior são
-diagnostics; não há prioridade ou flatten/reexport automático.
-
-### Conversões, `is` e recuperação de tipo
-
-W faz conversão implícita somente quando ela é total, exata e possui uma rota
-única. Narrowing e parsing usam constructors ou APIs nomeadas:
-
-<!-- w-example role=executable use=conversionExamples observable=value -->
+<!-- w-example role=executable use=ReservationKey,inspectKey,metadataSummary,nameOr observable=value -->
 ```w
-fn conversionExamples(): i32 throws Error {
-  let wide: u16 = 120_u8
-  let narrow = try u8(exactly: wide)
-  let parsed = try i32.parse("42")
-  return parsed
-}
-
-test "conversion keeps the parsed value" for conversionExamples {
-  expect try conversionExamples() == 42
-}
-```
-
-O checker não procura um terceiro tipo numérico comum. `u8 + i16` pode produzir
-`i16`; `i8 + u8` exige que o source escolha o tipo.
-
-`is` retorna somente `Bool`. Ele testa tag de enum ou o tipo nominal exato de
-um valor com identidade dinâmica. O record de value-witness/conformance expõe
-uma identidade nominal opaca reutilizável por `is`, `as?` e `type of`, sem
-metadata estrutural. Layout físico e word count ainda são gaps de medição.
-Para usar o valor concreto, recupere um borrow. Este exemplo mantém a chave
-local no próprio trecho para que a conversão e o valor observado sejam reais:
-
-<!-- w-example role=executable use=ReservationKey,inspectReservation observable=value -->
-```w
-struct ReservationKey: Hashable {
+struct ReservationKey: Hashable & Reflectable {
   orderId: u64
 }
 
-fn inspectReservation(value: ref any Hashable): u64? {
-  if let ref key = value as? ReservationKey {
-    return key.orderId
+fn inspectKey(value: ref any Hashable): u64? {
+  if value is ReservationKey {
+    if let ref key = value as? ReservationKey {
+      let staticId = type of ReservationKey
+      let dynamicId = type of value
+      let ref metadata = info of ReservationKey
+      guard metadata.id == staticId && dynamicId == staticId else { return .none }
+      return .some(key.orderId)
+    }
   }
   return .none
 }
 
-test "conditional cast keeps the borrowed key" for inspectReservation {
+fn metadataSummary(): (TypeId, String, TypeKind, usize, usize, TypeId) {
+  let ref metadata = info of ReservationKey
+  let ref property = metadata.properties[0]
+  return (
+    metadata.id,
+    copy metadata.name,
+    metadata.kind,
+    metadata.properties.count,
+    metadata.cases.count,
+    property.valueType,
+  )
+}
+
+fn nameOr(value: String?): String {
+  return value?.trim() ?? "unknown"
+}
+
+test "conditional cast keeps the borrowed value" for ReservationKey {
   let key = ReservationKey(orderId: 42)
-  expect inspectReservation(ref key) == 42
+  let summary = metadataSummary()
+  expect inspectKey(ref key) == .some(42)
+  expect summary.0 == type of ReservationKey
+  expect !summary.1.isEmpty
+  expect summary.2 == .struct
+  expect summary.3 == 1
+  expect summary.4 == 0
+  expect summary.5 == type of u64
+  expect nameOr(.some(" W ")) == "W"
+  expect nameOr(.none) == "unknown"
 }
 ```
 
-`as?` retorna `ref T?`, herda a origem do existential e não copia, move, retém,
-aloca ou reempacota. O source é avaliado uma vez. A baseline não possui downcast
-owned, `as` genérico, `as!`, cast por string, type pattern ou narrowing
-flow-sensitive. `as` aparece somente em import/reexport e
-`lock ... as binding`.
+## Ownership, borrows, and views
 
-Queries de tipo são prefixas e não são calls:
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=readFirst,replaceFirst,consume,window observable=value -->
 ```w
-fn queryExamples(value: ref any Reflectable) {
-  let id = type of ReservationKey
-  let dynamicId = type of value
-  let ref info = info of ReservationKey
+fn readFirst(values: ref Array<String>): String { return values[0] }
+
+fn replaceFirst(values: inout Array<String>, named replacement: String) {
+  values[0] = replacement
+}
+
+fn consume(value: take String): String { return value }
+
+fn window(values: view Array<String>): view Array<String> {
+  return values[1..<3]
+}
+
+test "ownership operations are explicit at the call site" for consume {
+  var values = ["north", "east", "south"]
+  let copied = copy readFirst(ref values)
+  replaceFirst(inout values, replacement: "west")
+  let pinned = pin values
+  let middle = window(values)
+  let moved = consume(take copied)
+  let _ = pinned
+  expect moved == "north"
+  expect values[0] == "west"
+  expect middle.count == 2
 }
 ```
 
-O type namespace vence para um Subject não parentetizado. `type of (T)` força
-uma expression quando `T` também é um valor. A query consome postfixes e para
-antes de relações, assignment e range. `type of` não exige `Reflectable`.
-`info of` exige `Reflectable` e retorna `ref TypeInfo`.
-`Reflectable`, `TypeId` e `TypeInfo` são core-owned e entram no scope sem import.
-W não fornece `std.reflect`, `reflect.*`, `typeof` como query, `type(of:)` ou
-`TypeId.of<T>()`; isso é ausência de superfície core, não ban lexical. Bindings
-user-defined chamados `reflect`, `info`, `of` ou `typeof` continuam legais onde
-a gramática permitir.
+## Callable values and captures
 
-## Bindings, callables e ownership
-
-Contrato: [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) e
-[DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação).
-
-### Bindings
-
-| Forma | Significado de alto nível |
-| --- | --- |
-| let x = value | Binding imutável depois da inicialização. |
-| var x = value | Binding reatribuível. Mutação ainda pode exigir exclusividade. |
-| let ref x | Borrow de leitura com escopo controlado. |
-| let inout x | Borrow mutável exclusivo durante a operação. |
-| take x | Move explícito do valor. |
-| copy x | Cópia explícita quando o tipo e o orçamento permitem. |
-| pin x | Fixa uma relação de endereço/ownership no contexto restrito. |
-| shared T, weak T, view T | Capacidades de acesso diferentes; não são sinônimos de ponteiros C. |
-| var atomic x | Estado atômico com ordem de memória indicada na operação. |
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=CaptureBox,captures observable=value -->
 ```w
-fn stage(allocator destination: ref Allocator, city: String): String {
-  return city
+object CaptureBox {
+  value: String
 }
 
-fn moveCity(city: take String): String {
-  return city
+fn captures(
+  copied: String,
+  borrowed: ref String,
+  moved: take String,
+  sharedValue: shared CaptureBox,
+): (String, String, String, String?, usize, String) {
+  let copyClosure: some fn(): String = <[copy copied]>() => copied
+  let refClosure: some fn(): String = <[ref borrowed]>() => borrowed
+  let takeClosure: some take fn(): String = <[take moved]>() => moved
+  let weakClosure = <[weak sharedValue]>() => if let owner = sharedValue {
+    .some(copy owner.value)
+  } else {
+    .none
+  }
+  var next: usize = 0
+  var sequence: some mut fn(): usize = <[take next]>() => {
+    next += 1
+    return next
+  }
+  let erased: any fn(String): String =
+    <[copy copied]>(value) => value + copied
+
+  return (
+    copyClosure(),
+    refClosure(),
+    (take takeClosure)(),
+    weakClosure(),
+    sequence(),
+    erased("erased:"),
+  )
+}
+
+test "capture lists preserve ownership modes" for captures {
+  let borrowed = "borrowed"
+  let moved = "moved"
+  let box: shared CaptureBox = CaptureBox(value: "shared")
+  expect captures("copied", ref borrowed, take moved, box)
+    == ("copied", "borrowed", "moved", .some("shared"), 1, "erased:copied")
 }
 ```
 
-O primeiro snippet é current / tree-sitter-parse-only do atlas. O segundo
-combina uma forma de parâmetro já usada em Last Light. Use
-[memory.w](reference/last-light/memory.w),
-[borrowed_values.w](reference/last-light/borrowed_values.w) e
-[borrow_expressivity.w](reference/last-light/borrow_expressivity.w) para
-distinguir borrow, move, copy, pin e allocation. O par de declarations tem uso
-concreto no call site:
+## Control flow and patterns
 
-```text
-let city = "Paris"
-let staged = stage(destination, city)
-let moved = moveCity(take city)
-expect staged == "Paris"
-expect moved == "Paris"
-```
-### Funções, labels e closures
-
-Esta unidade completa é source-backed de
-[execution.w](reference/syntax-atlas/execution.w). Ela mostra quatro modos de
-capture e as chamadas que os consomem.
-
-<!-- w-example role=executable use=captureModes observable=value -->
-```w
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared String): (String, String, String, String, String) {
-  let copyCapture = <[copy target]>() => target
-  let refCapture = <[ref borrowed]>() => borrowed
-  let takeCapture = <[take moved]>() => moved
-  let weakCapture = <[weak sharedValue]>() => sharedValue
-  let copied = copyCapture()
-  let referenced = refCapture()
-  let taken = takeCapture()
-  let weakened = weakCapture()
-  return (target, copied, referenced, taken, weakened)
-}
-
-test "capture modes preserve the target" for captureModes {
-  var borrowed = "borrowed"
-  var moved = "moved"
-  let sharedValue: shared String = "shared"
-
-  expect captureModes(
-    "target",
-    ref borrowed,
-    take moved,
-    sharedValue,
-  ) == ("target", "target", "borrowed", "moved", "shared")
-}
-```
-
-Labels externos, labels obrigatórios, defaults, rest (each), static, const,
-mut, async, throws, some fn e any fn compõem o callable type. Closure capture
-é parte do contrato: copy, ref, take e weak dizem como a closure retém o valor.
-O [oracle de callables](reference/last-light/callables.w) e o
-[oracle de mobilidade](reference/last-light/mobility.w) são evidência, não uma
-biblioteca executável.
-
-### Allocators e orçamento
-
-Esta unidade completa é source-backed de
-[execution.w](reference/syntax-atlas/execution.w). Os três scopes vivem no
-corpo de `prepare`.
-
-<!-- w-example role=executable use=stage,prepare observable=value -->
-```w
-fn stage(allocator destination: ref Allocator, city: String): String {
-  return city
-}
-
-fn prepare(city: String): (String, usize) {
-  var result = city
-  var byteCount: usize = 0
-  allocator scratch: .fixed<capacity: 256> {
-    let ref name = city
-    var copyOfName = city
-    let inout writableName = copyOfName
-    var atomic count: usize = 0
-    count += 1
-    let moved = take writableName
-    result = moved
-    let staged = stage(city)
-    result = staged
-  }
-  allocator .fixed<capacity: 128> {
-    byteCount = result.bytes.count
-  }
-  return (result, byteCount)
-}
-
-test "allocator scopes preserve the staged city" for prepare {
-  let prepared = prepare("city")
-  expect prepared == ("city", 4)
-}
-```
-
-`.fixed<capacity: N>` é a forma lexical corrente; o target/profile escolhe
-stack, task frame ou storage local. `.root` e `.none` não são plans source.
-`memory.generalAllocator: .none` é uma policy de build: não fornece allocator
-geral/root e rejeita requests de allocation geral no grafo alcançável, mas não
-escolhe register, stack, static storage ou task frame. `.bounded<budget: N>` é
-Research: limita bytes committed sobre um provider, sem escolher placement.
-`.stack<capacity: N>` e envelopes estáticos de module/function são alternativas
-de pesquisa, não syntax ratificada. A política de propagação contextual está em
-[DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação).
-
-## Controle, patterns, generics e reflexão
-
-### Controle de fluxo
-
-if pode ser statement ou value block. guard encerra o caminho atual. switch
-deve respeitar exhaustividade para enums e patterns fechados. for, while,
-repeat, break, continue e return seguem os efeitos e ownership do corpo.
-
-Esta unidade completa é source-backed de
-[execution.w](reference/syntax-atlas/execution.w). O `guard` está dentro de
-um corpo enclosing.
-
-<!-- w-example role=executable use=walk observable=value -->
-```w
-fn walk(values: Array<i32>): i32 throws String {
-  var total = 0
-  rows: for ref value in values {
-    for column in [value] {
-      if column < 0 {
-        continue rows
-      } else {
-        total += column
-      }
-    }
-  }
-  var index = 0
-  while index < 3 {
-    index += 1
-  }
-  repeat {
-    total += 1
-  } while total < 4
-  do {
-    if total > 8 { break }
-  } catch {
-    total = 0
-  }
-  guard total >= 0 else { throw "negative" }
-  defer { total += 1 }
-  return total
-}
-
-test "walk returns the accumulated control-flow value" for walk {
-  expect try walk([1, -1, 2]) == 4
-}
-```
-
-### Patterns
-
-<!-- w-example role=executable use=Signal,classify observable=value -->
+<!-- w-example role=executable use=Signal,classify,accumulate observable=value -->
 ```w
 enum Signal {
   quiet
@@ -1216,1735 +647,495 @@ fn classify(signal: Signal): String {
   return switch signal {
     case .quiet: "quiet"
     case .alert(let level) if level > 0: "alert"
-    case .alert(let level): "alert"
+    case .alert(_): "silent-alert"
   }
 }
 
-test "classify exposes the selected case" for classify {
-  let signal: Signal = .quiet
-  expect classify(signal) == "quiet"
-}
-```
-
-Patterns de enum, struct, tuple, range, wildcard e binding devem deixar claro
-qual valor foi movido, emprestado ou copiado. A gramática e as regras de
-exhaustividade estão em
-[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
-
-### Contracts, generics e reflection
-
-| Recurso | Forma de consulta | Evidência |
-| --- | --- | --- |
-| Constraint | T: P & Q | DESIGN.md §8.7; [generics.w](reference/last-light/generics.w) |
-| Associated type | protocol P { type Item: Hashable } | [enum_contracts.w](reference/last-light/enum_contracts.w) |
-| Refinement | GuestCount = u16<(1...4096)> | [domain.w](reference/last-light/domain.w) |
-| Static list/record | Signal<[.quiet, .alert]>, Config<{mode: .strict}> | [reflection.w](reference/last-light/reflection.w) |
-| Type identity and metadata | `type of`, `info of`, `Reflectable`, `TypeId`, `as?` | [reflection.w](reference/last-light/reflection.w) |
-| Rest | T... e each values | [rest_arguments.w](reference/last-light/rest_arguments.w) |
-
-Reflection e synthesis são contratos fechados. Não os trate como macros
-universais, derive automático ou metadata de runtime.
-
-### Contratos core de reflection (lógicos, não construtíveis)
-
-A interface abaixo é pesquisável, mas não é uma sequência de declarations de
-source. `TypeId`, `Reflectable` e `TypeInfo` são `core`/`opaque`. O compiler e o
-runtime produzem os descriptors. O programa somente consulta `type of` e
-`info of`. O protocol `Reflectable` não pode ser redeclarado ou construído pelo
-programa, mas tipos do programa podem declarar conformance explícita e receber
-synthesis.
-
-```text
-TypeId
-  opaque build-local identity
-  Copy, Equatable, Hashable
-  nonserializable, nonpersistable, nontransmittable
-
-Reflectable
-  core marker sem constructor ou member de usuário
-
-TypeKind = scalar | struct | object | enum | refinement | enumSubset
-
-TypeInfo                         // view imutável, estável durante a runtime instance
-  id: TypeId
-  name: view String
-  kind: TypeKind
-  base: TypeId?
-  properties: view [TypeInfo.Property]
-  cases: view [TypeInfo.Case]
-
-TypeInfo.Property
-  name: view String
-  valueType: TypeId
-  mutability: immutable | mutable
-  accessorAvailability: get | set | modify | combinations
-
-TypeInfo.Case
-  name: view String
-  payloadTypes: view [TypeId]
-```
-
-As views são read-only e duram a runtime instance. Properties e cases seguem a
-ordem declarada da interface exportada. Não há layout, offset, size, address,
-backing storage ou lookup de method por nome. `TypeInfo` não possui constructor
-público, assignment ou mutation. A consulta, e não um constructor, é o uso
-observável:
-
-```text
-let id = type of ReservationKey
-let ref info = info of ReservationKey
-expect info.id == id
-expect info.name == "ReservationKey"
-```
-
-### Companions de execução e memória
-
-`Task<T, E>` é um handle `linear` e `opaque` cujo producer público é `async`,
-`spawn<domain>` ou `Task#spawn` para um `ExecutionDomainRef` dinâmico. Depois
-do staging, o launcher publica o child ou produz o
-handle estruturado inline-canceled de budget exhaustion. Não existe constructor
-ou layout de `Task` na source surface. `cancel` não consome o handle. `await`,
-`join` e `outcome` consomem o handle.
-Os records e enums seguintes são excerpts exatos de
-[`std/runtime/task.w`](std/runtime/task.w):
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/runtime/task.w::export enum TaskOutcome
-export enum TaskOutcome<Value, Failure: Error> {
-  success(Value)
-  error(Failure)
-  canceled(Cancellation)
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/runtime/task.w::export enum TaskOrdering
-export enum TaskOrdering {
-  input
-  completion
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/runtime/task.w::export struct TaskSettlement
-export struct TaskSettlement<Value, Failure: Error> {
-  export index: usize
-  export outcome: TaskOutcome<Value, Failure>
-}
-```
-
-Os records são dados normais e podem ser observados por `.`; somente o handle
-e seus controls usam `#`:
-
-```text
-let outcome: TaskOutcome<u8, Never> = .success(42)
-let settlement = TaskSettlement(index: 1, outcome: outcome)
-expect settlement.index == 1
-expect settlement.outcome == outcome
-```
-
-`Allocator` e `AllocatorLease` seguem as formas exatas de
-[`std/memory/contracts.w`](std/memory/contracts.w). O alias não introduz um
-constructor separado ou um layout público:
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/memory/contracts.w::export struct AllocatorPlanDescriptor
-export struct AllocatorPlanDescriptor: Copy & Equatable {
-  providerDigest: [u8; 32]
-  version: u32<(1...)>
-  failure: AllocatorFailureMode
-  deallocator: AllocatorDeallocator
-  mobility: AllocatorMobility
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/memory/contracts.w::export alias AllocatorLease
-export alias AllocatorLease = Allocator
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: std/memory/contracts.w::export struct Allocator
-export struct Allocator {
-  handle: AllocatorHandle
-
-  init(validatedRaw: AllocatorHandle) {
-    self.handle = validatedRaw
+fn accumulate(values: Array<i32>): i32 {
+  var total = 0
+  rows: for value in values {
+    guard value >= 0 else { continue rows }
+    total += value
   }
 
-  deinit {
-    // AllocatorLease deinit closes the provider lease exactly once.
-    unsafe { stdMemoryDropAllocator(inout handle) }
-  }
+  var attempts = 0
+  while attempts < 2 { attempts += 1 }
+  repeat { total += 1 } while total < 4
+
+  return if total > 0 { total } else { 0 }
+}
+
+test "control flow returns an observable value" for accumulate {
+  let signal: Signal = .alert(level: 1)
+  expect classify(signal) == "alert"
+  expect accumulate([1, -1, 2]) == 4
 }
 ```
 
-<!-- w-example role=signature-reference -->
+## Errors and cleanup
+
+<!-- w-example role=executable use=ParseError,positive,parseAndClose,asyncCleanup observable=value -->
 ```w
-// excerpt-source: std/memory/contracts.w::export protocol AllocatorPlan
-export protocol AllocatorPlan {
-  const descriptor: AllocatorPlanDescriptor
-  take fn open(): AllocatorLease throws AllocationError
-}
-```
-
-`AllocatorPlan` publica somente `descriptor` e `take fn open()` conforme a
-fonte std. O provider e o lowering continuam ausentes. Nenhum snippet desta
-seção afirma construction ou execução de core opaque. A conformance explícita a
-`Reflectable` é permitida e não constrói o descriptor no source. O uso mínimo
-usa a superfície source de allocator e observa o descriptor e os bytes dentro
-de um scope bounded:
-
-```text
-let descriptor = plan.descriptor
-try allocator scratch: plan {
-  let staged = "bounded record"
-  let byteCount = staged.bytes.count
-  expect descriptor.version >= 1
-  expect byteCount > 0
-}
-```
-
-O compiler/provider chama `open` e fecha o `AllocatorLease`; o source não chama
-`open` nem constrói ou fecha lease manualmente.
-
-## Errors, effects e cleanup
-
-Contrato: [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) e
-[DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos).
-
-### Ausência, erro e falha fatal
-
-| Caso | Forma corrente | Não confundir com |
-| --- | --- | --- |
-| Ausência esperada | T?, .some, .none, try? | null universal ou exceção implícita |
-| Erro recuperável | throws E, throw, try | panic ou retorno Any |
-| Falha de programa | panic(...) | Erro de domínio que o caller deve tratar |
-| Falta de memória | OutOfMemory/carrier definido pelo contrato | panic genérico |
-| Invariante | guard ... else throw ou precondition do contrato | Conversão silenciosa |
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/failure.w::export fn optionalGuestName
-export fn optionalGuestName(input: ref String): GuestName? {
-  return try? GuestName(input)
+enum ParseError: Error {
+  negative
 }
 
-export fn requireGuest(
-  guests: ref Map<GuestId, Guest>,
-  id guestId: GuestId,
-): ref Guest throws ServiceLookupError {
-  return try guests[guestId].orThrow(.missingGuest(guestId))
+fn positive(value: i32): i32 throws ParseError {
+  guard value >= 0 else { throw .negative }
+  return value
 }
-```
 
-Esses trechos vêm de [failure.w](reference/last-light/failure.w) e são
-source-backed / oracle-backed-current. A implementação de Result, carriers e
-diagnósticos ainda é um gap do frontend/runtime.
-
-### Effects e expressões restritas
-
-Os exemplos abaixo são excerpts exatos e observáveis das fontes Last Light.
-Cada trecho mostra o valor, o effect ou o diagnostic que justifica a forma.
-
-<!-- w-example role=executable use=ThreadApologyLedger observable=value -->
-```w
-// excerpt-source: reference/last-light/synchronization.w::test "a scoped synchronous lock returns an owned snapshot"
-test "a scoped synchronous lock returns an owned snapshot" {
-  let ledger = ThreadApologyLedger()
-  expect ledger.record("We regret the scheduling inconvenience") == 1
-
-  let snapshot = ledger.snapshot()
-  expect snapshot.revision == 1
-  expect snapshot.messages == ["We regret the scheduling inconvenience"]
-
-  let attempted = ledger.trySnapshot()
-  expect switch attempted {
-    case .acquired(let value): value.revision == 1
-    case .busy: false
-  }
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/transaction_oracle.w::export async fn reserveTableAtomically
-export async fn reserveTableAtomically(
-  ledger: ref ServiceRef<TableLedgerApi>,
-  tableId: TableId,
-  guestId: GuestId,
-): ReservationReceipt throws TransactionFailure<BookingError, BookingError> {
-  return try await pipeline<transaction: {
-    isolation: .serializable,
-    access: .readWrite,
-  }> tx = ledger {
-    let reservation = try await tx.reserve(tableId: tableId, guestId: guestId)
-    let receipt = try await tx.confirm(reservation: take reservation)
-    commit receipt
-  }
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/hardware.w::export protocol AromaProbeApi
-export protocol AromaProbeApi {
-  async fn sample(): ProbeSample throws ProbeError
-}
-```
-
-O lock verifica snapshot e tentativa de aquisição. A transaction retorna
-`ReservationReceipt` ou um error de commit. O bloco `unsafe` chama o probe
-foreign, o `guard` roteia status/error e o trecho retorna `ProbeSample`.
-`try` continua marcador de
-expression e roteamento de error. `do` abre o handling scope que seus `catch`
-tratam. Assim, `try` não recebe um segundo significado como try-block.
-
-### Cleanup
-
-<!-- w-example role=executable use=decodeWithCleanup observable=diagnostic -->
-```w
-// excerpt-source: reference/last-light/failure.w::test "structured failure executes cleanup once"
-test "structured failure executes cleanup once" for decodeWithCleanup {
-  var trace = Array<CleanupStep>()
-
+fn parseAndClose(value: i32, closed: inout Bool): i32 {
+  defer { closed = true }
   do {
-    let _ = try decodeWithCleanup(b"", trace: inout trace)
-    panic("empty record was accepted")
-  } catch .corruptRecord(_) {
-    expect trace == [.opened, .closed]
+    return try positive(value)
+  } catch .negative {
+    return 0
+  }
+}
+
+async fn asyncCleanup(value: i32): i32 {
+  defer async { await execution#yield() }
+  return value
+}
+
+test "do/catch handles typed errors and defer closes" for parseAndClose {
+  let error: ParseError = .negative
+  var closed = false
+  expect error == .negative
+  expect parseAndClose(-1, closed: inout closed) == 0
+  expect closed
+  expect (try? positive(-1)) == .none
+  expect await asyncCleanup(42) == 42
+}
+```
+
+## Allocator scopes
+
+<!-- w-example role=executable use=stage,prepare observable=value -->
+```w
+fn stage(allocator destination: ref Allocator, city: String): String {
+  return city
+}
+
+fn prepare(city: String): (String, usize) {
+  var result = city
+  var bytes: usize = 0
+
+  allocator scratch: .fixed<capacity: 256> {
+    var copyOfCity = city
+    let inout writable = copyOfCity
+    writable = city
+    result = stage(take copyOfCity)
+  }
+
+  allocator .fixed<capacity: 128> {
+    bytes = result.bytes.count
+  }
+
+  return (result, bytes)
+}
+
+test "allocator scopes bound temporary work" for prepare {
+  expect prepare("city") == ("city", 4)
+}
+```
+
+## Unsafe, addresses, and bit operations
+
+<!-- w-example role=executable use=clearTag observable=value -->
+```w
+unsafe fn clearTag(pointer: Address<.virtual, .readWrite>, tagMask: usize): usize {
+  let alignedBits = pointer.bits & ~tagMask
+  let aligned = pointer.withAddress(alignedBits)
+  return aligned.bits
+}
+
+test "address arithmetic stays inside unsafe" for clearTag {
+  let address = Address<.virtual, .readWrite>.fromBits(0x1003)
+  let bits = unsafe { clearTag(address, tagMask: 0x0003) }
+  expect bits == 0x1000
+}
+```
+
+## Async, spawn, sync, and await
+
+<!-- w-example role=executable use=FetchError,fetch,ordinary,load observable=value -->
+```w
+enum FetchError: Error { unavailable }
+
+async fn fetch(city: String): String throws FetchError {
+  return city
+}
+
+fn ordinary(): String { return "local" }
+
+async fn load(): String throws FetchError {
+  let direct = try sync fetch("north")
+  let concurrent = async fetch("east")
+  let parallel = spawn<.network> fetch("south")
+  let local = async ordinary()
+  let (east, south) = try await (concurrent, parallel)
+
+  return direct
+    + east
+    + south
+    + (await local)
+}
+
+test "launchers join through the lexical parent" for load {
+  let error: FetchError = .unavailable
+  expect error == .unavailable
+  expect try await load() == "northeastsouthlocal"
+}
+```
+
+## Tasks and cancellation
+
+<!-- w-example role=logical-contract -->
+```w
+enum WorkError: Error { failed }
+
+async fn work(value: String): String throws WorkError { return value }
+
+struct Trace {
+  const requestId = TaskLocal<String?>.key(default: .none)
+}
+
+async fn traced(value: String): String throws WorkError {
+  return try await Trace.requestId.withValue(
+    .some("request-42"),
+    operation: () => try await work(value + Trace.requestId.get()?),
+  )
+}
+
+async fn cancelAndObserve(): TaskOutcome<String, WorkError> {
+  let child = async work("cancelable")
+  child#cancel(reason: .shutdown)
+  return await (take child)#outcome()
+}
+
+async fn timed(value: String, timeout: TaskTimeout): TaskOutcome<String, WorkError> {
+  return await Task.withTimeout(
+    for: timeout,
+    input: value,
+    using: work,
+  )
+}
+
+async fn first(): TaskSettlement<String, WorkError> {
+  let primary = async work("primary")
+  let fallback = spawn<.compute> work("fallback")
+  let candidates: [Task<String, WorkError>; 2] = [primary, fallback]
+  return await (take candidates).firstSettled()
+}
+
+test "firstSettled preserves index and outcome" for first {
+  let error: WorkError = .failed
+  let settlement = await first()
+  let tracedValue = try await traced("value:")
+  let canceled = await cancelAndObserve()
+  let timedValue = await timed("bounded", timeout: 250<si.ms>)
+  expect error == .failed
+  expect tracedValue == "value:request-42"
+  expect settlement.index < 2
+  expect switch settlement.outcome {
+    case .success(let value): value == "primary" || value == "fallback"
+    case .error(_): false
+    case .canceled(_): false
+  }
+  expect switch canceled {
+    case .success(_): true
+    case .error(_): false
+    case .canceled(_): true
+  }
+  expect switch timedValue {
+    case .success(let value): value == "bounded"
+    case .error(_): false
+    case .canceled(_): true
   }
 }
 ```
 
-Use defer para cleanup lexical e defer async quando o close pode suspender. O
-[oracle de failure](reference/last-light/failure.w) e
-[DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) definem a ordem.
-Destrutor detached e errdefer ficam fora da forma corrente.
+## Bounded task pipelines
 
-## Async, tasks, channels, streams e yield
-
-Contrato: [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução).
-Consulte [execution.w](reference/last-light/execution.w),
-[task_settlement.w](reference/last-light/task_settlement.w),
-[streams.w](reference/last-light/streams.w) e
-[synchronization.w](reference/last-light/synchronization.w).
-
-### Call sites de execução
-
-O trecho seguinte é o call site source-backed de `execution.w`. Ele é uma
-referência de assinatura e de join; os tipos `MixingJob` e o provider do
-executor permanecem fora de um teste local.
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=JobError,process,processAll,collectAll observable=value -->
 ```w
-// excerpt-source: reference/last-light/execution.w::export async fn mixPair
-export async fn mixPair(
-  left: take MixingJob,
-  right: take MixingJob,
-): (MixingResult, MixingResult) throws BrigadeError {
-  let leftResult = spawn<.compute> mixJob(take left)
-  let rightResult = spawn<.compute> mixJob(take right)
-  return try await (leftResult, rightResult)
-}
-```
+enum JobError: Error { failed }
 
-`let x = async ...` cria uma child task lexical. `let x = spawn<.compute> ...` e
-`let x = spawn<domain: .compute> ...` são duas formas correntes do mesmo slot
-de placement; ambas continuam exigindo join. `await` é um ponto de suspensão;
-o corpo de uma função pode inferir maySuspend quando a operação chamada o
-exige. Não há
-promessa de scheduler ou runtime disponível.
+async fn process(value: i32): i32 throws JobError { return value * 2 }
 
-Os dois initializers abaixo criam o mesmo child estruturado no domain lexical
-atual. O teste usa dois valores locais e observa o resultado dos dois joins:
-
-<!-- w-example role=executable use=asyncFunction,ordinaryFunction,sameChildLaunchers observable=value -->
-```w
-async fn asyncFunction(): i32 {
-  return 1
-}
-
-fn ordinaryFunction(): i32 {
-  return 2
-}
-
-async fn sameChildLaunchers(): i32 {
-  let a = async asyncFunction()
-  let b = async ordinaryFunction()
-  return (await a) + (await b)
-}
-
-test "child launchers return through the parent" for sameChildLaunchers {
-  expect await sameChildLaunchers() == 3
-}
-```
-
-A declaration do callee muda seu facet e resumo de suspensão. Ela não muda o
-launcher, o owner lexical ou o domain. Uma `async fn` explicita um facet que
-permite suspensão, mas `maySuspend` depende do body/HIR e pode coexistir com
-`directEntry: available`/`neverSuspend` para `sync`. Uma function ordinary pode
-receber `maySuspend` por inferência.
-
-| Intent | Current form | Note |
-| --- | --- | --- |
-| call suspending now | `let x = await func()` | task atual; não cria child |
-| direct entry sem potential suspension | `let y = sync func()` | `async fn` explícita com `directEntry: available`; compiler/lowering missing |
-| bare may-suspend call | `let w = func()` | error, nunca warning |
-| direct non-suspending call | `let z = func1()` | task atual |
-| child initializer | `let q = async func1()` | child lexical no domain atual |
-
-`sync` só é válido para declaration `async fn` explícita cujo body inteiro
-prova `neverSuspend` e cujo function type preserva
-`directEntry: available`. A call executa diretamente na mesma task, context e
-domain; não cria child, não suspende, não bloqueia thread, não reentra o event
-loop e não exige authority, quota ou provider. `try` continua tratando somente
-a error edge. Qualquer caminho que alcança `await`, `execution#yield`, child/join,
-service ou I/O suspending, `defer async`, call bare/`await` para `maySuspend` ou
-`sync` para facet absent remove o facet, mesmo quando um cache hit parece
-provável. `sync` pode chamar outra direct entry available: a async entry publica
-`may`, mas a entry selecionada é `neverSuspend`. A prova compõe por ponto fixo
-em SCCs sem executar recursão ou provar termination; perda de facet propaga aos
-callers. Function ordinary, callable may-suspend apenas por inferência,
-interface sem body e erasure sem o facet são errors, não warnings ou no-ops.
-Uma forma `sync` inválida não vira call ordinary na prova do caller. Frontend
-semântico, function type/HIR/interface, dual-entry lowering/ABI, diagnostics e
-cross-module/erasure ainda estão missing.
-
-### Tasks core, cancellation e TaskLocal
-
-`Task<T, E>` é linear e opaque. `async` e `spawn<domain>` continuam launchers
-para domains conhecidos; `Task#spawn(domain: lane.reference, ...)` é a facet
-core para um `ExecutionDomainRef` dinâmico. Em todos os casos o owner lexical
-faz join ou consome um outcome:
-
-| Intenção | Forma imediata | Resultado/efeito observável |
-| --- | --- | --- |
-| Cancelar child | `task#cancel(reason: .shutdown)` | Solicita cancellation; não consome o handle. |
-| Observar child | `await (take task)#outcome()` | `TaskOutcome<T, E>` mantém success, application error e cancellation separados. |
-| Join simples | `await task` | Aguarda e produz o valor ou propaga o error declarado. |
-| Escolher primeiro settlement | `await Task#firstSettled(take tasks)` | `TaskSettlement<T, E>?` preserva `index`; losers cancelam e drenam. |
-| Ponto cooperativo | `execution#checkCancellation()` | Retorna normalmente ou publica o control outcome de cancellation. |
-| Ceder | `await execution#yield()` | Suspende a execução corrente sem criar promise ou novo graph. |
-| Timeout | `await Task#withTimeout(for: timeout, input: take value, using: work)` | Devolve `TaskOutcome<T, E>` e drena o child. |
-| Deadline | `await Task#withDeadline(until: deadline, input: take value, using: work)` | Usa o `Deadline` do host; expiration solicita cancellation estruturada. |
-| Domain dinâmico | `try Task#spawn(domain: lane.reference, input: take value, using: work)` | Publica `Task<T, E>` após admission; failure de admission é observável. |
-
-O witness de cancellation exerce cancel e outcome sobre o mesmo handle:
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/execution.w::export async fn closeBeforeTheLastCourse
-export async fn closeBeforeTheLastCourse(
-  jobs: take Array<MixingJob>,
-  parallelism: usize,
-): TaskOutcome<Array<MixingResult>, BrigadeError> {
-  let batch = async mixBatch(take jobs, parallelism: parallelism)
-  batch#cancel(reason: .shutdown)
-  return await (take batch)#outcome()
-}
-```
-
-`execution#checkCancellation()` e `execution#yield()` são controles imediatos e
-cooperativos; `Task#withTimeout` e `Task#withDeadline` criam um child lexical
-bounded e retornam um outcome. `Task#spawn` não substitui
-`spawn<.compute>`: o primeiro resolve uma referência dinâmica, enquanto o
-segundo continua initializer estático para um domain conhecido.
-
-`pipeline<tasks: ...>` é a única região repetida. O caso fail-fast publica
-`Array<Output>`; o caso collect publica
-`Array<TaskSettlement<Output, Failure>>`, preserva o índice e não converte
-application failures em throw. Os quatro campos são obrigatórios:
-`tasks`, `limit` positivo, `ordering: .input | .completion` e
-`errors: .failFast | .collect`. Staging de input, preflight de result storage,
-move após admission, limite de children vivos (distinto da execução física),
-arbitration de error, cancellation/fault/drain e O(count) continuam parte do
-contrato. Uma instância bounded atende cada input e publica exatamente um
-resultado; stream adapters permanecem separados.
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/execution.w::export async fn inspectEveryFailure
-export async fn inspectEveryFailure(
-  jobs: take Array<MixingJob>,
-  parallelism: usize,
-): Array<TaskSettlement<MixingResult, BrigadeError>> throws BrigadeError {
-  guard parallelism > 0 && parallelism <= maximumParallelCooks else {
-    throw .invalidParallelism(found: parallelism, maximum: maximumParallelCooks)
-  }
-
+async fn processAll(values: take Array<i32>): Array<i32> throws JobError {
   return try await pipeline<
     tasks: .parallel<.compute>,
-    limit: parallelism,
+    limit: 4,
+    ordering: .input,
+    errors: .failFast,
+  > each value in take values {
+    commit try process(value)
+  }
+}
+
+async fn collectAll(
+  values: take Array<i32>,
+): Array<TaskSettlement<i32, JobError>> throws JobError {
+  return try await pipeline<
+    tasks: .concurrent,
+    limit: 4,
     ordering: .completion,
     errors: .collect,
-  > each job in take jobs {
-    commit try mixJob(take job)
+  > each value in take values {
+    commit try process(value)
   }
+}
+
+test "bounded task pipeline preserves input order" for processAll {
+  let error: JobError = .failed
+  let settlements = try await collectAll([1, 2, 3])
+  expect error == .failed
+  expect try await processAll([1, 2, 3]) == [2, 4, 6]
+  expect settlements.count == 3
 }
 ```
 
-Em `.input`, outputs e arbitration seguem o índice de input; em `.completion`,
-outputs seguem settlement físico e cada record mantém seu índice. `.failFast`
-cancela e drena após a falha de aplicação; `.collect` espera todos os
-settlements. Cancellation de parent e fault não publicam array parcial.
+## Service and transaction pipelines
 
-`Task#firstSettled` é uma escolha one-shot por completion order. Ele consome
-handles já criados, não cria child nem escolhe domain:
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=logical-contract -->
 ```w
-// excerpt-source: reference/last-light/task_settlement.w::export async fn firstMenuMirror
-export async fn firstMenuMirror(
-  primaryRequest: take MenuMirrorRequest,
-  fallbackRequest: take MenuMirrorRequest,
-): TaskSettlement<MirroredMenu, MenuMirrorError> {
-  let primary = async readMenuMirror(take primaryRequest)
-  let fallback = spawn<.network> readMenuMirror(take fallbackRequest)
-  let settlement = await Task#firstSettled(take [primary, fallback])
+struct OvenLease {
+  temperature: u16
+  fn preheat(): u16 { return temperature }
+}
 
-  return switch take settlement {
-    case .some(let winner): take winner
-    case .none: panic("two menu mirrors cannot form an empty selection")
+protocol OvenApi {
+  fn acquire(temperature: u16): OvenLease
+}
+
+service ovens<key: String>: OvenApi {
+  fn acquire(temperature: u16): OvenLease {
+    return OvenLease(temperature: temperature)
   }
+}
+
+protocol StoreApi {
+  fn read(): String
+}
+
+service stores<key: String>: StoreApi {
+  fn read(): String { return "north" }
+}
+
+async fn prepare(): (u16, String) {
+  let oven = ovens.at("primary")
+  let store = stores.at("menu")
+  let ready = await pipeline oven.acquire(220).preheat()
+  let value = try await pipeline<transaction: {
+    isolation: .serializable,
+    access: .readOnly,
+  }> tx = store {
+    commit tx.read()
+  }
+  return (ready, value)
+}
+
+test "pipeline commits the terminal value" for prepare {
+  expect await prepare() == (220, "north")
 }
 ```
 
-O retorno é `TaskSettlement<Value, Failure>?`, com `index` e `outcome`; array
-vazio devolve `none`. O winner pode ser success, application error ou child
-cancellation. A operação cancela e drena todos os losers antes de devolver.
-Não há namespace ou família de grupo separada, statement `select`,
-first-success implícito ou task escondida. `TaskLocal` continua um descriptor
-de binding imutável, observado com `TaskLocal<Value>.key(...).get()`; ele não é
-um canal de cancellation.
+## Streams and channels
 
-### Pipeline de service e promise pipelining
-
-Uma cadeia dependente usa `pipeline` somente para service/capability calls e
-projections estáticas. O caso `OvenLease` mostra a ordem concreta:
-`acquire` devolve uma capability, `preheat` usa essa capability, e `bake` e
-`close` continuam usando o lease. O bloco abaixo é um excerpt exato de
-`prepareDish` em [restaurant.w](reference/last-light/restaurant.w), incluindo
-o `spawn` da mistura, o pipeline, o cleanup e o `await` da mistura.
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=StreamError,project,relay observable=value -->
 ```w
-// excerpt-source: reference/last-light/restaurant.w::prepareDish
-  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)
+enum StreamError: Error { closed }
 
-  let (lease, ready) = try await pipeline {
-    let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
-    let ready = lease.preheat()
-    commit (lease, ready)
-  }
-
-  defer async {
-    do {
-      try await lease.close()
-    } catch error {
-      Trace.current.recordCleanupError(error)
-    }
-  }
-
-  let mixture = try await mixture
-  return try await lease.bake(take mixture, readiness: take ready)
-```
-
-O pipeline descreve um grafo estático de calls. Em uma rota remota, o caller
-pode enviar `preheat()` antes de receber a capability de `acquire()`. O
-resultado só fica observável depois do `await`. Error, cancelamento e
-`unknownOutcome` seguem o contrato de service/effect; o pipeline não presume
-rollback nem liberação automática de uma capability intermediária. O
-`defer async` de `close` só existe depois de o pipeline publicar o lease,
-como no excerpt acima.
-
-<!-- w-example role=logical-contract -->
-```text
-Pipeline é a única superfície de grafo. A forma curta exige pelo menos dois
-service/capability call steps dependentes e devolve o último call:
-let ready = try await pipeline ovens.acquire(recipe).preheat()
-
-Um bloco dependent usa commit, não return:
-pipeline {
-  let acquired = ovens.acquire(recipe)
-  let prepared = acquired.preheat()
-  commit prepared
-}
-
-O modo repetido exige os quatro campos e publica exatamente um resultado por
-input. Fail-fast devolve Array<Output>:
-pipeline<tasks: .concurrent, limit: 16, ordering: .input, errors: .failFast>
-  each item in take items { commit process(item) }
-
-Collect devolve Array<TaskSettlement<Output, Failure>>, preserva index e não
-transforma application failure em throw:
-pipeline<tasks: .parallel<.compute>, limit: 16, ordering: .completion,
-  errors: .collect> each item in take items { commit try process(item) }
-
-Transação é um modo, com `.default` somente quando o provider o ratifica:
-pipeline<transaction: { isolation: .serializable, access: .readWrite }>
-  tx = provider { let value = try await tx.read(); commit value }
-
-`commit` escolhe o envelope terminal da região e não implica atomicidade. O
-`return` continua pertencendo à função enclosing; um bloco de pipeline com
-`return` é rejeitado. `tasks` e `transaction` não combinam e regiões não
-aninham em v1.
-Short syntax não aceita branch, fanout, local compute ou control flow.
-```
-
-Contrafactual explicativa (não é excerpt source-backed): o mesmo trabalho com
-awaits sequenciais é mais simples, mas cria uma barreira entre cada call:
-
-<!-- w-example role=logical-contract -->
-```w
-// excerpt-kind: contrafactual
-let lease = try await ovens.acquire(recipe.target, duration: recipe.duration)
-let ready = try await lease.preheat()
-let dish = try await lease.bake(take mixture, readiness: take ready)
-try await lease.close()
-return dish
-```
-
-A forma sequencial mantém a semântica de ownership e errors, mas pode pagar
-round trips adicionais. Ela não faz promise pipelining.
-
-Um initializer `async` expressa children independentes que o parent deve aguardar. Ele não
-expressa a dependência `lease → preheat` sem primeiro aguardar o lease:
-
-<!-- w-example role=logical-contract -->
-```w
-// excerpt-kind: composed
-let leaseTask = async ovens.acquire(recipe.target, duration: recipe.duration)
-let lease = try await leaseTask
-let ready = try await lease.preheat()
-```
-
-Use initializer `async` para siblings independentes. Use `pipeline` para dependências
-de service/capability. Nenhuma forma implica runtime, rede ou provider disponível neste
-checkout.
-
-### Channels e streams
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/streams.w::export async fn inspectMenuLines
-export async fn inspectMenuLines<E: Error>(
-  source: take some Stream<view String, E>,
-): usize throws E {
-  var lines = take source
-  var nonempty = 0_usize
-
-  for try await line in lines {
-    if !line.isEmpty { nonempty += 1 }
-  }
-
-  return nonempty
-}
-```
-
-Stream<view Element, Failure> é pull-oriented. Channel<T><.send> e
-Channel<T><.receive> tornam a autoridade direcional explícita.
-
-O bloco compiler-owned de GEN2 é a forma vigente para um producer pull curto.
-Ele é uma referência de contrato lógico, não um teste executável: a origem do
-stream entra como parâmetro e o provider continua sendo um gap.
-
-<!-- w-example role=logical-contract -->
-```w
-export fn yieldOrders(source: take some Stream<Order, OrderFailure>): some Stream<Order, OrderFailure> {
+fn project(source: take Stream<String, Never>): some Stream<String, Never> {
   return stream <[take source]> {
     var cursor = take source
-    while let order = try await cursor.next() {
-      yield take order
+    while let item = await cursor.next() {
+      yield copy item
     }
   }
 }
-```
 
-stream <[...]> { yield take/copy ... } é uma forma vigente e estreita. Generic
-generator, yield from, buffer oculto, channel bidirecional implícito, MPMC sem
-domínio e buffer infinito estão fora da forma vigente.
+async fn relay(
+  source: take Stream<String, StreamError>,
+  sender: Channel<String><.send>,
+): usize throws StreamError {
+  var count: usize = 0
+  for try await item in take source {
+    await sender.send(take item)
+    count += 1
+  }
+  await sender.close()
+  return count
+}
 
-No corpus de referência, `pipeline<tasks: ...>` e os initializers `async`/`spawn`
-mostram o lifecycle lexical de tasks; `Stream` e `Channel` continuam tipos explícitos. O exemplo de
-channel abre capacidade e endpoints explícitos com `Channel<Order>.open(capacity: 1)`,
-envia/recebe, encerra o sender por drop e fecha ou drena o receiver conforme o
-contrato.
-
-Service streaming usa o mesmo `Stream`, com direção definida pela posição:
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/service_streaming.w::export protocol MenuExchangeApi
-export protocol MenuExchangeApi {
-  async fn summarize(
-    signals: take some Stream<MenuSignal, MenuStreamError>,
-  ): MenuSignalSummary throws MenuStreamError
-
-  async fn exchange(
-    signals: take some Stream<MenuSignal, MenuStreamError>,
-  ): some Stream<MenuSignal, MenuStreamError>
+test "stream projection remains lazy" for project {
+  let error: StreamError = .closed
+  let source = Stream.from(["north", "south"])
+  let projected = project(take source)
+  let channel = Channel<String>.bounded(capacity: 2)
+  let received = async channel.receiver.receive()
+  let relayed = async relay(Stream.from(["east"]), channel.sender)
+  expect error == .closed
+  expect await projected.collect() == ["north", "south"]
+  expect try await relayed == 1
+  expect await received == "east"
 }
 ```
 
-`take some Stream` em parâmetro é client-streaming. `some Stream` no resultado
-é server-streaming. As duas posições juntas são bidirectional. A call ainda usa
-`try await` para admission/open, e cada stream mantém terminal, backpressure e
-drain próprios. `Channel<T><.receive>` atende a `Stream<T, Never>`; portanto um
-producer push pode abrir um channel com capacity explícita e transferir somente
-o receiver. A service não cria Channel, fila ou capacity implicitamente. Não há
-`stream fn`, `RpcStream` ou `any Stream` em interface publicada.
+## Shared state, atomics, and locks
 
-## Shared, weak, lazy, atomic, locks e SnapshotCell
-
-Contrato: [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação),
-[DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) e
-[DESIGN.md §12.10.8](DESIGN.md#12108-snapshotcell).
-
-### Capacidades de referência
-
-| Forma | Capacidade | Custo e limite |
-| --- | --- | --- |
-| shared T | Compartilhamento explícito com política de liveness | Não é Arc<T> automático; domínio e mutação importam. |
-| weak T | Observação que não mantém o owner vivo | Upgrade e ausência precisam de tratamento. |
-| view T | Projeção de leitura/borrow | Não cria uma cópia nem uma lifetime annotation pública. |
-| lazy T | Materialização sob demanda com política definida | O oracle de lazy ainda é provider gap. |
-| var atomic x | Operações atômicas em estado permitido | Ordem (relaxed, acquire, release) deve ser indicada. |
-
-### `ref`, `view` e interface projection
-
-O teste source-backed abaixo usa valores locais e observa a view sem inventar
-um owner, texto ou tensor externo:
-
-<!-- w-example role=executable use=serviceTemperatures observable=value -->
+<!-- w-example role=executable use=Ledger,Published,publish observable=value -->
 ```w
-// excerpt-source: reference/last-light/views.w::test "a read-only view does not expose owner capacity"
-test "a read-only view does not expose owner capacity" for serviceTemperatures {
-  var readings = [2.70, 42.0, 273.15, 0.0]
-  let service = serviceTemperatures(readings)
-
-  expect service == [42.0, 273.15, 0.0]
-  expect service.count == 3
-
-  // Compile-fail assay: a view has no allocator or capacity.
-  // print(service.capacity)
-
-  // Compile-fail assay: append can move storage borrowed by service.
-  // readings.append(1.0)
-  print(service[0])
-}
-```
-
-`ref Array<T>` observa o owner completo e sua metadata. `view Array<T>` observa
-uma janela lógica sem capacity. `view String` só representa substring UTF-8 com
-boundaries válidas. `view Tensor` pode ser strided. Um tipo nominal pode
-publicar uma view de uma família core por método. Um aggregate owned pode
-guardar fields `ref`/`view` e carregar origins, como `BorrowedMenu`. Properties
-suprimidas formam uma interface projection, não uma storage view. W não possui
-`Viewable`, protocol universal de view ou `view Object` automático.
-
-Para suprimir properties sem copiar o conteúdo, declare uma projeção nominal
-borrowed. Use `ref` para um field completo e `view` somente para uma janela de
-um carrier que define view:
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/views.w::export struct MenuCourse
-export struct MenuCourse {
-  title: String
-  allergens: Array<String>
-  supplierContract: String
+object Ledger {
+  var atomic count: usize = 0
+  var message: String = ""
 }
 
-// A nominal borrowed projection selects data. It is not `view MenuCourse`.
-export struct PublicCourse {
-  title: ref String
-  allergens: view Array<String>
-}
-
-export fn publicCourse(course: ref MenuCourse): PublicCourse {
-  return PublicCourse(
-    title: ref course.title,
-    allergens: course.allergens[0..<course.allergens.count],
-  )
-}
-```
-
-`PublicCourse` não possui `supplierContract` e carrega as origins de `course`.
-Ele não mantém o owner vivo. Use `ref any Protocol` para limitar methods, esse
-aggregate nominal para dados borrowed e um DTO owned para um snapshot que pode
-escapar. Não há `view MenuCourse`, field mask ou derivação automática.
-
-### Atomic e locks
-
-Esta unidade completa é source-backed de
-[synchronization.w](reference/last-light/synchronization.w). O objeto mantém
-estado compartilhado e publica snapshots por lock.
-
-<!-- w-example role=executable use=ApologyLedgerState,ThreadApologyLedger observable=value -->
-```w
-export struct ApologyLedgerState: Duplicable {
+struct Published: Duplicable {
   revision: u64
-  messages: Array<String>
+  value: String
 }
 
-export object ThreadApologyLedger {
-  state: shared ApologyLedgerState
-
-  export init() {
-    self.state = ApologyLedgerState(revision: 0, messages: [])
+fn publish(ledger: shared Ledger, message: String): (usize, u64) {
+  ledger.count.saturatingAdd<.relaxed>(1)
+  lock ledger as exclusive {
+    exclusive.message = message
   }
-
-  fn record(message: take String): u64 {
-    return lock state as ledger {
-      ledger.messages.append(take message)
-      ledger.revision += 1
-      ledger.revision
-    }
-  }
-
-  fn snapshot(): ApologyLedgerState {
-    return lock state as ledger { copy ledger }
-  }
-
-  fn trySnapshot(): LockAttempt<ApologyLedgerState> {
-    return try lock state as ledger { copy ledger }
-  }
+  let snapshots = SnapshotCell(Published(revision: 1, value: message))
+  snapshots.publish(Published(revision: 2, value: message))
+  let revision = snapshots.read((value: ref Published) => value.revision)
+  return (ledger.count.load<.acquire>(), revision)
 }
 
-test "the ledger publishes an observable revision" for ThreadApologyLedger {
-  let state = ApologyLedgerState(revision: 0, messages: [])
-  let ledger = ThreadApologyLedger()
-  expect state.revision == 0
-  expect ledger.record("message") == 1
-  expect ledger.snapshot().revision == 1
+test "atomic and lock operations expose their ordering" for Ledger {
+  let ledger: shared Ledger = Ledger()
+  expect publish(ledger, "stored") == (1, 2)
+  expect ledger.message == "stored"
 }
 ```
 
-O [oracle de sincronização](reference/last-light/synchronization.w) também
-mostra CAS, Atomic.wait/notify, try lock, domain .serial e SnapshotCell. Lock
-é último recurso para estado compartilhado. Não use um mutex global,
-Atomic<shared T> ou RCU implícito como se fossem formas correntes.
+## Execution context and process entry
 
-### SnapshotCell
-
-SnapshotCell<T> separa leitura de snapshot e publicação de uma nova versão.
-Ele não é um universal mutable cell nem substitui ownership. A política de
-atomicidade, liveness e descarte está em
-[DESIGN.md §12.10.8](DESIGN.md#12108-snapshotcell) e no oracle de sincronização.
-O provider ainda é missing.
-
-## Services, recovery e capabilities
-
-Contrato: [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) e
-[DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação).
-
-### Service e entry
-
-Um service é uma fronteira de execução com interface e estado controlados. Um
-entry escolhe o root do product. domain expressa placement e budget.
-SupervisorRef, WorkKeyRef, WorkSnapshot, ServiceFailure, effectId e
-deduplication pertencem ao contrato de recovery. Eles não significam que um
-process supervisor ou rede esteja funcionando neste checkout.
-
-Fontes de leitura: [service_oracle.w](reference/last-light/service_oracle.w),
-[service_streaming.w](reference/last-light/service_streaming.w),
-[service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w),
-[supervision.w](reference/last-light/supervision.w) e
-[workflow.w](reference/last-light/workflow.w).
-
-### Recovery seguro
-
-| Peça | Papel |
-| --- | --- |
-| Closed turn | Um turno tem entradas, efeitos, outputs e budget observáveis. |
-| WorkKeyRef | Chave limitada para deduplicar ou retomar trabalho. |
-| WorkSnapshot | Snapshot versionado para recovery, não ponteiro mutável. |
-| ServiceFailure | Falha tipada com causa e policy de retry explícitas. |
-| effectId | Identidade para deduplicação; não autoriza repetir efeitos arbitrários. |
-| Supervisor | Policy declarativa de restart, backoff e limite. |
-
-### Direções de service stream
-
-| Forma da operation | Direção |
-| --- | --- |
-| sem `Stream` | unary |
-| resultado `some Stream<Item, Failure>` | server-streaming |
-| parâmetro `take some Stream<Item, Failure>` | client-streaming |
-| parâmetro e resultado | bidirectional |
-
-Items são owned, transferable e `WireValue`. `Failure` inclui
-`ServiceFailure`. Stream nested em outro carrier, item borrowed, input sem
-`take`, Channel implícito e abertura sem `await` são errors. Retorno antecipado,
-failure e cancellation resetam e drenam as edges ainda abertas antes de liberar
-owners.
-
-Reentrada livre, retry implícito, detached Promise e transação distribuída
-genérica estão fora da forma vigente nesta baseline. Veja as trocas e a
-evidência da decisão na tabela de comparações abaixo.
-
-### Capabilities e security
-
-Capability, target, sandbox e host lifecycle devem ser declarados. O código não
-recebe acesso a filesystem, rede, device ou process apenas por importar um
-nome. Veja [capability_security_oracle.w](reference/last-light/capability_security_oracle.w),
-[session_security_oracle.w](reference/last-light/session_security_oracle.w) e
-[DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
-
-## I/O, texto, bytes e collections
-
-Contrato: [DESIGN.md §16](DESIGN.md#16-texto-bytes-e-collections) e
-[DESIGN.md §14](DESIGN.md#14-prelude-e-standard-library).
-
-### Texto e bytes
-
-String opera sobre texto válido. Bytes opera sobre dados opacos. Conversão
-entre ambos precisa de encoding e erro visíveis. view String, slices e
-projections preservam ownership do storage. Consulte [text.w](reference/last-light/text.w),
-[string_storage.w](reference/last-light/string_storage.w) e
-[collections.w](reference/last-light/collections.w).
-
-### I/O async-first
-
-Os carriers correntes são ByteSource e ByteSink. Uma leitura pode retornar
-ReadStep.data(bytes) ou ReadStep.end; EOF não é um byte mágico. Escrita usa
-append de Bytes; leitura posicional recebe offset e tamanho. Os oracles
-[io.w](reference/last-light/io.w), [fs_oracle.w](reference/last-light/fs_oracle.w),
-[net_oracle.w](reference/last-light/net_oracle.w) e
-[http_documents.w](reference/last-light/http_documents.w) registram o contrato.
-Os providers std.fs, std.net e std.http ainda são gaps.
-
-Scatter read usa um único owner para que memória ainda não inicializada nunca
-vaze como `view`. O wrapper source-backed mantém `source` e `batch` explícitos:
-
-<!-- w-example role=signature-reference -->
+<!-- w-example role=executable use=run observable=effect -->
 ```w
-// excerpt-source: reference/last-light/io.w::export async fn readRecipeEnvelope
-export async fn readRecipeEnvelope<
-  Failure: Error,
-  Source: ByteSource<Failure>,
->(
-  source: inout Source,
-  batch: inout ReadBatch,
-): ScatterReadStep throws Failure {
-  return try await readMany(
-    from: inout source,
-    scatterInto: inout batch,
-  )
-}
-```
+import process from std
 
-Os segments são preenchidos em ordem. `segment(at:)` devolve somente o prefixo
-inicializado como `view Bytes`; `reset()` retém as reservas. O fallback usa uma
-única leitura no primeiro segment incompleto. Não existe `IoSliceMut`,
-`inout view Bytes...` ou probe `isReadVectored`.
-
-Transferência de um snapshot posicional usa um plan bounded. A construção do
-plan e o wrapper de transferência são excerpts exactos; a mesma chamada pode
-baixar para `sendfile`/`TransmitFile` ou usar o scratch reservado, mas isso não
-muda o resultado:
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/io.w::export fn recipeTransferPlan
-export fn recipeTransferPlan(
-  offset: FileOffset,
-  byteCount: u64,
-): TransferPlan throws TransferPlanError {
-  return try TransferPlan(
-    at: offset,
-    maximumBytes: byteCount,
-    chunkBytes: 64 * 1_024,
-  )
-}
-```
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/io.w::export async fn transferRecipeArchiveStep
-export async fn transferRecipeArchiveStep<
-  Failure: Error,
-  Destination: ByteSink<Failure>,
->(
-  archive: ref FileSnapshot,
-  destination: inout Destination,
-  plan: inout TransferPlan,
-): TransferStep throws TransferError<IoError, Failure> {
-  return try await transfer(
-    from: ref archive,
-    to: inout destination,
-    using: inout plan,
-  )
-}
-```
-
-`TransferStep.data(count)` confirma bytes no sink; `.sourceEnd` e
-`.limitReached` são distintos. `TransferError.committed` registra progresso e o
-plan conserva o sufixo pendente. Zero-copy não é promessa portátil; consulte
-`w explain io` para estratégia, fallback, scratch e motivo de perda do fast
-path.
-
-### Execution, HTTP, web e processo
-
-`execution` é a raiz contextual target-neutral. Ela não é object, módulo ou
-singleton. `.` projeta dados/capabilities; `#` usa controles core imediatos.
-Cada member depende do product e do target. Ausência é erro de compile/link,
-nunca no-op runtime.
-
-<!-- w-example role=executable use=reportExecutionTime observable=effect -->
-```w
-async fn reportExecutionTime(): () {
+async fn run(args: process.Arguments) {
   execution#checkCancellation()
   let clock = execution.clock()
   let started = clock.now()
   await execution#yield()
-  print("elapsed: ${clock.duration(from: started, to: clock.now())}")
+  print("args=${args.count}, elapsed=${clock.duration(from: started, to: clock.now())}")
 }
 
-entry(reportExecutionTime)
+entry(run)
 ```
 
-`std.process` é opcional e descreve um processo real. Arguments e Context são
-parâmetros explícitos; não existem projections contextuais para esses owners.
+## Units, matrices, tensors, and SIMD
 
-<!-- w-example role=executable use=reportArguments observable=effect -->
+<!-- w-example role=logical-contract -->
 ```w
-import process from std
+import accelerator from std
+import { Tensor } from std.tensor
 
-fn reportArguments(args: ref process.Arguments): () {
-  print("argument count: ${args.count}")
+dimension Distance
+unit kilometer: Distance
+
+type FeatureBatch<rows: usize, columns: usize> =
+  Tensor<f32, shape: [rows, columns]>
+
+fn forecastKernel<rows: usize, inputs: usize, outputs: usize>(
+  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  weights: ref Tensor<f32, shape: [inputs, outputs]>,
+): FeatureBatch<rows: rows, columns: outputs> {
+  return features @ weights
 }
 
-entry(reportArguments)
-```
-
-HTTP, web bodies, process, time e filesystem aparecem como interfaces tipadas e
-capabilities. Um snippet de http.Request não prova servidor, socket, TLS,
-browser ou process launch. Veja [http_oracle.w](reference/last-light/http_oracle.w),
-[web_bodies.w](reference/last-light/web_bodies.w),
-[process_oracle.w](reference/last-light/process_oracle.w) e
-[time_oracle.w](reference/last-light/time_oracle.w).
-## Números, units, Quantity, dados e serialização
-
-### Números, ranges e units
-
-Contrato: [DESIGN.md §15](DESIGN.md#15-números-ranges-e-unidades).
-
-| Forma | Uso |
-| --- | --- |
-| u8, u16, u32, u64, usize | Inteiros sem sinal com largura explícita. |
-| i8, i16, i32, i64, isize | Inteiros com sinal. |
-| f32, f64 | Ponto flutuante explícito. |
-| T<(predicate)> | Limite/refinement, como u16<(0...10_000)>. |
-| checkedAdd, wrappingAdd, saturatingAdd, overflowingAdd | Política de overflow no call site. |
-| 9.81<m/s^2> | Literal com unidade resolvida no contexto. |
-| Quantity(value, unit: ...) | Carrier de magnitude e unidade. |
-
-O oracle [numerics.w](reference/last-light/numerics.w) cobre overflow e
-largura. [units.w](reference/last-light/units.w) e
-[quantity_oracle.w](reference/last-light/quantity_oracle.w) cobrem unidades e
-adapters. Narrowing implícito, fast int dependente da máquina e terceiro tipo
-numérico comum ficam fora da forma vigente.
-
-### Tabular e formatos
-
-data.Row, data.Batch<Row>, DynamicBatch, adapters tabulares e carriers de
-CSV/Parquet/Arrow mantêm schema e ownership explícitos. JSON exige uma
-conformance explícita. wWire é a Direção escolhida; profiles e contracts estão
-fechados, enquanto decoder, provider e custo continuam em implementation-gap.
-Fontes:
-[data_formats.w](reference/last-light/data_formats.w),
-[json.w](reference/last-light/json.w) e
-[wire_oracle.w](reference/last-light/wire_oracle.w).
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/data_formats.w::export struct TabularTelemetryRow
-export struct TabularTelemetryRow: data.Row {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
-}
-```
-
-O snippet é uma forma de oracle de design. Não há codec ou provider tabular
-executável no repositório.
-
-### Quantities e serialization
-
-Não use Any ou duck typing para esconder unidade ou schema. Prefira carrier
-tipado, adapter explícito e budget de bytes. O formato de wire deve declarar
-versão, bounds, tags e erro de decode. Consulte
-[DESIGN.md §14.4.1](DESIGN.md#1441-carrier-tabular),
-[DESIGN.md §15.5.3](DESIGN.md#1553-wwire-para-quantity) e
-[DESIGN.md §15.5.4](DESIGN.md#1554-json-de-domínio-para-quantity).
-
-## Tensors, devices e custo
-
-Contrato: [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) e
-[DESIGN.md §18](DESIGN.md#18-performance-e-custo).
-
-### Matriz e tensor
-
-Arrays fixos e matrizes usam shape e element type visíveis. Tensor interop usa
-carriers explícitos, DLPack e cópia/borrow declarados. O oracle
-[tensor_interop.w](reference/last-light/tensor_interop.w) registra
-tensor.transfer, tensor.materialize e export. Não trate um tensor como
-Array<Any> nem infira device por uma operação.
-
-### Device e kernel
-
-<!-- w-example role=executable use=forecastKernel observable=value -->
-```w
-// excerpt-source: reference/last-light/ai_harness.w::export const lastLightKernels
-// The compiler closes this module-scope family. Products materialize only the
-// finite kernel specializations reachable from their launch sites.
-export const lastLightKernels = accelerator.module<{
+const kernels = accelerator.module<{
   forecast: forecastKernel,
-  normalize: normalizeKernel,
-  trainLinear: trainLinearKernel,
 }>()
 
-test "matrix contraction fixes the output shape" for forecastKernel {
-  let features: FeatureBatch<rows: 2, columns: 3> = [
-    [1.0, 2.0, 3.0],
-    [4.0, 5.0, 6.0],
-  ]
-  let weights: WeightMatrix<inputs: 3, outputs: 1> = [
-    [1.0],
-    [0.5],
-    [0.25],
-  ]
+fn numericSummary(): (Quantity<Distance>, i32, i32, [usize; 2], i32, i32, i32) {
+  let distance = 12<kilometer>
+  let matrix = [[1, 2], [3, 4]]
+  let vector = Simd<i32, lanes: 4>([1, 2, 3, 4])
+  let doubled = vector + vector
+  let sum = vector.wrappingReduceAdd()
+  let product = vector.saturatingReduceMultiply()
+  let xor = vector.reduceBitXor()
+  let features: FeatureBatch<rows: 1, columns: 2> = [[1.0, 2.0]]
+  let weights: Tensor<f32, shape: [2, 1]> = [[1.0], [0.5]]
   let result = forecastKernel(features, weights: weights)
-  expect result.shape == [2, 1]
+  let _ = kernels
+  return (distance, matrix[1][0], doubled[3], result.shape, sum, product, xor)
+}
+
+test "numeric types preserve dimensions and lanes" for numericSummary {
+  let result = numericSummary()
+  expect result.0 == 12<kilometer>
+  expect result.1 == 3
+  expect result.2 == 8
+  expect result.3 == [1, 1]
+  expect result.4 == 10
+  expect result.5 == 24
+  expect result.6 == 4
 }
 ```
 
-Este bloco é forma de design para um descriptor fechado. Launch, Queue, Device e kernel scope estão em
-[device_execution_oracle.w](reference/last-light/device_execution_oracle.w)
-e [DESIGN.md §12.7.2](DESIGN.md#1272-device-scopes-e-kernels). Provider de GPU,
-JIT e device runtime são gaps. Transferência implícita, raw stream e kernel sem
-target declarado são rejeitados.
-
-### Performance e custo
-
-Toda alternativa nesta página deve ser comparada por ownership, effects,
-authority, allocation, cópia, suspensão, largura de dados e budget. O
-[oracle de performance](reference/last-light/performance.w) mede contratos
-de design. Ele não é benchmark de um compiler existente. O gate pré-implementação
-fica em [DESIGN.md §18.9](DESIGN.md#189-gate-pré-implementação-de-pesquisa-sota)
-e a matriz seed extensível fica em
-[RATIONALE.md §1.37](RATIONALE.md#137-gate-sota-de-performance-e-matriz-de-responsabilidade).
-A linguagem define semântica, tipos, ownership, effects e numeric modes; o
-compiler prova, transforma e faz lowering; runtime, provider e library medem e
-escolhem packing, microkernels, dispatch e device. Trabalho pequeno e estático
-pode receber lowering para código inline; trabalho grande ou irregular vai para
-provider/library, e sparse/graph mantém rota separada. `.strict`, `.fast` e
-`.reproducible` ficam explícitos.
-
-W-1487 torna benchmark-driven development verificável sem inventar runtime.
-Ele preserva os três perfis de language:
-
-- `learner`: código correto e plausível, sem trabalho artificial;
-- `idiomatic`: forma recomendada, primary e regression;
-- `frontier`: teto declarado com disclosures de unsafe, FFI, target,
-  layout, algoritmo e legibilidade.
-
-A lane `equivalent` preserva algoritmo, representação, validation,
-numeric contract e input. A lane `open` registra diferenças e não
-mede qualidade do compiler. W-1488 mede somente o ponto compiler-lifecycle
-ready. A matriz separa `clean`, `no-op` e `edit` dos nove stages.
-`startup` e `execution` são product-runtime.
-
-Primeiro comando real:
-
-```text
-bun tooling/benchmark-driven-development-runner.mjs --output benchmarks/results/seed-check.local.json
-```
-
-O path é explícito e não pode existir. O runner valida o oracle antes das
-samples e publica apenas result exploratory/measurement-only/single-series.
-Essa forma BMD1 mantém `comparison: null`.
-
-Para a comparação BMD2, forneça dois commits locais completos e um output
-novo:
-
-```text
-bun tooling/benchmark-driven-development-runner.mjs --baseline <40-hex-sha> --candidate <40-hex-sha> --output benchmarks/results/seed-check-comparison.local.json
-```
-
-O runner arquiva somente `compiler/seed-c` de cada SHA e faz dois builds
-Release independentes fora da medição. Ele executa os dois oracles antes de
-qualquer warmup ou raw. Warmup usa pelo menos um par, com rounds próprios de
-`1..warmupPairCount` na orientação do primeiro round raw, e raw usa número
-ímpar de pelo menos nove pares. Cada round executa baseline e candidate uma vez, com
-ordem do schedule `balanced-paired-interleaved-sha256-v1` gerado pelo runner.
-O caller não escolhe o seed. A máquina valida samples, schedule, labels e ordem
-e recalcula métricas, deltas, ppm, counts e calibration, além de validar o
-workload corrente e a consistência entre as identidades de papel duplicadas.
-O runner deriva a proveniência de archive, build, artifact, recipe e toolchain
-e executa os oracles; um result isolado não permite recomputar essa
-proveniência nem reexecutar o oracle.
-
-O result BMD2 é `exploratory`/`comparison-only`, lane `equivalent`, cenário
-`clean`, estágio `check-end-to-end` e verdict `not-evaluated`. Ele não é claim
-de performance. Regression continua rejeitada por
-`managed-regression-runner`; language, product-runtime e Computer Language
-Benchmarks Game continuam sem result corrente.
-
-### Catálogo BMD3 de language
-
-W-1490 fecha [`benchmarks/language-catalog.json`](benchmarks/language-catalog.json)
-com exatamente 21 IDs required em sete estratos de três. `catalog.status: ready`
-valida o catálogo, não a execução das unidades. A primeira unidade é
-[`byte-scan-view`](benchmarks/byte-scan-view.manifest.json): delimitador runtime,
-`view Bytes` binária até 64 MiB e saída canônica
-`{"bytes":"<u64>","matches":"<u64>"}`. O oracle host é independente e
-bounded; `readiness.oracle` é host-ready, mas codegen, runtime, runner de
-language e performance W continuam blocked.
-
-`learner` e `idiomatic` são equivalentes. `frontier` é `open` por estratégia
-física SIMD e declara todos os eixos de unsafe, FFI, target, layout, algoritmo e
-legibilidade. C23 e Rust são referências de correção sem ranking no estado
-atual; C11 é somente recovery explícito. O papel futuro é comparação
-independente após equivalência, com
-toolchain e recipe fixos. O smoke separado usa CMake/Rust sem Cargo, exige
-stdout/exit completos e não grava timing ou result W:
-
-```text
-bun run check:bmd
-bun run check:bmd:byte-scan
-bun run check:bmd:parse
-```
-
-O parse Tree-sitter é somente uma verificação sintática dos três sources W;
-ele não é execução W nem evidência de performance.
-
-### SIMD portátil
-
-`std.simd` publica os heads compiler-owned `Simd<Element, lanes: usize>` e
-`SimdMask<_ lanes: usize>`. `lanes` é compile-time em `1...64`, sem
-power-of-two requirement. O label `lanes:` de `Simd` é required porque há
-`Element` e value parameter. O label de `SimdMask` é optional porque a mask só
-tem a largura. A aplicação curta corrente é `SimdMask<16>`, sem uma segunda
-identity. Omissão de `lanes:` é `W-GENERIC-0003`, lane fora de `1...64` é
-`W-CONST-0004`; Element fora de `i8`/`i16`/`i32`/`i64`/`i128`, `u8`/`u16`/
-`u32`/`u64`/`u128`, `Int`/`UInt`/`isize`/`usize`/`f32`/`f64` não está no
-domínio e produz `W-CONTRACT-0002`. Somente a lista fechada é Element:
-`Bool` como Element produz `W-CONTRACT-0002`; vetores de Bool usam
-`SimdMask`. A sequência de lanes é fixa e igual em todo target. O backend
-escolhe native, split ou scalarize. Layout, ABI, FFI, wire, persistência e
-`transmute` não são implícitos.
-
-Use `splat`, `fromArray`, `toArray`, `load`, `store`, `loadPartial` e
-`storePartial`. `SimdMask.splat(Bool) -> SimdMask<N>`,
-`fromArray([Bool; N]) -> SimdMask<N>` e `toArray() -> [Bool; N]` não alocam.
-Partial load borrow a source, preenche
-lanes inativas e devolve `SimdMask`; `at == count` é toda inactive e `at > count`
-falha antes de qualquer read. Store recebe destination `inout`; partial store
-faz preflight de todas as lanes ativas e falha antes de qualquer write. Lanes
-inactive OOB são permitidas e não são acessadas. Arithmetic, bitwise, shifts,
-compound e policy só existem quando o scalar Element admite a operação; floats
-não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna
-`(Simd<T, lanes: N>, SimdMask<N>)` com flag por lane. `==`/`!=` retornam `Bool`;
-comparações nomeadas retornam mask. `SimdMask` usa `&`, `|`, `^`, `~`,
-`all() -> Bool`, `any() -> Bool`, `none() -> Bool` e `countTrue() -> UInt`, sem
-`&&`/`||`. `select(whenTrue: Simd<T, lanes: N>, otherwise: Simd<T, lanes: N>)`
-`-> Simd<T, lanes: N>` exige lanes iguais e não é short-circuit. Swizzle é static, aceita duplicatas e
-rejeita índice inválido. Swizzle valida count em `1...64` antes dos elementos e
-reporta o primeiro OOB em source order. Count vazio, 65 ou índice OOB usa
-`W-CONST-0004`. Integer reductions têm `reduceAdd`,
-`wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`,
-`wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`,
-`reduceBitOr` e `reduceBitXor`, sempre em ordem de lanes. Float reductions usam
-`reduceAdd(mode:)`/`reduceMultiply(mode:)` com `ReductionMode` nominal
-obrigatório `.strict`, `.fast` ou `.reproducible`. Omissão, forma posicional,
-label desconhecido ou aridade errada de `mode:` usa `W-LABEL-0005`; repetir o
-mesmo `mode:` usa `W-LABEL-0006`. Strict é left fold com identidade `0`/`1`; reproducible v1
-é árvore binária balanceada target-independent; fast segue o float contract e
-não exige igualdade de bits entre backends. A policy versionada faz parte da
-edition, não da identidade do tipo.
-
-O scalar fallback é requisito de disponibilidade. Native acceleration não é
-uma promessa de API ou de performance. `w explain performance` informa
-native/split/scalar, physical width, loads, tails, reduction mode e missed
-reason. Gather, scatter, raw pointer, alignment assertion, intrinsics e
-`nativeLanes` ficam fora do core portable.
-
-### Address e bitwise
-
-`Address` expõe os bits do mesmo address space. Faça alignment, tagging ou
-masking nos bits, não no pointer. O bloco é uma referência de contrato lógico
-current, não uma chamada executável: `pointer` e `mask` são parâmetros de uma
-fronteira unsafe que ainda exige prova de bounds, lifetime e authority.
+## Foreign code and ABI
 
 <!-- w-example role=logical-contract -->
 ```w
-unsafe fn maskedPointer<T>(
-  pointer: c.ptr<T>,
-  mask: Address.Bits,
-): c.ptr<T> {
-  let location = pointer.address
-  let alignment = location.bits & mask
-  let masked = location.withBits(location.bits & mask)
-  return unsafe { pointer.withAddress(masked) }
+foreign c from "stdlib.h" {
+  fn abs(value: c.int): c.int
+}
+
+export foreign c {
+  struct w_result { value: c.int }
+}
+
+export unsafe fn<abi: .c> w_add(left: c.int, right: c.int): w_result {
+  return w_result(value: left + right)
+}
+
+unsafe fn<lang: .c> c_add(left: c.int, right: c.int): c.int {
+  return left + right;
+}
+
+unsafe fn callC(left: i32, right: i32): i32 {
+  return abs(c_add(left, right))
+}
+
+test "foreign calls remain inside unsafe" for callC {
+  expect unsafe { callC(20, 22) } == 42
+  expect unsafe { w_add(20, 22).value } == 42
 }
 ```
 
-O pointer original preserva provenance. `withAddress` não cria bounds,
-lifetime ou authority. Bitwise direto sobre pointer é rejeitado.
+## Packages and workspaces
 
-## FFI, foreign bodies e segurança
-
-Contrato: [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem).
-
-### Foreign e ABI
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/abi.w::export unsafe fn<abi: .c> ll_horizon_checksum_v1
-export unsafe fn<abi: .c> ll_horizon_checksum_v1(
-  data: c.ptr<c.uchar>,
-  size: c.size,
-): c.uint {
-  var hash: c.uint = 2_166_136_261
-  var index: c.size = 0
-  while index < size {
-    hash = (hash ^ data[index]) * 16_777_619
-    index += 1
-  }
-  return hash
-}
-```
-
-Essas formas são current / parse-only / provider missing e devem permanecer
-em ilhas unsafe. ABI, carrier físico e ownership C precisam de uma prova de
-fronteira. Consulte [abi.w](reference/last-light/abi.w),
-[abi_oracle.w](reference/last-light/abi_oracle.w),
-[hardware.w](reference/last-light/hardware.w) e
-[system_escapes.w](reference/last-light/system_escapes.w).
-
-fn<C> é uma forma vigente de body inline C; ela não é um generic W. A forma
-unsafe fn<abi: .c> acima é uma exportação W com ABI C. Ficam fora da forma
-vigente: tratar fn<C> como generic/sandbox, passar objetos W ricos por C, usar
-dynamic library sem capability ou fazer um arquivo foreign comportar-se como
-módulo W normal. A especificação deve distinguir WInterface, ABI, runtime
-requirements e carriers.
-
-## Package, build, CLI, REPL e Jupyter
-
-Contrato: [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases),
-[DESIGN.md §22](DESIGN.md#22-tooling-e-interface-para-máquinas) e
-[DESIGN.md §23](DESIGN.md#23-protocolos-e-pesquisas-de-ecossistema).
-
-### Package e workspace
-
-Manifestos separam identidade, dependências, targets, capabilities, artifacts
-e resolução. Eles são records data-only no root físico único [build.w](reference/last-light/build.w).
-Consulte
-[BUILD.md](reference/last-light/BUILD.md).
-
-Package e workspace são unidades de manifesto diferentes do `module` W. Um
-package standalone não precisa de workspace: ele próprio é owner de `resolution`
-e `deployments`. Use um workspace opcional quando vários packages devem
-compartilhar members, resolução e operações de desenvolvimento; nesse caso, um
-package member conserva sua identity e products, e delega `resolution` e
-`deployments` de modo único ao workspace.
-Um workspace com um único member só faz sentido para policy, resolução ou
-coordenação de desenvolvimento. O workspace coordena packages. Ele não
-substitui o package nem vira um módulo importável.
-
-| Unidade | Use quando | Owner principal |
-| --- | --- | --- |
-| `module` | declarar source, imports e symbols de um módulo W | symbol graph do source |
-| `package` | standalone/member | owns resolution/deployments; member keeps identity/products |
-| `workspace` | coordenar packages quando necessário | members, `resolution` e `deployments` |
-
-Um workspace pode conter um package, mas os manifestos conservam as duas
-responsabilidades: o package member declara identity e products; o workspace é
-owner de `resolution` e `deployments` de forma única. Não copie campos de
-`package` para um `module`.
-
-| Dado | Por que existe |
-| --- | --- |
-| Package name/version | Identidade e release. |
-| Module set | Conjunto de modules permitido no target. |
-| Dependency/source pin | Reprodutibilidade; não use PATH ambiente. |
-| Target spec | OS, ABI, capabilities e execution platform. |
-| Artifact digest | CAS/release e verificação do output. |
-| Toolchain provider | Provider por digest e contrato, não SDK invisível. |
-
-### CLI e tooling
-
-`w package check [package]`, `w workspace check`, `w build`, `w run`, `w repl`,
-`w test` e comandos de export são direções de interface. O target bootstrap `w`
-implementa `w check path/file.w [--json]` no perfil CHK9 de root efêmera local,
-com imports alcançáveis root-relative e os limites bounded registrados acima.
-Owner detection, resolution externa, provider `std`, package/workspace, package
-manager e as demais rotas da CLI continuam gaps. O tooling existente neste
-checkout inclui o target bootstrap, Tree-sitter, atlas e checks de design.
-
-### Distribuição binary-first e execução remota
-
-O bundle [`RDX0`](tooling/studies/rdx0-binary-registry-execution/) registra a
-direção do registry e as pesquisas de publicação, cápsula, evidence, runner,
-sandbox e entitlement. O bundle não anuncia implementação.
-
-| Eixo | Forma registrada | Limite |
-| --- | --- | --- |
-| Registry | `w.registry-http/1`, static-first | HTTP/1.1, HTTP/2 e HTTP/3 equivalentes; HTTPS fora de local explícito |
-| Discovery | `/.well-known/w-registry.json` | metadata não concede authority |
-| Package | `/v1/packages/<encoded-package-id>/index.json` | signed, bounded, monotonic, versions/channels e release digests |
-| Release | `/v1/releases/<algorithm>/<digest>.json` | immutable por digest |
-| Object | `/v1/objects/<algorithm>/<digest>` | GET/HEAD; Range opcional |
-| Catalog checkpoint | `/v1/catalog/checkpoint.json` | trusted checkpoint assinado |
-| Catalog pages | `/v1/catalog/pages/<first>-<last>.jsonl` | immutable append-only; mirror/search |
-| Search | projection do catálogo, `/v1/search` opcional | nunca resolve known identity ou entra no lock |
-| Evidence | `/v1/evidence/<algorithm>/<subject-digest>/index.json` | attestation objects imutáveis |
-| Channel | `/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json` | signed convenience, não substitui lock |
-
-Release e objects não são reescritos. Deprecation recomenda replacement. Yank
-impede nova resolution por default. Revocation bloqueia install ou execution no
-scope. JSON é UTF-8 estrito e duplicate keys são rejeitadas. Package index
-rollback compara com trusted checkpoint, não somente com contador do servidor.
-Read capability ou signed URL privada concede acesso scoped por object/package,
-audience e expiry, mas digest continua identity dos bytes. Channel JSON é
-convenience e não substitui lock ou verification. Search só é reconstruído de
-checkpoint e pages. Privacy mode escolhe 401, 403 ou 404 sem ampliar mirror ou
-token authority.
-
-`PCB0` usa release intent assinado e assertion OIDC curta. O serviço W valida
-issuer, audience, subject, workflow e ref e emite capability W de publicação
-one-use, curta e scoped. CI busca source da authority escolhida e publica
-artifact e attestations. Builder, registry e maintainer têm authorities
-distintas. Provider/tools podem observar source. Claim de descarte não prova
-descarte físico. Pinned builder/toolchain/actions, egress mínimo, redaction de
-logs/artifacts, secret lifecycle e provider identity entram no threat model.
-Plano e billing de CI são externos. Não há claim de que GitHub gratuito atende
-source fechado.
-O ledger separa `oidc-assertion-replay` de `publication-capability-reuse`.
-
-`WEC0` mantém HIR/MLIR/LLVM bitcode privado da recipe e exige exact toolchain
-key para IR. `ExecutionDescriptor` registra entrypoints, requirements, sandbox
-profile e payload refs. Fingerprints de section/chunk e runtime measurements
-tratam relocation/ASLR sem raw in-memory hash. Benchmark source rebuild versus
-exact capsule reuse/link mede compile time, cache, storage e network. Não existe
-promessa de universal binary.
-
-`TEV0` usa `TestDescriptor` e `TestPlan` para `@example`, `w test`, testes
-co-localizados e `*.test.w`. Cada descriptor exige stable ID, owner, origin
-carrier, source map, kind, fixtures/effects, oracle ou expected
-diagnostic/outcome, target/profile, seed/limits e body/plan digest. Async,
-cancellation e snapshot/golden identity têm cases próprios. Unit, compile-fail,
-property/fuzz, simulation, provider, multi-process/hardware fault e performance
-são lanes separadas. `SEV0` mantém security/advisory evidence, SBOM,
-RuntimeClosure, reachability, matches, snapshots append-only e analyzer
-conflicts por eixo/freshness, sem safe badge agregado.
-
-`SBX0` pesquisa provider/profile enforcement antes do user code. Learn mode não
-é receipt. `RSX0` exige resolução exata, authorization, admission, digest,
-freshness, revocation e consumer policy para `w run package@version`; execution
-remoto é sandboxed por default e native code usa child process ou compartment.
-`ENT0` pesquisa lease opaco com expiry sem raw token na API. O witness adversarial
-usa o fluxo `compile-final-menu / menu-compiler` do
-[`reference/last-light/README.md`](reference/last-light/README.md) e percorre os
-oito tasks, sem alegar execução. Nenhuma pesquisa promete DRM inviolável.
-
-### REPL, module run e Jupyter
-
-REPL e notebook devem usar o parser/checker/HIR normal, gerações transacionais e
-receipts tipados. [repl_session_oracle.w](reference/last-light/repl_session_oracle.w),
-[presentation.w](reference/last-light/presentation.w) e
-[pyn3_oracle.w](reference/last-light/pyn3_oracle.w) mostram a direção. Não use
-eval dinâmico, monkey patch, widget HTML oculto, replay sem receipt ou um
-segundo parser de notebook.
-
-As seções [DESIGN.md §24.1.2](DESIGN.md#2412-module-run-arquivo-único),
-[DESIGN.md §24.1.3](DESIGN.md#2413-sessão-e-repl-transacionais) e
-[DESIGN.md §24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks)
-fecham os limites conhecidos, mas não anunciam um produto disponível.
-
-## Receitas de uso
-
-Os blocos seguintes são excerpts de call sites da Última Luz. Eles mostram
-entrada, operação e resultado; não são source units novos e não prometem
-execução.
-
-### Ownership, erro e cleanup
-
-Excerpt de `recoverGuest`: `guests` e `guestId` entram na consulta e o
-resultado é um `ref Guest` ou `ServiceLookupError`.
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/failure.w::recoverGuest
-    return try requireGuest(guests, id: guestId)
-```
-
-Excerpt de `decodeWithCleanup`: o scope registra o cleanup antes de operar e o
-fecha na saída normal ou de erro.
-
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/failure.w::decodeWithCleanup
-  defer { cleanupTrace.append(.closed) }
-```
-
-As duas linhas são de [failure.w](reference/last-light/failure.w), mas vêm de
-funções diferentes; elas não formam uma sequência executável nova.
-
-### Stream e channel
-
-<!-- w-example role=logical-contract -->
-```w
-// excerpt-kind: composed
-// entrada: dois valores Order -> channel bounded
-let (output, input) = Channel<Order>.open(capacity: 1)
-let firstSend = async submitOrder(copy output, take first)
-let secondSend = async submitOrder(copy output, take second)
-let _ = take output
-
-// resultado: envios do channel -> Array<Order> aceito
-let accepted = await acceptOrders(take input)
-let _ = try await firstSend
-let _ = try await secondSend
-return accepted
-```
-
-Este excerpt de [streams.w](reference/last-light/streams.w) transforma dois
-`Order` em um `Array<Order>`. O initializer `async` cria siblings; os `await` finais
-consomem os outcomes de envio e mantêm o erro de channel explícito.
-
-### Quantity e matriz
-
-<!-- w-example role=logical-contract -->
-```w
-// excerpt-kind: composed
-// entrada: unidades de duração equivalentes
-let fromSeconds: PhysicalDuration = 30<si.s>
-let fromMinutes: PhysicalDuration = 0.5<si.min>
-
-// resultado: um valor canônico e um bit pattern
-expect fromSeconds.canonicalValue == fromMinutes.canonicalValue
-```
-
-Em [quantity_oracle.w](reference/last-light/quantity_oracle.w), duas unidades
-entram e produzem um valor canônico. Para uma matriz, o excerpt de
-[horizon.w](reference/last-light/horizon.w) mantém shape e modo numérico no
-call site:
-
-<!-- w-example role=logical-contract -->
-```w
-// excerpt-kind: composed
-// entrada: features de window + matriz de calibration
-let calibrated = window.features @ calibration
-let means = calibrated.mean(axis: 0, mode: .reproducible)
-// resultado: matriz centrada com shape declarado
-let centered = calibrated - means.broadcast(to: [samples, 6])
-```
-
-Aqui a entrada é `window` mais `calibration`; o resultado é a matriz centrada.
-
-### Package, module e invocation
+`build.w` is data, so it stays separate from module source:
 
 <!-- w-example role=logical-contract -->
 ```w
 // excerpt-kind: manifest-fragment
-module: "app"
-entry: "LastLightTui"
-```
+package: {
+  name: "last-light"
+  modules: ["app"]
+  products: [{ name: "last-light-native", entry: "LastLightTui" }]
+}
 
-<!-- w-example role=signature-reference -->
-```w
-// excerpt-source: reference/last-light/app.w::entry LastLightTui
-entry LastLightTui(runTuiEntry)
+workspace: {
+  members: ["packages/core", "packages/server"]
+}
 ```
 
 ```text
-w run last-light-native --deployment local -- --tui
+w check
+w run last-light-native -- --tui
 ```
 
-O primeiro excerpt vem do product em
-[build.w](reference/last-light/build.w); o segundo vem de
-[app.w](reference/last-light/app.w). O package resolve o product para o module
-e entry declarados; o module fornece o symbol callable.
-O comando é a forma planejada em [BUILD.md](reference/last-light/BUILD.md),
-mas `w run` e o package manager ainda não estão implementados neste checkout.
-O resultado é uma seleção de product, não uma invocação disponível.
-
-## Mesmo objetivo, várias formas
-
-Esta é a matriz central para escolher uma forma. Cada linha tem pelo menos uma
-forma corrente, uma condição ou uma lacuna quando necessário, e uma alternativa
-rejeitada. As trocas devem ser avaliadas em cinco eixos: **ownership** (quem
-possui e pode mover), **effects** (suspensão, erro, unsafe), **authority** (qual
-domínio pode agir), **custo** (allocation, cópia, sync, ABI) e **evidência**.
-
-| Objetivo | Forma vigente (current) | Outra forma/condição | Não use (rejected) | Troca principal | Design + Última Luz |
-| --- | --- | --- | --- | --- | --- |
-| Escolher root do product | `entry(run)` ou `entry Name(run)` | Descriptor anônimo `.default`; `--entry Name` seleciona o descriptor nomeado | `entry(args, ctx) {}` e `process.main = run` sem contrato | Ownership do root e lifecycle ficam explícitos. Não existe wrapper nem remapeamento de source-map | [DESIGN.md §13](DESIGN.md#13-módulos-de-execução-services-e-entries) · [app.w](reference/last-light/app.w) |
-| Importar HTTP/std | import http from std, import std.http ou import { Name } from path | Resolução de capability/provider pelo manifest | Export default implícito e as que esconde a origem | Resolver manifest e capability custa verbosidade, mas fixa authority | [DESIGN.md §6](DESIGN.md#6-módulos-imports-e-visibilidade) · [http_documents.w](reference/last-light/http_documents.w) |
-| Construir valor | Type(field: value) | Memberwise init fechado por type | new Type ou Type {} sem init | Labels tornam ownership e defaults auditáveis; synthesis exige schema | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [domain.w](reference/last-light/domain.w) |
-| Delegar initializer | self = Type(...) | Init helpers com contract head | self.init(...) como mutação escondida | Reassignment preserva estado observável e impede partial init implícito | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [state_transitions.w](reference/last-light/state_transitions.w) |
-| Resolver overload | Labels + arity + tipos | Constraint heads mais ricos | Ranking global por tipo e nomes únicos obrigatórios | Call site paga labels, mas evita escolha oculta e effect surpresa | [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) · [callables.w](reference/last-light/callables.w) |
-| Representar ausência | T?, .none, .some, try? | Option com refinements | null, sentinel ou try! como padrão | Option torna branch/ownership visíveis; chaining pode custar checks | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [failure.w](reference/last-light/failure.w) |
-| Propagar erro | throws E, throw, try | Carrier Result em adapters | Exceção implícita ou conversão cancelamento→erro | Effects aparecem no callable; carrier explícito custa tipos, mas permite recovery | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [failure.w](reference/last-light/failure.w) |
-| Falhar invariantes | guard ... else throw ou panic explícito | Contract/refinement estático | debugAssert que some e validação silenciosa | Compile-time reduz custo de runtime; panic não é erro de domínio | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [domain.w](reference/last-light/domain.w) |
-| Passar ownership | ref, inout, take, copy, pin | view e projection borrow | Lifetimes públicas, partial move implícito e copy automático | Call site mostra autoridade; anotação custa caracteres e evita retenção oculta | [DESIGN.md §7](DESIGN.md#7-bindings-funções-e-closures) · [borrow_expressivity.w](reference/last-light/borrow_expressivity.w) |
-| Capturar closure | <[copy x]>, <[ref x]>, <[take x]>, <[weak x]> | some fn/any fn conforme erase | Fn/FnMut/FnOnce ou capture inferido sem diagnóstico | Capture explícito reduz ciclos e custo de liveness; existential pode alocar | [DESIGN.md §9.4.1](DESIGN.md#941-captures-e-ciclos-fortes) · [callables.w](reference/last-light/callables.w) |
-| Declarar contrato estático | type, refinement, enum subset, T: P & Q | Associated types e conformances condicionais | where textual, protocol list aberta ou guard runtime para invariantes estáticas | Schema fecha HIR e ABI; composição exige mais símbolos | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [generics.w](reference/last-light/generics.w) |
-| Refletir/sintetizar | `type of`, `info of`, `as?`, Reflectable e conformance head | Metadata limitada e declarada | `typeof` como query, Type<T> universal, downcast owned, derive mágico e metadata livre | Identidade e metadata permanecem separadas. Synthesis universal seria difícil de auditar | [DESIGN.md §8](DESIGN.md#8-tipos-e-conversões) · [reflection.w](reference/last-light/reflection.w) |
-| Aceitar rest arguments | T... + each values | Rest homogêneo com bound explícito | Pack heterogêneo obrigatório ou Array<Any> | Pack homogêneo preserva schema e ownership; materialização só ocorre quando pedida | [DESIGN.md §3](DESIGN.md#3-contratos-estáticos-e-orçamento-de-símbolos) · [rest_arguments.w](reference/last-light/rest_arguments.w) |
-| Escrever matriz | [[1, 2], [3, 4]] | Carrier shape-checked | [1 2; 3 4] como grammar separada | Array literal é familiar; shape estático exige type/contract | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [numerics.w](reference/last-light/numerics.w) |
-| Controlar allocation | allocator scratch e `.fixed<capacity:N>`; `memory.generalAllocator: .none` como policy de build | `.bounded<budget:N>` e `.stack<capacity:N>` são Pesquisa; placement físico continua separado | Arena API universal, propagação implícita ou using obrigatório | Budget explícito limita efeitos; policy não é placement | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [allocation.w](reference/last-light/allocation.w) |
-| Projetar borrow | ref T, view T, inout T | Projection física e borrow oracle | StringView/Slice públicos como segunda hierarquia | Menos tipos públicos, mas checker precisa acompanhar projection e liveness | [DESIGN.md §9](DESIGN.md#9-memória-layout-e-alocação) · [views.w](reference/last-light/views.w) |
-| Executar async | direct call, await, `let x = async ...`, `let x = spawn<.compute> ...`, `let x = spawn<domain: .compute> ...`, `pipeline<tasks: ...>` | `tasks`, `limit`, `ordering` e `errors` explícitos; collect devolve `TaskSettlement` | Promise/Future, detached task, launcher fora de `let`, spawn sem domain e collect que perde o input | Structured join preserva ownership; domain, bounds e arbitration explícitos custam call-site | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [execution.w](reference/last-light/execution.w) |
-| Expressar urgência | deadline + service isolada + admission/reserva/budget; domain só para placement | política física aparece somente em `w explain execution` e provider receipt | `priority`/`qos`, domain como safety, `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority` | Ordem garantida pelo contrato não muda; ordem unspecified e deadline/admission/winner podem variar entre traces permitidos | [DESIGN.md §12.6.2](DESIGN.md#1262-domain-placement-e-política-física-de-scheduling) · [BUILD.md](reference/last-light/BUILD.md#32-execution-profiles) |
-| Consumir stream | for try await ref item in source ou stream <[take source]> { yield take/copy ... } | Stream pull e capacity declarados | Generator genérico, yield from e buffer oculto | Pull mantém backpressure e borrow; collect aloca e perde incrementalidade | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
-| Enviar por channel | Channel<T><.send> / <.receive> (MPSC) | Capacity e close explícitos | Channel bidirecional implícito, MPMC infinito | Endpoints expressam authority; bounded buffer pode suspender | [DESIGN.md §12](DESIGN.md#12-concorrência-paralelismo-e-execução) · [streams.w](reference/last-light/streams.w) |
-| Compartilhar estado | owner por domain, shared, atomic, channel | SnapshotCell e adapters especializados | Atomic<shared T>, mutex global ou RCU implícito | Serialização e snapshot reduzem races; cópia/sync têm custo visível | [DESIGN.md §12.10.7](DESIGN.md#12107-exclusão-mútua-como-último-recurso) · [synchronization.w](reference/last-light/synchronization.w) |
-| Fazer I/O | ByteSource/ByteSink, ReadBatch/readMany e TransferPlan/transfer | Adapters async-first, leitura posicional, scatter e file-to-sink com estratégia explicável | IoSlice/IoSliceMut públicos, `inout view Bytes...`, syscall/probe no source, zero-copy universal, Reader/Writer síncronos e EOF sentinel | Owners escondem memória não inicializada e preservam retry; plans tornam reserva/progresso visíveis | [DESIGN.md §14.2.11](DESIGN.md#14211-backend-io-vetorizado-e-transferências-especializadas) · [io.w](reference/last-light/io.w) |
-| Modelar service | closed turn + SupervisorRef + WorkKeyRef | Recovery com snapshot/dedup | Reentrant service, detached Promise e retry implícito | Effect identity permite replay seguro; metadata e storage têm custo | [DESIGN.md §13.9.3](DESIGN.md#1393-recovery-de-service-e-deduplicação) · [service_recovery_oracle.w](reference/last-light/service_recovery_oracle.w) |
-| Selecionar build | package/workspace records em build.w + target spec + digest | Provider por capability e CAS | PATH/SDK ambiente, target string e config invisível | Reprodutibilidade exige manifest e receipts; setup fica mais explícito | [DESIGN.md §21](DESIGN.md#21-packages-builds-e-releases) · [build.w](reference/last-light/build.w) |
-| Cruzar FFI | foreign c, carrier typed, unsafe fn<abi: .c> com nome | ABI adapters gerados sob prova; fn<C> é body inline C vigente | Tratar fn<C> como generic/sandbox, W object por C, foreign module W ou lib dinâmica sem capability | Unsafe ilha limita blast radius; marshaling custa cópia/validations | [DESIGN.md §19](DESIGN.md#19-ffi-unsafe-e-ilhas-de-linguagem) · [abi.w](reference/last-light/abi.w) |
-| Representar unidade | 9.81<m/s^2>, Quantity(value, unit:) | wWire/JSON de Quantity como contrato de design, decoder/provider em gap | Bracket syntax, narrowing implícito e número fast | Units no tipo evitam erro dimensional; adapters custam schema | [DESIGN.md §15.5.3](DESIGN.md#1553-wwire-para-quantity) · [quantity_oracle.w](reference/last-light/quantity_oracle.w) |
-| Serializar tabela | data.Batch<Row>, adapters CSV/Parquet/Arrow | Carrier tabular v1 e wWire | DataFrame universal, duck typing e Any | Schema fechado permite bounds e zero-copy futuro; adapters são verbosos | [DESIGN.md §14.4.1](DESIGN.md#1441-carrier-tabular) · [data_formats.w](reference/last-light/data_formats.w) |
-| Mover tensor/device | tensor.transfer, Launch, Queue, Device | DLPack open/materialize/export | Runtime JIT mágico, raw stream, transfer implícito | Device é authority e custo explícitos; transfer pode copiar e suspender | [DESIGN.md §12.7.2](DESIGN.md#1272-device-scopes-e-kernels) · [tensor_interop.w](reference/last-light/tensor_interop.w) |
-| Limpar recurso | defer / defer async + close explícito | Capability de lifecycle | errdefer, destructor detached e finalizer global | Ordem lexical é auditável; close async publica effect | [DESIGN.md §11](DESIGN.md#11-erros-panic-oom-e-cleanup) · [abort.w](reference/last-light/abort.w) |
-| Abrir notebook | parser/checker/HIR normal + geração transacional | Presentable, Jupyter e export receipts | eval dinâmico, monkey patch e HTML oculto | Mesmo contrato reduz divergência; receipts e snapshots custam armazenamento | [DESIGN.md §24.1.4](DESIGN.md#2414-apresentação-jupyter-e-export-de-notebooks) · [pyn3_oracle.w](reference/last-light/pyn3_oracle.w) |
-| Transformar collection | Pipeline lazy sem side-effect: `tickets.lazy.filter(...).map(...).take(...).collect()` (Forma vigente) | Loop explícito com `for`, `append` e `break` (Forma vigente para controle e side-effect) | Comprehension (Rejeitado por enquanto) | Pipeline adia custo até `collect`; loop expõe controle, effects e ownership; ambos preservam ordem e limite | [DESIGN.md §16](DESIGN.md#16-texto-bytes-e-collections) · [collections.w](reference/last-light/collections.w) |
-| Acessar índice ou fim | `get(index)` e `.last`; `suffix` somente quando o carrier o publica (Forma vigente por carrier) | `count - 1` após guard (alternativa explícita) | `[-1]` ou syntax relativa especial (Rejeitado por enquanto) | APIs nominais deixam bounds e `Option` visíveis; arithmetic exige guard; suffix pode preservar view e borrow do carrier | [DESIGN.md §16.2](DESIGN.md#162-views-índices-e-slices) · [collections.w](reference/last-light/collections.w) · [billing.w](reference/last-light/billing.w) |
-| Ajustar shapes tensor | `means.broadcast(to: [samples, 6])` com shape checked (Forma vigente) | Scalar expansion conforme o contrato do carrier (Forma vigente, sem shape inferido) | Broadcast implícito entre shapes diferentes ou dotted broadcast (Rejeitado por enquanto) | Shape explícito compra diagnóstico e autoridade de device; a operação custa tokens, mas evita mismatch e eixos ocultos | [DESIGN.md §17](DESIGN.md#17-matrizes-tensors-e-ml) · [horizon.w](reference/last-light/horizon.w) · [ai_harness.w](reference/last-light/ai_harness.w) |
-| Preservar ordem de call labels | Ordem de declaration: `Money(majorUnits: 42, currency: .ww)` (Forma vigente) | Defaults e overloads criam sequências ordenadas distintas | Labels unordered ou reordered (Rejeitado por enquanto) | A ordem torna resolver e diagnostics determinísticos; labels custam source, mas evitam ranking e effects ocultos | [DESIGN.md §7.2.2](DESIGN.md#722-overloads-por-forma-de-call) · [billing.w](reference/last-light/billing.w) |
-| Escolher ownership de callable | `fn`, `some fn`, `any fn`, `mut fn` e `take fn` separados (Forma vigente) | Capture `<[copy ...]>`, `<[ref ...]>`, `<[take ...]>` ou `<[weak ...]>`; erase só quando pedido | `fn` unificado que apaga modo e custo (Rejeitado por enquanto) | Modos mantêm ownership, mutação, erasure e allocation observáveis; a separação aumenta a assinatura e reduz inferência oculta | [DESIGN.md §7.5](DESIGN.md#75-valores-callable-e-closures) · [callables.w](reference/last-light/callables.w) |
-| Esperar siblings com fail-fast | Tuple `try await (left, right)` em join lexical (Forma vigente) | `try await left` e depois `try await right` (Forma vigente, mas não equivalente) | Gather detached, fire-and-forget ou task sem owner (Rejeitado) | Tuple cancela siblings no primeiro erro settled e drena cleanup; awaits sequenciais mudam observação, timing e cancel; escolha altera effects e custo | [DESIGN.md §12.4](DESIGN.md#124-join-erro-e-outcome) · [execution.w](reference/last-light/execution.w) |
-| Escolher primeiro settlement | `await Task#firstSettled(take tasks)` com `TaskSettlement?` (Forma vigente) | Tuple join ou `Task#withTimeout` quando a intenção é fail-fast ou timeout | `select` statement, first-success implícito, drop de future ou retorno antes do drain (Rejeitado) | Completion order vira resultado; losers cancelam e drenam, mas effects committed permanecem | [DESIGN.md §12.4.1](DESIGN.md#1241-first-settled-estruturado) · [task_settlement.w](reference/last-light/task_settlement.w) |
-| Encerrar receiver consuming | `(take cursor).finish()` explicita a transferência antes do lookup (Forma vigente) | `take fn finish()` declara o member consuming e torna o contrato visível | `cursor.finish()` com inferência de receiver (Rejeitado; `W-OWNERSHIP-0011`) | O prefixo preserva a fronteira de ownership e o erro de uso; inferência esconderia move, cleanup e indisponibilidade posterior | [DESIGN.md §7.3](DESIGN.md#73-parâmetros-e-ownership) · [command.w](reference/last-light/command.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
-| Encadear envelopes de contrato | `StaticList<ServiceStage><(isValidStagePath(.member))>` sequencial (Forma vigente) | Typestate `StagePath` e transitions fechadas no mesmo domínio | `StaticList<[ServiceStage, (isValidStagePath(.member))]>` fused (`W-CONTRACT-0002`, Rejeitado) | Envelopes sequenciais preservam o kind de cada slot e a ordem de validação; fused economizaria tokens, mas perde schema e diagnóstico | [DESIGN.md §3.5.4](DESIGN.md#354-grammar-normativa-g2-tipos-e-contratos-angulares) · [domain.w](reference/last-light/domain.w) · [state_transitions.w](reference/last-light/state_transitions.w) |
-
-### Como escolher uma linha
-
-1. Comece pela forma current. Ela tem o menor risco de divergir do contrato.
-2. Use direction apenas quando o target ou o produto exigir a capability.
-3. Marque implementation-gap no issue ou no README do package; não esconda a
-   lacuna sob um snippet que parece executável.
-4. Se uma alternativa rejected parecer mais simples, escreva a necessidade e a
-   evidência que poderiam reabrir a decisão em vez de adotá-la em source.
-
-## Índices rápidos
-
-### Literais
-
-| Categoria | Exemplos |
-| --- | --- |
-| Inteiro | 0, 1_000, 0xff |
-| Float | 0.5, 0.5e2 |
-| Bool | true, false |
-| Char/byte | 'N', b'\x4e' |
-| String | "text", #"raw"#, """multi""" |
-| Unit | 12km, 64KiB, 9.81<m/s^2> |
-| Tuple | (north: 1, east: 2) |
-| Array/map | [1, 2], ["north": 1] |
-| Repeated | [0; 4] |
-
-```text
-let tickJson: String = #"{"value":30,"unit":"s"}"#
-let scalar: UnicodeScalar = 'λ'
-```
-
-O raw delimiter mantém as aspas JSON visíveis. 'λ' continua um
-UnicodeScalar, e a forma não cria uma grammar nova.
-
-### Ownership e callable modes
-
-| Mode | Pista de leitura |
-| --- | --- |
-| let / var | Mutabilidade do binding. |
-| ref / view | Borrow de leitura/projection. |
-| inout | Borrow mutável exclusivo. |
-| take / copy | Move ou cópia explícita. |
-| shared / weak | Liveness compartilhada ou não-owning. |
-| fn / mut fn | Callable síncrono, com mutação quando declarada. |
-| async fn | Callable que pode suspender. |
-| throws E | Callable que publica error effect. |
-| static / const | Avaliação e acesso sem estado de instance; confira o contrato. |
-| foreign / unsafe | Fronteira externa ou operação fora das garantias normais. |
-
-### Effects
-
-| Effect | Aparece como | Pergunta antes de usar |
-| --- | --- | --- |
-| Suspension | await, async, maySuspend | Quem faz join e como cancellation chega? |
-| Error | throws, throw, try | O caller trata o carrier ou propaga? |
-| Ownership | take, ref, inout, copy, pin | Quem pode mover, mutar ou manter vivo? |
-| Allocation | allocator, shared, carrier | Qual budget e qual allocator? |
-| Synchronization | atomic, lock, transaction | Qual domain e qual ordem de memória? |
-| Unsafe/FFI | unsafe, foreign | Qual prova de ABI, capability e layout? |
-| Cleanup | defer, defer async, close | A saída normal e a falha fecham o recurso? |
-
-### Status de implementação
-
-| Camada | Estado neste checkout |
-| --- | --- |
-| Design e forma de source | Forma vigente para avaliação, não release |
-| Atlas/Tree-sitter | Protótipo de parse e corpus; não checker/runtime |
-| Oracles host | Evidência lógica/física de design; não runtime |
-| Formatter/frontend/HIR/W/MLIR geral | Frontend seed, HIR0 verified-HIR-backed, ponte MLIR0 terminal bounded e RUN0 interno; HIR geral, frontend normativo, W/MLIR geral e `w run` continuam gaps |
-| Runtime/scheduler/allocator | Planejados; implementation gap |
-| std/providers | Contratos e oracles; provider missing |
-| CLI além de `w check` / package manager | Direção; implementation gap |
-| Portal | Protótipo visual congelado; não autoridade |
-
-## Evidência, limites e validação
-
-### Fontes
-
-- [DESIGN.md](DESIGN.md) é normativo. As âncoras desta página apontam para
-  contratos correntes, pendências e ordem de implementação.
-- [DESIGN-INDEX.md](DESIGN-INDEX.md) é uma projeção gerada para navegação.
-- [reference/last-light/README.md](reference/last-light/README.md) define os
-  oracles e os limites do produto de referência.
-- [reference/syntax-atlas/SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md)
-  é gerado. Seus snippets são parse-only, salvo indicação contrária.
-- [std/README.md](std/README.md) descreve contratos de std. Não há std build ou
-  provider implícito neste documento.
-
-### O que um snippet prova
-
-Um snippet tree-sitter-parse-only prova apenas que a gramática do corpus o
-aceitou no momento da geração. Um snippet source-backed prova que a forma está
-escrita em um fixture ou oracle. Um link para um oracle host prova que há uma
-decisão ou teste de design. Nenhum desses rótulos prova compiler, type-checker,
-runtime, scheduler, ABI, CLI, codec, serviço ou provider pronto.
-
-### Checks recomendados
-
-Na raiz do repositório, depois de alterar esta página e o link do README:
-
-```text
-bun run check:links
-bun run check:syntax-atlas
-bun run --cwd tooling/tree-sitter-w parse:reference
-bun run --cwd tooling/tree-sitter-w parse:std
-bun run design:index:check
-git diff --check
-bun run check:docs
-```
-
-Os quatro primeiros checks mantêm links, atlas, corpus de referência, corpus de
-std e índice. check:docs é o gate integral e pode demorar mais. Antes de
-propor uma mudança, revise headings/anchors e procure claims proibidos:
-
-```text
-rg -n -i "implemented|compiler.*works|runtime.*works|provider.*available|CLI.*available|std.*available" CHEATSHEET.md
-```
-
-Se a busca encontrar uma frase afirmativa, reescreva-a como contrato, direção,
-evidência ou lacuna. Não faça stage ou commit de um atlas gerado para corrigir
-este arquivo.
+The normative contract and implementation status remain in [DESIGN.md](DESIGN.md).
