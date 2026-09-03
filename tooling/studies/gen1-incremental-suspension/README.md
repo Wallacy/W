@@ -6,7 +6,7 @@ formas para os mesmos traces do restaurante Last Light:
 - A: `Stream` pull, adapters e tasks estruturadas;
 - B: máquina de estados nominal explícita;
 - C: dois canais bounded para o diálogo;
-- D: witness textual de um bloco `Stream` compiler-owned, mantido Research;
+- D: historical rejected/non-promoted witness textual de um bloco `Stream` compiler-owned;
 - E: witness textual de frame/resume público, intencionalmente rejeitado.
 
 O estudo mede ergonomia a partir das declarações source aplicáveis a cada
@@ -35,12 +35,14 @@ ergonomia aberta: diferenças estruturais observadas em slices do mesmo cenário
 são candidatas, não prova de gap humano. A ausência de evidência humana/modelo
 mantém `humanDecisionPending`. As dispositions são separadas: frame/resume
 público é rejeitado; o builder bounded é composable/current-candidate somente
-para diálogo; e o bloco Stream compiler-owned é Research-candidate, não rejeitado.
+para diálogo; e o bloco Stream compiler-owned é historical rejected, não um
+Research ativo.
 
 Antes de considerar D, o estudo também mede o helper parseável
 `builder-helper.w`: ele cria dois pares de `Channel` bounded e devolve endpoints
 owned. Isso resolve somente o diálogo. Um bloco Stream compiler-owned continua
-Research até prova de compiler/lowering e evidência humana/modelo.
+proveniência histórica até a forma estreita de W-1437; os gaps de evidência de
+implementação permanecem em W-1438/W-1440.
 
 Use, na raiz do repositório:
 

@@ -1,4 +1,4 @@
-RESERVED WITNESS — research candidate for a compiler-owned Stream block;
+HISTORICAL REJECTED WITNESS — non-promoted compiler-owned Stream block;
 not parseable, not grammar, and not a public frame or ABI.
 
 some Stream<Item, Failure> observeSuspension(
@@ -17,5 +17,6 @@ some Stream<Item, Failure> observeSuspension(
 The compiler owns suspension storage. The source contract owns capacity,
 prefetch, cancellation, cleanup, effects, and item-only emission. No public
 frame identity, resume token, scheduler handle, runtime metadata, or ABI is
-introduced. This witness remains Research until compiler/lowering and
-human/model evidence exist.
+introduced. This witness preserves historical GEN1 provenance only. W-1437
+supersedes it; W-1438 and W-1440 track the remaining implementation evidence
+gaps, and this text must not reopen a current Research gate.

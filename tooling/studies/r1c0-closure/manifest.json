@@ -246,7 +246,7 @@
     {
       "id": "R1-gen1-incremental-suspension",
       "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-      "digest": "sha256:32296fcda88a0558a64d8b85292b4c910ea07564c3a291139af04f2ee173ab03"
+      "digest": "sha256:e61726b8a31967f8e2ae055e66748b914e7793fc2c64b9a745bb8d204880f6f0"
     },
     {
       "id": "R1-gen2-stream-yield",
