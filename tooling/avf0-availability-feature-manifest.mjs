@@ -38,8 +38,8 @@ export function validateAvf0StudyManifest(study, { studyDirectory, repositoryRoo
   if (study?.status !== "design-oracle-input") errors.push("study status mismatch.");
   if (study?.id !== "AVF0") errors.push("study id mismatch.");
   const routes = Object.fromEntries((study?.routeMatrix ?? []).map((entry) => [entry.axis, entry.disposition]));
-  if (routes.package !== "current" || routes.availability !== "research" || routes.runtime !== "composable" || routes.composition !== "composable") {
-    errors.push("route matrix must keep package/current, availability/research, runtime/composition composable.");
+  if (routes.package !== "current" || routes.availability !== "current-design-evidence-gap" || routes.runtime !== "composable" || routes.composition !== "composable") {
+    errors.push("route matrix must keep package/current, availability/current-design-evidence-gap, runtime/composition composable.");
   }
   for (const [index, ref] of (study?.variants ?? []).entries()) verifyRef(ref, studyDirectory, errors, `variants[${index}]`);
   for (const [index, ref] of (study?.artifactRefs ?? []).entries()) verifyRef(ref, repositoryRoot, errors, `artifactRefs[${index}]`);

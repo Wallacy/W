@@ -60,11 +60,11 @@
     },
     {
       "id": "availability-binding",
-      "role": "research-candidate",
-      "disposition": "research-candidate",
+      "role": "current-design-evidence-gap",
+      "disposition": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "availability-binding.txt",
-      "digest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615",
+      "digest": "sha256:78b9dc113c435e07cd0610f1d7819d0b84cf2cce25f3c886cc5c96b882c47159",
       "changedConstructs": [
         "availability evidence",
         "branch narrowing",
@@ -72,7 +72,7 @@
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Research text; no accepted W syntax."
+        "note": "Current design-gap text; no accepted W syntax."
       }
     },
     {
@@ -179,7 +179,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:fd089330b4dc14bd7f04046f3d4f2953ea4e0cd6d965c694afbfd7f8a2365d7c"
+    "digest": "sha256:ec4712bff9c7081caf060000ffabd55940e0ac5db685a5d68a608d652fd29d1b"
   },
   "evidence": {
     "current": [

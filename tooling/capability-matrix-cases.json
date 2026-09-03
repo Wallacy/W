@@ -2173,17 +2173,17 @@
         "studyRefs": [
           {
             "path": "tooling/studies/ipc1-mapped-ipc/README.md",
-            "digest": "sha256:ec326dd8534ef99f72a710659f22de19584e338f7d907c8b52eea13000c48b0c",
+            "digest": "sha256:e5542e36aa2ecfe2a1a05964d7b1a5056a03cc3c2a1318ce079520bc0c3ef36e",
             "claim": "IPC1 mapped memory and process-shared IPC adversarial study."
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:8e936c22cc185d72a3621cfab77a1c62cfdaf7a2bac75f920569cba7c4e85561",
+            "digest": "sha256:f73db8ee94c98140296ac3d4f5379b4ca72c03371500800b12c0ff19e38050d2",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
             "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-            "digest": "sha256:d7ded25a3ed27dfb22646661d6cc79636832c1b2590522d0864ebf6f266fde2c",
+            "digest": "sha256:3c5fa7205c15a8949721819e04de85be08200f077b798b6d55e4bf53ad8692fd",
             "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
           }
         ]

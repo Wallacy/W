@@ -1,4 +1,4 @@
-IPC1 Research witness: Ipc1MappedIpc unsafe provider adapter.
+IPC1 current-design-evidence-gap witness: Ipc1MappedIpc unsafe provider adapter.
 
 The provider is authoritative for mapping, lease, layout, atomics, address-free
 scope, durability, wake, delete, and crash facts. ATOM2 value-only carriers do

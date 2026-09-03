@@ -103,7 +103,7 @@
       "source": { "study": "tooling/studies/avf0-availability-feature/study.json", "corpus": "tooling/avf0-availability-feature-cases.json", "machine": "tooling/avf0-availability-feature-machine.mjs", "caseId": "AVF0-availability-provider-bind" },
       "evidenceCaseIds": ["AVF0-availability-provider-bind"],
       "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
-      "expect": { "status": "accepted", "code": "availabilityBound", "route": "research", "contractRoute": "current", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
+      "expect": { "status": "accepted", "code": "availabilityBound", "route": "current-design-evidence-gap", "contractRoute": "current", "implementationGapId": "W-1449", "gapCategory": "implementation-evidence-gap" }
     },
     {
       "id": "ASIC0-W-1420-adversarial",
@@ -139,7 +139,7 @@
       "source": { "study": "tooling/studies/sec0-security-model/study.json", "corpus": "tooling/sec0-security-model-cases.json", "machine": "tooling/sec0-security-model-machine.mjs", "caseId": "SEC0-profile-native" },
       "evidenceCaseIds": ["SEC0-profile-native", "SEC0-side-baseline", "SEC0-patch-baseline", "SEC0-supply-baseline"],
       "evidenceRefs": { "probeRefIds": [], "sourceRefIds": [] },
-      "expect": { "status": "accepted", "code": "profileAdmitted", "route": "research", "contractRoute": "current", "implementationGapId": "W-1450", "gapCategory": "implementation-evidence-gap" }
+      "expect": { "status": "accepted", "code": "profileAdmitted", "route": "current-design-evidence-gap", "contractRoute": "current", "implementationGapId": "W-1450", "gapCategory": "implementation-evidence-gap" }
     },
     {
       "id": "ASIC0-W-1435-adversarial",

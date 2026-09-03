@@ -139,10 +139,10 @@ export function reduceAvailability(input) {
   if (evidence.source !== "provider") fail("availabilityEvidenceNotAuthoritative");
   if (evidence.domain !== declaration.domain || typeof evidence.generation !== "string" || !DIGEST.test(evidence.providerDigest ?? "")) fail("availabilityEvidenceInvalid");
   if (compareVersion(evidence.version, declaration.introduced ?? "0.0") < 0) {
-    return { status: "accepted", route: "research", code: "availabilityFallback", warning: null, boundSymbol: null, evidenceGeneration: evidence.generation };
+    return { status: "accepted", route: "current-design-evidence-gap", code: "availabilityFallback", warning: null, boundSymbol: null, evidenceGeneration: evidence.generation };
   }
   if (declaration.obsoleted && compareVersion(evidence.version, declaration.obsoleted) >= 0) fail("symbolObsoleted");
-  return { status: "accepted", route: "research", code: "availabilityBound", warning, boundSymbol: declaration.symbol, evidenceGeneration: evidence.generation };
+  return { status: "accepted", route: "current-design-evidence-gap", code: "availabilityBound", warning, boundSymbol: declaration.symbol, evidenceGeneration: evidence.generation };
 }
 
 function stableBucket(subject, key) {
@@ -246,9 +246,9 @@ export function reduceComposition(input) {
   closed(input, new Set(["order", "availability", "feature"]), "compositionInputInvalid");
   if (input.order !== "availability-then-feature") fail("featureCannotNarrowAvailability");
   const availability = reduceAvailability(input.availability);
-  if (availability.boundSymbol === null) return { status: "accepted", route: "research", code: "availabilityFallbackBeforeFeature", availability, feature: null };
+  if (availability.boundSymbol === null) return { status: "accepted", route: "current-design-evidence-gap", code: "availabilityFallbackBeforeFeature", availability, feature: null };
   const feature = reduceRuntimeFeature(input.feature);
-  return { status: "accepted", route: "research", code: "availabilityAndFeatureComposed", availability, feature };
+  return { status: "accepted", route: "current-design-evidence-gap", code: "availabilityAndFeatureComposed", availability, feature };
 }
 
 export function deriveAvf0Case(testCase) {

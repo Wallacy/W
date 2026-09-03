@@ -24,8 +24,8 @@
     "studyDirectories": 74,
     "metadataFiles": 97,
     "fixtureFiles": 340,
-    "references": 916,
-    "digestReferences": 770,
+    "references": 918,
+    "digestReferences": 772,
     "pathOnlyReferences": 146,
     "dependencyEdges": 54,
     "entrypoints": 56,
@@ -63,7 +63,7 @@
     {
       "path": "tooling/studies/asic0-evidence-gap-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:21a86dcf15919a0ebd2ad921c5f76bcdfb19856ae053a6fd11f00694c3d6762e",
+      "digest": "sha256:5cc02c816ca1b45cbd628b30b9111f9208d9d1ad0d5b2555b7cbf6fdd69a8835",
       "status": "design-oracle-input",
       "id": "ASIC0"
     },
@@ -98,14 +98,14 @@
     {
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:58b18a7436eaacca0f0488a01985925583373c577ebe61229a865528bfb84b71",
+      "digest": "sha256:e5b4852b730fd9f42da110d0cfb7e01dfe3cd2bc8bbe24940ff82f01431a0673",
       "status": "design-oracle-input",
       "id": "R1-avf0-availability-feature"
     },
     {
       "path": "tooling/studies/avf0-availability-feature/study.json",
       "kind": "study",
-      "digest": "sha256:33e93de91e7790d2af0f8ccbcc12800ae447100d25086542be5c490fa6aa2de4",
+      "digest": "sha256:9234620d416374526b67a535343b306fd710b4f455215c5b560b7a6fb8f2631c",
       "status": "design-oracle-input",
       "id": "AVF0"
     },
@@ -175,7 +175,7 @@
     {
       "path": "tooling/studies/drc0-design-research-closure/study.json",
       "kind": "study",
-      "digest": "sha256:55b4d22f64fdcd173618cbcb58b86f56f2af3146bc4d97410495c6649f69aee3",
+      "digest": "sha256:af1efcfd6235d6df2ef13382e2cbf6c80ac9ba8223a7649a8c72440207a8759d",
       "status": "complete-design-study",
       "id": "DRC0"
     },
@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:fce38881f84caf47853e8e5a84f232866cf54f91a21d7f9550f74f38ef43c1d0",
+      "digest": "sha256:96f8d3820e2b4c2fe10ffad007992880b5d0bc6262caeae65eb39d03e0005e8f",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:0dda379709de6e126f7944610fd3444c560885eda820bffed6b2652142b7c778",
+      "digest": "sha256:f8f9927eb0d1fb0cff0438b34bda327045266389a7a4ce87643858d934a1d0cb",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -266,7 +266,7 @@
     {
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
       "kind": "study",
-      "digest": "sha256:8e936c22cc185d72a3621cfab77a1c62cfdaf7a2bac75f920569cba7c4e85561",
+      "digest": "sha256:f73db8ee94c98140296ac3d4f5379b4ca72c03371500800b12c0ff19e38050d2",
       "status": "design-oracle-input",
       "id": "IPC1"
     },
@@ -616,7 +616,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:f4bcd68e64295c965cf51f818ed20fc17efd5ed79fbfc7a288d3cd48bbb7c4e0",
+      "digest": "sha256:c55f692390e05b4901dcceedd9ae7139ad05e4c99b3f2f079c9e28fdcde9d686",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -651,14 +651,14 @@
     {
       "path": "tooling/studies/sec0-security-model/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0",
+      "digest": "sha256:bef7ddef1f22e7710409d8e1740584ad41138e99259b66009f2399c986f2a927",
       "status": "design-oracle-input",
       "id": "R1-sec0-security-model"
     },
     {
       "path": "tooling/studies/sec0-security-model/study.json",
       "kind": "study",
-      "digest": "sha256:2a30e910a5555ccf9a27bb97e3d260ec4f32fa8bb201d5afb4873deb638d922d",
+      "digest": "sha256:5ff63e694f1191e82b26f7a3039e28d9ce154aaeb73969c0bf6ae58da9555fc9",
       "status": "design-oracle-input",
       "id": "SEC0"
     },
@@ -1095,7 +1095,7 @@
     {
       "path": "tooling/avf0-availability-feature-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:6068652c76452143275631d93fee1ecfc8ff74734dba977b1841f912cd18519e"
+      "digest": "sha256:9a687fde96aecb93d432aacec97d9977c11a951d5af18cc5514c11560f923c64"
     },
     {
       "path": "tooling/borrow-expressivity-reference.test.mjs",
@@ -1135,7 +1135,7 @@
     {
       "path": "tooling/check-avf0-availability-feature.mjs",
       "kind": "script-target",
-      "digest": "sha256:3c9012de2383762f3d8bec8128cc19385eada2d9e23cfbcd4d5cda965a41f8f2"
+      "digest": "sha256:a2c2df463a0e7e0cce6f6749f597530d5f251f220293cf73af3014a4f6e032a5"
     },
     {
       "path": "tooling/check-borrow-expressivity-cases.mjs",
@@ -1165,7 +1165,7 @@
     {
       "path": "tooling/check-design-research-closure.mjs",
       "kind": "script-target",
-      "digest": "sha256:e684775ca0bc855921b7bbf10936cdebc5861d159cafc85e123150365ed6c75e"
+      "digest": "sha256:d59df8a4fe71c0c955636b14078ba1577fc312424add06fcff37e9a5392a9058"
     },
     {
       "path": "tooling/check-dyn1-versioned-behavior.mjs",
@@ -1220,12 +1220,12 @@
     {
       "path": "tooling/check-sec0-security-model.mjs",
       "kind": "script-target",
-      "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"
+      "digest": "sha256:cbdc4ad6094be5d921adb0fa3836603cc59646bd41174a5ff62f0fdd3fd20dde"
     },
     {
       "path": "tooling/check-study-bundles.mjs",
       "kind": "script-target",
-      "digest": "sha256:1df415d8e9d4b921b4cc7bcc7b38d5d83ad94a7dbddc1dfa32690bbae6a3e01a"
+      "digest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d"
     },
     {
       "path": "tooling/check-suite.mjs",
@@ -1295,7 +1295,7 @@
     {
       "path": "tooling/sec0-security-model-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"
+      "digest": "sha256:28429aaa7c2fb2fa5f042baaa2dc7759bae8e8cc730d2475927555e25cee28b4"
     },
     {
       "path": "tooling/studies/aeg0-app-essentials-gate/adversarial.w",
@@ -1340,7 +1340,7 @@
     {
       "path": "tooling/studies/avf0-availability-feature/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:fd089330b4dc14bd7f04046f3d4f2953ea4e0cd6d965c694afbfd7f8a2365d7c"
+      "digest": "sha256:ec4712bff9c7081caf060000ffabd55940e0ac5db685a5d68a608d652fd29d1b"
     },
     {
       "path": "tooling/studies/brx2-borrow-relations/oracle.test.mjs",
@@ -1365,7 +1365,7 @@
     {
       "path": "tooling/studies/drc0-design-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:52120ac63094892cecafa973d2957338e1636aa773b9584419d733200a7e575a"
+      "digest": "sha256:ec637ea48726cae91e1b13afa8d80d49849052ae08189b5c4d2c35f2c317f475"
     },
     {
       "path": "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs",
@@ -1375,7 +1375,7 @@
     {
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:d583e1527a3e5ff5efc0fd55b4862ba8866809e7b1c8b9f8bef968cb5f31e275"
+      "digest": "sha256:c0f8b271f37f41535933befb7b98ed3c8536c6f76f40a5e1913039fd9d9ad0e3"
     },
     {
       "path": "tooling/studies/fst0-first-settled-task/check.mjs",
@@ -1510,7 +1510,7 @@
     {
       "path": "tooling/studies/sec0-security-model/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"
+      "digest": "sha256:1f19e738865fde8d13383cdebc1367af8ca0ca95d709606fda68a0ee7c78f42e"
     },
     {
       "path": "tooling/studies/svc0-service-stream-directions/check.mjs",
@@ -2502,7 +2502,9 @@
         291,
         292,
         293,
-        294
+        294,
+        295,
+        296
       ],
       "entrypoints": [
         12,
@@ -2546,9 +2548,9 @@
         76
       ],
       "references": [
-        295,
-        296,
-        297
+        297,
+        298,
+        299
       ],
       "entrypoints": [
         13,
@@ -2594,8 +2596,6 @@
         84
       ],
       "references": [
-        298,
-        299,
         300,
         301,
         302,
@@ -2608,7 +2608,9 @@
         309,
         310,
         311,
-        312
+        312,
+        313,
+        314
       ],
       "entrypoints": [
         14,
@@ -2654,8 +2656,6 @@
         89
       ],
       "references": [
-        313,
-        314,
         315,
         316,
         317,
@@ -2688,7 +2688,9 @@
         344,
         345,
         346,
-        347
+        347,
+        348,
+        349
       ],
       "entrypoints": [
         15,
@@ -2736,8 +2738,6 @@
         93
       ],
       "references": [
-        348,
-        349,
         350,
         351,
         352,
@@ -2762,7 +2762,9 @@
         371,
         372,
         373,
-        374
+        374,
+        375,
+        376
       ],
       "entrypoints": [
         16,
@@ -2807,12 +2809,12 @@
         95
       ],
       "references": [
-        375,
-        376,
         377,
         378,
         379,
-        380
+        380,
+        381,
+        382
       ],
       "entrypoints": [
         17,
@@ -2865,8 +2867,6 @@
         107
       ],
       "references": [
-        381,
-        382,
         383,
         384,
         385,
@@ -2882,7 +2882,9 @@
         395,
         396,
         397,
-        398
+        398,
+        399,
+        400
       ],
       "entrypoints": [
         18,
@@ -2926,9 +2928,9 @@
         112
       ],
       "references": [
-        399,
-        400,
-        401
+        401,
+        402,
+        403
       ],
       "entrypoints": [
         19,
@@ -2972,9 +2974,9 @@
         117
       ],
       "references": [
-        402,
-        403,
-        404
+        404,
+        405,
+        406
       ],
       "entrypoints": [
         20,
@@ -3025,8 +3027,6 @@
         123
       ],
       "references": [
-        405,
-        406,
         407,
         408,
         409,
@@ -3041,7 +3041,9 @@
         418,
         419,
         420,
-        421
+        421,
+        422,
+        423
       ],
       "entrypoints": [
         21,
@@ -3086,8 +3088,6 @@
         127
       ],
       "references": [
-        422,
-        423,
         424,
         425,
         426,
@@ -3105,7 +3105,9 @@
         438,
         439,
         440,
-        441
+        441,
+        442,
+        443
       ],
       "entrypoints": [
         22,
@@ -3151,8 +3153,6 @@
         130
       ],
       "references": [
-        442,
-        443,
         444,
         445,
         446,
@@ -3201,7 +3201,9 @@
         489,
         490,
         491,
-        492
+        492,
+        493,
+        494
       ],
       "entrypoints": [
         23,
@@ -3246,9 +3248,9 @@
         135
       ],
       "references": [
-        493,
-        494,
-        495
+        495,
+        496,
+        497
       ],
       "entrypoints": [
         24,
@@ -3289,10 +3291,10 @@
         138
       ],
       "references": [
-        496,
-        497,
         498,
-        499
+        499,
+        500,
+        501
       ],
       "entrypoints": [
         29,
@@ -3335,11 +3337,11 @@
         142
       ],
       "references": [
-        500,
-        501,
         502,
         503,
-        504
+        504,
+        505,
+        506
       ],
       "entrypoints": [
         29,
@@ -3382,11 +3384,11 @@
         146
       ],
       "references": [
-        505,
-        506,
         507,
         508,
-        509
+        509,
+        510,
+        511
       ],
       "entrypoints": [
         29,
@@ -3428,10 +3430,10 @@
         149
       ],
       "references": [
-        510,
-        511,
         512,
-        513
+        513,
+        514,
+        515
       ],
       "entrypoints": [
         29,
@@ -3474,11 +3476,11 @@
         153
       ],
       "references": [
-        514,
-        515,
         516,
         517,
-        518
+        518,
+        519,
+        520
       ],
       "entrypoints": [
         5,
@@ -3521,10 +3523,10 @@
         156
       ],
       "references": [
-        519,
-        520,
         521,
-        522
+        522,
+        523,
+        524
       ],
       "entrypoints": [
         29,
@@ -3567,11 +3569,11 @@
         160
       ],
       "references": [
-        523,
-        524,
         525,
         526,
-        527
+        527,
+        528,
+        529
       ],
       "entrypoints": [
         29,
@@ -3616,15 +3618,15 @@
         166
       ],
       "references": [
-        528,
-        529,
         530,
         531,
         532,
         533,
         534,
         535,
-        536
+        536,
+        537,
+        538
       ],
       "entrypoints": [
         29,
@@ -3668,12 +3670,12 @@
         171
       ],
       "references": [
-        537,
-        538,
         539,
         540,
         541,
-        542
+        542,
+        543,
+        544
       ],
       "entrypoints": [
         29,
@@ -3715,10 +3717,10 @@
         174
       ],
       "references": [
-        543,
-        544,
         545,
-        546
+        546,
+        547,
+        548
       ],
       "entrypoints": [
         29,
@@ -3760,10 +3762,10 @@
         177
       ],
       "references": [
-        547,
-        548,
         549,
-        550
+        550,
+        551,
+        552
       ],
       "entrypoints": [
         29,
@@ -3805,10 +3807,10 @@
         180
       ],
       "references": [
-        551,
-        552,
         553,
-        554
+        554,
+        555,
+        556
       ],
       "entrypoints": [
         29,
@@ -3851,12 +3853,12 @@
         184
       ],
       "references": [
-        555,
-        556,
         557,
         558,
         559,
-        560
+        560,
+        561,
+        562
       ],
       "entrypoints": [
         29,
@@ -3899,11 +3901,11 @@
         188
       ],
       "references": [
-        561,
-        562,
         563,
         564,
-        565
+        565,
+        566,
+        567
       ],
       "entrypoints": [
         29,
@@ -3946,11 +3948,11 @@
         192
       ],
       "references": [
-        566,
-        567,
         568,
         569,
-        570
+        570,
+        571,
+        572
       ],
       "entrypoints": [
         29,
@@ -3992,10 +3994,10 @@
         195
       ],
       "references": [
-        571,
-        572,
         573,
-        574
+        574,
+        575,
+        576
       ],
       "entrypoints": [
         29,
@@ -4038,11 +4040,11 @@
         199
       ],
       "references": [
-        575,
-        576,
         577,
         578,
-        579
+        579,
+        580,
+        581
       ],
       "entrypoints": [
         29,
@@ -4084,10 +4086,10 @@
         202
       ],
       "references": [
-        580,
-        581,
         582,
-        583
+        583,
+        584,
+        585
       ],
       "entrypoints": [
         29,
@@ -4129,10 +4131,10 @@
         205
       ],
       "references": [
-        584,
-        585,
         586,
-        587
+        587,
+        588,
+        589
       ],
       "entrypoints": [
         29,
@@ -4175,11 +4177,11 @@
         209
       ],
       "references": [
-        588,
-        589,
         590,
         591,
-        592
+        592,
+        593,
+        594
       ],
       "entrypoints": [
         29,
@@ -4221,10 +4223,10 @@
         212
       ],
       "references": [
-        593,
-        594,
         595,
-        596
+        596,
+        597,
+        598
       ],
       "entrypoints": [
         29,
@@ -4266,10 +4268,10 @@
         215
       ],
       "references": [
-        597,
-        598,
         599,
-        600
+        600,
+        601,
+        602
       ],
       "entrypoints": [
         29,
@@ -4311,10 +4313,10 @@
         218
       ],
       "references": [
-        601,
-        602,
         603,
-        604
+        604,
+        605,
+        606
       ],
       "entrypoints": [
         29,
@@ -4356,10 +4358,10 @@
         221
       ],
       "references": [
-        605,
-        606,
         607,
-        608
+        608,
+        609,
+        610
       ],
       "entrypoints": [
         29,
@@ -4402,11 +4404,11 @@
         225
       ],
       "references": [
-        609,
-        610,
         611,
         612,
-        613
+        613,
+        614,
+        615
       ],
       "entrypoints": [
         29,
@@ -4449,11 +4451,11 @@
         229
       ],
       "references": [
-        614,
-        615,
         616,
         617,
-        618
+        618,
+        619,
+        620
       ],
       "entrypoints": [
         29,
@@ -4495,10 +4497,10 @@
         232
       ],
       "references": [
-        619,
-        620,
         621,
-        622
+        622,
+        623,
+        624
       ],
       "entrypoints": [
         29,
@@ -4540,10 +4542,10 @@
         235
       ],
       "references": [
-        623,
-        624,
         625,
-        626
+        626,
+        627,
+        628
       ],
       "entrypoints": [
         29,
@@ -4585,10 +4587,10 @@
         238
       ],
       "references": [
-        627,
-        628,
         629,
-        630
+        630,
+        631,
+        632
       ],
       "entrypoints": [
         29,
@@ -4631,11 +4633,11 @@
         242
       ],
       "references": [
-        631,
-        632,
         633,
         634,
-        635
+        635,
+        636,
+        637
       ],
       "entrypoints": [
         29,
@@ -4678,12 +4680,12 @@
         246
       ],
       "references": [
-        636,
-        637,
         638,
         639,
         640,
-        641
+        641,
+        642,
+        643
       ],
       "entrypoints": [
         29,
@@ -4725,10 +4727,10 @@
         249
       ],
       "references": [
-        642,
-        643,
         644,
-        645
+        645,
+        646,
+        647
       ],
       "entrypoints": [
         29,
@@ -4771,11 +4773,11 @@
         253
       ],
       "references": [
-        646,
-        647,
         648,
         649,
-        650
+        650,
+        651,
+        652
       ],
       "entrypoints": [
         29,
@@ -4818,11 +4820,11 @@
         257
       ],
       "references": [
-        651,
-        652,
         653,
         654,
-        655
+        655,
+        656,
+        657
       ],
       "entrypoints": [
         29,
@@ -4864,10 +4866,10 @@
         260
       ],
       "references": [
-        656,
-        657,
         658,
-        659
+        659,
+        660,
+        661
       ],
       "entrypoints": [
         29,
@@ -4909,10 +4911,10 @@
         263
       ],
       "references": [
-        660,
-        661,
         662,
-        663
+        663,
+        664,
+        665
       ],
       "entrypoints": [
         29,
@@ -4954,10 +4956,10 @@
         266
       ],
       "references": [
-        664,
-        665,
         666,
-        667
+        667,
+        668,
+        669
       ],
       "entrypoints": [
         29,
@@ -5001,12 +5003,12 @@
         271
       ],
       "references": [
-        668,
-        669,
         670,
         671,
         672,
-        673
+        673,
+        674,
+        675
       ],
       "entrypoints": [
         29,
@@ -5053,8 +5055,6 @@
         274
       ],
       "references": [
-        674,
-        675,
         676,
         677,
         678,
@@ -5149,7 +5149,9 @@
         767,
         768,
         769,
-        770
+        770,
+        771,
+        772
       ],
       "entrypoints": [
         25,
@@ -5247,8 +5249,6 @@
         280
       ],
       "references": [
-        771,
-        772,
         773,
         774,
         775,
@@ -5271,7 +5271,9 @@
         792,
         793,
         794,
-        795
+        795,
+        796,
+        797
       ],
       "entrypoints": [
         26,
@@ -5315,9 +5317,9 @@
         285
       ],
       "references": [
-        796,
-        797,
-        798
+        798,
+        799,
+        800
       ],
       "entrypoints": [
         27,
@@ -5366,8 +5368,6 @@
         292
       ],
       "references": [
-        799,
-        800,
         801,
         802,
         803,
@@ -5397,7 +5397,9 @@
         827,
         828,
         829,
-        830
+        830,
+        831,
+        832
       ],
       "entrypoints": [
         28,
@@ -5443,9 +5445,9 @@
         297
       ],
       "references": [
-        831,
-        832,
-        833
+        833,
+        834,
+        835
       ],
       "entrypoints": [
         29,
@@ -5513,8 +5515,6 @@
         325
       ],
       "references": [
-        834,
-        835,
         836,
         837,
         838,
@@ -5542,7 +5542,9 @@
         860,
         861,
         862,
-        863
+        863,
+        864,
+        865
       ],
       "entrypoints": [
         29,
@@ -5596,8 +5598,6 @@
         333
       ],
       "references": [
-        864,
-        865,
         866,
         867,
         868,
@@ -5630,7 +5630,9 @@
         895,
         896,
         897,
-        898
+        898,
+        899,
+        900
       ],
       "entrypoints": [
         29,
@@ -5681,9 +5683,9 @@
         338
       ],
       "references": [
-        899,
-        900,
-        901
+        901,
+        902,
+        903
       ],
       "entrypoints": [
         29,
@@ -5720,15 +5722,15 @@
       ],
       "fixtures": [],
       "references": [
-        902,
-        903,
         904,
         905,
         906,
         907,
         908,
         909,
-        910
+        910,
+        911,
+        912
       ],
       "entrypoints": [
         29,
@@ -5764,11 +5766,11 @@
       ],
       "fixtures": [],
       "references": [
-        911,
-        912,
         913,
         914,
-        915
+        915,
+        916,
+        917
       ],
       "entrypoints": [
         29,
@@ -6075,7 +6077,7 @@
       "pointer": "artifacts.0.path",
       "path": "tooling/asic0-evidence-gap-closure-cases.json",
       "resolved": "tooling/asic0-evidence-gap-closure-cases.json",
-      "declaredDigest": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+      "declaredDigest": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6085,7 +6087,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/asic0-evidence-gap-closure-machine.mjs",
       "resolved": "tooling/asic0-evidence-gap-closure-machine.mjs",
-      "declaredDigest": "sha256:bd0a94469b698c2b4a4511c2e3148b043ff92bcb1e1f7f55e48d173b17ac806e",
+      "declaredDigest": "sha256:fc498a11ae8bc3a57e6d7267c348cfb333b8516ef6edada2e8b7f71447d32b19",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6115,7 +6117,7 @@
       "pointer": "artifacts.12.path",
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
       "resolved": "tooling/studies/ipc1-mapped-ipc/study.json",
-      "declaredDigest": "sha256:8e936c22cc185d72a3621cfab77a1c62cfdaf7a2bac75f920569cba7c4e85561",
+      "declaredDigest": "sha256:f73db8ee94c98140296ac3d4f5379b4ca72c03371500800b12c0ff19e38050d2",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6125,7 +6127,7 @@
       "pointer": "artifacts.13.path",
       "path": "tooling/ipc1-mapped-ipc-cases.json",
       "resolved": "tooling/ipc1-mapped-ipc-cases.json",
-      "declaredDigest": "sha256:dd64df1e5411065ee92849ace4e9eda378f8d1f595d586af8ce34e519799bd01",
+      "declaredDigest": "sha256:8219acc656c243a92491a9c7645ebaf1abf30b0def569d13ae0a4ef62a0d436d",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6145,7 +6147,7 @@
       "pointer": "artifacts.15.path",
       "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
       "resolved": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-      "declaredDigest": "sha256:d7ded25a3ed27dfb22646661d6cc79636832c1b2590522d0864ebf6f266fde2c",
+      "declaredDigest": "sha256:3c5fa7205c15a8949721819e04de85be08200f077b798b6d55e4bf53ad8692fd",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6155,7 +6157,7 @@
       "pointer": "artifacts.16.path",
       "path": "tooling/studies/avf0-availability-feature/study.json",
       "resolved": "tooling/studies/avf0-availability-feature/study.json",
-      "declaredDigest": "sha256:33e93de91e7790d2af0f8ccbcc12800ae447100d25086542be5c490fa6aa2de4",
+      "declaredDigest": "sha256:9234620d416374526b67a535343b306fd710b4f455215c5b560b7a6fb8f2631c",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6165,7 +6167,7 @@
       "pointer": "artifacts.17.path",
       "path": "tooling/avf0-availability-feature-cases.json",
       "resolved": "tooling/avf0-availability-feature-cases.json",
-      "declaredDigest": "sha256:7344a9f141598a0fdca4d49422567e890aa7ad0d4890a6bd4409a79e06891793",
+      "declaredDigest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6175,7 +6177,7 @@
       "pointer": "artifacts.18.path",
       "path": "tooling/avf0-availability-feature-machine.mjs",
       "resolved": "tooling/avf0-availability-feature-machine.mjs",
-      "declaredDigest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e",
+      "declaredDigest": "sha256:857ea1b586f9e64bc1b302dce9c4b137c70c34c9ed385a99af57bac63196264e",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6185,7 +6187,7 @@
       "pointer": "artifacts.19.path",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
       "resolved": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "declaredDigest": "sha256:b02ae5e995cdb881b724b8cf1a4124e486d14313edced65f428efa3762625e9a",
+      "declaredDigest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6205,7 +6207,7 @@
       "pointer": "artifacts.20.path",
       "path": "tooling/studies/sec0-security-model/study.json",
       "resolved": "tooling/studies/sec0-security-model/study.json",
-      "declaredDigest": "sha256:2a30e910a5555ccf9a27bb97e3d260ec4f32fa8bb201d5afb4873deb638d922d",
+      "declaredDigest": "sha256:5ff63e694f1191e82b26f7a3039e28d9ce154aaeb73969c0bf6ae58da9555fc9",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6215,7 +6217,7 @@
       "pointer": "artifacts.21.path",
       "path": "tooling/sec0-security-model-cases.json",
       "resolved": "tooling/sec0-security-model-cases.json",
-      "declaredDigest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6",
+      "declaredDigest": "sha256:4bd7b1526203db094bc9bce455715c409fa1a0a8b337677d0576e839f1d04783",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6225,7 +6227,7 @@
       "pointer": "artifacts.22.path",
       "path": "tooling/sec0-security-model-machine.mjs",
       "resolved": "tooling/sec0-security-model-machine.mjs",
-      "declaredDigest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b",
+      "declaredDigest": "sha256:74e44c0734579ac09e3fcd97b9caba599426fbb3496f8e187b913c684fb7bfc9",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6235,7 +6237,7 @@
       "pointer": "artifacts.23.path",
       "path": "tooling/sec0-security-model-results.snapshot.jsonl",
       "resolved": "tooling/sec0-security-model-results.snapshot.jsonl",
-      "declaredDigest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f",
+      "declaredDigest": "sha256:a8d801fcb27a4e1afcda9aff075bd8c96d69f936d8cf8be863c56671deb7605f",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6255,7 +6257,7 @@
       "pointer": "artifacts.4.path",
       "path": "tooling/asic0-evidence-gap-closure-results.snapshot.jsonl",
       "resolved": "tooling/asic0-evidence-gap-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:83f8e0b6579e15cd8cee0c7672b4ffbe95194e1c6500b7978e90581db0febead",
+      "declaredDigest": "sha256:709e3490c2d1d53ce567611aaadb17f6bfff31af176b4e5edb96806700bd4d7d",
       "status": "resolved",
       "source": "tooling/studies/asic0-evidence-gap-closure/manifest.json"
     },
@@ -6805,7 +6807,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/avf0-availability-feature/oracle.test.mjs",
-      "declaredDigest": "sha256:fd089330b4dc14bd7f04046f3d4f2953ea4e0cd6d965c694afbfd7f8a2365d7c",
+      "declaredDigest": "sha256:ec4712bff9c7081caf060000ffabd55940e0ac5db685a5d68a608d652fd29d1b",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/bundle.json"
     },
@@ -6865,7 +6867,7 @@
       "pointer": "variants.2.path",
       "path": "availability-binding.txt",
       "resolved": "tooling/studies/avf0-availability-feature/availability-binding.txt",
-      "declaredDigest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615",
+      "declaredDigest": "sha256:78b9dc113c435e07cd0610f1d7819d0b84cf2cce25f3c886cc5c96b882c47159",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/bundle.json"
     },
@@ -6885,7 +6887,7 @@
       "pointer": "artifactRefs.0.path",
       "path": "tooling/studies/avf0-availability-feature/README.md",
       "resolved": "tooling/studies/avf0-availability-feature/README.md",
-      "declaredDigest": "sha256:341446880d486368095521d75cc911c624cbb4aef16b651dbb16cfcd943676ec",
+      "declaredDigest": "sha256:faf68c57cfa2bea40fe47eae3fba9b93446a36d0894d7d437e25f65ebfd7226f",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6895,7 +6897,7 @@
       "pointer": "artifactRefs.1.path",
       "path": "tooling/avf0-availability-feature-cases.json",
       "resolved": "tooling/avf0-availability-feature-cases.json",
-      "declaredDigest": "sha256:7344a9f141598a0fdca4d49422567e890aa7ad0d4890a6bd4409a79e06891793",
+      "declaredDigest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6905,7 +6907,7 @@
       "pointer": "artifactRefs.2.path",
       "path": "tooling/avf0-availability-feature-machine.mjs",
       "resolved": "tooling/avf0-availability-feature-machine.mjs",
-      "declaredDigest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e",
+      "declaredDigest": "sha256:857ea1b586f9e64bc1b302dce9c4b137c70c34c9ed385a99af57bac63196264e",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6915,7 +6917,7 @@
       "pointer": "artifactRefs.3.path",
       "path": "tooling/avf0-availability-feature-manifest.mjs",
       "resolved": "tooling/avf0-availability-feature-manifest.mjs",
-      "declaredDigest": "sha256:35141e65667ff9cc32340d8271acf42f5f22613ad1f826f8c1695f7a8adb46dd",
+      "declaredDigest": "sha256:5b7282dd8177a2a80505f058b2012682a9d982a0f23899358901053ac32d37b4",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6925,7 +6927,7 @@
       "pointer": "artifactRefs.4.path",
       "path": "tooling/check-avf0-availability-feature.mjs",
       "resolved": "tooling/check-avf0-availability-feature.mjs",
-      "declaredDigest": "sha256:3c9012de2383762f3d8bec8128cc19385eada2d9e23cfbcd4d5cda965a41f8f2",
+      "declaredDigest": "sha256:a2c2df463a0e7e0cce6f6749f597530d5f251f220293cf73af3014a4f6e032a5",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6935,7 +6937,7 @@
       "pointer": "artifactRefs.5.path",
       "path": "tooling/avf0-availability-feature-reference.test.mjs",
       "resolved": "tooling/avf0-availability-feature-reference.test.mjs",
-      "declaredDigest": "sha256:6068652c76452143275631d93fee1ecfc8ff74734dba977b1841f912cd18519e",
+      "declaredDigest": "sha256:9a687fde96aecb93d432aacec97d9977c11a951d5af18cc5514c11560f923c64",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -6945,7 +6947,7 @@
       "pointer": "artifactRefs.6.path",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
       "resolved": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "declaredDigest": "sha256:b02ae5e995cdb881b724b8cf1a4124e486d14313edced65f428efa3762625e9a",
+      "declaredDigest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -7015,7 +7017,7 @@
       "pointer": "variants.2.path",
       "path": "availability-binding.txt",
       "resolved": "tooling/studies/avf0-availability-feature/availability-binding.txt",
-      "declaredDigest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615",
+      "declaredDigest": "sha256:78b9dc113c435e07cd0610f1d7819d0b84cf2cce25f3c886cc5c96b882c47159",
       "status": "resolved",
       "source": "tooling/studies/avf0-availability-feature/study.json"
     },
@@ -8295,7 +8297,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:d583e1527a3e5ff5efc0fd55b4862ba8866809e7b1c8b9f8bef968cb5f31e275",
+      "declaredDigest": "sha256:c0f8b271f37f41535933befb7b98ed3c8536c6f76f40a5e1913039fd9d9ad0e3",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8323,6 +8325,16 @@
       "study": 12,
       "metadata": 22,
       "pointer": "sourceRefs.1.path",
+      "path": "../../../tooling/research-state-inventory.json",
+      "resolved": "tooling/research-state-inventory.json",
+      "declaredDigest": "sha256:7ce64a16a01f38d0e0a16b62ffc5afa188f361567d434b6f3a2bfdd6b8512c83",
+      "status": "resolved",
+      "source": "tooling/studies/final-research-closure/bundle.json"
+    },
+    {
+      "study": 12,
+      "metadata": 22,
+      "pointer": "sourceRefs.2.path",
       "path": "../../../tooling/frontend-freeze-cases.json",
       "resolved": "tooling/frontend-freeze-cases.json",
       "declaredDigest": "sha256:09f876a2360495adc615260ce1458461148334d5f6bede63a9b05be6ec70f484",
@@ -8332,7 +8344,7 @@
     {
       "study": 12,
       "metadata": 22,
-      "pointer": "sourceRefs.2.path",
+      "pointer": "sourceRefs.3.path",
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "resolved": "tooling/hum0-human-review-protocol.json",
       "declaredDigest": "sha256:2e46f018ceb8236484c8476c162c1e8553b9ee12eba4e711c909c722702895f1",
@@ -8342,7 +8354,7 @@
     {
       "study": 12,
       "metadata": 22,
-      "pointer": "sourceRefs.3.path",
+      "pointer": "sourceRefs.4.path",
       "path": "../../../tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
       "declaredDigest": "sha256:851508a02374ca44dfbb9b3ddd727d4078c59838011e0ffd5d5c91e1eae42637",
@@ -8352,7 +8364,7 @@
     {
       "study": 12,
       "metadata": 22,
-      "pointer": "sourceRefs.4.path",
+      "pointer": "sourceRefs.5.path",
       "path": "../../../RATIONALE.md",
       "resolved": "RATIONALE.md",
       "declaredDigest": "sha256:d9b1365f7059c73dd809f9d9d19e5c7d96516e127a7353e3f89792efa7c074f9",
@@ -8362,7 +8374,7 @@
     {
       "study": 12,
       "metadata": 22,
-      "pointer": "sourceRefs.5.path",
+      "pointer": "sourceRefs.6.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
       "declaredDigest": "sha256:7251796df82aa295c10e91d4b1c7bbe4edbb3b70c0a63f916c323473d58415b8",
@@ -8403,9 +8415,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.1.path",
-      "path": "tooling/final-research-closure-machine.mjs",
-      "resolved": "tooling/final-research-closure-machine.mjs",
-      "declaredDigest": "sha256:27c91a8c57d9c858a21b8ccf7c19b3034c2b45fb2ef7bda7e02be721762625f1",
+      "path": "tooling/research-state-inventory.json",
+      "resolved": "tooling/research-state-inventory.json",
+      "declaredDigest": "sha256:7ce64a16a01f38d0e0a16b62ffc5afa188f361567d434b6f3a2bfdd6b8512c83",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8413,6 +8425,16 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.10.path",
+      "path": "tooling/studies/final-research-closure/INDEX.md",
+      "resolved": "tooling/studies/final-research-closure/INDEX.md",
+      "declaredDigest": "sha256:19c60fa4eda6303c73b092ff24919c9402d55ea9578b4c45bccf3fa41fb1c8c6",
+      "status": "resolved",
+      "source": "tooling/studies/final-research-closure/manifest.json"
+    },
+    {
+      "study": 12,
+      "metadata": 23,
+      "pointer": "artifacts.11.path",
       "path": "tooling/studies/final-research-closure/current.w",
       "resolved": "tooling/studies/final-research-closure/current.w",
       "declaredDigest": "sha256:d0bfb9a06190275b83aa2febb8a0f18b7a3e6129922a681283623c611c2b5ba9",
@@ -8422,7 +8444,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.11.path",
+      "pointer": "artifacts.12.path",
       "path": "tooling/studies/final-research-closure/adversarial.w",
       "resolved": "tooling/studies/final-research-closure/adversarial.w",
       "declaredDigest": "sha256:c3ec3ca4ae33dcdc553d0a68da4b5aa2d054ee7b80fba9e71439fcb3a9ef3c98",
@@ -8432,7 +8454,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.12.path",
+      "pointer": "artifacts.13.path",
       "path": "tooling/frontend-freeze-cases.json",
       "resolved": "tooling/frontend-freeze-cases.json",
       "declaredDigest": "sha256:09f876a2360495adc615260ce1458461148334d5f6bede63a9b05be6ec70f484",
@@ -8442,7 +8464,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.13.path",
+      "pointer": "artifacts.14.path",
       "path": "tooling/check-frontend-freeze.mjs",
       "resolved": "tooling/check-frontend-freeze.mjs",
       "declaredDigest": "sha256:d8ed583342f8a0e068cdf64b0c0b6676a794bdd7cf9e44e72bd81e82933df923",
@@ -8452,7 +8474,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.14.path",
+      "pointer": "artifacts.15.path",
       "path": "tooling/frontend-freeze.snapshot.jsonl",
       "resolved": "tooling/frontend-freeze.snapshot.jsonl",
       "declaredDigest": "sha256:94f989f7699ed37263fcc2cf66b610e90898476e8090bbc1deaafd68ff0da568",
@@ -8462,7 +8484,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.15.path",
+      "pointer": "artifacts.16.path",
       "path": "tooling/formatter-cases.json",
       "resolved": "tooling/formatter-cases.json",
       "declaredDigest": "sha256:b24c7ddb74a887837b8405564cfcf9f44591552068666e9d6022388d328240a8",
@@ -8472,7 +8494,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.16.path",
+      "pointer": "artifacts.17.path",
       "path": "tooling/semantic-cases.json",
       "resolved": "tooling/semantic-cases.json",
       "declaredDigest": "sha256:3b77661cc607836c60c76b9a2cb17b00feb8ef0b57b0ab1f0d6353190fbf6866",
@@ -8482,7 +8504,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.17.path",
+      "pointer": "artifacts.18.path",
       "path": "tooling/module-run-cases.json",
       "resolved": "tooling/module-run-cases.json",
       "declaredDigest": "sha256:324caa6e9d7aecde2a4ae98d5187b00464d4f6e2db412ae3f691cf3c1d0d8c95",
@@ -8492,7 +8514,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.18.path",
+      "pointer": "artifacts.19.path",
       "path": "tooling/diagnostic-catalog.json",
       "resolved": "tooling/diagnostic-catalog.json",
       "declaredDigest": "sha256:2bca6e8162b393d981ba6cded6e3d40f558c705f5ab5ab31c9362bab10d565a7",
@@ -8502,7 +8524,17 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.19.path",
+      "pointer": "artifacts.2.path",
+      "path": "tooling/final-research-closure-machine.mjs",
+      "resolved": "tooling/final-research-closure-machine.mjs",
+      "declaredDigest": "sha256:877432f5dad656bfdfa1c3d79d613c5de865cb47a4f0cd00aa83ebe633fa4566",
+      "status": "resolved",
+      "source": "tooling/studies/final-research-closure/manifest.json"
+    },
+    {
+      "study": 12,
+      "metadata": 23,
+      "pointer": "artifacts.20.path",
       "path": "tooling/hum0-human-review-protocol.json",
       "resolved": "tooling/hum0-human-review-protocol.json",
       "declaredDigest": "sha256:2e46f018ceb8236484c8476c162c1e8553b9ee12eba4e711c909c722702895f1",
@@ -8512,17 +8544,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.2.path",
-      "path": "tooling/check-final-research-closure.mjs",
-      "resolved": "tooling/check-final-research-closure.mjs",
-      "declaredDigest": "sha256:231a96a7e7d990d556eddb494de1b251449d33d70db5def48e1367d40f06a36a",
-      "status": "resolved",
-      "source": "tooling/studies/final-research-closure/manifest.json"
-    },
-    {
-      "study": 12,
-      "metadata": 23,
-      "pointer": "artifacts.20.path",
+      "pointer": "artifacts.21.path",
       "path": "tooling/hum0-human-review-machine.mjs",
       "resolved": "tooling/hum0-human-review-machine.mjs",
       "declaredDigest": "sha256:a7726e27e9599a7d4e3a846b03f50c8780d7f0afbf63b2357924af3fd4c14c25",
@@ -8532,7 +8554,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.21.path",
+      "pointer": "artifacts.22.path",
       "path": "tooling/check-hum0-human-review.mjs",
       "resolved": "tooling/check-hum0-human-review.mjs",
       "declaredDigest": "sha256:12b523247b2c280ec9f4def32b5625845b9413177b714fbb6e6062ed927ff9b3",
@@ -8542,7 +8564,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.22.path",
+      "pointer": "artifacts.23.path",
       "path": "tooling/hum0-human-review-results.snapshot.jsonl",
       "resolved": "tooling/hum0-human-review-results.snapshot.jsonl",
       "declaredDigest": "sha256:f3b72b61b2ffde2dc0eed1c5c1d68aff50774d42c9863858029159bc505bf0d1",
@@ -8552,7 +8574,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.23.path",
+      "pointer": "artifacts.24.path",
       "path": "tooling/studies/hum0-human-review/study.json",
       "resolved": "tooling/studies/hum0-human-review/study.json",
       "declaredDigest": "sha256:a74d9216ffbcea5ba6067702d54e6a3881fb502582eb5e5316ae61e267485ca7",
@@ -8562,7 +8584,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.24.path",
+      "pointer": "artifacts.25.path",
       "path": "tooling/studies/hum0-human-review/oracle.test.mjs",
       "resolved": "tooling/studies/hum0-human-review/oracle.test.mjs",
       "declaredDigest": "sha256:7a2f0e78da23acf4b7170ba423f70e3a7305181810c3551fc809cb4036e36089",
@@ -8572,7 +8594,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.25.path",
+      "pointer": "artifacts.26.path",
       "path": "tooling/check-design-freeze-audit.mjs",
       "resolved": "tooling/check-design-freeze-audit.mjs",
       "declaredDigest": "sha256:ce99488cd5eede913d8f91fa3949e595de57a6cf314e607ba002db39be42534a",
@@ -8582,17 +8604,17 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.26.path",
+      "pointer": "artifacts.27.path",
       "path": "tooling/check-study-bundles.mjs",
       "resolved": "tooling/check-study-bundles.mjs",
-      "declaredDigest": "sha256:1df415d8e9d4b921b4cc7bcc7b38d5d83ad94a7dbddc1dfa32690bbae6a3e01a",
+      "declaredDigest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.27.path",
+      "pointer": "artifacts.28.path",
       "path": "tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
       "declaredDigest": "sha256:851508a02374ca44dfbb9b3ddd727d4078c59838011e0ffd5d5c91e1eae42637",
@@ -8602,7 +8624,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.28.path",
+      "pointer": "artifacts.29.path",
       "path": "RATIONALE.md",
       "resolved": "RATIONALE.md",
       "declaredDigest": "sha256:d9b1365f7059c73dd809f9d9d19e5c7d96516e127a7353e3f89792efa7c074f9",
@@ -8612,7 +8634,17 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.29.path",
+      "pointer": "artifacts.3.path",
+      "path": "tooling/check-final-research-closure.mjs",
+      "resolved": "tooling/check-final-research-closure.mjs",
+      "declaredDigest": "sha256:d41f2befd3de5414f6ab233d3666f24cb1deaa39772b33b5a4cef9c47d17c030",
+      "status": "resolved",
+      "source": "tooling/studies/final-research-closure/manifest.json"
+    },
+    {
+      "study": 12,
+      "metadata": 23,
+      "pointer": "artifacts.30.path",
       "path": "DESIGN.md",
       "resolved": "DESIGN.md",
       "declaredDigest": "sha256:7251796df82aa295c10e91d4b1c7bbe4edbb3b70c0a63f916c323473d58415b8",
@@ -8622,17 +8654,7 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.3.path",
-      "path": "tooling/tree-sitter-w/check-frc0.mjs",
-      "resolved": "tooling/tree-sitter-w/check-frc0.mjs",
-      "declaredDigest": "sha256:2a23924e08dca99bd1324c795cadc43e6ae5de0efafe6c754a4e58cdc34e4c54",
-      "status": "resolved",
-      "source": "tooling/studies/final-research-closure/manifest.json"
-    },
-    {
-      "study": 12,
-      "metadata": 23,
-      "pointer": "artifacts.30.path",
+      "pointer": "artifacts.31.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
       "declaredDigest": "sha256:25689ec2c918f1bb70a68e1825e3f7c8d0bf74dedc030d42f4c251b67197f0a1",
@@ -8643,9 +8665,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.4.path",
-      "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:f6b76acd0cf6c9795dd6c8ac9313e1a0cde5cd30a00ae711274907e7afd720a3",
+      "path": "tooling/tree-sitter-w/check-frc0.mjs",
+      "resolved": "tooling/tree-sitter-w/check-frc0.mjs",
+      "declaredDigest": "sha256:2a23924e08dca99bd1324c795cadc43e6ae5de0efafe6c754a4e58cdc34e4c54",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8653,9 +8675,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.5.path",
-      "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:d583e1527a3e5ff5efc0fd55b4862ba8866809e7b1c8b9f8bef968cb5f31e275",
+      "path": "tooling/final-research-closure-results.snapshot.jsonl",
+      "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
+      "declaredDigest": "sha256:489f0d1997663136e6e2d4ef90c238c57bf4481ce467c502818f0eeed736fc5c",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8663,9 +8685,9 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.6.path",
-      "path": "tooling/studies/final-research-closure/bundle.json",
-      "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:fce38881f84caf47853e8e5a84f232866cf54f91a21d7f9550f74f38ef43c1d0",
+      "path": "tooling/studies/final-research-closure/oracle.test.mjs",
+      "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
+      "declaredDigest": "sha256:c0f8b271f37f41535933befb7b98ed3c8536c6f76f40a5e1913039fd9d9ad0e3",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8673,6 +8695,16 @@
       "study": 12,
       "metadata": 23,
       "pointer": "artifacts.7.path",
+      "path": "tooling/studies/final-research-closure/bundle.json",
+      "resolved": "tooling/studies/final-research-closure/bundle.json",
+      "declaredDigest": "sha256:96f8d3820e2b4c2fe10ffad007992880b5d0bc6262caeae65eb39d03e0005e8f",
+      "status": "resolved",
+      "source": "tooling/studies/final-research-closure/manifest.json"
+    },
+    {
+      "study": 12,
+      "metadata": 23,
+      "pointer": "artifacts.8.path",
       "path": "tooling/studies/final-research-closure/study.json",
       "resolved": "tooling/studies/final-research-closure/study.json",
       "declaredDigest": "sha256:dfa7211cbc03de717121c487957bd785fe5be3aacd1fcec03ca2906c3a31189f",
@@ -8682,20 +8714,10 @@
     {
       "study": 12,
       "metadata": 23,
-      "pointer": "artifacts.8.path",
+      "pointer": "artifacts.9.path",
       "path": "tooling/studies/final-research-closure/README.md",
       "resolved": "tooling/studies/final-research-closure/README.md",
-      "declaredDigest": "sha256:c01772b131e5c06648604d42cf67d9649b419c01798f11c1fdb38aa531e02008",
-      "status": "resolved",
-      "source": "tooling/studies/final-research-closure/manifest.json"
-    },
-    {
-      "study": 12,
-      "metadata": 23,
-      "pointer": "artifacts.9.path",
-      "path": "tooling/studies/final-research-closure/INDEX.md",
-      "resolved": "tooling/studies/final-research-closure/INDEX.md",
-      "declaredDigest": "sha256:19c60fa4eda6303c73b092ff24919c9402d55ea9578b4c45bccf3fa41fb1c8c6",
+      "declaredDigest": "sha256:127b7cddb6d12bdcf857f16510d06b6d29af7a08abff8a1d3e78c6adb319f249",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -9645,7 +9667,7 @@
       "pointer": "artifactRefs.0.path",
       "path": "tooling/studies/ipc1-mapped-ipc/README.md",
       "resolved": "tooling/studies/ipc1-mapped-ipc/README.md",
-      "declaredDigest": "sha256:ec326dd8534ef99f72a710659f22de19584e338f7d907c8b52eea13000c48b0c",
+      "declaredDigest": "sha256:e5542e36aa2ecfe2a1a05964d7b1a5056a03cc3c2a1318ce079520bc0c3ef36e",
       "status": "resolved",
       "source": "tooling/studies/ipc1-mapped-ipc/study.json"
     },
@@ -9655,7 +9677,7 @@
       "pointer": "corpus.path",
       "path": "../../ipc1-mapped-ipc-cases.json",
       "resolved": "tooling/ipc1-mapped-ipc-cases.json",
-      "declaredDigest": "sha256:dd64df1e5411065ee92849ace4e9eda378f8d1f595d586af8ce34e519799bd01",
+      "declaredDigest": "sha256:8219acc656c243a92491a9c7645ebaf1abf30b0def569d13ae0a4ef62a0d436d",
       "status": "resolved",
       "source": "tooling/studies/ipc1-mapped-ipc/study.json"
     },
@@ -9775,7 +9797,7 @@
       "pointer": "variants.2.path",
       "path": "mapped-immutable.txt",
       "resolved": "tooling/studies/ipc1-mapped-ipc/mapped-immutable.txt",
-      "declaredDigest": "sha256:817a541d5c4171f7852aa7d10698963f76298bb0470a1b7fc82bf9cd7937754a",
+      "declaredDigest": "sha256:2ed49aa18cb636bec5cec0a9e7abed9bc56f3625fdd9a35eddfd553f63804ee2",
       "status": "resolved",
       "source": "tooling/studies/ipc1-mapped-ipc/study.json"
     },
@@ -9785,7 +9807,7 @@
       "pointer": "variants.3.path",
       "path": "mapped-channel.txt",
       "resolved": "tooling/studies/ipc1-mapped-ipc/mapped-channel.txt",
-      "declaredDigest": "sha256:a4f6bc15e2f3fe0efad1bd7f16f8e73f6a437b67e47cdbe2cc89961a14e755b5",
+      "declaredDigest": "sha256:a53af6d5cc01174a54ed720292341d5951117693aaa4eeb538eb62431e9c8ecb",
       "status": "resolved",
       "source": "tooling/studies/ipc1-mapped-ipc/study.json"
     },
@@ -9795,7 +9817,7 @@
       "pointer": "variants.4.path",
       "path": "provider-adapter.txt",
       "resolved": "tooling/studies/ipc1-mapped-ipc/provider-adapter.txt",
-      "declaredDigest": "sha256:0c5e51f038a704cf91afbd2d98b7f277e9060048ca054fef422f5ab670a7de36",
+      "declaredDigest": "sha256:2fa7e76acbd38c64123750b2be08a47a5dd5e72369b6e97f6550c445f806e11d",
       "status": "resolved",
       "source": "tooling/studies/ipc1-mapped-ipc/study.json"
     },
@@ -12935,7 +12957,7 @@
       "pointer": "bundles.36.path",
       "path": "tooling/studies/sec0-security-model/bundle.json",
       "resolved": "tooling/studies/sec0-security-model/bundle.json",
-      "declaredDigest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0",
+      "declaredDigest": "sha256:bef7ddef1f22e7710409d8e1740584ad41138e99259b66009f2399c986f2a927",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13085,7 +13107,7 @@
       "pointer": "bundles.5.path",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
       "resolved": "tooling/studies/avf0-availability-feature/bundle.json",
-      "declaredDigest": "sha256:58b18a7436eaacca0f0488a01985925583373c577ebe61229a865528bfb84b71",
+      "declaredDigest": "sha256:e5b4852b730fd9f42da110d0cfb7e01dfe3cd2bc8bbe24940ff82f01431a0673",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13825,7 +13847,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/sec0-security-model/oracle.test.mjs",
-      "declaredDigest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d",
+      "declaredDigest": "sha256:1f19e738865fde8d13383cdebc1367af8ca0ca95d709606fda68a0ee7c78f42e",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/bundle.json"
     },
@@ -13945,7 +13967,7 @@
       "pointer": "artifactRefs.0.path",
       "path": "tooling/studies/sec0-security-model/README.md",
       "resolved": "tooling/studies/sec0-security-model/README.md",
-      "declaredDigest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4",
+      "declaredDigest": "sha256:49d6d44df1b4240c69e6ecf3629ec97beabd7c0c05e089be00fbbbc7bfa24202",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -13955,7 +13977,7 @@
       "pointer": "artifactRefs.1.path",
       "path": "tooling/sec0-security-model-cases.json",
       "resolved": "tooling/sec0-security-model-cases.json",
-      "declaredDigest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6",
+      "declaredDigest": "sha256:4bd7b1526203db094bc9bce455715c409fa1a0a8b337677d0576e839f1d04783",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -13965,7 +13987,7 @@
       "pointer": "artifactRefs.2.path",
       "path": "tooling/sec0-security-model-machine.mjs",
       "resolved": "tooling/sec0-security-model-machine.mjs",
-      "declaredDigest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b",
+      "declaredDigest": "sha256:74e44c0734579ac09e3fcd97b9caba599426fbb3496f8e187b913c684fb7bfc9",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -13975,7 +13997,7 @@
       "pointer": "artifactRefs.3.path",
       "path": "tooling/sec0-security-model-manifest.mjs",
       "resolved": "tooling/sec0-security-model-manifest.mjs",
-      "declaredDigest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb",
+      "declaredDigest": "sha256:d2f345249a1e1b04f0257da3f708f26655f9db42aa41c3bb2b962f2d8084d368",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -13985,7 +14007,7 @@
       "pointer": "artifactRefs.4.path",
       "path": "tooling/check-sec0-security-model.mjs",
       "resolved": "tooling/check-sec0-security-model.mjs",
-      "declaredDigest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e",
+      "declaredDigest": "sha256:cbdc4ad6094be5d921adb0fa3836603cc59646bd41174a5ff62f0fdd3fd20dde",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -13995,7 +14017,7 @@
       "pointer": "artifactRefs.5.path",
       "path": "tooling/sec0-security-model-reference.test.mjs",
       "resolved": "tooling/sec0-security-model-reference.test.mjs",
-      "declaredDigest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e",
+      "declaredDigest": "sha256:28429aaa7c2fb2fa5f042baaa2dc7759bae8e8cc730d2475927555e25cee28b4",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -14005,7 +14027,7 @@
       "pointer": "artifactRefs.6.path",
       "path": "tooling/sec0-security-model-results.snapshot.jsonl",
       "resolved": "tooling/sec0-security-model-results.snapshot.jsonl",
-      "declaredDigest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f",
+      "declaredDigest": "sha256:a8d801fcb27a4e1afcda9aff075bd8c96d69f936d8cf8be863c56671deb7605f",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -14015,7 +14037,7 @@
       "pointer": "artifactRefs.7.path",
       "path": "tooling/studies/sec0-security-model/bundle.json",
       "resolved": "tooling/studies/sec0-security-model/bundle.json",
-      "declaredDigest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0",
+      "declaredDigest": "sha256:bef7ddef1f22e7710409d8e1740584ad41138e99259b66009f2399c986f2a927",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -14025,7 +14047,7 @@
       "pointer": "artifactRefs.8.path",
       "path": "tooling/studies/sec0-security-model/oracle.test.mjs",
       "resolved": "tooling/studies/sec0-security-model/oracle.test.mjs",
-      "declaredDigest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d",
+      "declaredDigest": "sha256:1f19e738865fde8d13383cdebc1367af8ca0ca95d709606fda68a0ee7c78f42e",
       "status": "resolved",
       "source": "tooling/studies/sec0-security-model/study.json"
     },
@@ -20872,378 +20894,378 @@
       {
         "from": 63,
         "to": 3,
-        "reference": 714,
+        "reference": 716,
         "pointer": "bundles.4.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 4,
-        "reference": 725,
+        "reference": 727,
         "pointer": "bundles.5.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 5,
-        "reference": 728,
+        "reference": 730,
         "pointer": "bundles.7.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 6,
-        "reference": 729,
+        "reference": 731,
         "pointer": "bundles.8.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 8,
-        "reference": 688,
+        "reference": 690,
         "pointer": "bundles.16.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 9,
-        "reference": 689,
+        "reference": 691,
         "pointer": "bundles.17.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 11,
-        "reference": 693,
+        "reference": 695,
         "pointer": "bundles.20.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 14,
-        "reference": 697,
+        "reference": 699,
         "pointer": "bundles.24.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 15,
-        "reference": 698,
+        "reference": 700,
         "pointer": "bundles.25.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 16,
-        "reference": 699,
+        "reference": 701,
         "pointer": "bundles.26.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 22,
-        "reference": 705,
+        "reference": 707,
         "pointer": "bundles.31.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 25,
-        "reference": 680,
+        "reference": 682,
         "pointer": "bundles.0.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 26,
-        "reference": 681,
+        "reference": 683,
         "pointer": "bundles.1.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 27,
-        "reference": 692,
+        "reference": 694,
         "pointer": "bundles.2.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 28,
-        "reference": 703,
+        "reference": 705,
         "pointer": "bundles.3.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 29,
-        "reference": 727,
+        "reference": 729,
         "pointer": "bundles.6.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 30,
-        "reference": 730,
+        "reference": 732,
         "pointer": "bundles.9.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 31,
-        "reference": 682,
+        "reference": 684,
         "pointer": "bundles.10.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 32,
-        "reference": 683,
+        "reference": 685,
         "pointer": "bundles.11.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 33,
-        "reference": 684,
+        "reference": 686,
         "pointer": "bundles.12.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 34,
-        "reference": 685,
+        "reference": 687,
         "pointer": "bundles.13.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 35,
-        "reference": 686,
+        "reference": 688,
         "pointer": "bundles.14.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 36,
-        "reference": 687,
+        "reference": 689,
         "pointer": "bundles.15.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 37,
-        "reference": 690,
+        "reference": 692,
         "pointer": "bundles.18.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 38,
-        "reference": 691,
+        "reference": 693,
         "pointer": "bundles.19.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 39,
-        "reference": 694,
+        "reference": 696,
         "pointer": "bundles.21.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 40,
-        "reference": 695,
+        "reference": 697,
         "pointer": "bundles.22.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 41,
-        "reference": 696,
+        "reference": 698,
         "pointer": "bundles.23.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 42,
-        "reference": 700,
+        "reference": 702,
         "pointer": "bundles.27.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 43,
-        "reference": 701,
+        "reference": 703,
         "pointer": "bundles.28.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 44,
-        "reference": 702,
+        "reference": 704,
         "pointer": "bundles.29.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 45,
-        "reference": 704,
+        "reference": 706,
         "pointer": "bundles.30.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 46,
-        "reference": 706,
+        "reference": 708,
         "pointer": "bundles.32.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 47,
-        "reference": 707,
+        "reference": 709,
         "pointer": "bundles.33.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 48,
-        "reference": 708,
+        "reference": 710,
         "pointer": "bundles.34.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 49,
-        "reference": 709,
+        "reference": 711,
         "pointer": "bundles.35.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 50,
-        "reference": 711,
+        "reference": 713,
         "pointer": "bundles.37.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 51,
-        "reference": 712,
+        "reference": 714,
         "pointer": "bundles.38.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 52,
-        "reference": 713,
+        "reference": 715,
         "pointer": "bundles.39.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 53,
-        "reference": 715,
+        "reference": 717,
         "pointer": "bundles.40.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 54,
-        "reference": 716,
+        "reference": 718,
         "pointer": "bundles.41.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 55,
-        "reference": 717,
+        "reference": 719,
         "pointer": "bundles.42.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 56,
-        "reference": 718,
+        "reference": 720,
         "pointer": "bundles.43.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 57,
-        "reference": 720,
+        "reference": 722,
         "pointer": "bundles.45.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 58,
-        "reference": 721,
+        "reference": 723,
         "pointer": "bundles.46.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 59,
-        "reference": 722,
+        "reference": 724,
         "pointer": "bundles.47.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 60,
-        "reference": 723,
+        "reference": 725,
         "pointer": "bundles.48.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 61,
-        "reference": 724,
+        "reference": 726,
         "pointer": "bundles.49.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 62,
-        "reference": 726,
+        "reference": 728,
         "pointer": "bundles.50.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 66,
-        "reference": 710,
+        "reference": 712,
         "pointer": "bundles.36.path",
         "status": "resolved"
       },
       {
         "from": 63,
         "to": 69,
-        "reference": 719,
+        "reference": 721,
         "pointer": "bundles.44.path",
         "status": "resolved"
       },
       {
         "from": 69,
         "to": 11,
-        "reference": 885,
+        "reference": 887,
         "pointer": "buildsOn.1.path",
         "status": "resolved"
       },
       {
         "from": 69,
         "to": 16,
-        "reference": 886,
+        "reference": 888,
         "pointer": "buildsOn.2.path",
         "status": "resolved"
       },
       {
         "from": 69,
         "to": 68,
-        "reference": 884,
+        "reference": 886,
         "pointer": "buildsOn.0.path",
         "status": "resolved"
       }

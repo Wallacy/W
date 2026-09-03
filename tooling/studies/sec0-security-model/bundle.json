@@ -74,7 +74,7 @@
     },
     {
       "id": "security-feature",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w",
       "path": "security-feature.w",
       "digest": "sha256:11dc26adb9327dfd4f5669f8ddd789d290f7cca4a3d74dcced27a90e4521509c",
@@ -105,7 +105,7 @@
     },
     {
       "id": "security-patch",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "security-patch.txt",
       "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b",
@@ -203,7 +203,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"
+    "digest": "sha256:1f19e738865fde8d13383cdebc1367af8ca0ca95d709606fda68a0ee7c78f42e"
   },
   "evidence": {
     "current": [

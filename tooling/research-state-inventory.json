@@ -1,0 +1,231 @@
+{
+  "$schema": "w-research-state-inventory-1",
+  "status": "normalization-in-progress",
+  "id": "research-state-inventory",
+  "categories": [
+    "historical",
+    "rejected",
+    "current-design-evidence-gap",
+    "future-reopen-candidate"
+  ],
+  "active": [],
+  "families": [
+    {
+      "id": "raw-w218",
+      "category": "rejected",
+      "decisionRefs": ["W-218"],
+      "successorDecisions": [],
+      "implementationGaps": [],
+      "normalizationPending": false,
+      "artifacts": [
+        "reference/syntax-atlas/reserved.w-reserved.txt",
+        "reference/syntax-atlas/rejected.w-rejected.txt",
+        "reference/syntax-atlas/atlas-manifest.json"
+      ]
+    },
+    {
+      "id": "drc0",
+      "category": "historical",
+      "decisionRefs": ["W-1484", "W-1473", "W-1474", "W-1475"],
+      "successorDecisions": ["W-1517", "W-1518"],
+      "implementationGaps": [],
+      "normalizationPending": false,
+      "artifacts": [
+        "tooling/design-research-closure-cases.json",
+        "tooling/design-research-closure-machine.mjs",
+        "tooling/check-design-research-closure.mjs",
+        "tooling/studies/drc0-design-research-closure/study.json",
+        "tooling/studies/drc0-design-research-closure/oracle.test.mjs"
+      ]
+    },
+    {
+      "id": "avf0",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1420", "W-1425"],
+      "successorDecisions": [],
+      "implementationGaps": ["W-1449"],
+      "normalizationPending": false,
+      "artifacts": [
+        "tooling/avf0-availability-feature-cases.json",
+        "tooling/avf0-availability-feature-machine.mjs",
+        "tooling/avf0-availability-feature-manifest.mjs",
+        "tooling/check-avf0-availability-feature.mjs",
+        "tooling/avf0-availability-feature-reference.test.mjs",
+        "tooling/avf0-availability-feature-results.snapshot.jsonl",
+        "tooling/studies/avf0-availability-feature/study.json",
+        "tooling/studies/avf0-availability-feature/bundle.json",
+        "tooling/studies/avf0-availability-feature/README.md",
+        "tooling/studies/avf0-availability-feature/oracle.test.mjs",
+        "tooling/studies/avf0-availability-feature/current-package-feature.w",
+        "tooling/studies/avf0-availability-feature/typed-runtime-feature.w",
+        "tooling/studies/avf0-availability-feature/availability-binding.txt",
+        "tooling/studies/avf0-availability-feature/rejected-runtime-authority.txt"
+      ]
+    },
+    {
+      "id": "sec0",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1435"],
+      "successorDecisions": [],
+      "implementationGaps": ["W-1450"],
+      "normalizationPending": false,
+      "artifacts": [
+        "tooling/sec0-security-model-cases.json",
+        "tooling/sec0-security-model-machine.mjs",
+        "tooling/sec0-security-model-manifest.mjs",
+        "tooling/check-sec0-security-model.mjs",
+        "tooling/sec0-security-model-reference.test.mjs",
+        "tooling/sec0-security-model-results.snapshot.jsonl",
+        "tooling/studies/sec0-security-model/study.json",
+        "tooling/studies/sec0-security-model/bundle.json",
+        "tooling/studies/sec0-security-model/README.md",
+        "tooling/studies/sec0-security-model/oracle.test.mjs",
+        "tooling/studies/sec0-security-model/security-profile.w",
+        "tooling/studies/sec0-security-model/security-boundary.w",
+        "tooling/studies/sec0-security-model/security-feature.w",
+        "tooling/studies/sec0-security-model/rejected-ambient-security.txt",
+        "tooling/studies/sec0-security-model/security-patch.txt"
+      ]
+    },
+    {
+      "id": "ipc1",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1355", "W-1359"],
+      "successorDecisions": [],
+      "implementationGaps": ["W-1448"],
+      "normalizationPending": false,
+      "artifacts": [
+        "tooling/ipc1-mapped-ipc-cases.json",
+        "tooling/ipc1-mapped-ipc-machine.mjs",
+        "tooling/ipc1-mapped-ipc-manifest.mjs",
+        "tooling/check-ipc1-mapped-ipc.mjs",
+        "tooling/ipc1-mapped-ipc-reference.test.mjs",
+        "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
+        "tooling/studies/ipc1-mapped-ipc/study.json",
+        "tooling/studies/ipc1-mapped-ipc/README.md",
+        "tooling/studies/ipc1-mapped-ipc/oracle.test.mjs",
+        "tooling/studies/ipc1-mapped-ipc/current-snapshot.w",
+        "tooling/studies/ipc1-mapped-ipc/current-channel.w",
+        "tooling/studies/ipc1-mapped-ipc/mapped-immutable.txt",
+        "tooling/studies/ipc1-mapped-ipc/mapped-channel.txt",
+        "tooling/studies/ipc1-mapped-ipc/provider-adapter.txt",
+        "tooling/studies/ipc1-mapped-ipc/reserved-native-pointer.txt",
+        "tooling/studies/ipc1-mapped-ipc/reserved-hidden-provider.txt",
+        "tooling/studies/ipc1-mapped-ipc/probes/posix-two-process.c",
+        "tooling/studies/ipc1-mapped-ipc/probes/posix-two-process.receipt.json",
+        "tooling/studies/ipc1-mapped-ipc/probes/posix-two-process.output.json"
+      ]
+    },
+    {
+      "id": "gen1",
+      "category": "historical",
+      "decisionRefs": ["W-1353", "W-1354"],
+      "successorDecisions": ["W-1437"],
+      "implementationGaps": ["W-1438", "W-1440"],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/gen1-incremental-suspension-cases.json",
+        "tooling/gen1-incremental-suspension-machine.mjs",
+        "tooling/studies/gen1-incremental-suspension/bundle.json",
+        "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt"
+      ]
+    },
+    {
+      "id": "syn1",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1360", "W-1373"],
+      "successorDecisions": ["W-1398", "W-1399"],
+      "implementationGaps": [],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/syn1-typed-generation-cases.json",
+        "tooling/syn1-typed-generation-machine.mjs",
+        "tooling/studies/syn1-typed-generation/study.json",
+        "tooling/studies/syn1-typed-generation/candidate-generated-module.txt"
+      ]
+    },
+    {
+      "id": "hrd0",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1398", "W-1399"],
+      "successorDecisions": [],
+      "implementationGaps": ["W-1399"],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/hot-reload-dev-cases.json",
+        "tooling/hot-reload-dev-machine.mjs",
+        "tooling/studies/hrd0-hot-reload-dev/study.json",
+        "tooling/studies/hrd0-hot-reload-dev/bundle.json"
+      ]
+    },
+    {
+      "id": "dyn1",
+      "category": "current-design-evidence-gap",
+      "decisionRefs": ["W-1392", "W-1393"],
+      "successorDecisions": ["W-1398", "W-1399"],
+      "implementationGaps": [],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/dyn1-versioned-behavior-cases.json",
+        "tooling/dyn1-versioned-behavior-machine.mjs",
+        "tooling/studies/dyn1-versioned-behavior/study.json",
+        "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt"
+      ]
+    },
+    {
+      "id": "atom1-atom2",
+      "category": "historical",
+      "decisionRefs": ["W-1352"],
+      "successorDecisions": ["W-1352"],
+      "implementationGaps": [],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/atom1-atomic-extensibility-cases.json",
+        "tooling/atom1-atomic-extensibility-machine.mjs",
+        "tooling/atom2-atomic-contract-cases.json",
+        "tooling/atom2-atomic-contract-machine.mjs"
+      ]
+    },
+    {
+      "id": "cyc1",
+      "category": "future-reopen-candidate",
+      "decisionRefs": ["W-1391"],
+      "successorDecisions": [],
+      "implementationGaps": ["W-1391"],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/cyc1-explicit-cycle-cases.json",
+        "tooling/cyc1-explicit-cycle-machine.mjs",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/public-self-weak-constructor.txt"
+      ]
+    },
+    {
+      "id": "brx2-brx3",
+      "category": "historical",
+      "decisionRefs": ["W-1381", "W-1382", "W-1383", "W-1384", "W-1436"],
+      "successorDecisions": ["W-1436"],
+      "implementationGaps": [],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/brx2-borrow-relations-cases.json",
+        "tooling/brx2-borrow-relations-machine.mjs",
+        "tooling/brx3-borrow-relations-cases.json",
+        "tooling/brx3-borrow-relations-machine.mjs",
+        "tooling/studies/brx2-borrow-relations/relation-contract.txt"
+      ]
+    },
+    {
+      "id": "w1504",
+      "category": "historical",
+      "decisionRefs": ["W-1504"],
+      "successorDecisions": ["W-1511"],
+      "implementationGaps": [],
+      "normalizationPending": true,
+      "artifacts": [
+        "tooling/studies/w1504-pipeline-transaction/task-ledger.json",
+        "RATIONALE.md"
+      ]
+    }
+  ]
+}

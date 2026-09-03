@@ -3,8 +3,9 @@
 Status: **Complete design study**. DRC0 closes the finite research questions in
 W-1484, W-1473, W-1474, and W-1475. W-1471 remains historical and is
 superseded only for its blocking `sync` semantics. The historical Research=0
-closure remains valid through W-1459; W-1486 and W-1503 are the active
-post-snapshot research gates. DRC0 does not claim that the W frontend,
+closure remains valid through W-1459; W-1486 and W-1503 are historical
+post-snapshot research-gate provenance only. Those names are historical;
+DRC0 exposes no active research gates. DRC0 does not claim that the W frontend,
 compiler, runtime, providers, frameworks, or benchmarks exist.
 
 The independent closure machine re-derives SYNC1 from the execution-semantics

@@ -1,13 +1,13 @@
 # IPC1 — mapped memory and process-shared IPC
 
-Status: source-corpus design-only **Pesquisa** (pre-ASIC0). IPC1 informs and
+Status: source-corpus design-only historical-research provenance (pre-ASIC0). IPC1 informs and
 narrows `IPC0-R1`. ASIC0 closes the current conditional adapter/provider
 contracts for A and B and records W-1448 as the implementation-evidence gap.
 It does not define W syntax, an API, a compiler rule, a runtime, or a provider
 implementation.
 
 The fallback route remains a bounded snapshot, typed wire, or service channel.
-The source corpus has two pre-ASIC0 Research candidates; ASIC0 makes them
+The source corpus has two pre-ASIC0 historical-research candidates; ASIC0 makes them
 current only as receipt-bound adapter/provider contracts:
 
 - an immutable mapped snapshot with pointer-free relative layout;

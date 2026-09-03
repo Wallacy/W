@@ -47,15 +47,15 @@ const ipcEvidenceCases = Object.freeze({
   "IPC1-provider-durable-requirement-reject": Object.freeze({ status: "rejected", code: "durability-unavailable", route: null }),
 });
 const avfEvidenceCases = Object.freeze({
-  "AVF0-availability-provider-bind": Object.freeze({ status: "accepted", code: "availabilityBound", route: "research" }),
+  "AVF0-availability-provider-bind": Object.freeze({ status: "accepted", code: "availabilityBound", route: "current-design-evidence-gap" }),
   "AVF0-availability-raw-version": Object.freeze({ status: "rejected", code: "availabilityEvidenceNotAuthoritative", route: "rejected" }),
   "AVF0-runtime-typed": Object.freeze({ status: "accepted", code: "featureEvaluated", route: "composable" }),
   "AVF0-runtime-grant-capability": Object.freeze({ status: "rejected", code: "runtimeFeatureAuthorityRejected", route: "rejected" }),
 });
 const secEvidenceCases = Object.freeze({
-  "SEC0-profile-native": Object.freeze({ status: "accepted", code: "profileAdmitted", route: "research" }),
-  "SEC0-side-baseline": Object.freeze({ status: "accepted", code: "sideChannelBudgeted", route: "research" }),
-  "SEC0-patch-baseline": Object.freeze({ status: "accepted", code: "patchAttested", route: "research" }),
+  "SEC0-profile-native": Object.freeze({ status: "accepted", code: "profileAdmitted", route: "current-design-evidence-gap" }),
+  "SEC0-side-baseline": Object.freeze({ status: "accepted", code: "sideChannelBudgeted", route: "current-design-evidence-gap" }),
+  "SEC0-patch-baseline": Object.freeze({ status: "accepted", code: "patchAttested", route: "current-design-evidence-gap" }),
   "SEC0-supply-baseline": Object.freeze({ status: "accepted", code: "supplyChainAdmitted", route: "current" }),
   "SEC0-profile-receipt-issuer": Object.freeze({ status: "rejected", code: "protectionReceiptInvalid", route: "rejected" }),
   "SEC0-feature-echo": Object.freeze({ status: "rejected", code: "callerEchoRejected", route: "rejected" }),

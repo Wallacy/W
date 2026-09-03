@@ -5,25 +5,25 @@
     "package": {
       "path": "../reference/last-light/build.w",
       "symbol": "targetVariants: [\"native-terminal::posix\"]",
-      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
       "claim": "Resolution records package feature selection independently from runtime policy."
     },
     "availability": {
       "path": "../reference/last-light/billing.w",
       "symbol": "gatewayUnavailable",
-      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
+      "digest": "sha256:9ef053d4b7cb62958065ba6e663092fdb184d3986f96a2dce6324edadd0888ce",
       "claim": "The restaurant already needs an explicit unavailable path for a provider-backed operation."
     },
     "runtime": {
       "path": "../reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
+      "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5",
       "claim": "SnapshotCell is the current composition for atomic immutable configuration publication."
     },
     "composition": {
       "path": "../reference/last-light/billing.w",
       "symbol": "export service billing: BillingApi {",
-      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
+      "digest": "sha256:9ef053d4b7cb62958065ba6e663092fdb184d3986f96a2dce6324edadd0888ce",
       "claim": "The billing boundary composes provider availability, generation, effects, and fallback behavior."
     }
   },

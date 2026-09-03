@@ -1,4 +1,4 @@
-IPC1 Research witness: Ipc1MappedIpc immutable mapped snapshot.
+IPC1 current-design-evidence-gap witness: Ipc1MappedIpc immutable mapped snapshot.
 
 Pointer-free relative layout uses a validated header with magic, version,
 schema digest, layout digest, length, alignment, endian, and generation.

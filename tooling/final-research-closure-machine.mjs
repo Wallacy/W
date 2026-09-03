@@ -33,6 +33,28 @@ export const PFU0_SUPERSESSIONS = Object.freeze({
 // names as history while the current classification has no research residual.
 export const HISTORICAL_POST_SNAPSHOT_RESEARCH_GATES = Object.freeze(["W-1486", "W-1503"]);
 export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
+export const RESEARCH_STATE_INVENTORY_PATH = "tooling/research-state-inventory.json";
+export const RESEARCH_STATE_CATEGORIES = Object.freeze([
+  "historical",
+  "rejected",
+  "current-design-evidence-gap",
+  "future-reopen-candidate",
+]);
+export const RESEARCH_STATE_FAMILY_IDS = Object.freeze([
+  "raw-w218",
+  "drc0",
+  "avf0",
+  "sec0",
+  "ipc1",
+  "gen1",
+  "syn1",
+  "hrd0",
+  "dyn1",
+  "atom1-atom2",
+  "cyc1",
+  "brx2-brx3",
+  "w1504",
+]);
 export const DESIGN_ONLY_CLOSURES = Object.freeze({
   "W-1517": "oracle-backed-current",
   "W-1518": "oracle-backed-current",
@@ -131,6 +153,7 @@ export const MANIFEST_ARTIFACTS = Object.freeze({
   "freeze-checker": "tooling/check-design-freeze-audit.mjs",
   "study-checker": "tooling/check-study-bundles.mjs",
   classification: "tooling/design-freeze-classification.json",
+  "research-state-inventory": RESEARCH_STATE_INVENTORY_PATH,
   ledger: "RATIONALE.md",
   design: "DESIGN.md",
   index: "DESIGN-INDEX.md",
@@ -212,6 +235,74 @@ function readJson(relativePath, baseDirectory = repositoryRoot) {
   return JSON.parse(fs.readFileSync(file, "utf8"));
 }
 
+export function loadResearchStateInventory({ root = repositoryRoot } = {}) {
+  return readJson(RESEARCH_STATE_INVENTORY_PATH, path.resolve(root));
+}
+
+export function validateResearchStateInventory(inventory = loadResearchStateInventory()) {
+  const errors = [];
+  const topLevelKeys = ["$schema", "status", "id", "categories", "active", "families"];
+  if (!exactKeys(inventory, topLevelKeys)) errors.push("research-state inventory keys are invalid.");
+  if (inventory?.$schema !== "w-research-state-inventory-1" || !["normalization-in-progress", "authoritative-maintained-surface"].includes(inventory?.status) || inventory?.id !== "research-state-inventory") {
+    errors.push("research-state inventory identity is invalid.");
+  }
+  if (!same(inventory?.categories, RESEARCH_STATE_CATEGORIES)) errors.push("research-state inventory category vocabulary is invalid.");
+  if (!Array.isArray(inventory?.active) || inventory.active.length !== 0) errors.push("research-state inventory active must be exactly empty.");
+  const families = Array.isArray(inventory?.families) ? inventory.families : [];
+  const ids = families.map((family) => family?.id);
+  if (families.length !== RESEARCH_STATE_FAMILY_IDS.length) errors.push("research-state inventory family count is invalid.");
+  if (new Set(ids).size !== ids.length) errors.push("research-state inventory family IDs must be unique.");
+  if (!same([...ids].sort(), [...RESEARCH_STATE_FAMILY_IDS].sort())) errors.push("research-state inventory family IDs are not exhaustive.");
+  const normalizationPendingCount = families.filter((family) => family?.normalizationPending === true).length;
+  if (inventory?.status === "normalization-in-progress" && normalizationPendingCount === 0) errors.push("research-state inventory status must close when no family is pending.");
+  if (inventory?.status === "authoritative-maintained-surface" && normalizationPendingCount > 0) errors.push("research-state inventory cannot be authoritative while normalization is pending.");
+  const familyKeys = ["id", "category", "decisionRefs", "successorDecisions", "implementationGaps", "normalizationPending", "artifacts"];
+  const activeLookingCategories = new Set(["active", "open", "candidate", "research", "research-gated", "research/open"]);
+  for (const [index, family] of families.entries()) {
+    const location = `research-state inventory families[${index}]`;
+    if (!exactKeys(family, familyKeys)) {
+      errors.push(`${location} keys are invalid.`);
+      continue;
+    }
+    if (!RESEARCH_STATE_FAMILY_IDS.includes(family.id)) errors.push(`${location}.id is unknown.`);
+    if (!RESEARCH_STATE_CATEGORIES.includes(family.category)) errors.push(`${location}.category is outside the closed vocabulary.`);
+    if (activeLookingCategories.has(family.category)) errors.push(`${location}.category cannot masquerade as active research.`);
+    for (const field of ["decisionRefs", "successorDecisions", "implementationGaps"]) {
+      if (!Array.isArray(family[field]) || family[field].some((value) => typeof value !== "string" || !/^W-[0-9]{3,4}$/u.test(value))) {
+        errors.push(`${location}.${field} must contain W decision IDs.`);
+      }
+    }
+    const successorDecisions = Array.isArray(family.successorDecisions) ? family.successorDecisions : [];
+    const implementationGaps = Array.isArray(family.implementationGaps) ? family.implementationGaps : [];
+    if (family.category !== "rejected" && successorDecisions.length === 0 && implementationGaps.length === 0) {
+      errors.push(`${location} must name a successor decision or implementation gap.`);
+    }
+    if (typeof family.normalizationPending !== "boolean") errors.push(`${location}.normalizationPending must be boolean.`);
+    if (!Array.isArray(family.artifacts) || family.artifacts.length === 0) errors.push(`${location}.artifacts must be non-empty.`);
+    for (const artifact of family.artifacts ?? []) {
+      const file = resolveInside(artifact);
+      if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) errors.push(`${location} artifact path is missing or escapes: ${artifact}.`);
+    }
+  }
+  return errors;
+}
+
+export function researchStateInventoryFacts(inventory = loadResearchStateInventory()) {
+  const errors = validateResearchStateInventory(inventory);
+  const families = Array.isArray(inventory?.families) ? inventory.families : [];
+  const categoryCounts = Object.fromEntries(RESEARCH_STATE_CATEGORIES.map((category) => [category, families.filter((family) => family?.category === category).length]));
+  const normalizationPendingCount = families.filter((family) => family?.normalizationPending === true).length;
+  return {
+    valid: errors.length === 0,
+    active: Array.isArray(inventory?.active) ? inventory.active : [],
+    status: inventory?.status ?? null,
+    normalized: errors.length === 0 && normalizationPendingCount === 0 && inventory?.status === "authoritative-maintained-surface",
+    familyCount: families.length,
+    categoryCounts,
+    normalizationPendingCount,
+  };
+}
+
 function readJsonl(relativePath, baseDirectory = repositoryRoot) {
   const file = resolveInside(relativePath, baseDirectory);
   if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error(`missing:${relativePath}`);
@@ -277,6 +368,7 @@ function frontendFacts(state) {
 
 function classificationFacts(state) {
   const classification = state.classification;
+  const researchStateInventory = researchStateInventoryFacts(state.researchStateInventory);
   const entries = Array.isArray(classification.entries) ? classification.entries : [];
   const ids = entries.map((entry) => entry?.decisionId);
   const unique = new Set(ids);
@@ -322,7 +414,7 @@ function classificationFacts(state) {
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
     classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
-  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid &&
+  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid && researchStateInventory.valid &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
@@ -349,6 +441,7 @@ function classificationFacts(state) {
     designOnlyClosuresValid,
     targetCategories,
     ledgerDigestValid,
+    researchStateInventory,
   };
 }
 
@@ -392,6 +485,7 @@ export function loadState({ root = repositoryRoot } = {}) {
       snapshot: readJsonl("tooling/frontend-freeze.snapshot.jsonl", rootPath),
     },
     classification: readJson("tooling/design-freeze-classification.json", rootPath),
+    researchStateInventory: loadResearchStateInventory({ root: rootPath }),
     hum0: {
       protocol: readJson("tooling/hum0-human-review-protocol.json", rootPath),
       study: readJson("tooling/studies/hum0-human-review/study.json", rootPath),
@@ -527,6 +621,7 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
   let state;
   try {
     state = loadState();
+    errors.push(...validateResearchStateInventory(state.researchStateInventory));
   } catch (error) {
     errors.push(`FRC0 source state cannot load: ${error instanceof Error ? error.message : "unknown"}.`);
   }
@@ -706,6 +801,28 @@ export function mutationChecks() {
 
   checks.activeResearchResidualExact = classificationFacts(state).globalResearchExact &&
     classificationFacts(state).globalResearch.length === 0;
+
+  const injectedActiveState = clone(state.researchStateInventory);
+  injectedActiveState.active = ["W-9999"];
+  checks.researchInventoryInjectedActiveRejected = !researchStateInventoryFacts(injectedActiveState).valid;
+
+  const omittedFamily = clone(state.researchStateInventory);
+  omittedFamily.families.pop();
+  checks.researchInventoryOmittedFamilyRejected = !researchStateInventoryFacts(omittedFamily).valid;
+
+  const duplicateFamily = clone(state.researchStateInventory);
+  duplicateFamily.families.push(clone(duplicateFamily.families[0]));
+  checks.researchInventoryDuplicateFamilyRejected = !researchStateInventoryFacts(duplicateFamily).valid;
+
+  const invalidCategory = clone(state.researchStateInventory);
+  invalidCategory.families[0].category = "research-gated";
+  checks.researchInventoryInvalidCategoryRejected = !researchStateInventoryFacts(invalidCategory).valid;
+
+  const missingSuccessor = clone(state.researchStateInventory);
+  const successorFamily = missingSuccessor.families.find((family) => family.id === "w1504");
+  successorFamily.successorDecisions = [];
+  successorFamily.implementationGaps = [];
+  checks.researchInventoryMissingSuccessorRejected = !researchStateInventoryFacts(missingSuccessor).valid;
 
   const missingCase = clone(corpus);
   missingCase.cases.pop();

@@ -20,11 +20,11 @@ describe("AVF0 study oracle", () => {
     expect(validateAvf0StudyManifest(study, { studyDirectory, repositoryRoot })).toEqual([]);
     expect(study.routeMatrix.map(({ axis, disposition }) => [axis, disposition])).toEqual([
       ["package", "current"],
-      ["availability", "research"],
+      ["availability", "current-design-evidence-gap"],
       ["runtime", "composable"],
       ["composition", "composable"],
     ]);
-    expect(bundle.variants.find((entry) => entry.id === "availability-binding")).toMatchObject({ role: "research-candidate", disposition: "research-candidate" });
+    expect(bundle.variants.find((entry) => entry.id === "availability-binding")).toMatchObject({ role: "current-design-evidence-gap", disposition: "current-design-evidence-gap" });
   });
 
   test("does not let runtime policy become authority", () => {

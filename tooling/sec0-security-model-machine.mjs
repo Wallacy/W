@@ -326,7 +326,7 @@ function reduceProfileIsolation(operation) {
     digest(operation.hardeningReceipt, "profileIdentityInvalid", "hardeningReceipt");
     if (operation.semanticInterfaceKey !== operation.previousSemanticInterfaceKey) fail("physicalChangeMutatesSemanticInterface");
   }
-  return result("profileAdmitted", { profile: operation.profile, residualRisk: operation.residualRisk.length }, "research");
+  return result("profileAdmitted", { profile: operation.profile, residualRisk: operation.residualRisk.length }, "current-design-evidence-gap");
 }
 
 function reduceSideChannel(operation) {
@@ -342,7 +342,7 @@ function reduceSideChannel(operation) {
   nonEmpty(operation.timerSource, "sideChannelFactInvalid", "timerSource");
   bool(operation.universalClaim, "sideChannelFactInvalid", "universalClaim");
   if (operation.universalClaim) fail("universalSideChannelClaimRejected");
-  return result("sideChannelBudgeted", { residualRisk: operation.residualRisk.length }, "research");
+  return result("sideChannelBudgeted", { residualRisk: operation.residualRisk.length }, "current-design-evidence-gap");
 }
 
 function reduceFfiUnsafe(operation) {
@@ -392,7 +392,7 @@ function reducePatchAttestation(operation) {
     return event.kind;
   });
   if (actual.length !== expected.length || actual.some((kind, index) => kind !== expected[index])) fail("patchAttestationOrderInvalid", { expected, actual });
-  return result("patchAttested", { receipt: digestRecord("w.security-attestation/1", { target: operation.target, profile: operation.profile, events: operation.events }) }, "research");
+  return result("patchAttested", { receipt: digestRecord("w.security-attestation/1", { target: operation.target, profile: operation.profile, events: operation.events }) }, "current-design-evidence-gap");
 }
 
 function reduceIdentity(operation) {

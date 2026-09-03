@@ -79,7 +79,7 @@ const output = {
     profileCount: PROFILES.length,
     acceptedProfiles: new Set(profileCases.filter((result) => result.status === "accepted").map((result) => result.profile)).size,
     currentAccepted: results.filter((result) => result.status === "accepted" && result.route === "current").length,
-    researchAccepted: results.filter((result) => result.status === "accepted" && result.route === "research").length,
+    currentDesignEvidenceGapAccepted: results.filter((result) => result.status === "accepted" && result.route === "current-design-evidence-gap").length,
     authorityRejections: results.filter((result) => authorityCodes.has(result.code)).length,
     callerEchoRejections: results.filter((result) => result.code === "callerEchoRejected").length,
   },

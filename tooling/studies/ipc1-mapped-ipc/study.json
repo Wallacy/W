@@ -40,46 +40,46 @@
       "id": "mapped-immutable",
       "language": "w-reserved",
       "path": "mapped-immutable.txt",
-      "role": "research",
+      "role": "current-design-evidence-gap",
       "changedConstructs": [
         "relative layout",
         "validated generation"
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Hypothetical mapped surface remains reserved text."
+        "note": "Current design-gap surface remains reserved text."
       },
-      "digest": "sha256:817a541d5c4171f7852aa7d10698963f76298bb0470a1b7fc82bf9cd7937754a"
+      "digest": "sha256:2ed49aa18cb636bec5cec0a9e7abed9bc56f3625fdd9a35eddfd553f63804ee2"
     },
     {
       "id": "mapped-channel",
       "language": "w-reserved",
       "path": "mapped-channel.txt",
-      "role": "research",
+      "role": "current-design-evidence-gap",
       "changedConstructs": [
         "bounded wire carrier",
         "provider atomics"
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Hypothetical mapped surface remains reserved text."
+        "note": "Current design-gap surface remains reserved text."
       },
-      "digest": "sha256:a4f6bc15e2f3fe0efad1bd7f16f8e73f6a437b67e47cdbe2cc89961a14e755b5"
+      "digest": "sha256:a53af6d5cc01174a54ed720292341d5951117693aaa4eeb538eb62431e9c8ecb"
     },
     {
       "id": "provider-adapter",
       "language": "w-reserved",
       "path": "provider-adapter.txt",
-      "role": "research",
+      "role": "current-design-evidence-gap",
       "changedConstructs": [
         "unsafe adapter",
         "lease close"
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Hypothetical provider surface remains reserved text."
+        "note": "Current design-gap provider surface remains reserved text."
       },
-      "digest": "sha256:0c5e51f038a704cf91afbd2d98b7f277e9060048ca054fef422f5ab670a7de36"
+      "digest": "sha256:2fa7e76acbd38c64123750b2be08a47a5dd5e72369b6e97f6550c445f806e11d"
     },
     {
       "id": "reserved-native-pointer",
@@ -161,7 +161,7 @@
       "id": "readme",
       "role": "historical-research-note",
       "path": "tooling/studies/ipc1-mapped-ipc/README.md",
-      "digest": "sha256:ec326dd8534ef99f72a710659f22de19584e338f7d907c8b52eea13000c48b0c"
+      "digest": "sha256:e5542e36aa2ecfe2a1a05964d7b1a5056a03cc3c2a1318ce079520bc0c3ef36e"
     }
   ],
   "providerRefs": [
@@ -220,7 +220,7 @@
   ],
   "corpus": {
     "path": "../../ipc1-mapped-ipc-cases.json",
-    "digest": "sha256:dd64df1e5411065ee92849ace4e9eda378f8d1f595d586af8ce34e519799bd01"
+    "digest": "sha256:8219acc656c243a92491a9c7645ebaf1abf30b0def569d13ae0a4ef62a0d436d"
   },
   "oracle": {
     "path": "oracle.test.mjs",

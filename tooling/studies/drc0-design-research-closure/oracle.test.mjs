@@ -6,7 +6,8 @@ describe("DRC0 design research closure", () => {
     const result = deriveClosure(loadCorpus());
     expect(result.errors).toEqual([]);
     expect(result.researchGates).toEqual([]);
-    expect(result.activeResearchGates).toEqual(["W-1486", "W-1503"]);
+    expect(result.historicalPostSnapshotResearchGates).toEqual(["W-1486", "W-1503"]);
+    expect(result.activeResearchGates).toEqual([]);
     expect(result.historicalResearchZeroThrough).toBe("W-1459");
     expect(Object.values(result.studyFacts).every((study) => study.valid)).toBe(true);
     expect(result.studyFacts.SYNC1.facts).toMatchObject({
@@ -40,5 +41,11 @@ describe("DRC0 design research closure", () => {
     const forged = structuredClone(loadCorpus());
     forged.cases[1].result = "accepted";
     expect(deriveClosure(forged).errors.some((error) => error.includes("caller-owned"))).toBe(true);
+  });
+
+  test("rejects promotion of historical post-snapshot gates to active", () => {
+    const mutated = structuredClone(loadCorpus());
+    mutated.activeResearchGates = ["W-1486"];
+    expect(deriveClosure(mutated).errors.some((error) => error.includes("active research gate set"))).toBe(true);
   });
 });
