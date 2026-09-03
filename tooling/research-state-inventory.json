@@ -164,15 +164,22 @@
     },
     {
       "id": "dyn1",
-      "category": "current-design-evidence-gap",
+      "category": "historical",
       "decisionRefs": ["W-1392", "W-1393"],
       "successorDecisions": ["W-1398", "W-1399"],
       "implementationGaps": [],
-      "normalizationPending": true,
+      "normalizationPending": false,
       "artifacts": [
         "tooling/dyn1-versioned-behavior-cases.json",
         "tooling/dyn1-versioned-behavior-machine.mjs",
+        "tooling/dyn1-versioned-behavior-manifest.mjs",
+        "tooling/check-dyn1-versioned-behavior.mjs",
+        "tooling/dyn1-versioned-behavior-reference.test.mjs",
+        "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
         "tooling/studies/dyn1-versioned-behavior/study.json",
+        "tooling/studies/dyn1-versioned-behavior/bundle.json",
+        "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs",
+        "tooling/studies/dyn1-versioned-behavior/README.md",
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt"
       ]
     },

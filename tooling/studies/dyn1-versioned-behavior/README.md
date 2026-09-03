@@ -15,7 +15,7 @@ com callback vivo.
 | --- | --- | --- |
 | A | REPL, snapshots committed, invalidação de dependência e export canônico | Componível com `SessionSnapshot`, `SnapshotCell`, generations e receipts existentes |
 | B | plugin/service tipado, `SemanticInterfaceKey`, `WAbiKey`, `RuntimeClosureKey`, troca local/split e drain | Componível no escopo observado; os reducers local e split são independentes |
-| C | referência de generation que atravessa restart/deploy | Research estreito `DYN0-persistent-generation-reference`; só facts read-only e migration receipt |
+| C | referência de generation que atravessa restart/deploy | historical candidate `DYN0-persistent-generation-reference`; só facts read-only e migration receipt |
 | D | avaliação arbitrária, mutação de fonte/frame/debugger, autoridade por nome, native como sandbox e `dlclose` prematuro | Intencionalmente rejeitado |
 
 O corpus tem 70 casos; o snapshot deriva as contagens de rota/status e três
@@ -56,7 +56,7 @@ entre restart/deploy. Mesmo nessa pesquisa, o valor transporta somente digests e
 facts de interface; não transporta estado vivo. Isso não rebaixa DYN0 nem cria
 syntax. O manifesto liga o resultado CAP0 `DYN0-versioned-change` como
 Componível, com cases e snapshot por digest; os dois casos C usam o gate de
-Research separado e não promovem std/provider.
+historical candidate separado; W-1398/W-1399 são os sucessores atuais e não promovem std/provider.
 
 ## Limite de evidência
 
@@ -83,5 +83,5 @@ runtime, provider, isolamento real, stress, ergonomia humana e estudos de modelo
 continuam missing.
 
 HRD0 consome esta evidência para a decisão de runner dev-only. Ele não muda as
-rotas DYN1, a lacuna Research de referência persistente ou os mecanismos de
+rotas DYN1, a lacuna histórica de referência persistente ou os mecanismos de
 mutação dinâmica rejeitados.

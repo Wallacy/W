@@ -54,7 +54,7 @@ const output = {
     staleGenerationRejections: validation.results.reduce((total, result) => total + (result.staleRejections?.length ?? 0), 0),
     exportDigests: validation.results.filter((result) => result.exportDigest !== null).length,
     rejectedMechanisms: validation.results.filter((result) => result.route === "intentionally-rejected").length,
-    researchGapCases: validation.results.filter((result) => result.route === "research").length,
+    historicalCandidateCases: validation.results.filter((result) => result.route === "historical-candidate").length,
     degradedAfterSwitch: validation.results.filter((result) => result.status === "degraded").length,
     unknownCrashOutcomes: validation.results.filter((result) => result.crash?.decision === "unknown").length,
     nativeMappingRetained: validation.results.filter((result) => result.ffiRelease === "native-release-mapping-pinned").length,
@@ -79,6 +79,6 @@ process.stdout.write(
   `DYN1 versioned behavior: ${output.metrics.caseCount} cases, ` +
     `${output.metrics.pairedProjections} paired projections, ` +
     `${output.metrics.rejectedMechanisms} rejected mechanisms, ` +
-    `${output.metrics.researchGapCases} Research cases, ` +
+    `${output.metrics.historicalCandidateCases} historical candidate cases, ` +
     `${output.metrics.degradedAfterSwitch} degraded post-switch outcomes.\n`,
 );

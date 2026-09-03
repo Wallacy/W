@@ -2,6 +2,11 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-dyn1-versioned-behavior",
+  "researchState": "historical",
+  "successorDecisions": [
+    "W-1398",
+    "W-1399"
+  ],
   "title": "Versioned dynamic behavior at the Last Light restaurant",
   "r0Cases": [
     "R0-module-run-context",
@@ -94,11 +99,11 @@
     },
     {
       "id": "persistent-generation-reference",
-      "role": "research-candidate",
-      "disposition": "research-candidate",
+      "role": "current-design-evidence-gap",
+      "disposition": "historical-candidate",
       "language": "w-reserved",
       "path": "persistent-generation-reference.txt",
-      "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54",
+      "digest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2",
       "changedConstructs": [
         "bounded generation reference",
         "restart/deploy migration",
@@ -106,7 +111,7 @@
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Narrow Research text; no syntax or implementation."
+        "note": "Historical candidate text; no syntax or implementation evidence."
       }
     },
     {
@@ -217,7 +222,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a"
+    "digest": "sha256:92e5e734cde2306280334cdbd45819d1013b70c11fa9dbec2c68a36201f81270"
   },
   "evidence": {
     "current": [
