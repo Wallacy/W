@@ -66,8 +66,12 @@
 | `property-get` | `get => label` | `data-declarations` |
 | `protocol-default-extension` | `extension Directory` | `data-declarations` |
 | `property-set` | `set(value)` | `data-declarations` |
-| `property-get-ref` | `get ref => label` | `data-declarations` |
-| `property-get-mut-ref` | `get mut ref { return mut ref label }` | `data-declarations` |
+| `property-let-value` | `let summary: String` | `data-declarations` |
+| `property-let-ref` | `let labelView: ref String` | `data-declarations` |
+| `property-var-value` | `var replaceable: String` | `data-declarations` |
+| `property-var-ref` | `var replaceableView: ref String` | `data-declarations` |
+| `property-var-mut-ref` | `var title: mut ref String` | `data-declarations` |
+| `property-var-inout` | `var buffered: inout String` | `data-declarations` |
 | `pattern-enum` | `Signal.alert(level: let level)` | `patterns` |
 | `pattern-struct` | `Place(id, ...)` | `patterns` |
 | `pattern-inferred-struct` | `let { id: inferredId, ... } = place` | `patterns` |
@@ -123,18 +127,34 @@ import service atlas.catalog as catalog
 
 ```w
 export struct Place<ID> : Hashable {
-  id: ID
+  let id: ID
   var label: String = "square"
+
+  let summary: String { get => label }
+  let labelView: ref String { get => label }
+
+  var replaceable: String {
+    get => label
+    set(value) { label = value }
+  }
+
+  var replaceableView: ref String {
+    get => label
+    set(value) { label = value }
+  }
 
   init(id: ID, label: String) {
     self.id = id
     self.label = label
   }
 
-  var title: String {
+  var title: mut ref String {
     get => label
-    get ref => label
-    get mut ref { return mut ref label }
+    set(value) { label = value }
+  }
+
+  var buffered: inout String {
+    get => label
     set(value) { label = value }
   }
 
@@ -211,7 +231,7 @@ behavior Versioned<Value> for Value {
   var epoch: u64
 
   init() { epoch = 0 }
-  export mutationEpoch: u64 { get => epoch }
+  export let mutationEpoch: u64 { get => epoch }
   mut didSet(current: ref Value) { epoch += 1 }
 }
 
@@ -249,7 +269,7 @@ test "qualified facet path" for VersionedPlaceBox {
 
 ```w
 struct Matrix<Element, rows: usize, columns: usize> {
-  cells: [Element; rows]
+  let cells: [Element; rows]
 }
 
 type Tile = Matrix<u8, rows: 4, columns: 4>
@@ -510,7 +530,7 @@ fn directCall(_ values: Array<String>): String {
 }
 
 object CaptureBox {
-  value: String
+  let value: String
 }
 
 fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, _ sharedValue: shared CaptureBox): (String, String, String, String, String?) {
@@ -539,7 +559,7 @@ fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, 
 
 ```w
 struct AtlasLease {
-  target: String
+  let target: String
 }
 
 fn acquireLease(_ target: String): AtlasLease {

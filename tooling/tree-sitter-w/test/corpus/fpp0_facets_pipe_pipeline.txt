@@ -7,12 +7,11 @@ export behavior WrappedDegrees for u16 {
 
   init(initialValue: fn(): u16) { degrees = initialValue() % 360_u16 }
 
-  get { return degrees }
-  mut set(newValue) { degrees = newValue % 360_u16 }
-  get mut ref {
+  get {
     defer { degrees %= 360_u16 }
-    return mut ref degrees
+    return degrees
   }
+  mut set(newValue) { degrees = newValue % 360_u16 }
 
   export mut fn reset() {
     degrees = 0
@@ -26,7 +25,7 @@ export behavior Versioned<Value> for Value {
     epoch = 0
   }
 
-  export mutationEpoch: u64 {
+  export let mutationEpoch: u64 {
     get => epoch
   }
 
@@ -130,6 +129,12 @@ fn use(
       (behavior_accessor
         (behavior_accessor_kind)
         (block
+          (defer_statement
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number_literal)))))
           (return_statement
             (identifier))))
       (behavior_accessor
@@ -144,18 +149,6 @@ fn use(
               (binary_expression
                 (identifier)
                 (number_literal))))))
-      (behavior_accessor
-        (behavior_accessor_kind)
-        (block
-          (defer_statement
-            (block
-              (expression_statement
-                (assignment_expression
-                  (identifier)
-                  (number_literal)))))
-          (return_statement
-            (unary_expression
-              (identifier)))))
       (function_declaration
         (declaration_prefix)
         (identifier)
@@ -190,9 +183,10 @@ fn use(
                 (number_literal))))))
       (behavior_facet_property
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_accessor_body
           (get_accessor
             (accessor_implementation
@@ -241,12 +235,12 @@ fn use(
     (type_identifier)
     (type_body
       (field_declaration
-        (identifier))
-      (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (identifier)
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (number_literal))))
   (function_declaration
     (identifier)

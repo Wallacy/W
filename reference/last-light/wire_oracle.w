@@ -129,11 +129,11 @@ enum WireEligibility {
 }
 
 struct PortableOvenReady {
-  remaining: Duration
+  let remaining: Duration
 }
 
 struct LocalOvenReady {
-  deadline: Instant
+  let deadline: Instant
 }
 
 const fn expectedEligibility(for value: WireTypeCase): WireEligibility {
@@ -163,19 +163,19 @@ const fn unsignedWireBytes(for maximum: u64): u8 {
 const maximumWireMessageBytes: u64 = 4_294_967_295
 
 struct WireBudget {
-  receivedBytes: u64
-  logicalBytes: u64
-  nodes: u64
-  depth: u32
-  allocationBytes: u64
+  let receivedBytes: u64
+  let logicalBytes: u64
+  let nodes: u64
+  let depth: u32
+  let allocationBytes: u64
 }
 
 struct WireLimits {
-  maximumReceivedBytes: u64
-  maximumLogicalBytes: u64
-  maximumNodes: u64
-  maximumDepth: u32
-  maximumAllocationBytes: u64
+  let maximumReceivedBytes: u64
+  let maximumLogicalBytes: u64
+  let maximumNodes: u64
+  let maximumDepth: u32
+  let maximumAllocationBytes: u64
 }
 
 const fn budgetFits(

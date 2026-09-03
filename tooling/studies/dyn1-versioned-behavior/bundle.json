@@ -11,13 +11,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/repl_session_oracle.w",
     "symbol": "SessionSnapshot",
-    "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666"
+    "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/repl_session_oracle.w",
       "symbol": "GenerationReceipt",
-      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666"
+      "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
@@ -27,7 +27,7 @@
     {
       "path": "../../../reference/last-light/liveness_oracle.w",
       "symbol": "CommitGate",
-      "digest": "sha256:7204a9fe49de311781c43eba4d08f0d41d151a8fc065e29242fcd84e1f8214a9"
+      "digest": "sha256:7eed46303204a25deabf45b2261d09a74f14b058840f004dae0efe5f3d6c2fcf"
     },
     {
       "path": "../../../reference/last-light/build.w",
@@ -47,7 +47,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "repl-snapshot.w",
-      "digest": "sha256:6647f6dfcc3d599c35b5978dd9d225aec04f535849984b0566495add94dd74db",
+      "digest": "sha256:74f64eabd2fb7f2acb8d722647ed3342c40fce449b2e22e98e8464ef37101a6d",
       "changedConstructs": [
         "committed snapshots",
         "generation invalidation",
@@ -64,7 +64,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "typed-service-plugin.w",
-      "digest": "sha256:7e597b8519de6d16d37202cdec6acd873e0b8f764e1878c0178f40b72ff7fdba",
+      "digest": "sha256:75696bf19b494634a290cb38733689eabf3d40b7fd9c3b8ce42d4886a520443e",
       "changedConstructs": [
         "typed interface identity",
         "WAbi identity",
@@ -81,7 +81,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "split-service-plugin.w",
-      "digest": "sha256:337ab562a99515db1d1d018ccc6e592b64b03890d728afd39370680f0ac0de6b",
+      "digest": "sha256:ad20d0a88f47e9705d6806d6ef5b2c663e0a4703eba9e42d3562841f5ac951ca",
       "changedConstructs": [
         "split service projection",
         "atomic switch",

@@ -94,7 +94,7 @@ describe("R1 static contract slot host oracle", () => {
     }
   });
 
-  test("named labels reorder within a segment while positional anchors stay ordered", () => {
+  test("named labels reorder globally while positional slots stay ordered", () => {
     const input = inputs[0];
     expect(swappedSameTypeSlots(input, "named")).toEqual({
       accepted: true,

@@ -118,10 +118,10 @@ enum CleanupMaskPhase {
 }
 
 struct CleanupNodeState {
-  active: Bool
-  incomingCancellationRecorded: Bool
-  localCancellationAllowed: Bool
-  mask: CleanupMaskPhase
+  let active: Bool
+  let incomingCancellationRecorded: Bool
+  let localCancellationAllowed: Bool
+  let mask: CleanupMaskPhase
 }
 
 const fn cleanupNodeMayContinue(node: CleanupNodeState): Bool {
@@ -131,13 +131,13 @@ const fn cleanupNodeMayContinue(node: CleanupNodeState): Bool {
 }
 
 struct CommitGate {
-  outcomeCandidate: Bool
-  admissionClosed: Bool
-  childrenDrained: Bool
-  waitsDrained: Bool
-  cleanupComplete: Bool
-  typedDropsComplete: Bool
-  runtimeQuiescent: Bool
+  let outcomeCandidate: Bool
+  let admissionClosed: Bool
+  let childrenDrained: Bool
+  let waitsDrained: Bool
+  let cleanupComplete: Bool
+  let typedDropsComplete: Bool
+  let runtimeQuiescent: Bool
 }
 
 const fn canCommitOutcome(gate: CommitGate): Bool {
@@ -151,14 +151,14 @@ const fn canCommitOutcome(gate: CommitGate): Bool {
 }
 
 struct FrameReclaimGate {
-  closureQuiescent: Bool
-  outcomeMoved: Bool
-  zeroChildren: Bool
-  zeroRegistrations: Bool
-  zeroQueueTickets: Bool
-  zeroTimers: Bool
-  zeroWakers: Bool
-  zeroRuntimeRefs: Bool
+  let closureQuiescent: Bool
+  let outcomeMoved: Bool
+  let zeroChildren: Bool
+  let zeroRegistrations: Bool
+  let zeroQueueTickets: Bool
+  let zeroTimers: Bool
+  let zeroWakers: Bool
+  let zeroRuntimeRefs: Bool
 }
 
 enum FrameReclaimPhase {

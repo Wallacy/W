@@ -4,7 +4,7 @@
   "id": "R1C0",
   "closureBundle": {
     "path": "tooling/studies/r1c0-closure/bundle.json",
-    "digest": "sha256:9b51092d38f5f9b34b8cbef7a77e759063653be6949b0a87ecd95feab80c3e74"
+    "digest": "sha256:37eab36e7552bb3355fbc1b50b239248052be38f4da834ad164278bf71a84d1d"
   },
   "corpus": {
     "path": "tooling/r1c0-closure-cases.json",
@@ -20,12 +20,12 @@
   },
   "study": {
     "path": "tooling/studies/r1c0-closure/study.json",
-    "digest": "sha256:39fefab54ab57cc4ab58844a4a95e31ba81a2f182a25b34e202d26c9e3265cd3"
+    "digest": "sha256:1725a47d50002b4b7775b4a882a918fb33a1a97a6cbb72a4ca280b7c48f60d2c"
   },
   "wlo1": {
     "manifest": {
       "path": "tooling/studies/r1c0-closure/wlo1-manifest.json",
-      "digest": "sha256:35ad0b2db965db09b5941dcf359b8468909b2668bab2d84674eef5488a1e8a11"
+      "digest": "sha256:1a99e4ffc3959d99ab11984bed808c477ac169aa3c1982ecdb507dfcaaf7ff06"
     },
     "corpus": {
       "path": "tooling/wlo1-closure-cases.json",
@@ -126,42 +126,42 @@
     {
       "id": "R1-allocator-runtime-slot",
       "path": "tooling/studies/r1-allocator-runtime-slot/bundle.json",
-      "digest": "sha256:873a408a2aa236b7426a9fed30e958c04f12e43416443548c36c758030b14ff9"
+      "digest": "sha256:b0e8c40d009a50dd124f8936d2804559e737a3a500630fef62bf40c099cbb54b"
     },
     {
       "id": "R1-arena-scope",
       "path": "tooling/studies/r1-arena-scope/bundle.json",
-      "digest": "sha256:822b6d98029a7f0ae66bbe0f33e465bc9206f24a2e19a193daeab252b40d3089"
+      "digest": "sha256:d3cdae71028914a195b666faae86b774e28d2dc75b641d13e5b77881033355ab"
     },
     {
       "id": "R1-assignment-unit",
       "path": "tooling/studies/r1-assignment-unit/bundle.json",
-      "digest": "sha256:813aee7a194e843f4508aeeb54bfd491fb16ce478f3b3c7bbed86859493aa97f"
+      "digest": "sha256:fd431f5365a67d04a34d5c1bf3036359597d4ef2c574aa15e76675553d6f2f82"
     },
     {
       "id": "R1-associated-members",
       "path": "tooling/studies/r1-associated-members/bundle.json",
-      "digest": "sha256:e9454f00c6a96d6a5c65a359535c522ab6c58b792689d8514b08d5758e60874e"
+      "digest": "sha256:2a71a839f0a21a7b287d6bc8d028cc7462a25b6826cc885946f183959fb083da"
     },
     {
       "id": "R1-atom2-atomic-contract",
       "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-      "digest": "sha256:26019147ffd8b3145f2fda1bc66e8c43ad833300632560ee382921ee75396d0b"
+      "digest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11"
     },
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:8a9fe83873c0558e8e5c8b76bafbdc60ef8895b31f6ef12026163b13fab3a6ba"
+      "digest": "sha256:448082d61c1263fb549aa5815976ae9f26eeac1e67319ace146eb0607e389d33"
     },
     {
       "id": "R1-borrow-expressivity",
       "path": "tooling/studies/r1-borrow-expressivity/bundle.json",
-      "digest": "sha256:ac260eee053cf75c4b0a3ce537c544e682271f80333c1c005b79ef18310909e0"
+      "digest": "sha256:94e81f3899da15e9968978487f9a7ac31e3d1d33944917d58f693effd2419553"
     },
     {
       "id": "R1-brx2-borrow-relations",
       "path": "tooling/studies/brx2-borrow-relations/bundle.json",
-      "digest": "sha256:ba14a16b1655ac05538580d68ec7b624eb88a60b7d4306a82dff22f043978c7c"
+      "digest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00"
     },
     {
       "id": "R1-brx3-borrow-relations",
@@ -171,42 +171,42 @@
     {
       "id": "R1-call-label-order",
       "path": "tooling/studies/r1-call-label-order/bundle.json",
-      "digest": "sha256:faa66626f5aa02cc8ddfe254771d7b1f633f384e747da812be31244952764b60"
+      "digest": "sha256:0f3fde4b5df7bd27eaf22e3d0e125be8acccc62ca1d6ee93cc34e8778217c847"
     },
     {
       "id": "R1-callable-model-last-light",
       "path": "tooling/studies/r1-callable-model/bundle.json",
-      "digest": "sha256:c865e2e0bdda5a7ec163f2885085c772fab8de963c13d492650e93eda56a46ee"
+      "digest": "sha256:6dbf7261cc268747fa19810b2bd3d3d077698322d25c31d9751911a84fd4e731"
     },
     {
       "id": "R1-callable-property-surface",
       "path": "tooling/studies/r1-callable-property-surface/bundle.json",
-      "digest": "sha256:815aa92af4508f39db5e0461501b6614a70c5a2e9c54309c6feab6bd1e289c1c"
+      "digest": "sha256:f74282b3461bb91039e80bb96c9587a5abec12d759b37435f5331e4bf2960864"
     },
     {
       "id": "R1-conditional-value-block",
       "path": "tooling/studies/r1-conditional-value-block/bundle.json",
-      "digest": "sha256:c38ea5f10bdfbad4da1f7a221235a3a1d028a7708231467d38544bf71f0f5564"
+      "digest": "sha256:51766cf4d2db2c9b9d1641b6bfbfb5c4c188f95e7f3ddb1d8c83485663299807"
     },
     {
       "id": "R1-consuming-receiver-last-light",
       "path": "tooling/studies/r1-consuming-receiver/bundle.json",
-      "digest": "sha256:b5f90fecbef57065cb5f54e36929c509640d7b1cb9f44bc484f56772995ea409"
+      "digest": "sha256:7021115252cd86b21807f132d31c5895580038f0e53431708a74102f6a6074a9"
     },
     {
       "id": "R1-contract-envelopes-last-light",
       "path": "tooling/studies/r1-contract-envelopes/bundle.json",
-      "digest": "sha256:3df7c53230f5579570776e961a5ffb9b7a9fd361a31682bdc844632bf3d1d388"
+      "digest": "sha256:b089c5f788eefe15963f1d4efdebafad4d02bf32a401e4af06e4a984161238ea"
     },
     {
       "id": "R1-control-flow-last-light",
       "path": "tooling/studies/r1-control-flow/bundle.json",
-      "digest": "sha256:178bb5dad74e82dc45476b6b3c03626b598764122af6a6e3fe557a19d132d4e8"
+      "digest": "sha256:d9a85a5f1aa4ff9325dd4e41552b516fd0186684b0d360898d5f00606fc2f37a"
     },
     {
       "id": "R1-cyc1-explicit-cycle-lifecycle",
       "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-      "digest": "sha256:f22d01abd2bca2f87f6943b62c2762d7f2712192202830e1145aadd948a41fc3"
+      "digest": "sha256:5a112a758e76b6f0779851ccc5735a902feaf3a3dae58d79dcc86f194eb5c368"
     },
     {
       "id": "R1-cyc2-conditional-liveness",
@@ -216,52 +216,52 @@
     {
       "id": "R1-data-declaration-surface",
       "path": "tooling/studies/r1-data-declaration-surface/bundle.json",
-      "digest": "sha256:1487dff4de0fba2cadaaedcc86fa124dbfd3615c380386f13e7d09fbced7ba61"
+      "digest": "sha256:af3bee0cf860026af7dee4cecc7512404185db7122cb985c24b1ca68a227debd"
     },
     {
       "id": "R1-delimited-value-surface",
       "path": "tooling/studies/r1-delimited-value-surface/bundle.json",
-      "digest": "sha256:88038304e6cd895fb5d24f9214c7bcee7f21c680e7f38be61e57fd284642abd1"
+      "digest": "sha256:e5588c645c907c93b3a10ad283fa3dade2fec509402425f580ce435dfad77508"
     },
     {
       "id": "R1-dyn1-versioned-behavior",
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
-      "digest": "sha256:c2061d6863145313eb164a6a1c941f8b52fe66d6032924a0ddecb48b1322e339"
+      "digest": "sha256:df1e16aca45f69d0998c43065c672a69d33124c6328d8ccf14e4cb8e2900ee1b"
     },
     {
       "id": "R1-end-relative-access",
       "path": "tooling/studies/r1-end-relative-access/bundle.json",
-      "digest": "sha256:09927361b7d792ec98719a9ea83017596f51bba3f2f13bd1c0d2ab9f0ac7fdfb"
+      "digest": "sha256:1db26f744c40a5f12363fa4c6b92776855a2a73883a2ee21a0d1453eeff2ab24"
     },
     {
       "id": "R1-fail-fast-last-light",
       "path": "tooling/studies/r1-fail-fast/bundle.json",
-      "digest": "sha256:50bc6d7f540e167440e3a95b10fe25886e2b03640716503bd61b9dffa84a2e34"
+      "digest": "sha256:6a5df53556d964e45bfe94d78f8db6f91a364f4842a0cc1644f5780452561083"
     },
     {
       "id": "R1-fluent-self",
       "path": "tooling/studies/r1-fluent-self/bundle.json",
-      "digest": "sha256:7dbae6b9eee7767b5e08906ba8bb2a7436b5c70f076044d794baec020e4c8ef1"
+      "digest": "sha256:5aece53186441b1393b79bf336b1a7e1c57f3827b8ea0ad551c64c1b1c3f5112"
     },
     {
       "id": "R1-gen1-incremental-suspension",
       "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-      "digest": "sha256:e3cb4e5e23cb21a3ef1968588df7d05361bf6a899614d948407d823ddac7dc6e"
+      "digest": "sha256:32296fcda88a0558a64d8b85292b4c910ea07564c3a291139af04f2ee173ab03"
     },
     {
       "id": "R1-gen2-stream-yield",
       "path": "tooling/studies/gen2-stream-yield/bundle.json",
-      "digest": "sha256:4b5a1ce0f0d706dfa65f45a69489823d60ae86ec3438f6d98db221eb45d3bf44"
+      "digest": "sha256:87eb261c383836be0a95295fac76674144608fba638a7b17d9e0eeb05e4d9934"
     },
     {
       "id": "R1-hrd0-hot-reload-dev",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "digest": "sha256:e94496892a3a442af8104ca2851fd0ffebf9f0113f670e456b265a7be6c2b288"
+      "digest": "sha256:fb0e3404559675887c6866063b4cc4748ea19aad6d95024398bb9b633fc07705"
     },
     {
       "id": "R1-imports-last-light",
       "path": "tooling/studies/r1-imports/bundle.json",
-      "digest": "sha256:b9ccceeb297b36a666787b02e25f53a258f4137f602112d2c65fe9057b252501"
+      "digest": "sha256:a3040886113680300ad17026928b6cc364c002c6d9605e2c3d8e1ca268e5c2f3"
     },
     {
       "id": "R1-manifest-surface",
@@ -271,12 +271,12 @@
     {
       "id": "R1-multiple-initializers",
       "path": "tooling/studies/r1-multiple-initializers/bundle.json",
-      "digest": "sha256:e678cf883ccbf48855abe3c2c13ddffcf8fa8e114801f4fb8e44f8d3134b7d45"
+      "digest": "sha256:93a4e30163998fd586665604e41725d05e463a2dcaada385b090dee7da039cf5"
     },
     {
       "id": "R1-pattern-surface",
       "path": "tooling/studies/r1-pattern-surface/bundle.json",
-      "digest": "sha256:ba45b3cf9601e2a46f3f4fa3d7745365050fe361c066a89ce2875085de53e408"
+      "digest": "sha256:75b160e77dce93dc32ad8360eab0657866d54efa6ddedf2373c131e2bce45c0b"
     },
     {
       "id": "R1-pkg1-project-transaction",
@@ -296,27 +296,27 @@
     {
       "id": "R1-python-transform",
       "path": "tooling/studies/r1-python-transform/bundle.json",
-      "digest": "sha256:5a43f206898002870e446de0f1ef8fc9ea17ded622bdff920293c35dea691ed4"
+      "digest": "sha256:7e3c857ed1a2895339da30e0e65d95702040d28828cb2982f402aa7256d8d06d"
     },
     {
       "id": "R1-refinement-subject",
       "path": "tooling/studies/r1-refinement-subject/bundle.json",
-      "digest": "sha256:820f090d4f5d34efe93d832c5228e8be75b86f4ed70bdce3f614c72aebb59437"
+      "digest": "sha256:f9e35b7fcb1fadcae23c7654c62efab0a4f1a6b75360ecb51d887610bf15ff71"
     },
     {
       "id": "R1-sec0-security-model",
       "path": "tooling/studies/sec0-security-model/bundle.json",
-      "digest": "sha256:9025842a24ea166ac85e5717870304f0ca3d92da66eae8c39bd6209f3a11bda6"
+      "digest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0"
     },
     {
       "id": "R1-shared-construction",
       "path": "tooling/studies/r1-shared-construction/bundle.json",
-      "digest": "sha256:a4965b7d437693094ed587363b76314a3ed477f04f44fc50cc501f78dfd043be"
+      "digest": "sha256:e11c36bc358aba70e333b66eaf7d8f8a69e9c1e0848bc034bff5f4cca5092cbc"
     },
     {
       "id": "R1-source-boundaries",
       "path": "tooling/studies/r1-source-boundaries/bundle.json",
-      "digest": "sha256:b788093a0066ee5f3d720c42afb6685a430e6450b18be21a3feb95502db8be9c"
+      "digest": "sha256:fd8d26025f23d13a57fd6e6a0b143158c778841e5633419e2be368f414148fcf"
     },
     {
       "id": "R1-source-phase-surface",
@@ -326,57 +326,57 @@
     {
       "id": "R1-spawn-domain-last-light",
       "path": "tooling/studies/r1-spawn-domain/bundle.json",
-      "digest": "sha256:0d0d668ca684db2cfc06bb6989f8853ca0bb36458dfc2bbf66155e67514f599b"
+      "digest": "sha256:6b9e3489ffbe9a839315bd00d3f2488fd1e2f6677de9515f26341c8de4949ae3"
     },
     {
       "id": "R1-static-contract-slots",
       "path": "tooling/studies/r1-static-contract-slots/bundle.json",
-      "digest": "sha256:ae19c11ed7a97c1d206ebd43500728a159e23767086dfa636e7d13bb16c0630f"
+      "digest": "sha256:480508a5b9e4e05267a1c3885f0680838887f669b6ec8e947958d2bc68b38eb4"
     },
     {
       "id": "R1-static-contract-syntax",
       "path": "tooling/studies/r1-static-contract-syntax/bundle.json",
-      "digest": "sha256:7b24a8499f8356110ddfae8c30f77ba5e49f836f09c0906efbf57dc09cc6d0c4"
+      "digest": "sha256:6b679191b62b384ec768b4f253ee21556e552ff132ce25e88aace9714ac7c4c7"
     },
     {
       "id": "R1-suspend-accounting-names",
       "path": "tooling/studies/r1-suspend-accounting-names/bundle.json",
-      "digest": "sha256:982f1f2aec7b414f91aaf62dc7607250c89e43f7f2966d5d7dec8526dafb2afb"
+      "digest": "sha256:051873d77692fd3ac5306c234c15c2f9272c79257132ec0dc833ac55d9c3afad"
     },
     {
       "id": "R1-syn2-dyn2-closure",
       "path": "tooling/studies/syn2-dyn2-closure/bundle.json",
-      "digest": "sha256:d3439f73fbf65902e741fdcc192f1afeed5008cddbf3b1355d6c51b343176523"
+      "digest": "sha256:36bca5425938b4ffa672f933674d37d8f1eae826919cea502b8e35d6830b5f51"
     },
     {
       "id": "R1-tabular-adapters",
       "path": "tooling/studies/r1-tabular-adapters/bundle.json",
-      "digest": "sha256:c9d3d56d41ca3153eb243627b139411f57f29a45abbc58facea304f6614e4d0e"
+      "digest": "sha256:6c9b0b7c84d8243bfbd7ff28011de734f218859d9764d434bfd3b5a4a1db19cb"
     },
     {
       "id": "R1-tabular-carrier",
       "path": "tooling/studies/r1-tabular-carrier/bundle.json",
-      "digest": "sha256:d6ef3bb827150cabdaaa46a3c02caceaa73369be5a6a94f48a43e94ba2f2b152"
+      "digest": "sha256:7536a00ebfc3d51299a0d3ae5bac00b64a879945de3ddd223a81018fa5a63d0e"
     },
     {
       "id": "R1-tensor-broadcast",
       "path": "tooling/studies/r1-tensor-broadcast/bundle.json",
-      "digest": "sha256:5fe39011ce07ff3c5fb6d35e9526436047e26bfc0582db77169b51cb6fa86118"
+      "digest": "sha256:b5c893b3b35738527edc5205c69bd97518672c8dab81eea34ada6d4050133190"
     },
     {
       "id": "R1-tuple-unpacking",
       "path": "tooling/studies/r1-tuple-unpacking/bundle.json",
-      "digest": "sha256:fbd61a3c914bf8bfa5ab5503b92542f6f8cd506e0a931a56315d67b51d0c9f21"
+      "digest": "sha256:043850bda54346878bbc8cfc89618e28963d3b696d0499755cc291a7a17ad08d"
     },
     {
       "id": "R1-units-last-light",
       "path": "tooling/studies/r1-units/bundle.json",
-      "digest": "sha256:fd53d432c870bb58a2ec67dd027b3a0c9dfa96a5f3404113ab65e90705cd3dbf"
+      "digest": "sha256:5ca0e60ab8264c02bdee5cec24a8e9514c9856f5a9b4912b50b4385d46f4a37d"
     },
     {
       "id": "R1-weak-owner-acquisition",
       "path": "tooling/studies/r1-weak-owner-acquisition/bundle.json",
-      "digest": "sha256:e77c978af023aae15d9378fcdaa84b03718aba02be0a46c3c610369044367cc1"
+      "digest": "sha256:510e8635da9b21bfba694a31c0a27b5c5217d0b3b4d304c49be1c1ce26cb3be6"
     }
   ],
   "reusedArtifacts": [
@@ -456,25 +456,25 @@
       "id": "execution-ergonomics",
       "role": "execution",
       "path": "tooling/execution-ergonomics-cases.json",
-      "digest": "sha256:fd2fbbc5f40f2f24977c7076350ee78ecea68d75e8baec8a8eeacc3c901fe027"
+      "digest": "sha256:a821673192302a07197d895923728736d896044243ae8c57f28a4feca5e9ee97"
     },
     {
       "id": "execution-ergonomics-machine",
       "role": "execution",
       "path": "tooling/execution-ergonomics-machine.mjs",
-      "digest": "sha256:d3250a4316aed81c430164e452d13fbb3ce8e12a9b5ac303b6354ca94b5ddc95"
+      "digest": "sha256:22f71f44c351986f4148dc05b95ff82bb41f7839d553726d7fc396a317ba4d96"
     },
     {
       "id": "execution-ergonomics-checker",
       "role": "execution",
       "path": "tooling/check-execution-ergonomics-cases.mjs",
-      "digest": "sha256:3fd48d03026f37cf7018bfada6bb4fefed9aea7556e0fefb37f1f0300b4fb1f9"
+      "digest": "sha256:751f5fb86904a829e66ad41efb9ba8722579fc997f8d27fcc3a8e9a088495093"
     },
     {
       "id": "execution-ergonomics-snapshot",
       "role": "execution",
       "path": "tooling/execution-ergonomics-results.snapshot.jsonl",
-      "digest": "sha256:527b251dd6a95e474d82694828171d18eb3897f3fb0685f67349411729311b2b"
+      "digest": "sha256:64eb6bd491f957699e9825f5a009b83576b675a271bfcf84e8df4a06eaff6ccd"
     }
   ],
   "evidence": {

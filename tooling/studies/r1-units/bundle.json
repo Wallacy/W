@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "angle.w",
-      "digest": "sha256:9438716d284c985ff976b1013ec71e113448418cdf87aecb793486f501887da3",
+      "digest": "sha256:93c69a974a1341dbd6bde36c24b3fbf5d47684622ee22640784b25e45b667860",
       "changedConstructs": [
         "quantity literal with angle delimiter",
         "unit expression context"
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "square.w",
-      "digest": "sha256:328a1c9509aaf14687afbc2ce444b183e18824df3fd07cefb23a887a2a2d26dd",
+      "digest": "sha256:38bf3ad6f93f9ac1a33de0ba73aa84c5f2d620cc30360cd8daf8470441a2dda3",
       "changedConstructs": [
         "quantity literal with square delimiter",
         "index-like unit expression"

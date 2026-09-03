@@ -14,15 +14,15 @@ export enum TelemetryError: Error {
 }
 
 export struct MenuCourse {
-  title: String
-  allergens: Array<String>
-  supplierContract: String
+  let title: String
+  let allergens: Array<String>
+  let supplierContract: String
 }
 
 // A nominal borrowed projection selects data. It is not `view MenuCourse`.
 export struct PublicCourse {
-  title: ref String
-  allergens: view Array<String>
+  let title: ref String
+  let allergens: view Array<String>
 }
 
 export fn publicCourse(course: ref MenuCourse): PublicCourse {

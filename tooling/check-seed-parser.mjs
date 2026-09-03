@@ -1374,7 +1374,7 @@ async function main() {
     const callablesPath = resolve(root, "reference", "last-light", "callables.w")
     const callablesSource = await Bun.file(callablesPath).bytes()
     const callablesDigest = createHash("sha256").update(callablesSource).digest("hex")
-    if (callablesDigest !== "00357e941c038cdebdebfbf12f12a0e327f6899765946b81c77680b4c0b7a154") {
+    if (callablesDigest !== "299fc28e2593a8cbcb5231f94636b25967a317fb3ef226e368c5c3468fc96200") {
       fail(`callables.w source digest changed: ${callablesDigest}`)
     }
     const callablesFull = invoke(probe, callablesSource, "callables.w:full", "complete")
@@ -1406,7 +1406,7 @@ async function main() {
 
     const handCases = [
       ["nested-generic-and-shift", Buffer.from("fn f(x:Array<Array<u8>>):Array<Array<u8>>{return flags >> 2}\n"), "complete"],
-      ["generic-declarations", Buffer.from("struct Box<_ state:State>{value:state}\nfn id<T:Order>(value:T):T{return value}\ntype Alias<T:Order> = Array<T>\nalias Legacy<U> = Array<Array<u8>>\n"), "complete"],
+      ["generic-declarations", Buffer.from("struct Box<_ state:State>{let value:state}\nfn id<T:Order>(value:T):T{return value}\ntype Alias<T:Order> = Array<T>\nalias Legacy<U> = Array<Array<u8>>\n"), "complete"],
       ["contract-static-forms", Buffer.from("type A=Base<Widget><.ready><state:.ready><(count<=4)><[.a,.b]>\n"), "complete"],
       ["switch-three-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\" case .b:\"B\" case .c:\"C\"}}\n"), "complete"],
       ["switch-semicolon-arms", Buffer.from("fn f(stage:Stage):String{return switch stage{case .a:\"A\";case .b:\"B\";case .c:\"C\";}}\n"), "complete"],

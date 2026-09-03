@@ -8502,7 +8502,11 @@ static bool normalize_struct(frontend_context *context, uint32_t node_index,
       (void)memset(&field, 0, sizeof(field));
       field.module_index = (uint32_t)context->module_index;
       field.owner_struct = *struct_index;
-      field.name = first_word_in_span(doc, doc->nodes[child].raw_span);
+      field.name = span_has_keyword(doc, doc->nodes[child].raw_span, "let")
+                       ? name_after_keyword(doc, doc->nodes[child].raw_span,
+                                            "let")
+                       : name_after_keyword(doc, doc->nodes[child].raw_span,
+                                            "var");
       field.span = doc->nodes[child].raw_span;
       field.type_index = W_SEED_FRONTEND_NONE;
       const uint32_t type_node = direct_type_index(doc, child);

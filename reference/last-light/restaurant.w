@@ -53,15 +53,15 @@ enum RestaurantError: Error {
 }
 
 struct OrderSummary {
-  orderId: OrderId
-  stage: ServiceStage
-  total: Money?
+  let orderId: OrderId
+  let stage: ServiceStage
+  let total: Money?
 }
 
 struct RestaurantSnapshot {
-  orders: Array<OrderSummary>
-  activeOrders: u32
-  completedOrders: u64
+  let orders: Array<OrderSummary>
+  let activeOrders: u32
+  let completedOrders: u64
 }
 
 protocol RestaurantApi {

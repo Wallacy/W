@@ -15,13 +15,13 @@ export type BindingId = String
 
 // W-1246: consent is bound to one session state and one drain closure.
 export struct DrainConfirmation {
-  token: String
-  sessionId: SessionId
-  incarnation: SessionIncarnation
-  generation: GenerationId
-  closureDigest: String
-  action: String
-  deadlineNanos: u64
+  let token: String
+  let sessionId: SessionId
+  let incarnation: SessionIncarnation
+  let generation: GenerationId
+  let closureDigest: String
+  let action: String
+  let deadlineNanos: u64
 }
 
 // W-1247: a session exports receipts, never a restorable live heap.
@@ -80,64 +80,64 @@ export enum SubmissionPhase {
 }
 
 export struct GenerationReceipt {
-  ordinal: ExecutionOrdinal
-  generationBase: GenerationId
-  generationFinal: GenerationId
-  outcome: ReplOutcome
+  let ordinal: ExecutionOrdinal
+  let generationBase: GenerationId
+  let generationFinal: GenerationId
+  let outcome: ReplOutcome
 }
 
 export struct BindingVersion {
-  bindingId: BindingId
-  name: String
-  version: u64
-  createdGeneration: GenerationId
-  createdIncarnation: SessionIncarnation
+  let bindingId: BindingId
+  let name: String
+  let version: u64
+  let createdGeneration: GenerationId
+  let createdIncarnation: SessionIncarnation
 }
 
 export struct HardEdge {
-  kind: DependencyKind
-  from: BindingId
-  to: BindingId
-  version: u64
+  let kind: DependencyKind
+  let from: BindingId
+  let to: BindingId
+  let version: u64
 }
 
 export struct SoftProvenance {
-  from: BindingId
-  to: BindingId
-  relation: String
+  let from: BindingId
+  let to: BindingId
+  let relation: String
 }
 
 export struct ResourceEvent {
-  resource: String
-  owner: OwnerState
-  providerState: String
-  confirmation: DrainConfirmation?
-  outcome: DrainOutcome
+  let resource: String
+  let owner: OwnerState
+  let providerState: String
+  let confirmation: DrainConfirmation?
+  let outcome: DrainOutcome
 }
 
 export struct CancellationReceipt {
-  requestId: String
-  ordinal: ExecutionOrdinal
-  published: Bool
-  cooperative: Bool
+  let requestId: String
+  let ordinal: ExecutionOrdinal
+  let published: Bool
+  let cooperative: Bool
 }
 
 export struct SubmissionReceipt {
-  requestId: String
-  sessionId: SessionId
-  incarnation: SessionIncarnation
-  ordinal: ExecutionOrdinal
-  prompt: String
-  generationBase: GenerationId
-  generationFinal: GenerationId
-  outcome: ReplOutcome
+  let requestId: String
+  let sessionId: SessionId
+  let incarnation: SessionIncarnation
+  let ordinal: ExecutionOrdinal
+  let prompt: String
+  let generationBase: GenerationId
+  let generationFinal: GenerationId
+  let outcome: ReplOutcome
 }
 
 export struct SessionSnapshot {
-  sessionId: SessionId
-  incarnation: SessionIncarnation
-  ordinal: ExecutionOrdinal
-  generation: GenerationId
+  let sessionId: SessionId
+  let incarnation: SessionIncarnation
+  let ordinal: ExecutionOrdinal
+  let generation: GenerationId
 }
 
 export const limit = 3_i32

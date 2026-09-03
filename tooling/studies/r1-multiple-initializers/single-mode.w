@@ -8,8 +8,8 @@ enum MoneyInput {
 }
 
 struct Money {
-  minorUnits: i128
-  currency: Currency
+  let minorUnits: i128
+  let currency: Currency
 
   const init(value input: MoneyInput, currency: Currency) {
     self.minorUnits = switch input {

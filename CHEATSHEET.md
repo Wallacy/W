@@ -454,7 +454,7 @@ test "call labels and rest arguments keep their shape" for labelled {
 <!-- w-example role=executable use=Place,Counter,Signal,describe observable=value -->
 ```w
 struct Place {
-  id: u64
+  let id: u64
   var label: String = "square"
 
   init(id: u64, label: String) {
@@ -517,7 +517,7 @@ protocol Counted {
 protocol Catalog<Item>: Source<Item> & Counted {}
 
 struct Shelf<T> {
-  items: Array<T>
+  let items: Array<T>
 }
 
 enum Mode { fast; strict }
@@ -532,7 +532,7 @@ struct StaticWindow<
   rows: usize<(.member > 0)>,
   columns: usize,
 > {
-  values: [[f32; columns]; rows]
+  let values: [[f32; columns]; rows]
 }
 
 static const fn zeroWindow<rows: usize>(): StaticWindow<rows: rows, columns: DefaultColumns> {
@@ -563,7 +563,7 @@ test "generic conformances preserve the concrete item" for Shelf {
 
 ## Properties, behaviors, and facets
 
-<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude,PropertyAccessKind,accessName,nudge observable=value -->
+<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude,PropertyModes,PropertyAccessKind,accessName,nudge,overwrite observable=value -->
 ```w
 behavior WrappedDegrees for u16 {
   var current: u16
@@ -571,12 +571,11 @@ behavior WrappedDegrees for u16 {
   fn normalized(value: u16): u16 { return value % 360_u16 }
 
   init(initialValue: fn(): u16) { current = normalized(value: initialValue()) }
-  get { return current }
-  mut set(newValue) { current = normalized(value: newValue) }
-  get mut ref {
+  get {
     defer { current = normalized(value: current) }
-    return mut ref current
+    return current
   }
+  mut set(newValue) { current = normalized(value: newValue) }
 
   export mut fn reset() { current = 0 }
 }
@@ -592,13 +591,15 @@ behavior Versioned<Value> for Value {
     reads = 0
   }
 
-  export mutationEpoch: u64 { get => epoch }
-  export replacementCount: u64 { get => replacements }
-  export readCount: u64 { get => reads }
+  export let mutationEpoch: u64 { get => epoch }
+  export let replacementCount: u64 { get => replacements }
+  export let readCount: u64 { get => reads }
   export mut fn resetMutationEpoch() { epoch = 0 }
 
   mut willGet(kind: PropertyAccessKind) { reads += 1 }
-  didGet(kind: PropertyAccessKind) { }
+  mut didGet(kind: PropertyAccessKind) {
+    if kind == .mutableBorrowed { epoch += 1 }
+  }
   mut willSet(current: ref Value, proposed: ref Value) { replacements += 1 }
   mut didSet(current: ref Value) { epoch += 1 }
 }
@@ -607,6 +608,26 @@ enum PropertyAccessKind {
   value
   borrowed
   mutableBorrowed
+}
+
+object PropertyModes {
+  var storage: u16 = 1
+
+  let snapshot: u16 { get => storage }
+  let borrowed: ref u16 { get => storage }
+  var replaceable: u16 {
+    get => storage
+    set(value) => storage = value
+  }
+  var borrowedReplaceable: ref u16 {
+    get => storage
+    set(value) => storage = value
+  }
+  var direct: mut ref u16 { get => storage }
+  var buffered: inout u16 {
+    get => storage
+    set(value) => storage = value
+  }
 }
 
 fn accessName(kind: PropertyAccessKind): String {
@@ -622,37 +643,58 @@ behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
 
 fn nudge(value: mut ref u16) { value += 5 }
+fn overwrite(value: inout u16) { value = 21 }
 
 struct Attitude {
-  var VersionedDegrees yaw: u16 = 0
+  var VersionedDegrees yaw: mut ref u16 = 0
   mut fn rotate(by delta: u16) { yaw += delta }
 }
 
 test "behavior composition exposes qualified facets" for Attitude {
+  var modes = PropertyModes()
+  let copied = modes.snapshot
+  let ref borrowed = modes.borrowed
+  expect copied == 1 && borrowed == 1
+  modes.replaceable = 3
+  modes.borrowedReplaceable = 5
+  nudge(value: mut ref modes.direct)
+  overwrite(value: inout modes.buffered)
+  expect modes.storage == 21
+
   var attitude = Attitude()
   attitude.yaw = 350
   attitude.rotate(by: 25)
   expect attitude.yaw == 15
   expect attitude.yaw#version.mutationEpoch == 2
-  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.replacementCount == 1
   expect attitude.yaw#version.readCount > 0
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
   expect attitude.yaw#version.mutationEpoch == 3
-  expect attitude.yaw#version.replacementCount == 2
-  // Direct `get mut ref` access does not run willSet/didSet.
+  expect attitude.yaw#version.replacementCount == 1
+  // Direct mutable-borrow access runs get observers, not set observers.
   nudge(value: mut ref attitude.yaw)
   expect attitude.yaw == 5
-  expect attitude.yaw#version.mutationEpoch == 3
-  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.mutationEpoch == 4
+  expect attitude.yaw#version.replacementCount == 1
   let accessKind: PropertyAccessKind = .value
   expect accessName(kind: accessKind) == "value"
 }
 ```
 
-`get` returns a logical value. `get ref` returns a read-only borrow, and
-`get mut ref` returns a scoped exclusive borrow; `set(value)` replaces the
-logical value. `willGet` and `didGet` are opt-in observer hooks. Their
+The property declaration selects the access mode; the accessor is always
+spelled `get`. `let p: T` returns a read-only value, and `let p: ref T` returns
+a read-only borrow. `var p: T` may replace a value, `var p: ref T` may replace
+or borrow it, `var p: mut ref T` exposes a scoped exclusive borrow, and
+`var p: inout T` performs copy-in/copy-out through `get` plus `set`. The forms
+`let p: mut ref T`, `let p: inout T`, `get ref`, and `get mut ref` are invalid.
+Every stored or computed property starts with `let`, `var`, or `const`; W does
+not accept a bare `name: T` property. Enum payload labels, tuple labels,
+parameters, and call labels are not properties and therefore do not use a
+property binder. Neither do `build.w` manifest keys or foreign ABI layout
+members; `foreign c { struct Header { size: c.size } }` describes C layout,
+not a W property.
+`willGet` and `didGet` are opt-in observer hooks. Their
 `PropertyAccessKind` is `.value`, `.borrowed`, or `.mutableBorrowed`. Set
 observers count value-in/value-out writeback, while direct mutable-borrow
 access does not invoke `willSet` or `didSet`.
@@ -662,7 +704,7 @@ access does not invoke `willSet` or `didSet`.
 <!-- w-example role=executable use=ReservationKey,LookupResult,inspectKey,metadataSummary,nameOr observable=value -->
 ```w
 struct ReservationKey: Hashable & Reflectable {
-  orderId: u64
+  let orderId: u64
 }
 
 enum LookupResult: Reflectable {
@@ -721,7 +763,8 @@ test "conditional cast keeps the borrowed value" for ReservationKey {
   let ref found = resultInfo.cases[0]
   expect orderId.name == "orderId"
   expect orderId.mutability == .immutable
-  expect orderId.accessorAvailability == .get
+  expect orderId.accessMode == .value
+  expect !orderId.hasSetter
   expect found.payloadTypes == [type of u64]
   expect resultInfo.cases[1].payloadTypes.isEmpty
   expect missing == .missing
@@ -735,12 +778,12 @@ test "conditional cast keeps the borrowed value" for ReservationKey {
 <!-- w-example role=executable use=Point,Ticket,Receipt,translated,ticketLabel,bumpTicket,consumeTicket,readFirst,replaceFirst,consume,window observable=value -->
 ```w
 struct Point: Copy & Equatable {
-  x: i32
-  y: i32
+  let x: i32
+  let y: i32
 }
 
 struct Receipt {
-  id: u64
+  let id: u64
 }
 
 object Ticket {
@@ -820,7 +863,7 @@ backing storage.
 <!-- w-example role=executable use=CaptureBox,captures observable=value -->
 ```w
 object CaptureBox {
-  value: String
+  let value: String
 }
 
 fn captures(
@@ -1153,7 +1196,7 @@ test "bounded task pipeline preserves input order" for processAll {
 <!-- w-example role=logical-contract -->
 ```w
 struct OvenLease {
-  temperature: u16
+  let temperature: u16
   fn preheat(): u16 { return temperature }
 }
 
@@ -1276,8 +1319,8 @@ object Ledger {
 }
 
 struct Published: Duplicable {
-  revision: u64
-  value: String
+  let revision: u64
+  let value: String
 }
 
 fn publish(_ ledger: shared Ledger, _ message: String): (usize, u64) {

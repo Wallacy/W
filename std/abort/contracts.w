@@ -59,7 +59,7 @@ foreign intrinsic from "std.abort-state@1" {
 }
 
 export struct AbortSignal: Duplicable {
-  handle: AbortSignalHandle
+  let handle: AbortSignalHandle
 
   init(validatedHandle: AbortSignalHandle) {
     self.handle = validatedHandle
@@ -101,11 +101,11 @@ export struct AbortSignal: Duplicable {
     return AbortSignal(validatedHandle: handle)
   }
 
-  export aborted: Bool {
+  export let aborted: Bool {
     get => unsafe { stdAbortSignalAborted(handle) }
   }
 
-  export reason: AbortReason? {
+  export let reason: AbortReason? {
     get => unsafe { stdAbortSignalReason(handle) }
   }
 
@@ -137,8 +137,8 @@ export struct AbortSignal: Duplicable {
 // provider transition is atomic. Dropping the controller does not abort; if
 // the last authority disappears, a pending signal can remain pending forever.
 export struct AbortController {
-  authority: AbortControllerHandle
-  exposedSignal: AbortSignal
+  let authority: AbortControllerHandle
+  let exposedSignal: AbortSignal
 
   export init() {
     let (authority, signal) = unsafe { stdAbortControllerCreate() }
@@ -146,7 +146,7 @@ export struct AbortController {
     self.exposedSignal = AbortSignal(validatedHandle: signal)
   }
 
-  export signal: ref AbortSignal {
+  export let signal: ref AbortSignal {
     get => exposedSignal
   }
 

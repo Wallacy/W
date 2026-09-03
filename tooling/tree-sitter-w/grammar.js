@@ -626,21 +626,32 @@ module.exports = grammar({
     field_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
-        optional("var"),
-        optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
-        field("name", $.identifier),
-        optional(seq(":", field("type", $.type))),
-        optional(seq("=", field("value", $._expression))),
+        field("binding", choice("let", "var")),
+        choice(
+          seq(
+            field("storage_modifier", choice("atomic", $.identifier)),
+            field("name", $.identifier),
+          ),
+          field("name", $.identifier),
+        ),
+        choice(
+          seq(
+            ":",
+            field("type", $.property_type),
+            optional(seq("=", field("value", $._expression))),
+          ),
+          seq("=", field("value", $._expression)),
+        ),
         optional(";"),
       ),
 
     computed_property_declaration: ($) =>
       seq(
         optional($.declaration_prefix),
-        optional("var"),
+        field("binding", choice("let", "var")),
         field("name", $.identifier),
         ":",
-        field("type", $.type),
+        field("type", $.property_type),
         field("accessors", $.property_accessor_body),
       ),
     property_accessor_body: ($) =>
@@ -649,16 +660,12 @@ module.exports = grammar({
         repeat1(
           choice(
             field("getter", $.get_accessor),
-            field("borrowed_getter", $.get_ref_accessor),
-            field("mutable_getter", $.get_mut_ref_accessor),
             field("setter", $.set_accessor),
           ),
         ),
         "}",
       ),
     get_accessor: ($) => seq("get", $.accessor_implementation),
-    get_ref_accessor: ($) => seq("get", "ref", $.accessor_implementation),
-    get_mut_ref_accessor: ($) => seq("get", "mut", "ref", $.accessor_implementation),
     set_accessor: ($) =>
       seq(
         "set",
@@ -675,17 +682,17 @@ module.exports = grammar({
 
     property_requirement: ($) =>
       seq(
-        optional("var"),
+        field("binding", choice("let", "var")),
         field("name", $.identifier),
         ":",
-        field("type", $.type),
+        field("type", $.property_type),
         "{",
         repeat1($.property_requirement_accessor),
         "}",
         optional(";"),
       ),
     property_requirement_accessor: ($) =>
-      choice("get", seq("get", "ref"), seq("get", "mut", "ref"), "set"),
+      choice("get", "set"),
 
     enum_case: ($) =>
       seq(
@@ -806,7 +813,7 @@ module.exports = grammar({
         ),
       ),
     behavior_accessor_kind: ($) =>
-      choice("get", seq("get", "ref"), seq("get", "mut", "ref"), "set"),
+      choice("get", "set"),
     behavior_initializer: ($) =>
       seq(
         "init",
@@ -839,10 +846,10 @@ module.exports = grammar({
     behavior_facet_property: ($) =>
       seq(
         "export",
-        optional("var"),
+        field("binding", choice("let", "var")),
         field("name", $.identifier),
         ":",
-        field("type", $.type),
+        field("type", $.property_type),
         field("accessors", $.property_accessor_body),
       ),
     behavior_hook: ($) =>
@@ -1039,6 +1046,11 @@ module.exports = grammar({
           repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
         ),
+      ),
+    property_type: ($) =>
+      choice(
+        $.type,
+        prec.right(seq("inout", $.non_borrowed_type)),
       ),
     non_borrowed_type: ($) =>
       prec.right(
@@ -2010,7 +2022,6 @@ module.exports = grammar({
     identifier: (_) => /[A-Za-z_][A-Za-z0-9_]*/,
     tuple_index: (_) => /[0-9]+/,
     behavior_identifier: (_) => /[A-Z][A-Za-z0-9_]*/,
-
     comment: (_) =>
       token(choice(seq("//", /[^\r\n]*/), /\/\*[^*]*\*+([^/*][^*]*\*+)*\//)),
   },

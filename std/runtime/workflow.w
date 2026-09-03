@@ -25,10 +25,10 @@ export enum StepBackoff {
 }
 
 export struct StepRetry<Failure: Error> {
-  export maximumAttempts: u16<(1...)>
-  export backoff: StepBackoff
-  export attemptTimeout: Duration<(0...)>?
-  export retryWhen: fn(ref Failure): Bool
+  export let maximumAttempts: u16<(1...)>
+  export let backoff: StepBackoff
+  export let attemptTimeout: Duration<(0...)>?
+  export let retryWhen: fn(ref Failure): Bool
 }
 
 export enum WorkSuspension {
@@ -42,8 +42,8 @@ export enum WorkSuspension {
 }
 
 export struct WorkEventBinding<Payload> {
-  export name: String
-  export version: u32<(1...)>
+  export let name: String
+  export let version: u32<(1...)>
 }
 
 export enum WaitOutcome<Payload> {

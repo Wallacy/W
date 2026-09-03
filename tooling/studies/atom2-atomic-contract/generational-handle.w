@@ -5,8 +5,8 @@ module atom2_generational_handle
 import atomic from std
 
 export struct MenuHandle: Duplicable {
-  slot: u32
-  generation: u32
+  let slot: u32
+  let generation: u32
 }
 
 export object MenuOwnerTable {
@@ -22,5 +22,5 @@ export object MenuOwnerTable {
 }
 
 export struct Menu: Duplicable {
-  name: String
+  let name: String
 }

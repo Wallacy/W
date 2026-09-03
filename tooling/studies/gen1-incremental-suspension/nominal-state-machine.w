@@ -11,8 +11,8 @@ export enum DialogueFailure: Error {
 }
 
 export struct DialogueSession {
-  state: DialogueState
-  turns: usize
+  let state: DialogueState
+  let turns: usize
 }
 
 export enum DialogueStep {
@@ -44,8 +44,8 @@ export enum CursorState {
 }
 
 export struct MenuCursor {
-  state: CursorState
-  retained: usize
+  let state: CursorState
+  let retained: usize
 }
 
 export fn observeTraversal(

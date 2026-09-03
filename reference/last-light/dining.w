@@ -13,9 +13,9 @@ export enum TableState {
 }
 
 export struct Table {
-  id: TableId
-  seats: u16
-  state: TableState
+  let id: TableId
+  let seats: u16
+  let state: TableState
 }
 
 export enum DiningRoomError: Error {
@@ -49,7 +49,7 @@ fn defaultTables(): Map<TableId, Table> {
 }
 
 export service diningRoom: DiningRoomApi {
-  audience: ServiceRef<AudienceApi>
+  let audience: ServiceRef<AudienceApi>
   var tables: Map<TableId, Table> = defaultTables()
 
   init(audience: ServiceRef<AudienceApi>) {

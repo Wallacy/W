@@ -1,8 +1,8 @@
 import * from std
 
 export struct ReservationKey: Hashable & Reflectable {
-  table: u32
-  sequence: u64
+  let table: u32
+  let sequence: u64
 }
 
 fn showReservation(key: ReservationKey): String {

@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "weakUpgradeSuccess",
-    "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+    "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "upgrade.w",
-      "digest": "sha256:549f9cc9d29bf02425691d545f82d76ec9ca2e19078abb021a7e1cb2671bed09",
+      "digest": "sha256:09275fd01c4140cd9b2d7ac02f42ce07e7bf5e4022b12d7e536a0744b1072401",
       "changedConstructs": [
         "retired weakRoot.upgrade()",
         "optional new shared owner",
@@ -33,7 +33,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "strong-property.w",
-      "digest": "sha256:acca2442866b9dab1109113629b034aa239764ac09689a58bb90dc3cf8fc243c",
+      "digest": "sha256:f14a5e531fe49a5c21320d7de9af231db93c19b92f14787d033ae0ddd6ce99cc",
       "changedConstructs": [
         "weakRoot.strong property",
         "optional owner exposure",
@@ -49,7 +49,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "strong-method.w",
-      "digest": "sha256:92c7f31a1534db84b5ab785af8529bfd503cc405b91751dd9605ecdd2bc9731c",
+      "digest": "sha256:ad0094cf0cf8addb902a0b0123fc87b965691c1ba89cd99eb0adb1c61e451596",
       "changedConstructs": [
         "weakRoot.strong() method",
         "optional owner result",
@@ -65,7 +65,7 @@
       "role": "selected",
       "language": "w",
       "path": "contextual-type.w",
-      "digest": "sha256:68e9cf8d437b0df15112f7e2c301f9dc69b5d0d378381ef9973ef97a28898f97",
+      "digest": "sha256:6b308b805235de557564c5f4c0b6e10f836f1d51b5d39d074c9f5a0673093dee",
       "changedConstructs": [
         "weak expected target",
         "optional binding acquisition",

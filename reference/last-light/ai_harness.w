@@ -14,12 +14,12 @@ export struct TrainingBatch<
   inputs: usize,
   outputs: usize,
 > {
-  features: FeatureBatch<rows: rows, columns: inputs>
-  labels: FeatureBatch<rows: rows, columns: outputs>
+  let features: FeatureBatch<rows: rows, columns: inputs>
+  let labels: FeatureBatch<rows: rows, columns: outputs>
 }
 
 export struct TrainingMetrics {
-  meanSquaredError: f32
+  let meanSquaredError: f32
 }
 
 export fn forecastKernel<

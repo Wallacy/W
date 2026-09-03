@@ -25,7 +25,7 @@ foreign intrinsic from "std.sync@1" {
 }
 
 struct TypedSnapshotCellHandle<Value> {
-  raw: SnapshotCellHandle
+  let raw: SnapshotCellHandle
 
   init(validatedRaw: SnapshotCellHandle) {
     self.raw = validatedRaw
@@ -33,7 +33,7 @@ struct TypedSnapshotCellHandle<Value> {
 }
 
 export struct SnapshotCell<Value> {
-  handle: TypedSnapshotCellHandle<Value>
+  let handle: TypedSnapshotCellHandle<Value>
 
   export init(
     initial: take Value<(

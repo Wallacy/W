@@ -3,8 +3,8 @@
 import { Command, Result } from command
 
 export struct FormatCase {
-  value: String
-  expected: String
+  let value: String
+  let expected: String
 }
 
 export fn oneLine(value: String): String { return value }

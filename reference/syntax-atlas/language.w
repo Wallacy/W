@@ -14,18 +14,34 @@ import service atlas.catalog as catalog
 
 // atlas:begin data-declarations
 export struct Place<ID> : Hashable {
-  id: ID
+  let id: ID
   var label: String = "square"
+
+  let summary: String { get => label }
+  let labelView: ref String { get => label }
+
+  var replaceable: String {
+    get => label
+    set(value) { label = value }
+  }
+
+  var replaceableView: ref String {
+    get => label
+    set(value) { label = value }
+  }
 
   init(id: ID, label: String) {
     self.id = id
     self.label = label
   }
 
-  var title: String {
+  var title: mut ref String {
     get => label
-    get ref => label
-    get mut ref { return mut ref label }
+    set(value) { label = value }
+  }
+
+  var buffered: inout String {
+    get => label
     set(value) { label = value }
   }
 
@@ -102,7 +118,7 @@ behavior Versioned<Value> for Value {
   var epoch: u64
 
   init() { epoch = 0 }
-  export mutationEpoch: u64 { get => epoch }
+  export let mutationEpoch: u64 { get => epoch }
   mut didSet(current: ref Value) { epoch += 1 }
 }
 
@@ -164,7 +180,7 @@ unsafe fn<lang: .c> c_hash(data: c.ptr<c.char>): c.int {
 
 // atlas:begin types-and-contracts
 struct Matrix<Element, rows: usize, columns: usize> {
-  cells: [Element; rows]
+  let cells: [Element; rows]
 }
 
 type Tile = Matrix<u8, rows: 4, columns: 4>

@@ -24,25 +24,25 @@ export enum DevRunnerOutcome {
 }
 
 export struct GenerationIdentity {
-  packageIdentity: String
-  semanticInterfaceKey: String
-  sourceMapKey: String
-  wAbiKey: String
-  runtimeClosureKey: String
-  schemaDigest: String
-  effectDigest: String
-  capabilityDigest: String
+  let packageIdentity: String
+  let semanticInterfaceKey: String
+  let sourceMapKey: String
+  let wAbiKey: String
+  let runtimeClosureKey: String
+  let schemaDigest: String
+  let effectDigest: String
+  let capabilityDigest: String
 }
 
 export struct ReloadInput {
-  sourceDigest: String
-  generation: String
-  identity: GenerationIdentity
+  let sourceDigest: String
+  let generation: String
+  let identity: GenerationIdentity
 }
 
 export struct ReloadResult {
-  generation: String
-  outcome: DevRunnerOutcome
-  staleRejected: Bool
-  identity: GenerationIdentity
+  let generation: String
+  let outcome: DevRunnerOutcome
+  let staleRejected: Bool
+  let identity: GenerationIdentity
 }

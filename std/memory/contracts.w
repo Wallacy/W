@@ -12,9 +12,9 @@ foreign intrinsic from "std.memory@1" {
 }
 
 export struct BudgetExceeded: Copy & Equatable {
-  limitBytes: usize
-  committedBytes: usize
-  requestedBytes: usize
+  let limitBytes: usize
+  let committedBytes: usize
+  let requestedBytes: usize
 }
 
 export enum AllocationError: Error {
@@ -46,15 +46,15 @@ export enum AllocatorMobility: Copy & Equatable {
 }
 
 export struct AllocatorPlanDescriptor: Copy & Equatable {
-  providerDigest: [u8; 32]
-  version: u32<(1...)>
-  failure: AllocatorFailureMode
-  deallocator: AllocatorDeallocator
-  mobility: AllocatorMobility
+  let providerDigest: [u8; 32]
+  let version: u32<(1...)>
+  let failure: AllocatorFailureMode
+  let deallocator: AllocatorDeallocator
+  let mobility: AllocatorMobility
 }
 
 export struct Allocator {
-  handle: AllocatorHandle
+  let handle: AllocatorHandle
 
   init(validatedRaw: AllocatorHandle) {
     self.handle = validatedRaw

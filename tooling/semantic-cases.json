@@ -464,8 +464,8 @@
         "  closed",
         "}",
         "struct Ticket {",
-        "  id: Int",
-        "  state: TicketState",
+        "  let id: Int",
+        "  let state: TicketState",
         "}",
         "fn isOpen(ticket: ref Ticket): Bool {",
         "  return switch ticket {",
@@ -499,7 +499,7 @@
       "kind": "positive",
       "rule": "W-764",
       "source": [
-        "struct VaultRecord { code: Int }",
+        "struct VaultRecord { let code: Int }",
         "fn codeOf(vault: ref VaultRecord): Int {",
         "  return switch vault {",
         "    case VaultRecord(code: let code): code",
@@ -714,7 +714,7 @@
       "rule": "W-770",
       "source": [
         "struct Order {",
-        "  label: String",
+        "  var label: String",
         "}",
         "fn close(order: inout Order) {",
         "  order.label = \"Closed\"",
@@ -1368,7 +1368,7 @@
       "rule": "W-297",
       "source": [
         "struct Node<T> {",
-        "  value: T",
+        "  let value: T",
         "}",
         "fn revisit<T>(node: ref Node<T>): usize {",
         "  return revisit<T>(node)",
@@ -1765,7 +1765,7 @@
       "kind": "positive",
       "rule": "W-1256",
       "source": [
-        "struct Menu { title: String }",
+        "struct Menu { let title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
         "  let result: shared Menu = take value",
         "  return take result",
@@ -1812,7 +1812,7 @@
       "kind": "positive",
       "rule": "W-929",
       "source": [
-        "struct Menu { title: String }",
+        "struct Menu { let title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
         "  let root: shared Menu = take value",
         "  return take root",
@@ -1862,7 +1862,7 @@
       "failureField": "ownerDelta",
       "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:63a624bc9fcf616e12a53db21f37306bb1efd1814721ce92604be142574faa61" },
       "source": [
-        "struct Menu { title: String }",
+        "struct Menu { let title: String }",
         "fn shareMenu(value: take Menu): shared Menu {",
         "  return take value",
         "}"
@@ -1891,7 +1891,7 @@
       "kind": "positive",
       "rule": "W-1206",
       "source": [
-        "object MenuSection { title: String }",
+        "object MenuSection { let title: String }",
         "fn makeObserver(root: shared MenuSection): some fn(): String? {",
         "  return <[weak root]> () => {",
         "    guard let owner = root else return .none",
@@ -1936,7 +1936,7 @@
       "failureField": "ownerDelta",
       "failureEvidence": { "field": "ownerDelta", "baselineValueDigest": "sha256:bb04153a1f7b1bf3e208cab1dc39d84a80f60c2fde65556530ed655c41648ce0" },
       "source": [
-        "object MenuSection { title: String }",
+        "object MenuSection { let title: String }",
         "fn makeObserver(root: shared MenuSection): some fn(): String {",
         "  return () => copy root.title",
         "}"
@@ -1972,7 +1972,7 @@
       "rule": "W-1207",
       "source": [
         "object ObserverHub {",
-        "  callbacks: shared Array<any fn(): ()> = []",
+        "  var callbacks: shared Array<any fn(): ()> = []",
         "  fn add(callback: take any fn(): ()) {",
         "    lock callbacks as items {",
         "      items.append(take callback)",
@@ -2027,7 +2027,7 @@
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:aa13147fc5b5a258ca271a4ed3fc23c0b25571d6af4c62f646972c5d8b007a45" },
       "source": [
         "object ObserverHub {",
-        "  callbacks: shared Array<any fn(): ()> = []",
+        "  var callbacks: shared Array<any fn(): ()> = []",
         "  fn add(callback: take any fn(): ()) {",
         "    lock callbacks as items {",
         "      items.append(take callback)",
@@ -2070,7 +2070,7 @@
       "failureEvidence": { "field": "category", "baselineValueDigest": "sha256:a0b7821a11db531982044ca5ca2e788e2d749d6b696cd3aa4172342f584f2ee1" },
       "source": [
         "struct Order {",
-        "  label: String",
+        "  let label: String",
         "}",
         "fn close(order: ref Order) {",
         "  order.label = \"Closed\"",
@@ -2878,8 +2878,8 @@
         "  closed",
         "}",
         "struct Ticket {",
-        "  id: Int",
-        "  state: TicketState",
+        "  let id: Int",
+        "  let state: TicketState",
         "}",
         "fn isOpen(ticket: ref Ticket): Bool {",
         "  return switch ticket {",
@@ -3795,7 +3795,7 @@
       "failureField": "proofFacts",
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:fe47cd159f61360092aebf534d8b9f3aaafe54e9969fb81793abfcbe7a7cb004" },
       "source": [
-        "struct MenuView { title: view String }",
+        "struct MenuView { let title: view String }",
         "fn shareMenuView(value: take MenuView): shared MenuView {",
         "  let invalid: shared MenuView = take value",
         "  return take invalid",
@@ -3859,7 +3859,7 @@
       }
     },
     {
-      "id": "S0-NEG-generic-label-before-anchor",
+      "id": "S0-NEG-generic-label-on-positional",
       "kind": "negative",
       "rule": "W-1514",
       "baseline": "S0-POS-generic-multiple-unlabeled-values",
@@ -3867,7 +3867,7 @@
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:2898cc641bd9a2f99d3c86adf43fe0f62115df7a3a7ccadd03d9f9d166078ab3" },
       "source": [
         "struct Ordered<_ left: usize, right: usize> {}",
-        "type InvalidOrder = Ordered<right: 1, 2>"
+        "type InvalidOrder = Ordered<left: 2, right: 1>"
       ],
       "expect": {
         "diagnostics": [
@@ -3875,7 +3875,7 @@
             "code": "W-GENERIC-0003",
             "phase": "semantic.type",
             "severity": "error",
-            "primary": { "text": "right: 1" },
+            "primary": { "text": "left: 2" },
             "labels": [
               { "role": "generic-parameter", "selector": { "text": "left", "occurrence": 0 } }
             ],
@@ -3884,7 +3884,7 @@
               "kind": "value",
               "externalLabel": "_",
               "position": 0,
-              "reason": "named-argument-crosses-anchor"
+              "reason": "label-applied-to-positional-only"
             },
             "notes": [],
             "fixes": []
@@ -3898,12 +3898,12 @@
       "rule": "W-1514",
       "source": [
         "struct Grid<Element, _ rows: usize, _ columns: usize, unit: TimeUnit> {}",
-        "type GridValue = Grid<f32, 3, 4, unit: .second>"
+        "type GridValue = Grid<unit: .second, f32, 3, 4>"
       ],
       "expect": {
-        "focus": { "text": "Grid<f32, 3, 4, unit: .second>" },
+        "focus": { "text": "Grid<unit: .second, f32, 3, 4>" },
         "semanticResult": {
-          "resultType": "Grid<f32, 3, 4, unit: .second>",
+          "resultType": "Grid<unit: .second, f32, 3, 4>",
           "category": "value",
           "flow": { "kind": "next" },
           "ownerDelta": [],
@@ -4001,7 +4001,7 @@
       }
     },
     {
-      "id": "S0-NEG-generic-label-crosses-anchor",
+      "id": "S0-NEG-generic-label-on-value-positional",
       "kind": "negative",
       "rule": "W-1514",
       "baseline": "S0-POS-generic-named-argument-reorder",
@@ -4009,7 +4009,7 @@
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:d9042451c49e34865a6c0ebf7adb368fe84eb2a4cfb9339b599c114b675a026c" },
       "source": [
         "struct ServiceProfile<Element, _ anchor: usize, tables: usize> {}",
-        "type InvalidProfile = ServiceProfile<f32, tables: 8, 0>"
+        "type InvalidProfile = ServiceProfile<f32, anchor: 0, tables: 8>"
       ],
       "expect": {
         "diagnostics": [
@@ -4017,7 +4017,7 @@
             "code": "W-GENERIC-0003",
             "phase": "semantic.type",
             "severity": "error",
-            "primary": { "text": "tables: 8" },
+            "primary": { "text": "anchor: 0" },
             "labels": [
               { "role": "generic-parameter", "selector": { "text": "_ anchor: usize" } }
             ],
@@ -4026,7 +4026,7 @@
               "kind": "value",
               "externalLabel": "_",
               "position": 1,
-              "reason": "named-argument-crosses-anchor"
+              "reason": "label-applied-to-positional-only"
             },
             "notes": [],
             "fixes": []
@@ -4075,7 +4075,7 @@
       "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:31297c3bd1c8481d29241f90c72a67a5d7cd9b22e6ee03e3fe01f887882f1d84" },
       "source": [
         "struct Matrix<rows: usize> {",
-        "  rows: usize",
+        "  let rows: usize",
         "}"
       ],
       "expect": {
@@ -4148,7 +4148,7 @@
         "  ready",
         "}",
         "struct OvenSession<_ state: OvenSessionState> {",
-        "  state: OvenSessionState",
+        "  let state: OvenSessionState",
         "}"
       ],
       "expect": {
@@ -4700,7 +4700,7 @@
       "rule": "W-1336",
       "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true},
       "resolvedContext": {"providerProfile": "joined", "allocationOriginMap": {"$controlBlock": "memory"}},
-      "source": ["struct Menu { title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
+      "source": ["struct Menu { let title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
       "expect": {"focus": {"text": "let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")"}, "semanticResult": {"resultType": "shared Menu", "category": "value", "flow": {"kind": "next"}, "ownerDelta": [], "effectSummary": {"signature": [], "control": [], "operational": ["allocation"]}, "proofFacts": [{"kind": "allocation-origin", "subject": "root.$controlBlock", "value": "memory"}], "evaluationGraph": {"nodes": [{"id": "binding", "operation": "bind-explicit-shared-owner", "subject": "shared Menu"}], "edges": []}}, "diagnostics": []}
     },
     {
@@ -4712,7 +4712,7 @@
       "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:a54b65f14f19aff34803138136bd2cb7f066ec02d2cbd7ee6bd48deb06ec7381"},
       "analysisFacts": {"payloadShareable": true, "counterThreadSafe": true},
       "resolvedContext": {"providerProfile": "missing", "allocationOriginMap": {"$controlBlock": "memory"}},
-      "source": ["struct Menu { title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
+      "source": ["struct Menu { let title: String }", "fn make(memory: ref Allocator): shared Menu throws AllocationError {", "  let root: shared Menu = try Menu(allocator: memory, title: \"Dinner\")", "  return take root", "}"],
       "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0004", "phase": "semantic.capability", "severity": "error", "primary": {"text": "allocator: memory"}, "labels": [], "facts": {"plan": "memory", "provider": "memory", "missingFacts": ["providerProfile"]}, "notes": [], "fixes": []}]}
     },
     {

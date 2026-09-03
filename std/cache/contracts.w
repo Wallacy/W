@@ -12,11 +12,11 @@ export struct LocalBinding<
   Key: Equatable & Hashable & Duplicable,
   Value: Duplicable,
 > {
-  name: String
-  maximumEntries: usize
-  maximumActiveLoads: usize
-  maximumQueuedLoads: usize
-  expiration: Expiration
+  let name: String
+  let maximumEntries: usize
+  let maximumActiveLoads: usize
+  let maximumQueuedLoads: usize
+  let expiration: Expiration
 
   export const init(
     name: String,

@@ -6,9 +6,9 @@ import io from std.io
 import parquet from std.parquet
 
 struct HorizonReading: data.Row {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
+  let sequence: u64
+  let hawkingFlux: f64
+  let warning: String?
 }
 
 async fn summarizeParquet<Failure: Error, Source: io.SnapshotByteSource<Failure>>(

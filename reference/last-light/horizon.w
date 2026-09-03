@@ -12,13 +12,13 @@ export type SensorId = u32
 export type EventSequence = u64
 
 export struct HorizonSample {
-  sensor: SensorId
-  eventTime: PhysicalDuration
-  observedTime: PhysicalDuration
-  frequency: Frequency
-  pressure: Pressure
-  temperature: Temperature
-  sequence: EventSequence
+  let sensor: SensorId
+  let eventTime: PhysicalDuration
+  let observedTime: PhysicalDuration
+  let frequency: Frequency
+  let pressure: Pressure
+  let temperature: Temperature
+  let sequence: EventSequence
 }
 
 export enum HorizonStatus {
@@ -28,15 +28,15 @@ export enum HorizonStatus {
 }
 
 export struct HorizonWindow<samples: usize> {
-  features: Tensor<f32, shape: [samples, 6]>
-  firstSequence: EventSequence
-  lastSequence: EventSequence
+  let features: Tensor<f32, shape: [samples, 6]>
+  let firstSequence: EventSequence
+  let lastSequence: EventSequence
 }
 
 export struct HorizonForecast<samples: usize> {
-  status: HorizonStatus
-  normalized: Tensor<f32, shape: [samples, 6]>
-  anomalyBySample: Tensor<f32, shape: [samples]>
+  let status: HorizonStatus
+  let normalized: Tensor<f32, shape: [samples, 6]>
+  let anomalyBySample: Tensor<f32, shape: [samples]>
 }
 
 export enum HorizonError: Error {

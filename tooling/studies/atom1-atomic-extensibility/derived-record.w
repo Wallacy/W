@@ -11,8 +11,8 @@ export enum SignState {
 }
 
 export struct SignEpochWord: Duplicable {
-  state: SignState
-  generation: u32
+  let state: SignState
+  let generation: u32
 }
 
 export object DerivedSignEpoch {

@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/horizon.w",
     "symbol": "broadcast",
-    "digest": "sha256:6671dc29755a958c4b67735a44aa208c738c0bbea9f1a4f8f3a51a08f7f74886"
+    "digest": "sha256:113648cae4975025365fdbddcf4dd30ae66fd69021d72175cca6663096b9a15f"
   },
   "variants": [
     {

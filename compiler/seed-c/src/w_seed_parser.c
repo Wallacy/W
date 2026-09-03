@@ -2341,6 +2341,13 @@ static bool parse_field_declaration(w_seed_parser *parser) {
   const size_t start = current_span(parser).start_byte;
   if (push_node(parser, W_SEED_CST_FIELD, start) == W_SEED_CST_NONE)
     return false;
+  if (!current_is_text(parser, "let") && !current_is_text(parser, "var")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->last_token_end);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
   if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,
                    W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);

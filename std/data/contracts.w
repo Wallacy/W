@@ -55,7 +55,7 @@ export enum TemporalPrecision: Copy & Equatable {
 // indirect storage.  Constructors enforce finite depth and canonical bounds
 // before a descriptor can enter a SchemaField.
 export struct FixedDecimalType {
-  handle: FixedDecimalHandle
+  let handle: FixedDecimalHandle
 
   init(validatedHandle: FixedDecimalHandle) {
     self.handle = validatedHandle
@@ -69,7 +69,7 @@ export struct FixedDecimalType {
 }
 
 export struct LogicalType {
-  handle: LogicalTypeHandle
+  let handle: LogicalTypeHandle
 
   init(validatedHandle: LogicalTypeHandle) {
     self.handle = validatedHandle
@@ -185,7 +185,7 @@ export struct LogicalType {
 }
 
 export struct SemanticExtension {
-  handle: SemanticExtensionHandle
+  let handle: SemanticExtensionHandle
 
   init(validatedHandle: SemanticExtensionHandle) {
     self.handle = validatedHandle
@@ -214,7 +214,7 @@ export struct SemanticExtension {
 // locale-dependent text.  Zoned or named timezone semantics are a later
 // semantic extension with its own nominal ZoneId/version contract.
 export struct DecimalValue {
-  handle: DecimalValueHandle
+  let handle: DecimalValueHandle
 
   init(validatedHandle: DecimalValueHandle) {
     self.handle = validatedHandle
@@ -231,7 +231,7 @@ export struct DecimalValue {
 }
 
 export struct UUIDValue {
-  handle: UUIDValueHandle
+  let handle: UUIDValueHandle
 
   init(validatedHandle: UUIDValueHandle) {
     self.handle = validatedHandle
@@ -243,7 +243,7 @@ export struct UUIDValue {
 }
 
 export struct DateValue {
-  handle: DateValueHandle
+  let handle: DateValueHandle
 
   init(validatedHandle: DateValueHandle) {
     self.handle = validatedHandle
@@ -257,7 +257,7 @@ export struct DateValue {
 }
 
 export struct TimeValue {
-  handle: TimeValueHandle
+  let handle: TimeValueHandle
 
   init(validatedHandle: TimeValueHandle) {
     self.handle = validatedHandle
@@ -271,7 +271,7 @@ export struct TimeValue {
 }
 
 export struct InstantValue {
-  handle: InstantValueHandle
+  let handle: InstantValueHandle
 
   init(validatedHandle: InstantValueHandle) {
     self.handle = validatedHandle
@@ -285,7 +285,7 @@ export struct InstantValue {
 }
 
 export struct LocalDateTimeValue {
-  handle: LocalDateTimeValueHandle
+  let handle: LocalDateTimeValueHandle
 
   init(validatedHandle: LocalDateTimeValueHandle) {
     self.handle = validatedHandle
@@ -315,20 +315,20 @@ export enum LimitKind: Copy & Equatable {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumRows: usize<(1...)>
-  maximumColumns: usize<(1...)>
-  maximumFields: usize<(1...)>
-  maximumBuffers: usize<(1...)>
+  let maximumRows: usize<(1...)>
+  let maximumColumns: usize<(1...)>
+  let maximumFields: usize<(1...)>
+  let maximumBuffers: usize<(1...)>
   // Logical and encoded totals use u64 so the same contract is valid on
   // 32-bit and 64-bit targets.  A provider checks allocation limits against
   // the target usize before reserving memory.
-  maximumTotalBytes: u64<(1...)>
-  maximumAllocationBytes: u64<(1...)>
-  maximumNesting: usize<(1...)>
-  maximumMetadataBytes: u64<(1...)>
-  maximumStringBytes: u64<(1...)>
-  maximumChunks: usize<(1...)>
-  maximumExtensionParameters: usize<(1...)>
+  let maximumTotalBytes: u64<(1...)>
+  let maximumAllocationBytes: u64<(1...)>
+  let maximumNesting: usize<(1...)>
+  let maximumMetadataBytes: u64<(1...)>
+  let maximumStringBytes: u64<(1...)>
+  let maximumChunks: usize<(1...)>
+  let maximumExtensionParameters: usize<(1...)>
 
   export static fn standard(): Limits {
     return Limits(
@@ -529,7 +529,7 @@ foreign intrinsic from "std.data@1" {
 }
 
 export struct SchemaIdentity: Copy & Equatable {
-  handle: SchemaIdentityHandle
+  let handle: SchemaIdentityHandle
 
   init(validatedHandle: SchemaIdentityHandle) {
     self.handle = validatedHandle
@@ -537,7 +537,7 @@ export struct SchemaIdentity: Copy & Equatable {
 }
 
 export struct SchemaField {
-  handle: SchemaFieldHandle
+  let handle: SchemaFieldHandle
 
   init(validatedHandle: SchemaFieldHandle) {
     self.handle = validatedHandle
@@ -562,7 +562,7 @@ export struct SchemaField {
 }
 
 export struct Schema {
-  handle: SchemaHandle
+  let handle: SchemaHandle
 
   init(validatedHandle: SchemaHandle) {
     self.handle = validatedHandle
@@ -594,7 +594,7 @@ export struct Schema {
 // identity together with bounded opaque storage.  Metadata alone is not a
 // value and cannot be persisted as one.
 export struct DynamicExtensionValue {
-  handle: DynamicExtensionValueHandle
+  let handle: DynamicExtensionValueHandle
 
   init(validatedHandle: DynamicExtensionValueHandle) {
     self.handle = validatedHandle
@@ -620,7 +620,7 @@ export struct DynamicExtensionValue {
 // Nested dynamic storage is indirect for the same reason as LogicalType:
 // lists/maps/nested rows cannot recursively contain themselves by value.
 export struct DynamicListValue {
-  handle: DynamicListHandle
+  let handle: DynamicListHandle
 
   init(validatedHandle: DynamicListHandle) {
     self.handle = validatedHandle
@@ -637,7 +637,7 @@ export struct DynamicListValue {
 }
 
 export struct DynamicMapValue {
-  handle: DynamicMapHandle
+  let handle: DynamicMapHandle
 
   init(validatedHandle: DynamicMapHandle) {
     self.handle = validatedHandle
@@ -654,7 +654,7 @@ export struct DynamicMapValue {
 }
 
 export struct DynamicNestedValue {
-  handle: DynamicNestedHandle
+  let handle: DynamicNestedHandle
 
   init(validatedHandle: DynamicNestedHandle) {
     self.handle = validatedHandle
@@ -695,8 +695,8 @@ export enum DynamicValue {
 }
 
 export struct DynamicEntry {
-  key: String
-  value: DynamicValue
+  let key: String
+  let value: DynamicValue
 
   export const init(key: String, value: DynamicValue) {
     self.key = key
@@ -705,7 +705,7 @@ export struct DynamicEntry {
 }
 
 export struct FieldDescriptor<Owner: Row, Value> {
-  handle: FieldDescriptorHandle
+  let handle: FieldDescriptorHandle
 
   init(validatedHandle: FieldDescriptorHandle) {
     self.handle = validatedHandle
@@ -715,7 +715,7 @@ export struct FieldDescriptor<Owner: Row, Value> {
 export struct Column<Owner: Row, Value> {
   // A view handle has no ownership.  The Batch remains the sole payload
   // owner and the compiler rejects this loan escaping its scope.
-  handle: view ColumnHandle
+  let handle: view ColumnHandle
 
   init(validatedHandle: view ColumnHandle) {
     self.handle = validatedHandle
@@ -733,7 +733,7 @@ export struct Column<Owner: Row, Value> {
 }
 
 export struct StringColumn<Owner: Row> {
-  handle: view StringColumnHandle
+  let handle: view StringColumnHandle
 
   init(validatedHandle: view StringColumnHandle) {
     self.handle = validatedHandle
@@ -755,7 +755,7 @@ export struct StringColumn<Owner: Row> {
 }
 
 export struct BytesColumn<Owner: Row> {
-  handle: view BytesColumnHandle
+  let handle: view BytesColumnHandle
 
   init(validatedHandle: view BytesColumnHandle) {
     self.handle = validatedHandle
@@ -775,7 +775,7 @@ export struct BytesColumn<Owner: Row> {
 }
 
 export struct DynamicColumn {
-  handle: DynamicColumnHandle
+  let handle: DynamicColumnHandle
 
   init(validatedHandle: DynamicColumnHandle) {
     self.handle = validatedHandle
@@ -791,7 +791,7 @@ export struct DynamicColumn {
 }
 
 export struct Batch<Element: Row> {
-  handle: BatchHandle
+  let handle: BatchHandle
 
   init(validatedHandle: BatchHandle) {
     self.handle = validatedHandle
@@ -833,7 +833,7 @@ export struct Batch<Element: Row> {
 }
 
 export struct DynamicBatch {
-  handle: DynamicBatchHandle
+  let handle: DynamicBatchHandle
 
   init(validatedHandle: DynamicBatchHandle) {
     self.handle = validatedHandle
@@ -871,9 +871,9 @@ export enum ProgressError: Error {
 }
 
 export struct EncodeProgress: Copy & Equatable {
-  bytesCommitted: u64
-  completeRecords: u64
-  partialRecord: Bool
+  let bytesCommitted: u64
+  let completeRecords: u64
+  let partialRecord: Bool
 
   export const init(
     bytesCommitted: u64,

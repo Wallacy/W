@@ -718,7 +718,7 @@ static bool test_declarations_and_determinism(void) {
   static const char source[] =
       "module demo\n"
       "import { ext } from dep\n"
-      "export struct Pair { left: u8 right: u16 }\n"
+      "export struct Pair { let left: u8 let right: u16 }\n"
       "export type Number = u32\n"
       "export alias Flag = Bool?\n"
       "export fn add(left: u8, right: u16): u16 { return left + right }\n"
@@ -1862,7 +1862,7 @@ static bool test_module_named_consts(void) {
   static const char named_source[] =
       "export const ultimateAnswer: i64 = 6 * 7\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { named: Box<(ultimateAnswer)> }\n";
+      "struct Use { let named: Box<(ultimateAnswer)> }\n";
   fixture *value = &fixture_const;
   CHECK(fixture_run(value, named_source));
   CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
@@ -1909,14 +1909,14 @@ static bool test_module_named_consts(void) {
                     "const duplicate: i64 = 42\n"
                     "const duplicate: i64 = 42\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(duplicate)> }\n"));
+                    "struct Use { let value: Box<(duplicate)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         has_fact(value, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
 
   CHECK(fixture_run(value,
                     "const answer = 42\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(answer)> }\n"));
+                    "struct Use { let value: Box<(answer)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK);
   CHECK(value->const_declarations[0].declared_type ==
         W_SEED_FRONTEND_NONE &&
@@ -1975,21 +1975,21 @@ static bool test_module_named_consts(void) {
   CHECK(fixture_run(value,
                     "const answer: i64 = true\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(answer)> }\n"));
+                    "struct Use { let value: Box<(answer)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(value, "W-SEM-0001"));
 
   CHECK(fixture_run(value,
                     "import { answer } from other\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(answer)> }\n"));
+                    "struct Use { let value: Box<(answer)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         has_fact(value, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL));
 
   CHECK(fixture_run(value,
                     "const anchor: i64 = 42\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(missing)> }\n"));
+                    "struct Use { let value: Box<(missing)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(value, "W-SEM-0001") &&
         value->generic_applications[0].binding_status ==
@@ -1998,7 +1998,7 @@ static bool test_module_named_consts(void) {
   CHECK(fixture_run(value,
                     "const missing: i64 = absent\n"
                     "struct Box<_ value: i64> {}\n"
-                    "struct Use { value: Box<(missing)> }\n"));
+                    "struct Use { let value: Box<(missing)> }\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(value, "W-SEM-0001"));
 
@@ -2627,7 +2627,7 @@ static bool test_generic_schema(void) {
       "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool { "
       "return true }\n"
       "struct StagePath<_ stages: StaticList<ServiceStage>"
-      "<(isValidStagePath(.member))>> { orderId: u64 }\n";
+      "<(isValidStagePath(.member))>> { let orderId: u64 }\n";
   fixture *stage = &fixture_a;
   CHECK(fixture_run(stage, stage_source));
   CHECK(stage->result.status == W_SEED_FRONTEND_OK);
@@ -3027,7 +3027,7 @@ static bool test_generic_applications(void) {
       forward,
       "struct Inner<T> {}\n"
       "struct Outer<X> {}\n"
-      "struct Use { value: Outer<Inner<u8>> }\n"));
+      "struct Use { let value: Outer<Inner<u8>> }\n"));
   CHECK(forward->result.status == W_SEED_FRONTEND_OK &&
         forward->result.written.generic_applications == 2u &&
         forward->result.written.generic_arguments == 2u &&
@@ -3040,8 +3040,8 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       static_value,
       "struct StaticValue<T, _ value: T> {}\n"
-      "struct Use { a: StaticValue<Bool, true> "
-      "b: StaticValue<String, \"The final seating\"> }\n"));
+      "struct Use { let a: StaticValue<Bool, true> "
+      "let b: StaticValue<String, \"The final seating\"> }\n"));
   CHECK(static_value->result.status == W_SEED_FRONTEND_OK &&
         static_value->result.written.generic_applications == 2u &&
         static_value->result.written.const_values == 2u);
@@ -3063,8 +3063,8 @@ static bool test_generic_applications(void) {
       stage,
       "enum ServiceStage { accepted completed }\n"
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n"
-      "struct Use { a: StagePath<[.accepted, .accepted]> "
-      "b: StagePath<[]> c: StagePath<[.accepted]> }\n"));
+      "struct Use { let a: StagePath<[.accepted, .accepted]> "
+      "let b: StagePath<[]> let c: StagePath<[.accepted]> }\n"));
   CHECK(stage->result.status == W_SEED_FRONTEND_OK &&
         stage->result.written.generic_applications == 3u &&
         stage->result.written.generic_arguments == 3u &&
@@ -3099,7 +3099,7 @@ static bool test_generic_applications(void) {
       "<(isValid(.member))>> {}\n"
       "const fn isValid(stages: StaticList</* c */ ServiceStage >): Bool { "
       "return true }\n"
-      "struct Use { value: StagePath<[.accepted]> }\n"));
+      "struct Use { let value: StagePath<[.accepted]> }\n"));
   CHECK(stage->result.status == W_SEED_FRONTEND_OK &&
         stage->result.written.generic_applications == 1u &&
         stage->generic_applications[0].binding_status ==
@@ -3108,21 +3108,21 @@ static bool test_generic_applications(void) {
 
   static const char *const invalid_sources[] = {
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, 3, columns: 4> }\n",
+      "struct Use { let x: Matrix<f32, 3, columns: 4> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, 3> }\n",
+      "struct Use { let x: Matrix<f32, rows: 3, 3> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, bogus: 3, columns: 4> }\n",
+      "struct Use { let x: Matrix<f32, bogus: 3, columns: 4> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, rows: 4> }\n",
+      "struct Use { let x: Matrix<f32, rows: 3, rows: 4> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3> }\n",
+      "struct Use { let x: Matrix<f32, rows: 3> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, columns: 4, 5> }\n",
+      "struct Use { let x: Matrix<f32, rows: 3, columns: 4, 5> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<rows: f32, columns: 3> }\n",
+      "struct Use { let x: Matrix<rows: f32, columns: 3> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, columns: "
+      "struct Use { let x: Matrix<f32, rows: 3, columns: "
       "18446744073709551616> }\n",
   };
   static const char *const invalid_codes[] = {
@@ -3144,7 +3144,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n"));
+      "struct Use { let x: Matrix<f32, columns: 4, rows: 3> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
         fixture_collision.result.written.generic_applications == 1u &&
         fixture_collision.generic_applications[0].binding_status ==
@@ -3156,7 +3156,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, bogus: 3, columns: 4> }\n"));
+      "struct Use { let x: Matrix<f32, bogus: 3, columns: 4> }\n"));
   {
     const w_seed_frontend_diagnostic *unknown_label =
         diagnostic_for_code(&fixture_collision, "W-CONTRACT-0001");
@@ -3187,7 +3187,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, 3, columns: 4> }\n"));
+      "struct Use { let x: Matrix<f32, 3, columns: 4> }\n"));
   {
     const w_seed_frontend_diagnostic *required_label =
         diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
@@ -3223,7 +3223,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n"));
+      "struct Use { let x: Matrix<f32, columns: 4, rows: 3> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
         fixture_collision.generic_arguments[0].parameter_ordinal == 0u &&
         fixture_collision.generic_arguments[1].parameter_ordinal == 2u &&
@@ -3232,7 +3232,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, 3> }\n"));
+      "struct Use { let x: Matrix<f32, rows: 3, 3> }\n"));
   {
     const w_seed_frontend_diagnostic *positional_after_named =
         diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
@@ -3271,7 +3271,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3, columns: 4, 5> }\n"));
+      "struct Use { let x: Matrix<f32, rows: 3, columns: 4, 5> }\n"));
   {
     const w_seed_frontend_diagnostic *extra_argument =
         diagnostic_for_code(&fixture_collision, "W-GENERIC-0003");
@@ -3305,7 +3305,7 @@ static bool test_generic_applications(void) {
 
   CHECK(fixture_run(&fixture_collision,
                     "struct Box<T> {}\n"
-                    "struct Use { value: Box<T: u8> }\n"));
+                    "struct Use { let value: Box<T: u8> }\n"));
   {
     const w_seed_frontend_diagnostic *type_label =
         diagnostic_for_code(&fixture_collision, "W-GENERIC-0003");
@@ -3339,7 +3339,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, rows: 3> }\n"));
+      "struct Use { let x: Matrix<f32, rows: 3> }\n"));
   {
     const w_seed_frontend_diagnostic *missing_slot =
         diagnostic_for_code(&fixture_collision, "W-GENERIC-0002");
@@ -3383,7 +3383,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_unresolved,
       "struct StaticValue<T, _ value: T> {}\n"
-      "struct Use { bad: StaticValue<f32, 0> }\n"));
+      "struct Use { let bad: StaticValue<f32, 0> }\n"));
   CHECK(fixture_unresolved.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(&fixture_unresolved, "W-CONTRACT-0002") &&
         fixture_unresolved.generic_applications[0].binding_status ==
@@ -3480,7 +3480,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_narrowing,
       "struct Plain {}\n"
-      "struct Use { value: Plain<true> }\n"));
+      "struct Use { let value: Plain<true> }\n"));
   CHECK(fixture_narrowing.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         fixture_narrowing.result.written.generic_applications == 1u &&
         fixture_narrowing.generic_applications[0].binding_status ==
@@ -3492,7 +3492,7 @@ static bool test_generic_applications(void) {
       "enum ServiceStage { accepted completed }\n"
       "enum OtherStage { accepted }\n"
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n"
-      "struct Use { value: StagePath<[OtherStage.accepted]> }\n"));
+      "struct Use { let value: StagePath<[OtherStage.accepted]> }\n"));
   CHECK(fixture_generic.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         fixture_generic.result.written.generic_applications == 1u &&
         fixture_generic.generic_applications[0].binding_status ==
@@ -3505,7 +3505,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_label,
       "struct Holder<value: u64> {}\n"
-      "struct Use { a: Holder<value: 1> b: Holder<value: 1_u8> }\n"));
+      "struct Use { let a: Holder<value: 1> let b: Holder<value: 1_u8> }\n"));
   CHECK(fixture_label.result.status == W_SEED_FRONTEND_OK &&
         fixture_label.result.written.const_values == 2u &&
         fixture_label.const_values[0].integer_bit_width == 64u &&
@@ -3518,7 +3518,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct Duplicate<T, T> {}\n"
-      "struct Use { value: Duplicate<u8, u8> }\n"));
+      "struct Use { let value: Duplicate<u8, u8> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(&fixture_collision, "W-CONTRACT-0004") &&
         fixture_collision.generic_applications[0].binding_status ==
@@ -3569,7 +3569,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct S<value: String> {}\n"
-      "struct Use { value: S<value: \"a\\\\n\"> }\n"));
+      "struct Use { let value: S<value: \"a\\\\n\"> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         fixture_collision.generic_applications[0].binding_status ==
             W_SEED_FRONTEND_GENERIC_BINDING_UNSUPPORTED &&
@@ -3578,7 +3578,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct S<value: String> {}\n"
-      "struct Use { value: S<bad: \"a\\\\n\"> }\n"));
+      "struct Use { let value: S<bad: \"a\\\\n\"> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(&fixture_collision, "W-CONTRACT-0001") &&
         fixture_collision.generic_applications[0].binding_status ==
@@ -3587,7 +3587,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_collision,
       "struct S<T> {}\n"
-      "struct Use { value: S<u8> }\n"));
+      "struct Use { let value: S<u8> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
         fixture_collision.result.written.generic_applications == 1u &&
         fixture_collision.types[fixture_collision.generic_applications[0].owner_type]
@@ -3599,7 +3599,7 @@ static bool test_typed_const_expressions(void) {
   static const char source[] =
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { immediate: UltimateAnswer<42> computed: "
+      "struct Use { let immediate: UltimateAnswer<42> let computed: "
       "UltimateAnswer<(6 * 7)> }\n";
   fixture *value = &fixture_const;
   CHECK(fixture_run(value, source));
@@ -3651,7 +3651,7 @@ static bool test_typed_const_expressions(void) {
 
   static const char unsupported_identifier[] =
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(unknownValue)> }\n";
+      "struct Use { let value: Box<(unknownValue)> }\n";
   CHECK(fixture_run(value, unsupported_identifier));
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         value->result.written.typed_const_expressions == 0u &&
@@ -3663,7 +3663,7 @@ static bool test_typed_const_expressions(void) {
 
   static const char unsupported_string[] =
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(\"42\")> }\n";
+      "struct Use { let value: Box<(\"42\")> }\n";
   CHECK(fixture_run(value, unsupported_string));
   CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         value->result.written.typed_const_expressions == 0u &&
@@ -3689,7 +3689,7 @@ static bool test_string_expression_projection(void) {
       "const fn equals(value: String): Bool { return value == \"a\" }\n"
       "const fn empty(value: String): Bool { return value == \"\" }\n"
       "struct Text<_ value: String> {}\n"
-      "struct Use { one: Text<\"a\"> zero: Text<\"\"> }\n";
+      "struct Use { let one: Text<\"a\"> let zero: Text<\"\"> }\n";
   fixture *value = &fixture_const;
   CHECK(fixture_run(value, source));
   CHECK(value->result.status == W_SEED_FRONTEND_OK);
@@ -3763,7 +3763,7 @@ static bool test_generic_capacity_target_run(
       "enum Stage { accepted }\n"
       "struct Text<value: String> {}\n"
       "struct Path<stages: StaticList<Stage>> {}\n"
-      "struct Use { text: Text<value: \"x\"> path: Path<stages: [.accepted]> }\n";
+      "struct Use { let text: Text<value: \"x\"> let path: Path<stages: [.accepted]> }\n";
   const uint8_t sentinel = 0xa5u;
   CHECK(fixture_parse(value, source));
   fixture_fill_output(value, sentinel);

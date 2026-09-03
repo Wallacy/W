@@ -1,9 +1,9 @@
 import * from std
 
 export struct DishId {
-  raw: u32
+  let raw: u32
 }
 
 export struct DishId {
-  raw: u64
+  let raw: u64
 }

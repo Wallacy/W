@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/capability_security_oracle.w",
     "symbol": "enum CapabilityOrigin",
-    "digest": "sha256:2dc7f514f2af65fc61c1e160a93ac2f4d76a5790077849537c1547307dfd26b3"
+    "digest": "sha256:8c11b36eb2165c512c0b8cfa36b987f5f6c5bcbf1a3f5b9fc281692837407bd7"
   },
   "sourceRefs": [
     {
@@ -31,12 +31,12 @@
     {
       "path": "../../../reference/last-light/domain_oracle.w",
       "symbol": "deployment can reduce but cannot increase profile capacity",
-      "digest": "sha256:b706a4f28fcb38eb8ef0e30e5ecc69706135015eefea3a97f02a64d8e5bafedb"
+      "digest": "sha256:7f7660a2ab66ac979800031885deadfc00ac62e612be157f63e0ea60ccd7368f"
     },
     {
       "path": "../../../reference/last-light/hir_memory_oracle.w",
       "symbol": "struct HirAbiKey",
-      "digest": "sha256:b43e34ec36c747dfc21ad4d25beeb64af19aa89db45dae5bd12e373cba85ab58"
+      "digest": "sha256:2528b8218076dfac1c9e82f59c4aae1b4a170c7350a24b0a46beac50c5155df6"
     }
   ],
   "variants": [
@@ -45,7 +45,7 @@
       "role": "selected",
       "language": "w",
       "path": "security-profile.w",
-      "digest": "sha256:3f6d2d024b23d9277346759e248694cc7c14b62a1eb049b0e3000223e1bbff2a",
+      "digest": "sha256:2cc0e834d8bc740bdc20ed7c88f93d5d6192d1155cb49b3a4ef0124af6a5fd8e",
       "changedConstructs": [
         "profile boundary",
         "budget proof",
@@ -61,7 +61,7 @@
       "role": "alternative",
       "language": "w",
       "path": "security-boundary.w",
-      "digest": "sha256:6b86a01564ea34e39be67377e29e5ecb48f9a077b557c5cc402bf0b4ef1ed94a",
+      "digest": "sha256:614d8d428acb9d28ee95940cb5731ea44aee4fb9862a5c8befb557d1b9f63607",
       "changedConstructs": [
         "tenant binding",
         "bounded input",

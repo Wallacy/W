@@ -219,7 +219,7 @@ export function deriveInitializerEvaluationPlan(source, typeName) {
   if (closing < 0) return null
   const fields = []
   for (const line of clean.slice(opening + 1, closing).split(/\r?\n/)) {
-    const field = line.trim().match(/^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=;]+?)(?:\s*=\s*(.+?))?;?$/)
+    const field = line.trim().match(/^(?:let|var)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=;]+?)(?:\s*=\s*(.+?))?;?$/)
     if (!field) continue
     fields.push({ name: field[1], type: field[2].trim(), defaultExpression: field[3]?.trim() ?? null })
   }
@@ -532,24 +532,11 @@ function parseCalls(source, input = {}) {
   return calls
 }
 
-function parameterSegments(parameters) {
-  const segments = [{ named: [], anchor: null }]
-  for (const parameter of parameters) {
-    if (parameter.policy === "positionalOnly" || parameter.unnamed) {
-      segments.at(-1).anchor = parameter
-      segments.push({ named: [], anchor: null })
-    } else {
-      segments.at(-1).named.push(parameter)
-    }
-  }
-  return segments
-}
-
 function parameterOptional(parameter) {
   return parameter.hasDefault || parameter.contextualAllocator || parameter.variadic
 }
 
-function namedSegmentOptions(named) {
+function namedOptions(named) {
   let options = [[]]
   for (const parameter of named) {
     const form = parameter.forms[0]
@@ -562,124 +549,75 @@ function namedSegmentOptions(named) {
   return options.map((option) => option.sort())
 }
 
-function segmentShapeParts(segments, segmentIndex, namedForms, anchorForm) {
-  const parts = []
-  for (let index = 0; index < segments.length; index += 1) {
-    const names = namedForms[index] ?? []
-    parts.push(names.join("&"))
-    if (index < segments.length - 1) parts.push(index === segmentIndex ? anchorForm : "")
-  }
-  return parts
-}
-
 function completeCallShapes(parameters) {
-  const segments = parameterSegments(parameters)
-  let combinations = [{ names: segments.map(() => []), anchors: segments.slice(0, -1).map(() => "") }]
-  for (let index = 0; index < segments.length; index += 1) {
-    const options = namedSegmentOptions(segments[index].named)
-    combinations = combinations.flatMap((combination) => options.map((names) => ({
-      ...combination,
-      names: combination.names.map((value, nameIndex) => nameIndex === index ? names : value),
-    })))
-    if (index >= segments.length - 1) continue
-    const anchor = segments[index].anchor
-    const anchorOptions = anchor && !parameterOptional(anchor)
-      ? [anchor.variadic ? "positional..." : "positional"]
-      : ["", anchor?.variadic ? "positional..." : "positional"]
-    combinations = combinations.flatMap((combination) => anchorOptions.map((value) => ({
-      ...combination,
-      anchors: combination.anchors.map((current, anchorIndex) => anchorIndex === index ? value : current),
-    })))
+  const named = parameters.filter((parameter) => parameter.policy !== "positionalOnly" && !parameter.unnamed)
+  const positional = parameters.filter((parameter) => parameter.policy === "positionalOnly" || parameter.unnamed)
+  let positionalOptions = [[]]
+  for (const parameter of positional) {
+    const token = parameter.variadic ? "positional..." : "positional"
+    positionalOptions = parameterOptional(parameter)
+      ? positionalOptions.flatMap((option) => [option, [...option, token]])
+      : positionalOptions.map((option) => [...option, token])
   }
-  const shapes = combinations.map((combination) => {
+  const shapes = namedOptions(named).flatMap((names) => positionalOptions.map((positions) => {
     const parts = []
-    for (let index = 0; index < segments.length; index += 1) {
-      const names = combination.names[index] ?? []
-      if (names.length > 0) parts.push(names.join("&"))
-      if (index < segments.length - 1 && combination.anchors[index]) {
-        parts.push(combination.anchors[index])
-      }
-    }
+    if (names.length > 0) parts.push(names.join("&"))
+    parts.push(...positions)
     return parts.join("|")
-  })
+  }))
   return [...new Set(shapes)]
 }
 
-function labelSegmentMap(parameters) {
+function labelMap(parameters) {
   const map = new Map()
-  for (const [segmentIndex, segment] of parameterSegments(parameters).entries()) {
-    for (const parameter of segment.named) {
-      for (const form of parameter.forms) map.set(form, { parameter, segmentIndex })
-    }
+  for (const parameter of parameters) {
+    if (parameter.policy === "positionalOnly" || parameter.unnamed) continue
+    for (const form of parameter.forms) map.set(form, parameter)
   }
   return map
 }
 
 function bindCallForms(parameters, forms, options = {}) {
-  const segments = parameterSegments(parameters)
-  const labels = labelSegmentMap(parameters)
+  const labels = labelMap(parameters)
+  const positional = parameters.filter((parameter) => parameter.policy === "positionalOnly" || parameter.unnamed)
   const seen = new Set()
   const bindings = []
   const holes = []
   const addHole = (parameter) => {
     if (!holes.includes(parameter)) holes.push(parameter)
   }
-  let segmentIndex = 0
+  let positionalIndex = 0
   let activeVariadic = null
   for (const form of forms) {
     if (form === "positional") {
-      if (activeVariadic && activeVariadic.segmentIndex === segmentIndex) {
-        bindings.push({ parameter: activeVariadic.parameter, form })
+      if (activeVariadic) {
+        bindings.push({ parameter: activeVariadic, form })
         continue
       }
-      const segment = segments[segmentIndex]
-      if (!segment?.anchor) return null
-      if (segment.anchor.variadic) {
-        activeVariadic = { parameter: segment.anchor, segmentIndex }
-      } else {
-        segmentIndex += 1
-      }
-      bindings.push({ parameter: segment.anchor, form })
+      const parameter = positional[positionalIndex]
+      if (!parameter) return null
+      if (parameter.variadic) activeVariadic = parameter
+      else positionalIndex += 1
+      bindings.push({ parameter, form })
       continue
     }
-    const entry = labels.get(form)
-    if (!entry || seen.has(form)) return null
-    if (activeVariadic
-      && entry.segmentIndex === activeVariadic.segmentIndex
-      && entry.parameter.index < activeVariadic.parameter.index) return null
-    if (entry.segmentIndex > segmentIndex) {
-      for (let skipped = segmentIndex; skipped < entry.segmentIndex; skipped += 1) {
-        const skippedAnchor = segments[skipped]?.anchor
-        if (!skippedAnchor) return null
-        if (!parameterOptional(skippedAnchor)) {
-          if (!options.allowPipeHole) return null
-          addHole(skippedAnchor)
-        }
-      }
-      segmentIndex = entry.segmentIndex
-      activeVariadic = null
-    }
-    if (entry.segmentIndex !== segmentIndex) return null
+    const parameter = labels.get(form)
+    if (!parameter || seen.has(form)) return null
     seen.add(form)
-    bindings.push({ parameter: entry.parameter, form })
-    activeVariadic = entry.parameter.variadic
-      ? { parameter: entry.parameter, segmentIndex }
-      : null
+    bindings.push({ parameter, form })
   }
-  for (const segment of segments) {
-    for (const parameter of segment.named) {
-      const form = parameter.forms[0]
-      if (form && !seen.has(form) && !parameterOptional(parameter)) {
-        if (!options.allowPipeHole) return null
-        addHole(parameter)
-      }
+  for (const parameter of parameters) {
+    if (parameter.policy === "positionalOnly" || parameter.unnamed) continue
+    const form = parameter.forms[0]
+    if (form && !seen.has(form) && !parameterOptional(parameter)) {
+      if (!options.allowPipeHole) return null
+      addHole(parameter)
     }
   }
-  for (let index = 0; index < segments.length - 1; index += 1) {
-    const anchor = segments[index].anchor
-    if (anchor && !parameterOptional(anchor)
-      && !bindings.some((binding) => binding.parameter === anchor)
-      && !holes.includes(anchor)) addHole(anchor)
+  for (const parameter of positional) {
+    if (!parameterOptional(parameter)
+      && !bindings.some((binding) => binding.parameter === parameter)
+      && !holes.includes(parameter)) addHole(parameter)
   }
   if (options.allowPipeHole && holes.length !== 1) return null
   if (!options.allowPipeHole && holes.length > 0) return null
@@ -722,35 +660,19 @@ export function acceptsPipeCallContract(parameters, args) {
 }
 
 function witnessForms(parameters, limit = 8) {
-  const segments = parameterSegments(parameters)
-  const forms = []
-  function visit(segmentIndex, prefix) {
-    if (segmentIndex >= segments.length) {
-      forms.push(prefix)
-      return
-    }
-    const segment = segments[segmentIndex]
-    const named = segment.named.map((parameter) => parameter.forms[0]).filter(Boolean)
-    const requiredNames = named.filter((_, index) => !parameterOptional(segment.named[index]))
-    const nameChoices = [requiredNames]
-    for (const parameter of segment.named.filter((candidate) => parameterOptional(candidate))) {
-      nameChoices.push([...requiredNames, parameter.forms[0]])
-    }
-    const counts = segment.anchor?.variadic
+  const named = parameters.filter((parameter) => parameter.policy !== "positionalOnly" && !parameter.unnamed)
+  const positional = parameters.filter((parameter) => parameter.policy === "positionalOnly" || parameter.unnamed)
+  let positionalForms = [[]]
+  for (const parameter of positional) {
+    const counts = parameter.variadic
       ? Array.from({ length: limit + 1 }, (_, index) => index)
-      : segment.anchor ? [parameterOptional(segment.anchor) ? 0 : 1] : [0]
-    for (const names of nameChoices) {
-      for (const count of counts) {
-        const withNames = [...prefix, ...names]
-        const withAnchor = segment.anchor
-          ? [...withNames, ...Array.from({ length: count }, () => "positional")]
-          : withNames
-        visit(segmentIndex + 1, withAnchor)
-      }
-    }
+      : parameterOptional(parameter) ? [0, 1] : [1]
+    positionalForms = positionalForms.flatMap((prefix) => counts.map((count) => [
+      ...prefix,
+      ...Array.from({ length: count }, () => "positional"),
+    ]))
   }
-  visit(0, [])
-  return forms
+  return namedOptions(named).flatMap((names) => positionalForms.map((positions) => [...names, ...positions]))
 }
 
 function overlappingCallShape(left, right) {
@@ -940,11 +862,6 @@ function parseGenericHeads(source) {
         forms: ["positional"],
       }
     })
-    let segment = 0
-    for (const parameter of parameters) {
-      parameter.segment = segment
-      if (parameter.anchor) segment += 1
-    }
     heads.push({ name: match[1], parameters })
   }
   const diagnostics = []
@@ -975,30 +892,20 @@ function parseGenericHeads(source) {
         diagnostics.push({ code: "W-LABEL-0006", declaration, label, slot: label })
       }
     }
-    const anchorIndexes = head.parameters
-      .filter((parameter) => parameter.anchor)
-      .map((parameter) => parameter.index)
+    const anchors = head.parameters.filter((parameter) => parameter.anchor)
     let nextAnchor = 0
-    let currentSegment = 0
-    const advance = () => {
-      while (nextAnchor < anchorIndexes.length && assigned.has(anchorIndexes[nextAnchor])) {
-        currentSegment = head.parameters[anchorIndexes[nextAnchor]].segment + 1
-        nextAnchor += 1
-      }
-    }
-    advance()
     for (const raw of args) {
       const named = raw.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/)
       if (named) {
         const label = named[1]
         const candidate = head.parameters.find((parameter) => parameter.external === label)
-        if (!candidate || candidate.segment !== currentSegment || candidate.anchor) {
+        if (!candidate || candidate.anchor) {
           diagnostics.push({
             code: "W-LABEL-0005",
             declaration,
             label,
-            acceptedForms: head.parameters.filter((parameter) => parameter.segment === currentSegment && !parameter.anchor).flatMap((parameter) => parameter.forms),
-            reason: candidate && candidate.segment !== currentSegment ? "generic-label-crosses-anchor" : "generic-label-unknown-or-positional-only",
+            acceptedForms: head.parameters.filter((parameter) => !parameter.anchor).flatMap((parameter) => parameter.forms),
+            reason: "generic-label-unknown-or-positional-only",
           })
           continue
         }
@@ -1010,18 +917,15 @@ function parseGenericHeads(source) {
         bound[candidate.index] = named[2].trim()
         continue
       }
-      advance()
-      const anchorIndex = anchorIndexes[nextAnchor]
-      const anchor = head.parameters[anchorIndex]
+      while (nextAnchor < anchors.length && assigned.has(anchors[nextAnchor].index)) nextAnchor += 1
+      const anchor = anchors[nextAnchor]
       if (!anchor || !anchor.anchor) {
         diagnostics.push({ code: "W-LABEL-0005", declaration, reason: "generic-positional-without-anchor" })
         continue
       }
-      assigned.add(anchorIndex)
-      bound[anchorIndex] = raw.trim()
-      currentSegment = anchor.segment + 1
+      assigned.add(anchor.index)
+      bound[anchor.index] = raw.trim()
       nextAnchor += 1
-      advance()
     }
     for (const parameter of head.parameters) {
       if (!assigned.has(parameter.index)) {

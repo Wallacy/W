@@ -25,7 +25,7 @@ function reservedTypeUses(source) {
     if (!/\btype\s*:/.test(line)) return []
     // A contextual computed property is the one permitted surface. Its
     // accessor body starts on the declaration line, unlike a label or binding.
-    if (/^\s*(?:export\s+)?type\s*:\s*[^{}\r\n]+\{\s*$/.test(line)) return []
+    if (/^\s*(?:export\s+)?(?:let|var)\s+type\s*:\s*[^{}\r\n]+\{\s*$/.test(line)) return []
     return [`${index + 1}: ${line.trim()}`]
   })
 }
@@ -41,9 +41,9 @@ const sourceRules = [
   },
   {
     path: "std/blob/contracts.w",
-    required: ["mediaType:", "export type:", ".type"],
+    required: ["mediaType:", "export let type:", ".type"],
     forbidden: [
-      /\b(?:let|var|const)\s+type\b/g,
+      /\b(?:var|const)\s+type\b/g,
       /\b(?:take|copy|ref|view|shared|weak)\s+type\b/g,
       /normalizeMediaType\(type\)/g,
     ],
@@ -69,4 +69,4 @@ for (const rule of sourceRules) {
   }
 }
 
-console.log("maintained parse contract: reference/std gates integrated; reserved type bindings and labels absent; Web properties present")
+console.log("maintained parse contract: reference/std gates integrated; reserved type labels absent; explicit contextual Web property present")

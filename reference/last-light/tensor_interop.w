@@ -10,8 +10,8 @@ export type ScientificBatch<samples: usize> =
   Tensor<f32, shape: [samples, 6]>
 
 export struct BlackHoleSensor {
-  distance: f64
-  watcher: String
+  let distance: f64
+  let watcher: String
 }
 
 export enum ScoreError: Error {
@@ -24,13 +24,13 @@ export enum InteropError: Error {
 }
 
 export struct Scores {
-  samples: usize
-  anomaly: f32
+  let samples: usize
+  let anomaly: f32
 }
 
 export struct InteropLimits {
-  dlpack: dlpack.Limits
-  tensor: tensor.Limits
+  let dlpack: dlpack.Limits
+  let tensor: tensor.Limits
 }
 
 export async fn importScientific<samples: usize>(

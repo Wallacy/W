@@ -3,13 +3,13 @@
 import { Course, Money, OrderId } from domain
 
 export struct ArrivalTicket {
-  orderId: OrderId
-  priority: u8
-  sequence: u64
+  let orderId: OrderId
+  let priority: u8
+  let sequence: u64
 }
 
 export struct CollisionKey: Hashable {
-  raw: u64
+  let raw: u64
 
   fn hash(into hasher: inout Hasher) {
     // The test hasher puts every key in one bucket.

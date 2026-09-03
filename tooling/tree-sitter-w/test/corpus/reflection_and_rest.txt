@@ -3,7 +3,7 @@ Reflection and homogeneous rest arguments
 ==================
 
 struct Ticket: Hashable & Reflectable {
-  id: u64
+  let id: u64
 }
 
 enum Signal: Reflectable {
@@ -57,9 +57,10 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))))
   (enum_declaration
     (type_identifier)
     (type

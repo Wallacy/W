@@ -5,13 +5,13 @@ import iec from std
 import json from std.json
 
 struct Ticket: json.Codable {
-  id: u64
-  title: String
-  garnish: String?
+  let id: u64
+  let title: String
+  let garnish: String?
 }
 
 struct Escaped: json.Codable {
-  text: String
+  let text: String
 }
 
 enum CourseTag: json.Codable {
@@ -22,13 +22,13 @@ enum CourseTag: json.Codable {
 type TinyCount = u16<(1...3)>
 
 struct Payload: json.Codable {
-  orderId: u64
-  amount: i32
+  let orderId: u64
+  let amount: i32
 }
 
 struct Envelope: json.Codable {
-  payload: Payload
-  comment: String?
+  let payload: Payload
+  let comment: String?
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withObject((object) => {

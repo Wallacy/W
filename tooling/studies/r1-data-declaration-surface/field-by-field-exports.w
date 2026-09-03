@@ -3,14 +3,14 @@ import { Course, DishLabel, Money } from domain
 import { Ingredient, ReservationId } from kitchen
 
 export struct MenuItem {
-  export course: Course
-  export label: DishLabel
-  export price: Money
+  export let course: Course
+  export let label: DishLabel
+  export let price: Money
 }
 
 export object StockReservation {
-  id: ReservationId
-  ingredients: Array<Ingredient>
+  let id: ReservationId
+  let ingredients: Array<Ingredient>
 
   export fn ingredientCount(): usize {
     return ingredients.count

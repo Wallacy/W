@@ -263,7 +263,7 @@ object NoCorsSafelist {
 }
 
 export struct MethodToken {
-  value: String
+  let value: String
 
   export const init(value: String) throws HttpSyntaxError {
     guard isHttpToken(value: value) else throw .invalidMethod
@@ -304,7 +304,7 @@ extension StatusCode {
 }
 
 export struct HeaderName {
-  value: String
+  let value: String
 
   export const init(value: String) throws HttpSyntaxError {
     guard isHttpToken(value: value) else throw .invalidHeaderName
@@ -382,8 +382,8 @@ export struct HeaderName {
 }
 
 export struct HeaderField {
-  storedName: HeaderName
-  storedValue: String
+  let storedName: HeaderName
+  let storedValue: String
 
   export const init(
     name: HeaderName,
@@ -473,8 +473,8 @@ enum HeadersGuard {
 }
 
 export struct Headers {
-  fields: Array<HeaderField>
-  guard: HeadersGuard
+  let fields: Array<HeaderField>
+  let guard: HeadersGuard
 
   export init(initialFields: take HeaderField...) {
     self.fields = take initialFields
@@ -768,18 +768,18 @@ export enum ServerError: Error {
 }
 
 export struct MessageLimits {
-  targetBytes: usize<(1...)>
-  headerBytes: usize<(1...)>
-  headerFields: usize<(1...)>
-  bodyBytes: usize<(1...)>
+  let targetBytes: usize<(1...)>
+  let headerBytes: usize<(1...)>
+  let headerFields: usize<(1...)>
+  let bodyBytes: usize<(1...)>
 }
 
 export struct ServerLimits {
-  activeRequests: usize<(1...)>
-  queuedRequests: usize
-  queuedBytes: usize
-  connections: usize<(1...)>
-  message: MessageLimits
+  let activeRequests: usize<(1...)>
+  let queuedRequests: usize
+  let queuedBytes: usize
+  let connections: usize<(1...)>
+  let message: MessageLimits
 }
 
 export enum FormDataLimitKind: Copy {
@@ -800,13 +800,13 @@ export enum FormDataError: Error & Copy {
 }
 
 export struct FormDataLimits: Copy & Equatable {
-  maximumEntries: usize<(1...)>
-  maximumNameBytes: usize<(1...)>
-  maximumFilenameBytes: usize<(1...)>
-  maximumTextBytes: usize<(1...)>
-  maximumBlobBytes: usize<(1...)>
-  maximumPayloadBytes: usize<(1...)>
-  maximumEncodedBytes: usize<(1...)>
+  let maximumEntries: usize<(1...)>
+  let maximumNameBytes: usize<(1...)>
+  let maximumFilenameBytes: usize<(1...)>
+  let maximumTextBytes: usize<(1...)>
+  let maximumBlobBytes: usize<(1...)>
+  let maximumPayloadBytes: usize<(1...)>
+  let maximumEncodedBytes: usize<(1...)>
 
   export const init(
     maximumEntries: usize<(1...)>,
@@ -854,9 +854,9 @@ export enum FormDataValue: Duplicable {
 }
 
 export struct FormDataEntry: Duplicable {
-  storedName: String
-  storedValue: FormDataValue
-  storedRetainedBytes: usize
+  let storedName: String
+  let storedValue: FormDataValue
+  let storedRetainedBytes: usize
 
   init(
     name: String,
@@ -886,14 +886,14 @@ export struct FormDataEntry: Duplicable {
 }
 
 struct FormDataAdmission {
-  totalBytes: usize
-  entryBytes: usize
+  let totalBytes: usize
+  let entryBytes: usize
 }
 
 export struct FormData: Duplicable {
-  storedLimits: FormDataLimits
-  storedPayloadBytes: usize
-  storedEntries: Array<FormDataEntry>
+  let storedLimits: FormDataLimits
+  let storedPayloadBytes: usize
+  let storedEntries: Array<FormDataEntry>
 
   export init(limits: FormDataLimits = FormDataLimits.standard()) {
     self.storedLimits = limits
@@ -911,11 +911,11 @@ export struct FormData: Duplicable {
     self.storedEntries = take entries
   }
 
-  export size: usize {
+  export let size: usize {
     get => storedEntries.count
   }
 
-  export limits: FormDataLimits {
+  export let limits: FormDataLimits {
     get => storedLimits
   }
 
@@ -1259,21 +1259,21 @@ export enum ResponseType {
 }
 
 export struct RequestInit {
-  method: Method?
-  headers: Headers?
-  body: BodySource?
-  signal: AbortSignal?
-  mode: RequestMode?
-  credentials: CredentialsMode?
-  cache: CacheMode?
-  redirect: RedirectMode?
-  referrer: RequestReferrer?
-  referrerPolicy: ReferrerPolicy?
+  let method: Method?
+  let headers: Headers?
+  let body: BodySource?
+  let signal: AbortSignal?
+  let mode: RequestMode?
+  let credentials: CredentialsMode?
+  let cache: CacheMode?
+  let redirect: RedirectMode?
+  let referrer: RequestReferrer?
+  let referrerPolicy: ReferrerPolicy?
   // none means no override in RequestInit; `.some(.none)` is only meaningful
   // for RequestOverride, where it clears inherited metadata.
-  integrity: RequestIntegrity?
-  duplex: Duplex?
-  priority: Priority?
+  let integrity: RequestIntegrity?
+  let duplex: Duplex?
+  let priority: Priority?
 
   export init(
     method: Method? = .none,
@@ -1307,20 +1307,20 @@ export struct RequestInit {
 }
 
 export struct RequestOverride {
-  method: Method?
-  headers: Headers?
-  body: BodyOverride
-  signal: AbortSignal?
-  mode: RequestMode?
-  credentials: CredentialsMode?
-  cache: CacheMode?
-  redirect: RedirectMode?
-  referrer: RequestReferrer?
-  referrerPolicy: ReferrerPolicy?
+  let method: Method?
+  let headers: Headers?
+  let body: BodyOverride
+  let signal: AbortSignal?
+  let mode: RequestMode?
+  let credentials: CredentialsMode?
+  let cache: CacheMode?
+  let redirect: RedirectMode?
+  let referrer: RequestReferrer?
+  let referrerPolicy: ReferrerPolicy?
   // Outer absence inherits. `.some(.none)` clears the inherited value.
-  integrity: RequestIntegrity?
-  duplex: Duplex?
-  priority: Priority?
+  let integrity: RequestIntegrity?
+  let duplex: Duplex?
+  let priority: Priority?
 
   export init(
     method: Method? = .none,
@@ -1366,8 +1366,8 @@ export enum TemplateError: Error {
 }
 
 export struct TemplateLimits {
-  maximumOutputBytes: usize<(1...)>
-  maximumValues: usize
+  let maximumOutputBytes: usize<(1...)>
+  let maximumValues: usize
 
   export const init(
     maximumOutputBytes: usize<(1...)>,
@@ -1523,7 +1523,7 @@ foreign intrinsic from "std.http@1" {
 }
 
 export struct Request {
-  handle: RequestHandle
+  let handle: RequestHandle
 
   init(validatedHandle: RequestHandle) {
     self.handle = validatedHandle
@@ -1557,63 +1557,63 @@ export struct Request {
     unsafe { try stdHttpRequestOverride(inout self.handle, take override) }
   }
 
-  export method: Method {
+  export let method: Method {
     get => unsafe { stdHttpRequestMethod(ref handle) }
   }
 
-  export url: ref URL {
+  export let url: ref URL {
     get => unsafe { stdHttpRequestURL(ref handle) }
   }
 
-  export headers: ref Headers {
+  export let headers: ref Headers {
     get => unsafe { stdHttpRequestHeaders(ref handle) }
   }
 
-  export signal: ref AbortSignal {
+  export let signal: ref AbortSignal {
     get => unsafe { stdHttpRequestSignal(ref handle) }
   }
 
-  export bodyUsed: Bool {
+  export let bodyUsed: Bool {
     get => unsafe { stdHttpRequestBodyUsed(ref handle) }
   }
 
-  export destination: RequestDestination {
+  export let destination: RequestDestination {
     get => unsafe { stdHttpRequestDestination(ref handle) }
   }
 
-  export mode: RequestMode {
+  export let mode: RequestMode {
     get => unsafe { stdHttpRequestMode(ref handle) }
   }
 
-  export credentials: CredentialsMode {
+  export let credentials: CredentialsMode {
     get => unsafe { stdHttpRequestCredentials(ref handle) }
   }
 
-  export cache: CacheMode {
+  export let cache: CacheMode {
     get => unsafe { stdHttpRequestCache(ref handle) }
   }
 
-  export redirect: RedirectMode {
+  export let redirect: RedirectMode {
     get => unsafe { stdHttpRequestRedirect(ref handle) }
   }
 
-  export referrer: RequestReferrer {
+  export let referrer: RequestReferrer {
     get => unsafe { stdHttpRequestReferrer(ref handle) }
   }
 
-  export referrerPolicy: ReferrerPolicy {
+  export let referrerPolicy: ReferrerPolicy {
     get => unsafe { stdHttpRequestReferrerPolicy(ref handle) }
   }
 
-  export integrity: view String {
+  export let integrity: view String {
     get => unsafe { stdHttpRequestIntegrity(ref handle) }
   }
 
-  export duplex: Duplex {
+  export let duplex: Duplex {
     get => unsafe { stdHttpRequestDuplex(ref handle) }
   }
 
-  export priority: Priority {
+  export let priority: Priority {
     get => unsafe { stdHttpRequestPriority(ref handle) }
   }
 
@@ -1695,7 +1695,7 @@ export struct Request {
 }
 
 export struct Response {
-  handle: ResponseHandle
+  let handle: ResponseHandle
 
   init(validatedHandle: ResponseHandle) {
     self.handle = validatedHandle
@@ -1886,35 +1886,35 @@ export struct Response {
     )
   }
 
-  export status: u16<(0..<600)> {
+  export let status: u16<(0..<600)> {
     get => unsafe { stdHttpResponseStatus(ref handle) }
   }
 
-  export ok: Bool {
+  export let ok: Bool {
     get => unsafe { stdHttpResponseOk(ref handle) }
   }
 
-  export statusText: view String {
+  export let statusText: view String {
     get => unsafe { stdHttpResponseStatusText(ref handle) }
   }
 
-  export headers: ref Headers {
+  export let headers: ref Headers {
     get => unsafe { stdHttpResponseHeaders(ref handle) }
   }
 
-  export url: URL? {
+  export let url: URL? {
     get => unsafe { stdHttpResponseURL(ref handle) }
   }
 
-  export redirected: Bool {
+  export let redirected: Bool {
     get => unsafe { stdHttpResponseRedirected(ref handle) }
   }
 
-  export type: ResponseType {
+  export let type: ResponseType {
     get => unsafe { stdHttpResponseType(ref handle) }
   }
 
-  export bodyUsed: Bool {
+  export let bodyUsed: Bool {
     get => unsafe { stdHttpResponseBodyUsed(ref handle) }
   }
 
@@ -1994,7 +1994,7 @@ export struct Response {
 }
 
 export struct RandomSource {
-  handle: RandomHandle
+  let handle: RandomHandle
 
   init(validatedHandle: RandomHandle) {
     self.handle = validatedHandle
@@ -2010,7 +2010,7 @@ export struct RandomSource {
 }
 
 export struct DatabaseRegistry {
-  handle: DatabaseRegistryHandle
+  let handle: DatabaseRegistryHandle
 
   init(validatedHandle: DatabaseRegistryHandle) {
     self.handle = validatedHandle
@@ -2028,7 +2028,7 @@ export struct DatabaseRegistry {
 }
 
 export struct CacheRegistry {
-  handle: CacheRegistryHandle
+  let handle: CacheRegistryHandle
 
   init(validatedHandle: CacheRegistryHandle) {
     self.handle = validatedHandle
@@ -2049,9 +2049,9 @@ export struct CacheRegistry {
 }
 
 export struct TemplateBinding {
-  name: String
-  limits: TemplateLimits
-  version: u32<(1...)>
+  let name: String
+  let limits: TemplateLimits
+  let version: u32<(1...)>
 
   export const init(
     name: String,
@@ -2067,7 +2067,7 @@ export struct TemplateBinding {
 // This host-template wrapper is provisional server extension behavior. It is
 // not HTTP/Web semantics; the binding fixes provider limits and version.
 export struct Template {
-  handle: TemplateHandle
+  let handle: TemplateHandle
 
   init(validatedHandle: TemplateHandle) {
     self.handle = validatedHandle
@@ -2087,7 +2087,7 @@ export struct Template {
 }
 
 export struct TemplateRegistry {
-  handle: TemplateRegistryHandle
+  let handle: TemplateRegistryHandle
 
   init(validatedHandle: TemplateRegistryHandle) {
     self.handle = validatedHandle
@@ -2105,7 +2105,7 @@ export struct TemplateRegistry {
 }
 
 export struct Context {
-  handle: ContextHandle
+  let handle: ContextHandle
 
   init(validatedHandle: ContextHandle) {
     self.handle = validatedHandle
@@ -2115,25 +2115,25 @@ export struct Context {
   // temporary wrapper lives through the full expression and drops afterward;
   // an explicitly bound wrapper may outlive the Context value, but never the
   // request root.
-  export random: RandomSource {
+  export let random: RandomSource {
     get => RandomSource(validatedHandle: unsafe {
       stdHttpContextRandom(ref handle)
     })
   }
 
-  export databases: DatabaseRegistry {
+  export let databases: DatabaseRegistry {
     get => DatabaseRegistry(validatedHandle: unsafe {
       stdHttpContextDatabases(ref handle)
     })
   }
 
-  export caches: CacheRegistry {
+  export let caches: CacheRegistry {
     get => CacheRegistry(validatedHandle: unsafe {
       stdHttpContextCaches(ref handle)
     })
   }
 
-  export templates: TemplateRegistry {
+  export let templates: TemplateRegistry {
     get => TemplateRegistry(validatedHandle: unsafe {
       stdHttpContextTemplates(ref handle)
     })
@@ -2141,7 +2141,7 @@ export struct Context {
 
   // The provider returns an owned/duplicated signal. Its lifetime is
   // independent from the Context value, but never outlives the request root.
-  export signal: AbortSignal {
+  export let signal: AbortSignal {
     get => unsafe { stdHttpContextSignal(ref handle) }
   }
 

@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/oracle.w",
     "symbol": "forecast",
-    "digest": "sha256:c012d29d6b57f89a76d5f1e55377a3e2fbf3b9f80cb7d35cda6f394e3c96d9a4"
+    "digest": "sha256:728e2c294c67a6a34e13759a1ee0fe3d4b49655b0b76958e89028b37c2f0767f"
   },
   "variants": [
     {

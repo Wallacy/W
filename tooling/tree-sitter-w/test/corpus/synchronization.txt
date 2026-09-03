@@ -64,16 +64,18 @@ fn trySnapshot(state: shared GateState): LockAttempt<GateState> {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (contextual_member_expression
           (identifier)))
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (number_literal))
       (function_declaration
         (identifier)

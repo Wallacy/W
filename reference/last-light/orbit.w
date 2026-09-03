@@ -12,16 +12,12 @@ export behavior WrappedDegrees for u16 {
   }
 
   get {
+    defer { current %= 360_u16 }
     return current
   }
 
   mut set(newValue) {
     current = newValue % 360_u16
-  }
-
-  get mut ref {
-    defer { current %= 360_u16 }
-    return mut ref current
   }
 
   export mut fn reset() {
@@ -40,15 +36,15 @@ export behavior Versioned<Value> for Value {
     reads = 0
   }
 
-  export mutationEpoch: u64 {
+  export let mutationEpoch: u64 {
     get => epoch
   }
 
-  export replacementCount: u64 {
+  export let replacementCount: u64 {
     get => replacements
   }
 
-  export readCount: u64 {
+  export let readCount: u64 {
     get => reads
   }
 
@@ -57,7 +53,9 @@ export behavior Versioned<Value> for Value {
   }
 
   mut willGet(kind: PropertyAccessKind) { reads += 1 }
-  didGet(kind: PropertyAccessKind) { }
+  mut didGet(kind: PropertyAccessKind) {
+    if kind == .mutableBorrowed { epoch += 1 }
+  }
 
   mut willSet(current: ref Value, proposed: ref Value) { replacements += 1 }
 
@@ -82,7 +80,7 @@ export behavior VersionedDegrees for u16 =
 fn nudge(value: mut ref u16) { value += 5 }
 
 export struct Attitude {
-  var VersionedDegrees yaw: u16 = 0
+  var VersionedDegrees yaw: mut ref u16 = 0
 
   mut fn rotate(by delta: u16) {
     yaw += delta
@@ -98,26 +96,26 @@ test "attitude rotation wraps degrees" for Attitude {
 
   let beforeReset = attitude.yaw#version.mutationEpoch
   expect beforeReset == 2
-  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.replacementCount == 1
 
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
   expect attitude.yaw#version.mutationEpoch == 3
-  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.replacementCount == 1
 
   nudge(value: mut ref attitude.yaw)
   expect attitude.yaw == 5
-  expect attitude.yaw#version.mutationEpoch == 3
-  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.mutationEpoch == 4
+  expect attitude.yaw#version.replacementCount == 1
 }
 
 export type SatelliteId = u32
 export alias Vector3<T> = Tensor<T, shape: [3]>
 
 export struct StateVector {
-  position: Vector3<Distance>
-  velocity: Vector3<Velocity>
-  epoch: PhysicalDuration
+  let position: Vector3<Distance>
+  let velocity: Vector3<Velocity>
+  let epoch: PhysicalDuration
 }
 
 export enum SatelliteHealth {
@@ -128,10 +126,10 @@ export enum SatelliteHealth {
 }
 
 export struct SatelliteTelemetry {
-  id: SatelliteId
-  state: StateVector
-  health: SatelliteHealth
-  sequence: u64
+  let id: SatelliteId
+  let state: StateVector
+  let health: SatelliteHealth
+  let sequence: u64
 }
 
 export enum SatelliteError: Error {
@@ -158,8 +156,8 @@ export fn propagate(state: ref StateVector, during elapsed: PhysicalDuration): S
 }
 
 export struct PairTelemetry {
-  left: SatelliteTelemetry
-  right: SatelliteTelemetry
+  let left: SatelliteTelemetry
+  let right: SatelliteTelemetry
 }
 
 export async fn observePair(
@@ -194,10 +192,10 @@ export async fn collectTelemetry(
 }
 
 export struct CollisionWindow {
-  left: SatelliteId
-  right: SatelliteId
-  separation: Distance
-  at: PhysicalDuration
+  let left: SatelliteId
+  let right: SatelliteId
+  let separation: Distance
+  let at: PhysicalDuration
 }
 
 export fn closestApproach(

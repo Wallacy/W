@@ -10,13 +10,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "export struct MenuItem",
-    "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58"
+    "digest": "sha256:9ef053d4b7cb62958065ba6e663092fdb184d3986f96a2dce6324edadd0888ce"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/kitchen.w",
       "symbol": "export object StockReservation",
-      "digest": "sha256:dda875507156dce9cde357bb322781040ddeee5ce098c508ea94445ea2dca002"
+      "digest": "sha256:f418de9403a32bc79f46de665c16c5d5aac9f1a72d52fc4d0df320e2f958e54e"
     }
   ],
   "variants": [
@@ -25,7 +25,7 @@
       "role": "selected",
       "language": "w",
       "path": "transparent-and-encapsulated.w",
-      "digest": "sha256:8bbecc487fd369b1d91d5f21b0d8e9e788cc78dc5af8b574f59c5978246dfdbe",
+      "digest": "sha256:7c547f7264dcdf25e6caa2b7f1a9f414dfda99b5bb7ab6cb5a3a82618820580a",
       "changedConstructs": [
         "transparent MenuItem fields",
         "encapsulated StockReservation storage",
@@ -41,7 +41,7 @@
       "role": "alternative",
       "language": "w",
       "path": "field-by-field-exports.w",
-      "digest": "sha256:1384d7c9f5b69091c8cc8f7ef461a8585259c7ad5900cb5acb0159d7806b7e56",
+      "digest": "sha256:b1bccdc1b7bea084a8b862bbf1f193f7975e7411659ece73187edb58ed32deef",
       "changedConstructs": [
         "repeated field export spelling",
         "same object storage boundary"

@@ -46,13 +46,13 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9",
+      "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c",
       "claim": "Property-safe getter."
     },
     {
       "path": "../../../reference/last-light/orbit.w",
       "symbol": "mut set(newValue)",
-      "digest": "sha256:8f6ebe1c561b7919204ee473de4547803e54e189c022bde3da4d530ecec6dfbb",
+      "digest": "sha256:38ced91bd37f6d4119a8c92f305a4c9ecdb3489d01cd72732cc3f191826fdeda",
       "claim": "Property setter control."
     }
   ],

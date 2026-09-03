@@ -18,11 +18,11 @@ enum HirAllocatorSlotKind { contextual }
 // facts, and ABI at its declared position. An effect row records it only when
 // the declaration has one; it is not a hidden parameter on ordinary functions.
 struct HirAllocatorSlot {
-  index: usize
-  name: String
-  kind: HirAllocatorSlotKind
-  abiVisible: Bool
-  resourceVisible: Bool
+  let index: usize
+  let name: String
+  let kind: HirAllocatorSlotKind
+  let abiVisible: Bool
+  let resourceVisible: Bool
 }
 
 const fn validAllocatorSlots(slots: Array<HirAllocatorSlot>): Bool {
@@ -33,113 +33,113 @@ const fn validAllocatorSlots(slots: Array<HirAllocatorSlot>): Bool {
 }
 
 struct HirProjection {
-  kind: HirProjectionKind
-  name: String
-  start: usize
-  endExclusive: usize
+  let kind: HirProjectionKind
+  let name: String
+  let start: usize
+  let endExclusive: usize
 }
 
 struct HirPlaceId {
-  root: String
-  projections: Array<HirProjection>
+  let root: String
+  let projections: Array<HirProjection>
 }
 
 struct HirLoanRecord {
-  id: u32
-  place: HirPlaceId
-  mode: HirLoanMode
-  emittedAt: u32
-  endedAt: u32?
-  stable: Bool
-  parent: u32?
-  childCount: u32
+  let id: u32
+  let place: HirPlaceId
+  let mode: HirLoanMode
+  let emittedAt: u32
+  let endedAt: u32?
+  let stable: Bool
+  let parent: u32?
+  let childCount: u32
 }
 
 // An OriginSet is a deduplicated projection. Edges remain individual so two
 // copies of the same origin keep the owner blocked until both drops.
 struct HirDependencyEdge {
-  id: u32
-  ownerPlace: HirPlaceId?
-  ownerSlot: String?
-  mode: HirEdgeMode
-  origin: String
-  dynamic: Bool
+  let id: u32
+  let ownerPlace: HirPlaceId?
+  let ownerSlot: String?
+  let mode: HirEdgeMode
+  let origin: String
+  let dynamic: Bool
 }
 
 struct HirDependentPayload {
-  edges: Array<HirDependencyEdge>
-  lifetimeIndependent: Bool
+  let edges: Array<HirDependencyEdge>
+  let lifetimeIndependent: Bool
 }
 
 struct HirPinnedHandle {
-  payloadRoot: HirPlaceId
-  handleRoot: String
+  let payloadRoot: HirPlaceId
+  let handleRoot: String
 }
 
 struct HirOwner {
-  state: HirOwnerState
-  borrowCount: u8
-  address: HirAddressState
+  let state: HirOwnerState
+  let borrowCount: u8
+  let address: HirAddressState
 }
 
 struct HirMove {
-  source: HirOwner
-  destination: HirOwner
+  let source: HirOwner
+  let destination: HirOwner
 }
 
 struct HirAbiKey {
-  target: u16
-  callingConvention: u8
-  representationPolicy: u8
-  runtimeAbi: u8
+  let target: u16
+  let callingConvention: u8
+  let representationPolicy: u8
+  let runtimeAbi: u8
 }
 
 struct HirBoundaryValue {
-  boundary: HirBoundary
-  representation: HirRepresentation
-  ownership: HirBoundaryOwnership
-  allocatorKnown: Bool
+  let boundary: HirBoundary
+  let representation: HirRepresentation
+  let ownership: HirBoundaryOwnership
+  let allocatorKnown: Bool
 }
 
 struct HirResultMapping {
-  resultSlot: String
-  sources: Array<String>
+  let resultSlot: String
+  let sources: Array<String>
 }
 
 // Borrow origins describe referents. Allocation origins describe storage and
 // its deallocator. A value can be borrow-independent and storage-dependent.
 struct HirAllocationOrigin {
-  allocator: String
-  mobility: HirAllocatorMobility
+  let allocator: String
+  let mobility: HirAllocatorMobility
 }
 
 // SHC0 keeps the hidden control-block receipt distinct from payload storage.
 // Provider profile facts join the descriptor before this record is published.
 struct HirSharedControlOrigin {
-  contract: String
-  instance: String
-  lifetime: String
-  deallocator: String
-  mobility: HirAllocatorMobility
-  adoptionFamily: String
-  bulkReleaseOwner: String?
+  let contract: String
+  let instance: String
+  let lifetime: String
+  let deallocator: String
+  let mobility: HirAllocatorMobility
+  let adoptionFamily: String
+  let bulkReleaseOwner: String?
 }
 
 struct HirAllocationOriginMap {
-  storage: Array<HirAllocationOrigin>
-  controlBlock: HirSharedControlOrigin
+  let storage: Array<HirAllocationOrigin>
+  let controlBlock: HirSharedControlOrigin
 }
 
 struct HirStorageFacts {
-  origins: Array<HirAllocationOrigin>
+  let origins: Array<HirAllocationOrigin>
 }
 
 struct HirSharedCounts {
-  strong: u32
-  weak: u32
-  payloadAlive: Bool
-  blockAlive: Bool
-  deinitCount: u32
+  let strong: u32
+  let weak: u32
+  let payloadAlive: Bool
+  let blockAlive: Bool
+  let deinitCount: u32
 }
 
 fn newOwner(address: HirAddressState): HirOwner {

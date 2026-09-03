@@ -37,7 +37,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:1a0eea4729668b3b25f9cb3290b5d460b20e2caba12b2c703fb12e8b36f275df"
+      "digest": "sha256:0c8e74c7c9d855417ee42743ab6cfcfce96f6bca7c44a3e57bb6ad8449406de1"
     },
     {
       "id": "FRC0-oracle",
@@ -49,7 +49,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:bf81733396674c74de99bcd8f227b2276869e49fe9883780d8722072616b8da9"
+      "digest": "sha256:e1e8f0dd93b1159033256615111f36c04948f85a7c46863bf954b154b0896de3"
     },
     {
       "id": "FRC0-study",
@@ -85,7 +85,7 @@
       "id": "FRC0-fz0-corpus",
       "role": "fz0-corpus",
       "path": "tooling/frontend-freeze-cases.json",
-      "digest": "sha256:eedbe8838ad598b015a8cddfd21542d678da481d9c5c46ac430f34496468dc30"
+      "digest": "sha256:09f876a2360495adc615260ce1458461148334d5f6bede63a9b05be6ec70f484"
     },
     {
       "id": "FRC0-fz0-checker",
@@ -97,7 +97,7 @@
       "id": "FRC0-fz0-snapshot",
       "role": "fz0-snapshot",
       "path": "tooling/frontend-freeze.snapshot.jsonl",
-      "digest": "sha256:ce35b2381a1a94cb1cc5dd747edf5b2a82a3497aa424545f1d382ab0842b4ff7"
+      "digest": "sha256:94f989f7699ed37263fcc2cf66b610e90898476e8090bbc1deaafd68ff0da568"
     },
     {
       "id": "FRC0-fz0-formatter",
@@ -109,7 +109,7 @@
       "id": "FRC0-fz0-semantic",
       "role": "fz0-semantic",
       "path": "tooling/semantic-cases.json",
-      "digest": "sha256:b4404e6f8eb7c7ee2228a67bcf97a8c59264e7b2297fad2cae06144399466ea4"
+      "digest": "sha256:3b77661cc607836c60c76b9a2cb17b00feb8ef0b57b0ab1f0d6353190fbf6866"
     },
     {
       "id": "FRC0-fz0-module-run",
@@ -121,13 +121,13 @@
       "id": "FRC0-fz0-diagnostics",
       "role": "fz0-diagnostics",
       "path": "tooling/diagnostic-catalog.json",
-      "digest": "sha256:a925b7c9fdb71c30a02ca45f56ff6e5cdcc9961601933c94f2264cb7176797f2"
+      "digest": "sha256:2bca6e8162b393d981ba6cded6e3d40f558c705f5ab5ab31c9362bab10d565a7"
     },
     {
       "id": "FRC0-hum0-protocol",
       "role": "hum0-protocol",
       "path": "tooling/hum0-human-review-protocol.json",
-      "digest": "sha256:2e985ac8b6f02a2576e0626fd466b2800afcd5d6b92a2210e4ba01d0d235fdf1"
+      "digest": "sha256:db291595e80a597d052016df6429d75752d2c83e7d500349bf074b4a317af03d"
     },
     {
       "id": "FRC0-hum0-machine",
@@ -151,7 +151,7 @@
       "id": "FRC0-hum0-study",
       "role": "hum0-study",
       "path": "tooling/studies/hum0-human-review/study.json",
-      "digest": "sha256:755384601c04213fcca28f10a4ebe7d0f94a9f4dd9731f62690566aa678cb5ca"
+      "digest": "sha256:75fcf68fe60eb55c2e9ffcac9ad16a4c7b056e3ffb729dfda3592124f936c5d6"
     },
     {
       "id": "FRC0-hum0-oracle",
@@ -175,25 +175,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:b0a56966e67af90d06c829efbf1d9ac9d498e12f0b7f8b143ca630a8a8563ab3"
+      "digest": "sha256:0d1f5daf09184fc1498580646158303a6255b192b684ca6d4693b5453a6e0245"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:b2bdf1affa91e0c70850824951845b75c5fbef68039af007b91f6977b079fa5d"
+      "digest": "sha256:fd179339bcfb30886565c46c9ec81dd5cf124d98bfed46d4dd41c4af840a1172"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:2c090a5dfbc9db4ed44ce582dbd2a7edd41952747892acfcd2909a37c2f7a7f4"
+      "digest": "sha256:a88fec3a25023d3d388108ee6116b2f8edea2331e048d98e5300a84fbaed4d81"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:d803d514235ebf54b053916afd2317409fda57ac6ca39bb7b2df8523eb1ca014"
+      "digest": "sha256:865dc85e114de28e9ecef38126394eaf1bdb6dbdbb369789a43175b4d5d3356d"
     }
   ],
   "evidence": {

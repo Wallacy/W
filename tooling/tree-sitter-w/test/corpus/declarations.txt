@@ -11,8 +11,8 @@ import * from local_http
 import { fetch, request as stdRequest } from std.http
 
 export struct Header {
-  kind: u32
-  size: u64
+  let kind: u32
+  let size: u64
 }
 
 enum Result<T, E> {
@@ -83,14 +83,16 @@ export {
     (type_body
       (field_declaration
         name: (identifier)
-        type: (type
-          base: (type_name
-            name: (type_identifier))))
+        type: (property_type
+          (type
+            base: (type_name
+              name: (type_identifier)))))
       (field_declaration
         name: (identifier)
-        type: (type
-          base: (type_name
-            name: (type_identifier))))))
+        type: (property_type
+          (type
+            base: (type_name
+              name: (type_identifier)))))))
   (enum_declaration
     name: (type_identifier)
     (generic_parameters
@@ -252,8 +254,8 @@ Initializers and computed properties
 ==================
 
 protocol CompletionMetric {
-  completionCount: u64 { get }
-  var limit: usize { get set get mut ref }
+  let completionCount: u64 { get }
+  var limit: mut ref usize { get set }
 }
 
 export struct Counter: CompletionMetric {
@@ -263,17 +265,13 @@ export struct Counter: CompletionMetric {
     self.storedValue = initial
   }
 
-  export completionCount: u64 {
+  export let completionCount: u64 {
     get => storedValue
   }
 
-  var value: u64 {
+  var value: mut ref u64 {
     get => storedValue
     set(next) => storedValue = next
-
-    get mut ref {
-      return mut ref storedValue
-    }
   }
 }
 
@@ -285,16 +283,17 @@ export struct Counter: CompletionMetric {
     (protocol_body
       (property_requirement
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_requirement_accessor))
       (property_requirement
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
-        (property_requirement_accessor)
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_requirement_accessor)
         (property_requirement_accessor))))
   (struct_declaration
@@ -307,9 +306,10 @@ export struct Counter: CompletionMetric {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (initializer_declaration
         (declaration_prefix)
         (parameter_list
@@ -331,18 +331,20 @@ export struct Counter: CompletionMetric {
       (computed_property_declaration
         (declaration_prefix)
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_accessor_body
           (get_accessor
             (accessor_implementation
               (identifier)))))
       (computed_property_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_accessor_body
           (get_accessor
             (accessor_implementation
@@ -352,13 +354,7 @@ export struct Counter: CompletionMetric {
             (accessor_implementation
               (assignment_expression
                 (identifier)
-                (identifier))))
-          (get_mut_ref_accessor
-            (accessor_implementation
-              (block
-                (return_statement
-                  (unary_expression
-                    (identifier)))))))))))
+                (identifier)))))))))
 
 ==================
 Nominal struct patterns
@@ -501,9 +497,10 @@ async fn closeStream(cursor: take Stream) throws CloseError {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (function_declaration
         (identifier)
         (parameter_list)
@@ -581,17 +578,17 @@ Web Blob and Response type remain contextual
 ==================
 
 struct Blob {
-  stored: String
+  let stored: String
 
-  export type: String {
+  export let type: String {
     get => stored
   }
 }
 
 struct Response {
-  stored: String
+  let stored: String
 
-  export type: String {
+  export let type: String {
     get => stored
   }
 }
@@ -608,15 +605,17 @@ fn readTypes(blob: Blob, response: Response): String {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (computed_property_declaration
         (declaration_prefix)
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_accessor_body
           (get_accessor
             (accessor_implementation
@@ -626,15 +625,17 @@ fn readTypes(blob: Blob, response: Response): String {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (computed_property_declaration
         (declaration_prefix)
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (property_accessor_body
           (get_accessor
             (accessor_implementation
@@ -664,3 +665,33 @@ fn readTypes(blob: Blob, response: Response): String {
           (member_expression
             (identifier)
             (identifier)))))))
+
+==================
+Bare properties and getter-mode spellings are rejected
+==================
+
+struct InvalidProperties {
+  bare: String
+  let borrowed: ref String {
+    get ref => backing
+  }
+}
+
+---
+
+(source_file
+  (ERROR
+    (ERROR
+      (type_identifier)
+      (type_identifier)
+      (conformance_clause
+        (type
+          (type_name
+            (type_identifier))))
+      (type_identifier)
+      (conformance_clause
+        (type
+          (type_name
+            (type_identifier))))
+      (identifier))
+    (type_identifier)))

@@ -3,8 +3,8 @@ Shape overloads and initializer delegation
 ==================
 
 struct Money {
-  minorUnits: i128
-  currency: Currency
+  let minorUnits: i128
+  let currency: Currency
 
   const init(minorUnits value: i128, currency: Currency) {
     self.minorUnits = value
@@ -36,14 +36,16 @@ fn quote(): Money {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (initializer_declaration
         (parameter_list
           (parameter

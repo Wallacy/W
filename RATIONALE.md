@@ -20,8 +20,8 @@ vigente é plana por módulo, capability, target facts, provider e reachability.
 que o head já consegue resolver. A forma corrente usa `rows: usize` e
 `_ state: Type` para manter o envelope uniforme. A interpretação histórica de `_` como
 um único primary-only slot fica registrada somente como alternativa substituída.
-Esta leitura histórica não limita a forma vigente: W-1514 define type/value
-anchors, labels required e reordenação somente dentro de cada segmento. O
+Esta leitura histórica não limita a forma vigente: W-1514 define sequências
+type/value positional-only e labels required reordenáveis na call inteira. O
 parser rejeita binding modifiers no envelope antes do W 1.0. Não existe alias ou
 compatibilidade implícita. Esta nota registra a migração. O contrato normativo
 permanece em [`DESIGN.md`](DESIGN.md).
@@ -29,8 +29,8 @@ permanece em [`DESIGN.md`](DESIGN.md).
 O label externo pertence ao papel da call ou do initializer. O nome interno
 continua disponível para o body e, em um type head, para a associated contract
 value. A policy histórica de omitir um label em um parâmetro generic foi
-substituída por W-1514: somente type parameters e `_ name: Type` são âncoras
-posicionais; value labels são required dentro de cada segmento.
+substituída por W-1514: somente type parameters e `_ name: Type` são slots
+positional-only; value labels são required e globalmente reordenáveis.
 
 Um type head expõe cada value parameter como associated contract value porque o
 valor faz parte da especialização e não de cada instance. Transformá-lo em field
@@ -38,8 +38,7 @@ criaria storage, custo de allocation e uma identidade runtime que o contrato nã
 solicita. Transformá-lo em um único primary slot limitaria `Matrix` e shapes com
 mais de um valor. Uma alternativa histórica sem reordenação reduziria a
 flexibilidade de lookup, formatter e diagnostics; W-1514 mantém a ordem
-declarada para ABI e permite reordenar labels somente dentro do segmento
-correspondente.
+declarada para ABI e permite reordenar labels na aplicação inteira.
 
 Estas alternativas permanecem preservadas para comparação:
 
@@ -159,7 +158,7 @@ O corpus compara, no mínimo:
 - pipeline lazy contra loop explícito para transformação sem side effect;
 - broadcast explícito contra broadcast implícito checked e Julia dotted broadcast;
 - `.last` contra arithmetic `count - 1`, Python `[-1]` e C# `^1`;
-- labels reordenáveis por segmento contra uma âncora positional-only;
+- labels globalmente reordenáveis com subsequências positional-only estáveis;
 - tuple binding fixo contra projections `.0`/`.1` e unpacking starred;
 - `data.Batch<Row>` columnar contra `Array<Row>` universal e DataFrame completo;
 - `data.Row` synthesis fechada contra `Any`, duck typing e schema implícito;
@@ -1063,13 +1062,14 @@ Luz. As três variantes mantêm dois inputs assimétricos e o mesmo resultado:
   para argumentos runtime da call.
 
 O caso adversarial troca `tables` e `courses`, que possuem o mesmo tipo. A forma
-nomeada reordena os labels no mesmo segmento antes da publicação; uma tentativa
-de cruzar uma âncora falha. As formas posicionais preservam a ordem das âncoras
+nomeada reordena os labels antes da publicação. As formas positional-only
+preservam a ordem da sua subsequência
 e publicam o significado declarado. O segundo eixo verifica
 que Bool, String, quantity e size usam as mesmas categorias estáticas em type
 application e generic call; a variante split perde essa paridade.
 
-O estudo torna labels reordenáveis somente dentro de seu segmento. O label
+O estudo histórico mediu labels dentro de um segmento; W-1514 generaliza o
+binding para a call inteira. O label
 identifica o slot, não sua posição textual; a forma source continua preservada e
 o oracle host deriva outcome, erro antes
 da publicação e paridade de categorias. Ele não executa W. `w-compile`, `w-run`,
@@ -6482,12 +6482,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
 | W-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
 | W-280 | generic kinds | type e value; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
-| W-281 | generic labels (retired; superseded-by-W-1514) | interpretação histórica: type positional; `_ name: Type` criava slot sem label; W-1160 substituiu por label opcional `optional(name)`; W-1514 fecha type/value anchors e labels value required por segmento | todos posicionais; named type args sem âncoras; resolver por tipo |
+| W-281 | generic labels (retired; superseded-by-W-1514) | interpretação histórica: type positional; `_ name: Type` criava slot sem label; W-1160 substituiu por label opcional `optional(name)`; W-1514 fecha sequências positional-only e labels value required globalmente reordenáveis | todos posicionais; named type args; resolver por tipo |
 | W-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
 | W-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
 | W-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
 | W-285 | generic inference | depois da forma de call; argumentos, receiver e expected result; solução única | ranking; busca por tipo conforme; body inference |
-| W-286 | explicit generic args (refined by W-1514) | type anchors explícitos e value labels required compõem com inference; named values reordenam somente dentro do segmento; sem `_` como placeholder | placeholders; lista completa obrigatória; cruzar type/positional anchor |
+| W-286 | explicit generic args (refined by W-1514) | type slots explícitos e value labels required compõem com inference; named values reordenam globalmente sem consumir sequências positional-only; sem `_` como placeholder | placeholders; lista completa obrigatória; resolver binding por tipo |
 | W-287 | primary associated type | protocol head declara projection de `Self`; aplicação restringe o witness | generic protocol por conformance; somente body |
 | W-288 | associated witness | `alias` explícito; sem inference/default/GAT no design vigente | inferir por method; associated type default |
 | W-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
@@ -7357,11 +7357,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1153 | R1E0 fluent self | bundle seleciona `: self` com fallthrough e compara `return self`; validator separa receiver mode, return contract, exit e storage; omitted type é Unit, `Self` é owned e `take fn` rejeita | tornar `: self` `Self` owned, exigir `return self`, copiar/mover/alocar receiver ou aceitar `take fn` |
 | W-1154 | R1E0 corpus metrics and status | R1E0 deriva 5/14/20 com denominador global 75 e status `design-oracle-input`; nenhuma contagem promove host evidence a runtime, e compile/run/provider/human/model claims ficam missing | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
 | W-1155 | generic value parameters (superseded-by-W-1514) | registro histórico: parâmetros de valor usam `name: Type` ou `_ name: Type`, são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime; a policy de binding foi substituída por W-1514 | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
-| W-1156 | generic labels e contract values (retired; superseded-by-W-1514) | interpretação histórica: `_` removia o label externo; W-1160 substituiu por label opcional, com as duas formas no mesmo slot. W-1514 supersede essa policy: type parameters e `_ name: Type` são âncoras posicionais; value labels são required e reordenam somente dentro de seu segmento | primary-only, field de instance automático, reorder de labels entre âncoras, member callable implícito |
+| W-1156 | generic labels e contract values (retired; superseded-by-W-1514) | interpretação histórica: `_` removia o label externo; W-1160 substituiu por label opcional, com as duas formas no mesmo slot. W-1514 supersede essa policy: type parameters e `_ name: Type` mantêm sequências positional-only; value labels são required e globalmente reordenáveis | primary-only, field de instance automático, binding por tipo, member callable implícito |
 | W-1157 | implicit script entry (superseded) | Forma histórica removida do checkout e preservada no Git; RU0 não baixa statements finais e exige entry declaration | wrapper `.default` privado, entry+implicit misturados, args/ctx implícitos, script importável |
 | W-1158 | script bootstrap e latency | `w run file.w` usa parser/checker/HIR comuns, mede first-result separado de steady-state e migra tooling para W somente após self-host C | runtime script separado, vitória sem benchmark, remover seed C, Bun como dependência do produto |
 | W-1159 | proof-backed memory recommendations | diagnostics de race e ownership usam proof facts, e alternativas de partition, channel/service, lock ou atomic permanecem condicionais | naming heuristics, shared como mutation/sync, atomic como lifetime/ownership, arquitetura automática |
-| W-1160 | labels opcionais (superseded-by-W-1514) | decisão histórica: `_` dava label opcional no mesmo slot e formas positional/name normalizavam para uma HIR. W-1514 substitui-a: `_ name: Type` é positional-only; labels value são required, reordenáveis apenas no segmento entre âncoras; colisão de conjuntos de labels continua inválida | `_` elimina label, alias arbitrário, resolver por tipo, atravessar âncora |
+| W-1160 | labels opcionais (superseded-by-W-1514) | decisão histórica: `_` dava label opcional no mesmo slot e formas positional/name normalizavam para uma HIR. W-1514 substitui-a: `_ name: Type` é positional-only; labels value são required e globalmente reordenáveis; colisão de conjuntos de labels continua inválida | `_` elimina label, alias arbitrário, resolver por tipo |
 | W-1161 | suspensão inferida | body/HIR infere `maySuspend`; `async fn` fixa o contrato quando necessário; bare call de `maySuspend` é erro | propagação nominal obrigatória, warning para bare call, call-site `sync` |
 | W-1162 | placement no call site | domain é escolha explícita do caller; network usa await; declaration-side placement existe somente por correctness | spawn como hint de performance, domain silencioso, worker dedicado para I/O |
 | W-1163 | lowering resumable | ordinary ABI para `neverSuspend`; frame somente para values live across suspension; backend pode usar MLIR, LLVM coro ou CPS | stackful obrigatório, stackless obrigatório, libmill/libdill como dependency |
@@ -7719,14 +7719,15 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates, incluindo parser/formatter bounded e frontend unsupported; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
 | W-1512 | composição nominal e observers property-safe (histórico; superseded by W-1516) | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage; observers têm somente `willSet`/`didSet`, e `modify` conclui com um `didSet` pós-borrow sem proposed artificial; paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` histórico para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
 | W-1513 | raiz contextual de execução target-neutral | `execution` substitui a raiz contextual `process`; `.` projeta somente facts/capabilities já concedidos, `#` expõe controles imediatos, nenhuma forma descobre ou amplia authority ambiental, e `std.process` permanece módulo opcional de host com owners explícitos | `oracle-backed-current` para DESIGN, Last Light, EE e PR0; `benchmarkDisposition: not-applicable`, pois a mudança remove aliases e reloca resolução sem alterar o algoritmo runtime; checker/lowering/provider target-neutral continuam gaps |
-| W-1514 | labels e calls reorderable | `name: T` publica label externo homônimo; `external internal: T` separa label e binding; `_ name: T` é positional-only. Named arguments fazem bind por label e reordenam somente dentro do segmento delimitado por anchors `_`; anchors preservam fronteiras e ordem, defaults não removem fronteiras, e tipos nunca escolhem binding. Call shape usa receiver/nome, conjunto de labels por segmento e aridade/anchors; permutações não criam overloads. O allocator contextual único pode ocupar qualquer posição declarada, e `|>` preenche exatamente um slot obrigatório não contextual ainda sem binding, sem placeholder. | `source-backed-current` para DESIGN, RATIONALE, grammar, corpus e execution-ergonomics; `benchmarkDisposition: not-applicable`; checker/lowering completo e pipe execution permanecem gaps |
+| W-1514 | labels e calls reorderable | `name: T` publica label externo homônimo; `external internal: T` separa label e binding; `_ name: T` é positional-only. Named arguments fazem bind por label em qualquer posição da call e não consomem slots positional-only; argumentos sem label preservam a ordem da sua subsequência, e tipos nunca escolhem binding. Call shape usa receiver/nome, conjunto global de labels e aridade positional-only; permutações não criam overloads. O allocator contextual único pode ocupar qualquer posição declarada, e `|>` preenche exatamente um slot obrigatório não contextual ainda sem binding, sem placeholder. | `source-backed-current` para DESIGN, RATIONALE, grammar, corpus e execution-ergonomics; `benchmarkDisposition: not-applicable`; checker/lowering completo e pipe execution permanecem gaps |
 | W-1515 | separação de ownership, copy e object defaults | `ref T` é borrow shared read-only; `mut ref T` é borrow exclusivo direto, dependent e lifetime-checked; `mut view T` é view exclusiva lógica; `inout T` é somente convenção parameter/call value-in/value-out, com source reservado e writeback normal/throw estruturado. `Copy` é implícito, bounded e sem hidden allocation/deep traversal; `Duplicable` é `copy value` explícito e pode alocar; structs/enums não são Copy por default. `object` sem modo em parâmetro normaliza para `ref ObjectType`, e `mut objectPlace` é a forma curta de mut ref. COW só é direção first-party declarada e research-gated, sem keyword nova. | `source-backed-current` para contrato e exemplos; `implementation-evidence-gap` para checker/lowering/runtime/backend. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
-| W-1516 | properties, behaviors e access observers | A surface remove `modify`: `get` produz value lógico, `get ref` borrow read-only, `get mut ref` borrow exclusivo scoped e `set(value)` substitui. Property writable declara `var` e `set`, `get mut ref` ou ambos; `inout` compõe value get+set com sequência de get/set observers e writeback, enquanto `mut ref` exige `get mut ref` e não executa willSet/didSet. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `source-backed-current` para DESIGN, RATIONALE, Last Light, grammar, reflection availability, corpus e CHEATSHEET; `implementation-evidence-gap` para checker/lowering/runtime. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
+| W-1516 | properties, behaviors e access observers | A surface remove `modify` e variantes do getter. Toda property usa `let`, `var` ou `const`; a forma bare é rejeitada. O mode fica no tipo (`T`, `ref T`, `mut ref T`, `inout T`) e o accessor é sempre `get`, com `set(value)` para replacement/writeback. `let` admite somente value ou ref; `var inout` exige get+set; `var mut ref` projeta borrow exclusivo sem fingir set. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `source-backed-current` para DESIGN, RATIONALE, Last Light, grammar, reflection availability, corpus e CHEATSHEET; `implementation-evidence-gap` para checker/lowering/runtime. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
 
-Amendments desta rodada fecham os detalhes operacionais. W-1514 permite saltar
-somente âncoras default/contextual, mantém required anchors como bloqueio fora
-de pipe e exige exatamente um hole em pipe, inclusive para named holes. Type
-heads usam a mesma segmentação: type parameters e `_ value` são anchors, e
+Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
+arguments em qualquer posição sem consumir as sequências positional-only e
+exige exatamente um hole em pipe, inclusive para named holes. Type
+heads usam sequências independentes: type parameters e `_ value` são
+positional-only, e
 external labels repetidos em qualquer declaration inteira usam `W-LABEL-0006`.
 O operation do lhs também pertence ao contract do pipe; a prova de provenance do
 lhs ainda é um gap do oracle. W-1515 exige origem/lifetime provados para
@@ -9115,7 +9116,7 @@ entre os namespaces e uma
 facet não é uma API de terceiros que possa ser adicionada a um tipo existente.
 O desenho escolhe `export fn`/`export mut fn` e computed facet properties dentro
 do behavior, mantendo backing fields invisíveis e os accessors `init`/`get`/
-`get ref`/`get mut ref`/`set` no lifecycle da property.
+`set` no lifecycle da property. W-1516 move o access mode para a declaration.
 
 O teto property-safe explica por que facets não são um escape para efeitos:
 elas são síncronas, nonthrows, bounded, sem I/O, task, bloqueio, allocation
@@ -9141,7 +9142,7 @@ isolado sem uso não seria evidência suficiente.
 O field `epoch` não contradiz a regra de um único storage: ele é metadata
 auxiliar do observer e não armazena, substitui ou participa do acesso ao valor
 lógico da property. Contar somente o componente que declara
-`get`/`get ref`/`get mut ref`/`set` evita impedir observers úteis sem introduzir duas fontes de
+`get`/`set` evita impedir observers úteis sem introduzir duas fontes de
 verdade para o valor.
 
 Task é a primeira família core. Controls de handle como `task#cancel` e
@@ -9351,27 +9352,25 @@ humanas e deixa a intenção posicional explícita em operators, intrinsics,
 callbacks fixados por uma ABI externa e operações matemáticas genuinamente
 posicionais.
 
-Um `_` é uma âncora de posição, não um label removido. External labels são únicos
-na declaration inteira, mesmo quando há âncoras entre eles; uma repetição usa
-`W-LABEL-0006`. A assinatura é dividida em segmentos por essas âncoras. Labels podem ser permutados dentro do segmento
-em que foram declarados; nenhuma permutação atravessa uma âncora, e âncoras
-omitidas continuam fronteiras lógicas:
+Um `_` cria um slot positional-only, não um label removido. External labels são
+únicos na declaration inteira; uma repetição usa `W-LABEL-0006`. Named arguments
+podem aparecer em qualquer posição da call. Eles não criam regiões nem consomem
+slots positional-only. Cada argumento sem label ocupa o próximo `_` na ordem
+declarada:
 
 ```w
-fn window(leftStart start: Index, leftEnd end: Index, _ center: Index,
-          rightStart start2: Index, rightEnd end2: Index) {}
-window(leftEnd: end, leftStart: start, center,
-       rightEnd: end2, rightStart: start2)
-// error: rightStart cannot cross the required `center` anchor
+fn window(leftStart start: Index, _ center: Index, rightEnd end: Index,
+          _ radius: Index, title: String) {}
+window(title: "orbit", center, rightEnd: end, radius, leftStart: start)
 ```
 
 A forma `_name: T` permanece o label literal `_name:` e não é uma grafia
 positional.
 
-A call shape normaliza cada segmento para um conjunto de labels e mantém a
-aridade/ordem das âncoras. Duas declarations que só trocam a ordem textual dos
+A call shape normaliza o conjunto global de labels e mantém a aridade/ordem dos
+slots positional-only. Duas declarations que só trocam a ordem textual dos
 mesmos labels colidem; duas calls com a mesma label-set não formam overloads
-distintos. O resolver escolhe nome/receiver, segmentos e anchors antes de
+distintos. O resolver escolhe nome/receiver, labels e slots antes de
 consultar tipos. Tipos não selecionam binding, não reordenam positional-only e
 não desempatam um hole de pipe.
 
@@ -9385,19 +9384,17 @@ permanece na interface/HIR/ABI e a resolução contextual preenche esse slot.
 `|>` não ganhou um token placeholder. Depois do bind explícito, há exatamente
 um slot obrigatório não contextual sem binding disponível para o lhs; zero ou
 dois ou mais slots faltantes são erros mesmo quando tipos parecem distinguir a
-call. Defaults não são holes. Um hole nomeado pode estar em qualquer posição ou
-segmento; um anchor positional só pode ser o hole quando é o único slot
-obrigatório faltante e as fronteiras explícitas continuam preservadas. Âncoras
-default/contextual podem ser omitidas sem remover sua fronteira; uma label
-posterior só pode saltá-las, e uma âncora required bloqueia o salto fora de
-pipe. O operation do lhs também deve satisfazer o contract do slot; o oracle
+call. Defaults não são holes. O hole pode ser labeled ou positional-only e pode
+ocupar qualquer posição declarada, desde que seja o único slot obrigatório
+faltante. O operation do lhs também deve satisfazer o contract do slot; o oracle
 atual não recebe provenance do lhs e registra essa validação completa como gap.
 
 Applications de type head e generic usam a mesma regra: type parameters e
-`_ name: Type` são anchors; named value arguments reordenam somente dentro dos
-segmentos, e types/predicates não escolhem binding. Por exemplo,
-`Matrix<rows: 3, f32, columns: 4>` mantém `Element` como type anchor entre os
-dois segmentos; `_ count: usize` é um value anchor na mesma regra.
+`_ name: Type` mantêm sequências positional-only; named value arguments
+reordenam globalmente sem alterar essas sequências, e types/predicates não
+escolhem binding. Por exemplo, `Matrix<columns: 4, f32, rows: 3>` vincula `f32`
+ao próximo type slot e os valores pelos labels; `_ count: usize` consome o
+próximo argumento value sem label.
 
 #### W-1515 — ownership, copy e object defaults
 
@@ -9435,21 +9432,25 @@ uma nova identidade exige `Duplicable`.
 
 #### W-1516 — modalities de property e observers de acesso
 
-W-1516 remove `modify` da superfície vigente. O mecanismo interno de
-yield/resume depois do borrow continua permitido no lowering, mas a grammar e a
-reflection availability expõem somente `get`, `get ref`, `get mut ref` e
-`set(value)`. `get` produz o value lógico; os outros getters produzem o borrow
-declarado. Uma property writable declara `var` e oferece `set`, `get mut ref`
-ou ambos. Stored `let` não concede set/mut-ref/inout sem uma abstração explícita
-de interior mutation; `const` não recebe observer runtime. O receiver interno
+W-1516 remove `modify` e as variantes `get ref`/`get mut ref` da superfície
+vigente. Toda property declara `let`, `var` ou `const`; a forma bare `name: T`
+é rejeitada. Enum payload labels, tuple labels e parâmetros não são properties.
+Members de `foreign c struct` são descrições de layout ABI e chaves de
+`build.w` são dados de manifesto; nenhum dos dois declara uma property W.
+O access mode fica no tipo da property, enquanto o accessor tem sempre o nome
+`get`: `T`, `ref T`, `mut ref T` ou `inout T`. Assim, `let p: T` e
+`let p: ref T` são read-only; `let p: mut ref T`, `let p: inout T`, `let` com
+`set` e property write-only são inválidos. Uma property `var` pode usar os
+quatro modes; `inout` exige `get`+`set`. Stored `var p: T` já é um place e não
+precisa repetir o mode. `const` não recebe observer runtime. O receiver interno
 de `set` é `mut ref self`.
 
-Passar uma property para `inout` compõe owned/value get e set: `willGet`,
+Passar uma computed property `var p: inout T` para `inout` compõe value get e set: `willGet`,
 produção, `didGet`, mutation local, `willSet`, set/writeback e `didSet`. Uma
-mutação composta usa a mesma composição value-in/value-out quando value get +
-set existem, portanto dispara ambos os pares de observers. Se só
-`get mut ref` existe, a mutação composta pode operar diretamente e não chama
-observers de set. Passar uma property como `mut ref` exige `get mut ref`, não
+mutação composta em property value/inout usa a composição value-in/value-out,
+portanto dispara ambos os pares de observers. Uma property `mut ref` opera pelo
+`get` único em modo borrow exclusivo e não chama observers de set. Passar uma
+property como `mut ref` exige o mode `mut ref`, não
 executa willSet/didSet e pode executar observers de acesso. `PropertyAccessKind`
 é um enum core com `value`, `borrowed` e `mutableBorrowed`. `willGet`/`didGet`
 são opt-in; will hooks são lexicais e did hooks são reversos, e o compiler não
@@ -9457,10 +9458,10 @@ os apaga ou reordena. Sem hooks não há custo de observer.
 
 Composição possui no máximo um storage behavior. Observer behaviors podem
 fornecer hooks/facets e metadata, mas não um segundo storage ou accessor lógico.
-O witness `Versioned` conta leituras em `willGet`/`didGet` e incrementa o epoch
-nos set observers; portanto, uma mutation por `inout` ou por compound value
-get/set gera epoch no writeback, enquanto um `mut ref` direto é deliberadamente
-não contado por willSet/didSet. Facets `mut` do storage contam como mutation
+O witness `Versioned` conta leituras em `willGet` e incrementa o epoch em
+`didSet` e também em `didGet(.mutableBorrowed)`. Assim, `inout` ou replacement
+gera epoch no writeback, enquanto um `mut ref` direto registra a mutation quando
+o borrow fecha sem fingir um evento de set. Facets `mut` do storage contam como mutation
 lógica e chamam `didSet` depois do cleanup, sem `proposed` ou `willSet`.
 Os hooks tornam a observação lógica parte do contrato e não autorizam
 reentrância, veto ou authority implícita.

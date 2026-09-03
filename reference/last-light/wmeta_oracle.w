@@ -32,22 +32,22 @@ export enum WMetaOpenMode {
 }
 
 export struct WMetaHeader {
-  headerBytes: u16
-  directorySchema: u16
-  flags: u32
-  directoryBytes: u64
-  payloadBytes: u64
+  let headerBytes: u16
+  let directorySchema: u16
+  let flags: u32
+  let directoryBytes: u64
+  let payloadBytes: u64
 }
 
 export struct WMetaChunkEntry {
-  kind: WMetaChunkKind
-  identity: Bytes
-  schemaMajor: u16
-  schemaMinor: u16
-  critical: Bool
-  length: u64
-  digestAlgorithm: u16
-  digest: Bytes
+  let kind: WMetaChunkKind
+  let identity: Bytes
+  let schemaMajor: u16
+  let schemaMinor: u16
+  let critical: Bool
+  let length: u64
+  let digestAlgorithm: u16
+  let digest: Bytes
 }
 
 export const fn wmetaTotalBytes(header: ref WMetaHeader): u64 {

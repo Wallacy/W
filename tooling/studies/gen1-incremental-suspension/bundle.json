@@ -17,17 +17,17 @@
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "executionForms",
-      "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
+      "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
     },
     {
       "path": "../../../reference/last-light/state_transitions.w",
       "symbol": "OvenSession",
-      "digest": "sha256:ec27a3b3670c216d35f4714ad87c7b7c086f5a20b89b13bb47562ed96ada7edf"
+      "digest": "sha256:7bda8b8f19ed74e970e274bbb97c13686cf6d696c0ea4238ccbaf99d8323191d"
     },
     {
       "path": "../../../reference/last-light/ownership_execution_oracle.w",
       "symbol": "fourOwnershipForms",
-      "digest": "sha256:fc4000f42c5cbf1916fe6d0350728c59bef544cb40aa0a94fe05d835a08faa63"
+      "digest": "sha256:bb87b1799866a5ae741a656b00c8ba98e4a60460ff1114267e9146e9b4741ef9"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
@@ -37,17 +37,17 @@
     {
       "path": "../../../reference/last-light/scheduler_oracle.w",
       "symbol": "ReplayComparison",
-      "digest": "sha256:b82f4bd98c762fa197f6083e065a34bb8a383b9948ac48901294183bae8e0e50"
+      "digest": "sha256:5bed0cc07b348ca96818a63d568d364dcdebdf0ce3e729b4bae3bce154794673"
     },
     {
       "path": "../../../reference/last-light/liveness_oracle.w",
       "symbol": "FrameReclaimGate",
-      "digest": "sha256:7204a9fe49de311781c43eba4d08f0d41d151a8fc065e29242fcd84e1f8214a9"
+      "digest": "sha256:7eed46303204a25deabf45b2261d09a74f14b058840f004dae0efe5f3d6c2fcf"
     },
     {
       "path": "../../../reference/last-light/restaurant.w",
       "symbol": "prepareDish",
-      "digest": "sha256:9d771184098c5b8e9a93e5f3676193dcbe2791ddae99896a5b4c15041a681f18"
+      "digest": "sha256:278d72e473037021128214be2e5646012cd1f55cfc7deee849067c00685f73f1"
     }
   ],
   "helpers": [
@@ -55,7 +55,7 @@
       "id": "bounded-dialogue-builder",
       "path": "builder-helper.w",
       "symbol": "makeDialogue",
-      "digest": "sha256:efd1a047d0673cc730b0b57963232065e037353d4fc898592191afaba251ee5e",
+      "digest": "sha256:5979436612faa57c7fcfae8574f078c3aff31e0a1e6363757f4ad08ab3b53625",
       "claim": "library helper keeps channel capacity explicit before any syntax candidate"
     }
   ],
@@ -84,7 +84,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "nominal-state-machine.w",
-      "digest": "sha256:1fb9ce538fb137b2821cc47c3e94f257f2eefaa0e1859799d8b83bde58179fa5",
+      "digest": "sha256:0aed234ced95c5f68465788087df6e8fe2a10a82697588dce2be9d985ebbf24d",
       "changedConstructs": [
         "nominal state enum",
         "owned session record",
@@ -102,7 +102,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "dual-bounded-channels.w",
-      "digest": "sha256:d442646c91896fe44b5784e700dd23db4829a8e77908ae8737c61f21b1f54961",
+      "digest": "sha256:bcb27c6a04fdb80759e04f20bbb63768167e0b8458755c1dc8cb40f2a6290e12",
       "changedConstructs": [
         "request channel",
         "response channel",

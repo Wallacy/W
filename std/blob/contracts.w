@@ -33,8 +33,8 @@ fn normalizeMediaType(input: ref String): String {
 }
 
 struct BlobCursor: ByteSource<BlobError> {
-  blob: Blob
-  offset: usize
+  let blob: Blob
+  let offset: usize
 
   mut async fn read(
     appendTo destination: inout Bytes,
@@ -55,10 +55,10 @@ struct BlobCursor: ByteSource<BlobError> {
 }
 
 export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
-  backing: shared Bytes
-  start: usize
-  storedSize: usize
-  storedType: String
+  let backing: shared Bytes
+  let start: usize
+  let storedSize: usize
+  let storedType: String
 
   export init(bytes: take Bytes, mediaType: String = "") {
     let size = bytes.count
@@ -80,11 +80,11 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
     self.storedType = take mediaType
   }
 
-  export size: usize {
+  export let size: usize {
     get => storedSize
   }
 
-  export type: view String {
+  export let type: view String {
     get => storedType
   }
 

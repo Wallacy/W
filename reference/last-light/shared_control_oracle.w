@@ -5,14 +5,14 @@ import * from std.memory
 // block together. This source is an expected-use assay, not a runtime.
 
 struct MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 }
 
 struct OrderEnvelope {
-  menu: shared MenuSection
-  requestId: String
+  let menu: shared MenuSection
+  let requestId: String
 }
 
 fn makeRequestMenu(

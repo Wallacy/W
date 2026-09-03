@@ -325,7 +325,7 @@ function extractExportedMembers(declaration) {
     "^\\s*export\\s+" +
       "(?:(?:(?:static|async|const|mut|take)\\s+)*" +
       "(?:(fn)\\s+([A-Za-z_][A-Za-z0-9_]*)|(init)\\b)|" +
-      "(?:var\\s+)?([A-Za-z_][A-Za-z0-9_]*)\\s*:)",
+      "(?:(?:let|var)\\s+)([A-Za-z_][A-Za-z0-9_]*)\\s*:)",
   );
 
   for (let index = 1; index < lines.length; index += 1) {

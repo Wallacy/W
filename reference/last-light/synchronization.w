@@ -113,12 +113,12 @@ export unsafe fn acquireTelemetryFence(): () {
 }
 
 export struct ApologyLedgerState: Duplicable {
-  revision: u64
-  messages: Array<String>
+  let revision: u64
+  let messages: Array<String>
 }
 
 export object ThreadApologyLedger {
-  state: shared ApologyLedgerState
+  let state: shared ApologyLedgerState
 
   export init() {
     self.state = ApologyLedgerState(revision: 0, messages: [])
@@ -170,12 +170,12 @@ export async fn snapshotForeignSharedState(
 }
 
 export struct PublishedMenu: Duplicable {
-  revision: u64
-  courses: Array<String>
+  let revision: u64
+  let courses: Array<String>
 }
 
 export object HorizonMenuPublication {
-  snapshots: SnapshotCell<PublishedMenu>
+  let snapshots: SnapshotCell<PublishedMenu>
 
   export init(_ initial: take PublishedMenu) {
     self.snapshots = SnapshotCell(take initial)

@@ -11,8 +11,8 @@ export enum SignState {
 }
 
 export struct SignEpochWord: Duplicable {
-  state: SignState
-  generation: u32
+  let state: SignState
+  let generation: u32
 }
 
 // Canonical value facts: state ordinal uses bits 0..1, generation uses bits 2..33.

@@ -33,7 +33,7 @@ import { OracleApi, oracle } from oracle
 import { RestaurantError, prepareDish } from restaurant
 
 export struct FulfillmentInput {
-  order: Order
+  let order: Order
 }
 
 export enum FulfillmentPoint {
@@ -67,14 +67,14 @@ const fn usesDurableBaseline(_ composition: DurableComposition): Bool {
 }
 
 export struct CapturedDish {
-  dish: Dish
-  payment: Payment
+  let dish: Dish
+  let payment: Payment
 }
 
 struct ServingInput {
-  tableId: TableId
-  dish: Dish
-  payment: PaymentProof
+  let tableId: TableId
+  let dish: Dish
+  let payment: PaymentProof
 }
 
 const fn shouldRetryPayment(error: ref RestaurantError): Bool {

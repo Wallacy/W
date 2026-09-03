@@ -104,7 +104,7 @@ foreign intrinsic from "std.io@1" {
 // IoCause is a bounded, redacted provider snapshot. It owns no file, socket,
 // task, request, capability, or other live resource.
 export struct IoCause: Duplicable {
-  handle: IoCauseHandle
+  let handle: IoCauseHandle
 
   init(validatedHandle: IoCauseHandle) {
     self.handle = validatedHandle
@@ -121,9 +121,9 @@ export struct IoCause: Duplicable {
 }
 
 export struct IoError: Error & Duplicable {
-  kindValue: IoErrorKind
-  operationValue: IoOperation
-  causeValue: IoCause?
+  let kindValue: IoErrorKind
+  let operationValue: IoOperation
+  let causeValue: IoCause?
 
   init(
     validatedKind kind: IoErrorKind,
@@ -135,15 +135,15 @@ export struct IoError: Error & Duplicable {
     self.causeValue = take cause
   }
 
-  export kind: IoErrorKind {
+  export let kind: IoErrorKind {
     get => kindValue
   }
 
-  export operation: IoOperation {
+  export let operation: IoOperation {
     get => operationValue
   }
 
-  export cause: ref IoCause? {
+  export let cause: ref IoCause? {
     get => causeValue
   }
 
@@ -196,28 +196,28 @@ export enum TransferCause<ReadFailure: Error, WriteFailure: Error>: Error {
 }
 
 export struct TransferError<ReadFailure: Error, WriteFailure: Error>: Error {
-  export cause: TransferCause<ReadFailure, WriteFailure>
-  export committed: usize
+  export let cause: TransferCause<ReadFailure, WriteFailure>
+  export let committed: usize
 }
 
 // ReadBatch is the sole owner of fixed-capacity scatter segments. Public views
 // expose initialized prefixes only; reset retains the reservations.
 export struct ReadBatch {
-  handle: ReadBatchHandle
+  let handle: ReadBatchHandle
 
   export init(capacities: usize<(1...)>...) throws AllocationError {
     self.handle = unsafe { try stdIoReadBatchCreate(ref capacities) }
   }
 
-  export segmentCount: usize {
+  export let segmentCount: usize {
     get => unsafe { stdIoReadBatchSegmentCount(ref handle) }
   }
 
-  export filledBytes: usize {
+  export let filledBytes: usize {
     get => unsafe { stdIoReadBatchFilledBytes(ref handle) }
   }
 
-  export isFull: Bool {
+  export let isFull: Bool {
     get => unsafe { stdIoReadBatchIsFull(ref handle) }
   }
 
@@ -242,7 +242,7 @@ export struct ReadBatch {
 // destination has committed. A successful initialization is allocation-free
 // for every later transfer step.
 export struct TransferPlan {
-  handle: TransferPlanHandle
+  let handle: TransferPlanHandle
 
   export init(
     at offset: u64,
@@ -254,15 +254,15 @@ export struct TransferPlan {
     }
   }
 
-  export transferred: u64 {
+  export let transferred: u64 {
     get => unsafe { stdIoTransferPlanTransferred(ref handle) }
   }
 
-  export remaining: u64 {
+  export let remaining: u64 {
     get => unsafe { stdIoTransferPlanRemaining(ref handle) }
   }
 
-  export pendingBytes: usize {
+  export let pendingBytes: usize {
     get => unsafe { stdIoTransferPlanPendingBytes(ref handle) }
   }
 
@@ -272,8 +272,8 @@ export struct TransferPlan {
 }
 
 export struct WriteAllError<Cause: Error>: Error {
-  export cause: Cause
-  export committed: usize
+  export let cause: Cause
+  export let committed: usize
 }
 
 export protocol ByteSource<Failure: Error> {

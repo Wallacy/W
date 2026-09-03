@@ -9,9 +9,9 @@ export type CompactGlyph =
   String<(.graphemes.count == 1 && .bytes.count <= 32)>
 
 export struct TextShape {
-  bytes: usize
-  scalars: usize
-  graphemes: usize
+  let bytes: usize
+  let scalars: usize
+  let graphemes: usize
 }
 
 export fn textShape(value: ref String): TextShape {

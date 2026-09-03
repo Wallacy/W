@@ -16,21 +16,21 @@
       "id": "SYN1",
       "role": "evidence-input",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:72dae5e6f36341a26b2f7a6a7d69fc215086e33fe1a1325535c12e8aeaca193b",
+      "digest": "sha256:661446d7bfa6c31b073cb65a6f84f1aca92b65dd8b09dc11c2ac5e6db83bf197",
       "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"
     },
     {
       "id": "DYN1",
       "role": "evidence-input",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:bf187d300cfc0993c2e8bc62dcd6fc4963e96e908b5d372a6f52d24d0c088ebb",
+      "digest": "sha256:2189f241ef11ff4cd05eb4c625ff7127745611a88d5439018256694aba167e08",
       "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"
     },
     {
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:df814059cbb4274dab853b511a196d90ca7e86bfcb0a02f52d3853eb40e9b94e",
+      "digest": "sha256:e73cc0b086b2312c14026eca936531dd2343e2cde5859f7d2188a2684300873c",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -61,7 +61,7 @@
     },
     "bundle": {
       "path": "bundle.json",
-      "digest": "sha256:d3439f73fbf65902e741fdcc192f1afeed5008cddbf3b1355d6c51b343176523"
+      "digest": "sha256:36bca5425938b4ffa672f933674d37d8f1eae826919cea502b8e35d6830b5f51"
     }
   },
   "sourceRefs": [
@@ -74,13 +74,13 @@
     {
       "path": "reference/last-light/repl_session_oracle.w",
       "symbol": "GenerationReceipt",
-      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
+      "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
       "role": "generation-identity"
     },
     {
       "path": "reference/last-light/hot_reload_dev_contract.w",
       "symbol": "ReloadResult",
-      "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e",
+      "digest": "sha256:2ffb021551f8e44f1428af885a4e232776a0a47e1a85f3678eb0d42f04bdb4e5",
       "role": "event-outcome-contract"
     },
     {
@@ -92,7 +92,7 @@
     {
       "path": "reference/last-light/memory.w",
       "symbol": "watchClosingBell",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
       "role": "cleanup-drain"
     },
     {

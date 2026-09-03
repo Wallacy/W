@@ -1,9 +1,9 @@
 // R1 shared-construction study: separate recoverable verb.
 
 struct MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 }
 
 fn makeRoot(

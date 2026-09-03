@@ -1,7 +1,7 @@
 import * from std.memory
 
 object MenuSection {
-  title: String
+  let title: String
 }
 
 // Retired alternative. W no longer provides an upgrade language call.

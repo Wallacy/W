@@ -11,23 +11,23 @@
   "sourceBase": {
     "path": "../../../reference/last-light/repl_session_oracle.w",
     "symbol": "SessionSnapshot",
-    "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666"
+    "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/hot_reload_dev_contract.w",
       "symbol": "ReloadResult",
-      "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e"
+      "digest": "sha256:2ffb021551f8e44f1428af885a4e232776a0a47e1a85f3678eb0d42f04bdb4e5"
     },
     {
       "path": "../../../reference/last-light/hot_reload_dev_local.w",
       "symbol": "LocalGenerationWitness",
-      "digest": "sha256:ff67008961b08664f251fc13d1f4e9945e526059f3a71cf85ff46e4350ff528a"
+      "digest": "sha256:7ad4de281f5940301c524567a44a3031ede95daa0036352aa49f38bfaa19a8d6"
     },
     {
       "path": "../../../reference/last-light/hot_reload_dev_split.w",
       "symbol": "SplitGenerationWitness",
-      "digest": "sha256:51db64fbfcdecce9102745daf2c5c2fb33e9a9199e83decfef2071559c07c10a"
+      "digest": "sha256:301af53eaa5850961da5c7e280c2bbe67e691481767c26f3ac51e636e6fe0868"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
@@ -47,7 +47,7 @@
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "watchClosingBell",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
     }
   ],
   "variants": [
@@ -57,7 +57,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "local-runner.w",
-      "digest": "sha256:9118a40c3d496a28805bbbf14fa533d3407d7cea6a75e9491acf2291569be031",
+      "digest": "sha256:9d9e543032798fd22b5dcbbff83dcc0bde49a8fceb7e08f6e14cb9303a7cc8ac",
       "changedConstructs": [
         "shared nominal input/result contract",
         "normal-unit reopen",
@@ -75,7 +75,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "split-runner.w",
-      "digest": "sha256:51555903463a292928011b3ce3bf514125414b42aface34fcc273e909e3d3664",
+      "digest": "sha256:7227670c4a79c7b730fdabd3f6de7d70e2e69ae6fa448d7cdc6ed7384d0cb84d",
       "changedConstructs": [
         "shared nominal input/result contract",
         "split process projection",

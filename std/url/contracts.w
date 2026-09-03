@@ -27,8 +27,8 @@ export enum UrlMutationError: Error {
 }
 
 export struct URLSearchParam: Duplicable {
-  storedName: String
-  storedValue: String
+  let storedName: String
+  let storedValue: String
 
   export init(name: String, value: String) {
     self.storedName = name
@@ -94,8 +94,8 @@ foreign intrinsic from "std.url-record@1" {
 }
 
 export struct URLSearchParams: Duplicable {
-  pairs: Array<URLSearchParam>
-  edited: Bool
+  let pairs: Array<URLSearchParam>
+  let edited: Bool
 
   export init(initialPairs: take URLSearchParam...) {
     self.pairs = take initialPairs
@@ -112,7 +112,7 @@ export struct URLSearchParams: Duplicable {
     self.edited = false
   }
 
-  export size: usize {
+  export let size: usize {
     get => pairs.count
   }
 
@@ -239,7 +239,7 @@ export struct URLSearchParams: Duplicable {
 }
 
 export struct URL: Duplicable {
-  record: URLRecord
+  let record: URLRecord
 
   export init(input: String) throws UrlParseError {
     self.record = unsafe { try stdURLParseAbsolute(input) }
@@ -271,47 +271,47 @@ export struct URL: Duplicable {
     return unsafe { stdURLCanParseRelative(input, base.record) }
   }
 
-  export href: view String {
+  export let href: view String {
     get => unsafe { stdURLView(record, .href) }
   }
 
-  export origin: view String {
+  export let origin: view String {
     get => unsafe { stdURLView(record, .origin) }
   }
 
-  export protocol: view String {
+  export let protocol: view String {
     get => unsafe { stdURLView(record, .protocol) }
   }
 
-  export username: view String {
+  export let username: view String {
     get => unsafe { stdURLView(record, .username) }
   }
 
-  export password: view String {
+  export let password: view String {
     get => unsafe { stdURLView(record, .password) }
   }
 
-  export host: view String {
+  export let host: view String {
     get => unsafe { stdURLView(record, .host) }
   }
 
-  export hostname: view String {
+  export let hostname: view String {
     get => unsafe { stdURLView(record, .hostname) }
   }
 
-  export port: view String {
+  export let port: view String {
     get => unsafe { stdURLView(record, .port) }
   }
 
-  export pathname: view String {
+  export let pathname: view String {
     get => unsafe { stdURLView(record, .pathname) }
   }
 
-  export search: view String {
+  export let search: view String {
     get => unsafe { stdURLView(record, .search) }
   }
 
-  export hash: view String {
+  export let hash: view String {
     get => unsafe { stdURLView(record, .hash) }
   }
 

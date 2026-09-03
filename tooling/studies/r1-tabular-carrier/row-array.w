@@ -2,9 +2,9 @@
 // Baseline: Array<Row> remains useful for row-centric algorithms.
 
 struct HorizonReading {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
+  let sequence: u64
+  let hawkingFlux: f64
+  let warning: String?
 }
 
 fn summarizeHorizon(_ readings: ref Array<HorizonReading>): f64? {

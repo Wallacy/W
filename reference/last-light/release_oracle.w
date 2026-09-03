@@ -1,9 +1,9 @@
 // Pure oracle for deterministic release verification and registry metadata.
 
 struct ReleasePolicy {
-  requiredRebuilders: u16
-  requiresPublicSource: Bool
-  requiresTransparency: Bool
+  let requiredRebuilders: u16
+  let requiresPublicSource: Bool
+  let requiresTransparency: Bool
 }
 
 // The compact value models equality of a tagged cryptographic digest.
@@ -11,10 +11,10 @@ struct ReleasePolicy {
 type EvidenceDigest = u64
 
 struct BuilderEvidence {
-  builderIdentity: EvidenceDigest
-  operatorIdentity: EvidenceDigest
-  credentialIdentity: EvidenceDigest
-  executionRootIdentity: EvidenceDigest
+  let builderIdentity: EvidenceDigest
+  let operatorIdentity: EvidenceDigest
+  let credentialIdentity: EvidenceDigest
+  let executionRootIdentity: EvidenceDigest
 }
 
 enum IndependenceVerdict {
@@ -58,16 +58,16 @@ enum QuorumDecision {
 }
 
 struct ProvenanceEvidence {
-  releaseRecipeDigest: EvidenceDigest
-  attestedRecipeDigest: EvidenceDigest
-  recipeToolchainDigest: EvidenceDigest
-  attestedToolchainDigest: EvidenceDigest
-  artifactDigest: EvidenceDigest
-  platformArtifactDigest: EvidenceDigest
-  maintainerIdentity: EvidenceDigest
-  builderIdentity: EvidenceDigest
-  toolchainProviderIdentity: EvidenceDigest
-  platformSignerIdentity: EvidenceDigest
+  let releaseRecipeDigest: EvidenceDigest
+  let attestedRecipeDigest: EvidenceDigest
+  let recipeToolchainDigest: EvidenceDigest
+  let attestedToolchainDigest: EvidenceDigest
+  let artifactDigest: EvidenceDigest
+  let platformArtifactDigest: EvidenceDigest
+  let maintainerIdentity: EvidenceDigest
+  let builderIdentity: EvidenceDigest
+  let toolchainProviderIdentity: EvidenceDigest
+  let platformSignerIdentity: EvidenceDigest
 }
 
 enum ProvenanceVerdict {
@@ -104,18 +104,18 @@ const fn verifyProvenance(evidence: ProvenanceEvidence): ProvenanceVerdict {
 }
 
 struct BuildEvidence {
-  inputsComplete: Bool
-  outputsComplete: Bool
-  sourceTreeDigest: EvidenceDigest
-  packageLockDigest: EvidenceDigest
-  recipeDigest: EvidenceDigest
-  toolchainDigest: EvidenceDigest
-  targetDigest: EvidenceDigest
-  runtimeClosureDigest: EvidenceDigest
-  environmentProjectionDigest: EvidenceDigest
-  payloadDigest: EvidenceDigest
-  artifactDigest: EvidenceDigest
-  builderIdentity: EvidenceDigest
+  let inputsComplete: Bool
+  let outputsComplete: Bool
+  let sourceTreeDigest: EvidenceDigest
+  let packageLockDigest: EvidenceDigest
+  let recipeDigest: EvidenceDigest
+  let toolchainDigest: EvidenceDigest
+  let targetDigest: EvidenceDigest
+  let runtimeClosureDigest: EvidenceDigest
+  let environmentProjectionDigest: EvidenceDigest
+  let payloadDigest: EvidenceDigest
+  let artifactDigest: EvidenceDigest
+  let builderIdentity: EvidenceDigest
 }
 
 enum ReproductionVerdict {

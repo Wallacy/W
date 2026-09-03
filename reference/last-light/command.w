@@ -15,8 +15,8 @@ import {
 export type CommandLine = String<(.bytes.count <= 65_536)>
 
 export struct SourceSpan {
-  bytes: Range<usize>
-  scalars: Range<usize>
+  let bytes: Range<usize>
+  let scalars: Range<usize>
 }
 
 export enum CommandError: Error {

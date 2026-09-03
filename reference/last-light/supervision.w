@@ -35,9 +35,9 @@ export alias FulfillmentKey = WorkKeyRef<OrderId, FulfillmentInput, ServiceStage
 export alias FulfillmentSnapshot = WorkSnapshot<ServiceStage>
 
 export struct OrderAccepted {
-  orderId: OrderId
-  workId: WorkId
-  revision: u64
+  let orderId: OrderId
+  let workId: WorkId
+  let revision: u64
 }
 
 export enum CoordinatorError: Error {
@@ -102,8 +102,8 @@ export protocol OrderCoordinatorApi {
 }
 
 export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
-  identity: ServiceIdentity<OrderId>
-  fulfillment: FulfillmentKey
+  let identity: ServiceIdentity<OrderId>
+  let fulfillment: FulfillmentKey
 
   init(
     identity: ServiceIdentity<OrderId>,

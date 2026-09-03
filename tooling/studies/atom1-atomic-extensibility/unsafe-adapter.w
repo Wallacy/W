@@ -3,9 +3,9 @@
 module atom1_unsafe_adapter
 
 export struct ReclamationReceipt: Duplicable {
-  domain: String
-  participant: String
-  generation: u64
+  let domain: String
+  let participant: String
+  let generation: u64
 }
 
 export unsafe fn retireNode(_ receipt: take ReclamationReceipt): () {

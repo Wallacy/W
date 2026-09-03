@@ -5,9 +5,9 @@ import { deriveExecutionErgonomics, deriveInitializerEvaluationPlan, summarizeDi
 test("synthesized initializer evaluates explicit expressions lexically then defaults, installs by field order", () => {
   const plan = deriveInitializerEvaluationPlan(`
     struct Defaults {
-      first: Int
-      second: Int = fallback()
-      third: Int
+      let first: Int
+      let second: Int = fallback()
+      let third: Int
     }
     Defaults(third: thirdEffect(), first: firstEffect())
   `, "Defaults")
@@ -21,9 +21,9 @@ test("synthesized initializer evaluates explicit expressions lexically then defa
 
   const positional = deriveInitializerEvaluationPlan(`
     struct Defaults {
-      first: Int
-      second: Int = fallback()
-      third: Int
+      let first: Int
+      let second: Int = fallback()
+      let third: Int
     }
     Defaults(1, second: 2, third: 3)
   `, "Defaults")
@@ -31,9 +31,9 @@ test("synthesized initializer evaluates explicit expressions lexically then defa
 
   const missing = deriveInitializerEvaluationPlan(`
     struct Defaults {
-      first: Int
-      second: Int = fallback()
-      third: Int
+      let first: Int
+      let second: Int = fallback()
+      let third: Int
     }
     Defaults(first: 1)
   `, "Defaults")
@@ -57,12 +57,13 @@ test("generic anchors and required labels normalize without type disambiguation"
   assert.deepEqual(result.labels.generic.diagnostics, [])
 })
 
-test("generic labels cannot cross type or positional anchors", () => {
+test("generic labels reorder globally while positional anchors keep their own order", () => {
   const result = deriveExecutionErgonomics(`
     struct Anchored<T, _ middle: usize, after: usize> {}
-    let invalid = Anchored<u8, after: 2, 3>
+    let valid = Anchored<after: 2, u8, 3>
   `)
-  assert.ok(summarizeDiagnostics(result).includes("W-LABEL-0005"))
+  assert.deepEqual(result.labels.generic.diagnostics, [])
+  assert.deepEqual(result.labels.generic.identities[0]?.values, ["u8", "3", "2"])
 })
 
 test("labels reject unknown, duplicate, and colliding forms", () => {
@@ -304,25 +305,25 @@ test("variadic overlap is not bounded by a sampled arity", () => {
     .toContain("W-LABEL-0004")
 })
 
-test("variadic anchors keep later labels and reject earlier labels after a value", () => {
+test("variadic positional anchors do not constrain named argument placement", () => {
   const accepted = deriveExecutionErgonomics(`
     fn collect(_ items: Item..., after: After) {}
     collect(first, second, after: next)
   `)
   expect(accepted.labels.diagnostics).toEqual([])
 
-  const rejected = deriveExecutionErgonomics(`
+  const reordered = deriveExecutionErgonomics(`
     fn collect(before: Before, _ items: Item..., after: After) {}
     collect(first, before: prior, after: next)
   `)
-  expect(summarizeDiagnostics(rejected)).toContain("W-LABEL-0005")
+  expect(reordered.labels.diagnostics).toEqual([])
 })
 
 test("complete ordered call shapes separate arities and reject real overlap", () => {
   const disjoint = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(_ value: Value, mode: Mode) {}")
   const declarations = disjoint.labels.declarations.filter((declaration) => declaration.name === "serve")
   assert.deepEqual(declarations[0].callShapes, ["positional"])
-  assert.deepEqual(declarations[1].callShapes, ["positional|mode:"])
+  assert.deepEqual(declarations[1].callShapes, ["mode:|positional"])
   assert.deepEqual(disjoint.labels.diagnostics, [])
   const collision = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(_ value: Value) {}")
   assert.ok(summarizeDiagnostics(collision).includes("W-LABEL-0004"))
@@ -835,22 +836,22 @@ test("allocator contextual omission collision is derived from declarations", () 
   assert.ok(summarizeDiagnostics(result).includes("W-LABEL-0004"))
 })
 
-test("named labels reorder inside their segment and anchors reject crossing", () => {
+test("named labels reorder across positional anchors", () => {
   const accepted = deriveExecutionErgonomics(`
     fn arrange(first: First, second: Second, _ pivot: Pivot, after: After, finish: Finish) {}
     arrange(second: right, first: left, pivot, finish: done, after: next)
   `)
   expect(accepted.labels.diagnostics).toEqual([])
-  expect(accepted.labels.declarations[0]?.callShapes).toEqual(["first:&second:|positional|after:&finish:"])
+  expect(accepted.labels.declarations[0]?.callShapes).toEqual(["after:&finish:&first:&second:|positional"])
 
   const crossing = deriveExecutionErgonomics(`
     fn arrange(first: First, second: Second, _ pivot: Pivot, after: After) {}
     arrange(first: left, pivot, after: next, second: right)
   `)
-  expect(summarizeDiagnostics(crossing)).toContain("W-LABEL-0005")
+  expect(crossing.labels.diagnostics).toEqual([])
 })
 
-test("named calls may skip only omitible anchors and preserve their boundary", () => {
+test("named calls reorder globally but cannot omit a required positional slot", () => {
   const accepted = deriveExecutionErgonomics(`
     fn window(leftStart start: Index, leftEnd end: Index, _ center: Index = 0, rightStart start2: Index, rightEnd end2: Index) {}
     window(leftEnd: end, leftStart: start, rightEnd: end2, rightStart: start2)
@@ -917,7 +918,7 @@ test("pipe fills one named hole and rejects two total holes", () => {
   expect(summarizeDiagnostics(namedAnchor)).toContain("W-LABEL-0005")
 })
 
-test("generic binding locates anchors after named segments", () => {
+test("generic binding locates positional anchors independently of named labels", () => {
   const result = deriveExecutionErgonomics(`
     struct Matrix<rows: usize, Element, columns: usize> {}
     let matrix = Matrix<rows: 3, f32, columns: 4>
@@ -946,7 +947,7 @@ test("mut ref requires an explicit mutable borrow or object shorthand", () => {
   expect(accepted.labels.diagnostics).toEqual([])
 
   const rejected = deriveExecutionErgonomics(`
-    struct Point { x: i32 }
+    struct Point { let x: i32 }
     fn update(point: mut ref Point) {}
     fn run(point: Point) {
       update(point: point)

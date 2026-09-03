@@ -15,12 +15,12 @@ struct ServiceProfile<
 }
 
 struct StartedService {
-  enabled: Bool
-  name: String
-  timeout: PhysicalDuration
-  tables: usize
-  courses: usize
-  buffer: usize
+  let enabled: Bool
+  let name: String
+  let timeout: PhysicalDuration
+  let tables: usize
+  let courses: usize
+  let buffer: usize
 }
 
 fn start<

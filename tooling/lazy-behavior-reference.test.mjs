@@ -123,7 +123,7 @@ test("exclusive assignment supersedes the initializer", () => {
   assert.equal(result.state.observations[0].value, "manual-v1")
 })
 
-test("get mut ref initializes before exposing a mutable borrow", () => {
+test("mut-ref property access initializes before exposing a mutable borrow", () => {
   const result = runLazyBehaviorOperations([
     declare("local"),
     {

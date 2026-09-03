@@ -13,12 +13,12 @@
   },
   "wlo1": {
     "path": "wlo1-manifest.json",
-    "digest": "sha256:35ad0b2db965db09b5941dcf359b8468909b2668bab2d84674eef5488a1e8a11"
+    "digest": "sha256:1a99e4ffc3959d99ab11984bed808c477ac169aa3c1982ecdb507dfcaaf7ff06"
   },
   "artifacts": {
     "bundle": {
       "path": "bundle.json",
-      "digest": "sha256:9b51092d38f5f9b34b8cbef7a77e759063653be6949b0a87ecd95feab80c3e74"
+      "digest": "sha256:37eab36e7552bb3355fbc1b50b239248052be38f4da834ad164278bf71a84d1d"
     },
     "oracle": {
       "path": "oracle.test.mjs",

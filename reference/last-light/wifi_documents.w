@@ -27,8 +27,8 @@ export enum WifiDocumentError: Error {
 }
 
 export struct LoginDocument: json.Decodable {
-  device: String
-  voucher: String
+  let device: String
+  let voucher: String
 
   export take fn loginRequest(): LoginRequest throws WifiDocumentError {
     let device = try DeviceId(device.materialize())
@@ -40,7 +40,7 @@ export struct LoginDocument: json.Decodable {
 }
 
 export struct RevokeDocument: json.Decodable {
-  id: String
+  let id: String
 
   export take fn sessionId(): SessionId throws WifiDocumentError {
     let carrier = try u128.parse(id)
@@ -59,7 +59,7 @@ fn roleToken(role: WifiRole): String {
 }
 
 export struct SessionDocument: json.Encodable {
-  session: ref WifiSession
+  let session: ref WifiSession
 
   export init(session: ref WifiSession) {
     self.session = session

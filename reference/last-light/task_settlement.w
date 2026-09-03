@@ -6,13 +6,13 @@ export enum MenuMirror {
 }
 
 export struct MenuMirrorRequest {
-  mirror: MenuMirror
-  revision: u64
+  let mirror: MenuMirror
+  let revision: u64
 }
 
 export struct MirroredMenu {
-  mirror: MenuMirror
-  revision: u64
+  let mirror: MenuMirror
+  let revision: u64
 }
 
 export enum MenuMirrorError: Error {

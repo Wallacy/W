@@ -45,7 +45,7 @@
       "id": "bundle",
       "role": "bundle",
       "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
-      "digest": "sha256:611592f3febc0bc433fcc31f88afa16b60030c925daff8491a5d761bdd0e9811"
+      "digest": "sha256:a6a9085c0aab1f2b16bb6456f49cfa647d52c38f9f57808da34bf2b443745248"
     },
     {
       "id": "study",
@@ -87,7 +87,7 @@
       "id": "ipc-study",
       "role": "ipc-study",
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-      "digest": "sha256:b5f523524fb29577fd436ca26679f5c5b679ebba1c8fe6765ba2e0f5725b51bd"
+      "digest": "sha256:8e936c22cc185d72a3621cfab77a1c62cfdaf7a2bac75f920569cba7c4e85561"
     },
     {
       "id": "ipc-corpus",
@@ -111,7 +111,7 @@
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:47f85ed5989c116a3656c34047b3047af9c235115af0b285019ea284879969bc"
+      "digest": "sha256:d9bcbe865faebca0c00bb10d041c42b0e3237e41b91e5a14ef9dd0a1d29c9d87"
     },
     {
       "id": "avf-corpus",
@@ -135,7 +135,7 @@
       "id": "sec-study",
       "role": "sec-study",
       "path": "tooling/studies/sec0-security-model/study.json",
-      "digest": "sha256:272fd5e5dc79b92c6f6d69d21c1df150def67a40e5802b5ba2e56d24ea8346e3"
+      "digest": "sha256:2a30e910a5555ccf9a27bb97e3d260ec4f32fa8bb201d5afb4873deb638d922d"
     },
     {
       "id": "sec-corpus",

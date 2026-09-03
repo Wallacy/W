@@ -30,8 +30,8 @@ export enum TaskOrdering {
 // index refers to the consumed input array. The outcome keeps application
 // failure separate from structured cancellation.
 export struct TaskSettlement<Value, Failure: Error> {
-  export index: usize
-  export outcome: TaskOutcome<Value, Failure>
+  export let index: usize
+  export let outcome: TaskOutcome<Value, Failure>
 }
 
 export alias TaskTimeout = Duration<(0...)>
@@ -58,7 +58,7 @@ foreign intrinsic from "std.runtime.task-local@1" {
 }
 
 export struct TaskLocal<Value> {
-  identity: TaskLocalIdentity
+  let identity: TaskLocalIdentity
 
   init(validatedIdentity: TaskLocalIdentity) {
     self.identity = validatedIdentity

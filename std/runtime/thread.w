@@ -19,7 +19,7 @@ foreign intrinsic from "std.runtime.thread-local@1" {
 }
 
 export struct ThreadLocal<Value: Copy> {
-  identity: ThreadLocalIdentity
+  let identity: ThreadLocalIdentity
 
   init(validatedIdentity: ThreadLocalIdentity) {
     self.identity = validatedIdentity

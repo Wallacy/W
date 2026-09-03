@@ -12,9 +12,9 @@ export type DisplayName = String<(.graphemes.count <= 64)>
 export type RestaurantMenuBytes = Array<u8><(.count in 16...32)>
 
 export struct MenuScanResult {
-  fullMatches: UInt
-  tailMatches: UInt
-  tailLive: SimdMask<16>
+  let fullMatches: UInt
+  let tailMatches: UInt
+  let tailLive: SimdMask<16>
 }
 
 // SIMD1 design oracle only. It does not claim compiler, runtime or provider.
@@ -62,8 +62,8 @@ export fn floatReductionWitness(): (f64, f64) {
 }
 
 export struct BrigadeCount {
-  completed: u64
-  failed: u64
+  let completed: u64
+  let failed: u64
 }
 
 // The compiler may change this private physical layout. Cache placement is not

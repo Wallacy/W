@@ -2,8 +2,8 @@ import std
 // security boundary witness
 
 export struct TenantRequest {
-  tenant: String
-  body: Bytes
+  let tenant: String
+  let body: Bytes
 }
 
 export fn route(_ request: take TenantRequest): Bool {

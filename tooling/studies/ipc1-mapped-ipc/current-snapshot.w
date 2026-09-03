@@ -5,8 +5,8 @@ module ipc1CurrentSnapshot
 import * from std.io
 
 export struct Ipc1MappedIpcSnapshot: Duplicable {
-  generation: u64
-  bytes: Bytes
+  let generation: u64
+  let bytes: Bytes
 }
 
 export async fn Ipc1MappedIpc(

@@ -49,11 +49,11 @@ const fn resolveDomain(
 }
 
 struct DomainContract {
-  name: DomainName
-  serial: Bool
-  parallel: Bool
-  barrierDispatch: Bool
-  capacity: u16
+  let name: DomainName
+  let serial: Bool
+  let parallel: Bool
+  let barrierDispatch: Bool
+  let capacity: u16
 }
 
 enum AdmissionDecision {
@@ -191,8 +191,8 @@ enum DynamicLaneDecision {
 }
 
 struct DynamicLaneTransition {
-  state: DynamicLaneState
-  decision: DynamicLaneDecision
+  let state: DynamicLaneState
+  let decision: DynamicLaneDecision
 }
 
 const fn reduceCapacity(
@@ -267,7 +267,7 @@ const fn closeDynamicSerial(
 }
 
 struct CatalogState {
-  revision: u64
+  let revision: u64
 }
 
 fn observeCatalog(state: ref CatalogState): u64 {

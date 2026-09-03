@@ -8,8 +8,8 @@ import chart.science
 import { Batch } from std.data
 
 export struct HorizonReading {
-  sequence: u64
-  flux: f64
+  let sequence: u64
+  let flux: f64
 }
 
 fn horizonScore(batch: Batch<HorizonReading>): f64 {

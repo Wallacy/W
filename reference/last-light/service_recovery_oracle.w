@@ -88,8 +88,8 @@ export const fn serviceDedupDecision(
 }
 
 export struct RecoveryMailboxTicket {
-  sender: u32
-  ordinal: u64
+  let sender: u32
+  let ordinal: u64
 }
 
 export const fn mayStartRecoveryTurn(

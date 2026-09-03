@@ -21,8 +21,8 @@ export enum DevRunnerPhase {
 }
 
 export struct LocalGenerationWitness {
-  input: ReloadInput
-  result: ReloadResult
+  let input: ReloadInput
+  let result: ReloadResult
 }
 
 // This pure projection records the same input/result frontier as the split witness.

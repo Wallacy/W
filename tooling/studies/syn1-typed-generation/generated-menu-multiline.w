@@ -1,7 +1,7 @@
 import * from std
 
 export struct DishRoute {
-  raw: u32
+  let raw: u32
 }
 
 export fn routeDish(

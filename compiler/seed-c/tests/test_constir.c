@@ -1774,8 +1774,8 @@ static bool test_typed_const_expression_synthetic(void) {
   static const char source[] =
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { immediate: UltimateAnswer<42> computed: "
-      "UltimateAnswer<(6 * 7)> duplicate: UltimateAnswer<(6 * 7)> }\n";
+      "struct Use { let immediate: UltimateAnswer<42> let computed: "
+      "UltimateAnswer<(6 * 7)> let duplicate: UltimateAnswer<(6 * 7)> }\n";
   CHECK(fixture_lower(&first_fixture, source));
   CHECK(first_fixture.frontend_result.written.typed_const_expressions == 2u &&
         first_fixture.constir_result.written.functions == 3u);
@@ -1839,7 +1839,7 @@ static bool test_typed_const_expression_synthetic(void) {
   static const char unsupported_call[] =
       "const fn helper(_ value: i64): i64 { return value }\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(helper(6))> }\n";
+      "struct Use { let value: Box<(helper(6))> }\n";
   CHECK(fixture_lower(&first_fixture, unsupported_call));
   CHECK(first_fixture.constir_result.written.functions == 2u &&
         !first_fixture.constir_functions[1].lowerable &&
@@ -1850,7 +1850,7 @@ static bool test_typed_const_expression_synthetic(void) {
    * origin validator must not make that record executable. */
   static const char audit_only[] =
       "struct Pair<_ first: i64, _ second: i64> {}\n"
-      "struct Use { pair: Pair<(6 * 7), (\"42\")> }\n";
+      "struct Use { let pair: Pair<(6 * 7), (\"42\")> }\n";
   CHECK(fixture_lower(&first_fixture, audit_only));
   CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         first_fixture.frontend_result.written.typed_const_expressions == 1u &&
@@ -1867,7 +1867,7 @@ static bool test_module_const_synthetic_d4(void) {
       "export const ultimateAnswer: i64 = 6 * 7\n"
       "const forward: i64 = ultimateAnswer\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+      "struct Use { let named: Box<(forward)> let direct: Box<(ultimateAnswer)> }\n";
   CHECK(fixture_lower(&first_fixture, source));
   CHECK(first_fixture.frontend_result.written.const_declarations == 2u &&
         first_fixture.constir_result.written.functions == 4u &&
@@ -1898,7 +1898,7 @@ static bool test_module_const_synthetic_d4(void) {
       "export const ultimateAnswer: i64 = 6 * 8\n"
       "const forward: i64 = ultimateAnswer\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+      "struct Use { let named: Box<(forward)> let direct: Box<(ultimateAnswer)> }\n";
   CHECK(fixture_lower(&second_fixture, changed_source));
   CHECK(memcmp(first_fixture.constir_functions[1].body_digest,
                second_fixture.constir_functions[1].body_digest, 32u) != 0);
@@ -1907,7 +1907,7 @@ static bool test_module_const_synthetic_d4(void) {
       "const left: i64 = right\n"
       "const right: i64 = left\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(left)> }\n";
+      "struct Use { let value: Box<(left)> }\n";
   CHECK(fixture_lower(&first_fixture, cycle_source));
   CHECK(first_fixture.constir_result.written.functions == 3u &&
         first_fixture.constir_functions[0].lowerable &&
@@ -1918,7 +1918,7 @@ static bool test_module_const_synthetic_d4(void) {
       "export const ultimateAnswer = 6 * 7\n"
       "const forward = ultimateAnswer\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { named: Box<(forward)> direct: Box<(ultimateAnswer)> }\n";
+      "struct Use { let named: Box<(forward)> let direct: Box<(ultimateAnswer)> }\n";
   CHECK(fixture_lower(&first_fixture, inferred_source));
   CHECK(first_fixture.frontend_result.status == W_SEED_FRONTEND_OK &&
         first_fixture.frontend_result.written.const_declarations == 2u &&
@@ -1970,7 +1970,7 @@ static bool test_module_const_active_cycle_defense(void) {
       "const left: i64 = right\n"
       "const right: i64 = left\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(left)> }\n";
+      "struct Use { let cycle: Box<(left)> }\n";
   fixture *value = &first_fixture;
   CHECK(fixture_lower(value, source));
   CHECK(value->frontend_result.written.const_declarations == 2u &&
