@@ -1,7 +1,7 @@
 // atlas:begin operators
 module atlas_operators
 
-fn operatorSurface(payload: ref any Reflectable) {
+fn operatorSurface(_ payload: ref any Reflectable) {
   var value = 8
   var other = 2
   var fallback = 1

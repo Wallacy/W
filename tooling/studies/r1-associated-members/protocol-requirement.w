@@ -2,7 +2,7 @@
 
 protocol CourseFactory {
   const count: usize
-  static fn fromOrdinal(value: usize): Self?
+  static fn fromOrdinal(_ value: usize): Self?
 }
 
 enum Course: CourseFactory {
@@ -13,7 +13,7 @@ enum Course: CourseFactory {
 
   const count: usize = 4
 
-  static fn fromOrdinal(value: usize): Course? {
+  static fn fromOrdinal(_ value: usize): Course? {
     return switch value {
       case 0: .some(.nebulaBroth)
       case 1: .some(.photonSouffle)
@@ -24,7 +24,7 @@ enum Course: CourseFactory {
   }
 }
 
-fn selectCourse<T: CourseFactory>(value: usize): T? {
+fn selectCourse<T: CourseFactory>(_ value: usize): T? {
   guard value < T.count else return .none
   return T.fromOrdinal(value)
 }

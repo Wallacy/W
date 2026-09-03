@@ -24,23 +24,17 @@ static w_seed_hir0_label_kind hir_label_kind(
   switch (kind) {
     case W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY:
       return W_SEED_HIR0_LABEL_POSITIONAL_ONLY;
-    case W_SEED_FRONTEND_LABEL_NAMED_REQUIRED:
-      return W_SEED_HIR0_LABEL_NAMED_REQUIRED;
-    case W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED:
-      return W_SEED_HIR0_LABEL_EXTERNAL_REQUIRED;
-    case W_SEED_FRONTEND_LABEL_OPTIONAL:
-      return W_SEED_HIR0_LABEL_OPTIONAL;
+    case W_SEED_FRONTEND_LABEL_REQUIRED:
+      return W_SEED_HIR0_LABEL_REQUIRED;
   }
   return W_SEED_HIR0_LABEL_POSITIONAL_ONLY;
 }
 
 static bool hir_label_valid(w_seed_hir0_label_kind kind,
                             w_seed_hir0_text label, bool text_is_valid) {
-  if (!text_is_valid || kind > W_SEED_HIR0_LABEL_OPTIONAL) return false;
+  if (!text_is_valid || kind > W_SEED_HIR0_LABEL_REQUIRED) return false;
   if (kind == W_SEED_HIR0_LABEL_POSITIONAL_ONLY) return label.count == 0u;
-  if (kind == W_SEED_HIR0_LABEL_NAMED_REQUIRED ||
-      kind == W_SEED_HIR0_LABEL_EXTERNAL_REQUIRED)
-    return label.count != 0u;
+  if (kind == W_SEED_HIR0_LABEL_REQUIRED) return label.count != 0u;
   return true;
 }
 
@@ -69,22 +63,19 @@ static bool text_valid(w_seed_frontend_text text) {
 
 static bool frontend_label_valid(w_seed_frontend_label_kind kind,
                                  w_seed_frontend_text label) {
-  if (!text_valid(label) || kind > W_SEED_FRONTEND_LABEL_OPTIONAL)
+  if (!text_valid(label) || kind > W_SEED_FRONTEND_LABEL_REQUIRED)
     return false;
   if (kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) return label.length == 0u;
-  if (kind == W_SEED_FRONTEND_LABEL_NAMED_REQUIRED ||
-      kind == W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED)
-    return label.length != 0u;
+  if (kind == W_SEED_FRONTEND_LABEL_REQUIRED) return label.length != 0u;
   return true;
 }
 
 static bool text_equal(w_seed_frontend_text left,
                        w_seed_frontend_text right);
 
-/* HIR0 canonicalizes every non-positional host parameter label to the public
- * external_parameter.name. OPTIONAL remains an optional frontend policy, but
- * this closed HIR subset accepts it only when the call publishes that label;
- * an omitted optional label stays outside this lowering contract. */
+/* HIR0 canonicalizes every required host parameter label to the public
+ * external_parameter.name. This closed subset accepts only required and
+ * positional-only callable policies. */
 static bool frontend_host_label_matches(
     w_seed_frontend_label_kind kind, w_seed_frontend_text name,
     w_seed_frontend_text label) {
@@ -317,7 +308,7 @@ static bool host_shape_ok(const w_seed_frontend_host_prelude *scope) {
           &symbol->parameters[parameter];
       if (!text_valid(value->name) || !text_valid(value->type) ||
           !text_is(value->type, HIR0_STRING_NAME) ||
-          value->label_kind > W_SEED_FRONTEND_LABEL_OPTIONAL ||
+          value->label_kind > W_SEED_FRONTEND_LABEL_REQUIRED ||
           (value->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
            value->name.length == 0u))
         return false;
@@ -1994,7 +1985,7 @@ static bool verify_identity_records(const w_seed_hir0_program *program) {
       if (item->owner_identity != host_base + index || item->ordinal != parameter ||
           item->type_index != 1u || !hir_text_valid(program, item->name) ||
           !hir_text_valid(program, item->label) ||
-          item->label_kind > W_SEED_HIR0_LABEL_OPTIONAL ||
+          item->label_kind > W_SEED_HIR0_LABEL_REQUIRED ||
            !hir_host_label_matches(program, item->label_kind, item->name,
                                    item->label))
         return false;
@@ -2081,7 +2072,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
       if (item->owner_function != function || item->ordinal != parameter ||
           item->type_index > 1u || !hir_text_valid(program, item->name) ||
           !hir_text_valid(program, item->label) ||
-          item->label_kind > W_SEED_HIR0_LABEL_OPTIONAL ||
+          item->label_kind > W_SEED_HIR0_LABEL_REQUIRED ||
           !hir_label_valid(item->label_kind, item->label, true) ||
          !span_valid(item->source_span,
                       program->modules[value->module_index].source_length))
@@ -2177,7 +2168,7 @@ static bool verify_records(const w_seed_hir0_program *program) {
            item->value_index >= program->value_count ||
            item->value_index != call_value_cursor ||
           !hir_text_valid(program, item->label) ||
-          item->label_kind > W_SEED_HIR0_LABEL_OPTIONAL ||
+          item->label_kind > W_SEED_HIR0_LABEL_REQUIRED ||
           !hir_label_valid(item->label_kind, item->label, true) ||
            item->label_kind != host_parameter->label_kind ||
            !hir_text_equal(program, item->label, host_parameter->label) ||

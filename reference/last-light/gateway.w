@@ -56,7 +56,7 @@ async fn dispatch(
   restaurant lastLight: ref ServiceRef<RestaurantApi>,
   authority hostAuthority: HostAuthority,
 ): AppResponse throws DispatchError {
-  guard canDispatch(command, authority: hostAuthority) else throw .unauthorizedCommand
+  guard canDispatch(command: command, authority: hostAuthority) else throw .unauthorizedCommand
 
   return switch command {
     case .help:
@@ -72,7 +72,7 @@ async fn dispatch(
     case .dashboard:
       .dashboard(await lastLight.snapshot())
     case .simulate(let profile):
-      .simulation(try simulateShift(profile))
+      .simulation(try simulateShift(profile: profile))
     case .shutdown:
       .shuttingDown
   }
@@ -99,9 +99,9 @@ async fn handle(
   request: take http.Request,
   ctx: http.Context,
 ): AppResponse throws GatewayError {
-  let command = try await decodeCommandBody(take request)
+  let command = try await decodeCommandBody(request: take request)
   return try await dispatch(
-    take command,
+    command: take command,
     restaurant: lastLight,
     authority: .remoteClient,
   )
@@ -129,7 +129,7 @@ async fn fetch(request: take http.Request, ctx: http.Context): http.Response thr
   }
 
   do {
-    let response = try await handle(take request, ctx)
+    let response = try await handle(request: take request, ctx: ctx)
     let document = AppResponseDocument(response: ref response)
     do {
       return try http.Response.json(value: ref document, maximumBytes: commandLimit)
@@ -139,11 +139,11 @@ async fn fetch(request: take http.Request, ctx: http.Context): http.Response thr
   } catch error {
     switch error {
       case .decode(_):
-        return try gatewayProblemResponse(.malformedJson)
+        return try gatewayProblemResponse(code: .malformedJson)
       case .schema(_):
-        return try gatewayProblemResponse(.invalidCommand)
+        return try gatewayProblemResponse(code: .invalidCommand)
       case .dispatch(.unauthorizedCommand):
-        return try gatewayProblemResponse(.forbiddenShutdown)
+        return try gatewayProblemResponse(code: .forbiddenShutdown)
       case _:
         throw error
     }
@@ -154,9 +154,9 @@ test "a remote command cannot stop the process" for canDispatch {
   let shutdown: Command = .shutdown
   let menu: Command = .menu
 
-  expect canDispatch(shutdown, authority: .localOperator)
-  expect !canDispatch(shutdown, authority: .remoteClient)
-  expect canDispatch(menu, authority: .remoteClient)
+  expect canDispatch(command: shutdown, authority: .localOperator)
+  expect !canDispatch(command: shutdown, authority: .remoteClient)
+  expect canDispatch(command: menu, authority: .remoteClient)
 }
 
 test "gateway maps only documented boundary failures" {
@@ -165,10 +165,10 @@ test "gateway maps only documented boundary failures" {
   let forbidden = GatewayError.dispatch(.unauthorizedCommand)
   let unclassified = GatewayError.dispatch(.restaurant(.domain(.overflow)))
 
-  expect gatewayProblemCode(ref malformed) == .some(.malformedJson)
-  expect gatewayProblemCode(ref invalid) == .some(.invalidCommand)
-  expect gatewayProblemCode(ref forbidden) == .some(.forbiddenShutdown)
-  expect gatewayProblemCode(ref unclassified) == .none
+  expect gatewayProblemCode(error: ref malformed) == .some(.malformedJson)
+  expect gatewayProblemCode(error: ref invalid) == .some(.invalidCommand)
+  expect gatewayProblemCode(error: ref forbidden) == .some(.forbiddenShutdown)
+  expect gatewayProblemCode(error: ref unclassified) == .none
 }
 
 export {

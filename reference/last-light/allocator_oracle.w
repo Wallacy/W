@@ -80,9 +80,9 @@ export const fn isPowerOfTwo(value: usize): Bool {
 
 export const fn acceptsLayout(
   profile: ref AllocatorProviderProfile,
-  named layout: AllocationLayout,
+  layout: AllocationLayout,
 ): Bool {
-  return isPowerOfTwo(layout.alignment)
+  return isPowerOfTwo(value: layout.alignment)
     && layout.size <= profile.maximumBytes
     && layout.alignment <= profile.maximumAlignment
 }
@@ -131,36 +131,36 @@ test "allocation layout is bounded before provider access" for acceptsLayout {
     maximumAlignment: 64,
   )
 
-  expect acceptsLayout(fixed, layout: AllocationLayout(size: 4096, alignment: 16))
-  expect !acceptsLayout(fixed, layout: AllocationLayout(size: 4096, alignment: 3))
-  expect !acceptsLayout(fixed, layout: AllocationLayout(size: 128<iec.KiB>, alignment: 16))
+  expect acceptsLayout(profile: fixed, layout: AllocationLayout(size: 4096, alignment: 16))
+  expect !acceptsLayout(profile: fixed, layout: AllocationLayout(size: 4096, alignment: 3))
+  expect !acceptsLayout(profile: fixed, layout: AllocationLayout(size: 128<iec.KiB>, alignment: 16))
 }
 
 test "zero-size and resize preserve receipt authority" for oldReceiptSurvives {
-  expect !allocationCallsProvider(AllocationLayout(size: 0, alignment: 1))
-  expect allocationCallsProvider(AllocationLayout(size: 1, alignment: 1))
-  expect !oldReceiptSurvives(.resized)
-  expect oldReceiptSurvives(.unsupported)
-  expect oldReceiptSurvives(.failed)
+  expect !allocationCallsProvider(layout: AllocationLayout(size: 0, alignment: 1))
+  expect allocationCallsProvider(layout: AllocationLayout(size: 1, alignment: 1))
+  expect !oldReceiptSurvives(result: .resized)
+  expect oldReceiptSurvives(result: .unsupported)
+  expect oldReceiptSurvives(result: .failed)
 }
 
 test "progress requirements remain contextual" for progressAccepts {
-  expect progressAccepts(.ordinary, progress: .general)
-  expect progressAccepts(.realTime, progress: .bounded)
-  expect !progressAccepts(.realTime, progress: .lockFree)
-  expect progressAccepts(.interrupt, progress: .waitFree)
-  expect !progressAccepts(.interrupt, progress: .bounded)
+  expect progressAccepts(use: .ordinary, progress: .general)
+  expect progressAccepts(use: .realTime, progress: .bounded)
+  expect !progressAccepts(use: .realTime, progress: .lockFree)
+  expect progressAccepts(use: .interrupt, progress: .waitFree)
+  expect !progressAccepts(use: .interrupt, progress: .bounded)
 }
 
 test "each owner has one baseline reclamation gate" for baselineReclamation {
-  expect baselineReclamation(.unique) == .typedDrop
-  expect baselineReclamation(.fixedScope) == .bulkRelease
-  expect baselineReclamation(.sharedPayload) == .strongZero
-  expect baselineReclamation(.sharedControlBlock) == .weakZero
-  expect baselineReclamation(.pinned) == .addressDrain
-  expect baselineReclamation(.taskFrame) == .taskDrain
-  expect baselineReclamation(.serviceInstance) == .serviceDrain
-  expect baselineReclamation(.channelNode) == .queueDrain
-  expect baselineReclamation(.foreign) == .foreignDestroy
-  expect baselineReclamation(.device) == .deviceQuiescence
+  expect baselineReclamation(owner: .unique) == .typedDrop
+  expect baselineReclamation(owner: .fixedScope) == .bulkRelease
+  expect baselineReclamation(owner: .sharedPayload) == .strongZero
+  expect baselineReclamation(owner: .sharedControlBlock) == .weakZero
+  expect baselineReclamation(owner: .pinned) == .addressDrain
+  expect baselineReclamation(owner: .taskFrame) == .taskDrain
+  expect baselineReclamation(owner: .serviceInstance) == .serviceDrain
+  expect baselineReclamation(owner: .channelNode) == .queueDrain
+  expect baselineReclamation(owner: .foreign) == .foreignDestroy
+  expect baselineReclamation(owner: .device) == .deviceQuiescence
 }

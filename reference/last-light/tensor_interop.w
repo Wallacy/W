@@ -34,9 +34,9 @@ export struct InteropLimits {
 }
 
 export async fn importScientific<samples: usize>(
-  named managed: take dlpack.ManagedTensor,
+  managed: take dlpack.ManagedTensor,
   on queue: ref tensor.Queue,
-  named limits: ref dlpack.Limits,
+  limits: ref dlpack.Limits,
 ): dlpack.ImportedTensor<f32, shape: [samples, 6]> throws dlpack.DLPackError {
   return try await dlpack.open(
     managed: take managed,
@@ -57,10 +57,10 @@ export fn scientificShape(samples sampleCount: usize): Array<usize> {
 }
 
 export fn sameProviderIdentity(
-  named leftProvider: String,
-  named leftId: usize,
-  named rightProvider: String,
-  named rightId: usize,
+  leftProvider: String,
+  leftId: usize,
+  rightProvider: String,
+  rightId: usize,
 ): Bool {
   return leftProvider == rightProvider && leftId == rightId
 }
@@ -74,20 +74,20 @@ export mut async fn scoreView<samples: usize>(
 }
 
 export mut async fn scoreScientific<samples: usize>(
-  named imported: inout dlpack.ImportedTensor<f32, shape: [samples, 6]>,
+  imported: inout dlpack.ImportedTensor<f32, shape: [samples, 6]>,
   sensor sourceSensor: ref BlackHoleSensor,
 ): Scores throws dlpack.ViewError<ScoreError> {
   return try await imported.withView(
     body: <[ref sourceSensor]> (view) =>
-      try await scoreView<samples>(view, sensor: ref sourceSensor),
+      try await scoreView<samples>(view: view, sensor: ref sourceSensor),
   )
 }
 
 export async fn materializeToHost<samples: usize>(
-  named managed: take dlpack.ManagedTensor,
-  named target: ref tensor.Device,
+  managed: take dlpack.ManagedTensor,
+  target: ref tensor.Device,
   on queue: ref tensor.Queue?,
-  named limits: ref InteropLimits,
+  limits: ref InteropLimits,
 ): Tensor<f32, shape: [samples, 6]> throws dlpack.DLPackError {
   return try await dlpack.materialize(
     managed: take managed,
@@ -98,9 +98,9 @@ export async fn materializeToHost<samples: usize>(
 }
 
 export async fn exportScores<samples: usize>(
-  named scores: take Tensor<f32, shape: [samples, 6]>,
+  scores: take Tensor<f32, shape: [samples, 6]>,
   on queue: ref tensor.Queue?,
-  named limits: ref dlpack.Limits,
+  limits: ref dlpack.Limits,
 ): dlpack.ManagedTensor throws dlpack.DLPackError {
   return try await dlpack.export(
     value: take scores,
@@ -110,11 +110,11 @@ export async fn exportScores<samples: usize>(
 }
 
 export async fn scientificRoute<samples: usize>(
-  named managed: take dlpack.ManagedTensor,
-  named device: ref tensor.Device,
-  named queue: ref tensor.Queue,
-  named sensor: ref BlackHoleSensor,
-  named limits: ref InteropLimits,
+  managed: take dlpack.ManagedTensor,
+  device: ref tensor.Device,
+  queue: ref tensor.Queue,
+  sensor: ref BlackHoleSensor,
+  limits: ref InteropLimits,
 ): Scores throws InteropError {
   guard queue.device().same(as: ref device) else throw .carrier(.deviceMismatch)
 

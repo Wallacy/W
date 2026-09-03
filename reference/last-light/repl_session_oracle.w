@@ -169,19 +169,19 @@ export fn doubled(): i32 {
 // structured allowDrain confirmation, then can reject a replacement.
 // A post-publish drain failure commits a degraded state.
 
-export const fn hardEdgeIsExact(named edge: HardEdge, named expected: BindingId): Bool {
+export const fn hardEdgeIsExact(edge: HardEdge, expected: BindingId): Bool {
   return edge.kind == DependencyKind.compiledLookup && edge.to == expected && edge.version > 0_u64
 }
 
-export const fn snapshotIsValue(named provenance: SoftProvenance): Bool {
+export const fn snapshotIsValue(provenance: SoftProvenance): Bool {
   return provenance.relation == "evaluated-value"
 }
 
-export const fn drainNeedsConfirmation(named event: ResourceEvent): Bool {
+export const fn drainNeedsConfirmation(event: ResourceEvent): Bool {
   return event.owner == OwnerState.generation && event.providerState == "replaceable" && event.allowDrain == false
 }
 
-export const fn transitiveEdgeIsImmediate(named edge: HardEdge, named expected: BindingId): Bool {
+export const fn transitiveEdgeIsImmediate(edge: HardEdge, expected: BindingId): Bool {
   return hardEdgeIsExact(edge: edge, expected: expected)
 }
 
@@ -189,16 +189,16 @@ export const fn snapshotRetainsValue(value storedValue: i32, current currentValu
   return storedValue != currentValue
 }
 
-export const fn cancelBeforePublish(named receipt: CancellationReceipt): Bool {
+export const fn cancelBeforePublish(receipt: CancellationReceipt): Bool {
   return receipt.published == false && receipt.ordinal > 0_u64
 }
 
-export const fn cancelAfterPublish(named receipt: CancellationReceipt): Bool {
+export const fn cancelAfterPublish(receipt: CancellationReceipt): Bool {
   return receipt.published && receipt.ordinal > 0_u64
 }
 
 test "session identity and invalidation are explicit" for snapshot {
-  expect snapshot(limit) == 6
+  expect snapshot(value: limit) == 6
   expect hardEdgeIsExact(edge: HardEdge(
     kind: DependencyKind.compiledLookup,
     from: "b:doubled",

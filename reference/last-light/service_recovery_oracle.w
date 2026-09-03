@@ -34,8 +34,8 @@ export enum ServiceRecoveryAction {
 
 export const fn serviceRecoveryAction(
   point: ServiceFaultPoint,
-  named policy: RecoveryEffectPolicy,
-  named provider: ProviderDecision,
+  policy: RecoveryEffectPolicy,
+  provider: ProviderDecision,
 ): ServiceRecoveryAction {
   return switch point {
     case .beforeEnvelopeCommit: .cleanupWithoutExecution
@@ -73,8 +73,8 @@ export enum DedupDecision {
 
 export const fn serviceDedupDecision(
   state: DedupRecordState,
-  named sameIdentity: Bool,
-  named withinRetention: Bool,
+  sameIdentity: Bool,
+  withinRetention: Bool,
 ): DedupDecision {
   guard sameIdentity else { return .effectConflict }
   guard withinRetention else { return .retentionExpired }
@@ -94,8 +94,8 @@ export struct RecoveryMailboxTicket {
 
 export const fn mayStartRecoveryTurn(
   candidate: RecoveryMailboxTicket,
-  named earliestForSender: RecoveryMailboxTicket,
-  named anotherTurnActive: Bool,
+  earliestForSender: RecoveryMailboxTicket,
+  anotherTurnActive: Bool,
 ): Bool {
   return !anotherTurnActive
     && candidate.sender == earliestForSender.sender
@@ -111,13 +111,13 @@ export const fn acceptsRecoveryCompletion(
 
 test "recovery distinguishes a retry from an unknown at-most-once effect" {
   expect serviceRecoveryAction(
-    .afterEffectDispatch,
+    point: .afterEffectDispatch,
     policy: .idempotent,
     provider: .unknown,
   ) == .retryAttempt
 
   expect serviceRecoveryAction(
-    .afterEffectDispatch,
+    point: .afterEffectDispatch,
     policy: .atMostOnce,
     provider: .unknown,
   ) == .returnUnknownOutcome
@@ -125,13 +125,13 @@ test "recovery distinguishes a retry from an unknown at-most-once effect" {
 
 test "a committed order outcome is replayed without another turn" {
   expect serviceRecoveryAction(
-    .afterOutcomeCommit,
+    point: .afterOutcomeCommit,
     policy: .atMostOnce,
     provider: .committed,
   ) == .replayOutcome
 
   expect serviceDedupDecision(
-    .committed,
+    state: .committed,
     sameIdentity: true,
     withinRetention: true,
   ) == .replayOutcome
@@ -142,12 +142,12 @@ test "mailbox FIFO is local to the sender" {
   let later = RecoveryMailboxTicket(sender: 7, ordinal: 42)
 
   expect mayStartRecoveryTurn(
-    first,
+    candidate: first,
     earliestForSender: first,
     anotherTurnActive: false,
   )
   expect !mayStartRecoveryTurn(
-    later,
+    candidate: later,
     earliestForSender: first,
     anotherTurnActive: false,
   )

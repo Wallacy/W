@@ -87,9 +87,9 @@ test "domain JSON fixes unit tokens and rejects an alternative token" {
   expect energyUsedJsonExample == #"{"value":12.5,"unit":"J"}"#
   expect memorySizeJsonExample == #"{"value":"524288","unit":"bit"}"#
   var secondsToken = "s"
-  expect expectedTickDurationTokenOutcome(ref secondsToken) == .accepted
+  expect expectedTickDurationTokenOutcome(token: ref secondsToken) == .accepted
 
   // Provider-gated expectation: a future domain witness maps `unit: "ms"` to DecodeError.
   var millisecondsToken = "ms"
-  expect expectedTickDurationTokenOutcome(ref millisecondsToken) == .rejectedAlternative
+  expect expectedTickDurationTokenOutcome(token: ref millisecondsToken) == .rejectedAlternative
 }

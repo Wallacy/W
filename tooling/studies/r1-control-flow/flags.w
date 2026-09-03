@@ -5,7 +5,7 @@ struct DiagnosticFold {
   finalizedRows: u32
 }
 
-fn foldDiagnosticBits(rows: ref Array<Array<u8>>): DiagnosticFold {
+fn foldDiagnosticBits(_ rows: ref Array<Array<u8>>): DiagnosticFold {
   var bits: u32 = 0
   var finalizedRows: u32 = 0
   var stopScan = false

@@ -31,7 +31,7 @@ export object CanonicalCarrier {
     word.store<.release>(next)
   }
 
-  fn close(expected: SignEpochWord, desired: SignEpochWord): AtomicExchange<SignEpochWord> {
+  fn close(_ expected: SignEpochWord, _ desired: SignEpochWord): AtomicExchange<SignEpochWord> {
     // expected and desired use the same canonical encoder before CAS comparison.
     return word.compareExchange<success: .acquireRelease, failure: .acquire>(expected: expected, desired: desired)
   }

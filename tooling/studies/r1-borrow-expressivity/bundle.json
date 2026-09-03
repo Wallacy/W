@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e"
+    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "baseline.w",
-      "digest": "sha256:151f91a491eb1b5658434f841b8d9b8bd8cdd8e4eac14c51c051d90e05bab928",
+      "digest": "sha256:9dc752740a0282307a157302854da2a6440c09286c2c38219c06b54c9eb6dde5",
       "changedConstructs": [
         "member receiver uses the current dependency-slot rule",
         "body-derived free mapping remains exact",
@@ -34,7 +34,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "aggregate.w",
-      "digest": "sha256:10183ea6f39d7520a03e85a291325089bd166233ecb32bf5d0b32c2c9762309d",
+      "digest": "sha256:d6c8455fe92141db08a9199f2b010e0a86432e828419c8663d67095995c1cb86",
       "changedConstructs": [
         "nominal sum carries primary or fallback",
         "direct borrowed result becomes an owned aggregate API",

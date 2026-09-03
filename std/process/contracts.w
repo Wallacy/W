@@ -49,86 +49,86 @@ foreign intrinsic from "std.process@1" {
   type ServicesHandle
   type ContextHandle
 
-  fn stdProcessArgumentsCount(handle: ref ArgumentsHandle): usize
+  fn stdProcessArgumentsCount(_ handle: ref ArgumentsHandle): usize
   fn stdProcessArgumentsGet(
-    handle: ref ArgumentsHandle,
-    index: usize,
+    _ handle: ref ArgumentsHandle,
+    _ index: usize,
   ): ref OsString?
   fn stdProcessArgumentsContainsNative(
-    handle: ref ArgumentsHandle,
-    value: ref OsString,
+    _ handle: ref ArgumentsHandle,
+    _ value: ref OsString,
   ): Bool
   fn stdProcessArgumentsContainsText(
-    handle: ref ArgumentsHandle,
-    value: ref String,
+    _ handle: ref ArgumentsHandle,
+    _ value: ref String,
   ): Bool
-  fn stdProcessArgumentsDrop(handle: inout ArgumentsHandle)
+  fn stdProcessArgumentsDrop(_ handle: inout ArgumentsHandle)
 
   async fn stdProcessInputRead(
-    handle: inout InputHandle,
-    appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    _ handle: inout InputHandle,
+    _ destination: inout Bytes,
+    _ maximum: usize<(1...)>,
   ): ReadStep throws IoError
   fn stdProcessInputLines(
-    handle: ref InputHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: ref InputHandle,
+    _ maximumBytes: usize<(1...)>,
   ): LineStreamHandle
-  fn stdProcessInputDrop(handle: inout InputHandle)
+  fn stdProcessInputDrop(_ handle: inout InputHandle)
   async fn stdProcessLineNext(
-    handle: inout LineStreamHandle,
+    _ handle: inout LineStreamHandle,
   ): String? throws InputError
   async fn stdProcessLineCancel(
-    handle: inout LineStreamHandle,
+    _ handle: inout LineStreamHandle,
   ): () throws InputError
-  fn stdProcessLineDrop(handle: inout LineStreamHandle)
+  fn stdProcessLineDrop(_ handle: inout LineStreamHandle)
 
   async fn stdProcessOutputWriteBytes(
-    handle: inout OutputHandle,
-    source: view Bytes,
+    _ handle: inout OutputHandle,
+    _ source: view Bytes,
   ): WriteStep throws IoError
   async fn stdProcessOutputWriteText(
-    handle: ref OutputHandle,
-    source: view String,
+    _ handle: ref OutputHandle,
+    _ source: view String,
   ): () throws WriteAllError<IoError>
-  fn stdProcessOutputDrop(handle: inout OutputHandle)
+  fn stdProcessOutputDrop(_ handle: inout OutputHandle)
 
   fn stdProcessSignalRegister(
-    handle: ref SignalRegistryHandle,
-    signals: view Array<Signal>,
-    handler: some async fn(Signal, Context): (),
+    _ handle: ref SignalRegistryHandle,
+    _ signals: view Array<Signal>,
+    _ handler: some async fn(Signal, Context): (),
   ): SignalRegistrationHandle throws SignalError
   fn stdProcessSignalReplace(
-    handle: ref SignalRegistrationHandle,
-    handler: some async fn(Signal, Context): (),
+    _ handle: ref SignalRegistrationHandle,
+    _ handler: some async fn(Signal, Context): (),
   ): () throws SignalError
-  fn stdProcessSignalCancel(handle: ref SignalRegistrationHandle)
-  fn stdProcessSignalRegistryDrop(handle: inout SignalRegistryHandle)
+  fn stdProcessSignalCancel(_ handle: ref SignalRegistrationHandle)
+  fn stdProcessSignalRegistryDrop(_ handle: inout SignalRegistryHandle)
   fn stdProcessSignalRegistrationDrop(
-    handle: inout SignalRegistrationHandle,
+    _ handle: inout SignalRegistrationHandle,
   )
 
   async fn stdProcessServicesDrain(
-    handle: ref ServicesHandle,
-    deadline: time.Deadline,
+    _ handle: ref ServicesHandle,
+    _ deadline: time.Deadline,
   )
-  fn stdProcessServicesDrop(handle: inout ServicesHandle)
+  fn stdProcessServicesDrop(_ handle: inout ServicesHandle)
 
-  fn stdProcessContextInput(handle: ref ContextHandle): InputHandle
-  fn stdProcessContextOutput(handle: ref ContextHandle): OutputHandle
-  fn stdProcessContextError(handle: ref ContextHandle): OutputHandle
-  fn stdProcessContextFileSystem(handle: ref ContextHandle): fs.FileSystem
-  fn stdProcessContextNetwork(handle: ref ContextHandle): net.Network
+  fn stdProcessContextInput(_ handle: ref ContextHandle): InputHandle
+  fn stdProcessContextOutput(_ handle: ref ContextHandle): OutputHandle
+  fn stdProcessContextError(_ handle: ref ContextHandle): OutputHandle
+  fn stdProcessContextFileSystem(_ handle: ref ContextHandle): fs.FileSystem
+  fn stdProcessContextNetwork(_ handle: ref ContextHandle): net.Network
   fn stdProcessContextClock(
-    handle: ref ContextHandle,
+    _ handle: ref ContextHandle,
   ): time.Clock
   fn stdProcessContextClockWithPolicy(
-    handle: ref ContextHandle,
-    hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>,
+    _ handle: ref ContextHandle,
+    _ policy: time.HostSuspendPolicy<[.included, .excluded]>,
   ): time.Clock throws time.ClockSelectionError
-  fn stdProcessContextSignals(handle: ref ContextHandle): SignalRegistryHandle
-  fn stdProcessContextServices(handle: ref ContextHandle): ServicesHandle
-  fn stdProcessContextDeadline(handle: ref ContextHandle): time.Deadline
-  fn stdProcessContextDrop(handle: inout ContextHandle)
+  fn stdProcessContextSignals(_ handle: ref ContextHandle): SignalRegistryHandle
+  fn stdProcessContextServices(_ handle: ref ContextHandle): ServicesHandle
+  fn stdProcessContextDeadline(_ handle: ref ContextHandle): time.Deadline
+  fn stdProcessContextDrop(_ handle: inout ContextHandle)
 }
 
 export struct Arguments {
@@ -199,19 +199,19 @@ export struct Input: ByteSource<IoError> {
 
   export mut async fn read(
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws IoError {
     return unsafe {
       try await stdProcessInputRead(
         inout handle,
-        appendTo: inout destination,
-        maximum: maximum,
+        inout destination,
+        maximum,
       )
     }
   }
 
   export fn lines(
-    named maximumBytes: usize<(1...)>,
+    maximumBytes: usize<(1...)>,
   ): some Stream<String, InputError> {
     let rawStream = unsafe {
       stdProcessInputLines(ref handle, maximumBytes)
@@ -279,7 +279,7 @@ export struct SignalRegistry {
 
   export fn register(
     signals: view Array<Signal>,
-    named handler: some async fn(Signal, Context): (),
+    handler: some async fn(Signal, Context): (),
   ): SignalRegistration throws SignalError {
     let registration = unsafe {
       try stdProcessSignalRegister(ref handle, signals, handler)
@@ -300,7 +300,7 @@ export struct SignalRegistration {
   }
 
   export fn replace(
-    named handler: some async fn(Signal, Context): (),
+    handler: some async fn(Signal, Context): (),
   ): () throws SignalError {
     unsafe { try stdProcessSignalReplace(ref handle, handler) }
   }
@@ -323,7 +323,7 @@ export struct Services {
     self.handle = validatedHandle
   }
 
-  export async fn drain(named deadline: time.Deadline) {
+  export async fn drain(deadline: time.Deadline) {
     unsafe { await stdProcessServicesDrain(ref handle, deadline) }
   }
 
@@ -373,7 +373,7 @@ export struct Context {
     hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>,
   ): time.Clock throws time.ClockSelectionError {
     return unsafe {
-      try stdProcessContextClockWithPolicy(ref handle, hostSuspend: policy)
+      try stdProcessContextClockWithPolicy(ref handle, policy)
     }
   }
 

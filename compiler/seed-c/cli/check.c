@@ -439,7 +439,7 @@ static const char *frontend_diagnostic_summary(w_seed_frontend_text code) {
   CODE_SUMMARY("W-TYPE-0120", "values do not have one unique safe common type");
   CODE_SUMMARY("W-TYPE-0121", "enum value is outside the expected normalized case subset");
   CODE_SUMMARY("W-TYPE-0122", "no total exact unique implicit conversion exists");
-  CODE_SUMMARY("W-LABEL-0005", "call uses an unknown label or invalid positional/named form");
+  CODE_SUMMARY("W-LABEL-0005", "call uses an unknown label or invalid positional/labeled form");
   CODE_SUMMARY("W-LABEL-0006", "call repeats a label or supplies the same normalized slot twice");
   CODE_SUMMARY("W-MATCH-0001", "required switch or catch does not cover its complete proven domain");
   CODE_SUMMARY("W-MATCH-0002", "case is completely covered by an earlier unguarded case");
@@ -451,7 +451,7 @@ static const char *frontend_diagnostic_summary(w_seed_frontend_text code) {
   CODE_SUMMARY("W-CONTRACT-0004", "contract slot is duplicated");
   CODE_SUMMARY("W-GENERIC-0001", "generic parameter domain does not resolve to an allowed constraint");
   CODE_SUMMARY("W-GENERIC-0002", "required generic slot is missing or open inference has no unique solution");
-  CODE_SUMMARY("W-GENERIC-0003", "generic parameter label or positional order is invalid");
+  CODE_SUMMARY("W-GENERIC-0003", "generic parameter label, anchor boundary, or positional-only binding is invalid");
 #undef CODE_SUMMARY
   return "frontend diagnostic";
 }

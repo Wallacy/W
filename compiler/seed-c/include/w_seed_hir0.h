@@ -47,9 +47,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_LABEL_POSITIONAL_ONLY = 0,
-  W_SEED_HIR0_LABEL_NAMED_REQUIRED,
-  W_SEED_HIR0_LABEL_EXTERNAL_REQUIRED,
-  W_SEED_HIR0_LABEL_OPTIONAL,
+  W_SEED_HIR0_LABEL_REQUIRED,
 } w_seed_hir0_label_kind;
 
 typedef enum {

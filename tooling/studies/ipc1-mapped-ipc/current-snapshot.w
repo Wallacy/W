@@ -10,7 +10,7 @@ export struct Ipc1MappedIpcSnapshot: Duplicable {
 }
 
 export async fn Ipc1MappedIpc(
-  source: take SnapshotByteSource<IoError>,
+  _ source: take SnapshotByteSource<IoError>,
 ): Ipc1MappedIpcSnapshot throws IoError {
   let snapshot = try await source.snapshot(maximumBytes: 1_048_576)
   return Ipc1MappedIpcSnapshot(

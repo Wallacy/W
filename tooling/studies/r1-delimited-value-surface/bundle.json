@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/oracle.w",
     "symbol": "forecast",
-    "digest": "sha256:d585ab8bdae4aabe7c73ec0d701d5236fa87e50bd5f2b16f9ef112a05e5c9b8b"
+    "digest": "sha256:c012d29d6b57f89a76d5f1e55377a3e2fbf3b9f80cb7d35cda6f394e3c96d9a4"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "nested-and-singleton.w",
-      "digest": "sha256:0f2653a400ae9103e67372489e1042d46600c50ac1720709024b82e025b6015e",
+      "digest": "sha256:bd771213b8dd634afc256d94526e671cc9332e5d805ad29ff6576b52d2d1d6f4",
       "changedConstructs": [
         "nested collection matrix literal",
         "trailing-comma singleton tuple",
@@ -34,7 +34,7 @@
       "role": "alternative",
       "language": "w",
       "path": "grouped-value.w",
-      "digest": "sha256:e27c726120c1cb892482522a74b0cafa22a874f55bc9a4abea618f8e5d4d9d95",
+      "digest": "sha256:45ca3bb070bd1cf2a9961b128ccb0ed3f3c446a50fd80ddc35fb08173581bbeb",
       "changedConstructs": [
         "parenthesized scalar grouping without tuple comma"
       ],

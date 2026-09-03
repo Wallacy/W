@@ -7,12 +7,12 @@ foreign c from "last_light_bell.h" {
   type ll_bell
   type ll_registration
 
-  fn ll_bell_close(bell: c.ptr<ll_bell>)
+  fn ll_bell_close(_ bell: c.ptr<ll_bell>)
   fn ll_bell_subscribe(
-    bell: c.ptr<ll_bell>,
-    context: c.ptr<c.void>,
+    _ bell: c.ptr<ll_bell>,
+    _ context: c.ptr<c.void>,
   ): c.ptr<ll_registration>?
-  fn ll_bell_unsubscribe(registration: c.ptr<ll_registration>)
+  fn ll_bell_unsubscribe(_ registration: c.ptr<ll_registration>)
 }
 
 export enum BellError: Error {
@@ -72,7 +72,7 @@ test "weak binding reads a new strong owner while payload lives" {
     parent: .none,
     children: [],
   )
-  let title = weakUpgradeSuccess(copy root)
+  let title = weakUpgradeSuccess(root: copy root)
   expect title == .some("Dinner")
 }
 
@@ -83,7 +83,7 @@ test "weak binding reads none after the last strong owner" {
     children: [],
   )
   // `take root` consumes the last strong owner before this weak read.
-  let weakRoot = weakAfterLastOwner(take root)
+  let weakRoot = weakAfterLastOwner(root: take root)
   if let _ = weakRoot {
     expect false
   } else {
@@ -113,12 +113,12 @@ export enum SharedCycleDisposition {
 }
 
 export const fn expectedSharedCycleDisposition(
-  named phase: SharedCyclePhase,
-  named forward: SharedEdgeRelease,
-  named backward: SharedEdgeRelease,
-  named closed: Bool,
-  named drained: Bool,
-  named rootReachesCycle: Bool,
+  phase: SharedCyclePhase,
+  forward: SharedEdgeRelease,
+  backward: SharedEdgeRelease,
+  closed: Bool,
+  drained: Bool,
+  rootReachesCycle: Bool,
 ): SharedCycleDisposition {
   if forward == .weak || backward == .weak { return .accepted }
 
@@ -336,8 +336,8 @@ export fn watchNewClosingBell(
 
 test "Address observes storage without creating authority" for bellStorageAddress {
   let state = BellState(label: "Closing bell", rings: 0)
-  let first = bellStorageAddress(state)
-  let second = bellStorageAddress(state)
+  let first = bellStorageAddress(state: state)
+  let second = bellStorageAddress(state: state)
   let sameBits = first.withBits(first.bits)
 
   expect first == second

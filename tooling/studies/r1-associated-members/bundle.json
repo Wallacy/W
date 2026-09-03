@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "Course",
-    "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+    "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "direct.w",
-      "digest": "sha256:57edc9dddb9769b2602a03567c11b03f9dbd59011a50c296069ab8762e611bd5",
+      "digest": "sha256:8e8949a3eb0befc131d27389beec9ad988f78f8f756d1463050518dc28b6d714",
       "changedConstructs": [
         "direct associated const",
         "direct associated static function",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "protocol-requirement.w",
-      "digest": "sha256:e74a1e8d43e2fb9d5ec800e99f38393d4f9f226d24c146f43462891674397723",
+      "digest": "sha256:e4fdcd72054f00dcd74a35bff3a9e416701f4f923d05d99ce3be767404b8c3b4",
       "changedConstructs": [
         "protocol requirements for const and static function",
         "generic static dispatch through T",

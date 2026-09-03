@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/time_oracle.w",
     "symbol": "openObservationWindow",
-    "digest": "sha256:025d2a5a0e10b356c9eced9ddcfecd6ffe5cc75492f0e3f71aceba1bccb367a9"
+    "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "alternative",
       "language": "w-historical",
       "path": "baseline.w",
-      "digest": "sha256:ac3973826c28ce29e1cb2dd2f3e4a76ebcf0ed191d776bd27dd78f6135d4c642",
+      "digest": "sha256:d5244bb2f0998e57cdf263c10e3a23b272b4f9b6362662f974b1bae6ed9399c8",
       "changedConstructs": [
         "retired SuspendAccounting enum names",
         "retired clock.suspendAccounting()",
@@ -33,7 +33,7 @@
       "role": "selected",
       "language": "w",
       "path": "host-suspend-policy.w",
-      "digest": "sha256:1f6d0632e091c7b5bcc081b2167477ae2250c5819ade4dc97d1bad3b6f2c5923",
+      "digest": "sha256:815d9f23de9ff805ec29f4a167af2f398b6e9e6e0f8d959dcb8c003c3a020dc3",
       "changedConstructs": [
         "HostSuspendPolicy enum names",
         "clock.hostSuspendPolicy property",

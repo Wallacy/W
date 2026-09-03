@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:f0a693705d950cc2bf19fe767e3ea11850f3ffd821220c0b8e9bcc6f68e0f7ab",
+  "corpusDigest": "sha256:4ed19edadffe2845bac4050a8decc35e8acdcea24400e1d0698a31911119a142",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -2323,16 +2323,16 @@
     {
       "id": "R0-call-label-order",
       "task": {
-        "utf8Bytes": 132,
-        "codePoints": 132,
-        "nonWhitespaceCodePoints": 112,
+        "utf8Bytes": 108,
+        "codePoints": 108,
+        "nonWhitespaceCodePoints": 90,
         "lines": 1,
-        "surfaceLexemes": 24
+        "surfaceLexemes": 20
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:9e4c4b837937c3152da6a020448f1871f5ac28bf6a0e07f701912645d201f29e",
+        "sourceDigest": "sha256:1f8c8e0444b09e8bc835fe27c84d3891fba46dbf30b2821a8437b9a232b054b0",
         "metrics": {
           "utf8Bytes": 48,
           "codePoints": 48,
@@ -2345,7 +2345,7 @@
         {
           "name": "reordered-labels",
           "language": "w-research",
-          "sourceDigest": "sha256:1f8c8e0444b09e8bc835fe27c84d3891fba46dbf30b2821a8437b9a232b054b0",
+          "sourceDigest": "sha256:9e4c4b837937c3152da6a020448f1871f5ac28bf6a0e07f701912645d201f29e",
           "metrics": {
             "utf8Bytes": 48,
             "codePoints": 48,
@@ -3592,13 +3592,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:14ebe634f2e6b0f4f36beb80f286eac78846f74e0a7e98c272d5bc14c7613ec6",
+        "sourceDigest": "sha256:ae278eee572b89fbf357e9a6a9f5578eb0aedcc6b718add3f00b28374a566d62",
         "metrics": {
-          "utf8Bytes": 305,
-          "codePoints": 305,
-          "nonWhitespaceCodePoints": 221,
+          "utf8Bytes": 308,
+          "codePoints": 308,
+          "nonWhitespaceCodePoints": 222,
           "lines": 16,
-          "surfaceLexemes": 64
+          "surfaceLexemes": 66
         }
       },
       "alternatives": [

@@ -66,7 +66,7 @@ struct ReservationKey: Hashable & Reflectable {
   course: Course
 }
 
-fn kitchenLoad(kitchens: u16, courses: Course...): u32 {
+fn kitchenLoad(_ kitchens: u16, _ courses: Course...): u32 {
   return 0
 }
 
@@ -144,7 +144,7 @@ export service lastLight: RestaurantApi {
 
   static fn serviceName(): String { return "last-light" }
 
-  mut async fn place(order: take Order): Receipt throws RestaurantError {
+  mut async fn place(_ order: take Order): Receipt throws RestaurantError {
     let ref Order(course, ...) = order
     let stock = async pantry.reserve(course)
     let plan = spawn<.compute> optimize(order)
@@ -157,44 +157,44 @@ export service lastLight: RestaurantApi {
 }
 
 fn score(
-  observations: ref Tensor<f32, shape: [2, 3]>,
-  weights: ref Tensor<f32, shape: [3, 4]>,
+  _ observations: ref Tensor<f32, shape: [2, 3]>,
+  _ weights: ref Tensor<f32, shape: [3, 4]>,
 ): Tensor<f32, shape: [2, 4]> {
   return observations @ weights
 }
 
 fn welcome(
-  arrival: ref Arrival,
+  _ arrival: ref Arrival,
   using greeter: some fn(ref Arrival): Welcome,
 ): Welcome {
   return greeter(arrival)
 }
 
-fn explicitCaptureFixture(gate: usize): some fn(ref Arrival): Welcome {
+fn explicitCaptureFixture(_ gate: usize): some fn(ref Arrival): Welcome {
   return <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
 }
 
-fn firstOrder(values: ref Array<Order>): ref Order? {
+fn firstOrder(_ values: ref Array<Order>): ref Order? {
   let ref first = values.first?
   return .some(first)
 }
 
-fn visibleOrders(values: ref Array<Order>): view Array<Order> {
+fn visibleOrders(_ values: ref Array<Order>): view Array<Order> {
   return values[1..<values.count]
 }
 
 fn reprioritize(
-  values: inout Array<Order>,
-): inout view Array<Order> {
-  let inout pending: view Array<Order> = values[1..<values.count]
-  return pending
+  _ values: inout Array<Order>,
+): mut view Array<Order> {
+  let mut view pending: Array<Order> = values[1..<values.count]
+  return mut view pending
 }
 
-fn commandWord(source: ref String): view String throws Utf8BoundaryError {
+fn commandWord(_ source: ref String): view String throws Utf8BoundaryError {
   return try source.view(bytes: 0..<4)
 }
 
-fn optionalGuestName(input: ref String): GuestName? {
+fn optionalGuestName(_ input: ref String): GuestName? {
   return try? GuestName(input)
 }
 
@@ -214,12 +214,12 @@ struct ConstCell {
     self.value = value
   }
 
-  const mut fn replace(value: u8) {
+  const mut fn replace(_ value: u8) {
     self.value = value
   }
 }
 
-fn recoverOrder(source: ref String): Order throws AppError {
+fn recoverOrder(_ source: ref String): Order throws AppError {
   let result = Result.capture(() => try parse(source))
 
   do {
@@ -236,12 +236,12 @@ fn collectionForms() {
   var counts: Map<Course, u32> = [.horizonCake: 1]
   var diagnosticBits: u32 = 0
 
-  if let inout count = counts[.horizonCake] {
+  if let mut ref count = counts[.horizonCake] {
     count += 1
   }
 
   for ref order in orders { inspect(order) }
-  for inout order in mutableOrders { order.update() }
+  for mut ref order in mutableOrders { order.update() }
   for copy code in statusCodes { send(code) }
   for order in take pendingOrders { serve(take order) }
 
@@ -276,11 +276,11 @@ fn numericForms(): () {
   let setpoint = -40<degC>
 }
 
-fn pinState(state: take BellState): Pinned<BellState> throws AllocationError {
+fn pinState(_ state: take BellState): Pinned<BellState> throws AllocationError {
   return try pin take state
 }
 
-fn decodeMenu(allocator memory: ref Allocator, payload: ref Bytes): Menu throws AllocationError {
+fn decodeMenu(allocator memory: ref Allocator, _ payload: ref Bytes): Menu throws AllocationError {
   allocator scratch: .fixed<capacity: 8<iec.MiB>> {
     let parsed = try Menu.parse(payload)
     return try (take parsed).rehome(allocator: memory)
@@ -292,7 +292,7 @@ protocol Stream<Item, Failure: Error> {
 }
 
 async fn drainOrders(
-  input: take Channel<Order><.receive>,
+  _ input: take Channel<receive: Order>,
 ): () {
   var orders = take input
 
@@ -302,7 +302,7 @@ async fn drainOrders(
 }
 
 async fn inspectLines<E: Error>(
-  source: take some Stream<view String, E>,
+  _ source: take some Stream<view String, E>,
 ): () throws E {
   var lines = take source
 
@@ -312,8 +312,8 @@ async fn inspectLines<E: Error>(
 }
 
 async fn reserveTable(
-  ledger: ref ServiceRef<TableLedgerApi>,
-  request: take ReservationRequest,
+  _ ledger: ref ServiceRef<TableLedgerApi>,
+  _ request: take ReservationRequest,
 ): ReservationReceipt throws BookingError {
   return try await pipeline<transaction: {
     isolation: .serializable,
@@ -327,7 +327,7 @@ async fn reserveTable(
 
 foreign c from "last_light_probe.h" {
   type ll_probe
-  fn ll_probe_close(probe: c.ptr<ll_probe>)
+  fn ll_probe_close(_ probe: c.ptr<ll_probe>)
 }
 
 export foreign c {

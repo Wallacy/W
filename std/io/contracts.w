@@ -52,41 +52,41 @@ foreign intrinsic from "std.io@1" {
   type ReadBatchHandle
   type TransferPlanHandle
 
-  fn stdIoCauseDuplicate(handle: ref IoCauseHandle): IoCauseHandle
-  fn stdIoCauseDrop(handle: inout IoCauseHandle)
+  fn stdIoCauseDuplicate(_ handle: ref IoCauseHandle): IoCauseHandle
+  fn stdIoCauseDrop(_ handle: inout IoCauseHandle)
 
   fn stdIoReadBatchCreate(
-    capacities: ref Array<usize<(1...)>>,
+    _ capacities: ref Array<usize<(1...)>>,
   ): ReadBatchHandle throws AllocationError
-  fn stdIoReadBatchSegmentCount(handle: ref ReadBatchHandle): usize
-  fn stdIoReadBatchFilledBytes(handle: ref ReadBatchHandle): usize
-  fn stdIoReadBatchIsFull(handle: ref ReadBatchHandle): Bool
+  fn stdIoReadBatchSegmentCount(_ handle: ref ReadBatchHandle): usize
+  fn stdIoReadBatchFilledBytes(_ handle: ref ReadBatchHandle): usize
+  fn stdIoReadBatchIsFull(_ handle: ref ReadBatchHandle): Bool
   fn stdIoReadBatchSegment(
-    handle: ref ReadBatchHandle,
-    index: usize,
+    _ handle: ref ReadBatchHandle,
+    _ index: usize,
   ): view Bytes
-  fn stdIoReadBatchReset(handle: inout ReadBatchHandle)
+  fn stdIoReadBatchReset(_ handle: inout ReadBatchHandle)
   fn stdIoReadBatchIntoSegments(
-    handle: take ReadBatchHandle,
+    _ handle: take ReadBatchHandle,
   ): Array<Bytes>
-  fn stdIoReadBatchDrop(handle: inout ReadBatchHandle)
+  fn stdIoReadBatchDrop(_ handle: inout ReadBatchHandle)
 
   fn stdIoTransferPlanCreate(
-    offset: u64,
-    maximumBytes: u64,
-    chunkBytes: usize<(1...)>,
+    _ offset: u64,
+    _ maximumBytes: u64,
+    _ chunkBytes: usize<(1...)>,
   ): TransferPlanHandle throws TransferPlanError
-  fn stdIoTransferPlanTransferred(handle: ref TransferPlanHandle): u64
-  fn stdIoTransferPlanRemaining(handle: ref TransferPlanHandle): u64
-  fn stdIoTransferPlanPendingBytes(handle: ref TransferPlanHandle): usize
-  fn stdIoTransferPlanDrop(handle: inout TransferPlanHandle)
+  fn stdIoTransferPlanTransferred(_ handle: ref TransferPlanHandle): u64
+  fn stdIoTransferPlanRemaining(_ handle: ref TransferPlanHandle): u64
+  fn stdIoTransferPlanPendingBytes(_ handle: ref TransferPlanHandle): usize
+  fn stdIoTransferPlanDrop(_ handle: inout TransferPlanHandle)
 
   async fn stdIoReadMany<
     Failure: Error,
     Source: ByteSource<Failure>,
   >(
-    source: inout Source,
-    destination: inout ReadBatchHandle,
+    _ source: inout Source,
+    _ destination: inout ReadBatchHandle,
   ): ScatterReadStep throws Failure
 
   async fn stdIoTransfer<
@@ -95,9 +95,9 @@ foreign intrinsic from "std.io@1" {
     Source: SnapshotByteSource<ReadFailure>,
     Destination: ByteSink<WriteFailure>,
   >(
-    source: ref Source,
-    destination: inout Destination,
-    plan: inout TransferPlanHandle,
+    _ source: ref Source,
+    _ destination: inout Destination,
+    _ plan: inout TransferPlanHandle,
   ): TransferStep throws TransferError<ReadFailure, WriteFailure>
 }
 
@@ -205,7 +205,7 @@ export struct TransferError<ReadFailure: Error, WriteFailure: Error>: Error {
 export struct ReadBatch {
   handle: ReadBatchHandle
 
-  export init(_ capacities: usize<(1...)>...) throws AllocationError {
+  export init(capacities: usize<(1...)>...) throws AllocationError {
     self.handle = unsafe { try stdIoReadBatchCreate(ref capacities) }
   }
 
@@ -279,7 +279,7 @@ export struct WriteAllError<Cause: Error>: Error {
 export protocol ByteSource<Failure: Error> {
   mut async fn read(
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws Failure
 }
 
@@ -294,7 +294,7 @@ export protocol SnapshotByteSource<Failure: Error> {
   async fn read(
     at offset: u64,
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): SnapshotReadStep throws Failure
 }
 
@@ -323,7 +323,7 @@ export protocol ByteSink<Failure: Error> {
   }
 
   mut async fn writeMany(
-    _ sources: view Bytes...,
+    sources: view Bytes...,
   ): WriteStep throws Failure {
     var index: usize = 0
 

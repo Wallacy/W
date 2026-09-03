@@ -70,12 +70,12 @@ export fn utf8Path(value: ref Path): Utf8Path throws PathEncodingError {
 
 test "text units describe different facts" for textShape {
   let sign = "A🇧🇷e\u{301}"
-  let shape = textShape(sign)
+  let shape = textShape(value: sign)
 
   expect shape.bytes == 12
   expect shape.scalars == 5
   expect shape.graphemes == 3
-  expect scalarPrefix(sign, count: 3) == "A🇧🇷"
+  expect scalarPrefix(value: sign, count: 3) == "A🇧🇷"
 }
 
 test "normalization and repair stay explicit" for decodeLabel {
@@ -86,7 +86,7 @@ test "normalization and repair stay explicit" for decodeLabel {
   expect composed.normalized(.nfc) == decomposed.normalized(.nfc)
 
   do {
-    let _ = try decodeLabel(b"\x66\x6f\x80")
+    let _ = try decodeLabel(payload: b"\x66\x6f\x80")
     panic("invalid UTF-8 was accepted")
   } catch error {
     expect error.offset == 2
@@ -99,22 +99,22 @@ test "normalization and repair stay explicit" for decodeLabel {
 
 test "borrow, adoption, and chunks preserve ownership" {
   let payload = b"Violet Horizon"
-  let label = try borrowLabel(payload)
+  let label = try borrowLabel(payload: payload)
   expect label == "Violet Horizon"
 
-  let adopted = adoptLabel(take Bytes(copying: payload))
+  let adopted = adoptLabel(payload: take Bytes(copying: payload))
   switch adopted {
     case .text(let text): expect text == "Violet Horizon"
     case .invalid(_, _): panic("valid UTF-8 was rejected")
   }
 
-  let joined = try decodeFragments(b"table \xF0\x9F", second: b"\xAA\x90")
+  let joined = try decodeFragments(first: b"table \xF0\x9F", second: b"\xAA\x90")
   expect joined == "table 🪐"
 }
 
 test "an incomplete final chunk has one stable error" for decodeFragments {
   do {
-    let _ = try decodeFragments(b"table ", second: b"\xE1\x80")
+    let _ = try decodeFragments(first: b"table ", second: b"\xE1\x80")
     panic("incomplete UTF-8 was accepted")
   } catch error {
     expect error.offset == 6
@@ -124,7 +124,7 @@ test "an incomplete final chunk has one stable error" for decodeFragments {
 }
 
 test "core UTF-8 preserves an initial byte-order signature" for decodeLabel {
-  expect try decodeLabel(b"\xEF\xBB\xBFmenu") == "\u{FEFF}menu"
+  expect try decodeLabel(payload: b"\xEF\xBB\xBFmenu") == "\u{FEFF}menu"
 }
 
 test "a grapheme refinement does not imply byte capacity" {
@@ -137,7 +137,7 @@ test "a grapheme refinement does not imply byte capacity" {
 
 test "terminal index use permits a safe edit" for replaceScalarTail {
   var title = "Last Light"
-  replaceScalarTail(inout title, offset: 5, replacement: "Course")
+  replaceScalarTail(value: inout title, offset: 5, replacement: "Course")
   expect title == "Last Course"
 }
 
@@ -167,12 +167,12 @@ test "raw and multiline strings keep exact content" {
 }
 
 test "C strings reject an interior terminator" for cLabel {
-  let valid = try cLabel("last-light")
+  let valid = try cLabel(value: "last-light")
   expect valid.bytes.count == 10
   expect try valid.decodeUtf8() == "last-light"
 
   do {
-    let _ = try cLabel("closing\0bell")
+    let _ = try cLabel(value: "closing\0bell")
     panic("interior NUL was accepted")
   } catch .interiorNul(let offset) {
     expect offset == 7

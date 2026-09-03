@@ -34,7 +34,7 @@
           {
             "path": "reference/last-light/borrow_expressivity.w",
             "symbol": "MenuCursor",
-            "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+            "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
             "claim": "cursor protocol"
           },
           {
@@ -51,7 +51,7 @@
         "canonicalSource": {
           "path": "reference/last-light/borrow_expressivity.w",
           "symbol": "MenuCursor",
-          "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+          "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
           "claim": "cursor protocol"
         }
       },
@@ -277,7 +277,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/brx3-borrow-relations/bundle.json",
-            "digest": "sha256:5327bc727291d1fd5421d2a334077cb06b34bc0521f56c2c17365568bdd16e00",
+            "digest": "sha256:192c2bd865a9db208d1f536b7d5869f85e151b503ee62aea319d044279b6ba15",
             "claim": "BRX3 promotes the requirement/interface-owned source clause while preserving implementation evidence gaps."
           },
           {
@@ -302,7 +302,7 @@
             {
               "path": "reference/last-light/borrow_expressivity.w",
               "symbol": "MenuCursor",
-              "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+              "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
               "claim": "The menu cursor and body trace derive the source relation without source lifetime names."
             }
           ]
@@ -403,7 +403,7 @@
           {
             "path": "reference/last-light/synchronization.w",
             "symbol": "HorizonTelemetryEpoch",
-            "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+            "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
             "claim": "atomic publication and wait"
           },
           {
@@ -420,7 +420,7 @@
         "canonicalSource": {
           "path": "reference/last-light/synchronization.w",
           "symbol": "releaseTelemetryFence",
-          "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+          "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
           "claim": "typed publication and explicit fence"
         }
       },
@@ -669,7 +669,7 @@
           },
           {
             "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-            "digest": "sha256:85df67bd4f9739225b7207fe13951b51625fe7c67293fbefe8cf670992184eae",
+            "digest": "sha256:26019147ffd8b3145f2fda1bc66e8c43ad833300632560ee382921ee75396d0b",
             "claim": "ATOM2 study bundle and implementation gap receipt"
           }
         ],
@@ -685,7 +685,7 @@
             {
               "path": "reference/last-light/synchronization.w",
               "symbol": "releaseTelemetryFence",
-              "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+              "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
               "claim": "The telemetry route uses an explicit release fence."
             }
           ]
@@ -788,7 +788,7 @@
         "canonicalSource": {
           "path": "reference/last-light/streams.w",
           "symbol": "inspectMenuLines",
-          "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+          "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
           "claim": "bounded stream production"
         }
       },
@@ -1028,7 +1028,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/gen2-stream-yield/bundle.json",
-            "digest": "sha256:e22dba676b9aff7339800f95ff64ff6a935c7f85f2f9d750ac476ccae3434ae6",
+            "digest": "sha256:4b5a1ce0f0d706dfa65f45a69489823d60ae86ec3438f6d98db221eb45d3bf44",
             "claim": "GEN2 closes GEN0-R1 for the narrow explicit-capture stream expression with mandatory `yield take value` or `yield copy value` (copy requires Duplicable), owned pull yield, capacity zero, two independent lowerings, and explicit rejection of public frame/send/throw/resume; compiler, runtime, provider, debug/ABI, and human/model evidence remain missing."
           }
         ]
@@ -1043,7 +1043,7 @@
             {
               "path": "reference/last-light/streams.w",
               "symbol": "mixOrderStream",
-              "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+              "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
               "claim": "The kitchen uses bounded Stream pull and parallelMap with explicit cancellation and cleanup."
             }
           ]
@@ -1151,7 +1151,7 @@
         "canonicalSource": {
           "path": "reference/last-light/packages/menu-compiler/transform.w",
           "symbol": "maximumBytes",
-          "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744",
+          "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff",
           "claim": "hermetic typed transform"
         }
       },
@@ -1386,7 +1386,7 @@
           },
           {
             "path": "tooling/syn1-typed-generation-cases.json",
-            "digest": "sha256:599b16d07cd48402f12c8d099f4ffd540f5662124b81854cb954c8b6f28752a7",
+        "digest": "sha256:45c2e9fd53871a23eac6488009a7080a55c763c070a911906efd6eb2e6b9f0a0",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
@@ -1416,7 +1416,7 @@
             {
               "path": "reference/last-light/packages/menu-compiler/transform.w",
               "symbol": "maximumBytes",
-              "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744",
+              "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff",
               "claim": "The hermetic transform applies a byte limit before publishing the artifact."
             }
           ]
@@ -1527,7 +1527,7 @@
         "canonicalSource": {
           "path": "reference/last-light/memory.w",
           "symbol": "installMenuObserver",
-          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
+          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
           "claim": "weak callback ownership"
         }
       },
@@ -1768,12 +1768,12 @@
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
-            "digest": "sha256:bc7f7e722cf182ebdf6eb529b8ed42951d1134f3e3d158a98ccc51d327f4af3e",
+            "digest": "sha256:189caac2313119e6dba22d6047276ca5e59f34b5dbf88a233591e7d62ec94cde",
             "claim": "CYC1 gate manifest, roles, evidence, and stop condition"
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-            "digest": "sha256:e14209417becd8fbb2a4445da275189ec89a9705f4d56917679b7bdf526a9e93",
+            "digest": "sha256:f22d01abd2bca2f87f6943b62c2762d7f2712192202830e1145aadd948a41fc3",
             "claim": "CYC1 explicit-cycle study bundle and reserved witnesses"
           },
           {
@@ -1819,7 +1819,7 @@
             {
               "path": "reference/last-light/memory.w",
               "symbol": "installMenuObserver",
-              "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586",
+              "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
               "claim": "MenuSection uses a weak parent edge and shared children, and the cycle oracle requires an explicit break or drain."
             }
           ]
@@ -1939,7 +1939,7 @@
         "canonicalSource": {
           "path": "reference/last-light/data_formats.w",
           "symbol": "archiveParquet",
-          "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+          "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
           "claim": "bounded snapshot archive"
         }
       },
@@ -2178,12 +2178,12 @@
           },
           {
             "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-            "digest": "sha256:0c6f84e847f1b63839db0e5d885ec2ec5338b890448441820b591418d353d890",
+        "digest": "sha256:b5f523524fb29577fd436ca26679f5c5b679ebba1c8fe6765ba2e0f5725b51bd",
             "claim": "IPC1 study manifest binds current, Research, and rejected witnesses."
           },
           {
             "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-            "digest": "sha256:9c5aadc699c39b2f5dfa25163a49d759ab90e100e2feb7f40f00c1524cad8899",
+        "digest": "sha256:d7ded25a3ed27dfb22646661d6cc79636832c1b2590522d0864ebf6f266fde2c",
             "claim": "IPC1 host oracle snapshot with POSIX and Windows projections."
           }
         ]
@@ -2198,7 +2198,7 @@
             {
               "path": "reference/last-light/data_formats.w",
               "symbol": "handoffArrow",
-              "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab",
+              "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
               "claim": "Last Light snapshots bytes and hands typed rows through Arrow IPC instead of sharing a raw pointer."
             }
           ]
@@ -2318,7 +2318,7 @@
         "canonicalSource": {
           "path": "reference/last-light/supervision.w",
           "symbol": "orderCoordinators",
-          "digest": "sha256:a4650f59ff1734d51a198b6185aa2000a55274cb428e0917310f1b9793ce065f",
+          "digest": "sha256:12c594dcb3e75fd8228579434674c006421ce21339178680ad25328b6fe8bb3e",
           "claim": "keyed supervisor service"
         }
       },
@@ -2556,7 +2556,7 @@
             {
               "path": "reference/last-light/supervision.w",
               "symbol": "fulfillOrder",
-              "digest": "sha256:a4650f59ff1734d51a198b6185aa2000a55274cb428e0917310f1b9793ce065f",
+              "digest": "sha256:12c594dcb3e75fd8228579434674c006421ce21339178680ad25328b6fe8bb3e",
               "claim": "The order coordinator reports progress, gates events by generation, and compensates payment when serving fails."
             }
           ]
@@ -2672,7 +2672,7 @@
         "canonicalSource": {
           "path": "reference/last-light/repl_session_oracle.w",
           "symbol": "GenerationReceipt",
-          "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+          "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
           "claim": "versioned REPL binding"
         }
       },
@@ -2965,7 +2965,7 @@
             {
               "path": "reference/last-light/repl_session_oracle.w",
               "symbol": "GenerationReceipt",
-              "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461",
+              "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
               "claim": "The REPL records a binding generation and snapshots values, while services and transforms provide typed extension points."
             }
           ]

@@ -62,9 +62,9 @@ fn observeStaticContract<
     enabled: enabled,
     name: name,
     timeout: timeout,
-    tables: tables,
-    courses: courses,
     buffer: buffer,
+    courses: courses,
+    tables: tables,
   >()
 }
 
@@ -73,8 +73,8 @@ test "named static slots preserve the service profile" for observeStaticContract
     enabled: true,
     name: "kitchen",
     timeout: 250<si.ms>,
-    tables: 8,
     courses: 4,
+    tables: 8,
     buffer: 4096,
   >()
   let horizon = observeStaticContract<

@@ -9,24 +9,31 @@ enum AtlasError: Error {
 }
 
 // atlas:begin allocator-and-bindings
-fn stage(allocator destination: ref Allocator, city: String): String {
+fn stage(city: String, allocator destination: ref Allocator): String {
   return city
 }
 
-fn prepare(city: String): (String, usize) {
+fn rewrite(value: inout String) {
+  value = value + "!"
+}
+
+fn prepare(_ city: String): (String, usize) {
   var result = city
   var byteCount: usize = 0
   allocator scratch: .fixed<capacity: 256> {
     let ref name = city
     var copyOfName = city
-    let inout writableName = copyOfName
+    let mut ref writableName = copyOfName
+    rewrite(value: inout copyOfName)
     var atomic count: usize = 0
     count += 1
     writableName = name
     let moved = take copyOfName
     result = moved
     let staged = stage(city)
+    let stagedExplicit = stage(city, allocator: ref scratch)
     result = staged
+    result = stagedExplicit
   }
   allocator .fixed<capacity: 128> {
     byteCount = result.bytes.count
@@ -40,12 +47,12 @@ enum WalkError: Error {
   negativeTotal
 }
 
-fn requireNonnegative(value: i32): i32 throws WalkError {
+fn requireNonnegative(_ value: i32): i32 throws WalkError {
   guard value >= 0 else { throw .negativeTotal }
   return value
 }
 
-fn walk(values: Array<i32>): i32 throws WalkError {
+fn walk(_ values: Array<i32>): i32 throws WalkError {
   var total = 0
   rows: for ref value in values {
     for column in [value] {
@@ -74,7 +81,7 @@ fn walk(values: Array<i32>): i32 throws WalkError {
 // atlas:end control-flow
 
 // atlas:begin execution-forms
-async fn fetch(city: String): String throws AtlasError {
+async fn fetch(_ city: String): String throws AtlasError {
   return city
 }
 
@@ -97,7 +104,7 @@ fn inspect<T>(each values: T...): String {
   return "inspected"
 }
 
-fn directCall(values: Array<String>): String {
+fn directCall(_ values: Array<String>): String {
   let head = values[0]?.trim()?.value?
   return inspect(each values)
 }
@@ -106,7 +113,7 @@ object CaptureBox {
   value: String
 }
 
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared CaptureBox): (String, String, String, String, String?) {
+fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, _ sharedValue: shared CaptureBox): (String, String, String, String, String?) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
@@ -128,15 +135,15 @@ struct AtlasLease {
   target: String
 }
 
-fn acquireLease(target: String): AtlasLease {
+fn acquireLease(_ target: String): AtlasLease {
   return AtlasLease(target: target)
 }
 
-fn prepareLease(lease: AtlasLease): String {
+fn prepareLease(_ lease: AtlasLease): String {
   return lease.target
 }
 
-async fn restricted(target: String): String throws AtlasError {
+async fn restricted(_ target: String): String throws AtlasError {
   let captured = <[copy target]>(name) => name
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
@@ -184,13 +191,13 @@ async fn restricted(target: String): String throws AtlasError {
   return target
 }
 
-fn panicExample(message: String): String {
+fn panicExample(_ message: String): String {
   panic(message: message)
 }
 // atlas:end restricted-expressions
 
 // atlas:begin stream-and-channel
-async fn consume(source: Stream<view String, AtlasError>, channel: Channel<String><.receive>): String throws AtlasError {
+async fn consume(_ source: Stream<view String, AtlasError>, _ channel: Channel<receive: String>): String throws AtlasError {
   var result = ""
   for try await ref item in source {
     result = result + item
@@ -199,12 +206,12 @@ async fn consume(source: Stream<view String, AtlasError>, channel: Channel<Strin
   return result
 }
 
-async fn send(channel: Channel<String><.send>, value: String): String throws AtlasError {
+async fn send(_ channel: Channel<send: String>, _ value: String): String throws AtlasError {
   await channel.send(take value)
   return "sent"
 }
 
-fn project(source: take Stream<String, Never>): some Stream<String, Never> {
+fn project(_ source: take Stream<String, Never>): some Stream<String, Never> {
   return stream <[take source]> {
     var cursor = take source
     while let item = await cursor.next() {
@@ -214,7 +221,7 @@ fn project(source: take Stream<String, Never>): some Stream<String, Never> {
 }
 // atlas:end stream-and-channel
 
-fn print(value: String) {
+fn print(_ value: String) {
   let _ = value
 }
 

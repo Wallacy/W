@@ -101,7 +101,7 @@ protocol ConstDecodable {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block
@@ -116,7 +116,7 @@ protocol ConstDecodable {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block
@@ -157,7 +157,7 @@ protocol ConstDecodable {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (type
@@ -227,11 +227,12 @@ fn runQuery(query: const StaticQuery, id: i32): i32 {
     (type
       (function_type
         (function_type_parameter
-          (type
+          (parameter_call_ownership)
+          (parameter_type
             (type_name
               (type_identifier))))
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier))))
         (type
@@ -242,12 +243,13 @@ fn runQuery(query: const StaticQuery, id: i32): i32 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

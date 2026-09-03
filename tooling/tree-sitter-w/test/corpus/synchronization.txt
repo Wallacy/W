@@ -184,7 +184,7 @@ fn trySnapshot(state: shared GateState): LockAttempt<GateState> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -203,7 +203,7 @@ fn trySnapshot(state: shared GateState): LockAttempt<GateState> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -228,7 +228,7 @@ fn trySnapshot(state: shared GateState): LockAttempt<GateState> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -265,7 +265,7 @@ fn invalid(state: shared GateState): GateState {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

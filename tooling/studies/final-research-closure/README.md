@@ -1,9 +1,9 @@
 # FRC0 — snapshot histórico das três gates de pesquisa
 
 FRC0 é um bundle R1 de design-oracle-input. Ele fecha o snapshot histórico de
-processo de W-707, W-731 e W-1408 até W-1450. Ele valida as decisões PFU0
-W-1451 e W-1453 como `oracle-backed-current`. Ele exige a supersessão íntegra
-de W-1452 por W-1480. O snapshot mantém
+processo de W-707, W-731 e W-1408 até W-1450. Ele valida W-1451 como
+`oracle-backed-current` e exige as supersessões íntegras de W-1452 por W-1480
+e de W-1453 por W-1516. O snapshot mantém
 `Research=0` até esse limite. AEG0/SIMD1 preservam o fechamento histórico até
 W-1459. DRC0 fecha as gates posteriores W-1484, W-1473, W-1474 e W-1475 e
 preserva W-1471 como superseded; W-1486 e W-1503 são as research gates ativas
@@ -21,8 +21,8 @@ W-707 fecha o protocolo de completude FZ0. W-731 confirma uma disposition
 explícita para cada decisão e a lista exata de research gates post-snapshot.
 W-1408 preserva stop-on-first-violation,
 no-automatic-promotion e zero registros humanos/modelos. A reabertura explícita
-posterior PFU0 deixa de ser residual. W-1452 permanece como proveniência
-histórica, e W-1480 contém o contrato vigente.
+posterior PFU0 deixa de ser residual. W-1452 e W-1453 permanecem como
+proveniência histórica; W-1480 e W-1516 contêm os contratos vigentes.
 
 Os gaps de `w-compile`, `w-run`, compiler, runtime, provider, human-study e
 model-study permanecem missing. O estudo usa somente source refs, máquinas,

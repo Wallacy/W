@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
     "symbol": "allocator .fixed",
-    "digest": "sha256:78b2d746f900772a9b1f1f0716a5ab70f65466d77ea9bfe055fe8acb9859fb59"
+    "digest": "sha256:8fb5d1db0a50fa28c0de66ff2145a29a3c0e3295964dc2b63abc1972bff7a6e7"
   },
   "variants": [
     {
@@ -17,10 +17,10 @@
       "role": "selected",
       "language": "w",
       "path": "runtime-using.w",
-      "digest": "sha256:803c25ccd52c6db1b75c575a5d85eaa3386eec2d3284c2c7be11ce47f146f4d4",
+      "digest": "sha256:e18dabbbbeee99ce503a31adb47957d4a12e107812ec19a09a0ad27c9af4eb66",
       "changedConstructs": [
         "Array<String> static element contract",
-        "allocator: control argument",
+        "allocator: control argument at its declared position",
         "allocation origin in owner"
       ],
       "parseEvidence": {
@@ -33,10 +33,10 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "envelope-using.w",
-      "digest": "sha256:8f010264dfa127042492ff763699ad02c24c5030466b57cf048f5ab51e215e5f",
+      "digest": "sha256:371956ae7ce5e0e05db316662fb36097faa059a65c5f71a91174f30a9e57eede",
       "changedConstructs": [
         "rejected generic envelope",
-        "allocator control argument is not a type slot",
+        "allocator control argument is not a type slot and keeps its declared position",
         "contextual candidate retired"
       ],
       "parseEvidence": {
@@ -122,7 +122,7 @@
       }
     },
     {
-      "id": "adversarial-allocator-after-ordinary-argument",
+      "id": "allocator-after-ordinary-argument",
       "construction": "CustomObj",
       "argumentOrder": [
         "a",
@@ -131,8 +131,8 @@
       ],
       "publishesAllocationSite": true,
       "expected": {
-        "status": "rejected",
-        "reason": "allocator-control-argument-must-be-first"
+        "status": "accepted",
+        "semantics": "published-allocation-site"
       }
     },
     {
@@ -159,7 +159,7 @@
       "kind": "repair",
       "instruction": "Repair the construction control argument or reject a generic slot, a user allocator collision, a missing site, or missing capability facts.",
       "mutations": {
-        "construction-allocator": "Keep allocator first in the construction expression and preserve origin on allocation failure.",
+        "construction-allocator": "Keep allocator as a contextual control argument at its declared position and preserve origin on allocation failure.",
         "generic-envelope": "Reject the generic envelope and keep allocator outside type identity."
       }
     },
@@ -192,7 +192,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:8de485644a39e40ff0fffbf8cce360986621d8fe8234dd57de1ac5c15759355f"
+    "digest": "sha256:6abea4f92b682e8e98e6b9e35fa669b687172b0f2927bc5042e45b28d721fc0a"
   },
   "evidence": {
     "current": [

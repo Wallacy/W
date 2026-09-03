@@ -134,7 +134,7 @@ export fn wireName(value: ref String): WireName throws RefinementError {
 test "range facts prove the result refinement" for combineFlavor {
   let left = try FlavorSignal(128)
   let right = try FlavorSignal(128)
-  let result: FlavorPair = combineFlavor(left, right)
+  let result: FlavorPair = combineFlavor(left: left, right: right)
 
   expect result == 256
 }
@@ -156,9 +156,9 @@ test "text refinements expose different capacity facts" {
 }
 
 test "partitioned counts combine only at the join" for combineBrigadeCounts {
-  let port = countCompleted([true, true, false])
-  let starboard = countCompleted([false, true])
-  let total = combineBrigadeCounts(port, starboard)
+  let port = countCompleted(orders: [true, true, false])
+  let starboard = countCompleted(orders: [false, true])
+  let total = combineBrigadeCounts(left: port, right: starboard)
 
   expect total.completed == 3
   expect total.failed == 2
@@ -169,7 +169,7 @@ test "SIMD delimiter scan masks a delimiter fill in the tail" for scanMenuDelimi
     82, 101, 115, 116, 97, 117, 114, 97, 110, 116, 124, 10, 101, 110, 117, 124,
     83, 101, 10, 124,
   ]
-  let result = scanMenuDelimiters(ref menu, 124)
+  let result = scanMenuDelimiters(menu: ref menu, delimiter: 124)
 
   expect result.fullMatches == 3
   expect result.tailMatches == 2

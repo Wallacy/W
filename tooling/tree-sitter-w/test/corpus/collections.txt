@@ -9,7 +9,7 @@ fn inspect(values: ref Array<Order>): ref Order? {
     print(first)
   }
 
-  if let inout count = counts["cake"] {
+  if let mut ref count = counts["cake"] {
     count += 1
   }
 
@@ -17,7 +17,7 @@ fn inspect(values: ref Array<Order>): ref Order? {
     inspect(value)
   }
 
-  for inout value in mutableValues {
+  for mut ref value in mutableValues {
     value.update()
   }
 
@@ -40,7 +40,7 @@ fn inspect(values: ref Array<Order>): ref Order? {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments

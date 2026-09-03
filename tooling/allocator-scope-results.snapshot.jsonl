@@ -1,5 +1,5 @@
-{"id":"ASC0-NEG-allocator-param-not-first","kind":"negative","decisions":["W-1330"],"result":{"accepted":false,"reason":"allocatorParameterFirstUnique"}}
-{"id":"ASC0-NEG-allocator-param-duplicate","kind":"negative","decisions":["W-1330"],"result":{"accepted":false,"reason":"allocatorParameterFirstUnique"}}
+{"id":"ASC0-POS-allocator-param-after-ordinary","kind":"positive","decisions":["W-1514"],"result":{"accepted":true,"closed":false,"origin":"local","mobility":"local","plan":"fixed"}}
+{"id":"ASC0-NEG-allocator-param-duplicate","kind":"negative","decisions":["W-1514"],"result":{"accepted":false,"reason":"allocatorParameterUnique"}}
 {"id":"ASC0-NEG-foreign-abi-omits-allocator","kind":"negative","decisions":["W-1330"],"result":{"accepted":false,"reason":"allocatorAbiOmission"}}
 {"id":"ASC0-POS-direct-lexical-default","kind":"positive","decisions":["W-1327"],"result":{"accepted":true,"closed":false,"origin":"scratch","mobility":"local","plan":"fixed","resolutionSource":"lexicalBlock","allocator":"scratch"}}
 {"id":"ASC0-POS-explicit-override","kind":"positive","decisions":["W-1327","W-1326"],"result":{"accepted":true,"closed":false,"origin":"outer","mobility":"local","plan":"fixed","resolutionSource":"explicit","allocator":"outer"}}

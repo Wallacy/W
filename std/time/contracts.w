@@ -51,29 +51,29 @@ foreign intrinsic from "std.time@1" {
   type InstantValue
   type DeadlineValue
 
-  fn stdTimeClockNow(handle: ref ClockHandle): InstantValue
-  fn stdTimeClockResolution(handle: ref ClockHandle): Duration<(1...)>
+  fn stdTimeClockNow(_ handle: ref ClockHandle): InstantValue
+  fn stdTimeClockResolution(_ handle: ref ClockHandle): Duration<(1...)>
   fn stdTimeClockHostSuspendPolicy(
-    handle: ref ClockHandle,
+    _ handle: ref ClockHandle,
   ): HostSuspendPolicy
   fn stdTimeClockDuration(
-    handle: ref ClockHandle,
-    from earlier: InstantValue,
-    to later: InstantValue,
+    _ handle: ref ClockHandle,
+    _ earlier: InstantValue,
+    _ later: InstantValue,
   ): Duration
   fn stdTimeClockDeadline(
-    handle: ref ClockHandle,
-    after duration: Duration<(0...)>,
+    _ handle: ref ClockHandle,
+    _ duration: Duration<(0...)>,
   ): DeadlineValue throws ClockError
   fn stdTimeClockRemaining(
-    handle: ref ClockHandle,
-    until deadline: DeadlineValue,
+    _ handle: ref ClockHandle,
+    _ deadline: DeadlineValue,
   ): Duration<(0...)>
   fn stdTimeClockHasReached(
-    handle: ref ClockHandle,
+    _ handle: ref ClockHandle,
     _ deadline: DeadlineValue,
   ): Bool
-  fn stdTimeClockDrop(handle: inout ClockHandle)
+  fn stdTimeClockDrop(_ handle: inout ClockHandle)
 }
 
 // Copies keep the same root dependency. They do not become portable numeric
@@ -121,7 +121,7 @@ export struct Clock {
     to later: Instant,
   ): Duration {
     return unsafe {
-      stdTimeClockDuration(ref handle, from: earlier.value, to: later.value)
+      stdTimeClockDuration(ref handle, earlier.value, later.value)
     }
   }
 
@@ -129,7 +129,7 @@ export struct Clock {
     after duration: Duration<(0...)>,
   ): Deadline throws ClockError {
     let value = unsafe {
-      try stdTimeClockDeadline(ref handle, after: duration)
+      try stdTimeClockDeadline(ref handle, duration)
     }
     return Deadline(validatedValue: value)
   }
@@ -138,11 +138,11 @@ export struct Clock {
     until deadline: Deadline,
   ): Duration<(0...)> {
     return unsafe {
-      stdTimeClockRemaining(ref handle, until: deadline.value)
+      stdTimeClockRemaining(ref handle, deadline.value)
     }
   }
 
-  export fn hasReached(_ deadline: Deadline): Bool {
+  export fn hasReached(deadline: Deadline): Bool {
     return unsafe { stdTimeClockHasReached(ref handle, deadline.value) }
   }
 

@@ -22,9 +22,12 @@ export const PFU0_DECISIONS = Object.freeze(["W-1451", "W-1452", "W-1453"]);
 export const PFU0_DISPOSITIONS = Object.freeze({
   "W-1451": "oracle-backed-current",
   "W-1452": "superseded",
-  "W-1453": "oracle-backed-current",
+  "W-1453": "superseded",
 });
-export const PFU0_SUPERSESSIONS = Object.freeze({ "W-1452": "W-1480" });
+export const PFU0_SUPERSESSIONS = Object.freeze({
+  "W-1452": "W-1480",
+  "W-1453": "W-1516",
+});
 export const ACTIVE_RESEARCH_GATES = Object.freeze(["W-1486", "W-1503"]);
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
@@ -286,12 +289,14 @@ function classificationFacts(state) {
     entries.find((entry) => entry?.decisionId === decisionId)?.category ?? null,
   ]));
   const reopenedResearch = same(reopenedCategories, PFU0_DISPOSITIONS);
-  const supersessionEntry = entries.find((entry) => entry?.decisionId === "W-1452");
-  const successorEntry = entries.find((entry) => entry?.decisionId === PFU0_SUPERSESSIONS["W-1452"]);
-  const pfuSupersessionValid = supersessionEntry?.authorityRef?.kind === "superseding-decision" &&
-    supersessionEntry.authorityRef.decisionId === PFU0_SUPERSESSIONS["W-1452"] &&
-    supersessionEntry.supersessionClaim?.decisionId === PFU0_SUPERSESSIONS["W-1452"] &&
-    successorEntry?.category === "implementation-evidence-gap";
+  const pfuSupersessionValid = Object.entries(PFU0_SUPERSESSIONS).every(([decisionId, successorId]) => {
+    const supersessionEntry = entries.find((entry) => entry?.decisionId === decisionId);
+    const successorEntry = entries.find((entry) => entry?.decisionId === successorId);
+    return supersessionEntry?.authorityRef?.kind === "superseding-decision" &&
+      supersessionEntry.authorityRef.decisionId === successorId &&
+      supersessionEntry.supersessionClaim?.decisionId === successorId &&
+      successorEntry?.category === "implementation-evidence-gap";
+  });
   const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
   const globalResearchExact = same([...globalResearch].sort(), [...ACTIVE_RESEARCH_GATES].sort());
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
@@ -483,7 +488,7 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
       !same(input.reopenedResearch.decisions, PFU0_DECISIONS) ||
       !same(input.reopenedResearch.dispositions, PFU0_DISPOSITIONS) ||
       input.reopenedResearch.gate !== "PFU0-pre-freeze-usability") {
-    errors.push("FRC0 reopenedResearch must preserve the exact PFU0 dispositions and W-1452 supersession.");
+    errors.push("FRC0 reopenedResearch must preserve the exact PFU0 dispositions and the W-1452/W-1453 supersessions.");
   }
   if (!exactKeys(input.reuse, DECISIONS)) errors.push("FRC0 reuse map must cover each decision exactly once.");
   for (const decision of DECISIONS) {

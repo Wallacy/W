@@ -62,7 +62,7 @@ async fn fulfillOrder(
   work.report(.preparing)
 
   let dish = try await prepareDish(
-    take input.order,
+    order: take input.order,
     pantry: pantry,
     ovens: ovens,
     oracle: oracle,
@@ -71,10 +71,10 @@ async fn fulfillOrder(
 
   work.report(.serving)
   let priceTable = loadPriceTable()
-  let amount = try quote(priceTable, course: dish.course)
-  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
-  let proof = servingProof(payment)
-  let refundIdempotencyKey = refundKey(payment.id)
+  let amount = try quote(policy: priceTable, course: dish.course)
+  let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId: orderId))
+  let proof = servingProof(payment: payment)
+  let refundIdempotencyKey = refundKey(paymentId: payment.id)
   var completed = false
 
   defer async {
@@ -151,11 +151,11 @@ export service orderCoordinators<key: OrderId>: OrderCoordinatorApi {
   }
 }
 
-const fn isPreparing(state: WorkState, named progress: ServiceStage?): Bool {
+const fn isPreparing(state: WorkState, progress: ServiceStage?): Bool {
   return state == .running && progress == .some(.preparing)
 }
 
 test "supervised progress keeps the domain stage separate from work state" {
-  expect isPreparing(.running, progress: .some(.preparing))
-  expect !isPreparing(.succeeded, progress: .some(.preparing))
+  expect isPreparing(state: .running, progress: .some(.preparing))
+  expect !isPreparing(state: .succeeded, progress: .some(.preparing))
 }

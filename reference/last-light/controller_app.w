@@ -27,7 +27,7 @@ fn interrupt(
 ): () {
   switch event.line {
     case .sensorTimer:
-      sampleTick(inout state, ctx: ctx)
+      sampleTick(state: inout state, ctx: ctx)
     case .radio:
       ctx.radio.drain()
     case _:

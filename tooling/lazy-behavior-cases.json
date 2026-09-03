@@ -183,14 +183,14 @@
       }
     },
     {
-      "id": "LZ0-accepted-modify-initializes",
+      "id": "LZ0-accepted-get-mut-ref-initializes",
       "kind": "accepted",
       "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
       "decisions": ["W-1193", "W-1195"],
       "fixtures": ["local"],
       "operations": [
         {
-          "op": "modify",
+          "op": "getMutRef",
           "exclusive": true,
           "initializerValue": "prices-v1",
           "value": "prices-v1-modified"
@@ -200,25 +200,25 @@
       "expect": {
         "status": "accepted",
         "initializerRuns": 1,
-        "modifications": 1,
+        "mutableBorrowCount": 1,
         "observedValues": ["prices-v1-modified"]
       }
     },
     {
-      "id": "LZ0-accepted-modify-existing-value",
+      "id": "LZ0-accepted-get-mut-ref-existing-value",
       "kind": "accepted",
       "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
       "decisions": ["W-1195"],
       "fixtures": ["local"],
       "operations": [
         { "op": "set", "exclusive": true, "value": "prices-v1" },
-        { "op": "modify", "exclusive": true, "value": "prices-v2" },
+        { "op": "getMutRef", "exclusive": true, "value": "prices-v2" },
         { "op": "read", "actor": "main" }
       ],
       "expect": {
         "status": "accepted",
         "initializerRuns": 0,
-        "modifications": 1,
+        "mutableBorrowCount": 1,
         "observedValues": ["prices-v2"],
         "valueDrops": 0
       }
@@ -508,12 +508,12 @@
       "expect": { "status": "rejected", "error": "W-LAZY-0004" }
     },
     {
-      "id": "LZ0-rejected-modify-without-exclusive-authority",
+      "id": "LZ0-rejected-get-mut-ref-without-exclusive-authority",
       "kind": "rejected",
       "source": { "path": "reference/last-light/lazy_oracle.w", "symbol": "initialized" },
       "decisions": ["W-1195"],
       "fixtures": ["local"],
-      "operations": [{ "op": "modify", "exclusive": false, "value": "manual-v1" }],
+      "operations": [{ "op": "getMutRef", "exclusive": false, "value": "manual-v1" }],
       "expect": { "status": "rejected", "error": "W-LAZY-0004" }
     },
     {

@@ -7,6 +7,6 @@ fn sourcePhaseEntry(): Temperature {
   return 180<degC>
 }
 
-fn runConsole(order: Order): Dish {
+fn runConsole(_ order: Order): Dish {
   return Dish(orderId: order.id, course: order.course, label: "phase")
 }

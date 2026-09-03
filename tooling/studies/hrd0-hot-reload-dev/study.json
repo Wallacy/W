@@ -19,63 +19,259 @@
     "migration": "no-live-state"
   },
   "routeMatrix": [
-    { "axis": "A", "problem": "normal unit rebuild, REPL snapshot, and bounded publication", "disposition": "current-composition" },
-    { "axis": "B", "problem": "typed service/plugin generation and local/split drain", "disposition": "current-composition" },
-    { "axis": "C", "problem": "generated module set and CLI invocation ownership", "disposition": "research-candidate" },
-    { "axis": "D", "problem": "production reload, active-frame mutation, arbitrary eval, and unsafe unload", "disposition": "intentionally-rejected" }
+    {
+      "axis": "A",
+      "problem": "normal unit rebuild, REPL snapshot, and bounded publication",
+      "disposition": "current-composition"
+    },
+    {
+      "axis": "B",
+      "problem": "typed service/plugin generation and local/split drain",
+      "disposition": "current-composition"
+    },
+    {
+      "axis": "C",
+      "problem": "generated module set and CLI invocation ownership",
+      "disposition": "research-candidate"
+    },
+    {
+      "axis": "D",
+      "problem": "production reload, active-frame mutation, arbitrary eval, and unsafe unload",
+      "disposition": "intentionally-rejected"
+    }
   ],
   "crossStudies": [
-    { "id": "DYN1", "path": "../dyn1-versioned-behavior/study.json", "digest": "sha256:74c7ed2e0ce93b744e904974fdf39ccc4c119e88325d020ddfa3d1d2ad9f680b", "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms" },
-    { "id": "SYN1", "path": "../syn1-typed-generation/study.json", "digest": "sha256:edd1d192554efb5d414dc51afb17091e52dc91f71bd9484274f82f27aec62252", "claim": "content-addressed generated module set and normal-unit reopen" },
-    { "id": "CAP0", "path": "../cap0-capability-matrix/study.json", "digest": "sha256:739bf987eb1ef4ea9053d7b9716383b3e9bf40a7cccc8e52902c55312e74417e", "claim": "problem-first capability classification" }
+    {
+      "id": "DYN1",
+      "path": "../dyn1-versioned-behavior/study.json",
+      "digest": "sha256:bf187d300cfc0993c2e8bc62dcd6fc4963e96e908b5d372a6f52d24d0c088ebb",
+      "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms"
+    },
+    {
+      "id": "SYN1",
+      "path": "../syn1-typed-generation/study.json",
+      "digest": "sha256:72dae5e6f36341a26b2f7a6a7d69fc215086e33fe1a1325535c12e8aeaca193b",
+      "claim": "content-addressed generated module set and normal-unit reopen"
+    },
+    {
+      "id": "CAP0",
+      "path": "../cap0-capability-matrix/study.json",
+      "digest": "sha256:739bf987eb1ef4ea9053d7b9716383b3e9bf40a7cccc8e52902c55312e74417e",
+      "claim": "problem-first capability classification"
+    }
   ],
   "sourceRefs": [
-    { "path": "reference/last-light/hot_reload_dev_contract.w", "symbol": "ReloadResult", "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e", "claim": "shared nominal event/outcome/input/result contract and identity fields" },
-    { "path": "reference/last-light/hot_reload_dev_local.w", "symbol": "LocalGenerationWitness", "digest": "sha256:ff67008961b08664f251fc13d1f4e9945e526059f3a71cf85ff46e4350ff528a", "claim": "paired local runner using the shared input/result contract" },
-    { "path": "reference/last-light/hot_reload_dev_split.w", "symbol": "SplitGenerationWitness", "digest": "sha256:51db64fbfcdecce9102745daf2c5c2fb33e9a9199e83decfef2071559c07c10a", "claim": "paired split runner using the shared input/result contract" },
-    { "path": "reference/last-light/repl_session_oracle.w", "symbol": "SessionSnapshot", "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461", "claim": "committed snapshot and generation receipt" },
-    { "path": "reference/last-light/lifecycle_oracle.w", "symbol": "nextServiceTurnState", "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de", "claim": "service turn commit and drain boundary" },
-    { "path": "reference/last-light/abi.w", "symbol": "export foreign c", "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40", "claim": "foreign ABI and callback lifetime boundary" },
-    { "path": "reference/last-light/build.w", "symbol": "name: \"compile-final-menu\"", "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038", "claim": "package/build identity and existing profiles" },
-    { "path": "reference/last-light/memory.w", "symbol": "watchClosingBell", "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f", "claim": "callback lease registration and close" }
+    {
+      "path": "reference/last-light/hot_reload_dev_contract.w",
+      "symbol": "ReloadResult",
+      "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e",
+      "claim": "shared nominal event/outcome/input/result contract and identity fields"
+    },
+    {
+      "path": "reference/last-light/hot_reload_dev_local.w",
+      "symbol": "LocalGenerationWitness",
+      "digest": "sha256:ff67008961b08664f251fc13d1f4e9945e526059f3a71cf85ff46e4350ff528a",
+      "claim": "paired local runner using the shared input/result contract"
+    },
+    {
+      "path": "reference/last-light/hot_reload_dev_split.w",
+      "symbol": "SplitGenerationWitness",
+      "digest": "sha256:51db64fbfcdecce9102745daf2c5c2fb33e9a9199e83decfef2071559c07c10a",
+      "claim": "paired split runner using the shared input/result contract"
+    },
+    {
+      "path": "reference/last-light/repl_session_oracle.w",
+      "symbol": "SessionSnapshot",
+      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
+      "claim": "committed snapshot and generation receipt"
+    },
+    {
+      "path": "reference/last-light/lifecycle_oracle.w",
+      "symbol": "nextServiceTurnState",
+      "digest": "sha256:ad5c617bba05590e66b211095899d9fe394677166608fb4e4c1fa9f4bf6f7884",
+      "claim": "service turn commit and drain boundary"
+    },
+    {
+      "path": "reference/last-light/abi.w",
+      "symbol": "export foreign c",
+      "digest": "sha256:65fc5e2179bac59343f8d3617d7d28a623648a3f773b46d185b462aa75c0daa2",
+      "claim": "foreign ABI and callback lifetime boundary"
+    },
+    {
+      "path": "reference/last-light/build.w",
+      "symbol": "name: \"compile-final-menu\"",
+      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+      "claim": "package/build identity and existing profiles"
+    },
+    {
+      "path": "reference/last-light/memory.w",
+      "symbol": "watchClosingBell",
+      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+      "claim": "callback lease registration and close"
+    }
   ],
   "officialRefs": [
-    { "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf", "claim": "C object lifetime and translation baseline" },
-    { "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html", "claim": "POSIX dynamic load handle boundary" },
-    { "url": "https://pubs.opengroup.org/onlinepubs/9699919799.orig/functions/dlclose.html", "claim": "POSIX unload and reference boundary" },
-    { "url": "https://doc.rust-lang.org/reference/types/trait-object.html", "claim": "Rust trait-object late binding" },
-    { "url": "https://doc.rust-lang.org/std/any/struct.TypeId.html", "claim": "Rust TypeId identity is not stable ABI" },
-    { "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html", "claim": "Rust build-time code generation and OUT_DIR" },
-    { "url": "https://docs.python.org/3/library/importlib.html", "claim": "Python reload retains old references" },
-    { "url": "https://docs.python.org/3/library/functions.html#eval", "claim": "Python eval and exec arbitrary-code boundary" },
-    { "url": "https://github.com/swiftlang/swift/blob/main/docs/ReferenceGuides/UnderscoredAttributes.md", "claim": "Swift dynamic replacement loading boundary" },
-    { "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0260-library-evolution.md", "claim": "Swift library evolution and ABI resilience" }
+    {
+      "url": "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n3096.pdf",
+      "claim": "C object lifetime and translation baseline"
+    },
+    {
+      "url": "https://pubs.opengroup.org/onlinepubs/9699919799/functions/dlopen.html",
+      "claim": "POSIX dynamic load handle boundary"
+    },
+    {
+      "url": "https://pubs.opengroup.org/onlinepubs/9699919799.orig/functions/dlclose.html",
+      "claim": "POSIX unload and reference boundary"
+    },
+    {
+      "url": "https://doc.rust-lang.org/reference/types/trait-object.html",
+      "claim": "Rust trait-object late binding"
+    },
+    {
+      "url": "https://doc.rust-lang.org/std/any/struct.TypeId.html",
+      "claim": "Rust TypeId identity is not stable ABI"
+    },
+    {
+      "url": "https://doc.rust-lang.org/cargo/reference/build-scripts.html",
+      "claim": "Rust build-time code generation and OUT_DIR"
+    },
+    {
+      "url": "https://docs.python.org/3/library/importlib.html",
+      "claim": "Python reload retains old references"
+    },
+    {
+      "url": "https://docs.python.org/3/library/functions.html#eval",
+      "claim": "Python eval and exec arbitrary-code boundary"
+    },
+    {
+      "url": "https://github.com/swiftlang/swift/blob/main/docs/ReferenceGuides/UnderscoredAttributes.md",
+      "claim": "Swift dynamic replacement loading boundary"
+    },
+    {
+      "url": "https://github.com/swiftlang/swift-evolution/blob/main/proposals/0260-library-evolution.md",
+      "claim": "Swift library evolution and ABI resilience"
+    }
   ],
-  "corpus": { "path": "../../hot-reload-dev-cases.json", "digest": "sha256:a2da815c5f8e6745a8d35cb597c535a8181708b5458fe58f32a2f9fd9c510f96" },
-  "machine": { "path": "../../hot-reload-dev-machine.mjs", "digest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841" },
-  "checker": { "path": "../../check-hot-reload-dev.mjs", "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe" },
-  "snapshot": { "path": "../../hot-reload-dev-results.snapshot.jsonl", "digest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6" },
-  "studyOracle": { "path": "oracle.test.mjs", "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085" },
-  "metrics": { "caseCount": 20, "adversarialMutations": 5, "pairedProjections": 1, "researchCases": 2, "rejectedRoutes": 7, "languageSurfaceCases": 20 },
+  "corpus": {
+    "path": "../../hot-reload-dev-cases.json",
+    "digest": "sha256:a2da815c5f8e6745a8d35cb597c535a8181708b5458fe58f32a2f9fd9c510f96"
+  },
+  "machine": {
+    "path": "../../hot-reload-dev-machine.mjs",
+    "digest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841"
+  },
+  "checker": {
+    "path": "../../check-hot-reload-dev.mjs",
+    "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe"
+  },
+  "snapshot": {
+    "path": "../../hot-reload-dev-results.snapshot.jsonl",
+    "digest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6"
+  },
+  "studyOracle": {
+    "path": "oracle.test.mjs",
+    "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085"
+  },
+  "metrics": {
+    "caseCount": 20,
+    "adversarialMutations": 5,
+    "pairedProjections": 1,
+    "researchCases": 2,
+    "rejectedRoutes": 7,
+    "languageSurfaceCases": 20
+  },
   "diagnostics": [
-    { "id": "HRD0-PRODUCTION-0001", "when": "runner mode is not development or releaseDynamicMode is true", "meaning": "development reload cannot enter a release or production dynamic mode" },
-    { "id": "HRD0-PHASE-0001", "when": "prepare/validate/preflight/ready/switch order is broken", "meaning": "runner publication phases are ordered and bounded" },
-    { "id": "HRD0-GENERATION-0001", "when": "old completion/message/capability uses old generation after switch", "meaning": "stale generation event is rejected" },
-    { "id": "HRD0-DRAIN-0001", "when": "old admission is not closed before drain", "meaning": "old generation remains retained until admission close and drain" },
-    { "id": "HRD0-ROLLBACK-0001", "when": "rollback lacks a valid pre-publication provider receipt", "meaning": "rollback is not available after publication or from forged evidence" },
-    { "id": "HRD0-IDENTITY-0001", "when": "schema, WAbi, runtime closure, or package identity drifts", "meaning": "candidate is rejected before switch" },
-    { "id": "HRD0-ISOLATION-0001", "when": "untrusted native library is used as a sandbox", "meaning": "native dylib is not an isolation boundary" },
-    { "id": "HRD0-REOPEN-0001", "when": "generated units do not reopen and semantic-check before freeze", "meaning": "generated module set remains a Research candidate" },
-    { "id": "HRD0-MIGRATION-0001", "when": "heap/task/loan/frame/capability/ServiceRef/provider handle is migrated", "meaning": "live state migration is rejected" },
-    { "id": "HRD0-MECHANISM-0001", "when": "eval/exec/monkey patch/frame write/ambient lookup/dlclose-live-callback is attempted", "meaning": "arbitrary runtime mutation is intentionally rejected" },
-    { "id": "HRD0-PROJECTION-0001", "when": "local and split reducers derive different logical outcomes", "meaning": "provider/local-split equivalence is required" },
-    { "id": "HRD0-FAULT-0001", "when": "provider outcome is lost before publication", "meaning": "unknown effect is explicit and not silently rolled back" },
-    { "id": "HRD0-CLEANUP-0001", "when": "cleanup includes an unneeded physical step, omits a logical/resource step, or changes declared order", "meaning": "logical cleanup is common and physical callbacks, pins, FFI and mappings are fact-declared" },
-    { "id": "HRD0-CONTRACT-0001", "when": "local and split projections duplicate a nominal contract or drift in interface digest", "meaning": "both projections import one nominal contract and require exact interface identity" }
+    {
+      "id": "HRD0-PRODUCTION-0001",
+      "when": "runner mode is not development or releaseDynamicMode is true",
+      "meaning": "development reload cannot enter a release or production dynamic mode"
+    },
+    {
+      "id": "HRD0-PHASE-0001",
+      "when": "prepare/validate/preflight/ready/switch order is broken",
+      "meaning": "runner publication phases are ordered and bounded"
+    },
+    {
+      "id": "HRD0-GENERATION-0001",
+      "when": "old completion/message/capability uses old generation after switch",
+      "meaning": "stale generation event is rejected"
+    },
+    {
+      "id": "HRD0-DRAIN-0001",
+      "when": "old admission is not closed before drain",
+      "meaning": "old generation remains retained until admission close and drain"
+    },
+    {
+      "id": "HRD0-ROLLBACK-0001",
+      "when": "rollback lacks a valid pre-publication provider receipt",
+      "meaning": "rollback is not available after publication or from forged evidence"
+    },
+    {
+      "id": "HRD0-IDENTITY-0001",
+      "when": "schema, WAbi, runtime closure, or package identity drifts",
+      "meaning": "candidate is rejected before switch"
+    },
+    {
+      "id": "HRD0-ISOLATION-0001",
+      "when": "untrusted native library is used as a sandbox",
+      "meaning": "native dylib is not an isolation boundary"
+    },
+    {
+      "id": "HRD0-REOPEN-0001",
+      "when": "generated units do not reopen and semantic-check before freeze",
+      "meaning": "generated module set remains a Research candidate"
+    },
+    {
+      "id": "HRD0-MIGRATION-0001",
+      "when": "heap/task/loan/frame/capability/ServiceRef/provider handle is migrated",
+      "meaning": "live state migration is rejected"
+    },
+    {
+      "id": "HRD0-MECHANISM-0001",
+      "when": "eval/exec/monkey patch/frame write/ambient lookup/dlclose-live-callback is attempted",
+      "meaning": "arbitrary runtime mutation is intentionally rejected"
+    },
+    {
+      "id": "HRD0-PROJECTION-0001",
+      "when": "local and split reducers derive different logical outcomes",
+      "meaning": "provider/local-split equivalence is required"
+    },
+    {
+      "id": "HRD0-FAULT-0001",
+      "when": "provider outcome is lost before publication",
+      "meaning": "unknown effect is explicit and not silently rolled back"
+    },
+    {
+      "id": "HRD0-CLEANUP-0001",
+      "when": "cleanup includes an unneeded physical step, omits a logical/resource step, or changes declared order",
+      "meaning": "logical cleanup is common and physical callbacks, pins, FFI and mappings are fact-declared"
+    },
+    {
+      "id": "HRD0-CONTRACT-0001",
+      "when": "local and split projections duplicate a nominal contract or drift in interface digest",
+      "meaning": "both projections import one nominal contract and require exact interface identity"
+    }
   ],
   "evidence": {
-    "current": ["source-ref", "official-primary", "host-oracle", "independent-local-reducer", "independent-split-reducer", "mutation-checker", "snapshot"],
-    "missing": ["w-compile", "w-run", "provider", "std-provider", "isolation", "stress", "human-study", "model-study"]
+    "current": [
+      "source-ref",
+      "official-primary",
+      "host-oracle",
+      "independent-local-reducer",
+      "independent-split-reducer",
+      "mutation-checker",
+      "snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "std-provider",
+      "isolation",
+      "stress",
+      "human-study",
+      "model-study"
+    ]
   },
   "recommendation": "Treat hot reload as a development-only tooling runner. Rebuild and reopen normal W units, then compose existing REPL snapshots and typed service/plugin generations with prepare, validate, preflight, ready, switch, old-generation drain, and stale-event rejection. Keep generated module sets as SYN1 Research and keep CLI spelling tooling-owned until a separate gate justifies it.",
   "stopCondition": "Do not add language syntax, a source/package dev profile, or production dynamic mode. Stop on stale publication, hidden capability, live-state migration, cleanup/leak/unbounded resource, local/split logical divergence, invalid identity or source map, forged rollback, unknown fault without explicit outcome, post-publication rollback, native sandbox claim, or any missing compiler/provider/isolation evidence. W-1398/W-1399 remain Research until independent case review and implementation evidence close their named gates."

@@ -123,18 +123,18 @@ test("exclusive assignment supersedes the initializer", () => {
   assert.equal(result.state.observations[0].value, "manual-v1")
 })
 
-test("exclusive modify initializes before exposing inout", () => {
+test("get mut ref initializes before exposing a mutable borrow", () => {
   const result = runLazyBehaviorOperations([
     declare("local"),
     {
-      op: "modify",
+      op: "getMutRef",
       exclusive: true,
       initializerValue: "prices-v1",
       value: "prices-v2",
     },
   ])
   assert.equal(result.state.initializerRuns, 1)
-  assert.equal(result.state.modifications, 1)
+  assert.equal(result.state.mutableBorrowCount, 1)
   assert.equal(result.state.value, "prices-v2")
 })
 

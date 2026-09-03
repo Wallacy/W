@@ -1,20 +1,68 @@
 import assert from "node:assert/strict"
 import test from "node:test"
-import { deriveExecutionErgonomics, summarizeDiagnostics } from "./execution-ergonomics-machine.mjs"
+import { deriveExecutionErgonomics, deriveInitializerEvaluationPlan, summarizeDiagnostics } from "./execution-ergonomics-machine.mjs"
 
-test("optional callable and generic labels normalize without types", () => {
+test("synthesized initializer evaluates explicit expressions lexically then defaults, installs by field order", () => {
+  const plan = deriveInitializerEvaluationPlan(`
+    struct Defaults {
+      first: Int
+      second: Int = fallback()
+      third: Int
+    }
+    Defaults(third: thirdEffect(), first: firstEffect())
+  `, "Defaults")
+  expect(plan?.explicitEvaluationOrder).toEqual([
+    { field: "third", label: "third", expression: "thirdEffect()" },
+    { field: "first", label: "first", expression: "firstEffect()" },
+  ])
+  expect(plan?.defaultEvaluationOrder).toEqual([{ field: "second", expression: "fallback()" }])
+  expect(plan?.installationOrder).toEqual(["first", "second", "third"])
+  expect(plan?.diagnostics).toEqual([])
+
+  const positional = deriveInitializerEvaluationPlan(`
+    struct Defaults {
+      first: Int
+      second: Int = fallback()
+      third: Int
+    }
+    Defaults(1, second: 2, third: 3)
+  `, "Defaults")
+  expect(positional?.diagnostics.map((diagnostic) => diagnostic.code)).toContain("W-LABEL-0005")
+
+  const missing = deriveInitializerEvaluationPlan(`
+    struct Defaults {
+      first: Int
+      second: Int = fallback()
+      third: Int
+    }
+    Defaults(first: 1)
+  `, "Defaults")
+  expect(missing?.diagnostics.map((diagnostic) => diagnostic.code)).toContain("W-LABEL-0005")
+})
+
+test("generic anchors and required labels normalize without type disambiguation", () => {
   const result = deriveExecutionErgonomics(`
     struct OvenSession<_ state: OvenSessionState> {}
     let a = OvenSession<.ready>.state
-    let b = OvenSession<state: .ready>.state
+    struct Matrix<rows: usize, Element, columns: usize> {}
+    let matrix = Matrix<rows: 3, f32, columns: 4>
     fn note(_ message) {}
     note("ready")
-    note(message: "ready")
   `)
-  assert.equal(result.labels.generic.identities[0].sameAsNext, true)
-  assert.equal(result.labels.declarations[0].params[0].policy, "optional(name)")
-  assert.deepEqual(result.labels.declarations[0].params[0].forms, ["positional", "message:"])
+  assert.equal(result.labels.generic.identities[0].values[0], ".ready")
+  assert.deepEqual(result.labels.generic.identities[1].values, ["3", "f32", "4"])
+  assert.equal(result.labels.declarations[0].params[0].policy, "positionalOnly")
+  assert.deepEqual(result.labels.declarations[0].params[0].forms, ["positional"])
   assert.deepEqual(result.labels.diagnostics, [])
+  assert.deepEqual(result.labels.generic.diagnostics, [])
+})
+
+test("generic labels cannot cross type or positional anchors", () => {
+  const result = deriveExecutionErgonomics(`
+    struct Anchored<T, _ middle: usize, after: usize> {}
+    let invalid = Anchored<u8, after: 2, 3>
+  `)
+  assert.ok(summarizeDiagnostics(result).includes("W-LABEL-0005"))
 })
 
 test("labels reject unknown, duplicate, and colliding forms", () => {
@@ -22,7 +70,7 @@ test("labels reject unknown, duplicate, and colliding forms", () => {
   assert.ok(summarizeDiagnostics(unknown).includes("W-LABEL-0005"))
   const duplicate = deriveExecutionErgonomics("fn note(_ value) {}\nnote(value: 1, value: 2)")
   assert.ok(summarizeDiagnostics(duplicate).includes("W-LABEL-0006"))
-  const collision = deriveExecutionErgonomics("fn note(_ value) {}\nfn note(value) {}")
+  const collision = deriveExecutionErgonomics("fn note(value) {}\nfn note(value) {}")
   assert.ok(summarizeDiagnostics(collision).includes("W-LABEL-0004"))
 })
 
@@ -37,9 +85,9 @@ test("external and internal labels are distinct without a label keyword", () => 
   assert.ok(summarizeDiagnostics(unknown).includes("W-LABEL-0005"))
 })
 
-test("plain callable parameters stay positional at every index", () => {
+test("underscore callable parameters stay positional at every index", () => {
   const result = deriveExecutionErgonomics(`
-    fn query(count: usize<(1...500)>, context: Context) {}
+    fn query(_ count: usize<(1...500)>, _ context: Context) {}
     query(20, context)
   `)
   const query = result.labels.declarations.find((declaration) => declaration.name === "query")
@@ -51,9 +99,9 @@ test("plain callable parameters stay positional at every index", () => {
   assert.deepEqual(result.labels.diagnostics, [])
 })
 
-test("named publishes a required label without duplicating the binding", () => {
+test("a plain name publishes its required homonym label", () => {
   const accepted = deriveExecutionErgonomics(`
-    fn query(count: usize, named context: Context) {}
+    fn query(_ count: usize, context: Context) {}
     query(20, context: context)
   `)
   const query = accepted.labels.declarations.find((declaration) => declaration.name === "query")
@@ -62,36 +110,36 @@ test("named publishes a required label without duplicating the binding", () => {
     external: "context",
     policy: "required(context)",
     forms: ["context:"],
-    named: true,
   })
   expect(accepted.labels.diagnostics).toEqual([])
 
   const rejected = deriveExecutionErgonomics(`
-    fn query(count: usize, named context: Context) {}
+    fn query(_ count: usize, context: Context) {}
     query(20, context)
   `)
   expect(summarizeDiagnostics(rejected)).toContain("W-LABEL-0005")
 
   const contextualIdentifier = deriveExecutionErgonomics(`
     fn inspect(named: Bool) {}
-    inspect(flag)
+    inspect(named: flag)
   `)
   expect(contextualIdentifier.labels.declarations[0]?.params[0]).toMatchObject({
     internal: "named",
-    policy: "positionalOnly",
-    forms: ["positional"],
+    external: "named",
+    policy: "required(named)",
+    forms: ["named:"],
   })
   expect(contextualIdentifier.labels.diagnostics).toEqual([])
 })
 
-test("record-like initializers reject the redundant named marker", () => {
+test("initializers share the external and internal label rule", () => {
   const result = deriveExecutionErgonomics(`
     struct Seat {
       value: usize
-      init(named value: usize) { self.value = value }
+      init(label value: usize) { self.value = value }
     }
   `)
-  expect(summarizeDiagnostics(result)).toContain("W-LABEL-0007")
+  expect(summarizeDiagnostics(result)).not.toContain("W-LABEL-0007")
 })
 
 test("parameter contracts follow labels and bindings", () => {
@@ -131,9 +179,9 @@ test("parameter contracts follow labels and bindings", () => {
 
 test("call-site operations match parameter contracts without decorating rvalues", () => {
   const accepted = deriveExecutionErgonomics(`
-    fn inspect(value: ref Menu) {}
-    fn store(value: take Order) {}
-    fn forward(borrowed: ref Menu, owned: Menu) {
+    fn inspect(_ value: ref Menu) {}
+    fn store(_ value: take Order) {}
+    fn forward(_ borrowed: ref Menu, _ owned: Menu) {
       inspect(borrowed)
       inspect(ref owned)
       inspect(Menu())
@@ -145,17 +193,42 @@ test("call-site operations match parameter contracts without decorating rvalues"
     .map((call) => call.arguments[0]?.operation)).toEqual(["value", "ref", "value"])
 
   const rejected = deriveExecutionErgonomics(`
-    fn inspect(value: ref Menu) {}
-    fn run(menu: Menu) { inspect(take menu) }
+    fn inspect(_ value: ref Menu) {}
+    fn run(_ menu: Menu) { inspect(take menu) }
   `)
   expect(summarizeDiagnostics(rejected)).toContain("W-OWNERSHIP-0017")
+})
+
+test("object defaults omit read-only ref and accept the mut object shorthand", () => {
+  const result = deriveExecutionErgonomics(`
+    object Ticket { var label: String }
+    fn inspect(ticket: Ticket) {}
+    fn update(ticket: mut ref Ticket) {}
+    var ticket = Ticket(label: "T-7")
+    fn run() {
+      inspect(ticket: ticket)
+      update(ticket: mut ticket)
+      update(ticket: mut ref ticket)
+    }
+  `)
+  expect(result.labels.diagnostics).toEqual([])
+  expect(result.labels.calls.filter((call) => ["inspect", "update"].includes(call.callee))
+    .map((call) => call.arguments[0]?.operation)).toEqual(["value", "mut object", "mut ref"])
+
+  const immutable = deriveExecutionErgonomics(`
+    object Ticket { var label: String }
+    fn update(ticket: mut ref Ticket) {}
+    let ticket = Ticket(label: "T-7")
+    fn run() { update(ticket: mut ticket) }
+  `, { mutablePlaces: [] })
+  expect(summarizeDiagnostics(immutable)).toContain("W-OWNERSHIP-0017")
 })
 
 test("parameter splitting distinguishes generic delimiters from operators", () => {
   const result = deriveExecutionErgonomics(`
     fn project(
-      transform: fn(Int, Int) -> Int,
-      range: Int<(value > 0)>,
+      _ transform: fn(Int, Int) -> Int,
+      _ range: Int<(value > 0)>,
       enabled: Bool = lower < upper,
     ) {}
     project(transform, range)
@@ -180,11 +253,11 @@ test("enum payload cases are not mistaken for direct calls", () => {
       dispatch(DispatchError)
     }
 
-    async fn dispatch(command: Command, authority hostAuthority: HostAuthority): Result {
+    async fn dispatch(_ command: Command, authority hostAuthority: HostAuthority): Result {
       return Result(command: command, authority: hostAuthority)
     }
 
-    async fn route(command: Command): Result {
+    async fn route(_ command: Command): Result {
       return await dispatch(command, authority: .localOperator)
     }
   `
@@ -196,9 +269,9 @@ test("unnamed intrinsic slots and variadic calls remain positional", () => {
   const source = `
     fn intrinsic(ref Handle, usize): usize { return 0 }
     fn byteCount(_ messages: ref String...): usize { return 0 }
-    fn route(handle: ref Handle): usize {
+    fn route(_ handle: ref Handle): usize {
       let count = intrinsic(handle, 4)
-      return count + byteCount("a", "b") + byteCount(messages: each labels)
+      return count + byteCount("a", "b") + byteCount(each labels)
     }
   `
   const result = deriveExecutionErgonomics(source)
@@ -224,20 +297,34 @@ test("extensions use the nominal owner's overload set", () => {
 
 test("variadic overlap is not bounded by a sampled arity", () => {
   const source = `
-    fn collect(values: Value...) {}
-    fn collect(first: Value, second: Value, third: Value) {}
+    fn collect(_ values: Value...) {}
+    fn collect(_ first: Value, _ second: Value, _ third: Value) {}
   `
   expect(summarizeDiagnostics(deriveExecutionErgonomics(source)))
     .toContain("W-LABEL-0004")
 })
 
+test("variadic anchors keep later labels and reject earlier labels after a value", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn collect(_ items: Item..., after: After) {}
+    collect(first, second, after: next)
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+
+  const rejected = deriveExecutionErgonomics(`
+    fn collect(before: Before, _ items: Item..., after: After) {}
+    collect(first, before: prior, after: next)
+  `)
+  expect(summarizeDiagnostics(rejected)).toContain("W-LABEL-0005")
+})
+
 test("complete ordered call shapes separate arities and reject real overlap", () => {
   const disjoint = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(_ value: Value, mode: Mode) {}")
   const declarations = disjoint.labels.declarations.filter((declaration) => declaration.name === "serve")
-  assert.deepEqual(declarations[0].callShapes, ["positional", "value:"])
-  assert.deepEqual(declarations[1].callShapes, ["positional|positional", "value:|positional"])
+  assert.deepEqual(declarations[0].callShapes, ["positional"])
+  assert.deepEqual(declarations[1].callShapes, ["positional|mode:"])
   assert.deepEqual(disjoint.labels.diagnostics, [])
-  const collision = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(value: Value) {}")
+  const collision = deriveExecutionErgonomics("fn serve(_ value: Value) {}\nfn serve(_ value: Value) {}")
   assert.ok(summarizeDiagnostics(collision).includes("W-LABEL-0004"))
 })
 
@@ -306,7 +393,7 @@ test("sync uses only a proven direct entry and never blocks or creates a task", 
   assert.equal(suspending.suspension.syncCalls[0].eligible, false)
   assert.equal(suspending.suspension.syncCalls[0].partialEffectsBeforeRejection, false)
 
-  const dynamicPath = deriveExecutionErgonomics("async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
+  const dynamicPath = deriveExecutionErgonomics("async fn cached(_ hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
     functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
   })
   assert.ok(summarizeDiagnostics(dynamicPath).includes("W-SUSPEND-0005"))
@@ -423,8 +510,8 @@ test("directEntry composes through sync calls and recursive SCCs without a termi
   assert.ok(summarizeDiagnostics(invalidUnknown).includes("W-SUSPEND-0005"))
 
   const recursive = deriveExecutionErgonomics(`
-    async fn even(n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }
-    async fn odd(n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }
+    async fn even(_ n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }
+    async fn odd(_ n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }
     let result = sync even(2)
   `)
   const component = recursive.suspension.directEntryScc.find((item) =>
@@ -459,8 +546,8 @@ test("spawn dispatches to serial or concurrent domains and requires a target", (
 
 test("barrier dispatch orders read epochs and requires a closed access graph", () => {
   const source = `
-    fn read(state: ref Menu) { return state.revision }
-    fn write(state: inout Menu) { state.revision += 1; return state.revision }
+    fn read(_ state: ref Menu) { return state.revision }
+    fn write(_ state: inout Menu) { state.revision += 1; return state.revision }
     let before = spawn<.catalog> read(ref menu)
     let update = spawn<.catalog, .barrier> write(inout menu)
     let after = spawn<domain: .catalog> read(ref menu)
@@ -491,14 +578,14 @@ test("barrier dispatch orders read epochs and requires a closed access graph", (
 
 test("barrier bodies cannot suspend and serial domains accept the marker", () => {
   const suspending = deriveExecutionErgonomics(`
-    fn write(state: inout Menu) { await execution#yield(); return state.revision }
+    fn write(_ state: inout Menu) { await execution#yield(); return state.revision }
     let update = spawn<.catalog, .barrier> write(inout menu)
   `, { domainCapabilities: { ".catalog": ["concurrent", "barrierDispatch"] } })
   assert.ok(summarizeDiagnostics(suspending).includes("W-SUSPEND-0004"))
 
   const serial = deriveExecutionErgonomics(`
     module kitchen<domains: [.serial(.thermal)]>
-    fn write(state: inout Menu) { return state.revision }
+    fn write(_ state: inout Menu) { return state.revision }
     let update = spawn<.thermal, .barrier> write(inout menu)
   `)
   assert.deepEqual(summarizeDiagnostics(serial), [])
@@ -689,13 +776,13 @@ test("execution root is contextual, target gated, and nonescaping", () => {
 })
 
 test("doctest terminal and effects are derived from comment input", () => {
-  const positive = deriveExecutionErgonomics("/// @example\n/// call: clamp(2)\n/// result: 2\nfn clamp(value) { return value }")
+  const positive = deriveExecutionErgonomics("/// call: clamp(2)\n/// result: 2\nfn clamp(value) { return value }")
   assert.equal(positive.doctest.hermetic, true)
-  const duplicate = deriveExecutionErgonomics("/// @example\n/// call: clamp(2)\n/// result: 2\n/// error: RangeError\nfn clamp(value) { return value }")
+  const duplicate = deriveExecutionErgonomics("/// call: clamp(2)\n/// result: 2\n/// error: RangeError\nfn clamp(value) { return value }")
   assert.ok(summarizeDiagnostics(duplicate).includes("W-DOC-0003"))
-  const ambient = deriveExecutionErgonomics("/// @example\n/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock) { return \"data\" }")
+  const ambient = deriveExecutionErgonomics("/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock) { return \"data\" }")
   assert.ok(summarizeDiagnostics(ambient).includes("W-DOC-0005"))
-  const twoBlocks = deriveExecutionErgonomics("/**\n * @example\n * call: first()\n * result: 1\n */\nfn first() { return 1 }\n/**\n * @example\n * call: second()\n * result: 2\n */\nfn second() { return 2 }")
+  const twoBlocks = deriveExecutionErgonomics("/**\n * call: first()\n * result: 1\n * call: second()\n * result: 2\n */\nfn values() { return (1, 2) }")
   assert.equal(twoBlocks.doctest.examples.length, 2)
   assert.deepEqual(twoBlocks.doctest.examples.map((example) => example.call), ["first()", "second()"])
 })
@@ -717,8 +804,8 @@ test("flat std derives authority and rejects tier fields", () => {
 
 test("allocator contextual and ordinary declarations expose distinct call shapes", () => {
   const contextual = deriveExecutionErgonomics(`
-    fn stage(allocator memory: ref Allocator, payload: ref Bytes) {}
-    fn caller(allocator current: ref Allocator, payload: ref Bytes) { stage(payload) }
+    fn stage(allocator memory: ref Allocator, _ payload: ref Bytes) {}
+    fn caller(allocator current: ref Allocator, _ payload: ref Bytes) { stage(payload) }
   `)
   const stage = contextual.labels.declarations.find((declaration) => declaration.name === "stage")
   assert.equal(stage.params[0].contextualAllocator, true)
@@ -726,8 +813,8 @@ test("allocator contextual and ordinary declarations expose distinct call shapes
   assert.deepEqual(contextual.labels.diagnostics, [])
 
   const ordinary = deriveExecutionErgonomics(`
-    fn ordinary(allocator: ref Allocator, payload: ref Bytes) {}
-    fn caller(payload: ref Bytes) { ordinary(payload) }
+    fn ordinary(_ allocator: ref Allocator, _ payload: ref Bytes) {}
+    fn caller(_ payload: ref Bytes) { ordinary(payload) }
   `)
   const ordinaryDeclaration = ordinary.labels.declarations.find((declaration) => declaration.name === "ordinary")
   assert.equal(ordinaryDeclaration.params[0].contextualAllocator, undefined)
@@ -737,8 +824,8 @@ test("allocator contextual and ordinary declarations expose distinct call shapes
 
 test("allocator contextual omission collision is derived from declarations", () => {
   const result = deriveExecutionErgonomics(`
-    fn decode(allocator memory: ref Allocator, payload: ref Bytes) {}
-    fn decode(payload: ref Bytes) {}
+    fn decode(allocator memory: ref Allocator, _ payload: ref Bytes) {}
+    fn decode(_ payload: ref Bytes) {}
   `)
   const declarations = result.labels.declarations.filter((declaration) => declaration.name === "decode")
   assert.deepEqual(declarations.map((declaration) => declaration.callShapes), [
@@ -746,4 +833,132 @@ test("allocator contextual omission collision is derived from declarations", () 
     ["positional"],
   ])
   assert.ok(summarizeDiagnostics(result).includes("W-LABEL-0004"))
+})
+
+test("named labels reorder inside their segment and anchors reject crossing", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn arrange(first: First, second: Second, _ pivot: Pivot, after: After, finish: Finish) {}
+    arrange(second: right, first: left, pivot, finish: done, after: next)
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+  expect(accepted.labels.declarations[0]?.callShapes).toEqual(["first:&second:|positional|after:&finish:"])
+
+  const crossing = deriveExecutionErgonomics(`
+    fn arrange(first: First, second: Second, _ pivot: Pivot, after: After) {}
+    arrange(first: left, pivot, after: next, second: right)
+  `)
+  expect(summarizeDiagnostics(crossing)).toContain("W-LABEL-0005")
+})
+
+test("named calls may skip only omitible anchors and preserve their boundary", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn window(leftStart start: Index, leftEnd end: Index, _ center: Index = 0, rightStart start2: Index, rightEnd end2: Index) {}
+    window(leftEnd: end, leftStart: start, rightEnd: end2, rightStart: start2)
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+
+  const requiredCrossing = deriveExecutionErgonomics(`
+    fn window(leftStart start: Index, leftEnd end: Index, _ center: Index, rightStart start2: Index, rightEnd end2: Index) {}
+    window(leftStart: start, rightStart: start2, rightEnd: end2, leftEnd: end)
+  `)
+  expect(summarizeDiagnostics(requiredCrossing)).toContain("W-LABEL-0005")
+})
+
+test("same label set collides regardless of declaration order", () => {
+  const result = deriveExecutionErgonomics(`
+    fn collect(first: First, second: Second) {}
+    fn collect(second: Second, first: First) {}
+  `)
+  expect(summarizeDiagnostics(result)).toContain("W-LABEL-0004")
+})
+
+test("contextual allocator may follow a labeled payload", () => {
+  const result = deriveExecutionErgonomics(`
+    fn decode(payload: ref Bytes, allocator memory: ref Allocator) {}
+    decode(payload: bytes)
+  `)
+  const declaration = result.labels.declarations.find((item) => item.name === "decode")
+  expect(declaration?.params[1]?.contextualAllocator).toBe(true)
+  expect(declaration?.callShapes).toEqual(["payload:", "allocator:&payload:"])
+  expect(result.labels.diagnostics).toEqual([])
+})
+
+test("pipe fills exactly one required positional hole", () => {
+  const accepted = deriveExecutionErgonomics(`
+    fn route(_ seed: Seed, limit: Limit, mode: Mode = .fast) {}
+    seed |> route(limit: 2)
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+
+  const rejected = deriveExecutionErgonomics(`
+    fn route(_ seed: Seed, _ token: Token, limit: Limit) {}
+    seed |> route(limit: 2)
+  `)
+  expect(summarizeDiagnostics(rejected)).toContain("W-LABEL-0005")
+})
+
+test("pipe fills one named hole and rejects two total holes", () => {
+  const named = deriveExecutionErgonomics(`
+    fn labelRoute(prefix: Prefix, value: Value, suffix: Suffix = .default) {}
+    input |> labelRoute(prefix: .left)
+  `)
+  expect(named.labels.diagnostics).toEqual([])
+
+  const namedNamed = deriveExecutionErgonomics(`
+    fn twoLabels(first: First, second: Second, suffix: Suffix = .default) {}
+    input |> twoLabels(suffix: .right)
+  `)
+  expect(summarizeDiagnostics(namedNamed)).toContain("W-LABEL-0005")
+
+  const namedAnchor = deriveExecutionErgonomics(`
+    fn namedAndAnchor(prefix: Prefix, _ center: Center, suffix: Suffix) {}
+    input |> namedAndAnchor(suffix: .right)
+  `)
+  expect(summarizeDiagnostics(namedAnchor)).toContain("W-LABEL-0005")
+})
+
+test("generic binding locates anchors after named segments", () => {
+  const result = deriveExecutionErgonomics(`
+    struct Matrix<rows: usize, Element, columns: usize> {}
+    let matrix = Matrix<rows: 3, f32, columns: 4>
+  `)
+  expect(result.labels.generic.identities.find((identity) => identity.head === "Matrix")?.values)
+    .toEqual(["3", "f32", "4"])
+  expect(result.labels.generic.diagnostics).toEqual([])
+
+  const valueAnchor = deriveExecutionErgonomics(`
+    struct ValueHead<rows: usize, _ count: usize, columns: usize> {}
+    let value = ValueHead<rows: 3, 4, columns: 5>
+  `)
+  expect(valueAnchor.labels.generic.diagnostics).toEqual([])
+})
+
+test("mut ref requires an explicit mutable borrow or object shorthand", () => {
+  const accepted = deriveExecutionErgonomics(`
+    object Ticket { var label: String }
+    fn update(ticket: mut ref Ticket) {}
+    var ticket = Ticket(label: "T-7")
+    fn run() {
+      update(ticket: mut ticket)
+      update(ticket: mut ref ticket)
+    }
+  `)
+  expect(accepted.labels.diagnostics).toEqual([])
+
+  const rejected = deriveExecutionErgonomics(`
+    struct Point { x: i32 }
+    fn update(point: mut ref Point) {}
+    fn run(point: Point) {
+      update(point: point)
+      update(point: mut point)
+    }
+  `)
+  expect(summarizeDiagnostics(rejected)).toContain("W-OWNERSHIP-0017")
+})
+
+test("duplicate external labels are rejected across anchors", () => {
+  const callable = deriveExecutionErgonomics("fn bad(first: A, _ pivot: P, first: B) {}")
+  expect(summarizeDiagnostics(callable)).toContain("W-LABEL-0006")
+  const generic = deriveExecutionErgonomics("struct Bad<first: A, T, first: B> {}")
+  expect(summarizeDiagnostics(generic)).toContain("W-LABEL-0006")
 })

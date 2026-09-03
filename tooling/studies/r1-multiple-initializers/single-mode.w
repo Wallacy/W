@@ -20,11 +20,11 @@ struct Money {
   }
 }
 
-fn exactPrice(value: i128): Money {
+fn exactPrice(_ value: i128): Money {
   return Money(value: .minorUnits(value), currency: .ww)
 }
 
-fn majorPrice(value: i64): Money {
+fn majorPrice(_ value: i64): Money {
   return Money(value: .majorUnits(value), currency: .ww)
 }
 

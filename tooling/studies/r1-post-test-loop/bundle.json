@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/numerics.w",
     "symbol": "decimalDigitCount",
-    "digest": "sha256:9ae24ffbed1ef3cee289fa7ea3b014ce4d66a176be209065e586403561bf15ad"
+    "digest": "sha256:4af3f95f8895ed5a69b231ffd01ae4d58c89ce5e37bd9e49654a6849c9d7af3e"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "repeat.w",
-      "digest": "sha256:accf7e6b9b35eb4b790f7a3fc437b13e0524d655370c0d08662d9460e087321b",
+      "digest": "sha256:e3ad31662e56cc3d5eca728f9a48bcb004f46ed023789185fb0452ea291694a9",
       "changedConstructs": [
         "post-test repeat",
         "trailing condition after continue",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "while-true.w",
-      "digest": "sha256:4ce8e025b8623ed138a81dde1e960d6ecfd7a9e82f55701ad97558b33c2a7309",
+      "digest": "sha256:fd7bd59bcae3121c54847d8cc8c0bbef1f6327bf5ee049719288ac03666180f0",
       "changedConstructs": [
         "while true loop",
         "explicit predicate break",

@@ -21,7 +21,7 @@ async fn transform(ctx: build.Context): () throws MenuTransformError {
     string: menuSource,
     maximumBytes: 64<iec.KiB>,
   )
-  let compiled = try compileMenu(source)
+  let compiled = try compileMenu(source: source)
   let MenuBytecode(bytes, _) = take compiled
   try await ctx.write(bytes: menuBytecode, value: take bytes)
 }

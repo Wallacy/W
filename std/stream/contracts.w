@@ -26,53 +26,53 @@ foreign intrinsic from "std.readable-stream@1" {
   type ReadableStreamHandle
 
   fn stdReadableStreamFrom<Item, Failure: Error, Source: Stream<Item, Failure>>(
-    source: take Source,
+    _ source: take Source,
   ): ReadableStreamHandle
 
   fn stdReadableStreamFromByteSource<
     Failure: Error,
     Source: ByteSource<Failure>,
   >(
-    named source: take Source,
-    named chunkBytes: usize<(1...)>,
+    _ source: take Source,
+    _ chunkBytes: usize<(1...)>,
   ): ReadableStreamHandle
 
   async fn stdReadableStreamNext<Item, Failure: Error>(
-    handle: inout ReadableStreamHandle,
+    _ handle: inout ReadableStreamHandle,
   ): Item? throws Failure
 
   // The provider commits inert state before suspension. It drains the owned
   // root before returning or throwing. Failure reports the source cancel or
   // cleanup failure; it never restores the logical stream owner.
   async fn stdReadableStreamCancel<Failure: Error>(
-    handle: inout ReadableStreamHandle,
+    _ handle: inout ReadableStreamHandle,
   ): () throws Failure
 
   fn stdReadableStreamTeeItems<
     Item: Duplicable,
     Failure: Error & Duplicable,
   >(
-    named handle: inout ReadableStreamHandle,
-    named maximumBufferedItems: usize<(1...)>,
+    _ handle: inout ReadableStreamHandle,
+    _ maximumBufferedItems: usize<(1...)>,
   ): (ReadableStreamHandle, ReadableStreamHandle) throws ReadableStreamUseError
 
   fn stdReadableStreamTeeBytes<Failure: Error & Duplicable>(
-    named handle: inout ReadableStreamHandle,
-    named maximumBufferedBytes: usize<(1...)>,
+    _ handle: inout ReadableStreamHandle,
+    _ maximumBufferedBytes: usize<(1...)>,
   ): (ReadableStreamHandle, ReadableStreamHandle) throws ReadableStreamUseError
 
   // Read and next share one cursor. A short read retains at most one remainder
   // owner and serves it before another upstream pull.
   async fn stdReadableStreamReadBytes<Failure: Error>(
-    named handle: inout ReadableStreamHandle,
-    appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    _ handle: inout ReadableStreamHandle,
+    _ destination: inout Bytes,
+    _ maximum: usize<(1...)>,
   ): ReadStep throws Failure
 
   // Drop is idempotent and best-effort: it requests cancellation for a live
   // handle without awaiting, or does nothing for a terminal/inert handle. The
   // structured root owns the physical drain in both cases.
-  fn stdReadableStreamDrop(handle: inout ReadableStreamHandle)
+  fn stdReadableStreamDrop(_ handle: inout ReadableStreamHandle)
 }
 
 // The phantom parameters keep the erased provider handle tied to the public
@@ -90,7 +90,7 @@ export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure> {
   handle: TypedReadableStreamHandle<Item, Failure>
 
   export static fn from<Source: Stream<Item, Failure>>(
-    _ source: take Source,
+    source: take Source,
   ): ReadableStream<Item, Failure> {
     let raw = unsafe { stdReadableStreamFrom(take source) }
     let handle = TypedReadableStreamHandle<Item, Failure>(validatedRaw: raw)
@@ -127,8 +127,8 @@ extension<Item: Duplicable, Failure: Error & Duplicable> ReadableStream<Item, Fa
   ) throws ReadableStreamUseError {
     let (left, right) = unsafe {
       try stdReadableStreamTeeItems(
-        handle: inout handle.raw,
-        maximumBufferedItems: maximumBufferedItems,
+        inout handle.raw,
+        maximumBufferedItems,
       )
     }
     let leftHandle = TypedReadableStreamHandle<Item, Failure>(validatedRaw: left)
@@ -144,12 +144,12 @@ extension<Item: Duplicable, Failure: Error & Duplicable> ReadableStream<Item, Fa
 extension<Failure: Error> ReadableStream<Bytes, Failure>: ByteSource<Failure> {
   export static fn from<Source: ByteSource<Failure>>(
     byteSource source: take Source,
-    named chunkBytes: usize<(1...)>,
+    chunkBytes: usize<(1...)>,
   ): ReadableStream<Bytes, Failure> {
     let raw = unsafe {
       stdReadableStreamFromByteSource(
-        source: take source,
-        chunkBytes: chunkBytes,
+        take source,
+        chunkBytes,
       )
     }
 
@@ -159,15 +159,15 @@ extension<Failure: Error> ReadableStream<Bytes, Failure>: ByteSource<Failure> {
 
   export mut async fn read(
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws Failure {
     // maximum bounds the appended delta. The provider may grow destination
     // when its spare capacity is smaller than the confirmed progress.
     return unsafe {
       try await stdReadableStreamReadBytes(
-        handle: inout handle.raw,
-        appendTo: inout destination,
-        maximum: maximum,
+        inout handle.raw,
+        inout destination,
+        maximum,
       )
     }
   }
@@ -184,8 +184,8 @@ extension<Failure: Error & Duplicable> ReadableStream<Bytes, Failure> {
   ) throws ReadableStreamUseError {
     let (left, right) = unsafe {
       try stdReadableStreamTeeBytes(
-        handle: inout handle.raw,
-        maximumBufferedBytes: maximumBufferedBytes,
+        inout handle.raw,
+        maximumBufferedBytes,
       )
     }
     let leftHandle = TypedReadableStreamHandle<Bytes, Failure>(validatedRaw: left)

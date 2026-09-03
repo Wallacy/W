@@ -10,13 +10,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/capability_security_oracle.w",
     "symbol": "enum CapabilityOrigin",
-    "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b"
+    "digest": "sha256:2dc7f514f2af65fc61c1e160a93ac2f4d76a5790077849537c1547307dfd26b3"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/session_security_oracle.w",
       "symbol": "enum OracleChannelProfile",
-      "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992"
+      "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573"
     },
     {
       "path": "../../../reference/last-light/fs_oracle.w",
@@ -26,17 +26,17 @@
     {
       "path": "../../../reference/last-light/app.w",
       "symbol": "const nativeServerLimits = http.ServerLimits(",
-      "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+      "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
     },
     {
       "path": "../../../reference/last-light/domain_oracle.w",
       "symbol": "deployment can reduce but cannot increase profile capacity",
-      "digest": "sha256:37b229824ae9aa789a04f107c211f4c7acd5cf1d4eb2ea24accf245aecb94e3f"
+      "digest": "sha256:b706a4f28fcb38eb8ef0e30e5ecc69706135015eefea3a97f02a64d8e5bafedb"
     },
     {
       "path": "../../../reference/last-light/hir_memory_oracle.w",
       "symbol": "struct HirAbiKey",
-      "digest": "sha256:8837f23890bc651e3b7d5f0115457e2f35a2de6c3aeddef80bda37b2a84b3261"
+      "digest": "sha256:b43e34ec36c747dfc21ad4d25beeb64af19aa89db45dae5bd12e373cba85ab58"
     }
   ],
   "variants": [
@@ -45,7 +45,7 @@
       "role": "selected",
       "language": "w",
       "path": "security-profile.w",
-      "digest": "sha256:3bf7caef5309bfdbe49752360caba90f296450062370a7a943a7ef8bc712afd5",
+      "digest": "sha256:3f6d2d024b23d9277346759e248694cc7c14b62a1eb049b0e3000223e1bbff2a",
       "changedConstructs": [
         "profile boundary",
         "budget proof",
@@ -61,7 +61,7 @@
       "role": "alternative",
       "language": "w",
       "path": "security-boundary.w",
-      "digest": "sha256:05935c8470fea47330e1a84732152ab9ed47afb401ef44b77add2e1187f87eca",
+      "digest": "sha256:6b86a01564ea34e39be67377e29e5ecb48f9a077b557c5cc402bf0b4ef1ed94a",
       "changedConstructs": [
         "tenant binding",
         "bounded input",
@@ -77,7 +77,7 @@
       "role": "research-candidate",
       "language": "w",
       "path": "security-feature.w",
-      "digest": "sha256:aed6494f31b9461d672c918b9112bd53c28fc8dd159cf2b3320255a93ee72051",
+      "digest": "sha256:11dc26adb9327dfd4f5669f8ddd789d290f7cca4a3d74dcced27a90e4521509c",
       "changedConstructs": [
         "typed runtime composition",
         "security-neutral flag"

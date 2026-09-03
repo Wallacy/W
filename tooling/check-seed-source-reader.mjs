@@ -232,7 +232,10 @@ async function readFixtures() {
       bytes: Buffer.from(formatterOutputText(testCase.output, testCase.id), "utf8"),
     })
   }
-  if (fixtures.length !== 56) fail("expected 56 F0 texts, got " + fixtures.length)
+  const expectedFormatterFixtures = formatter.cases.length * 2
+  if (fixtures.length !== expectedFormatterFixtures) {
+    fail("expected " + expectedFormatterFixtures + " F0 texts, got " + fixtures.length)
+  }
 
   fixtures.push({
     label: "last-light/formatting.w",

@@ -9,8 +9,8 @@ export enum HostSuspendPolicy: Copy & Equatable {
 
 export fn observeSuspend(
   using clock: ref time.Clock,
-  started: time.Instant,
-  deadline: time.Deadline,
+  _ started: time.Instant,
+  _ deadline: time.Deadline,
 ): HostSuspendPolicy {
   let policy = clock.hostSuspendPolicy
   let finished = clock.now()

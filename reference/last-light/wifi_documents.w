@@ -67,7 +67,7 @@ export struct SessionDocument: json.Encodable {
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let id = u128(session.id).display()
-    let role = roleToken(session.role)
+    let role = roleToken(role: session.role)
     let nanoseconds: i128 = session.remaining.nanoseconds
     let remainingNanoseconds = nanoseconds.display()
     try writer.withObject((object) => {

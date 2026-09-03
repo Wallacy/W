@@ -5,11 +5,11 @@ struct MixResult {
   starboard: Int
 }
 
-fn mix(value: Int): Int {
+fn mix(_ value: Int): Int {
   return value * value + 1
 }
 
-async fn planPair(left: Int, named right: Int): MixResult {
+async fn planPair(_ left: Int, right: Int): MixResult {
   let port = spawn<.compute> mix(left)
   let starboard = spawn<.compute> mix(right)
   let (portValue, starboardValue) = await (port, starboard)

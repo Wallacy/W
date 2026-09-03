@@ -69,7 +69,7 @@
       "sourceRef": {
         "path": "reference/last-light/horizon_tool.w",
         "symbol": "print(result)",
-        "digest": "sha256:5dd0ef36cdae1de19c1888458a82147191f1f06816d5aaa8ece8e99927a72936"
+        "digest": "sha256:da255c1def2f1062bd76a7001710c5b799f09538615e50ec501d8fc689b168ac"
       },
       "positive": {
         "formatterCase": "F0-module-run-entry",
@@ -123,21 +123,20 @@
     {
       "id": "FZ0-G2-types-and-contracts",
       "family": "G2",
-      "construction": "generic type and optional value labels",
+      "construction": "generic type/value anchors and segmented labels",
       "decisions": [
-        "W-1155",
-        "W-1160",
-        "W-1290"
+        "W-1514",
+        "W-1286"
       ],
       "sourceRef": {
         "path": "reference/last-light/generics.w",
         "symbol": "struct StaticWindow<",
-        "digest": "sha256:6e0b5742c53fb2a0a0bf94fa56d7fe83268d09a076f941acc4125d1aa388c053"
+        "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
       },
       "positive": {
         "formatterCases": [
           "F0-contracts-and-source-order",
-          "F0-optional-label-slots"
+          "F0-generic-anchor-slots"
         ],
         "semanticCase": "S0-POS-generic-parameter-kinds",
         "markers": [
@@ -168,7 +167,7 @@
       "sourceRef": {
         "path": "reference/last-light/command.w",
         "symbol": "case \"place\": .place",
-        "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
+        "digest": "sha256:848d3dc3d29dbdb0841161f61e51eae5c3061f2392869fe8593e869d6ed75e12"
       },
       "positive": {
         "formatterCase": "F0-enum-subset-switch",
@@ -207,7 +206,7 @@
       "sourceRef": {
         "path": "reference/last-light/execution.w",
         "symbol": "let childTask = async mixJob",
-        "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
+        "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
       },
       "positive": {
         "formatterCases": [
@@ -237,7 +236,7 @@
     {
       "id": "FZ0-G5-integration-and-allocator",
       "family": "G5",
-      "construction": "contextual allocator scope, optional labels, and recovery boundary",
+      "construction": "contextual allocator scope, segmented labels, and recovery boundary",
       "decisions": [
         "W-1348",
         "W-1350"
@@ -245,7 +244,7 @@
       "sourceRef": {
         "path": "reference/last-light/allocation.w",
         "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
-        "digest": "sha256:78b2d746f900772a9b1f1f0716a5ab70f65466d77ea9bfe055fe8acb9859fb59"
+        "digest": "sha256:8fb5d1db0a50fa28c0de66ff2145a29a3c0e3295964dc2b63abc1972bff7a6e7"
       },
       "positive": {
         "formatterCases": [

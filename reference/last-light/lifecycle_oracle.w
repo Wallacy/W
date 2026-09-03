@@ -106,11 +106,11 @@ const fn nextCommitProviderState(
 }
 
 test "task outcome is published only after cleanup" for nextTaskState {
-  let published = nextTaskState(.reserved, on: .publish)
-  let settled = nextTaskState(.published, on: .settleSuccess)
-  let cleaned = nextTaskState(.bodySettled, on: .runCleanup)
-  let committed = nextTaskState(.cleanup, on: .commitOutcome)
-  let joined = nextTaskState(.outcomeCommitted, on: .join)
+  let published = nextTaskState(state: .reserved, on: .publish)
+  let settled = nextTaskState(state: .published, on: .settleSuccess)
+  let cleaned = nextTaskState(state: .bodySettled, on: .runCleanup)
+  let committed = nextTaskState(state: .cleanup, on: .commitOutcome)
+  let joined = nextTaskState(state: .outcomeCommitted, on: .join)
 
   expect published == .some(.published)
   expect settled == .some(.bodySettled)
@@ -120,46 +120,46 @@ test "task outcome is published only after cleanup" for nextTaskState {
 }
 
 test "late cancellation cannot replace a settled task body" for nextTaskState {
-  expect nextTaskState(.published, on: .requestCancel) == .some(.published)
-  expect nextTaskState(.bodySettled, on: .requestCancel) == .some(.bodySettled)
-  expect nextTaskState(.reserved, on: .runCleanup) == none
-  expect nextTaskState(.cleanup, on: .join) == none
+  expect nextTaskState(state: .published, on: .requestCancel) == .some(.published)
+  expect nextTaskState(state: .bodySettled, on: .requestCancel) == .some(.bodySettled)
+  expect nextTaskState(state: .reserved, on: .runCleanup) == none
+  expect nextTaskState(state: .cleanup, on: .join) == none
 }
 
 test "a service turn has one terminal commit observation" for nextServiceTurnState {
-  let settled = nextServiceTurnState(.admitted, on: .settleBody)
-  let committing = nextServiceTurnState(.bodySettled, on: .beginCommit)
-  let committed = nextServiceTurnState(.committing, on: .confirmCommit)
-  let drained = nextServiceTurnState(.committed, on: .drain)
+  let settled = nextServiceTurnState(state: .admitted, on: .settleBody)
+  let committing = nextServiceTurnState(state: .bodySettled, on: .beginCommit)
+  let committed = nextServiceTurnState(state: .committing, on: .confirmCommit)
+  let drained = nextServiceTurnState(state: .committed, on: .drain)
 
   expect settled == .some(.bodySettled)
   expect committing == .some(.committing)
   expect committed == .some(.committed)
   expect drained == .some(.drained)
-  expect nextServiceTurnState(.committing, on: .loseCommitConfirmation)
+  expect nextServiceTurnState(state: .committing, on: .loseCommitConfirmation)
     == .some(.unknownOutcome)
-  expect nextServiceTurnState(.committing, on: .failCommit)
+  expect nextServiceTurnState(state: .committing, on: .failCommit)
     == .some(.commitFailed)
 }
 
 test "commit uncertainty is not an abort" for nextServiceTurnState {
-  expect nextServiceTurnState(.unknownOutcome, on: .drain) == .some(.drained)
-  expect nextServiceTurnState(.unknownOutcome, on: .confirmCommit) == none
-  expect nextServiceTurnState(.commitFailed, on: .confirmCommit) == none
-  expect nextServiceTurnState(.drained, on: .settleBody) == none
+  expect nextServiceTurnState(state: .unknownOutcome, on: .drain) == .some(.drained)
+  expect nextServiceTurnState(state: .unknownOutcome, on: .confirmCommit) == none
+  expect nextServiceTurnState(state: .commitFailed, on: .confirmCommit) == none
+  expect nextServiceTurnState(state: .drained, on: .settleBody) == none
 }
 
 test "a commit provider publishes one stable terminal" for nextCommitProviderState {
-  expect nextCommitProviderState(.collecting, on: .registerDependency)
+  expect nextCommitProviderState(state: .collecting, on: .registerDependency)
     == .some(.collecting)
-  expect nextCommitProviderState(.collecting, on: .closeFrontier)
+  expect nextCommitProviderState(state: .collecting, on: .closeFrontier)
     == .some(.closing)
-  expect nextCommitProviderState(.closing, on: .confirmCommit)
+  expect nextCommitProviderState(state: .closing, on: .confirmCommit)
     == .some(.committed)
-  expect nextCommitProviderState(.closing, on: .confirmAbort)
+  expect nextCommitProviderState(state: .closing, on: .confirmAbort)
     == .some(.aborted)
-  expect nextCommitProviderState(.closing, on: .loseEvidence)
+  expect nextCommitProviderState(state: .closing, on: .loseEvidence)
     == .some(.unknown)
-  expect nextCommitProviderState(.committed, on: .confirmAbort) == none
-  expect nextCommitProviderState(.closing, on: .registerDependency) == none
+  expect nextCommitProviderState(state: .committed, on: .confirmAbort) == none
+  expect nextCommitProviderState(state: .closing, on: .registerDependency) == none
 }

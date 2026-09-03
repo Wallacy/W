@@ -21,7 +21,7 @@ export object ScalarSignEpoch {
 
   export init() {}
 
-  fn encode(_ state: SignState, named generation: u32): u64 {
+  fn encode(_ state: SignState, generation: u32): u64 {
     return (u64(generation) << 2) | u64(state.code)
   }
 
@@ -51,24 +51,24 @@ export object ScalarSignEpoch {
 }
 
 export fn publishOwnerLocal(
-  state: inout SignEpochWord,
-  named next: SignEpochWord,
+  _ state: inout SignEpochWord,
+  next: SignEpochWord,
 ): SignEpochWord {
   state = next
   return state
 }
 
 fn assignOnApologyDomain(
-  state: inout SignEpochWord,
-  named next: SignEpochWord,
+  _ state: inout SignEpochWord,
+  next: SignEpochWord,
 ): SignEpochWord {
   state = next
   return state
 }
 
 export async fn publishOnApologyDomain(
-  state: inout SignEpochWord,
-  named next: SignEpochWord,
+  _ state: inout SignEpochWord,
+  next: SignEpochWord,
 ): SignEpochWord {
   let published = spawn<.apology> assignOnApologyDomain(
     inout state,
@@ -78,8 +78,8 @@ export async fn publishOnApologyDomain(
 }
 
 export fn publishWithLock(
-  state: shared SignEpochWord,
-  named next: SignEpochWord,
+  _ state: shared SignEpochWord,
+  next: SignEpochWord,
 ): SignEpochWord {
   return lock state as value {
     value = next

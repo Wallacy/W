@@ -114,9 +114,9 @@ test "bootstrap stages form one parent chain" for parentStage {
   expect parentStage(for: .stageB) == .some(.stageA)
   expect parentStage(for: .stageC) == .some(.stageB)
   expect parentStage(for: .stageD) == .some(.stageC)
-  expect !isSelfHosted(.seedC)
-  expect isSelfHosted(.stageA)
-  expect isSelfHosted(.stageD)
+  expect !isSelfHosted(stage: .seedC)
+  expect isSelfHosted(stage: .stageA)
+  expect isSelfHosted(stage: .stageD)
 }
 
 test "core W0 cannot depend on extended compiler code" for dependencyAllowed {
@@ -127,15 +127,15 @@ test "core W0 cannot depend on extended compiler code" for dependencyAllowed {
 }
 
 test "W0 closes the compiler kernel before runtime features" for belongsToW0 {
-  expect belongsToW0(.lexer)
-  expect belongsToW0(.parser)
-  expect belongsToW0(.typeChecker)
-  expect belongsToW0(.hir)
-  expect belongsToW0(.serializer)
-  expect belongsToW0(.backendAdapter)
-  expect !belongsToW0(.asyncFeature)
-  expect !belongsToW0(.serviceFeature)
-  expect !belongsToW0(.inlineForeignLanguage)
+  expect belongsToW0(capability: .lexer)
+  expect belongsToW0(capability: .parser)
+  expect belongsToW0(capability: .typeChecker)
+  expect belongsToW0(capability: .hir)
+  expect belongsToW0(capability: .serializer)
+  expect belongsToW0(capability: .backendAdapter)
+  expect !belongsToW0(capability: .asyncFeature)
+  expect !belongsToW0(capability: .serviceFeature)
+  expect !belongsToW0(capability: .inlineForeignLanguage)
 }
 
 test "stage comparison permits only target metadata differences" for compareStages {
@@ -148,7 +148,7 @@ test "stage comparison permits only target metadata differences" for compareStag
     payloadSame: true,
     targetMetadataOnly: false,
   )
-  expect compareStages(equal) == .converged
+  expect compareStages(comparison: equal) == .converged
 
   let targetDifference = BootstrapComparison(
     inputsComplete: true,
@@ -159,7 +159,7 @@ test "stage comparison permits only target metadata differences" for compareStag
     payloadSame: true,
     targetMetadataOnly: true,
   )
-  expect compareStages(targetDifference) == .targetMetadataOnly
+  expect compareStages(comparison: targetDifference) == .targetMetadataOnly
 
   let drift = BootstrapComparison(
     inputsComplete: true,
@@ -170,5 +170,5 @@ test "stage comparison permits only target metadata differences" for compareStag
     payloadSame: true,
     targetMetadataOnly: false,
   )
-  expect compareStages(drift) == .reject
+  expect compareStages(comparison: drift) == .reject
 }

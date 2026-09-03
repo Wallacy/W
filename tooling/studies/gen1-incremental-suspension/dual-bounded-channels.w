@@ -4,13 +4,13 @@ import * from std.io
 import streaming from std.stream
 
 export struct DialogueChannels {
-  requests: Channel<String><.send>
-  replies: Channel<String><.receive>
+  requests: Channel<send: String>
+  replies: Channel<receive: String>
 }
 
 export async fn observeSuspension(
-  channels: take DialogueChannels,
-  answer: take String,
+  _ channels: take DialogueChannels,
+  _ answer: take String,
 ): String? throws ChannelSendError<String><[.closed]> {
   try await channels.requests.send(take answer)
   let reply = await channels.replies.receive()
@@ -18,8 +18,8 @@ export async fn observeSuspension(
 }
 
 export async fn observeDialogue(
-  channels: take DialogueChannels,
-  answer: take String,
+  _ channels: take DialogueChannels,
+  _ answer: take String,
 ): String? throws ChannelSendError<String><[.closed]> {
   try await channels.requests.send(take answer)
   return await channels.replies.receive()

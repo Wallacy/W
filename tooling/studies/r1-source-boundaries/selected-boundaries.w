@@ -6,7 +6,7 @@ enum TraceStage {
   ready
 }
 
-fn trace(stage: TraceStage) {
+fn trace(_ stage: TraceStage) {
   let observed = stage
   observed
 }
@@ -16,7 +16,7 @@ fn sourceBoundaryEntry(): Int {
   42
 }
 
-fn discardBoundary(ready: Bool): ServiceStage {
+fn discardBoundary(_ ready: Bool): ServiceStage {
   return if ready {
     trace(.ready);
     .accepted
@@ -25,6 +25,6 @@ fn discardBoundary(ready: Bool): ServiceStage {
   }
 }
 
-fn formatterBoundary(items: Array<String>): Array<String> {
+fn formatterBoundary(_ items: Array<String>): Array<String> {
   return items
 }

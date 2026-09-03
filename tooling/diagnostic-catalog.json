@@ -905,7 +905,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a generic parameter label or positional order is invalid",
+      "meaning": "a generic parameter label, anchor boundary, or positional-only binding is invalid",
       "requiredFacts": {
         "parameter": "string",
         "kind": "string",
@@ -981,7 +981,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a call uses an unknown label or an invalid positional/named form",
+      "meaning": "a call uses an unknown label or an invalid positional/labeled form",
       "requiredFacts": {
         "declaration": "string",
         "label": "string",
@@ -995,26 +995,11 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "a call repeats a label or supplies the same normalized slot twice",
+      "meaning": "a call repeats a label, a declaration repeats an external label, or the same normalized slot is supplied twice",
       "requiredFacts": {
         "declaration": "string",
         "label": "string",
         "slot": "string"
-      },
-      "labelRoles": {},
-      "fixes": {}
-    },
-    {
-      "code": "W-LABEL-0007",
-      "state": "active",
-      "phase": "semantic.type",
-      "defaultSeverity": "error",
-      "meaning": "a record-like declaration uses the redundant named parameter marker",
-      "requiredFacts": {
-        "context": "string",
-        "declaration": "string",
-        "parameter": "string",
-        "reason": "string"
       },
       "labelRoles": {},
       "fixes": {}
@@ -1189,7 +1174,7 @@
       "state": "active",
       "phase": "semantic.capability",
       "defaultSeverity": "error",
-      "meaning": "an allocator contextual parameter is not the unique first standard ref Allocator slot",
+      "meaning": "an allocator contextual parameter is not the unique standard ref Allocator slot",
       "requiredFacts": { "declaration": "string", "parameter": "string", "reason": "string" },
       "labelRoles": {},
       "fixes": {}
@@ -2185,7 +2170,7 @@
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "a Lazy assignment or modify operation lacks exclusive authority",
+      "meaning": "a Lazy assignment or get mut ref access lacks exclusive authority",
       "requiredFacts": { "actualAuthority": "string", "operation": "string", "property": "string" },
       "labelRoles": {},
       "fixes": {}
@@ -2642,7 +2627,7 @@
     { "code": "W-DLPACK-0022", "state": "active", "profile": "dlpack", "meaning": "a provider Queue lacks a bindQueue or producerWait happens-before receipt" },
     { "code": "W-DLPACK-0023", "state": "active", "profile": "dlpack", "meaning": "a DLPack capsule name or one-shot rename is invalid" },
     { "code": "W-DLPACK-0024", "state": "active", "profile": "dlpack", "meaning": "a DLPack deleter or release obligation is called more than once" },
-    { "code": "W-DLPACK-0025", "state": "active", "profile": "dlpack", "meaning": "a tensor view escapes its lexical callback or creates an unproven inout alias" },
+    { "code": "W-DLPACK-0025", "state": "active", "profile": "dlpack", "meaning": "a tensor view escapes its lexical callback or creates an unproven inout value-in/value-out alias" },
     { "code": "W-DLPACK-0026", "state": "active", "profile": "dlpack", "meaning": "close or cancellation skips view, queue, or consumer work drain" },
     { "code": "W-DLPACK-0027", "state": "active", "profile": "dlpack", "meaning": "close failed and the owner requires runtime quarantine" },
     { "code": "W-DLPACK-0028", "state": "active", "profile": "dlpack", "meaning": "payload materialization or copy-to-host is not explicit" },
@@ -2818,7 +2803,7 @@
       "state": "active",
       "phase": "semantic.type",
       "defaultSeverity": "error",
-      "meaning": "the first pipe parameter must be a positional slot",
+      "meaning": "a pipe call must have exactly one required unbound slot; a named hole may appear at any declaration position and positional anchors preserve their boundaries",
       "requiredFacts": { "function": "string", "parameter": "string", "reason": "string" },
       "labelRoles": {},
       "fixes": {}

@@ -6,7 +6,7 @@
 
 ## Contents
 
-- [Program and entry](#program-and-entry)
+- [Programs, entries, and execution context](#programs-entries-and-execution-context)
 - [Modules, imports, exports, and reexports](#modules-imports-exports-and-reexports)
 - [Documentation and tests](#documentation-and-tests)
 - [Literals and interpolation](#literals-and-interpolation)
@@ -15,8 +15,7 @@
 - [Numeric policies and bit primitives](#numeric-policies-and-bit-primitives)
 - [Functions, labels, defaults, and rest](#functions-labels-defaults-and-rest)
 - [Structs, objects, enums, and extensions](#structs-objects-enums-and-extensions)
-- [Protocols, generics, and static contracts](#protocols-generics-and-static-contracts)
-- [Compile-time values and specialization](#compile-time-values-and-specialization)
+- [Protocols, generics, refinements, and specialization](#protocols-generics-refinements-and-specialization)
 - [Properties, behaviors, and facets](#properties-behaviors-and-facets)
 - [Option, conversion, and type queries](#option-conversion-and-type-queries)
 - [Ownership, borrows, and views](#ownership-borrows-and-views)
@@ -31,45 +30,127 @@
 - [Service and transaction pipelines](#service-and-transaction-pipelines)
 - [Streams and channels](#streams-and-channels)
 - [Shared state, atomics, and locks](#shared-state-atomics-and-locks)
-- [Execution context and process entry](#execution-context-and-process-entry)
 - [Units, matrices, tensors, and SIMD](#units-matrices-tensors-and-simd)
 - [Foreign code and ABI](#foreign-code-and-abi)
 - [Packages and workspaces](#packages-and-workspaces)
 
-## Program and entry
+## Programs, entries, and execution context
 
-<!-- w-example role=executable use=main observable=effect -->
+Short body, anonymous `.default` descriptor:
+
+<!-- w-example role=executable use=print observable=effect -->
 ```w
 module hello
 
-fn main() {
+entry {
   print("Hello, world!")
 }
+```
 
-entry(main)
+Default function descriptor with an explicit host signature:
+
+<!-- w-example role=logical-contract -->
+```w
+module commandLine
+
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+
+async fn run(
+  args: ProcessArguments,
+  context: ProcessContext,
+): ProcessExitCode {
+  execution#checkCancellation()
+  let started = execution.clock().now()
+  await execution#yield()
+  context.output.write("arguments=${args.count}, started=${started}")
+  return .success
+}
+
+entry(run)
+```
+
+Named function descriptor:
+
+<!-- w-example role=executable use=diagnose observable=effect -->
+```w
+module diagnostics
+
+fn diagnose() { print("ready") }
+
+entry Diagnostics(diagnose)
+```
+
+Named body descriptor:
+
+<!-- w-example role=executable use=print observable=effect -->
+```w
+module embeddedDiagnostics
+
+entry Diagnostics {
+  print("ready")
+}
 ```
 
 ## Modules, imports, exports, and reexports
 
-<!-- w-example role=executable use=greeting observable=value -->
+Package import exposes its public modules without flattening them:
+
+<!-- w-example role=logical-contract -->
 ```w
-module greeting<
-  domains: [.serial],
->
+module packageImport
 
-import text from std
-import { String as Text } from std.text
-import * from std.memory
-export * from greeting.domain
-export { Place as PublicPlace } from greeting.domain
+import std
 
-export fn greeting(name: Text): Text {
-  return text.join(["Hello, ", name])
+fn argumentCount(args: process.Arguments): usize {
+  io.print("count=${args.count}")
+  return args.count
 }
+```
 
-test "imports resolve names used by exported declarations" for greeting {
-  expect greeting("W") == "Hello, W"
+Direct and wildcard module imports flatten the same exports:
+
+<!-- w-example role=logical-contract -->
+```w
+module flatImports
+
+import std.process
+// Equivalent spelling in another module: import * from std.process
+
+fn succeeded(code: ExitCode): Bool { return code == .success }
+```
+
+A module binding keeps qualification; braces select symbols:
+
+<!-- w-example role=logical-contract -->
+```w
+module selectedImports
+
+import process from std
+import networkUrl from std.url
+import {
+  Arguments as ProcessArguments,
+  ExitCode,
+} from std.process
+
+fn inspect(args: ProcessArguments, url: networkUrl.URL): (ExitCode, String) {
+  return (.success, "${args.count}:${url}")
 }
+```
+
+Reexports preserve the same distinction:
+
+<!-- w-example role=logical-contract -->
+```w
+module publicApi
+
+export * from std.url
+export { Arguments as ProcessArguments } from std.process
+
+export fn apiName(): String { return "public-api" }
 ```
 
 ## Documentation and tests
@@ -78,10 +159,11 @@ test "imports resolve names used by exported declarations" for greeting {
 ```w
 /// Limits a value to an inclusive interval.
 ///
-/// @example
 /// call: clamp(4, minimum: 0, maximum: 3)
 /// result: 3
-fn clamp(value: i32, named minimum: i32, named maximum: i32): i32 {
+/// call: clamp(2, minimum: 0, maximum: 3)
+/// result: 2
+fn clamp(_ value: i32, minimum: i32, maximum: i32): i32 {
   return value.max(minimum).min(maximum)
 }
 
@@ -94,25 +176,47 @@ test "clamp preserves an internal value" for clamp {
 
 <!-- w-example role=executable use=literalSummary observable=value -->
 ```w
-fn literalSummary(seconds: u64): String {
+fn literalSummary(_ seconds: u64): (String, String, String, String) {
   let integer: i32 = 1_000
   let hexadecimal = 0xff
   let ratio: f64 = 0.5e2
   let enabled: Bool = true
+  let inferredText = 'W'
   let scalar: UnicodeScalar = 'λ'
   let byte: u8 = b'W'
-  let byteString = b"W"
-  let text = "${integer}:${hexadecimal}:${ratio}:${enabled}:${scalar}:${byte}"
-  let raw = #"{"value":#${seconds},"unit":"s"}"#
-  let literalMarker = #"${seconds}"#
-  let multiline = """north
-south"""
-  return raw + literalMarker + multiline + text + "${byteString.count}"
+  let bytes = b"W"
+  let json = '{"value":${seconds},"unit":"s"}'
+  let doubleQuoted = "${integer}:${hexadecimal}:${ratio}:${enabled}:${scalar}:${byte}"
+  let raw = #"C:\orders\${seconds}"#
+  let rawSingle = #'C:\orders\${seconds}'#
+  let multiline = """
+    north ${seconds}
+    south
+    """
+  let singleMultiline = '''
+    east ${seconds}
+    west
+    '''
+  let rawMultiline = #"""
+    ${seconds}
+    C:\orders
+    """#
+  expect inferredText == "W"
+  expect bytes.count == 1
+  return (
+    json,
+    doubleQuoted,
+    raw + rawSingle,
+    multiline + singleMultiline + rawMultiline,
+  )
 }
 
-test "raw strings opt into interpolation" for literalSummary {
-  expect literalSummary(30).starts(with: #"{"value":30,"unit":"s"}"#)
-  expect literalSummary(30).contains(#"${seconds}"#)
+test "ordinary strings interpolate and raw strings do not" for literalSummary {
+  let result = literalSummary(30)
+  expect result.0 == #'{"value":30,"unit":"s"}'#
+  expect result.2.contains(#'${seconds}'#)
+  expect result.3.contains("north 30")
+  expect result.3.contains(#'${seconds}'#)
 }
 ```
 
@@ -120,16 +224,24 @@ test "raw strings opt into interpolation" for literalSummary {
 
 <!-- w-example role=executable use=collectionSummary observable=value -->
 ```w
-fn collectionSummary(): (i32, i32, usize, i32) {
-  let tuple = (north: 1, east: 2)
-  let fixed: [i32; 4] = [0; 4]
+fn collectionSummary(): (i32, i32, i32, usize, i32) {
+  let positional = (1, "north")
+  let singleton = (7,)
+  let named = (north: 1, east: 2)
+  let explicit: [i32; 4] = [1, 2, 3, 4]
+  let repeated: [i32; 4] = [0; 4]
+  let smaller: [i32; 2] = [8, 9]
+  // let larger: [i32; 4] = smaller // error: count is part of the type
   let values = [1, 2, 3, 4]
   let scores = ["north": 7, "south": 9]
-  let selected = values.lazy
+  let eager = values
+    .filter((value) => value % 2 == 0)
+    .map((value) => value * 10)
+  let lazy = values.lazy
     .filter((value) => value % 2 == 0)
     .map((value) => value * 10)
     .take(2)
-    .collect()
+    .collect() // only the explicitly lazy Iterator needs materialization
 
   var closed = 0
   for value in 1...3 { closed += value }
@@ -140,21 +252,39 @@ fn collectionSummary(): (i32, i32, usize, i32) {
   let inner = values[1>..<3]
   let rightClosed = values[1>..3]
   guard let north = scores["north"] else panic("fixture key is missing")
-  return (tuple.east, north, fixed.count + inner.count + rightClosed.count, closed + halfOpen + selected[0])
+  expect positional.1 == "north"
+  expect singleton.0 == 7
+  expect explicit[2] == 3
+  expect repeated == [0, 0, 0, 0]
+  expect smaller.count == 2
+  expect eager == lazy
+  return (
+    named.east,
+    north,
+    eager[0],
+    explicit.count + inner.count + rightClosed.count,
+    closed + halfOpen + lazy[0],
+  )
 }
 
 test "collections expose labels, bounds, and counts" for collectionSummary {
-  expect collectionSummary() == (2, 7, 7, 29)
+  expect collectionSummary() == (2, 7, 20, 7, 29)
 }
 ```
 
 ## Operators and pipe-forward
 
-<!-- w-example role=executable use=addOne,double,renderNumber,operatorSummary observable=value -->
+<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,operatorSummary observable=value -->
 ```w
-fn addOne(value: i32): i32 { return value + 1 }
-fn double(value: i32): i32 { return value * 2 }
-fn renderNumber(value: i32): String { return "${value}" }
+fn addOne(_ value: i32): i32 { return value + 1 }
+fn double(_ value: i32): i32 { return value * 2 }
+fn renderNumber(_ value: i32): String { return "${value}" }
+fn clamp(_ value: i32, minimum lower: i32, maximum upper: i32): i32 {
+  return value.max(lower).min(upper)
+}
+fn multiply(_ value: i32, by factor: i32): i32 { return value * factor }
+fn divide(_ value: i32, by divisor: i32): i32 { return value / divisor }
+fn remainder(_ value: i32, by divisor: i32): i32 { return value % divisor }
 
 fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
   var flags: u8 = 0b0001
@@ -166,6 +296,20 @@ fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
     |> double()
     |> renderNumber()
 
+  let selected = [1, 2, 3, 4]
+    |> .filter((value) => value % 2 == 0)
+    |> .map((value) => value * 10)
+
+  let bounded = 20
+    |> clamp(minimum: 0, maximum: 12)
+    |> multiply(by: 3)
+
+  var functional = 8
+  functional = functional
+    |> multiply(by: 2)
+    |> divide(by: 3)
+    |> remainder(by: 5)
+
   let relation = (flags & 0b1010) == 0b1010 && !false
   let xor = flags ^ 0b0011
   let power = 2 ** 5
@@ -174,6 +318,9 @@ fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
   let rangeCheck = 2 in 1...3
   let optional: i32? = .none
   let fallback = optional ?? 7
+  expect selected == [20, 40]
+  expect bounded == 36
+  expect functional == 0
   return (rendered, flags, relation, xor, power, quotient, remainder, rangeCheck, fallback)
 }
 
@@ -204,115 +351,80 @@ test "operators and pipe-forward produce values" for operatorSummary {
 
 <!-- w-example role=logical-contract -->
 ```w
-fn numericPolicies(value: u16, other: u16): (u16, u16, usize) {
-  let checkedAdd = u16.checkedAdd(value, other)
-  let checkedSubtract = u16.checkedSubtract(value, other)
-  let checkedMultiply = u16.checkedMultiply(value, other)
-  let checkedNegate = u16.checkedNegate(value)
-  let checkedDivide = u16.checkedDivide(value, other)
-  let checkedRemainder = u16.checkedRemainder(value, other)
-  let checkedPower = u16.checkedPower(value, other)
-  let checkedShiftLeft = u16.checkedShiftLeft(value, other)
-  let checkedShiftRight = u16.checkedShiftRight(value, other)
+fn numericPolicies(): (u8, u8, Bool, UInt) {
+  expect (try? u8.checkedAdd(250, 10)) == .none
+  expect (try? u8.checkedSubtract(2, 3)) == .none
+  expect (try? u8.checkedMultiply(20, 20)) == .none
+  expect (try? u8.checkedNegate(1)) == .none
+  expect (try? u8.checkedDivide(7, 0)) == .none
+  expect (try? u8.checkedRemainder(7, 0)) == .none
+  expect (try? u8.checkedPower(4, 4)) == .none
+  expect (try? u8.checkedShiftLeft(0x80, 1)) == .none
+  expect (try? u8.checkedShiftRight(1, 8)) == .none
 
-  let wrapped = u16.wrappingAdd(value, other)
-  let wrappingSubtract = u16.wrappingSubtract(value, other)
-  let wrappingMultiply = u16.wrappingMultiply(value, other)
-  let wrappingNegate = u16.wrappingNegate(value)
-  let wrappingPower = u16.wrappingPower(value, other)
-  let wrappingShiftLeft = u16.wrappingShiftLeft(value, other)
+  let wrapped = u8.wrappingAdd(250, 10)
+  expect wrapped == 4
+  expect u8.wrappingSubtract(2, 3) == 255
+  expect u8.wrappingMultiply(20, 20) == 144
+  expect u8.wrappingNegate(1) == 255
+  expect u8.wrappingPower(4, 4) == 0
+  expect u8.wrappingShiftLeft(0x80, 1) == 0
 
-  let saturated = u16.saturatingAdd(value, other)
-  let saturatingSubtract = u16.saturatingSubtract(value, other)
-  let saturatingMultiply = u16.saturatingMultiply(value, other)
-  let saturatingNegate = u16.saturatingNegate(value)
-  let saturatingPower = u16.saturatingPower(value, other)
+  let saturated = u8.saturatingAdd(250, 10)
+  expect saturated == 255
+  expect u8.saturatingSubtract(2, 3) == 0
+  expect u8.saturatingMultiply(20, 20) == 255
+  expect u8.saturatingNegate(1) == 0
+  expect u8.saturatingPower(4, 4) == 255
 
-  let overflow = u16.overflowingAdd(value, other)
-  let overflowingSubtract = u16.overflowingSubtract(value, other)
-  let overflowingMultiply = u16.overflowingMultiply(value, other)
-  let overflowingNegate = u16.overflowingNegate(value)
-  let overflowingPower = u16.overflowingPower(value, other)
+  expect u8.overflowingAdd(250, 10) == (4, true)
+  expect u8.overflowingSubtract(2, 3) == (255, true)
+  expect u8.overflowingMultiply(20, 20) == (144, true)
+  expect u8.overflowingNegate(1) == (255, true)
+  expect u8.overflowingPower(4, 4) == (0, true)
 
-  let euclideanDivide = i32.euclideanDivide(-7, 3)
-  let euclideanRemainder = i32.euclideanRemainder(-7, 3)
-  let carry = u16.carryingAdd(value, other)
-  let borrow = u16.borrowingSubtract(value, other)
-  let full = u16.fullMultiply(value, other)
-  let maskedLeft = u16.maskedShiftLeft(value, other)
-  let maskedRight = u16.maskedShiftRight(value, other)
-  let logicalRight = u16.logicalShiftRight(value, other)
-  let rotatedLeft = u16.rotatedLeft(value, other)
-  let rotatedRight = u16.rotatedRight(value, other)
+  expect i32.euclideanDivide(-7, 3) == -3
+  expect i32.euclideanRemainder(-7, 3) == 2
+  let carry = u8.carryingAdd(250, 5, carry: true)
+  let borrow = u8.borrowingSubtract(0, 0, borrow: true)
+  let full = u8.fullMultiply(16, 16)
+  expect carry == (value: 0, carry: true)
+  expect borrow == (value: 255, borrow: true)
+  expect full == (high: 1, low: 0)
 
-  let bits = value.toBits()
-  let fromBits = u16.fromBits(bits)
-  let bytes = value.toBytes(order: .big)
-  let fromBytes = u16.fromBytes(bytes, order: .big)
-  let bitWidth = u16.bitWidth
-  let countOnes = u16.countOnes(value)
-  let countZeros = u16.countZeros(value)
-  let countLeadingZeros = u16.countLeadingZeros(value)
-  let countTrailingZeros = u16.countTrailingZeros(value)
-  let reversedBits = u16.reversedBits(value)
-  let reversedBytes = u16.reversedBytes(value)
+  expect u8.maskedShiftLeft(1, 9) == 2
+  expect u8.maskedShiftRight(0x80, 9) == 0x40
+  expect u8.logicalShiftRight(0x80, 1) == 0x40
+  expect u8.rotatedLeft(0x81, 1) == 0x03
+  expect u8.rotatedRight(0x81, 1) == 0xc0
 
-  let _ = checkedAdd
-  let _ = checkedSubtract
-  let _ = checkedMultiply
-  let _ = checkedNegate
-  let _ = checkedDivide
-  let _ = checkedRemainder
-  let _ = checkedPower
-  let _ = checkedShiftLeft
-  let _ = checkedShiftRight
-  let _ = wrappingSubtract
-  let _ = wrappingMultiply
-  let _ = wrappingNegate
-  let _ = wrappingPower
-  let _ = wrappingShiftLeft
-  let _ = saturatingSubtract
-  let _ = saturatingMultiply
-  let _ = saturatingNegate
-  let _ = saturatingPower
-  let _ = overflow
-  let _ = overflowingSubtract
-  let _ = overflowingMultiply
-  let _ = overflowingNegate
-  let _ = overflowingPower
-  let _ = euclideanDivide
-  let _ = euclideanRemainder
-  let _ = carry
-  let _ = borrow
-  let _ = full
-  let _ = maskedLeft
-  let _ = maskedRight
-  let _ = logicalRight
-  let _ = rotatedLeft
-  let _ = rotatedRight
-  let _ = fromBits
-  let _ = fromBytes
-  let _ = countOnes
-  let _ = countZeros
-  let _ = countLeadingZeros
-  let _ = countTrailingZeros
-  let _ = reversedBits
-  let _ = reversedBytes
-  return (wrapped, saturated, bitWidth)
+  let bits = 0x16_u8.toBits()
+  expect u8.fromBits(bits) == 0x16
+  let bytes = 0x1234_u16.toBytes(order: .big)
+  expect u16.fromBytes(bytes, order: .big) == 0x1234
+  expect u8.bitWidth == 8
+  expect u8.countOnes(0x16) == 3
+  expect u8.countZeros(0x16) == 5
+  expect u8.countLeadingZeros(0x16) == 3
+  expect u8.countTrailingZeros(0x16) == 1
+  expect u8.reversedBits(0x16) == 0x68
+  expect u16.reversedBytes(0x1234) == 0x3412
+
+  return (wrapped, saturated, carry.carry, u8.countOnes(wrapped ^ saturated))
 }
 
 test "numeric policies name overflow and representation" for numericPolicies {
-  expect numericPolicies(8, 2) == (10, 10, 16)
+  expect numericPolicies() == (4, 255, true, 7)
 }
 ```
 
 ## Functions, labels, defaults, and rest
 
-<!-- w-example role=executable use=labelled,join observable=value -->
+<!-- w-example role=executable use=labelled,join,route observable=value -->
 ```w
 fn labelled(
-  value: String,
-  named audit: String,
+  _ value: String,
+  externalAudit audit: String,
   _ note: String,
   to destination: String,
   title: String = "city",
@@ -320,15 +432,20 @@ fn labelled(
   return value + audit + note + destination + title
 }
 
-fn join(separator: String, each values: String...): String {
+fn join(separator: String, values: String...): String {
   return values.joined(separator: separator)
 }
 
+fn route(_ audit: String): String { return "positional:${audit}" }
+fn route(audit: String): String { return "labeled:${audit}" }
+
 test "call labels and rest arguments keep their shape" for labelled {
-  let labels = labelled("n", audit: "o", "r", to: "t", title: "h")
+  let labels = labelled("n", externalAudit: "o", "r", title: "h", to: "t")
   let values = ["east", "west"]
   expect labels == "north"
-  expect join("/", each values) == "east/west"
+  expect join(separator: "/", values: each values) == "east/west"
+  expect route("open") == "positional:open"
+  expect route(audit: "open") == "labeled:open"
 }
 ```
 
@@ -345,7 +462,7 @@ struct Place {
     self.label = label
   }
 
-  deinit { label }
+  deinit { print("dropping ${label}") }
 }
 
 object Counter {
@@ -373,7 +490,7 @@ test "nominal declarations expose their members" for Place {
   let place = Place(id: 7, label: "north")
   let counter = Counter(value: 0)
   let signal: Signal = .alert(level: 2)
-  let Place(id, ...) = place
+  let ref { id, ... } = place
   let (description, observedCount) = (place.describe(), counter.value)
   counter.increment()
   expect id == 7
@@ -381,11 +498,11 @@ test "nominal declarations expose their members" for Place {
   expect observedCount == 0
   expect counter.value == 1
   expect counter.isSameInstance(as: counter)
-  expect describe(signal) == "alert:2"
+  expect describe(signal: signal) == "alert:2"
 }
 ```
 
-## Protocols, generics, and static contracts
+## Protocols, generics, refinements, and specialization
 
 <!-- w-example role=logical-contract -->
 ```w
@@ -407,37 +524,12 @@ enum Mode { fast; strict }
 alias StringShelf = Shelf<String>
 type AllowedMode = Mode<[.strict]>
 type Digest = [u8; 32]
+type SmallCount = u16<(.member <= 64)>
 
-extension<T: Equatable> Shelf<T>: Catalog {
-  fn item(at index: usize): T { return items[index] }
-  fn count(): usize { return items.count }
-}
-
-const fn isSmall(value: u16): Bool { return value <= 64 }
-type SmallCount = u16<(isSmall(.member))>
-
-test "generic conformances preserve the concrete item" for Shelf {
-  let shelf: StringShelf = Shelf(items: ["north", "south"])
-  let count: SmallCount = try SmallCount(shelf.count())
-  let mode: AllowedMode = .strict
-  let digest: Digest = [0; 32]
-  expect shelf.item(at: 1) == "south"
-  expect count == 2
-  expect mode == .strict
-  expect digest.count == 32
-}
-```
-
-## Compile-time values and specialization
-
-<!-- w-example role=logical-contract -->
-```w
 const DefaultColumns: usize = 4
 
-const fn isPositive(value: usize): Bool { return value > 0 }
-
 struct StaticWindow<
-  rows: usize<(isPositive(.member))>,
+  rows: usize<(.member > 0)>,
   columns: usize,
 > {
   values: [[f32; columns]; rows]
@@ -447,8 +539,23 @@ static const fn zeroWindow<rows: usize>(): StaticWindow<rows: rows, columns: Def
   return StaticWindow(values: [[0.0; DefaultColumns]; rows])
 }
 
-test "static values select a finite specialization" for zeroWindow {
+extension<T: Equatable> Shelf<T>: Catalog {
+  fn item(at index: usize): T { return items[index] }
+  fn count(): usize { return items.count }
+}
+
+test "generic conformances preserve the concrete item" for Shelf {
+  let shelf: StringShelf = Shelf(items: ["north", "south"])
+  let count: SmallCount = try SmallCount(shelf.count())
+  let mode: AllowedMode = .strict
+  var digest: Digest = [0; 32]
+  digest[0] = 0xa5
   let window = zeroWindow<rows: 2>()
+  expect shelf.item(at: 1) == "south"
+  expect count == 2
+  expect mode == .strict
+  expect digest[0] == 0xa5
+  expect digest != [0; 32]
   expect window.values.count == 2
   expect window.values[0].count == DefaultColumns
 }
@@ -456,17 +563,19 @@ test "static values select a finite specialization" for zeroWindow {
 
 ## Properties, behaviors, and facets
 
-<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude observable=value -->
+<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude,PropertyAccessKind,accessName,nudge observable=value -->
 ```w
 behavior WrappedDegrees for u16 {
   var current: u16
 
-  init(initialValue: fn(): u16) { current = initialValue() % 360_u16 }
+  fn normalized(value: u16): u16 { return value % 360_u16 }
+
+  init(initialValue: fn(): u16) { current = normalized(value: initialValue()) }
   get { return current }
-  mut set(newValue) { current = newValue % 360_u16 }
-  mut modify {
-    defer { current %= 360_u16 }
-    return inout current
+  mut set(newValue) { current = normalized(value: newValue) }
+  get mut ref {
+    defer { current = normalized(value: current) }
+    return mut ref current
   }
 
   export mut fn reset() { current = 0 }
@@ -474,17 +583,45 @@ behavior WrappedDegrees for u16 {
 
 behavior Versioned<Value> for Value {
   var epoch: u64
-  init() { epoch = 0 }
+  var replacements: u64
+  var reads: u64
+
+  init() {
+    epoch = 0
+    replacements = 0
+    reads = 0
+  }
+
   export mutationEpoch: u64 { get => epoch }
+  export replacementCount: u64 { get => replacements }
+  export readCount: u64 { get => reads }
   export mut fn resetMutationEpoch() { epoch = 0 }
-  willSet(current: ref Value, proposed: ref Value) {}
+
+  mut willGet(kind: PropertyAccessKind) { reads += 1 }
+  didGet(kind: PropertyAccessKind) { }
+  mut willSet(current: ref Value, proposed: ref Value) { replacements += 1 }
   mut didSet(current: ref Value) { epoch += 1 }
-  willModify(current: ref Value) {}
-  mut didModify(current: ref Value) { epoch += 1 }
+}
+
+enum PropertyAccessKind {
+  value
+  borrowed
+  mutableBorrowed
+}
+
+fn accessName(kind: PropertyAccessKind): String {
+  let observed: PropertyAccessKind = kind
+  return switch observed {
+    case .value: "value"
+    case .borrowed: "borrowed"
+    case .mutableBorrowed: "mutableBorrowed"
+  }
 }
 
 behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
+
+fn nudge(value: mut ref u16) { value += 5 }
 
 struct Attitude {
   var VersionedDegrees yaw: u16 = 0
@@ -497,17 +634,40 @@ test "behavior composition exposes qualified facets" for Attitude {
   attitude.rotate(by: 25)
   expect attitude.yaw == 15
   expect attitude.yaw#version.mutationEpoch == 2
+  expect attitude.yaw#version.replacementCount == 2
+  expect attitude.yaw#version.readCount > 0
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
+  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.replacementCount == 2
+  // Direct `get mut ref` access does not run willSet/didSet.
+  nudge(value: mut ref attitude.yaw)
+  expect attitude.yaw == 5
+  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.replacementCount == 2
+  let accessKind: PropertyAccessKind = .value
+  expect accessName(kind: accessKind) == "value"
 }
 ```
 
+`get` returns a logical value. `get ref` returns a read-only borrow, and
+`get mut ref` returns a scoped exclusive borrow; `set(value)` replaces the
+logical value. `willGet` and `didGet` are opt-in observer hooks. Their
+`PropertyAccessKind` is `.value`, `.borrowed`, or `.mutableBorrowed`. Set
+observers count value-in/value-out writeback, while direct mutable-borrow
+access does not invoke `willSet` or `didSet`.
+
 ## Option, conversion, and type queries
 
-<!-- w-example role=executable use=ReservationKey,inspectKey,metadataSummary,nameOr observable=value -->
+<!-- w-example role=executable use=ReservationKey,LookupResult,inspectKey,metadataSummary,nameOr observable=value -->
 ```w
 struct ReservationKey: Hashable & Reflectable {
   orderId: u64
+}
+
+enum LookupResult: Reflectable {
+  found(id: u64)
+  missing
 }
 
 fn inspectKey(value: ref any Hashable): u64? {
@@ -523,16 +683,19 @@ fn inspectKey(value: ref any Hashable): u64? {
   return .none
 }
 
-fn metadataSummary(): (TypeId, String, TypeKind, usize, usize, TypeId) {
+fn metadataSummary(): (TypeId, String, TypeKind, TypeId?, usize, TypeId, String) {
   let ref metadata = info of ReservationKey
   let ref property = metadata.properties[0]
+  let ref enumMetadata = info of LookupResult
+  let ref foundCase = enumMetadata.cases[0]
   return (
     metadata.id,
     copy metadata.name,
     metadata.kind,
+    metadata.base,
     metadata.properties.count,
-    metadata.cases.count,
     property.valueType,
+    copy foundCase.name,
   )
 }
 
@@ -542,26 +705,59 @@ fn nameOr(value: String?): String {
 
 test "conditional cast keeps the borrowed value" for ReservationKey {
   let key = ReservationKey(orderId: 42)
+  let missing: LookupResult = .missing
   let summary = metadataSummary()
-  expect inspectKey(ref key) == .some(42)
+  expect inspectKey(value: ref key) == .some(42)
   expect summary.0 == type of ReservationKey
   expect !summary.1.isEmpty
   expect summary.2 == .struct
-  expect summary.3 == 1
-  expect summary.4 == 0
+  expect summary.3 == .none
+  expect summary.4 == 1
   expect summary.5 == type of u64
-  expect nameOr(.some(" W ")) == "W"
-  expect nameOr(.none) == "unknown"
+  expect summary.6 == "found"
+  let ref keyInfo = info of ReservationKey
+  let ref orderId = keyInfo.properties[0]
+  let ref resultInfo = info of LookupResult
+  let ref found = resultInfo.cases[0]
+  expect orderId.name == "orderId"
+  expect orderId.mutability == .immutable
+  expect orderId.accessorAvailability == .get
+  expect found.payloadTypes == [type of u64]
+  expect resultInfo.cases[1].payloadTypes.isEmpty
+  expect missing == .missing
+  expect nameOr(value: .some(" W ")) == "W"
+  expect nameOr(value: .none) == "unknown"
 }
 ```
 
 ## Ownership, borrows, and views
 
-<!-- w-example role=executable use=readFirst,replaceFirst,consume,window observable=value -->
+<!-- w-example role=executable use=Point,Ticket,Receipt,translated,ticketLabel,bumpTicket,consumeTicket,readFirst,replaceFirst,consume,window observable=value -->
 ```w
+struct Point: Copy & Equatable {
+  x: i32
+  y: i32
+}
+
+struct Receipt {
+  id: u64
+}
+
+object Ticket {
+  var label: String
+}
+
+fn translated(point: Point): Point {
+  return Point(x: point.x + 1, y: point.y + 1)
+}
+
+fn ticketLabel(ticket: Ticket): String { return copy ticket.label }
+fn bumpTicket(ticket: mut ref Ticket) { ticket.label = "bumped" }
+fn consumeTicket(ticket: take Ticket): String { return copy ticket.label }
+
 fn readFirst(values: ref Array<String>): String { return values[0] }
 
-fn replaceFirst(values: inout Array<String>, named replacement: String) {
+fn replaceFirst(values: inout Array<String>, replacement: String) {
   values[0] = replacement
 }
 
@@ -572,18 +768,52 @@ fn window(values: view Array<String>): view Array<String> {
 }
 
 test "ownership operations are explicit at the call site" for consume {
+  let point = Point(x: 1, y: 2)
+  let translatedPoint = translated(point: point) // Point is Copy; the value call is implicit.
+  var ticket = Ticket(label: "T-7")
+  expect ticketLabel(ticket: ticket) == "T-7" // object parameters default to ref.
+  bumpTicket(ticket: mut ticket) // `mut objectPlace` is the short form for mut ref.
+  bumpTicket(ticket: mut ref ticket) // explicit spelling remains valid.
+  let ticketText = consumeTicket(ticket: take ticket)
+
   var values = ["north", "east", "south"]
-  let copied = copy readFirst(ref values)
-  replaceFirst(inout values, replacement: "west")
+  let copied = copy readFirst(values: ref values)
+  replaceFirst(values: inout values, replacement: "west")
   let pinned = pin values
-  let middle = window(values)
-  let moved = consume(take copied)
+  let middle = window(values: values)
+  let moved = consume(value: take copied)
+  let receipt = Receipt(id: 7)
+  let movedReceipt = receipt // non-Copy values move at last use.
   let _ = pinned
+  expect point == Point(x: 1, y: 2)
+  expect translatedPoint == Point(x: 2, y: 3)
+  expect ticketText == "T-7"
   expect moved == "north"
+  expect movedReceipt.id == 7
   expect values[0] == "west"
   expect middle.count == 2
 }
 ```
+
+`ref T` is a shared read-only borrow. `mut ref T` is a dependent exclusive
+borrow. `mut view T` is an exclusive logical view. `inout T` is only a
+parameter/call convention: `values: inout values` reserves the source place,
+lets the callee mutate a local, and writes back on normal return or structured
+`throw`. It is not a field, result, binding mode, or iteration mode.
+
+Structs and enums are value-semantic and are not automatically `Copy`. `Copy`
+is implicit, bounded, and has no hidden allocation or data-dependent graph
+traversal; fixed fieldwise traversal of `Copy` fields is allowed. `Duplicable` is
+an explicit `copy value` contract that may allocate or traverse and promises
+logical independence. In graph terms, `Copy` is always shallow: it never clones
+the reachable object graph. A statically bounded traversal of inline `Copy`
+fields does not make it a deep copy. An `object` is a singular identity/owner and cannot satisfy `Copy`; sharing uses a
+`shared` handle, while `Duplicable` must create a valid new identity. A type may
+declare a first-party COW strategy for `Duplicable`, but COW is not a universal
+String or Array baseline and must document allocator, budget, failure, cleanup,
+and cross-domain costs. On a computed property, the surface spelling is
+`set(value)`; a behavior body may write `mut set(value)` to mark mutation of its
+backing storage.
 
 ## Callable values and captures
 
@@ -594,10 +824,10 @@ object CaptureBox {
 }
 
 fn captures(
-  copied: String,
-  borrowed: ref String,
-  moved: take String,
-  sharedValue: shared CaptureBox,
+  _ copied: String,
+  _ borrowed: ref String,
+  _ moved: take String,
+  _ sharedValue: shared CaptureBox,
 ): (String, String, String, String?, usize, String) {
   let copyClosure: some fn(): String = <[copy copied]>() => copied
   let refClosure: some fn(): String = <[ref borrowed]>() => borrowed
@@ -643,7 +873,7 @@ enum Signal {
   alert(level: u8)
 }
 
-fn classify(signal: Signal): String {
+fn classify(_ signal: Signal): String {
   return switch signal {
     case .quiet: "quiet"
     case .alert(let level) if level > 0: "alert"
@@ -651,16 +881,24 @@ fn classify(signal: Signal): String {
   }
 }
 
-fn accumulate(values: Array<i32>): i32 {
+fn accumulate(_ rows: Array<Array<i32>>): i32 {
   var total = 0
-  rows: for value in values {
-    guard value >= 0 else { continue rows }
-    total += value
+  matrixRows: for row in rows {
+    for value in row {
+      if value < 0 { continue matrixRows }
+      if value > 50 { break matrixRows }
+      total += value
+    }
   }
 
   var attempts = 0
   while attempts < 2 { attempts += 1 }
   repeat { total += 1 } while total < 4
+
+  capped: {
+    if total <= 10 { break capped }
+    total = 10
+  }
 
   return if total > 0 { total } else { 0 }
 }
@@ -668,24 +906,24 @@ fn accumulate(values: Array<i32>): i32 {
 test "control flow returns an observable value" for accumulate {
   let signal: Signal = .alert(level: 1)
   expect classify(signal) == "alert"
-  expect accumulate([1, -1, 2]) == 4
+  expect accumulate([[1, 2], [-1, 100], [3]]) == 6
 }
 ```
 
 ## Errors and cleanup
 
-<!-- w-example role=executable use=ParseError,positive,parseAndClose,asyncCleanup observable=value -->
+<!-- w-example role=executable use=ParseError,positive,parseAndClose,asyncCleanup,immediate observable=value -->
 ```w
 enum ParseError: Error {
   negative
 }
 
-fn positive(value: i32): i32 throws ParseError {
+fn positive(_ value: i32): i32 throws ParseError {
   guard value >= 0 else { throw .negative }
   return value
 }
 
-fn parseAndClose(value: i32, closed: inout Bool): i32 {
+fn parseAndClose(_ value: i32, closed: inout Bool): i32 {
   defer { closed = true }
   do {
     return try positive(value)
@@ -694,10 +932,12 @@ fn parseAndClose(value: i32, closed: inout Bool): i32 {
   }
 }
 
-async fn asyncCleanup(value: i32): i32 {
+async fn asyncCleanup(_ value: i32): i32 {
   defer async { await execution#yield() }
   return value
 }
+
+async fn immediate(_ value: i32): i32 { return value }
 
 test "do/catch handles typed errors and defer closes" for parseAndClose {
   let error: ParseError = .negative
@@ -706,17 +946,24 @@ test "do/catch handles typed errors and defer closes" for parseAndClose {
   expect parseAndClose(-1, closed: inout closed) == 0
   expect closed
   expect (try? positive(-1)) == .none
+  expect sync immediate(7) == 7
   expect await asyncCleanup(42) == 42
 }
 ```
 
+`sync asyncCleanup(42)` is rejected: its asynchronous cleanup means that the
+function has no proven direct entry. `sync` never blocks and never drives a
+task to completion.
+
 ## Allocator scopes
 
-<!-- w-example role=executable use=stage,prepare observable=value -->
+<!-- w-example role=executable use=stage,prepare,edit observable=value -->
 ```w
-fn stage(allocator destination: ref Allocator, city: String): String {
+fn stage(city: String, allocator destination: ref Allocator): String {
   return city
 }
+
+fn edit(value: inout String) { value.append("!") }
 
 fn prepare(city: String): (String, usize) {
   var result = city
@@ -724,9 +971,8 @@ fn prepare(city: String): (String, usize) {
 
   allocator scratch: .fixed<capacity: 256> {
     var copyOfCity = city
-    let inout writable = copyOfCity
-    writable = city
-    result = stage(take copyOfCity)
+    edit(value: inout copyOfCity)
+    result = stage(city: copyOfCity, allocator: ref scratch)
   }
 
   allocator .fixed<capacity: 128> {
@@ -737,7 +983,7 @@ fn prepare(city: String): (String, usize) {
 }
 
 test "allocator scopes bound temporary work" for prepare {
-  expect prepare("city") == ("city", 4)
+  expect prepare("city") == ("city!", 5)
 }
 ```
 
@@ -745,7 +991,7 @@ test "allocator scopes bound temporary work" for prepare {
 
 <!-- w-example role=executable use=clearTag observable=value -->
 ```w
-unsafe fn clearTag(pointer: Address<.virtual, .readWrite>, tagMask: usize): usize {
+unsafe fn clearTag(_ pointer: Address<.virtual, .readWrite>, tagMask: usize): usize {
   let alignedBits = pointer.bits & ~tagMask
   let aligned = pointer.withAddress(alignedBits)
   return aligned.bits
@@ -764,7 +1010,7 @@ test "address arithmetic stays inside unsafe" for clearTag {
 ```w
 enum FetchError: Error { unavailable }
 
-async fn fetch(city: String): String throws FetchError {
+async fn fetch(_ city: String): String throws FetchError {
   return city
 }
 
@@ -796,26 +1042,30 @@ test "launchers join through the lexical parent" for load {
 ```w
 enum WorkError: Error { failed }
 
-async fn work(value: String): String throws WorkError { return value }
+alias TextTask = Task<String, WorkError>
+alias TextOutcome = TaskOutcome<String, WorkError>
+alias TextSettlement = TaskSettlement<String, WorkError>
+
+async fn work(_ value: String): String throws WorkError { return value }
 
 struct Trace {
   const requestId = TaskLocal<String?>.key(default: .none)
 }
 
-async fn traced(value: String): String throws WorkError {
+async fn traced(_ value: String): String throws WorkError {
   return try await Trace.requestId.withValue(
     .some("request-42"),
     operation: () => try await work(value + Trace.requestId.get()?),
   )
 }
 
-async fn cancelAndObserve(): TaskOutcome<String, WorkError> {
-  let child = async work("cancelable")
+async fn cancelAndObserve(): TextOutcome {
+  let child: TextTask = async work("cancelable")
   child#cancel(reason: .shutdown)
   return await (take child)#outcome()
 }
 
-async fn timed(value: String, timeout: TaskTimeout): TaskOutcome<String, WorkError> {
+async fn timed(_ value: String, timeout: TaskTimeout): TextOutcome {
   return await Task.withTimeout(
     for: timeout,
     input: value,
@@ -823,10 +1073,10 @@ async fn timed(value: String, timeout: TaskTimeout): TaskOutcome<String, WorkErr
   )
 }
 
-async fn first(): TaskSettlement<String, WorkError> {
-  let primary = async work("primary")
-  let fallback = spawn<.compute> work("fallback")
-  let candidates: [Task<String, WorkError>; 2] = [primary, fallback]
+async fn first(): TextSettlement {
+  let primary: TextTask = async work("primary")
+  let fallback: TextTask = spawn<.compute> work("fallback")
+  let candidates: [TextTask; 2] = [primary, fallback]
   return await (take candidates).firstSettled()
 }
 
@@ -863,9 +1113,9 @@ test "firstSettled preserves index and outcome" for first {
 ```w
 enum JobError: Error { failed }
 
-async fn process(value: i32): i32 throws JobError { return value * 2 }
+async fn process(_ value: i32): i32 throws JobError { return value * 2 }
 
-async fn processAll(values: take Array<i32>): Array<i32> throws JobError {
+async fn processAll(_ values: take Array<i32>): Array<i32> throws JobError {
   return try await pipeline<
     tasks: .parallel<.compute>,
     limit: 4,
@@ -877,7 +1127,7 @@ async fn processAll(values: take Array<i32>): Array<i32> throws JobError {
 }
 
 async fn collectAll(
-  values: take Array<i32>,
+  _ values: take Array<i32>,
 ): Array<TaskSettlement<i32, JobError>> throws JobError {
   return try await pipeline<
     tasks: .concurrent,
@@ -928,7 +1178,7 @@ service stores<key: String>: StoreApi {
 async fn prepare(): (u16, String) {
   let oven = ovens.at("primary")
   let store = stores.at("menu")
-  let ready = await pipeline oven.acquire(220).preheat()
+  let ready = await pipeline oven.acquire(temperature: 220).preheat()
   let value = try await pipeline<transaction: {
     isolation: .serializable,
     access: .readOnly,
@@ -943,13 +1193,44 @@ test "pipeline commits the terminal value" for prepare {
 }
 ```
 
+The product chooses whether the same service contract is linked locally, as a
+component, through IPC, or through the network:
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: manifest-fragment
+products: [
+  {
+    name: "kitchen"
+    modules: ["kitchen"]
+    servicePolicy: {
+      resolution: .startup
+      links: [
+        .local,
+        .component,
+        .wrpc(transports: [.ipc, .network]),
+      ]
+      dynamicRebinding: .deny
+    }
+    services: [
+      {
+        binding: "ovens"
+        declaration: "kitchen::ovens"
+        scope: .process
+        mailbox: { items: 64, bytes: 8MiB, inFlight: 1 }
+      },
+    ]
+  },
+]
+```
+
 ## Streams and channels
 
 <!-- w-example role=executable use=StreamError,project,relay observable=value -->
 ```w
 enum StreamError: Error { closed }
 
-fn project(source: take Stream<String, Never>): some Stream<String, Never> {
+fn project(_ source: take Stream<String, Never>): some Stream<String, Never> {
   return stream <[take source]> {
     var cursor = take source
     while let item = await cursor.next() {
@@ -959,8 +1240,8 @@ fn project(source: take Stream<String, Never>): some Stream<String, Never> {
 }
 
 async fn relay(
-  source: take Stream<String, StreamError>,
-  sender: Channel<String><.send>,
+  _ source: take Stream<String, StreamError>,
+  _ sender: take Channel<send: String>,
 ): usize throws StreamError {
   var count: usize = 0
   for try await item in take source {
@@ -975,9 +1256,9 @@ test "stream projection remains lazy" for project {
   let error: StreamError = .closed
   let source = Stream.from(["north", "south"])
   let projected = project(take source)
-  let channel = Channel<String>.bounded(capacity: 2)
-  let received = async channel.receiver.receive()
-  let relayed = async relay(Stream.from(["east"]), channel.sender)
+  let (sender, receiver) = Channel<String>.open(capacity: 2)
+  let received = async receiver.receive()
+  let relayed = async relay(Stream.from(["east"]), take sender)
   expect error == .closed
   expect await projected.collect() == ["north", "south"]
   expect try await relayed == 1
@@ -999,7 +1280,7 @@ struct Published: Duplicable {
   value: String
 }
 
-fn publish(ledger: shared Ledger, message: String): (usize, u64) {
+fn publish(_ ledger: shared Ledger, _ message: String): (usize, u64) {
   ledger.count.saturatingAdd<.relaxed>(1)
   lock ledger as exclusive {
     exclusive.message = message
@@ -1017,23 +1298,6 @@ test "atomic and lock operations expose their ordering" for Ledger {
 }
 ```
 
-## Execution context and process entry
-
-<!-- w-example role=executable use=run observable=effect -->
-```w
-import process from std
-
-async fn run(args: process.Arguments) {
-  execution#checkCancellation()
-  let clock = execution.clock()
-  let started = clock.now()
-  await execution#yield()
-  print("args=${args.count}, elapsed=${clock.duration(from: started, to: clock.now())}")
-}
-
-entry(run)
-```
-
 ## Units, matrices, tensors, and SIMD
 
 <!-- w-example role=logical-contract -->
@@ -1048,7 +1312,7 @@ type FeatureBatch<rows: usize, columns: usize> =
   Tensor<f32, shape: [rows, columns]>
 
 fn forecastKernel<rows: usize, inputs: usize, outputs: usize>(
-  features: ref FeatureBatch<rows: rows, columns: inputs>,
+  _ features: ref FeatureBatch<rows: rows, columns: inputs>,
   weights: ref Tensor<f32, shape: [inputs, outputs]>,
 ): FeatureBatch<rows: rows, columns: outputs> {
   return features @ weights
@@ -1090,22 +1354,22 @@ test "numeric types preserve dimensions and lanes" for numericSummary {
 <!-- w-example role=logical-contract -->
 ```w
 foreign c from "stdlib.h" {
-  fn abs(value: c.int): c.int
+  fn abs(_ value: c.int): c.int
 }
 
 export foreign c {
   struct w_result { value: c.int }
 }
 
-export unsafe fn<abi: .c> w_add(left: c.int, right: c.int): w_result {
+export unsafe fn<abi: .c> w_add(_ left: c.int, _ right: c.int): w_result {
   return w_result(value: left + right)
 }
 
-unsafe fn<lang: .c> c_add(left: c.int, right: c.int): c.int {
+unsafe fn<lang: .c> c_add(_ left: c.int, _ right: c.int): c.int {
   return left + right;
 }
 
-unsafe fn callC(left: i32, right: i32): i32 {
+unsafe fn callC(_ left: i32, _ right: i32): i32 {
   return abs(c_add(left, right))
 }
 
@@ -1117,24 +1381,47 @@ test "foreign calls remain inside unsafe" for callC {
 
 ## Packages and workspaces
 
-`build.w` is data, so it stays separate from module source:
+`build.w` is data, so it stays separate from module source. A standalone
+package needs only a `package` root:
 
 <!-- w-example role=logical-contract -->
 ```w
 // excerpt-kind: manifest-fragment
-package: {
+package {
+  schema: "w.package/1"
   name: "last-light"
-  modules: ["app"]
-  products: [{ name: "last-light-native", entry: "LastLightTui" }]
-}
-
-workspace: {
-  members: ["packages/core", "packages/server"]
+  version: "0.1.0"
+  edition: "2026"
+  moduleSets: [{ name: "app", root: "src", include: ["*.w"] }]
+  products: [{
+    name: "last-light-native"
+    kind: .executable
+    module: "app"
+    entry: "LastLightTui"
+  }]
 }
 ```
 
+An aggregate manifest may contain only a `workspace` root. A member can also be
+the root package by using `"."`:
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: manifest-fragment
+workspace {
+  schema: "w.workspace/1"
+  members: [".", "packages/core", "packages/server"]
+  defaultMembers: ["."]
+  patches: []
+}
+```
+
+A root that is both publishable and an aggregate writes one `package` record
+and one `workspace` record in the same `build.w`; their order is irrelevant.
+
 ```text
-w check
+w check                         # checks the current package or workspace defaults
+w check --package core          # selects one workspace member
 w run last-light-native -- --tui
 ```
 

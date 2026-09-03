@@ -10,23 +10,23 @@
   "sourceBase": {
     "path": "../../../reference/last-light/synchronization.w",
     "symbol": "export object HorizonTelemetryEpoch",
-    "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
+    "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "HorizonMenuPublication",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
     },
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "BellLease",
-      "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f"
+      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
     },
     {
       "path": "../../../reference/last-light/abi.w",
       "symbol": "export foreign c",
-      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40"
+      "digest": "sha256:65fc5e2179bac59343f8d3617d7d28a623648a3f773b46d185b462aa75c0daa2"
     }
   ],
   "variants": [
@@ -55,7 +55,7 @@
       "disposition": "promoted-contract",
       "language": "w",
       "path": "canonical-carrier.w",
-      "digest": "sha256:94ff315059936e1dc38ccc53168d2621b3f4ad9ad1cee270fba9770f7cee755f",
+      "digest": "sha256:54de86a2b2c3c8002f2ba758bd922baea5f122c949c66cbe89d9f017e03a1f61",
       "changedConstructs": [
         "compiler-synthesized carrier",
         "closed value-only record",
@@ -75,7 +75,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "generational-handle.w",
-      "digest": "sha256:85b1b08387fc45543b59f72d492ca7be0bd62090b7bb57f50cf242424a99d800",
+      "digest": "sha256:0814062b070ddbd95f04695dcfaf2ecc62f983cb7d0980439aa2ed9af08f2bd5",
       "changedConstructs": [
         "slot and generation",
         "owner table",

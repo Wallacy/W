@@ -6,7 +6,7 @@ export struct DishRoute {
 
 export fn routeDish(
   id: DishRoute,
-  named fallback: String,
+  fallback: String,
 ): String {
   return fallback
 }

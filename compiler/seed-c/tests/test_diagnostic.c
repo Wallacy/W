@@ -768,7 +768,6 @@ int main(void) {
       {W_SEED_LITERAL_RAW_MULTILINE_STRING, "string-literal",
        "raw-triple-quote"},
       {W_SEED_LITERAL_BYTE_STRING, "byte-string-literal", "byte-quote"},
-      {W_SEED_LITERAL_SCALAR, "scalar-literal", "apostrophe"},
       {W_SEED_LITERAL_BYTE_SCALAR, "byte-scalar-literal", "byte-apostrophe"},
   };
   for (size_t index = 0;
@@ -893,10 +892,6 @@ int main(void) {
       W_SEED_DIAGNOSTIC_UNSUPPORTED) {
     return 20;
   }
-
-  /* The frontend adapter contract changed to a caller-owned v9 carrier.  The
-   * former scalar-only fixture remains below as historical context but is not
-   * part of this test. */
 
   static const uint8_t frontend_bytes_a[] = {'x', '\n', '1', '\n', 'A',
                                               ' ', 'B', '\n'};

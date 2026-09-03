@@ -13,9 +13,9 @@ export struct MenuSnapshot {
 }
 
 export fn stageMenu(
-  allocator destination: ref Allocator,
   title: ref String,
   dishes menuDishes: ref Array<String>,
+  allocator destination: ref Allocator,
 ): MenuSnapshot throws AllocationError {
   // This fixture assumes the selected profile proves fixed admission
   // infallible. A dynamic reservation uses `try allocator`.
@@ -63,14 +63,14 @@ fn snapshotBytes(snapshot: take MenuSnapshot): usize {
 }
 
 export async fn countStagedMenuInParallel(
-  allocator processMemory: ref Allocator,
   title: ref String,
   dishes: ref Array<String>,
+  allocator processMemory: ref Allocator,
 ): usize throws AllocationError {
   // The callee publishes the contextual slot. The compiler inserts
   // `allocator: ref processMemory` at this call.
-  let snapshot = try stageMenu(ref title, dishes: ref dishes)
-  let count = spawn<.compute> snapshotBytes(take snapshot)
+  let snapshot = try stageMenu(title: ref title, dishes: ref dishes)
+  let count = spawn<.compute> snapshotBytes(snapshot: take snapshot)
   return await count
 }
 
@@ -91,7 +91,7 @@ fn rootDefaultConstruction(
   // The product/host general allocator is the root current allocator here.
   let names = Array<String>()
   // Root context also completes a contextual call when the profile publishes it.
-  return try stageMenu(ref title, dishes: ref dishes)
+  return try stageMenu(title: ref title, dishes: ref dishes)
 }
 
 fn ordinaryAllocatorParameter(allocator: ref Allocator) {
@@ -106,13 +106,13 @@ fn rootFallbackAfterIntermediary(
   // A function without the slot does not inherit the caller block. Its own
   // build-profile context completes this call; a general request is rejected
   // before the body when memory.generalAllocator: .none supplies no provider.
-  return try stageMenu(ref title, dishes: ref dishes)
+  return try stageMenu(title: ref title, dishes: ref dishes)
 }
 
 type ContextualDecoder = fn(
-  allocator memory: ref Allocator,
   ref String,
   ref Array<String>,
+  ref Allocator,
 ): MenuSnapshot throws AllocationError
 const contextualDecoder: ContextualDecoder = stageMenu
 
@@ -122,7 +122,7 @@ test "a staged menu leaves its temporary allocator scope" for stageMenu {
 
   allocator destination: .fixed<capacity: 8<iec.MiB>> {
     // The block is the current context for this contextual call.
-    let snapshot = try stageMenu(ref title, dishes: ref dishes)
+    let snapshot = try stageMenu(title: ref title, dishes: ref dishes)
     expect snapshot.title == title
     expect snapshot.dishes == dishes
   }

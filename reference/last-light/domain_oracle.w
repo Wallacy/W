@@ -29,9 +29,9 @@ enum DomainResolution {
 }
 
 const fn resolveDomain(
-  named intent: DomainIntent,
-  named explicit: DomainName,
-  named inherited: DomainName,
+  intent: DomainIntent,
+  explicit: DomainName,
+  inherited: DomainName,
 ): DomainResolution {
   if intent == .inheritedChild {
     if inherited != .unselected {
@@ -66,10 +66,10 @@ enum AdmissionDecision {
 }
 
 const fn admit(
-  named intent: DomainIntent,
-  named mode: DispatchMode,
-  named maySuspend: Bool,
-  named contract: DomainContract,
+  intent: DomainIntent,
+  mode: DispatchMode,
+  maySuspend: Bool,
+  contract: DomainContract,
 ): AdmissionDecision {
   if contract.capacity == 0 {
     return .emptyCapacity
@@ -131,9 +131,9 @@ enum StructuredTicketDecision {
 }
 
 const fn scheduleBarrierTicket(
-  named mode: DispatchMode,
-  named earlierOutstanding: u16,
-  named earlierBarrierPending: Bool,
+  mode: DispatchMode,
+  earlierOutstanding: u16,
+  earlierBarrierPending: Bool,
 ): BarrierGateDecision {
   if mode == .barrier {
     if earlierOutstanding > 0 {
@@ -151,8 +151,8 @@ const fn scheduleBarrierTicket(
 }
 
 const fn resolveStructuredTicket(
-  named sameDomain: Bool,
-  named parentMode: DispatchMode,
+  sameDomain: Bool,
+  parentMode: DispatchMode,
 ): StructuredTicketDecision {
   if parentMode == .barrier {
     return .barrierCannotCreateChild
@@ -207,14 +207,14 @@ const fn reduceCapacity(
 }
 
 const fn openDynamicSerial(
-  named live: u16,
-  named liveLimit: u16,
-  named requestedJobs: u16,
-  named requestedFrameBytes: u64,
-  named aggregateJobsAvailable: u16,
-  named aggregateFrameBytesAvailable: u64,
-  named laneMaximumJobs: u16,
-  named laneMaximumFrameBytes: u64,
+  live: u16,
+  liveLimit: u16,
+  requestedJobs: u16,
+  requestedFrameBytes: u64,
+  aggregateJobsAvailable: u16,
+  aggregateFrameBytesAvailable: u64,
+  laneMaximumJobs: u16,
+  laneMaximumFrameBytes: u64,
 ): DynamicLaneTransition {
   if live >= liveLimit {
     return DynamicLaneTransition(state: .absent, decision: .liveBudgetExhausted)
@@ -248,8 +248,8 @@ const fn admitDynamicSerial(state laneState: DynamicLaneState): DynamicLaneDecis
 }
 
 const fn closeDynamicSerial(
-  named state: DynamicLaneState,
-  named outstandingJobs: u16,
+  state: DynamicLaneState,
+  outstandingJobs: u16,
 ): DynamicLaneTransition {
   if state == .open && outstandingJobs > 0 {
     return DynamicLaneTransition(state: .closing, decision: .waitingForJobs)
@@ -283,9 +283,9 @@ export async fn scheduleCatalogRevision(
   state: inout CatalogState,
   revision: u64,
 ): (u64, u64, u64) {
-  let before = spawn<.catalog> observeCatalog(ref state)
-  let update = spawn<.catalog, .barrier> replaceCatalog(inout state, revision: revision)
-  let after = spawn<.catalog> observeCatalog(ref state)
+  let before = spawn<.catalog> observeCatalog(state: ref state)
+  let update = spawn<.catalog, .barrier> replaceCatalog(state: inout state, revision: revision)
+  let after = spawn<.catalog> observeCatalog(state: ref state)
   return await (before, update, after)
 }
 

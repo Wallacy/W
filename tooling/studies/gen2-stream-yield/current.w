@@ -2,13 +2,13 @@
 // real Last Light symbols; this file is a paired human-facing witness.
 
 export fn gen2Fixture(
-  source: take some Stream<Order, Never>,
+  _ source: take some Stream<Order, Never>,
 ): some Stream<Order, Never> {
   return (take source).map(using: identity)
 }
 
 export async fn currentMenuCopy(
-  source: take some Stream<view String, MenuError>,
+  _ source: take some Stream<view String, MenuError>,
 ): Array<String> throws MenuError {
   var lines = take source
   var result: Array<String> = []
@@ -19,8 +19,8 @@ export async fn currentMenuCopy(
 }
 
 export async fn currentDialogue(
-  first: take Order,
-  second: take Order,
+  _ first: take Order,
+  _ second: take Order,
 ): Array<Order> throws ChannelSendError<Order><[.closed]> {
   return try await runBoundedOrderWindow(take first, take second)
 }

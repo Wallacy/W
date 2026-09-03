@@ -46,7 +46,8 @@ async fn consume(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -104,14 +105,14 @@ Directional channel contracts
 ==================
 
 async fn submit(
-  output: ref Channel<Order><.send>,
+  output: ref Channel<send: Order>,
   order: take Order,
 ): () throws ChannelSendError<Order><[.closed]> {
   try await output.send(take order)
 }
 
 async fn drain(
-  input: take Channel<Order><.receive>,
+  input: take Channel<receive: Order>,
 ) {
   var orders = take input
 
@@ -128,21 +129,18 @@ async fn drain(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
             (type_argument
-              (type
-                (type_name
-                  (type_identifier)))))
-          (type_arguments
-            (type_argument
-              (contextual_member_expression
+              (identifier)
+              (static_argument_value
                 (identifier))))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -178,17 +176,14 @@ async fn drain(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
             (type_argument
-              (type
-                (type_name
-                  (type_identifier)))))
-          (type_arguments
-            (type_argument
-              (contextual_member_expression
+              (identifier)
+              (static_argument_value
                 (identifier)))))))
     (block
       (binding_declaration
@@ -249,7 +244,7 @@ async fn relay(
           (parameter
             (identifier)
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (type
@@ -272,7 +267,8 @@ async fn relay(
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_call_ownership)
+            (parameter_type
               (type_name
                 (type_identifier))
               (type_arguments
@@ -295,7 +291,7 @@ async fn relay(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -305,7 +301,7 @@ async fn relay(
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -315,7 +311,7 @@ async fn relay(
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

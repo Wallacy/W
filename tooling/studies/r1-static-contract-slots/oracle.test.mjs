@@ -61,7 +61,7 @@ function splitCall(input) {
 function swappedSameTypeSlots(input, form) {
   validate(input);
   if (form === "named") {
-    return { accepted: false, error: "generic-label-order", published: false };
+    return { accepted: true, published: true, result: named(input) };
   }
   const result = form === "positional" ? positional(input) : splitCall(input);
   return {
@@ -94,12 +94,12 @@ describe("R1 static contract slot host oracle", () => {
     }
   });
 
-  test("fixed labels reject a reordered same-type slot before publication", () => {
+  test("named labels reorder within a segment while positional anchors stay ordered", () => {
     const input = inputs[0];
     expect(swappedSameTypeSlots(input, "named")).toEqual({
-      accepted: false,
-      error: "generic-label-order",
-      published: false,
+      accepted: true,
+      published: true,
+      result: input,
     });
     expect(swappedSameTypeSlots(input, "positional").result).toMatchObject({
       tables: 4,

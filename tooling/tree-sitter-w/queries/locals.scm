@@ -2,7 +2,6 @@
 (function_declaration body: (block) @local.scope)
 (initializer_declaration body: (block) @local.scope)
 (accessor_implementation body: (block) @local.scope)
-(modify_accessor body: (block) @local.scope)
 (behavior_accessor body: (block) @local.scope)
 (behavior_initializer body: (block) @local.scope)
 (closure_expression (block) @local.scope)

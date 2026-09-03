@@ -12,8 +12,8 @@ struct HorizonReading: data.Row {
 }
 
 async fn summarizeArrow<Failure: Error, Source: io.ByteSource<Failure>>(
-  source: take Source,
-  options: arrow.DecodeOptions,
+  _ source: take Source,
+  _ options: arrow.DecodeOptions,
 ): f64? throws arrow.DecodeError<Failure> {
   var batches = arrow.decodeIpcStream<HorizonReading, Failure, Source>(
     source: take source,

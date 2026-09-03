@@ -35,8 +35,8 @@ export enum AudioRenderError: Error {
 
 export fn renderTone(
   state: inout OscillatorState,
-  named block: inout DeviceAudioBlock,
-  named sampleRate: u32,
+  block: inout DeviceAudioBlock,
+  sampleRate: u32,
 ): () throws AudioRenderError {
   guard sampleRate > 0 else throw .invalidSampleRate
 
@@ -63,7 +63,7 @@ export fn renderFinalSong(
 ): audio.RenderResult {
   do {
     try renderTone(
-      inout state.oscillator,
+      state: inout state.oscillator,
       block: inout output,
       sampleRate: context.sampleRate,
     )
@@ -81,7 +81,7 @@ test "rendering writes one complete device block" for renderFinalSong {
     renderedFrames: 0,
   )
   var block = DeviceAudioBlock(samples: [0.0; audioFrames * audioChannels])
-  let result = renderFinalSong(inout state, block: inout block, ctx: .test)
+  let result = renderFinalSong(state: inout state, block: inout block, ctx: .test)
   expect result == .complete
   expect state.renderedFrames == audioFrames
 }

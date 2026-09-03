@@ -581,12 +581,27 @@ static bool scan_literal_start(w_seed_lexer *lexer, w_seed_lex_item *item,
     opener_length = 4;
     close_length = 4;
     raw = true;
+  } else if (match_bytes(lexer, start, "#'''", 4)) {
+    literal = W_SEED_LITERAL_RAW_MULTILINE_STRING;
+    opener_length = 4;
+    close_length = 4;
+    raw = true;
   } else if (match_bytes(lexer, start, "#\"", 2)) {
     literal = W_SEED_LITERAL_RAW_STRING;
     opener_length = 2;
     close_length = 2;
     raw = true;
+  } else if (match_bytes(lexer, start, "#'", 2)) {
+    literal = W_SEED_LITERAL_RAW_STRING;
+    opener_length = 2;
+    close_length = 2;
+    raw = true;
   } else if (match_bytes(lexer, start, "\"\"\"", 3)) {
+    literal = W_SEED_LITERAL_MULTILINE_STRING;
+    opener_length = 3;
+    close_length = 3;
+    allows_interpolation = true;
+  } else if (match_bytes(lexer, start, "'''", 3)) {
     literal = W_SEED_LITERAL_MULTILINE_STRING;
     opener_length = 3;
     close_length = 3;
@@ -605,9 +620,10 @@ static bool scan_literal_start(w_seed_lexer *lexer, w_seed_lex_item *item,
     close_length = 1;
     allows_interpolation = true;
   } else if (match_bytes(lexer, start, "'", 1)) {
-    literal = W_SEED_LITERAL_SCALAR;
+    literal = W_SEED_LITERAL_STRING;
     opener_length = 1;
     close_length = 1;
+    allows_interpolation = true;
   } else {
     return false;
   }
@@ -724,14 +740,18 @@ static bool scan_literal_frame(w_seed_lexer *lexer, w_seed_lex_item *item,
     if (!push_frame(lexer, &interpolation, error, span.start_byte)) return false;
     return emit_literal(item, W_SEED_INTERPOLATION_START, literal, span);
   }
+  const bool apostrophe =
+      byte_at(lexer, frame->opening.end_byte - 1u) == (uint8_t)'\'';
   const char *close = NULL;
-  if (frame->literal == W_SEED_LITERAL_RAW_STRING) close = "\"#";
-  if (frame->literal == W_SEED_LITERAL_RAW_MULTILINE_STRING) close = "\"\"\"#";
+  if (frame->literal == W_SEED_LITERAL_RAW_STRING)
+    close = apostrophe ? "'#" : "\"#";
+  if (frame->literal == W_SEED_LITERAL_RAW_MULTILINE_STRING)
+    close = apostrophe ? "'''#" : "\"\"\"#";
   if (close == NULL) {
-    if (frame->literal == W_SEED_LITERAL_MULTILINE_STRING) close = "\"\"\"";
-    else close = "\"";
-    if (frame->literal == W_SEED_LITERAL_SCALAR ||
-        frame->literal == W_SEED_LITERAL_BYTE_SCALAR) close = "'";
+    if (frame->literal == W_SEED_LITERAL_MULTILINE_STRING)
+      close = apostrophe ? "'''" : "\"\"\"";
+    else
+      close = apostrophe ? "'" : "\"";
   }
   const size_t close_length = strlen(close);
   const bool multiline = frame->literal == W_SEED_LITERAL_MULTILINE_STRING ||

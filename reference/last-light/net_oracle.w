@@ -65,7 +65,7 @@ async fn resolveAndConnectOracle(
 async fn tcpSplitOracle(
   network: ref net.Network,
 ): () throws net.NetworkError {
-  var connection = try await resolveAndConnectOracle(network)
+  var connection = try await resolveAndConnectOracle(network: network)
   let (input, output) = (take connection).split()
 
   let requestText = "ping"
@@ -99,7 +99,7 @@ async fn tcpSplitOracle(
 async fn tcpFinishWritingOracle(
   network: ref net.Network,
 ): net.TcpReadHalf throws net.NetworkError {
-  var connection = try await resolveAndConnectOracle(network)
+  var connection = try await resolveAndConnectOracle(network: network)
   return try await (take connection).finishWriting()
 }
 

@@ -9,43 +9,43 @@
   "sourceBase": {
     "path": "../../../reference/last-light/quantity_oracle.w",
     "symbol": "durationBitsAreCanonical",
-    "digest": "sha256:f362f5dbd565f61804d1456e40e529879bbbf574b7e73ff4de95456df85d72b3"
+    "digest": "sha256:9d61ef536097369fff03143af8a4172bdcd3b9bbc4f826e4509b37519e909b57"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/supervision.w",
       "symbol": "OrderCoordinatorApi",
-      "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc"
+      "digest": "sha256:12c594dcb3e75fd8228579434674c006421ce21339178680ad25328b6fe8bb3e"
     },
     {
       "path": "../../../reference/last-light/service_recovery_oracle.w",
       "symbol": "ServiceRecoveryAction",
-      "digest": "sha256:2b3441f0e73039935149f2fbf0c5766798ed482d29be5a9f0c4e16102710e2cc"
+      "digest": "sha256:3f9409e7c9f8a806c79184acb3e6a258137fabbc33729e58a096d662aa2c9eae"
     },
     {
       "path": "../../../reference/last-light/horizon_tool.w",
       "symbol": "entry",
-      "digest": "sha256:5dd0ef36cdae1de19c1888458a82147191f1f06816d5aaa8ece8e99927a72936"
+      "digest": "sha256:da255c1def2f1062bd76a7001710c5b799f09538615e50ec501d8fc689b168ac"
     },
     {
       "path": "../../../reference/last-light/pyn3_oracle.w",
       "symbol": "TabularPreview",
-      "digest": "sha256:369bd6f0cbb6fa869da7bbacf809351d064d5684c9f267c9f61f61648eccf5a3"
+      "digest": "sha256:f8dd197de5b401e4552b929b7ae38351f8d780eb4d14ba7b4c0937ca38ec6a9e"
     },
     {
       "path": "../../../reference/last-light/tensor_interop.w",
       "symbol": "ImportedTensor",
-      "digest": "sha256:d41656b5fd41d464cdf9091c29f7076b5a23223d78ef66d3c67bc1f86441893b"
+      "digest": "sha256:2c624e1a5140b13bd49922a026b5ccd0418bc34dc7235cbb5627c464f58d6ca5"
     },
     {
       "path": "../../../reference/last-light/lazy_oracle.w",
       "symbol": "waitForWinner",
-      "digest": "sha256:b4d6f8cdce222f42341b51015a0d44470e95ba2bf3cdb4cedecccfd10ca17872"
+      "digest": "sha256:f7b2f732bfd2c051e47c466c3bc35e3b387c2e2ac85197e7c41d3cdbea9ab86f"
     },
     {
       "path": "../../../reference/last-light/allocator_oracle.w",
       "symbol": "AllocatorProviderProfile",
-      "digest": "sha256:c0b7b563ccc87b3b091aa1ef7e02936451cd34b0ea5b4d1ab33f00d8568b976c"
+      "digest": "sha256:0b02181e81dca1e597cde95c8775f0ff1aec7512ce0853d7371497682d05b90a"
     },
     {
       "path": "../../../std/si/contracts.w",
@@ -74,7 +74,7 @@
       "role": "rejected-witness",
       "language": "w",
       "path": "rejected.w",
-      "digest": "sha256:7de3b1eb3d37e67c9d6b39e129e9d2b53c08c41baa9f8aa585c1ce142fcdf77d",
+      "digest": "sha256:21acbb5b87e33a5540543bb21961747d0411a28d3dce71ad9c0cd6f2ae03da2a",
       "changedConstructs": [
         "rejected-route witness",
         "decision-linked source references"

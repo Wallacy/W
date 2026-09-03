@@ -287,7 +287,7 @@ try {
 
   const callables = await Bun.file(resolve(root, "reference", "last-light", "callables.w")).bytes()
   const callablesDigest = createHash("sha256").update(callables).digest("hex")
-  if (callablesDigest !== "9b8c63d17e3293322ac8e589fa87092c73cfb912b0985260275a733d28ee0368") {
+  if (callablesDigest !== "00357e941c038cdebdebfbf12f12a0e327f6899765946b81c77680b4c0b7a154") {
     fail(`callables source digest changed: ${callablesDigest}`)
   }
   const callablesParsed = parseSource(parserProbe, callables, "callables source")

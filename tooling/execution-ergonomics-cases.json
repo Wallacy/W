@@ -3,16 +3,16 @@
   "status": "design-oracle-input",
   "cases": [
     {
-      "id": "EE-POS-generic-optional-labels",
+      "id": "EE-POS-generic-anchors-and-segment-reorder",
       "kind": "positive",
-      "source": "struct OvenSession<_ state: OvenSessionState> {}\nlet a = OvenSession<.ready>.state\nlet b = OvenSession<state: .ready>.state",
-      "expect": { "genericPolicy": "optional(name)", "genericIdentity": "same" }
+      "source": "struct OvenSession<_ state: OvenSessionState> {}\nlet a = OvenSession<.ready>.state\nstruct Matrix<rows: usize, Element, columns: usize> {}\nlet b = Matrix<rows: 3, f32, columns: 4>",
+      "expect": { "genericPolicy": "positionalOnly" }
     },
     {
-      "id": "EE-POS-callable-optional-label",
+      "id": "EE-POS-callable-positional-label",
       "kind": "positive",
-      "source": "fn open(_ name: String) {}\nopen(\"oven\")\nopen(name: \"oven\")",
-      "expect": { "callableName": "open", "callablePolicy": "optional(name)", "forms": ["positional", "name:"] }
+      "source": "fn open(_ name: String) {}\nopen(\"oven\")",
+      "expect": { "callableName": "open", "callablePolicy": "positionalOnly", "forms": ["positional"] }
     },
     {
       "id": "EE-POS-callable-external-internal-label",
@@ -21,22 +21,22 @@
       "expect": { "callableName": "route", "callableExternal": "to", "callableInternal": "range", "parameterIndex": 0 }
     },
     {
-      "id": "EE-POS-callable-plain-parameters-positional",
+      "id": "EE-POS-callable-underscore-parameters-positional",
       "kind": "positive",
-      "source": "fn query(count: usize<(1...500)>, context: Context) {}\nquery(20, context)",
+      "source": "fn query(_ count: usize<(1...500)>, _ context: Context) {}\nquery(20, context)",
       "expect": { "callableName": "query", "callShapes": ["positional|positional"] }
     },
     {
-      "id": "EE-POS-callable-named-parameter",
+      "id": "EE-POS-callable-default-labeled-parameter",
       "kind": "positive",
-      "source": "fn query(count: usize<(1...500)>, named context: Context) {}\nquery(20, context: context)",
+      "source": "fn query(_ count: usize<(1...500)>, context: Context) {}\nquery(20, context: context)",
       "expect": { "callableName": "query", "callablePolicy": "required(context)", "forms": ["context:"], "parameterIndex": 1 }
     },
     {
       "id": "EE-POS-named-remains-identifier",
       "kind": "positive",
-      "source": "fn inspect(named: Bool) {}\ninspect(flag)",
-      "expect": { "callableName": "inspect", "callablePolicy": "positionalOnly", "forms": ["positional"] }
+      "source": "fn inspect(named: Bool) {}\ninspect(named: flag)",
+      "expect": { "callableName": "inspect", "callablePolicy": "required(named)", "forms": ["named:"] }
     },
     {
       "id": "EE-POS-parameter-contract-after-binding",
@@ -68,25 +68,25 @@
     {
       "id": "EE-POS-owned-place-explicit-ref-call",
       "kind": "positive",
-      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: Menu) { inspect(ref menu) }",
+      "source": "fn inspect(_ value: ref Menu) {}\nfn run(_ menu: Menu) { inspect(ref menu) }",
       "expect": { "diagnostics": [] }
     },
     {
       "id": "EE-POS-existing-borrow-call",
       "kind": "positive",
-      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: ref Menu) { inspect(menu) }",
+      "source": "fn inspect(_ value: ref Menu) {}\nfn run(_ menu: ref Menu) { inspect(menu) }",
       "expect": { "diagnostics": [] }
     },
     {
       "id": "EE-POS-fresh-owner-take-call",
       "kind": "positive",
-      "source": "fn store(value: take Order) {}\nfn run() { store(Order()) }",
+      "source": "fn store(_ value: take Order) {}\nfn run() { store(Order()) }",
       "expect": { "diagnostics": [] }
     },
     {
       "id": "EE-NEG-call-operation-mismatch",
       "kind": "negative",
-      "source": "fn inspect(value: ref Menu) {}\nfn run(menu: Menu) { inspect(take menu) }",
+      "source": "fn inspect(_ value: ref Menu) {}\nfn run(_ menu: Menu) { inspect(take menu) }",
       "expect": { "diagnostic": "W-OWNERSHIP-0017" }
     },
     {
@@ -104,25 +104,43 @@
     {
       "id": "EE-NEG-callable-named-parameter-positional",
       "kind": "negative",
-      "source": "fn query(count: usize, named context: Context) {}\nquery(20, context)",
+      "source": "fn query(_ count: usize, context: Context) {}\nquery(20, context)",
       "expect": { "diagnostic": "W-LABEL-0005", "callableName": "query" }
     },
     {
-      "id": "EE-NEG-record-named-marker",
+      "id": "EE-POS-record-external-label",
+      "kind": "positive",
+      "source": "struct Seat {\n  value: usize\n  init(label value: usize) { self.value = value }\n}",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-POS-synthesized-initializer-order",
+      "kind": "positive",
+      "source": "struct Defaults {\n  first: Int\n  second: Int = fallback()\n  third: Int\n}\nDefaults(third: thirdEffect(), first: firstEffect())",
+      "expect": { "initializer": { "typeName": "Defaults", "explicitFields": ["third", "first"], "defaultFields": ["second"], "installationFields": ["first", "second", "third"] } }
+    },
+    {
+      "id": "EE-NEG-synthesized-initializer-positional",
       "kind": "negative",
-      "source": "struct Seat {\n  value: usize\n  init(named value: usize) { self.value = value }\n}",
-      "expect": { "diagnostic": "W-LABEL-0007" }
+      "source": "struct Defaults {\n  first: Int\n  second: Int = fallback()\n  third: Int\n}\nDefaults(1, second: 2, third: 3)",
+      "expect": { "initializer": { "typeName": "Defaults", "diagnostic": "W-LABEL-0005" } }
+    },
+    {
+      "id": "EE-NEG-synthesized-initializer-missing-required",
+      "kind": "negative",
+      "source": "struct Defaults {\n  first: Int\n  second: Int = fallback()\n  third: Int\n}\nDefaults(first: 1)",
+      "expect": { "initializer": { "typeName": "Defaults", "diagnostic": "W-LABEL-0005" } }
     },
     {
       "id": "EE-POS-label-shapes-disjoint",
       "kind": "positive",
-      "source": "fn serve(_ value: Value) {}\nfn serve(_ value: Value, mode: Mode) {}",
-      "expect": { "callableName": "serve", "callShapes": ["positional", "value:"] }
+      "source": "fn serve(_ value: Value) {}\nfn serve(value: Value) {}",
+      "expect": { "callableName": "serve", "callShapes": ["positional"] }
     },
     {
       "id": "EE-NEG-label-collision",
       "kind": "negative",
-      "source": "fn open(_ name) {}\nfn open(name) {}",
+      "source": "fn open(name) {}\nfn open(name) {}",
       "expect": { "diagnostic": "W-LABEL-0004" }
     },
     {
@@ -134,8 +152,20 @@
     {
       "id": "EE-NEG-variadic-overlap-unbounded",
       "kind": "negative",
-      "source": "fn collect(values: Value...) {}\nfn collect(first: Value, second: Value, third: Value) {}",
+      "source": "fn collect(_ values: Value...) {}\nfn collect(_ first: Value, _ second: Value, _ third: Value) {}",
       "expect": { "diagnostic": "W-LABEL-0004", "callableName": "collect" }
+    },
+    {
+      "id": "EE-POS-variadic-anchor-then-later-label",
+      "kind": "positive",
+      "source": "fn collect(_ items: Item..., after: After) {}\ncollect(first, second, after: next)",
+      "expect": { "callableName": "collect", "diagnostics": [] }
+    },
+    {
+      "id": "EE-NEG-variadic-earlier-label-after-anchor",
+      "kind": "negative",
+      "source": "fn collect(before: Before, _ items: Item..., after: After) {}\ncollect(first, before: prior, after: next)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "collect" }
     },
     {
       "id": "EE-NEG-label-unknown",
@@ -164,7 +194,7 @@
     {
       "id": "EE-POS-direct-never",
       "kind": "positive",
-      "source": "fn sync(value: Int): Int { return value }\nlet result = sync(1)",
+      "source": "fn sync(_ value: Int): Int { return value }\nlet result = sync(1)",
       "expect": { "callee": "sync", "suspension": "never", "callForm": "direct" }
     },
     {
@@ -251,7 +281,7 @@
       "id": "EE-POS-sync-scc-direct-entry",
       "kind": "positive",
       "decisionIds": ["W-1484"],
-      "source": "async fn even(n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }\nasync fn odd(n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }\nlet result = sync even(2)",
+      "source": "async fn even(_ n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }\nasync fn odd(_ n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }\nlet result = sync even(2)",
       "expect": { "callee": "even", "callForm": "sync", "syncCurrent": true, "directEntry": "available", "members": ["even", "odd"], "sccDirectEntry": "available", "terminationProven": false, "evaluationPerformed": false }
     },
     {
@@ -265,7 +295,7 @@
       "id": "EE-NEG-sync-dynamic-path",
       "kind": "negative",
       "decisionIds": ["W-1484"],
-      "source": "async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)",
+      "source": "async fn cached(_ hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)",
       "input": { "functionTypes": [{ "name": "catalog", "suspension": "may", "sourceSpelling": "explicit", "directEntry": "absent" }] },
       "expect": { "callee": "cached", "diagnostic": "W-SUSPEND-0005", "syncCurrent": false, "directEntry": "absent" }
     },
@@ -419,7 +449,7 @@
     {
       "id": "EE-POS-barrier-read-write-read",
       "kind": "positive",
-      "source": "fn summarize(state: ref Menu): u64 { return state.revision }\nfn replace(state: inout Menu, revision value: u64): u64 { state.revision = value; return value }\nlet before = spawn<.catalog> summarize(ref menu)\nlet update = spawn<.catalog, .barrier> replace(inout menu, revision: next)\nlet after = spawn<.catalog> summarize(ref menu)",
+      "source": "fn summarize(_ state: ref Menu): u64 { return state.revision }\nfn replace(_ state: inout Menu, revision value: u64): u64 { state.revision = value; return value }\nlet before = spawn<.catalog> summarize(ref menu)\nlet update = spawn<.catalog, .barrier> replace(inout menu, revision: next)\nlet after = spawn<.catalog> summarize(ref menu)",
       "input": { "domainCapabilities": { ".catalog": ["concurrent", "barrierDispatch"] } },
       "expect": {
         "domain": ".catalog",
@@ -434,7 +464,7 @@
     {
       "id": "EE-POS-barrier-serial-domain",
       "kind": "positive",
-      "source": "module kitchen<domains: [.serial(.thermal)]>\nfn replace(state: inout Menu): u64 { state.revision += 1; return state.revision }\nlet update = spawn<.thermal, .barrier> replace(inout menu)",
+      "source": "module kitchen<domains: [.serial(.thermal)]>\nfn replace(_ state: inout Menu): u64 { state.revision += 1; return state.revision }\nlet update = spawn<.thermal, .barrier> replace(inout menu)",
       "expect": {
         "domain": ".thermal",
         "dispatchMode": ".barrier",
@@ -746,31 +776,31 @@
     {
       "id": "EE-POS-doc-example",
       "kind": "positive",
-      "source": "/// @example\n/// call: clamp(2, to: 0...3)\n/// result: 2\nfn clamp(value: Int, to range: Range): Int { return value }",
+      "source": "/// call: clamp(2, to: 0...3)\n/// result: 2\nfn clamp(value: Int, to range: Range): Int { return value }",
       "expect": { "terminal": "result", "hermetic": true, "releasePayload": false }
     },
     {
       "id": "EE-POS-doc-example-two-blocks",
       "kind": "positive",
-      "source": "/**\n * @example\n * call: first()\n * result: 1\n */\nfn first(): Int { return 1 }\n/**\n * @example\n * call: second()\n * result: 2\n */\nfn second(): Int { return 2 }",
+      "source": "/**\n * call: first()\n * result: 1\n * call: second()\n * result: 2\n */\nfn values(): (Int, Int) { return (1, 2) }",
       "expect": { "terminal": "result", "exampleCount": 2, "hermetic": true, "releasePayload": false }
     },
     {
       "id": "EE-NEG-doc-example-duplicate-terminal",
       "kind": "negative",
-      "source": "/** @example\n * call: clamp(2)\n * result: 2\n * error: RangeError\n */\nfn clamp(value: Int): Int { return value }",
+      "source": "/** call: clamp(2)\n * result: 2\n * error: RangeError\n */\nfn clamp(value: Int): Int { return value }",
       "expect": { "diagnostic": "W-DOC-0003" }
     },
     {
       "id": "EE-NEG-doc-example-ambient",
       "kind": "negative",
-      "source": "/// @example\n/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
+      "source": "/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
       "expect": { "diagnostic": "W-DOC-0005" }
     },
     {
       "id": "EE-POS-doc-example-fixture",
       "kind": "positive",
-      "source": "/// @example\n/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
+      "source": "/// call: readClock(execution.clock())\n/// result: \"data\"\nfn readClock(clock): String { return \"data\" }",
       "input": { "fixture": "args-fixture" },
       "expect": { "terminal": "result", "hermetic": true }
     },
@@ -794,20 +824,135 @@
     {
       "id": "EE-POS-contextual-allocator-omission",
       "kind": "positive",
-      "source": "fn stage(allocator memory: ref Allocator, payload: ref Bytes) {}\nfn caller(allocator current: ref Allocator, payload: ref Bytes) { stage(payload) }",
+      "source": "fn stage(allocator memory: ref Allocator, _ payload: ref Bytes) {}\nfn caller(allocator current: ref Allocator, _ payload: ref Bytes) { stage(payload) }",
       "expect": { "callableName": "stage", "callShapes": ["positional", "allocator:|positional"] }
     },
     {
-      "id": "EE-NEG-ordinary-allocator-is-label-call",
-      "kind": "negative",
-      "source": "fn ordinary(allocator: ref Allocator, payload: ref Bytes) {}\nfn caller(payload: ref Bytes) { ordinary(payload) }",
-      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "ordinary" }
+      "id": "EE-POS-ordinary-allocator-is-label-call",
+      "kind": "positive",
+      "source": "fn ordinary(allocator: ref Allocator, _ payload: ref Bytes) {}\nfn caller(allocator: ref Allocator, _ payload: ref Bytes) { ordinary(allocator: allocator, payload) }",
+      "expect": { "callableName": "ordinary", "callShapes": ["allocator:|positional"] }
     },
     {
       "id": "EE-NEG-contextual-omission-overload-collision",
       "kind": "negative",
-      "source": "fn decode(allocator memory: ref Allocator, payload: ref Bytes) {}\nfn decode(payload: ref Bytes) {}",
+      "source": "fn decode(allocator memory: ref Allocator, _ payload: ref Bytes) {}\nfn decode(_ payload: ref Bytes) {}",
       "expect": { "diagnostic": "W-LABEL-0004", "callableName": "decode" }
+    },
+    {
+      "id": "EE-POS-label-segment-reorder",
+      "kind": "positive",
+      "source": "fn arrange(first: First, second: Second, _ pivot: Pivot, after: After) {}\narrange(second: right, first: left, pivot, after: next)",
+      "expect": { "callableName": "arrange", "callShapes": ["first:&second:|positional|after:"] }
+    },
+    {
+      "id": "EE-POS-label-two-segment-reorder",
+      "kind": "positive",
+      "source": "fn window(leftStart start: Index, leftEnd end: Index, _ center: Index, rightStart start2: Index, rightEnd end2: Index) {}\nwindow(leftEnd: end, leftStart: start, center, rightEnd: end2, rightStart: start2)",
+      "expect": { "callableName": "window", "callShapes": ["leftEnd:&leftStart:|positional|rightEnd:&rightStart:"] }
+    },
+    {
+      "id": "EE-NEG-label-crosses-anchor",
+      "kind": "negative",
+      "source": "fn arrange(first: First, second: Second, _ pivot: Pivot, after: After) {}\narrange(first: left, pivot, after: next, second: right)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "arrange" }
+    },
+    {
+      "id": "EE-POS-label-skip-optional-anchor",
+      "kind": "positive",
+      "source": "fn window(before: Before, _ center: Center = .default, after: After) {}\nwindow(before: prior, after: next)",
+      "expect": { "callableName": "window", "callShapes": ["before:|after:", "before:|positional|after:"] }
+    },
+    {
+      "id": "EE-NEG-label-required-anchor-crossing",
+      "kind": "negative",
+      "source": "fn window(before: Before, _ center: Center, after: After) {}\nwindow(after: next, before: prior)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "window" }
+    },
+    {
+      "id": "EE-NEG-same-label-set-order-collision",
+      "kind": "negative",
+      "source": "fn collect(first: First, second: Second) {}\nfn collect(second: Second, first: First) {}",
+      "expect": { "diagnostic": "W-LABEL-0004", "callableName": "collect" }
+    },
+    {
+      "id": "EE-POS-pipe-unique-anchor-hole",
+      "kind": "positive",
+      "source": "fn route(_ seed: Seed, limit: Limit, mode: Mode = .fast) {}\nseed |> route(limit: 2)",
+      "expect": { "callableName": "route", "callShapes": ["positional|limit:", "positional|limit:&mode:"] }
+    },
+    {
+      "id": "EE-POS-pipe-unique-named-hole",
+      "kind": "positive",
+      "source": "fn labelRoute(prefix: Prefix, value: Value, suffix: Suffix = .default) {}\ninput |> labelRoute(prefix: .left)",
+      "expect": { "callableName": "labelRoute", "callShapes": ["prefix:&value:", "prefix:&suffix:&value:"] }
+    },
+    {
+      "id": "EE-NEG-pipe-two-named-holes",
+      "kind": "negative",
+      "source": "fn twoLabels(first: First, second: Second, suffix: Suffix = .default) {}\ninput |> twoLabels(suffix: .right)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "twoLabels" }
+    },
+    {
+      "id": "EE-NEG-pipe-named-anchor-holes",
+      "kind": "negative",
+      "source": "fn namedAndAnchor(prefix: Prefix, _ center: Center, suffix: Suffix) {}\ninput |> namedAndAnchor(suffix: .right)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "namedAndAnchor" }
+    },
+    {
+      "id": "EE-NEG-pipe-multiple-anchor-holes",
+      "kind": "negative",
+      "source": "fn route(_ seed: Seed, _ token: Token, limit: Limit) {}\nseed |> route(limit: 2)",
+      "expect": { "diagnostic": "W-LABEL-0005", "callableName": "route" }
+    },
+    {
+      "id": "EE-POS-generic-anchor-after-named-segment",
+      "kind": "positive",
+      "source": "struct Matrix<rows: usize, Element, columns: usize> {}\nlet matrix = Matrix<rows: 3, f32, columns: 4>",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-POS-generic-value-anchor-after-named-segment",
+      "kind": "positive",
+      "source": "struct ValueHead<rows: usize, _ count: usize, columns: usize> {}\nlet value = ValueHead<rows: 3, 4, columns: 5>",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-NEG-generic-value-anchor-crossing",
+      "kind": "negative",
+      "source": "struct ValueHead<rows: usize, _ count: usize, columns: usize> {}\nlet value = ValueHead<rows: 3, columns: 5, 4>",
+      "expect": { "diagnostic": "W-LABEL-0005" }
+    },
+    {
+      "id": "EE-NEG-duplicate-external-labels",
+      "kind": "negative",
+      "source": "fn bad(first: A, _ pivot: P, first: B) {}\nstruct Bad<first: A, T, first: B> {}",
+      "expect": { "diagnostic": "W-LABEL-0006", "callableName": "bad" }
+    },
+    {
+      "id": "EE-POS-mut-ref-object-shorthand",
+      "kind": "positive",
+      "source": "object Ticket { var label: String }\nfn update(ticket: mut ref Ticket) {}\nvar ticket = Ticket(label: \"T-7\")\nfn run() { update(ticket: mut ticket); update(ticket: mut ref ticket) }",
+      "expect": { "diagnostics": [] }
+    },
+    {
+      "id": "EE-NEG-mut-ref-bare-object-place",
+      "kind": "negative",
+      "source": "object Ticket { var label: String }\nfn update(ticket: mut ref Ticket) {}\nfn run(ticket: Ticket) { update(ticket: ticket) }",
+      "expect": { "diagnostic": "W-OWNERSHIP-0017", "callableName": "update" }
+    },
+    {
+      "id": "EE-NEG-mut-ref-struct-shorthand",
+      "kind": "negative",
+      "source": "struct Point { x: i32 }\nfn update(point: mut ref Point) {}\nfn run(point: Point) { update(point: mut point) }",
+      "expect": { "diagnostic": "W-OWNERSHIP-0017", "callableName": "update" }
+    },
+    {
+      "id": "EE-NEG-mut-ref-immutable-object-place",
+      "kind": "negative",
+      "source": "object Ticket { var label: String }\nfn update(ticket: mut ref Ticket) {}\nlet ticket = Ticket(label: \"T-7\")\nfn run() { update(ticket: mut ticket) }",
+      "input": { "mutablePlaces": [] },
+      "expect": { "diagnostic": "W-OWNERSHIP-0017", "callableName": "update" }
     }
   ]
 }

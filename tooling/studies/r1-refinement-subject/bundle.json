@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "BoundedText<_ bounds: TextBounds>",
-    "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+    "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "contextual.w",
-      "digest": "sha256:de9e71a37975eb05dbece79bf32c114183b0ad868549cb74fce2ac3de6de910c",
+      "digest": "sha256:9ee38c2b43b26c4fa0a695fc5f1b48d99e8b4ecaed20f819a259d9ed1b55379b",
       "changedConstructs": [
         "contextual refinement subject with dot projection",
         "compile-time literal proof",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "explicit.w",
-      "digest": "sha256:d9031c3be9978f68bc8e5fa4b3f3f5396d18a9828a9520daa23406575ceee167",
+      "digest": "sha256:fddba6734c7dc205a333dd1cc67925e88e94b9b299f3116c5dd0d2c5ea83f1b1",
       "changedConstructs": [
         "explicit contextual value binding",
         "the same compile-time literal proof",
@@ -41,7 +41,7 @@
       "role": "alternative",
       "language": "w",
       "path": "runtime-check.w",
-      "digest": "sha256:c1647665f074e30c0b8e9d74e95ac78240e5e11d5252f47b5a14ed3fa0971e89",
+      "digest": "sha256:f7506a95262fd5e4f495c3b9d7995a11bf2b03cca31c56db77280d57c228423d",
       "changedConstructs": [
         "unrefined String alias",
         "runtime guard in the construction function",

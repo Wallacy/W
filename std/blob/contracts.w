@@ -38,7 +38,7 @@ struct BlobCursor: ByteSource<BlobError> {
 
   mut async fn read(
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws BlobError {
     switch try await blob.read(
       at: offset,
@@ -60,12 +60,12 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
   storedSize: usize
   storedType: String
 
-  export init(_ bytes: take Bytes, mediaType: String = "") {
+  export init(bytes: take Bytes, mediaType: String = "") {
     let size = bytes.count
     self.backing = take bytes
     self.start = 0
     self.storedSize = size
-    self.storedType = normalizeMediaType(mediaType)
+    self.storedType = normalizeMediaType(input: mediaType)
   }
 
   init(
@@ -115,7 +115,7 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
       retaining: copy backing,
       start: start + relativeStart,
       size: end - relativeStart,
-      mediaType: normalizeMediaType(mediaType),
+      mediaType: normalizeMediaType(input: mediaType),
     )
   }
 
@@ -153,7 +153,7 @@ export struct Blob: Duplicable & SnapshotByteSource<BlobError> {
   export async fn read(
     at offset: u64,
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): SnapshotReadStep throws BlobError {
     guard offset < u64(storedSize) else return .end
 

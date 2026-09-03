@@ -16,33 +16,30 @@ describe("R1 call-label-order host oracle", () => {
     expect(reordered(42, "cr")).toEqual(expected);
   });
 
-  test("unordered policy reports collision while fixed shapes stay distinct", () => {
-    const fixedShapes = [
+  test("label permutations share one call shape and collide as overloads", () => {
+    const declarations = [
       ["majorUnits:", "currency:"],
-      ["majorUnits:"],
       ["currency:", "majorUnits:"],
     ];
-    const unorderedKey = (shape) => [...shape].sort().join("|");
+    const canonicalKey = (shape) => [...shape].sort().join("&");
     const analyzeShapes = () => {
-      const orderedDistinct = new Set(
-        fixedShapes.map((shape) => shape.join("|")),
-      ).size;
-      const unorderedDistinct = new Set(fixedShapes.map(unorderedKey)).size;
-      const collisionCount = fixedShapes.length - unorderedDistinct;
+      const canonicalShapes = declarations.map(canonicalKey);
+      const distinctShapes = new Set(canonicalShapes).size;
+      const collisionCount = declarations.length - distinctShapes;
 
       return {
-        orderedDistinct,
-        unorderedDistinct,
+        declarationCount: declarations.length,
+        distinctShapes,
         collisionCount,
-        diagnostic: collisionCount > 0 ? "ambiguity-before-types" : null,
+        diagnostic: collisionCount > 0 ? "same-label-set-order-collision" : null,
       };
     };
 
     expect(analyzeShapes()).toEqual({
-      orderedDistinct: 3,
-      unorderedDistinct: 2,
+      declarationCount: 2,
+      distinctShapes: 1,
       collisionCount: 1,
-      diagnostic: "ambiguity-before-types",
+      diagnostic: "same-label-set-order-collision",
     });
   });
 });

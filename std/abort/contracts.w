@@ -37,25 +37,25 @@ foreign intrinsic from "std.abort-state@1" {
   type AbortSignalHandle
   type AbortControllerHandle
 
-  fn stdAbortSignalAlready(reason: AbortReason): AbortSignalHandle
-  fn stdAbortSignalTimeout(timeout: TaskTimeout): AbortSignalHandle
+  fn stdAbortSignalAlready(_ reason: AbortReason): AbortSignalHandle
+  fn stdAbortSignalTimeout(_ timeout: TaskTimeout): AbortSignalHandle
   fn stdAbortSignalAny(
-    named maximumSources: AbortSourceLimit,
+    _ maximumSources: AbortSourceLimit,
     _ sources: ref AbortSignal...,
   ): AbortSignalHandle throws AbortSignalCombineError
 
-  fn stdAbortSignalAborted(handle: ref AbortSignalHandle): Bool
-  fn stdAbortSignalReason(handle: ref AbortSignalHandle): AbortReason?
-  fn stdAbortSignalDuplicate(handle: ref AbortSignalHandle): AbortSignalHandle
-  async fn stdAbortSignalWait(handle: ref AbortSignalHandle): AbortReason
-  fn stdAbortSignalDrop(handle: inout AbortSignalHandle)
+  fn stdAbortSignalAborted(_ handle: ref AbortSignalHandle): Bool
+  fn stdAbortSignalReason(_ handle: ref AbortSignalHandle): AbortReason?
+  fn stdAbortSignalDuplicate(_ handle: ref AbortSignalHandle): AbortSignalHandle
+  async fn stdAbortSignalWait(_ handle: ref AbortSignalHandle): AbortReason
+  fn stdAbortSignalDrop(_ handle: inout AbortSignalHandle)
 
   fn stdAbortControllerCreate(): (AbortControllerHandle, AbortSignalHandle)
   fn stdAbortControllerAbort(
-    named authority: ref AbortControllerHandle,
-    named reason: AbortReason,
+    _ authority: ref AbortControllerHandle,
+    _ reason: AbortReason,
   )
-  fn stdAbortControllerDrop(authority: inout AbortControllerHandle)
+  fn stdAbortControllerDrop(_ authority: inout AbortControllerHandle)
 }
 
 export struct AbortSignal: Duplicable {
@@ -90,11 +90,11 @@ export struct AbortSignal: Duplicable {
   // list never aborts. Future races use one transition.
   export static fn any(
     maximumSources: AbortSourceLimit,
-    _ sources: ref AbortSignal...,
+    sources: ref AbortSignal...,
   ): AbortSignal throws AbortSignalCombineError {
     let handle = unsafe {
       try stdAbortSignalAny(
-        maximumSources: maximumSources,
+        maximumSources,
         each sources,
       )
     }
@@ -155,8 +155,8 @@ export struct AbortController {
   ) {
     unsafe {
       stdAbortControllerAbort(
-        authority: authority,
-        reason: reason,
+        authority,
+        reason,
       )
     }
   }

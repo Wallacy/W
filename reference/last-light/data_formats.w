@@ -102,7 +102,7 @@ export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(
     source: take source,
     options: options,
   )
-  return summarize(take batch)
+  return summarize(batch: take batch)
 }
 
 // A Parquet archive uses the finite positional snapshot contract.
@@ -115,7 +115,7 @@ export async fn archiveParquet<Failure: Error,
     source: take source,
     options: options,
   )
-  return summarize(take batch)
+  return summarize(batch: take batch)
 }
 
 // An Arrow IPC stream carries the same typed rows to a service handoff.  The
@@ -129,7 +129,7 @@ export async fn handoffArrow<Failure: Error, Source: io.ByteSource<Failure>>(
     source: take source,
     options: options,
   )
-  return summarize(take batch)
+  return summarize(batch: take batch)
 }
 
 // C Data import is trusted in-process.  The raw Arrow schema travels with
@@ -142,7 +142,7 @@ export fn importTrustedCArray(
     handle: take handle,
     options: options,
   )
-  return summarize(take batch)
+  return summarize(batch: take batch)
 }
 
 export async fn encodeCsv<Failure: Error, Sink: io.ByteSink<Failure>>(

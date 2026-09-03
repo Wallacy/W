@@ -645,9 +645,9 @@ if (baselineExtension && (baselineExtension.researchExtension !== undefined ||
 }
 const fixedSupersession = entriesById.get("W-281");
 if (!fixedSupersession || fixedSupersession.category !== "superseded" ||
-    fixedSupersession.authorityRef?.decisionId !== "W-1290" ||
-    fixedSupersession.supersessionClaim?.decisionId !== "W-1290") {
-  fail("fixed supersession assertion W-281 must point to semantic successor W-1290.");
+    fixedSupersession.authorityRef?.decisionId !== "W-1514" ||
+    fixedSupersession.supersessionClaim?.decisionId !== "W-1514") {
+  fail("fixed supersession assertion W-281 must point to semantic successor W-1514.");
 }
 const fixedSupersessionTargets = new Map([
   ["W-038", "W-1172"],

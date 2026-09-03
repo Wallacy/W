@@ -44,7 +44,7 @@ export unsafe fn<abi: .c> ll_classify_v1(value: c.int): ll_result_v1 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier)))))

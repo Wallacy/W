@@ -5,7 +5,7 @@
   "machine": "brx2-borrow-relations-machine",
   "sourceBase": {
     "path": "../reference/last-light/borrow_expressivity.w",
-    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
     "symbols": [
       "MenuCursor",
       "MenuSelection",
@@ -92,7 +92,7 @@
         "inputs": [
           {
             "slot": "receiver",
-            "mode": "inout"
+            "mode": "mut ref"
           }
         ],
         "results": [
@@ -1963,7 +1963,7 @@
         "inputs": [
           {
             "slot": "receiver",
-            "mode": "inout"
+            "mode": "mut ref"
           }
         ],
         "results": [
@@ -2187,7 +2187,7 @@
         "inputs": [
           {
             "slot": "primary",
-            "mode": "inout"
+            "mode": "mut ref"
           }
         ],
         "results": [

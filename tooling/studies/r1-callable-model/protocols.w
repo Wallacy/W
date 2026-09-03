@@ -1,15 +1,15 @@
 // R1 alternative: callable behavior is expressed with nominal protocols.
 
 protocol Callable<Input, Output> {
-  fn call(input: Input): Output
+  fn call(_ input: Input): Output
 }
 
 protocol MutableCallable<Input, Output> {
-  mut fn call(input: Input): Output
+  mut fn call(_ input: Input): Output
 }
 
 protocol ConsumingCallable<Input, Output> {
-  take fn call(input: Input): Output
+  take fn call(_ input: Input): Output
 }
 
 struct Arrival {
@@ -31,18 +31,18 @@ struct CallableObservation {
 
 alias ErasedWelcomeRoute = any Callable<Arrival, Welcome>
 
-fn standardWelcome(arrival: Arrival = Arrival(orderId: 0)): Welcome {
+fn standardWelcome(_ arrival: Arrival = Arrival(orderId: 0)): Welcome {
   return Welcome(orderId: arrival.orderId, gate: 1)
 }
 
-fn route(named gate: usize): any Callable<Arrival, Welcome> {
+fn route(gate: usize): any Callable<Arrival, Welcome> {
   return <[copy gate]> (arrival) => Welcome(
     orderId: arrival.orderId,
     gate: gate,
   )
 }
 
-fn ticketSequence(named initial: usize): some MutableCallable<(), usize> {
+fn ticketSequence(initial: usize): some MutableCallable<(), usize> {
   var next = initial
 
   return <[take next]> () => {
@@ -51,13 +51,13 @@ fn ticketSequence(named initial: usize): some MutableCallable<(), usize> {
   }
 }
 
-fn finalManifest(orderIds: take Array<u64>): some ConsumingCallable<(), Array<u64>> {
+fn finalManifest(_ orderIds: take Array<u64>): some ConsumingCallable<(), Array<u64>> {
   return <[take orderIds]> () => take orderIds
 }
 
 fn recoverableRoute(
-  gate: usize,
-  memory: ref Allocator,
+  _ gate: usize,
+  _ memory: ref Allocator,
 ): ErasedWelcomeRoute throws AllocationError {
   let concrete: some Callable<Arrival, Welcome> =
     (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
@@ -65,9 +65,9 @@ fn recoverableRoute(
 }
 
 fn observeCallableModel(
-  named gate: usize,
-  named initial: usize,
-  named orderIds: take Array<u64>,
+  gate: usize,
+  initial: usize,
+  orderIds: take Array<u64>,
 ): CallableObservation {
   let greeter: some Callable<Arrival, Welcome> = (arrival) => standardWelcome(arrival)
   let first = greeter.call(Arrival(orderId: 42))

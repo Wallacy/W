@@ -21,25 +21,25 @@ enum Route {
   unknown
 }
 
-fn patternSurfaceEntry(order: take Order): String {
+fn patternSurfaceEntry(_ order: take Order): String {
   let Order(id: orderId, guest: Guest(name, ...), ...) = take order
   return name
 }
 
-fn fieldSetSurface(order: Order): Array<String> {
+fn fieldSetSurface(_ order: Order): Array<String> {
   let newField = order.newField
   let openFields = [newField]
   return openFields
 }
 
-fn tupleSurface(stage: ServiceStage, guests: usize): PartySize {
+fn tupleSurface(_ stage: ServiceStage, _ guests: usize): PartySize {
   return switch (stage, guests) {
     case (.accepted, 1...4): .intimate
     case (_, _): .regular
   }
 }
 
-fn routeSurface(route: Route): String {
+fn routeSurface(_ route: Route): String {
   return switch route {
     case .menu: "show"
     case .unknown: "reject"

@@ -72,7 +72,7 @@ test "Map confirms equality after a forced hash collision" {
 test "borrowed lookup updates a value without a second insertion" {
   var counts: Map<Course, u32> = [.horizonCake: 1]
 
-  if let inout count = counts[.horizonCake] {
+  if let mut ref count = counts[.horizonCake] {
     count += 1
   }
 
@@ -93,7 +93,7 @@ test "Set keeps the first insertion and never mutates a key in place" {
   expect courses.collect() == [.nebulaBroth, .horizonCake]
 
   // Compile-fail assay: Set does not provide MutableIterable.
-  // for inout course in courses { course.rename() }
+  // for mut ref course in courses { course.rename() }
 }
 
 test "fixed repeat and slice contracts keep storage explicit" {
@@ -118,7 +118,7 @@ test "iteration states borrow copy and consumption" {
     borrowedSum += code
   }
 
-  for inout code in mutableCodes {
+  for mut ref code in mutableCodes {
     code += 40
   }
 
@@ -137,7 +137,7 @@ test "iteration states borrow copy and consumption" {
 }
 
 test "stable sort preserves the order of equal priorities" {
-  let tickets = stableServiceOrder([
+  let tickets = stableServiceOrder(tickets: [
     ArrivalTicket(orderId: 7, priority: 1, sequence: 0),
     ArrivalTicket(orderId: 9, priority: 1, sequence: 1),
     ArrivalTicket(orderId: 11, priority: 0, sequence: 2),
@@ -154,7 +154,7 @@ test "stable sort preserves the order of equal priorities" {
 }
 
 test "labeled flow leaves one deterministic diagnostic word" for foldDiagnosticBits {
-  let bits = foldDiagnosticBits([
+  let bits = foldDiagnosticBits(rows: [
     [1, 2, 0, 31],
     [3, 4],
     [32, 5],

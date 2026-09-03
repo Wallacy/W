@@ -60,7 +60,7 @@
       "decisions": ["W-708", "W-773", "W-1290"],
       "input": {
         "lines": [
-          "fn reserve(order:Order,inventory:Inventory,named audit:Audit,named deadline:Deadline,named idempotencyKey:IdempotencyKey,named observability:Observability):Reservation throws KitchenError{",
+          "fn reserve(order:Order,inventory:Inventory,audit:Audit,deadline:Deadline,idempotencyKey:IdempotencyKey,observability:Observability):Reservation throws KitchenError{",
           "return inventory.reserve(order,audit:audit,deadline:deadline,idempotencyKey:idempotencyKey,observability:observability)",
           "}"
         ]
@@ -69,10 +69,10 @@
         "fn reserve(",
         "  order: Order,",
         "  inventory: Inventory,",
-        "  named audit: Audit,",
-        "  named deadline: Deadline,",
-        "  named idempotencyKey: IdempotencyKey,",
-        "  named observability: Observability,",
+        "  audit: Audit,",
+        "  deadline: Deadline,",
+        "  idempotencyKey: IdempotencyKey,",
+        "  observability: Observability,",
         "): Reservation throws KitchenError {",
         "  return inventory.reserve(",
         "    order,",
@@ -224,13 +224,13 @@
       "requiredSemicolons": []
     },
     {
-      "id": "F0-optional-label-slots",
-      "decisions": ["W-1160", "W-1290"],
+      "id": "F0-generic-anchor-slots",
+      "decisions": ["W-1514"],
       "input": {
         "lines": [
           "struct OvenSession<_ state:OvenSessionState>{}",
           "fn open(_ name:String){}",
-          "fn demo(){let positional=OvenSession<.ready>.state;let named=OvenSession<state:.ready>.state;open(\"oven\");open(name:\"oven\")}"
+          "fn demo(){let first=OvenSession<.ready>.state;let second=OvenSession<.ready>.state;open(\"oven\");open(name:\"oven\")}"
         ]
       },
       "output": [
@@ -239,8 +239,8 @@
         "fn open(_ name: String) {}",
         "",
         "fn demo() {",
-        "  let positional = OvenSession<.ready>.state",
-        "  let named = OvenSession<state: .ready>.state",
+        "  let first = OvenSession<.ready>.state",
+        "  let second = OvenSession<.ready>.state",
         "  open(\"oven\")",
         "  open(name: \"oven\")",
         "}"
@@ -252,13 +252,13 @@
       "decisions": ["W-708", "W-1290"],
       "input": {
         "lines": [
-          "fn query(count:usize,named context:Context){}",
+          "fn query(count:usize,context:Context){}",
           "fn inspect(named:Bool){}",
           "fn demo(){query(20,context:ctx);inspect(flag)}"
         ]
       },
       "output": [
-        "fn query(count: usize, named context: Context) {}",
+        "fn query(count: usize, context: Context) {}",
         "",
         "fn inspect(named: Bool) {}",
         "",
@@ -371,13 +371,13 @@
       "decisions": ["W-548", "W-708", "W-1290"],
       "input": {
         "lines": [
-          "fn prepare(statement:const database.Query<WorldKey,WorldRow>,named parameters:WorldKey):PreparedQuery{return database.prepare(statement,parameters:parameters)}"
+          "fn prepare(statement:const database.Query<WorldKey,WorldRow>,parameters:WorldKey):PreparedQuery{return database.prepare(statement,parameters:parameters)}"
         ]
       },
       "output": [
         "fn prepare(",
         "  statement: const database.Query<WorldKey, WorldRow>,",
-        "  named parameters: WorldKey,",
+        "  parameters: WorldKey,",
         "): PreparedQuery {",
         "  return database.prepare(statement, parameters: parameters)",
         "}"

@@ -1,7 +1,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
-import { deriveExecutionErgonomics, summarizeDiagnostics } from "./execution-ergonomics-machine.mjs"
+import { deriveExecutionErgonomics, deriveInitializerEvaluationPlan, summarizeDiagnostics } from "./execution-ergonomics-machine.mjs"
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url))
 const casesPath = path.join(toolingDirectory, "execution-ergonomics-cases.json")
@@ -61,7 +61,26 @@ const requiredIds = new Set([
   "EE-POS-doc-example",
   "EE-POS-doc-example-two-blocks",
   "EE-NEG-doc-example-ambient",
-  "EE-NEG-record-named-marker",
+  "EE-POS-record-external-label",
+  "EE-POS-synthesized-initializer-order",
+  "EE-NEG-synthesized-initializer-positional",
+  "EE-NEG-synthesized-initializer-missing-required",
+  "EE-POS-label-two-segment-reorder",
+  "EE-POS-label-skip-optional-anchor",
+  "EE-NEG-label-required-anchor-crossing",
+  "EE-POS-pipe-unique-named-hole",
+  "EE-NEG-pipe-two-named-holes",
+  "EE-NEG-pipe-named-anchor-holes",
+  "EE-POS-variadic-anchor-then-later-label",
+  "EE-NEG-variadic-earlier-label-after-anchor",
+  "EE-POS-generic-anchor-after-named-segment",
+  "EE-POS-generic-value-anchor-after-named-segment",
+  "EE-NEG-generic-value-anchor-crossing",
+  "EE-NEG-duplicate-external-labels",
+  "EE-POS-mut-ref-object-shorthand",
+  "EE-NEG-mut-ref-bare-object-place",
+  "EE-NEG-mut-ref-struct-shorthand",
+  "EE-NEG-mut-ref-immutable-object-place",
   "EE-POS-named-remains-identifier",
   "EE-POS-parameter-contract-after-binding",
   "EE-NEG-parameter-contract-before-binding",
@@ -123,6 +142,24 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   }
   if (expected.genericIdentity && result.labels.generic.identities[0]?.sameAsNext !== (expected.genericIdentity === "same")) {
     errors.push(`${item.id}: generic identity`)
+  }
+  if (expected.initializer) {
+    const plan = deriveInitializerEvaluationPlan(item.source, expected.initializer.typeName)
+    const explicit = plan?.explicitEvaluationOrder.map((entry) => entry.field)
+    const defaults = plan?.defaultEvaluationOrder.map((entry) => entry.field)
+    const installation = plan?.installationOrder
+    if (expected.initializer.explicitFields !== undefined
+      && JSON.stringify(explicit) !== JSON.stringify(expected.initializer.explicitFields)) errors.push(`${item.id}: initializer explicit order`)
+    if (expected.initializer.defaultFields !== undefined
+      && JSON.stringify(defaults) !== JSON.stringify(expected.initializer.defaultFields)) errors.push(`${item.id}: initializer default order`)
+    if (expected.initializer.installationFields !== undefined
+      && JSON.stringify(installation) !== JSON.stringify(expected.initializer.installationFields)) errors.push(`${item.id}: initializer installation order`)
+    const initializerCodes = (plan?.diagnostics ?? []).map((diagnostic) => diagnostic.code)
+    if (expected.initializer.diagnostic) {
+      if (!initializerCodes.includes(expected.initializer.diagnostic)) {
+        errors.push(`${item.id}: expected initializer ${expected.initializer.diagnostic}; actual ${initializerCodes.join(",") || "none"}`)
+      }
+    } else if (initializerCodes.length > 0) errors.push(`${item.id}: initializer diagnostics`)
   }
   if (expected.callablePolicy) {
     const policy = callableDeclaration(result, expected)?.params[expected.parameterIndex ?? 0]?.policy

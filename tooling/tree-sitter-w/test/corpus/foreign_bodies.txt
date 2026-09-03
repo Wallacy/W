@@ -22,7 +22,7 @@ unsafe fn<C> legacyChecksum(data: c.ptr<const c.uchar>, size: c.size): c.uint {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier))
@@ -34,7 +34,7 @@ unsafe fn<C> legacyChecksum(data: c.ptr<const c.uchar>, size: c.size): c.uint {
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier)))))
@@ -67,7 +67,7 @@ protocol LegacyProbe {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)
                 (type_identifier)))))
@@ -101,7 +101,7 @@ unsafe fn<lang: .c> legacyStatus(status: c.int): c.int {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier)))))
@@ -130,7 +130,7 @@ unsafe fn<Rust> choose(ready: bool): i32 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

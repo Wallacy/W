@@ -9,5 +9,5 @@ fn menuCache(id: DishId): String {
 }
 
 export fn menuLookup(id: DishId): String {
-  return menuCache(id)
+  return menuCache(id: id)
 }

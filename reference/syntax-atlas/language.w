@@ -24,8 +24,9 @@ export struct Place<ID> : Hashable {
 
   var title: String {
     get => label
+    get ref => label
+    get mut ref { return mut ref label }
     set(value) { label = value }
-    modify { label }
   }
 
   fn describe(): String {
@@ -39,7 +40,7 @@ export struct Place<ID> : Hashable {
 
 object Ward {
   var name: String
-  fn rename(value: String) {
+  fn rename(_ value: String) {
     name = value
   }
 }
@@ -47,7 +48,7 @@ object Ward {
 protocol Directory<Key> {
   type Value: Hashable
   const empty: Bool
-  fn lookup(key: Key): Value;
+  fn lookup(_ key: Key): Value;
   fn isEmpty(): Bool
   var count: usize { get set }
 }
@@ -61,12 +62,12 @@ extension Directory {
 service Catalog<key: String>: Directory {
   alias Value = String
   const empty: Bool = false
-  fn lookup(key: String): String {
+  fn lookup(_ key: String): String {
     return key
   }
   var count: usize = 0
 
-  fn find(key: String): String {
+  fn find(_ key: String): String {
     return key
   }
 }
@@ -103,7 +104,6 @@ behavior Versioned<Value> for Value {
   init() { epoch = 0 }
   export mutationEpoch: u64 { get => epoch }
   mut didSet(current: ref Value) { epoch += 1 }
-  mut didModify(current: ref Value) { epoch += 1 }
 }
 
 // Facet observers enter through a named composition; a direct observer
@@ -132,24 +132,24 @@ test "qualified facet path" for VersionedPlaceBox {
 // atlas:end data-declarations
 
 // atlas:begin callables-and-foreign
-export fn describe<ID, _ limit: usize>(value: ID, each labels: String...): String throws Signal {
+export fn describe<ID, _ limit: usize>(_ value: ID, each labels: String...): String throws Signal {
   return labels[0]
 }
 
-export static const fn makePlace<ID>(value: ID): Place<ID> {
+export static const fn makePlace<ID>(_ value: ID): Place<ID> {
   return Place(id: value, label: "center")
 }
 
-export mut fn rename(place: Place<String>, value: String) {
+export mut fn rename(_ place: Place<String>, _ value: String) {
   place.title = value
 }
 
 fn labelShapes(
-  order: String,
-  named audit: String,
-  _ note: String,
+  _ order: String,
+  audit: String,
+  externalAudit audit: String,
   to destination: String,
-  title: String = "city",
+  _ title: String = "city",
   each tags: String...,
 ): String {
   return order
@@ -187,7 +187,7 @@ fn makeDigest(): Digest {
 // atlas:end types-and-contracts
 
 // atlas:begin patterns
-fn classify(signal: Signal): String {
+fn classify(_ signal: Signal): String {
   let Signal.alert(level: let level) = signal
   return switch signal {
     case .quiet: "quiet"
@@ -196,13 +196,14 @@ fn classify(signal: Signal): String {
   }
 }
 
-fn unpack(place: Place<String>): String {
+fn unpack(_ place: Place<String>): String {
   let Place(id, ...) = place
+  let { id: inferredId, ... } = place
   let (id, label) = (id, "center")
-  return id + label
+  return inferredId + label
 }
 
-fn classifyRange(value: i32): String {
+fn classifyRange(_ value: i32): String {
   return switch value {
     case 0...3: "low"
     case 4..<8: "mid"

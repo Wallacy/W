@@ -8,7 +8,7 @@ enum TitleFault: Error {
 
 const sampleTitle: MenuTitle = "Milliways"
 
-fn acceptTitle(input: String): MenuTitle throws TitleFault {
+fn acceptTitle(_ input: String): MenuTitle throws TitleFault {
   guard input.scalars.count in 1...40 else throw .outsideBounds
   return take input
 }

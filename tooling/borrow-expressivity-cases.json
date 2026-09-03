@@ -5,7 +5,7 @@
   "machine": "borrow-expressivity-machine-brx0",
   "sourceBase": {
     "path": "../reference/last-light/borrow_expressivity.w",
-    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
     "symbols": [
       "freshGreeting",
       "selectPrimary",
@@ -76,7 +76,7 @@
       "declaration": {
         "kind": "instance",
         "body": true,
-        "inputs": [{ "slot": "receiver", "mode": "inout" }],
+        "inputs": [{ "slot": "receiver", "mode": "mut ref" }],
         "results": [{ "slot": "result", "mode": "view" }],
         "bodyTrace": [{ "operation": "return", "result": "result", "source": "receiver" }]
       },
@@ -96,7 +96,7 @@
       "declaration": {
         "kind": "instance",
         "body": true,
-        "inputs": [{ "slot": "receiver", "mode": "inout" }],
+        "inputs": [{ "slot": "receiver", "mode": "mut ref" }],
         "results": [{ "slot": "result", "mode": "view" }],
         "bodyTrace": [{ "operation": "return", "result": "result", "source": "receiver" }]
       },
@@ -233,7 +233,7 @@
         "kind": "instance",
         "body": true,
         "inputs": [
-          { "slot": "receiver", "mode": "inout", "origin": "receiver.storage" }
+          { "slot": "receiver", "mode": "mut ref", "origin": "receiver.storage" }
         ],
         "results": [{ "slot": "result", "mode": "view" }],
         "bodyTrace": [

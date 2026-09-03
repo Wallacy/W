@@ -15,7 +15,7 @@ Cada família possui uma variante current, uma candidate e uma adversarial.
 `candidate.txt` é texto reservado. Ele não é source W e não entra na grammar.
 
 Current controls preserve the single `build.w` root, explicit `Stream`,
-explicit `Channel` and mailbox boundaries, and `get`/`set`/`modify`.
+explicit `Channel` and mailbox boundaries, and `get`/`get ref`/`get mut ref`/`set`.
 The build manifest candidate is accepted as the current control. The stream-fn and
 implicit-observer candidates are rejected. Adversarial routes reject inline
 packages, empty or owner-incompatible `build.w`, nested workspaces, implicit

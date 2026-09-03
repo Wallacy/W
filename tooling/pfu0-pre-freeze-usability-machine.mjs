@@ -38,7 +38,7 @@ const REQUIRED_LIFECYCLE = Object.freeze([
   "init",
   "get",
   "replace",
-  "modify-enter",
+  "get-mut-ref-enter",
   "borrow",
   "resume",
   "drop-old",
@@ -231,7 +231,7 @@ function evaluateProperty(observations) {
   if (!object(observations)) return { valid: false, route: "rejected-route", reason: "property-observations-missing" };
   const lifecycle = new Set(observations.lifecycle ?? []);
   const lifecycleComplete = REQUIRED_LIFECYCLE.every((step) => lifecycle.has(step));
-  const baseline = observations.get === true && observations.set === true && observations.modify === true &&
+  const baseline = observations.get === true && observations.set === true && observations.getMutRef === true &&
     observations.deferResume === true && observations.largeCow === true && observations.noncopyable === true &&
     observations.invariantAfterBorrow === true && observations.cacheInvalidation === "explicit" &&
     observations.externalNotification === "method-service-channel" && lifecycleComplete;

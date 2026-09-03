@@ -15,7 +15,7 @@ async fn runProcessOracle(
   ctx: process.Context,
 ): process.ExitCode throws WriteAllError<IoError> {
   let output = ctx.stdout
-  let mode = if requestedCheck(ref args) { "check" } else { "serve" }
+  let mode = if requestedCheck(args: ref args) { "check" } else { "serve" }
   try await output.writeAll(text: "Process oracle mode: ${mode}.\n")
   return .success
 }

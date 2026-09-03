@@ -11,19 +11,19 @@
     "availability": {
       "path": "../reference/last-light/billing.w",
       "symbol": "gatewayUnavailable",
-      "digest": "sha256:e7eb825ab12b662922b58ebb6aced9e35648fe188b54684a1a9c8aed09b58310",
+      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
       "claim": "The restaurant already needs an explicit unavailable path for a provider-backed operation."
     },
     "runtime": {
       "path": "../reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
       "claim": "SnapshotCell is the current composition for atomic immutable configuration publication."
     },
     "composition": {
       "path": "../reference/last-light/billing.w",
       "symbol": "export service billing: BillingApi {",
-      "digest": "sha256:e7eb825ab12b662922b58ebb6aced9e35648fe188b54684a1a9c8aed09b58310",
+      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
       "claim": "The billing boundary composes provider availability, generation, effects, and fallback behavior."
     }
   },

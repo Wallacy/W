@@ -38,7 +38,7 @@
 | `allocator-contextual-parameter` | `allocator destination: ref Allocator` | `allocator-and-bindings` |
 | `allocator-contextual-call` | `stage(city)` | `allocator-and-bindings` |
 | `ownership-ref` | `let ref name` | `allocator-and-bindings` |
-| `ownership-inout` | `let inout writableName` | `allocator-and-bindings` |
+| `ownership-inout` | `value: inout String` | `allocator-and-bindings` |
 | `ownership-take` | `take copyOfName` | `allocator-and-bindings` |
 | `ownership-shared` | `shared Place` | `types-and-contracts` |
 | `ownership-weak` | `weak Place` | `types-and-contracts` |
@@ -50,9 +50,8 @@
 | `execution-sync` | `try sync fetch` | `execution-forms` |
 | `execution-async-initializer` | `let concurrent = async` | `execution-forms` |
 | `execution-spawn` | `spawn<.compute>` | `execution-forms` |
-| `callable-positional` | `order: String` | `callables-and-foreign` |
-| `callable-required-homonym` | `named audit: String` | `callables-and-foreign` |
-| `callable-optional-label` | `_ note: String` | `callables-and-foreign` |
+| `callable-positional` | `_ order: String` | `callables-and-foreign` |
+| `callable-required-homonym` | `audit: String` | `callables-and-foreign` |
 | `callable-required-external` | `to destination: String` | `callables-and-foreign` |
 | `callable-default` | `title: String =` | `callables-and-foreign` |
 | `callable-rest` | `each tags: String...` | `callables-and-foreign` |
@@ -67,16 +66,18 @@
 | `property-get` | `get => label` | `data-declarations` |
 | `protocol-default-extension` | `extension Directory` | `data-declarations` |
 | `property-set` | `set(value)` | `data-declarations` |
-| `property-modify` | `modify { label }` | `data-declarations` |
+| `property-get-ref` | `get ref => label` | `data-declarations` |
+| `property-get-mut-ref` | `get mut ref { return mut ref label }` | `data-declarations` |
 | `pattern-enum` | `Signal.alert(level: let level)` | `patterns` |
 | `pattern-struct` | `Place(id, ...)` | `patterns` |
+| `pattern-inferred-struct` | `let { id: inferredId, ... } = place` | `patterns` |
 | `pattern-tuple` | `let (id, label)` | `patterns` |
 | `pattern-range` | `case 0...3` | `patterns` |
 | `pattern-wildcard` | `case _:` | `patterns` |
 | `static-record` | `Config<{mode` | `types-and-contracts` |
 | `static-list` | `Signal<[.quiet` | `types-and-contracts` |
-| `channel-send` | `Channel<String><.send>` | `stream-and-channel` |
-| `channel-receive` | `Channel<String><.receive>` | `stream-and-channel` |
+| `channel-send` | `Channel<send: String>` | `stream-and-channel` |
+| `channel-receive` | `Channel<receive: String>` | `stream-and-channel` |
 | `root-module-run` | `module atlas_execution` | `module-run-root` |
 
 ## Full snippets
@@ -132,8 +133,9 @@ export struct Place<ID> : Hashable {
 
   var title: String {
     get => label
+    get ref => label
+    get mut ref { return mut ref label }
     set(value) { label = value }
-    modify { label }
   }
 
   fn describe(): String {
@@ -147,7 +149,7 @@ export struct Place<ID> : Hashable {
 
 object Ward {
   var name: String
-  fn rename(value: String) {
+  fn rename(_ value: String) {
     name = value
   }
 }
@@ -155,7 +157,7 @@ object Ward {
 protocol Directory<Key> {
   type Value: Hashable
   const empty: Bool
-  fn lookup(key: Key): Value;
+  fn lookup(_ key: Key): Value;
   fn isEmpty(): Bool
   var count: usize { get set }
 }
@@ -169,12 +171,12 @@ extension Directory {
 service Catalog<key: String>: Directory {
   alias Value = String
   const empty: Bool = false
-  fn lookup(key: String): String {
+  fn lookup(_ key: String): String {
     return key
   }
   var count: usize = 0
 
-  fn find(key: String): String {
+  fn find(_ key: String): String {
     return key
   }
 }
@@ -211,7 +213,6 @@ behavior Versioned<Value> for Value {
   init() { epoch = 0 }
   export mutationEpoch: u64 { get => epoch }
   mut didSet(current: ref Value) { epoch += 1 }
-  mut didModify(current: ref Value) { epoch += 1 }
 }
 
 // Facet observers enter through a named composition; a direct observer
@@ -278,24 +279,24 @@ fn makeDigest(): Digest {
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-export fn describe<ID, _ limit: usize>(value: ID, each labels: String...): String throws Signal {
+export fn describe<ID, _ limit: usize>(_ value: ID, each labels: String...): String throws Signal {
   return labels[0]
 }
 
-export static const fn makePlace<ID>(value: ID): Place<ID> {
+export static const fn makePlace<ID>(_ value: ID): Place<ID> {
   return Place(id: value, label: "center")
 }
 
-export mut fn rename(place: Place<String>, value: String) {
+export mut fn rename(_ place: Place<String>, _ value: String) {
   place.title = value
 }
 
 fn labelShapes(
-  order: String,
-  named audit: String,
-  _ note: String,
+  _ order: String,
+  audit: String,
+  externalAudit audit: String,
   to destination: String,
-  title: String = "city",
+  _ title: String = "city",
   each tags: String...,
 ): String {
   return order
@@ -361,7 +362,7 @@ south"""
 **current** · **tree-sitter-parse-only**
 
 ```w
-fn classify(signal: Signal): String {
+fn classify(_ signal: Signal): String {
   let Signal.alert(level: let level) = signal
   return switch signal {
     case .quiet: "quiet"
@@ -370,13 +371,14 @@ fn classify(signal: Signal): String {
   }
 }
 
-fn unpack(place: Place<String>): String {
+fn unpack(_ place: Place<String>): String {
   let Place(id, ...) = place
+  let { id: inferredId, ... } = place
   let (id, label) = (id, "center")
-  return id + label
+  return inferredId + label
 }
 
-fn classifyRange(value: i32): String {
+fn classifyRange(_ value: i32): String {
   return switch value {
     case 0...3: "low"
     case 4..<8: "mid"
@@ -393,24 +395,31 @@ fn classifyRange(value: i32): String {
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-fn stage(allocator destination: ref Allocator, city: String): String {
+fn stage(city: String, allocator destination: ref Allocator): String {
   return city
 }
 
-fn prepare(city: String): (String, usize) {
+fn rewrite(value: inout String) {
+  value = value + "!"
+}
+
+fn prepare(_ city: String): (String, usize) {
   var result = city
   var byteCount: usize = 0
   allocator scratch: .fixed<capacity: 256> {
     let ref name = city
     var copyOfName = city
-    let inout writableName = copyOfName
+    let mut ref writableName = copyOfName
+    rewrite(value: inout copyOfName)
     var atomic count: usize = 0
     count += 1
     writableName = name
     let moved = take copyOfName
     result = moved
     let staged = stage(city)
+    let stagedExplicit = stage(city, allocator: ref scratch)
     result = staged
+    result = stagedExplicit
   }
   allocator .fixed<capacity: 128> {
     byteCount = result.bytes.count
@@ -431,12 +440,12 @@ enum WalkError: Error {
   negativeTotal
 }
 
-fn requireNonnegative(value: i32): i32 throws WalkError {
+fn requireNonnegative(_ value: i32): i32 throws WalkError {
   guard value >= 0 else { throw .negativeTotal }
   return value
 }
 
-fn walk(values: Array<i32>): i32 throws WalkError {
+fn walk(_ values: Array<i32>): i32 throws WalkError {
   var total = 0
   rows: for ref value in values {
     for column in [value] {
@@ -472,7 +481,7 @@ fn walk(values: Array<i32>): i32 throws WalkError {
 **current** · **tree-sitter-parse-only-compiler-runtime-missing**
 
 ```w
-async fn fetch(city: String): String throws AtlasError {
+async fn fetch(_ city: String): String throws AtlasError {
   return city
 }
 
@@ -495,7 +504,7 @@ fn inspect<T>(each values: T...): String {
   return "inspected"
 }
 
-fn directCall(values: Array<String>): String {
+fn directCall(_ values: Array<String>): String {
   let head = values[0]?.trim()?.value?
   return inspect(each values)
 }
@@ -504,7 +513,7 @@ object CaptureBox {
   value: String
 }
 
-fn captureModes(target: String, borrowed: ref String, moved: take String, sharedValue: shared CaptureBox): (String, String, String, String, String?) {
+fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, _ sharedValue: shared CaptureBox): (String, String, String, String, String?) {
   let copyCapture = <[copy target]>() => target
   let refCapture = <[ref borrowed]>() => borrowed
   let takeCapture = <[take moved]>() => moved
@@ -533,15 +542,15 @@ struct AtlasLease {
   target: String
 }
 
-fn acquireLease(target: String): AtlasLease {
+fn acquireLease(_ target: String): AtlasLease {
   return AtlasLease(target: target)
 }
 
-fn prepareLease(lease: AtlasLease): String {
+fn prepareLease(_ lease: AtlasLease): String {
   return lease.target
 }
 
-async fn restricted(target: String): String throws AtlasError {
+async fn restricted(_ target: String): String throws AtlasError {
   let captured = <[copy target]>(name) => name
   let value = if target == "north" { "day" } else { "night" }
   let range = 1..<4
@@ -589,7 +598,7 @@ async fn restricted(target: String): String throws AtlasError {
   return target
 }
 
-fn panicExample(message: String): String {
+fn panicExample(_ message: String): String {
   panic(message: message)
 }
 ```
@@ -604,7 +613,7 @@ fn panicExample(message: String): String {
 ```w
 module atlas_operators
 
-fn operatorSurface(payload: ref any Reflectable) {
+fn operatorSurface(_ payload: ref any Reflectable) {
   var value = 8
   var other = 2
   var fallback = 1
@@ -791,7 +800,7 @@ fn operatorSurface(payload: ref any Reflectable) {
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-async fn consume(source: Stream<view String, AtlasError>, channel: Channel<String><.receive>): String throws AtlasError {
+async fn consume(_ source: Stream<view String, AtlasError>, _ channel: Channel<receive: String>): String throws AtlasError {
   var result = ""
   for try await ref item in source {
     result = result + item
@@ -800,12 +809,12 @@ async fn consume(source: Stream<view String, AtlasError>, channel: Channel<Strin
   return result
 }
 
-async fn send(channel: Channel<String><.send>, value: String): String throws AtlasError {
+async fn send(_ channel: Channel<send: String>, _ value: String): String throws AtlasError {
   await channel.send(take value)
   return "sent"
 }
 
-fn project(source: take Stream<String, Never>): some Stream<String, Never> {
+fn project(_ source: take Stream<String, Never>): some Stream<String, Never> {
   return stream <[take source]> {
     var cursor = take source
     while let item = await cursor.next() {

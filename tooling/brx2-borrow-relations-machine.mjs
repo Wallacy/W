@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
-const BORROW_MODES = new Set(["ref", "view", "inout"]);
-const DEPENDENT_MODES = new Set(["ref", "view", "inout"]);
+const BORROW_MODES = new Set(["ref", "view", "mut ref"]);
+const DEPENDENT_MODES = new Set(["ref", "view", "mut ref"]);
 const RELATION_OWNERS = new Set(["requirement", "interface"]);
 const AMBIGUOUS_BODYLESS_RESULT = "W-BORROW-0011";
 const DECLARATION_KINDS = new Set(["free", "static", "protocol", "instance", "member", "init"]);
@@ -234,7 +234,7 @@ function relationPayload(declaration, pairs) {
     }
     if (pair?.mode !== undefined) {
       const actual = [...new Set(sources.map((source) =>
-        inputs.get(source).mode === "inout" ? "exclusive" : "shared"))].sort();
+        inputs.get(source).mode === "mut ref" ? "exclusive" : "shared"))].sort();
       if (!actual.includes(text(pair.mode)) || actual.length !== 1) {
         fail("relationEdgeModeInvalid", { result, expectedMode: pair.mode, actualModes: actual });
       }
@@ -284,7 +284,7 @@ function deriveEdges(declaration, mapping, occurrences = mapping) {
         id: "edge:" + result + ":" + source + ":" + index,
         result,
         ownerSlot: source,
-        mode: slot.mode === "inout" ? "exclusive" : "shared",
+        mode: slot.mode === "mut ref" ? "exclusive" : "shared",
         dynamic: slot.static !== true && slot.immortal !== true,
         origin: text(slot.origin) || source,
       });
@@ -316,7 +316,7 @@ function genericChecks(declaration, relation) {
 function runtimeCarrier(slot, dependent) {
   if (dependent && slot.mode === "view") return "borrow-view";
   if (slot.mode === "ref") return "borrow-ref";
-  if (slot.mode === "inout") return "borrow-inout";
+  if (slot.mode === "mut ref") return "borrow-mut-ref";
   return "value";
 }
 

@@ -2,7 +2,7 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-call-label-order",
-  "title": "Money initializer label order at the Last Light restaurant",
+  "title": "Money initializer labels at the Last Light restaurant",
   "r0Cases": [
     "R0-call-label-order",
     "R0-overload-shape"
@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "Money(majorUnits",
-    "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde"
+    "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58"
   },
   "variants": [
     {
@@ -18,11 +18,11 @@
       "role": "selected",
       "language": "w",
       "path": "fixed-order.w",
-      "digest": "sha256:3db36d24f4e306f91d94899576cb97a0f7ba49954947366c49ddb89dd661dd1d",
+      "digest": "sha256:c8274c649311d75d1eedb2eb88f3a92161b809111e3e231f4c07d98ebcf57093",
       "changedConstructs": [
-        "declaration-order labels",
+        "label-first declaration",
         "initializer selection",
-        "three distinct call shapes"
+        "label set and anchor shape"
       ]
     },
     {
@@ -30,10 +30,10 @@
       "role": "alternative",
       "language": "w",
       "path": "reordered.w",
-      "digest": "sha256:90d0a04e39bd2be735e1e2e322bd7d0253c207defed5025caa54632e09221f06",
+      "digest": "sha256:95d92ecd2e082698940deb100c19df169fa789f0c9d58a04dc80e35c3548f1a6",
       "changedConstructs": [
-        "reordered labels",
-        "same call shape intent"
+        "reordered labels within one segment",
+        "same call shape"
       ]
     }
   ],
@@ -58,37 +58,36 @@
         "majorUnits"
       ],
       "expected": {
-        "fixedShapes": [
+        "declarations": [
           "majorUnits:,currency:",
-          "majorUnits:",
           "currency:,majorUnits:"
         ],
-        "unorderedCollision": "majorUnits:,currency:",
-        "diagnostic": "ambiguity-before-types"
+        "canonicalShape": "currency:&majorUnits:",
+        "diagnostic": "same-label-set-order-collision"
       }
     }
   ],
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain how ordered call shapes select the initializer before types and preserve the Money outcome."
+      "instruction": "Explain how labels bind independently of declaration order and preserve the Money outcome."
     },
     {
       "kind": "recall",
-      "instruction": "After the controlled delay, reconstruct three ordered shapes and the unordered-policy collision without reopening the source.",
+      "instruction": "After the controlled delay, reconstruct the two declaration permutations and their same-label-set collision without reopening the source.",
       "minimumDelaySeconds": 60
     },
     {
       "kind": "repair",
-      "instruction": "Repair the prepared defect that collapses distinct ordered shapes before type ranking.",
+      "instruction": "Repair the prepared defect that treats a label permutation as a distinct overload.",
       "mutations": {
-        "fixed-order": "Keep `majorUnits:,currency:`, `majorUnits:`, and `currency:,majorUnits:` distinct.",
-        "reordered": "Restore ordered-shape diagnostics before adding the reverse-label overload."
+        "fixed-order": "Keep the homonymous `majorUnits:` and `currency:` labels and preserve their declared ABI positions.",
+        "reordered": "Report a same-label-set collision when only declaration order differs."
       }
     },
     {
       "kind": "change",
-      "instruction": "Add a default for currency and a reverse-label overload, then report policy collision before type ranking."
+      "instruction": "Add a reverse-label declaration and report its same-label-set collision before type ranking."
     }
   ],
   "presentationOrders": [
@@ -115,7 +114,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:4c802c5abc32aab657a247c9d0deee6c735bcc20732ac0a930c29b3e49c51cef"
+    "digest": "sha256:4a7a8af2522da09a6a76d15e3485e33a8fa4882aa608c3131eadbf0f5455572c"
   },
   "evidence": {
     "current": [

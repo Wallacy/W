@@ -164,6 +164,47 @@ describe("workspace cleanup", () => {
     }
   });
 
+  test("selects independent CMake outputs nested below build", async () => {
+    const seed = await makeCMakeBuild(path.join("build", "seed-c"));
+    const other = path.join(workspace, "build", "notes");
+    await makeFile(path.join(other, "README.txt"), "not a build output");
+
+    const plan = await collectCleanupPlan(options());
+    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([seed]);
+    expect(plan.refused).toEqual([]);
+
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.refused).toEqual([]);
+    expect(await exists(seed)).toBe(false);
+    expect(await exists(other)).toBe(true);
+  });
+
+  test("selects only the closed seed build below the protected .codex root", async () => {
+    const seed = await makeCMakeBuild(path.join(".codex", "build-seed"));
+    const retained = path.join(workspace, ".codex", "notes.md");
+    await makeFile(retained, "keep");
+
+    const plan = await collectCleanupPlan(options());
+    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([seed]);
+    expect(plan.refused).toEqual([]);
+
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.refused).toEqual([]);
+    expect(await exists(seed)).toBe(false);
+    expect(await exists(retained)).toBe(true);
+  });
+
+  test("removes an empty known build root", async () => {
+    const build = path.join(workspace, "build");
+    await mkdir(build);
+
+    const plan = await collectCleanupPlan(options());
+    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([build]);
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.refused).toEqual([]);
+    expect(await exists(build)).toBe(false);
+  });
+
   test("refuses a candidate that contains a tracked file", async () => {
     const build = await makeCMakeBuild("build-own0");
     const plan = await collectCleanupPlan(options({

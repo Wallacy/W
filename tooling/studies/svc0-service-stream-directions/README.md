@@ -10,7 +10,7 @@ bidirectional. This study rejects implicit `Channel`, `stream fn`, published
 `any Stream`, nested stream edges, borrowed or non-wire items, missing boundary
 failure, a service open without `await`, and settlement without drain.
 
-`Channel<T><.receive>` already conforms to `Stream<T, Never>`. A caller that
+`Channel<receive: T>` already conforms to `Stream<T, Never>`. A caller that
 needs a push producer can therefore open a bounded channel explicitly, keep the
 send endpoint, and transfer the receive endpoint as the service input stream.
 No service declaration invents capacity or a hidden queue.

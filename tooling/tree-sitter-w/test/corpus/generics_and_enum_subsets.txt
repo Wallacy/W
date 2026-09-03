@@ -382,7 +382,7 @@ fn reserve(): WorkStage throws RecoverableFault {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

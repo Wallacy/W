@@ -19,9 +19,9 @@ export enum StreamCreditDecision {
 }
 
 export const fn expectedCreditDecision(
-  named granted: StreamCreditTotals,
-  named sent: StreamSentTotals,
-  named nextLogicalBytes: u64,
+  granted: StreamCreditTotals,
+  sent: StreamSentTotals,
+  nextLogicalBytes: u64,
 ): StreamCreditDecision {
   if sent.items > granted.items || sent.bytes > granted.bytes {
     return .protocolFailure
@@ -39,16 +39,16 @@ export const fn expectedCreditDecision(
 }
 
 export const fn creditUpdateIsValid(
-  named previous: StreamCreditTotals,
-  named next: StreamCreditTotals,
+  previous: StreamCreditTotals,
+  next: StreamCreditTotals,
 ): Bool {
   return next.items >= previous.items && next.bytes >= previous.bytes
 }
 
 export const fn aggregateGrantFits(
-  named limit: StreamCreditTotals,
-  named reserved: StreamCreditTotals,
-  named requested: StreamCreditTotals,
+  limit: StreamCreditTotals,
+  reserved: StreamCreditTotals,
+  requested: StreamCreditTotals,
 ): Bool {
   if reserved.items > limit.items || reserved.bytes > limit.bytes {
     return false
@@ -344,23 +344,23 @@ test "aggregate limits prevent multiplication by open streams" for aggregateGran
 }
 
 test "remote stream keeps ownership and boundary failure explicit" for remoteStreamIsEligible {
-  expect remoteStreamIsEligible(.ownedWireValueWithBoundaryFailure)
-  expect !remoteStreamIsEligible(.borrowedView)
-  expect !remoteStreamIsEligible(.neverFailure)
-  expect !remoteStreamIsEligible(.erasedStream)
-  expect !remoteStreamIsEligible(.nonWireValue)
+  expect remoteStreamIsEligible(candidate: .ownedWireValueWithBoundaryFailure)
+  expect !remoteStreamIsEligible(candidate: .borrowedView)
+  expect !remoteStreamIsEligible(candidate: .neverFailure)
+  expect !remoteStreamIsEligible(candidate: .erasedStream)
+  expect !remoteStreamIsEligible(candidate: .nonWireValue)
 }
 
 test "cross-route streaming requires a bounded relay" for expectedRelayPlan {
-  expect expectedRelayPlan(.sameRoute) == .direct
-  expect expectedRelayPlan(.differentRoute) == .boundedRelay
+  expect expectedRelayPlan(relation: .sameRoute) == .direct
+  expect expectedRelayPlan(relation: .differentRoute) == .boundedRelay
 }
 
 test "normal end remains distinct from either failure" for expectedConsumerObservation {
-  expect expectedConsumerObservation(.end) == .none
-  expect expectedConsumerObservation(.applicationError) == .failure
-  expect expectedConsumerObservation(.boundaryError) == .failure
-  expect expectedConsumerObservation(.consumerReset) == .canceledAndDrained
+  expect expectedConsumerObservation(terminal: .end) == .none
+  expect expectedConsumerObservation(terminal: .applicationError) == .failure
+  expect expectedConsumerObservation(terminal: .boundaryError) == .failure
+  expect expectedConsumerObservation(terminal: .consumerReset) == .canceledAndDrained
 }
 
 test "stream terminal and reset transitions are stable" for advanceStream {
@@ -396,7 +396,7 @@ test "stream terminal and reset transitions are stable" for advanceStream {
 }
 
 test "stream fault points retain opening decode and cleanup outcomes" for expectedStreamFault {
-  expect expectedStreamFault(.open) == .openRejected
-  expect expectedStreamFault(.decode) == .boundaryFailure
-  expect expectedStreamFault(.close) == .cleanupBoundary
+  expect expectedStreamFault(point: .open) == .openRejected
+  expect expectedStreamFault(point: .decode) == .boundaryFailure
+  expect expectedStreamFault(point: .close) == .cleanupBoundary
 }

@@ -18,7 +18,8 @@ fn pinTemporary(): Pinned<BellState> throws AllocationError {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

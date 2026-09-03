@@ -68,29 +68,15 @@ function parseParameter(raw, index) {
   if (!cleaned || cleaned === "...") return null
   const variadic = /\.\.\.\s*$/.test(cleaned)
   let tokens = cleaned.split(/\s+/)
-  const modifiers = new Set(["inout", "take", "ref", "copy", "shared", "weak", "view", "mut"])
+  const type = cleaned.match(/:\s*(.+)$/s)?.[1]?.trim() ?? null
+  const modifiers = new Set(["const", "inout", "take", "ref", "copy", "shared", "weak", "view", "mut"])
   while (modifiers.has(tokens[0])) tokens = tokens.slice(1)
   let external = null
   let internal = null
-  if (tokens[0] === "named") {
-    internal = tokens[1]?.replace(/:.*/, "")
-    return internal && identifier.test(internal)
-      ? {
-          index,
-          internal,
-          external: internal,
-          policy: `required(${internal})`,
-          forms: [`${internal}:`],
-          hasDefault,
-          variadic,
-          named: true,
-        }
-      : null
-  }
   if (tokens[0] === "_") {
     internal = tokens[1]?.replace(/:.*/, "")
     return internal && identifier.test(internal)
-      ? { index, internal, policy: "optional(name)", forms: ["positional", `${internal}:`], hasDefault, variadic }
+      ? { index, internal, type, policy: "positionalOnly", forms: ["positional"], hasDefault, variadic }
       : null
   }
   const inlineExternalInternal = tokens.length >= 3
@@ -105,23 +91,29 @@ function parseParameter(raw, index) {
     external = tokens[0]
     internal = tokens[1]
       .replace(/:.*/, "")
-    const contextualAllocator = /^allocator\s+[A-Za-z_][A-Za-z0-9_]*\s*:\s*ref\s+Allocator(?:\b|\s|<)/.test(cleaned)
+    const contextualAllocator = external === "allocator"
+      && /\bref\s+Allocator(?:\b|\s|<)/.test(cleaned)
     return {
       index,
       internal,
-      external,
-      policy: `required(${external})`,
-      forms: [`${external}:`],
+      external: contextualAllocator ? "allocator" : external,
+      policy: contextualAllocator ? "contextualAllocator" : `required(${external})`,
+      forms: contextualAllocator ? ["allocator:"] : [`${external}:`],
+      type,
       hasDefault,
       variadic,
       contextualAllocator,
     }
   }
-  const nameToken = tokens.find((token) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(token))
-  if (!nameToken) {
+  const inlineNameIndex = tokens.findIndex((token) => /^[A-Za-z_][A-Za-z0-9_]*:/.test(token))
+  const separatedNameIndex = tokens.findIndex((token, tokenIndex) =>
+    token === ":" && tokenIndex > 0 && identifier.test(tokens[tokenIndex - 1]))
+  const nameIndex = inlineNameIndex >= 0 ? inlineNameIndex : separatedNameIndex - 1
+  if (nameIndex < 0) {
     return {
       index,
       internal: `$${index}`,
+      type,
       policy: "positionalOnly",
       forms: ["positional"],
       hasDefault,
@@ -129,9 +121,18 @@ function parseParameter(raw, index) {
       unnamed: true,
     }
   }
-  internal = nameToken.replace(/:.*/, "")
+  internal = tokens[nameIndex].replace(/:.*/, "")
   if (!identifier.test(internal)) return null
-  return { index, internal, policy: "positionalOnly", forms: ["positional"], hasDefault, variadic }
+  return {
+    index,
+    internal,
+    external: internal,
+    type,
+    policy: `required(${internal})`,
+    forms: [`${internal}:`],
+    hasDefault,
+    variadic,
+  }
 }
 
 const leadingParameterKeywords = new Set([
@@ -139,6 +140,8 @@ const leadingParameterKeywords = new Set([
   "copy",
   "inout",
   "mut",
+  "mut ref",
+  "mut view",
   "pin",
   "ref",
   "shared",
@@ -149,11 +152,11 @@ const leadingParameterKeywords = new Set([
 
 function parameterContractFacts(raw) {
   const cleaned = splitTopLevel(raw, "=")[0].trim()
-  const leading = cleaned.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/s)
+  const leading = cleaned.match(/^(mut\s+ref|mut\s+view|[A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.+)$/s)
   const leadingModifier = leadingParameterKeywords.has(leading?.[1])
     ? leading[1]
     : null
-  const contractMode = cleaned.match(/:\s*(const|inout|ref|take)\b/)?.[1] ?? "value"
+  const contractMode = cleaned.match(/:\s*(const|inout|mut\s+ref|mut\s+view|ref|take)\b/)?.[1]?.replace(/\s+/g, " ") ?? "value"
   if (!leadingModifier) return { contractMode }
   const internal = leading[2]
   const type = leading[3].trim()
@@ -180,16 +183,6 @@ function recordLabelDiagnostics(source) {
     const closing = matchingDelimiter(source, opening)
     if (closing < 0) continue
     for (const raw of splitTopLevel(source.slice(opening + 1, closing))) {
-      const parameter = raw.match(/^named\s+([A-Za-z_][A-Za-z0-9_]*)\s*:/)
-      if (parameter) {
-        diagnostics.push({
-          code: "W-LABEL-0007",
-          declaration: "init",
-          parameter: parameter[1],
-          context: "initializer",
-          reason: "record-label-already-required",
-        })
-      }
       const placement = parameterContractFacts(raw)
       if (placement.leadingModifier) {
         diagnostics.push({
@@ -205,6 +198,93 @@ function recordLabelDiagnostics(source) {
     }
   }
   return diagnostics
+}
+
+function quotedPattern(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+}
+
+/**
+ * Derive the small, source-backed ordering contract for a synthesized
+ * initializer. This is an ordering oracle only; it does not construct a W
+ * value or claim checker/runtime support.
+ */
+export function deriveInitializerEvaluationPlan(source, typeName) {
+  if (!typeName) return null
+  const clean = withoutComments(source)
+  const declaration = new RegExp(`\\b(?:struct|object)\\s+${quotedPattern(typeName)}\\b[^\\{]*\\{`, "g").exec(clean)
+  if (!declaration) return null
+  const opening = declaration.index + declaration[0].lastIndexOf("{")
+  const closing = matchingDelimiter(clean, opening, "{", "}")
+  if (closing < 0) return null
+  const fields = []
+  for (const line of clean.slice(opening + 1, closing).split(/\r?\n/)) {
+    const field = line.trim().match(/^(?:var\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*:\s*([^=;]+?)(?:\s*=\s*(.+?))?;?$/)
+    if (!field) continue
+    fields.push({ name: field[1], type: field[2].trim(), defaultExpression: field[3]?.trim() ?? null })
+  }
+  const fieldByName = new Map(fields.map((field) => [field.name, field]))
+  const callPattern = new RegExp(`\\b${quotedPattern(typeName)}\\s*\\(`, "g")
+  let call = null
+  for (const match of clean.matchAll(callPattern)) {
+    const openingCall = (match.index ?? 0) + match[0].lastIndexOf("(")
+    if (openingCall > opening && openingCall < closing) continue
+    const closingCall = matchingDelimiter(clean, openingCall)
+    if (closingCall >= 0) {
+      call = { opening: openingCall, closing: closingCall }
+      break
+    }
+  }
+  if (!call) return { typeName, fields, explicitEvaluationOrder: [], defaultEvaluationOrder: [], installationOrder: fields.map((field) => field.name), diagnostics: [] }
+  const explicitEvaluationOrder = []
+  const supplied = new Set()
+  const diagnostics = []
+  for (const argument of splitTopLevelWithSpans(clean.slice(call.opening + 1, call.closing))) {
+    const labelMatch = argument.text.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+    const label = labelMatch?.[1] ?? null
+    const expression = labelMatch ? argument.text.slice(labelMatch[0].length).trim() : argument.text.trim()
+    if (!label) {
+      diagnostics.push({
+        code: "W-LABEL-0005",
+        typeName,
+        label: "positional",
+        reason: "synthesized-initializer-requires-label",
+      })
+      continue
+    }
+    const field = fieldByName.get(label)
+    if (!field) {
+      diagnostics.push({ code: "W-LABEL-0005", typeName, label: label ?? "positional" })
+      continue
+    }
+    if (supplied.has(field.name)) {
+      diagnostics.push({ code: "W-LABEL-0006", typeName, label: label ?? field.name, slot: field.name })
+      continue
+    }
+    supplied.add(field.name)
+    explicitEvaluationOrder.push({ field: field.name, label: label ?? field.name, expression })
+  }
+  for (const field of fields) {
+    if (!supplied.has(field.name) && field.defaultExpression === null) {
+      diagnostics.push({
+        code: "W-LABEL-0005",
+        typeName,
+        label: field.name,
+        reason: "synthesized-initializer-required-field-missing",
+      })
+    }
+  }
+  const defaultEvaluationOrder = fields
+    .filter((field) => !supplied.has(field.name) && field.defaultExpression !== null)
+    .map((field) => ({ field: field.name, expression: field.defaultExpression }))
+  return {
+    typeName,
+    fields,
+    explicitEvaluationOrder,
+    defaultEvaluationOrder,
+    installationOrder: fields.map((field) => field.name),
+    diagnostics,
+  }
 }
 
 function matchingDelimiter(source, opening, open = "(", close = ")") {
@@ -352,7 +432,7 @@ function codeMask(source) {
   return mask
 }
 
-function parseCalls(source) {
+function parseCalls(source, input = {}) {
   const calls = []
   const mask = codeMask(source)
   const enumScopes = declarationScopes(source).filter((scope) => scope.kind === "enum")
@@ -392,7 +472,10 @@ function parseCalls(source) {
       const expression = labelMatch
         ? argument.slice(labelMatch[0].length).trim()
         : argument.trim()
-      const operation = expression.match(/^(copy|inout|pin|ref|take)\b/)?.[1] ?? "value"
+      const operationMatch = expression.match(/^(mut\s+ref|mut\s+view|mut\s+object|mut|copy|inout|pin|ref|take)\b/)
+      const operation = operationMatch
+        ? (operationMatch[1] === "mut" ? "mut object" : operationMatch[1].replace(/\s+/g, " "))
+        : "value"
       const expressionOffset = argument.indexOf(expression)
       if (labelMatch) {
         labels.push(labelMatch[1])
@@ -404,6 +487,11 @@ function parseCalls(source) {
         form: labelMatch ? `${labelMatch[1]}:` : "positional",
         label: labelMatch?.[1] ?? null,
         operation,
+        place: expression.replace(/^(?:mut\s+ref|mut\s+view|mut\s+object|mut|copy|inout|pin|ref|take)\s+/, "").trim(),
+        placeKind: input.placeKinds?.[expression.replace(/^(?:mut\s+ref|mut\s+view|mut\s+object|mut|copy|inout|pin|ref|take)\s+/, "").trim()] ?? null,
+        mutablePlace: input.mutablePlaces?.includes(expression.replace(/^(?:mut\s+ref|mut\s+view|mut\s+object|mut|copy|inout|pin|ref|take)\s+/, "").trim())
+          ? true
+          : input.mutablePlaces ? false : null,
         start: cursor + 1 + argumentPart.start,
         end: cursor + 1 + argumentPart.end,
       })
@@ -414,6 +502,7 @@ function parseCalls(source) {
       source.lastIndexOf(";", start),
       source.lastIndexOf("{", start),
     ) + 1
+    const pipe = /\|>\s*(?:(?:try|await)\s+)?(?:\.\s*)?$/.test(mask.slice(statementStart, start))
     const statement = source.slice(statementStart, closing + 1)
     let callForm = "direct"
     if (/\btry\s+await\b|\bawait\b/.test(statement)) callForm = "await"
@@ -433,6 +522,7 @@ function parseCalls(source) {
       labels,
       forms,
       member: mask[memberCursor] === ".",
+      pipe,
       start,
       callForm,
       line: source.slice(0, start).split("\n").length,
@@ -442,151 +532,263 @@ function parseCalls(source) {
   return calls
 }
 
-function completeCallShapes(parameters) {
-  let shapes = [[]]
+function parameterSegments(parameters) {
+  const segments = [{ named: [], anchor: null }]
   for (const parameter of parameters) {
-    if (parameter.variadic) {
-      const extended = shapes.flatMap((shape) =>
-        parameter.forms.map((form) => [...shape, `${form}...`]))
-      shapes = [...shapes, ...extended]
-      continue
+    if (parameter.policy === "positionalOnly" || parameter.unnamed) {
+      segments.at(-1).anchor = parameter
+      segments.push({ named: [], anchor: null })
+    } else {
+      segments.at(-1).named.push(parameter)
     }
-    const extended = shapes.flatMap((shape) => parameter.forms.map((form) => [...shape, form]))
-    shapes = parameter.hasDefault || parameter.contextualAllocator
-      ? [...shapes, ...extended]
-      : extended
   }
-  return shapes.map((shape) => shape.join("|"))
+  return segments
 }
 
-function epsilonClosure(parameters, initialStates) {
-  const states = new Set(initialStates)
-  const pending = [...states]
-  while (pending.length > 0) {
-    const state = pending.pop()
-    const parameterIndex = Math.floor(state / 2)
-    const parameter = parameters[parameterIndex]
-    const continuation = state % 2 === 1
-    if (!parameter) continue
-    if (!continuation && !parameter.hasDefault && !parameter.variadic && !parameter.contextualAllocator) continue
-    const next = (parameterIndex + 1) * 2
-    if (!states.has(next)) {
-      states.add(next)
-      pending.push(next)
-    }
-  }
-  return states
+function parameterOptional(parameter) {
+  return parameter.hasDefault || parameter.contextualAllocator || parameter.variadic
 }
 
-function consumeForm(parameters, states, form) {
-  const next = new Set()
-  for (const state of epsilonClosure(parameters, states)) {
-    const parameterIndex = Math.floor(state / 2)
-    const parameter = parameters[parameterIndex]
-    if (!parameter) continue
-    const continuation = state % 2 === 1
-    if (continuation) {
-      if (parameter.variadic && form === "positional") next.add(state)
+function namedSegmentOptions(named) {
+  let options = [[]]
+  for (const parameter of named) {
+    const form = parameter.forms[0]
+    if (!form) continue
+    const withParameter = options.map((option) => [...option, form])
+    options = parameterOptional(parameter)
+      ? [...options, ...withParameter]
+      : withParameter
+  }
+  return options.map((option) => option.sort())
+}
+
+function segmentShapeParts(segments, segmentIndex, namedForms, anchorForm) {
+  const parts = []
+  for (let index = 0; index < segments.length; index += 1) {
+    const names = namedForms[index] ?? []
+    parts.push(names.join("&"))
+    if (index < segments.length - 1) parts.push(index === segmentIndex ? anchorForm : "")
+  }
+  return parts
+}
+
+function completeCallShapes(parameters) {
+  const segments = parameterSegments(parameters)
+  let combinations = [{ names: segments.map(() => []), anchors: segments.slice(0, -1).map(() => "") }]
+  for (let index = 0; index < segments.length; index += 1) {
+    const options = namedSegmentOptions(segments[index].named)
+    combinations = combinations.flatMap((combination) => options.map((names) => ({
+      ...combination,
+      names: combination.names.map((value, nameIndex) => nameIndex === index ? names : value),
+    })))
+    if (index >= segments.length - 1) continue
+    const anchor = segments[index].anchor
+    const anchorOptions = anchor && !parameterOptional(anchor)
+      ? [anchor.variadic ? "positional..." : "positional"]
+      : ["", anchor?.variadic ? "positional..." : "positional"]
+    combinations = combinations.flatMap((combination) => anchorOptions.map((value) => ({
+      ...combination,
+      anchors: combination.anchors.map((current, anchorIndex) => anchorIndex === index ? value : current),
+    })))
+  }
+  const shapes = combinations.map((combination) => {
+    const parts = []
+    for (let index = 0; index < segments.length; index += 1) {
+      const names = combination.names[index] ?? []
+      if (names.length > 0) parts.push(names.join("&"))
+      if (index < segments.length - 1 && combination.anchors[index]) {
+        parts.push(combination.anchors[index])
+      }
+    }
+    return parts.join("|")
+  })
+  return [...new Set(shapes)]
+}
+
+function labelSegmentMap(parameters) {
+  const map = new Map()
+  for (const [segmentIndex, segment] of parameterSegments(parameters).entries()) {
+    for (const parameter of segment.named) {
+      for (const form of parameter.forms) map.set(form, { parameter, segmentIndex })
+    }
+  }
+  return map
+}
+
+function bindCallForms(parameters, forms, options = {}) {
+  const segments = parameterSegments(parameters)
+  const labels = labelSegmentMap(parameters)
+  const seen = new Set()
+  const bindings = []
+  const holes = []
+  const addHole = (parameter) => {
+    if (!holes.includes(parameter)) holes.push(parameter)
+  }
+  let segmentIndex = 0
+  let activeVariadic = null
+  for (const form of forms) {
+    if (form === "positional") {
+      if (activeVariadic && activeVariadic.segmentIndex === segmentIndex) {
+        bindings.push({ parameter: activeVariadic.parameter, form })
+        continue
+      }
+      const segment = segments[segmentIndex]
+      if (!segment?.anchor) return null
+      if (segment.anchor.variadic) {
+        activeVariadic = { parameter: segment.anchor, segmentIndex }
+      } else {
+        segmentIndex += 1
+      }
+      bindings.push({ parameter: segment.anchor, form })
       continue
     }
-    if (!parameter.forms.includes(form)) continue
-    next.add(parameter.variadic ? state + 1 : state + 2)
+    const entry = labels.get(form)
+    if (!entry || seen.has(form)) return null
+    if (activeVariadic
+      && entry.segmentIndex === activeVariadic.segmentIndex
+      && entry.parameter.index < activeVariadic.parameter.index) return null
+    if (entry.segmentIndex > segmentIndex) {
+      for (let skipped = segmentIndex; skipped < entry.segmentIndex; skipped += 1) {
+        const skippedAnchor = segments[skipped]?.anchor
+        if (!skippedAnchor) return null
+        if (!parameterOptional(skippedAnchor)) {
+          if (!options.allowPipeHole) return null
+          addHole(skippedAnchor)
+        }
+      }
+      segmentIndex = entry.segmentIndex
+      activeVariadic = null
+    }
+    if (entry.segmentIndex !== segmentIndex) return null
+    seen.add(form)
+    bindings.push({ parameter: entry.parameter, form })
+    activeVariadic = entry.parameter.variadic
+      ? { parameter: entry.parameter, segmentIndex }
+      : null
   }
-  return epsilonClosure(parameters, next)
+  for (const segment of segments) {
+    for (const parameter of segment.named) {
+      const form = parameter.forms[0]
+      if (form && !seen.has(form) && !parameterOptional(parameter)) {
+        if (!options.allowPipeHole) return null
+        addHole(parameter)
+      }
+    }
+  }
+  for (let index = 0; index < segments.length - 1; index += 1) {
+    const anchor = segments[index].anchor
+    if (anchor && !parameterOptional(anchor)
+      && !bindings.some((binding) => binding.parameter === anchor)
+      && !holes.includes(anchor)) addHole(anchor)
+  }
+  if (options.allowPipeHole && holes.length !== 1) return null
+  if (!options.allowPipeHole && holes.length > 0) return null
+  return { bindings, holes }
 }
 
 export function acceptsCallShape(parameters, forms) {
-  let states = epsilonClosure(parameters, new Set([0]))
-  for (const form of forms) {
-    states = consumeForm(parameters, states, form)
-    if (states.size === 0) return false
-  }
-  return states.has(parameters.length * 2)
+  return bindCallForms(parameters, forms) !== null
+}
+
+export function acceptsPipeCallShape(parameters, forms) {
+  return bindCallForms(parameters, forms, { allowPipeHole: true }) !== null
 }
 
 function operationMatchesContract(parameter, argument) {
-  if (argument.operation === "ref") return parameter.contractMode === "ref"
-  if (argument.operation === "inout") return parameter.contractMode === "inout"
-  if (argument.operation === "take") return parameter.contractMode === "take"
-  if (argument.operation === "value") return parameter.contractMode !== "inout"
-  return parameter.contractMode !== "inout"
+  const mode = parameter.contractMode
+  if (mode === "inout") return argument.operation === "inout"
+  if (mode === "ref") return ["ref", "value"].includes(argument.operation)
+  if (mode === "mut ref") {
+    if (argument.operation === "mut ref") return argument.mutablePlace !== false
+    if (argument.operation !== "mut object") return false
+    if (argument.placeKind === "struct" || argument.placeKind === "enum") return false
+    return parameter.objectType !== false && argument.mutablePlace !== false
+  }
+  if (mode === "mut view") return ["mut view", "mut ref", "ref", "value"].includes(argument.operation)
+  if (mode === "take") return ["take", "value"].includes(argument.operation)
+  return argument.operation !== "inout"
 }
 
 export function acceptsCallContract(parameters, args) {
-  const memo = new Map()
-  function visit(parameterIndex, argumentIndex, variadicStarted = false) {
-    const key = `${parameterIndex}:${argumentIndex}:${variadicStarted}`
-    if (memo.has(key)) return memo.get(key)
-    if (parameterIndex === parameters.length) {
-      const accepted = argumentIndex === args.length
-      memo.set(key, accepted)
-      return accepted
+  const bindings = bindCallForms(parameters, args.map((argument) => argument.form))
+  if (!bindings || bindings.bindings.length !== args.length) return false
+  return bindings.bindings.every((binding, index) => operationMatchesContract(binding.parameter, args[index]))
+}
+
+export function acceptsPipeCallContract(parameters, args) {
+  const bindings = bindCallForms(parameters, args.map((argument) => argument.form), { allowPipeHole: true })
+  if (!bindings || bindings.bindings.length !== args.length) return false
+  return bindings.bindings.every((binding, index) => operationMatchesContract(binding.parameter, args[index]))
+}
+
+function witnessForms(parameters, limit = 8) {
+  const segments = parameterSegments(parameters)
+  const forms = []
+  function visit(segmentIndex, prefix) {
+    if (segmentIndex >= segments.length) {
+      forms.push(prefix)
+      return
     }
-    const parameter = parameters[parameterIndex]
-    if (argumentIndex === args.length) {
-      const accepted = (parameter.hasDefault || parameter.variadic || parameter.contextualAllocator)
-        && visit(parameterIndex + 1, argumentIndex, false)
-      memo.set(key, accepted)
-      return accepted
+    const segment = segments[segmentIndex]
+    const named = segment.named.map((parameter) => parameter.forms[0]).filter(Boolean)
+    const requiredNames = named.filter((_, index) => !parameterOptional(segment.named[index]))
+    const nameChoices = [requiredNames]
+    for (const parameter of segment.named.filter((candidate) => parameterOptional(candidate))) {
+      nameChoices.push([...requiredNames, parameter.forms[0]])
     }
-    const argument = args[argumentIndex]
-    let accepted = false
-    if ((parameter.hasDefault || parameter.variadic || parameter.contextualAllocator)
-      && visit(parameterIndex + 1, argumentIndex, false)) {
-      accepted = true
+    const counts = segment.anchor?.variadic
+      ? Array.from({ length: limit + 1 }, (_, index) => index)
+      : segment.anchor ? [parameterOptional(segment.anchor) ? 0 : 1] : [0]
+    for (const names of nameChoices) {
+      for (const count of counts) {
+        const withNames = [...prefix, ...names]
+        const withAnchor = segment.anchor
+          ? [...withNames, ...Array.from({ length: count }, () => "positional")]
+          : withNames
+        visit(segmentIndex + 1, withAnchor)
+      }
     }
-    const formMatches = variadicStarted
-      ? argument.form === "positional"
-      : parameter.forms.includes(argument.form)
-    if (!accepted
-      && formMatches
-      && operationMatchesContract(parameter, argument)) {
-      accepted = parameter.variadic
-        ? visit(parameterIndex, argumentIndex + 1, true)
-          || visit(parameterIndex + 1, argumentIndex + 1, false)
-        : visit(parameterIndex + 1, argumentIndex + 1, false)
-    }
-    memo.set(key, accepted)
-    return accepted
   }
-  return visit(0, 0)
+  visit(0, [])
+  return forms
 }
 
 function overlappingCallShape(left, right) {
-  const alphabet = [...new Set(
-    left.concat(right).flatMap((parameter) =>
-      parameter.variadic ? [...parameter.forms, "positional"] : parameter.forms),
-  )].sort()
-  const initialLeft = epsilonClosure(left, new Set([0]))
-  const initialRight = epsilonClosure(right, new Set([0]))
-  const queue = [{ left: initialLeft, right: initialRight, forms: [] }]
-  const visited = new Set()
-
-  while (queue.length > 0) {
-    const state = queue.shift()
-    const key = `${[...state.left].sort().join(",")}|${[...state.right].sort().join(",")}`
-    if (visited.has(key)) continue
-    visited.add(key)
-    if (state.left.has(left.length * 2) && state.right.has(right.length * 2)) {
-      return state.forms.join("|")
-    }
-    for (const form of alphabet) {
-      const nextLeft = consumeForm(left, state.left, form)
-      const nextRight = consumeForm(right, state.right, form)
-      if (nextLeft.size > 0 && nextRight.size > 0) {
-        queue.push({ left: nextLeft, right: nextRight, forms: [...state.forms, form] })
-      }
-    }
+  const leftShapes = new Set(completeCallShapes(left))
+  for (const shape of completeCallShapes(right)) {
+    if (leftShapes.has(shape)) return shape
+  }
+  for (const candidate of witnessForms(left).concat(witnessForms(right))) {
+    if (acceptsCallShape(left, candidate) && acceptsCallShape(right, candidate)) return candidate.join("|")
   }
   return null
 }
 
-function deriveCallableLabels(source, declarations) {
+function deriveCallableLabels(source, declarations, input = {}) {
   const byScopedName = new Map()
   const byName = new Map()
   const diagnostics = recordLabelDiagnostics(source)
+  const objectNames = new Set([...source.matchAll(/\bobject\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]))
+  const nominalNames = new Set([...source.matchAll(/\b(?:object|struct|enum)\s+([A-Za-z_][A-Za-z0-9_]*)/g)].map((match) => match[1]))
   for (const declaration of declarations) {
+    const externalLabels = new Map()
     for (const parameter of declaration.params) {
+      const typeName = parameter.type
+        ?.replace(/^(?:mut\s+ref|mut\s+view|ref|inout|take|const|shared|weak|view)\s+/, "")
+        .match(/^([A-Za-z_][A-Za-z0-9_]*)/)?.[1]
+      parameter.objectType = nominalNames.size === 0 ? null : objectNames.has(typeName)
+      for (const form of parameter.forms.filter((candidate) => candidate.endsWith(":"))) {
+        const label = form.slice(0, -1)
+        if (externalLabels.has(label)) {
+          diagnostics.push({
+            code: "W-LABEL-0006",
+            declaration: declaration.name,
+            label,
+            slot: label,
+            reason: "duplicate-external-label-in-declaration",
+          })
+        } else externalLabels.set(label, parameter)
+      }
       if (!parameter.leadingModifier) continue
       diagnostics.push({
         code: "W-OWNERSHIP-0016",
@@ -622,7 +824,7 @@ function deriveCallableLabels(source, declarations) {
     byScopedName.set(scopedName, [...previous, item])
     byName.set(declaration.name, [...(byName.get(declaration.name) ?? []), item])
   }
-  const calls = parseCalls(source)
+  const calls = parseCalls(source, input)
   for (const call of calls) {
     // This oracle has no type checker. A member name can resolve to a type that
     // is not declared in the same source file, so only direct calls are
@@ -637,7 +839,9 @@ function deriveCallableLabels(source, declarations) {
     const suppliedShape = call.forms.join("|")
     const acceptedShapes = declarationsForName.flatMap((declaration) => declaration.callShapes)
     const accepted = declarationsForName.some((declaration) =>
-      acceptsCallShape(declaration.params, call.forms))
+      call.pipe
+        ? acceptsPipeCallShape(declaration.params, call.forms)
+        : acceptsCallShape(declaration.params, call.forms))
     if (!duplicate && !accepted) {
       const unknown = call.labels.find((label) => !acceptedLabels.includes(`${label}:`))
       diagnostics.push({
@@ -649,7 +853,9 @@ function deriveCallableLabels(source, declarations) {
     } else if (!duplicate
       && declarationsForName.some((declaration) => declaration.boundary !== "foreign")
       && !declarationsForName.some((declaration) => declaration.boundary === "foreign"
-        || acceptsCallContract(declaration.params, call.arguments))) {
+        || (call.pipe
+          ? acceptsPipeCallContract(declaration.params, call.arguments)
+          : acceptsCallContract(declaration.params, call.arguments)))) {
       diagnostics.push({
         code: "W-OWNERSHIP-0017",
         declaration: call.callee,
@@ -683,32 +889,153 @@ function parseGenericHeads(source) {
   for (const match of source.matchAll(/\b(?:struct|enum|type|fn)\s+([A-Za-z_][A-Za-z0-9_]*)\s*<([^>{}]*)>/g)) {
     const parameters = splitTopLevel(match[2]).map((raw, index) => {
       const token = raw.trim()
-      const optional = token.match(/^_\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+      const positional = token.match(/^_\s*([A-Za-z_][A-Za-z0-9_]*)\s*:/)
+      const externalInternal = token.match(/^([A-Za-z_][A-Za-z0-9_]*)\s+([A-Za-z_][A-Za-z0-9_]*)\s*:/)
       const named = token.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)
-      if (optional) return { index, name: optional[1], policy: "optional(name)", forms: ["positional", `${optional[1]}:`] }
-      if (named) return { index, name: named[1], policy: "required(name)", forms: [`${named[1]}:`] }
-      return { index, name: token, policy: "type", forms: ["positional"] }
+      if (positional) {
+        return {
+          index,
+          name: positional[1],
+          internal: positional[1],
+          external: null,
+          kind: "value",
+          anchor: true,
+          policy: "positionalOnly",
+          forms: ["positional"],
+        }
+      }
+      if (externalInternal) {
+        return {
+          index,
+          name: externalInternal[2],
+          internal: externalInternal[2],
+          external: externalInternal[1],
+          kind: "value",
+          anchor: false,
+          policy: `required(${externalInternal[1]})`,
+          forms: [`${externalInternal[1]}:`],
+        }
+      }
+      if (named && !/^[A-Z]/.test(named[1])) {
+        return {
+          index,
+          name: named[1],
+          internal: named[1],
+          external: named[1],
+          kind: "value",
+          anchor: false,
+          policy: `required(${named[1]})`,
+          forms: [`${named[1]}:`],
+        }
+      }
+      const typeName = named ? named[1] : token
+      return {
+        index,
+        name: typeName,
+        internal: typeName,
+        external: null,
+        kind: "type",
+        anchor: true,
+        policy: "type",
+        forms: ["positional"],
+      }
     })
+    let segment = 0
+    for (const parameter of parameters) {
+      parameter.segment = segment
+      if (parameter.anchor) segment += 1
+    }
     heads.push({ name: match[1], parameters })
   }
   const diagnostics = []
+  for (const head of heads) {
+    const externalLabels = new Set()
+    for (const parameter of head.parameters) {
+      for (const form of parameter.forms.filter((candidate) => candidate.endsWith(":"))) {
+        const label = form.slice(0, -1)
+        if (externalLabels.has(label)) {
+          diagnostics.push({
+            code: "W-LABEL-0006",
+            declaration: head.name,
+            label,
+            slot: label,
+            reason: "duplicate-external-label-in-generic-head",
+          })
+        } else externalLabels.add(label)
+      }
+    }
+  }
   const identities = []
+  const bind = (head, args, declaration) => {
+    const bound = Array(head.parameters.length).fill(undefined)
+    const assigned = new Set()
+    const suppliedLabels = args.map((argument) => argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)?.[1]).filter(Boolean)
+    for (const label of suppliedLabels) {
+      if (suppliedLabels.indexOf(label) !== suppliedLabels.lastIndexOf(label)) {
+        diagnostics.push({ code: "W-LABEL-0006", declaration, label, slot: label })
+      }
+    }
+    const anchorIndexes = head.parameters
+      .filter((parameter) => parameter.anchor)
+      .map((parameter) => parameter.index)
+    let nextAnchor = 0
+    let currentSegment = 0
+    const advance = () => {
+      while (nextAnchor < anchorIndexes.length && assigned.has(anchorIndexes[nextAnchor])) {
+        currentSegment = head.parameters[anchorIndexes[nextAnchor]].segment + 1
+        nextAnchor += 1
+      }
+    }
+    advance()
+    for (const raw of args) {
+      const named = raw.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/)
+      if (named) {
+        const label = named[1]
+        const candidate = head.parameters.find((parameter) => parameter.external === label)
+        if (!candidate || candidate.segment !== currentSegment || candidate.anchor) {
+          diagnostics.push({
+            code: "W-LABEL-0005",
+            declaration,
+            label,
+            acceptedForms: head.parameters.filter((parameter) => parameter.segment === currentSegment && !parameter.anchor).flatMap((parameter) => parameter.forms),
+            reason: candidate && candidate.segment !== currentSegment ? "generic-label-crosses-anchor" : "generic-label-unknown-or-positional-only",
+          })
+          continue
+        }
+        if (assigned.has(candidate.index)) {
+          diagnostics.push({ code: "W-LABEL-0006", declaration, label, slot: label })
+          continue
+        }
+        assigned.add(candidate.index)
+        bound[candidate.index] = named[2].trim()
+        continue
+      }
+      advance()
+      const anchorIndex = anchorIndexes[nextAnchor]
+      const anchor = head.parameters[anchorIndex]
+      if (!anchor || !anchor.anchor) {
+        diagnostics.push({ code: "W-LABEL-0005", declaration, reason: "generic-positional-without-anchor" })
+        continue
+      }
+      assigned.add(anchorIndex)
+      bound[anchorIndex] = raw.trim()
+      currentSegment = anchor.segment + 1
+      nextAnchor += 1
+      advance()
+    }
+    for (const parameter of head.parameters) {
+      if (!assigned.has(parameter.index)) {
+        diagnostics.push({ code: "W-GENERIC-0002", declaration, slot: parameter.name, reason: "generic-slot-missing" })
+      }
+    }
+    return bound.map((value) => value ?? "")
+  }
   for (const head of heads) {
     const uses = [...source.matchAll(new RegExp(`\\b${head.name}\\s*<([^>\n]+)>`, "g"))]
       .filter((match) => !new RegExp(`\\b(?:struct|enum|type|fn)\\s+$`).test(source.slice(0, match.index)))
     for (const use of uses) {
       const args = splitTopLevel(use[1])
-      const suppliedLabels = args.map((argument) => argument.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:/)?.[1]).filter(Boolean)
-      const duplicateLabel = suppliedLabels.find((label, index) => suppliedLabels.indexOf(label) !== index)
-      if (duplicateLabel) diagnostics.push({ code: "W-LABEL-0006", declaration: head.name, label: duplicateLabel, slot: duplicateLabel })
-      const values = head.parameters.map((parameter, index) => {
-        const raw = args[index] ?? ""
-        const named = raw.match(/^([A-Za-z_][A-Za-z0-9_]*)\s*:\s*(.*)$/)
-        if (named && named[1] !== parameter.name) {
-          diagnostics.push({ code: "W-LABEL-0005", declaration: head.name, label: named[1], acceptedForms: parameter.forms })
-        }
-        return named ? named[2].trim() : raw.trim()
-      })
+      const values = bind(head, args, head.name)
       identities.push({ head: head.name, values })
     }
   }
@@ -1166,29 +1493,39 @@ function deriveDoctest(source, input = {}) {
   const lines = source.split(/\r?\n/)
   const examples = []
   let current = null
+  let inDocBlock = false
   for (const line of lines) {
-    const trimmedLine = line.trim()
-    if (current && trimmedLine === "*/") {
+    const startsBlock = /^\s*\/\*\*/.test(line)
+    const isLineDoc = /^\s*\/\/\//.test(line)
+    if (!inDocBlock && !startsBlock && !isLineDoc) {
       current = null
       continue
     }
+    if (startsBlock) inDocBlock = true
+    const endsBlock = inDocBlock && /\*\/\s*$/.test(line)
     const normalized = line
-      .replace(/^\s*\/\*\*?/, "")
+      .replace(/^\s*\/\*\*/, "")
       .replace(/\*\/\s*$/, "")
       .replace(/^\s*\/\/\//, "")
       .replace(/^\s*\*\s?/, "")
       .trim()
-    if (normalized === "@example") {
-      current = { call: null, terminals: [], lines: [] }
-      examples.push(current)
-      continue
-    }
-    if (!current) continue
-    current.lines.push(normalized)
     const call = normalized.match(/^call:\s*(.+)$/)
-    if (call) current.call = call[1]
-    const terminal = normalized.match(/^(result|error):\s*(.+)$/)
-    if (terminal) current.terminals.push({ kind: terminal[1], value: terminal[2] })
+    if (call) {
+      current = { call: null, terminals: [], lines: [] }
+      current.call = call[1]
+      current.lines.push(normalized)
+      examples.push(current)
+    } else if (current) {
+      const terminal = normalized.match(/^(result|error):\s*(.+)$/)
+      if (terminal) {
+        current.lines.push(normalized)
+        current.terminals.push({ kind: terminal[1], value: terminal[2] })
+      }
+    }
+    if (endsBlock) {
+      inDocBlock = false
+      current = null
+    }
   }
   const diagnostics = []
   for (const example of examples) {
@@ -1352,7 +1689,7 @@ function deriveStd(input = {}) {
 export function deriveExecutionErgonomics(source, input = {}) {
   const clean = withoutComments(source)
   const declarations = declarationBodies(clean)
-  const labels = deriveCallableLabels(clean, declarations)
+  const labels = deriveCallableLabels(clean, declarations, input)
   const generic = parseGenericHeads(clean)
   const suspension = deriveSuspension(clean, declarations, input)
   return {

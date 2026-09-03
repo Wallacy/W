@@ -6,7 +6,7 @@ fn badView(source: take some Stream<view String, E>): some Stream<view String, E
   }
 }
 
-fn badDialogue(source: take Channel<Order><.receive>): some Stream<Order, Never> {
+fn badDialogue(source: take Channel<receive: Order>): some Stream<Order, Never> {
   return stream <[take source]> {
     yield from source
   }

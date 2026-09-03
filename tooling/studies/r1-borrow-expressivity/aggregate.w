@@ -7,7 +7,7 @@ export enum SelectedLine {
 
 export protocol MenuSelection {
   static fn observeBorrowExpressivity(
-    primary: ref String,
-    fallback: ref String,
+    _ primary: ref String,
+    _ fallback: ref String,
   ): SelectedLine
 }

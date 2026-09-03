@@ -89,8 +89,8 @@ export const fn expectedTransactionOutcome(
 }
 
 test "commit uncertainty never becomes rollback" for expectedTransactionOutcome {
-  expect expectedTransactionOutcome(.bodyError) == .aborted
-  expect expectedTransactionOutcome(.canceledBeforeCommit) == .aborted
-  expect expectedTransactionOutcome(.commitConfirmed) == .committed
-  expect expectedTransactionOutcome(.commitConfirmationLost) == .unknownCommit
+  expect expectedTransactionOutcome(observation: .bodyError) == .aborted
+  expect expectedTransactionOutcome(observation: .canceledBeforeCommit) == .aborted
+  expect expectedTransactionOutcome(observation: .commitConfirmed) == .committed
+  expect expectedTransactionOutcome(observation: .commitConfirmationLost) == .unknownCommit
 }

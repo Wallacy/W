@@ -330,7 +330,7 @@ static bool test_guard_shapes(void) {
 
 static bool test_for_markers_and_iterables(void) {
   static const char marker_text[] =
-      "fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}"
+      "fn markers(rows:Rows){for ref row in rows{}for mut ref item in rows{}"
       "for copy value in rows{}}\n";
   fixture markers;
   CHECK(fixture_init(&markers, marker_text,
@@ -345,15 +345,16 @@ static bool test_for_markers_and_iterables(void) {
   CHECK(marker_block != W_SEED_CST_NONE);
   const w_seed_cst_index ref_loop =
       direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 0);
-  const w_seed_cst_index inout_loop =
+  const w_seed_cst_index mut_ref_loop =
       direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 1);
   const w_seed_cst_index copy_loop =
       direct_child_after(&markers, marker_block, W_SEED_CST_FOR_STATEMENT, 2);
   CHECK(ref_loop != W_SEED_CST_NONE);
-  CHECK(inout_loop != W_SEED_CST_NONE);
+  CHECK(mut_ref_loop != W_SEED_CST_NONE);
   CHECK(copy_loop != W_SEED_CST_NONE);
   CHECK(has_direct_text(&markers, ref_loop, W_SEED_CST_WORD, "ref"));
-  CHECK(has_direct_text(&markers, inout_loop, W_SEED_CST_WORD, "inout"));
+  CHECK(has_direct_text(&markers, mut_ref_loop, W_SEED_CST_WORD, "mut"));
+  CHECK(has_direct_text(&markers, mut_ref_loop, W_SEED_CST_WORD, "ref"));
   CHECK(has_direct_text(&markers, copy_loop, W_SEED_CST_WORD, "copy"));
 
   fixture expression;
@@ -471,7 +472,7 @@ static bool test_phase2_declaration_tree(void) {
   static const char text[] =
       "import {Command,Result} from command\n"
       "export struct FormatCase {value:String expected:String}\n"
-      "export fn namedCall(command:Command,named audit:Audit):String throws KitchenError {"
+      "export fn namedCall(command:Command,audit:Audit):String throws KitchenError {"
       "return command}\n"
       "test \"fixture\" for namedCall {expect command == audit}\n";
   fixture value;
@@ -1456,7 +1457,7 @@ static bool test_language_lock_shapes(void) {
 
 static bool test_phase2_parameter_and_argument_shapes(void) {
   static const char text[] =
-      "fn inspect(named:T,named audit:Audit,external internal:T,_ internal:T):T {"
+      "fn inspect(named:T,audit:Audit,external internal:T,_ internal:T):T {"
       "return inspect(named:value,audit:value)}\n";
   fixture value;
   CHECK(fixture_init(&value, text,
@@ -1471,7 +1472,7 @@ static bool test_phase2_parameter_and_argument_shapes(void) {
       direct_child_after(&value, function, W_SEED_CST_PARAMETER_LIST, 0);
   CHECK(parameters != W_SEED_CST_NONE);
   CHECK(count_direct_kind(&value, parameters, W_SEED_CST_PARAMETER) == 4);
-  const char *parameter_texts[] = {"named:T", "named audit:Audit",
+  const char *parameter_texts[] = {"named:T", "audit:Audit",
                                    "external internal:T", "_ internal:T"};
   for (size_t index = 0; index < 4; index += 1) {
     const w_seed_cst_index parameter =
@@ -3096,8 +3097,8 @@ static bool test_enum_declaration_shapes(void) {
   CHECK(first_kind(&property_case, W_SEED_CST_ENUM_CASE) != W_SEED_CST_NONE);
 
   static const char function_type_payloads[] =
-      "enum Callbacks { positional(fn(named value: u32): Bool) "
-      "labeled(handler: fn(named value: u32): Bool) }\n";
+      "enum Callbacks { positional(fn(u32): Bool) "
+      "labeled(handler: fn(u32): Bool) }\n";
   fixture function_types;
   CHECK(fixture_init(&function_types, function_type_payloads,
                      sizeof(function_types.nodes) /

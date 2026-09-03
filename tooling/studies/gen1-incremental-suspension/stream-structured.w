@@ -3,7 +3,7 @@ module gen1StreamStructured
 import streaming from std.stream
 
 export async fn observeSuspension<E: Error>(
-  source: take some Stream<view String, E>,
+  _ source: take some Stream<view String, E>,
 ): usize throws E {
   var count: usize = 0
   for try await line in source {
@@ -13,13 +13,13 @@ export async fn observeSuspension<E: Error>(
 }
 
 export async fn closePull<E: Error>(
-  source: take some Stream<view String, E>,
+  _ source: take some Stream<view String, E>,
 ): () throws E {
   try await (take source).cancel()
 }
 
 export async fn observeTraversal<E: Error>(
-  source: take some Stream<view String, E>,
+  _ source: take some Stream<view String, E>,
 ): usize throws E {
   var retained: usize = 0
   for try await line in source {
@@ -30,7 +30,7 @@ export async fn observeTraversal<E: Error>(
 }
 
 export async fn observeDelegation<E: Error>(
-  source: take some Stream<view String, E>,
+  _ source: take some Stream<view String, E>,
 ): usize throws E {
   let child = async observeTraversal(take source)
   return try await child

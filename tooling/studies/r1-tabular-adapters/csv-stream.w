@@ -12,8 +12,8 @@ struct HorizonReading: data.Row {
 }
 
 async fn summarizeCsv<Failure: Error, Source: io.ByteSource<Failure>>(
-  source: take Source,
-  options: csv.DecodeOptions,
+  _ source: take Source,
+  _ options: csv.DecodeOptions,
 ): f64? throws csv.DecodeError<Failure> {
   var batches = csv.decode<HorizonReading, Failure, Source>(
     source: take source,

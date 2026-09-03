@@ -17,6 +17,7 @@ export const DEFAULT_TEMP_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 export const WORKSPACE_OUTPUTS = Object.freeze([
   { relativePath: "build", marker: "cmake" },
+  { relativePath: ".codex/build-seed", marker: "cmake" },
   { relativePath: "reference/last-light/build", marker: "known-output" },
   { relativePath: "portal/dist", marker: "known-output" },
   { relativePath: "tooling/tree-sitter-w/build", marker: "known-output" },
@@ -86,6 +87,7 @@ const PROTECTED_WORKSPACE_PATHS = Object.freeze([
   "history",
   "node_modules",
 ]);
+const CODEX_BUILD_OUTPUT = ".codex/build-seed";
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -160,6 +162,7 @@ function normalizeKeepPaths(values, workspaceRoot, tempRoot) {
 }
 
 function hasProtectedWorkspaceIntersection(candidate, workspaceRoot) {
+  if (samePath(candidate, path.join(workspaceRoot, CODEX_BUILD_OUTPUT))) return false;
   return PROTECTED_WORKSPACE_PATHS.some((relativePath) =>
     pathsIntersect(candidate, path.join(workspaceRoot, relativePath)));
 }
@@ -194,7 +197,35 @@ async function workspaceTargets(workspaceRoot) {
   const targets = [];
   for (const rule of WORKSPACE_OUTPUTS) {
     const target = path.resolve(workspaceRoot, rule.relativePath);
-    if (await pathExists(target)) targets.push({ path: target, scope: "workspace", rule });
+    if (!await pathExists(target)) continue;
+    if (rule.relativePath === "build" && rule.marker === "cmake" && !await hasCMakeMarker(target)) {
+      const entries = await readdir(target, { withFileTypes: true });
+      const nested = [];
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        const child = path.join(target, entry.name);
+        if (await hasCMakeMarker(child)) {
+          nested.push({
+            path: child,
+            scope: "workspace",
+            rule: { relativePath: path.join(rule.relativePath, entry.name), marker: "cmake" },
+          });
+        }
+      }
+      if (nested.length > 0) {
+        targets.push(...nested);
+        continue;
+      }
+      if (entries.length === 0) {
+        targets.push({
+          path: target,
+          scope: "workspace",
+          rule: { relativePath: rule.relativePath, marker: "known-empty-output" },
+        });
+        continue;
+      }
+    }
+    targets.push({ path: target, scope: "workspace", rule });
   }
 
   const entries = await readdir(workspaceRoot, { withFileTypes: true });

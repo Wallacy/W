@@ -8,7 +8,7 @@ enum TitleFault: Error {
 
 const sampleTitle: MenuTitle = "Milliways"
 
-fn acceptTitle(input: String): MenuTitle throws TitleFault {
+fn acceptTitle(_ input: String): MenuTitle throws TitleFault {
   do {
     return try MenuTitle(take input)
   } catch {

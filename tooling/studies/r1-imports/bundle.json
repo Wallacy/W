@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/command.w",
     "symbol": "import std.text",
-    "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
+    "digest": "sha256:848d3dc3d29dbdb0841161f61e51eae5c3061f2392869fe8593e869d6ed75e12"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "flattened.w",
-      "digest": "sha256:ee77de555641548468748516941b6b64d77ea35402f46c6d24f63c1a87a9ac45",
+      "digest": "sha256:86bdf88caf30a028cc458c2bb833c8636e470be13fe2111d25e2f2c64675bdae",
       "changedConstructs": [
         "package-qualified flattening import",
         "unqualified function calls"
@@ -28,7 +28,7 @@
       "role": "alternative",
       "language": "w",
       "path": "qualified.w",
-      "digest": "sha256:94ee3c6209566da29790ecf25e1836f5e2052adb76b38c463408fc1c7c526703",
+      "digest": "sha256:c90c45db7d0a47e6574eb959e447e05b4c41a3b86aae05fc3c900212273270cc",
       "changedConstructs": [
         "module binding import",
         "qualified function calls"

@@ -9,9 +9,9 @@ export behavior WrappedDegrees for u16 {
 
   get { return degrees }
   mut set(newValue) { degrees = newValue % 360_u16 }
-  mut modify {
+  get mut ref {
     defer { degrees %= 360_u16 }
-    return inout degrees
+    return mut ref degrees
   }
 
   export mut fn reset() {
@@ -36,11 +36,6 @@ export behavior Versioned<Value> for Value {
     epoch += 1
   }
 
-  willModify(current: ref Value) { }
-
-  mut didModify(current: ref Value) {
-    epoch += 1
-  }
 }
 
 export behavior VersionedDegrees for u16 =
@@ -133,10 +128,12 @@ fn use(
                     (argument_list))
                   (number_literal)))))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (block
           (return_statement
             (identifier))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (behavior_parameter_list
           (behavior_parameter
             (identifier)))
@@ -148,6 +145,7 @@ fn use(
                 (identifier)
                 (number_literal))))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (block
           (defer_statement
             (block
@@ -203,42 +201,19 @@ fn use(
         (behavior_hook_parameters
           (behavior_ref_parameter
             (identifier)
-            (type
-              (type_name
-                (type_identifier))))
+            (type_name
+              (type_identifier)))
           (behavior_ref_parameter
             (identifier)
-            (type
-              (type_name
-                (type_identifier)))))
+            (type_name
+              (type_identifier))))
         (block))
       (behavior_hook
         (behavior_hook_parameters
           (behavior_ref_parameter
             (identifier)
-            (type
-              (type_name
-                (type_identifier)))))
-        (block
-          (expression_statement
-            (assignment_expression
-              (identifier)
-              (number_literal)))))
-      (behavior_hook
-        (behavior_hook_parameters
-          (behavior_ref_parameter
-            (identifier)
-            (type
-              (type_name
-                (type_identifier)))))
-        (block))
-      (behavior_hook
-        (behavior_hook_parameters
-          (behavior_ref_parameter
-            (identifier)
-            (type
-              (type_name
-                (type_identifier)))))
+            (type_name
+              (type_identifier))))
         (block
           (expression_statement
             (assignment_expression
@@ -278,17 +253,18 @@ fn use(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -298,7 +274,8 @@ fn use(
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -308,12 +285,12 @@ fn use(
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -639,20 +616,20 @@ fn pipePrecedence(x: Value?, fallback: Value, f: fn(Value): Value): Value {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (type
@@ -709,12 +686,12 @@ fn invalidPipeRhs(x: Value, fallback: Value): Value {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

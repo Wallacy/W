@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/horizon.w",
     "symbol": "broadcast",
-    "digest": "sha256:ea591c9edcc09cee08c56d7fd759bc41805a65c51f0948f10d9637cb6dd4e9e1"
+    "digest": "sha256:6671dc29755a958c4b67735a44aa208c738c0bbea9f1a4f8f3a51a08f7f74886"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "explicit.w",
-      "digest": "sha256:9b1b654045fc33d704e70f30fa6b476defce9c982301e3b2dfe1e890f76af818",
+      "digest": "sha256:61eced3e763d437f893c0fc18928b34ac74f248374e6e15529c94ccc6e07075c",
       "changedConstructs": [
         "explicit broadcast target",
         "shape declaration"
@@ -28,7 +28,7 @@
       "role": "alternative",
       "language": "w",
       "path": "checked-implicit.w",
-      "digest": "sha256:25adfe6ea69dd0cdff7d7e6714e779d224735337a0584f7b3f959c995aedd14d",
+      "digest": "sha256:52346a206a05edfafa032dd8eb6b7b6cd0376d0cf765d71461dab5597fd75072",
       "changedConstructs": [
         "checked implicit shape",
         "broadcast omission"

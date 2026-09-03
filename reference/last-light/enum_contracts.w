@@ -141,8 +141,8 @@ export fn reservationMessage(
   delaySeconds delay: u32,
 ): String {
   do {
-    let stage = try reserveCourse(ingredientsReady, delaySeconds: delay)
-    return workInstruction(stage)
+    let stage = try reserveCourse(ingredientsReady: ingredientsReady, delaySeconds: delay)
+    return workInstruction(stage: stage)
   } catch .ingredientsMissing(let dish) {
     return "Missing ingredients for ${dish}"
   } catch .delayed(let seconds) {
@@ -159,21 +159,21 @@ test "enum subset excludes cancellation" for nextWorkStage {
 }
 
 test "transition return publishes only reachable stages" for routeAcceptedOrder {
-  let reserved = routeAcceptedOrder(true)
-  let cancelled = routeAcceptedOrder(false)
+  let reserved = routeAcceptedOrder(canReserve: true)
+  let cancelled = routeAcceptedOrder(canReserve: false)
 
   expect reserved == .reserving
   expect cancelled == .cancelled
-  expect terminalMessage(try TerminalStage(cancelled)) ==
+  expect terminalMessage(stage: try TerminalStage(cancelled)) ==
     "Return the ingredients to this universe"
 }
 
 test "parameter subset rejects completed orders by contract" for requestCancellation {
-  let request = requestCancellation(.preparing)
+  let request = requestCancellation(stage: .preparing)
 
   expect request.stage == .preparing
-  expect asTerminalStage(.serving) == .none
-  expect asTerminalStage(.completed) == .some(.completed)
+  expect asTerminalStage(stage: .serving) == .none
+  expect asTerminalStage(stage: .completed) == .some(.completed)
 }
 
 test "payload enum subset keeps payload access" for describeOutcome {
@@ -193,7 +193,7 @@ test "payload shape follows the selected enum case" for requestedTemperature {
 }
 
 test "error subset limits the exhaustive catch" for reservationMessage {
-  expect reservationMessage(false, delaySeconds: 0) ==
+  expect reservationMessage(ingredientsReady: false, delaySeconds: 0) ==
     "Missing ingredients for Horizon Cake"
-  expect reservationMessage(true, delaySeconds: 3) == "Wait 3 seconds"
+  expect reservationMessage(ingredientsReady: true, delaySeconds: 3) == "Wait 3 seconds"
 }

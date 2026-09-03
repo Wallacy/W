@@ -7,7 +7,7 @@ struct HorizonReading {
   warning: String?
 }
 
-fn summarizeHorizon(readings: ref Array<HorizonReading>): f64? {
+fn summarizeHorizon(_ readings: ref Array<HorizonReading>): f64? {
   var maximum: f64? = .none
   for reading in readings {
     if !reading.hawkingFlux.isFinite { continue }
@@ -20,7 +20,7 @@ fn summarizeHorizon(readings: ref Array<HorizonReading>): f64? {
   return maximum
 }
 
-fn convenientRowAlgorithm(readings: ref Array<HorizonReading>): u64 {
+fn convenientRowAlgorithm(_ readings: ref Array<HorizonReading>): u64 {
   return readings.lazy.map((reading) => reading.sequence).max() ?? 0
 }
 

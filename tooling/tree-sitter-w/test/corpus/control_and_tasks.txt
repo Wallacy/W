@@ -18,7 +18,7 @@ async fn makeCake(request: CakeRequest): Cake throws KitchenError {
     parameters: (parameter_list
       (parameter
         name: (identifier)
-        type: (type
+        type: (parameter_type
           base: (type_name
             name: (type_identifier)))))
     return_type: (type
@@ -103,7 +103,7 @@ async fn convert(): Receipt throws MenuError {
     parameters: (parameter_list
       (parameter
         name: (identifier)
-        type: (type
+        type: (parameter_type
           base: (type_name
             name: (type_identifier)))))
     return_type: (type
@@ -257,7 +257,7 @@ fn containsRatio(value: f64): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -330,12 +330,12 @@ fn shouldAccumulate(raw: f64, error: f64): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -406,7 +406,7 @@ fn fold(rows: ref Array<Array<u8>>): u32 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -554,7 +554,7 @@ fn afterInvalidLabel(): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -600,7 +600,7 @@ fn newlineTrivia(value: u32): u32 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -649,7 +649,7 @@ fn digitCount(value: u64): u8 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

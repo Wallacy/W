@@ -205,7 +205,7 @@ alvo de execução independente.
 | `memory.w` | ownership, shared/weak, ciclos, Address, provenance, pinning e callback C |
 | `shared_control_oracle.w` | construção declarativa `shared T`, `try` fora do tipo, origins `$storage`/`$controlBlock`, weak lifetime e rehome; a fonte FFI canônica está em `memory.w` |
 | `hir_memory_oracle.w` | PlaceId, LoanId, reborrow, OriginSet, suspensão, representação e ABI |
-| `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`inout`, Array de refs, reborrow e await stable |
+| `borrowed_values.w` | kitchens disjuntas, stored `ref`/`view`/`mut ref`, Array de refs, reborrow e await stable |
 | `borrow_expressivity.w` | callable borrowed por invocation, cursor lending, adapters source-shaped, origem única bodyless e rejeição de ambiguidade |
 | `allocation.w` | placement, origem, mobilidade, allocator scope, budget e rehome |
 | `allocator_oracle.w` | layout físico, provider, resize, progress e reclamation A0 |
@@ -604,11 +604,11 @@ Aceite:
 - `ref Array<T>` observa o owner completo e pode ler `capacity`;
 - `view Array<T>` observa somente elementos e `count`;
 - criar ou copiar uma view read-only não aloca nem mantém o owner vivo;
-- `inout view Array<T>` altera elementos e não altera o extent;
+- `mut view Array<T>` altera elementos e não altera o extent;
 - append, resize e mudança de allocator não existem na interface da view;
 - o owner não pode mover ou mudar a estrutura durante um borrow;
 - `view String` sempre começa e termina em boundaries UTF-8 válidas;
-- `inout view String` e `inout view CString` não existem;
+- `mut view String` e `mut view CString` não existem;
 - `materialize()` copia a projeção para um owner;
 - `tryMaterialize(allocator:)` torna allocation failure recuperável;
 - `await` exige que o owner permaneça estável no task frame;
@@ -709,11 +709,11 @@ Aceite:
 - `[0; 32]` avalia o valor uma vez e cria um fixed array;
 - uma view impede mutation estrutural que poderia mover seu storage;
 - lookup borrowed não copia String ou outro valor move-only;
-- `inout` altera um value existente sem novo lookup;
+- `inout` altera um value existente por value-in/value-out sem novo lookup;
 - Map e Set iteram em ordem de inserção para qualquer hash seed;
 - collision mantém full keys distintas;
 - update preserva a posição e remove/reinsert move a key para o fim;
-- `for ref`, `for inout`, `for copy` e `for ... in take` mostram ownership;
+- `for ref`, `for mut ref`, `for copy` e `for ... in take` mostram ownership;
 - stable sort preserva a sequência original de prioridades iguais;
 - pipeline eager e `.lazy.collect()` permanecem formas distintas.
 
@@ -863,8 +863,8 @@ Aceite:
 - cancel de uma branch não cancela a outra; drop das duas cancela o source;
 - `pumpReadableBytes` prova a direção para `ByteSink` sem `WritableStream`;
 - `mirrorReadableBytes` mantém os dois pumps em children estruturados;
-- `Channel<T><.send>` pode ser copiado somente com `copy`;
-- `Channel<T><.receive>` é único e move-only;
+- `Channel<send: T>` pode ser copiado somente com `copy`;
+- `Channel<receive: T>` é único e move-only;
 - o channel aceita somente payload `transferable` owned;
 - `view T` não entra na fila;
 - capacity zero faz rendezvous;
@@ -1301,8 +1301,8 @@ Aceite:
 - rounding policy é parte da operação;
 - overflow não usa binary float;
 - `WrappedDegrees` normaliza a atribuição e a mutação composta no accessor;
-- `WrappedDegrees.modify` retoma seu hook depois do borrow, e uma rotação de
-  `350` graus por `25` graus produz `15`;
+- `WrappedDegrees.get mut ref` retoma seu cleanup depois do borrow, e uma
+  rotação de `350` graus por `25` graus produz `15`;
 - um behavior aceita somente o thunk `initialValue`, sem configuração runtime;
 - `priceTable` usa lowering isolado no service serial e não cria lock;
 - um owner concorrente seleciona um winner e publica um valor completo;
@@ -1333,7 +1333,7 @@ Aceite:
 
 ### 3.9 Sonda de Aroma
 
-Famílias: `foreign c`, `fn<C>`, unsafe, layout, pointer e cleanup.
+Famílias: `foreign c`, `fn<lang: .c>`, unsafe, layout, pointer e cleanup.
 
 Aceite:
 
@@ -1453,14 +1453,14 @@ Aceite:
 - `String<(value.scalars.count <= 40)>` explicita o mesmo subject e a mesma ConstIR;
 - `Array<u8><(.count <= 64)>` refina um generic já aplicado;
 - `Array<[u8, (.count <= 64)]>` não substitui os dois contratos;
-- `spawn<.compute>` e `spawn<domain: .compute>` aceitam o mesmo slot opcional e normalizam para o mesmo HIR;
-- `fn<C>` e `fn<lang: .c>` selecionam o mesmo frontend hermético pelo mesmo slot opcional;
+- `spawn<.compute>` fornece o slot dedicado de domain e normaliza para o mesmo HIR;
+- `fn<lang: .c>` fornece o slot de frontend hermético;
 - `<(...)>`, `<{...}>` e `<[...]>` preservam expression, record e list;
 - um slot repetido produz diagnostic antes do type-check normal;
-- um case abreviado usa o slot posicional com label opcional declarado pelo schema;
+- um case abreviado usa o slot positional-only declarado pelo schema;
 - um case ambíguo nunca escolhe um slot por ordem;
 - deadline e executor runtime não entram no contrato angular.
-- `Money.zeroCredits` e `Course.fromOrdinal(...)` não criam estado global;
+- `Money.zeroCredits` e `Course.fromOrdinal(value: ...)` não criam estado global;
 - `OrderState.advance(...): self` retorna um reborrow explícito.
 
 As formas `where` e `on` permanecem no corpus contrafactual. A análise normativa
@@ -1627,8 +1627,16 @@ Aceite:
 - `PidController.isIdle` usa um getter local, síncrono e sem allocation;
 - `PaymentProof.canServe` não oculta I/O, `throws` ou suspensão;
 - `BrigadeMetrics.completionCount` atende ao property requirement;
-- o corpus estrutural cobre `get`, `set` e `modify`;
-- `modify` devolve um borrow escopado com `return inout`.
+- o corpus estrutural cobre `get`, `get ref`, `get mut ref` e `set`;
+- `get mut ref` devolve um borrow exclusivo escopado com `return mut ref`;
+- `willGet`/`didGet` observam leituras somente quando o behavior opta por esses hooks;
+- uma mutation composta usa value `get` + `set` e observa `willGet`/`didGet` e
+  `willSet`/`didSet`;
+- `willSet`/`didSet` observam writeback pela modalidade owned `set`, não pelo acesso
+  direto `get mut ref`;
+- uma storage facet mutável chama `didSet` depois do cleanup, sem
+  `proposed`/`willSet`;
+- `PropertyAccessKind` é o enum core real `value | borrowed | mutableBorrowed`.
 
 O ensaio deve rejeitar `async init`, getter com service call e uso de `self`
 antes da inicialização completa.
@@ -1667,7 +1675,7 @@ Aceite:
 - `timeline` possui default e não quebra a construção existente em `command.w`;
 - um pattern externo sem `...` é rejeitado;
 - `let ref Type(...)` cria borrows compartilhados dos fields;
-- `let inout Type(...)` cria borrows exclusivos dos fields;
+- `let mut ref Type(...)` cria borrows exclusivos dos fields;
 - o owner não pode ser movido enquanto um borrow de field estiver vivo;
 - `object` e `service` não aceitam destructuring;
 - `w interface diff` classifica field com default como minor;
@@ -1717,8 +1725,16 @@ Aceite:
 - falha antes de completar `self` limpa somente os fields completos;
 - falha depois de completar `self` executa `deinit` uma vez;
 - os overloads de `expectedEnergy` possuem formas disjuntas;
-- `_`, `during:` seleciona telemetry sem consultar seu tipo;
-- `_`, `duty:`, `during:` seleciona power e duty;
+- `source:`, `during:` selecionam telemetry por label, sem consultar tipos;
+- `source:`, `duty:`, `during:` selecionam power e duty por labels;
+- `name: Type` exige o label externo homônimo; `external internal: Type` separa
+  label externo e nome interno; `_ name: Type` é positional-only;
+- labels podem reordenar dentro do próprio segmento entre âncoras `_`, mas não
+  atravessam uma âncora; permutações do mesmo conjunto de labels colidem;
+- o slot contextual `allocator name: ref Allocator` pode aparecer em qualquer
+  posição, e a call pode omitir `allocator:` quando o contexto o preenche;
+- `lhs |> call(...)` preenche exatamente um slot obrigatório não contextual ainda
+  sem binding; defaults não são holes e tipos não desempatam a pipe;
 - return type, constraints, efeitos e conversões não ordenam candidatos;
 - um default não pode criar uma forma aceita por outro overload;
 - uma referência a overload exige uma closure que mostre a forma;
@@ -1767,7 +1783,7 @@ Aceite:
 - `T?` representa somente `.some(T)` ou `.none`;
 - postfix `?` propaga somente `.none` de uma função que retorna Option;
 - `?.` faz leitura condicional e `??` avalia o fallback de forma lazy;
-- uma mutation usa `if let inout`, não optional chaining;
+- uma mutation usa `if let mut ref`, não optional chaining;
 - `try` aceita uma call `throws E` ou um `Result<T, E>`;
 - `try?` converte qualquer error recuperável em ausência, mas não captura panic
   ou cancelamento;
@@ -1812,11 +1828,14 @@ Aceite:
 - o body generic usa somente members declarados pelas constraints;
 - o call site não escolhe uma conformance por import ou ranking;
 - a interface registra generic HIR e witness IDs;
-- `name: Type` expõe value compile-time com label, enquanto `_ name: Type`
-  mantém o nome interno e torna `name:` opcional;
-- múltiplos values com label opcional precedem values nomeados, sem reorder;
+- `name: Type` exige label externo homônimo, `external internal: Type` separa os
+  nomes e `_ name: Type` mantém uma âncora positional-only;
+- labels reordenam somente no segmento entre âncoras; named arguments não dependem
+  da ordem textual da declaração;
+- types e predicates não escolhem binding; `Matrix<rows: 3, f32, columns: 4>`
+  prova o binding por labels dentro dos segmentos sem cruzar o type anchor;
 - named values de type heads aparecem por lookup estático e não viram fields;
-- `Matrix<f32, rows: 3, columns: 4>.rows` consulta a contract value associada;
+- `Matrix<rows: 3, f32, columns: 4>.rows` consulta a contract value associada;
 - monomorphization e shared lowering preservam a mesma semântica.
 
 O fixture negativo deve criar duas conditional conformances que se sobrepõem.
@@ -1910,7 +1929,8 @@ Aceite:
 - `Arguments<T>` não pode escapar do body;
 - `ref T...` preserva borrows por elemento;
 - `take T...` e `each take values` preservam consumo;
-- `inout T...` é rejeitado;
+- `inout T...` é rejeitado; `mut ref T...` também exige a forma de borrow direto
+  correspondente, sem transformar `inout` em um field ou modo de iteração;
 - a expansão final não exige heap;
 - uma forma fixa que intersecta a forma rest é rejeitada;
 - rest W não cruza C varargs.
@@ -2108,7 +2128,7 @@ O corpus host possui 46 casos, 274 operações e 14 testes independentes. Ele
 aceita:
 
 - call direta e `await` na task corrente sem inventar `share`;
-- initializers `async` e `spawn` com captures `take`, `copy`, `ref` e `inout` explícitos;
+- initializers `async` e `spawn` com captures `take`, `copy`, `ref` e `mut ref` explícitos;
 - owner em staging antes da publicação e no child depois dela;
 - rejection de admission sem body e com cleanup único;
 - cleanup antes de outcome committed e join;
@@ -2317,20 +2337,21 @@ O caso problem-first usa ambas as formas:
 
 ```w
 allocator .fixed<capacity: 64<iec.KiB>> {
-  let snapshot = try stageMenu(ref title, dishes: ref dishes)
+  let snapshot = try stageMenu(title: ref title, dishes: ref dishes)
 }
 
 allocator outer: .fixed<capacity: 2<iec.MiB>> {
   allocator inner: .fixed<capacity: 64<iec.KiB>> {
-    let snapshot = try stageMenu(ref title, dishes: ref dishes)
+    let snapshot = try stageMenu(title: ref title, dishes: ref dishes)
     let portable = Array<String>(allocator: outer)
   }
 }
 ```
 
-`stageMenu` declara o slot contextual primeiro. A call omite o label e recebe a
-lease corrente. O primeiro block demonstra a forma anônima. `outer`
-demonstra override explícito e `inner` demonstra a precedência innermost.
+`stageMenu` declara payload e dishes antes do slot contextual allocator. A call
+omite o label e recebe a lease corrente. O primeiro block demonstra a forma
+anônima. `outer` demonstra override explícito e `inner` demonstra a precedência
+innermost.
 `rootFallbackAfterIntermediary` perde o lexical caller context e usa somente o
 contexto do próprio build profile; sob `memory.generalAllocator: .none`, uma
 request geral sem capability falha. `countStagedMenuInParallel`
@@ -3129,10 +3150,10 @@ O Book deve mostrar pares lado a lado:
 | envelope | payload, unsigned envelope e delivery records | assinatura dentro da compilation recipe |
 | matriz | payload e digest por target + index | um hash para bytes de architectures diferentes |
 | library W | `.wExact`, key e layouts compartilhados iguais | static ou dynamic torna a ABI estável |
-| export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` ou mangling W |
+| export C | `export unsafe fn<abi: .c>` com body W | `fn<C>` (**Rejeitado antes do 1.0**) ou mangling W |
 | plugin isolado | process ou component schema | dynamic library nativa como sandbox |
 | unit | `9.81<m/s^2>` | `9.81[m/s^2]` |
-| domain | `let x = spawn<.compute> ...` ou `let x = spawn<domain: .compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
+| domain | `let x = spawn<.compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
 | domain relacional | `let x = spawn<.compute> ...` | `spawn on .compute let x = ...` (**Retirado antes do 1.0**) |
 | domain customizado | `module execution<domains: [...]>` e `spawn<.thermal>` | enum manual ou string |
 | execution profile | product escolhe `executionProfile`; deployment só reduz | import cria pool ou deployment troca domain |
@@ -3179,7 +3200,7 @@ O Book deve mostrar pares lado a lado:
 | callable concreto | `some fn(A): B` | todo callable apagado |
 | callable apagado | `any fn(A): B` | `CallbackType` universal |
 | callable mode | `fn` / `mut fn` / `take fn` | `Fn` / `FnMut` / `FnOnce` |
-| frontend inline | `fn<C>` ou `fn<lang: .c>` | schema sem o slot opcional ou label incompatível |
+| frontend inline | `fn<lang: .c>` | schema sem o slot de frontend ou label incompatível |
 | matrix | `[[1, 2], [3, 4]]` | `[1 2; 3 4]` |
 | closure | `(x) => body` | `fn(x) { body }` |
 | namespace import | `import http from std` ou `import stdHTTP from std.http` | default export ou `as` externo |
@@ -3189,7 +3210,7 @@ O Book deve mostrar pares lado a lado:
 | loop de stream | `for try await item in stream` | `await stream` lê tudo ou callback push |
 | item borrowed | `Stream<view String, E>` com provenance | `StringView` owned ou view transferable |
 | channel | MPSC bounded com endpoints separados | bidirecional, MPMC ou unbounded por default |
-| endpoint | `Channel<T><.send>` / `<.receive>` | `Sender<T>` / `Receiver<T>` ou direção runtime |
+| endpoint | `Channel<send: T>` / `<.receive>` | `Sender<T>` / `Receiver<T>` ou direção runtime |
 | falha de envio | enum devolve `T` | Boolean, panic ou perda do item |
 | close de channel | último sender ou receiver gracioso; drop do receiver aborta | qualquer sender fecha globalmente |
 | prefetch | adapter `buffer(capacity:)` explícito | watermark na assinatura ou buffer invisível |
@@ -3198,12 +3219,12 @@ O Book deve mostrar pares lado a lado:
 | state mais recente | `SnapshotCell` e notification específica | `Watch` que esconde conflation e lifecycle |
 | quota por recurso | mailbox com authority | `WeightedChannel` chamado de limite de memória |
 | byte I/O | `ByteSource`/`ByteSink` async-first | `Reader`/`Writer` por backend ou interface sync condicional |
-| destino de read | append em `Bytes` com spare privado | `ReadBuffer` público ou `inout view Bytes` genérico |
+| destino de read | append em `Bytes` com spare privado | `ReadBuffer` público ou `mut view Bytes` genérico |
 | EOF | `ReadStep.data(positive)` / `.end` | zero bytes e Boolean adicional |
 | arquivo seekable | `read(at:)` posicional por default | cursor compartilhado e lock invisível |
 | I/O blocking | adapter em executor bounded | bloquear worker cooperativo ou pool ilimitado |
 | gather write | `writeMany(view Bytes...)` com fallback | `IoSlice` público, concatenação ou erro sem backend |
-| scatter read | `ReadBatch` owner + `readMany`, initialized prefixes e fallback de um read | `inout view Bytes...`, `IoSliceMut` ou probe runtime |
+| scatter read | `ReadBatch` owner + `readMany`, initialized prefixes e fallback de um read | `mut view Bytes...`, `IoSliceMut` ou probe runtime |
 | file-to-sink | `TransferPlan` + `io.transfer`, scratch/progress bounded e native choice explicável | `sendfile`/`mmap` invisível ou promessa universal de zero-copy |
 | construção textual | reserve/append no próprio `String` | `StringBuilder` público |
 | storage textual | owner único flat + SSO invisível | COW baseline, rope universal ou threshold público |

@@ -15,7 +15,7 @@ export object MenuOwnerTable {
     return .none
   }
 
-  fn allocate(_ slot: u32, named previousGeneration: u32): MenuHandle? {
+  fn allocate(_ slot: u32, previousGeneration: u32): MenuHandle? {
     guard previousGeneration < 0xffffffff else return .none
     return .some(MenuHandle(slot: slot, generation: previousGeneration + 1))
   }

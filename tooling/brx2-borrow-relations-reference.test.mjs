@@ -53,7 +53,7 @@ describe("BRX2 host reference", () => {
       body: false,
       inputs: [
         { slot: "primary", mode: "ref" },
-        { slot: "fallback", mode: "inout" },
+        { slot: "fallback", mode: "mut ref" },
       ],
       results: [{ slot: "result", mode: "view" }],
       relationContract: {

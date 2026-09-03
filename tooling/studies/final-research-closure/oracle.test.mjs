@@ -48,7 +48,7 @@ describe("FRC0 final research closure host oracle", () => {
     expect(current.facts.reopenedCategories).toEqual({
       "W-1451": "oracle-backed-current",
       "W-1452": "superseded",
-      "W-1453": "oracle-backed-current",
+      "W-1453": "superseded",
     });
     expect(current.facts.reopenedResearch).toBe(true);
     expect(current.facts.pfuSupersessionValid).toBe(true);

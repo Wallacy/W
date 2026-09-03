@@ -36,7 +36,7 @@ struct Matrix<
 
 struct CoursePath<_ stages: StaticList<ServiceStage>> {}
 
-fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
+fn useContracts(bytes: view Bytes, edit: mut view Bytes) {
   let enabled = select<true>()
   let decoder = decode<"utf8">()
   let arena = allocate<64<iec.KiB>>()
@@ -215,11 +215,13 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
     (type
       (function_type
         (function_type_parameter
-          (type
+          (parameter_call_ownership)
+          (parameter_type
             (type_name
               (type_identifier))))
         (function_type_parameter
-          (type
+          (parameter_call_ownership)
+          (parameter_type
             (type_name
               (type_identifier))))
         (type
@@ -239,7 +241,7 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
               (contextual_member_expression
                 (identifier)))))
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier)
               (type_identifier))
@@ -249,7 +251,7 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
                   (type_name
                     (type_identifier)))))))
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier)
               (type_identifier))))
@@ -312,12 +314,12 @@ fn useContracts(bytes: view Bytes, edit: inout view Bytes) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -421,6 +423,7 @@ type AfterIncomplete = u8
     (type
       (type_name
         (type_identifier)))))
+
 ==================
 Whitespace cannot detach a type contract from its head
 ==================

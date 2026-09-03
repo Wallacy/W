@@ -1981,7 +1981,7 @@ static bool test_typed_const_expression_predicates(void) {
         fingerprint_not_available(&overflow_result));
 
   static const char unsupported_call_source[] =
-      "const fn helper(value: i64): i64 { return value }\n"
+      "const fn helper(_ value: i64): i64 { return value }\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { field: Box<(helper(6))> }\n";
   CHECK(fixture_lower(&value, unsupported_call_source));
@@ -2460,32 +2460,32 @@ static bool test_string_predicate_conversion_boundary(void) {
 static bool test_fingerprint_adversarial_inputs(void) {
   static const char always_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
-      "struct Box<_ value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: Box<true> }\n";
+      "struct Box<value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: true> }\n";
   static const char always_spaced_source[] =
       "\n// formatting does not change the semantic projection\n"
       "const fn always(value: Bool): Bool { return true }\n\n"
-      "struct Box<_ value: Bool<(always(.member))>> {}\n"
-      "// optional labels remain outside the semantic projection\n"
-      "struct Use { item: Box<true> }\n";
+      "struct Box<value: Bool<(always(.member))>> {}\n"
+      "// named value labels remain outside the semantic projection\n"
+      "struct Use { item: Box<value: true> }\n";
   static const char always_prefixed_source[] =
       "struct Unrelated {}\n"
       "const fn always(value: Bool): Bool { return true }\n"
-      "struct Box<_ value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: Box<true> }\n";
+      "struct Box<value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: true> }\n";
   static const char always_label_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
-      "struct Box<_ value: Bool<(always(.member))>> {}\n"
+      "struct Box<value: Bool<(always(.member))>> {}\n"
       "struct Use { item: Box<value: true> }\n";
   static const char other_head_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
-      "struct OtherBox<_ value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: OtherBox<true> }\n";
+      "struct OtherBox<value: Bool<(always(.member))>> {}\n"
+      "struct Use { item: OtherBox<value: true> }\n";
   static const char list_source[] =
       "enum Color { red green }\n"
       "const fn alwaysList(value: StaticList<Color>): Bool { return true }\n"
-      "struct ListBox<_ value: StaticList<Color><(alwaysList(.member))>> {}\n"
-      "struct Use { item: ListBox<[.red, .green]> }\n";
+      "struct ListBox<value: StaticList<Color><(alwaysList(.member))>> {}\n"
+      "struct Use { item: ListBox<value: [.red, .green]> }\n";
   static const char nominal_source[] =
       "const fn keep(value: Bool): Bool { return value }\n"
       "type LocalId = u64\n"
@@ -2508,17 +2508,17 @@ static bool test_fingerprint_adversarial_inputs(void) {
       "struct Use { item: Outer<Inner<u64>> }\n";
   static const char integer_source[] =
       "const fn alwaysInt(value: u8): Bool { return true }\n"
-      "struct IntBox<_ value: u8<(alwaysInt(.member))>> {}\n"
-      "struct Use { item: IntBox<7> }\n";
+      "struct IntBox<value: u8<(alwaysInt(.member))>> {}\n"
+      "struct Use { item: IntBox<value: 7> }\n";
   static const char same_head_integer_source[] =
       "const fn always(value: u8): Bool { return true }\n"
-      "struct Box<_ value: u8<(always(.member))>> {}\n"
-      "struct Use { item: Box<7> }\n";
+      "struct Box<value: u8<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: 7> }\n";
   static const char enum_source[] =
       "enum Color { red green blue }\n"
       "const fn isRed(value: Color): Bool { return true }\n"
-      "struct ColorBox<_ value: Color<(isRed(.member))>> {}\n"
-      "struct Use { item: ColorBox<.red> }\n";
+      "struct ColorBox<value: Color<(isRed(.member))>> {}\n"
+      "struct Use { item: ColorBox<value: .red> }\n";
   w_seed_generic_validation_result result;
   CHECK(fixture_lower(&value, always_source));
   CHECK(validate_application(&value, CONVERSION_VALUES,
@@ -3602,7 +3602,7 @@ static bool test_named_module_const_d4(void) {
     CHECK(((const uint8_t *)value.receipts)[byte] == 0xa5u);
 
   static const char unsupported_source[] =
-      "const fn helper(value: i64): i64 { return value }\n"
+      "const fn helper(_ value: i64): i64 { return value }\n"
       "const unsupported: String = \"42\"\n"
       "const call: i64 = helper(6)\n"
       "struct Box<_ value: i64> {}\n"
@@ -3853,24 +3853,24 @@ static bool test_named_module_const_d4(void) {
 static bool test_specialization_contract(void) {
   static const char base_source[] =
       "const fn always(value: i64): Bool { return true }\n"
-      "struct Box<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Box<value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: 42> }\n";
   static const char label_source[] =
       "const fn always(value: i64): Bool { return true }\n"
-      "struct Box<_ value: i64<(always(.member))>> {}\n"
+      "struct Box<value: i64<(always(.member))>> {}\n"
       "struct Use { item: Box<value: 42> }\n";
   static const char other_head_source[] =
       "const fn always(value: i64): Bool { return true }\n"
-      "struct OtherBox<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: OtherBox<42> }\n";
+      "struct OtherBox<value: i64<(always(.member))>> {}\n"
+      "struct Use { item: OtherBox<value: 42> }\n";
   static const char other_body_source[] =
       "const fn always(value: i64): Bool { return value == value }\n"
-      "struct Box<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Box<value: i64<(always(.member))>> {}\n"
+      "struct Use { item: Box<value: 42> }\n";
   static const char rejected_source[] =
       "const fn never(value: i64): Bool { return false }\n"
-      "struct Box<_ value: i64<(never(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Box<value: i64<(never(.member))>> {}\n"
+      "struct Use { item: Box<value: 42> }\n";
   uint8_t base_preimage[65536];
   w_seed_generic_validation_result base_result;
   CHECK(fixture_lower(&value, base_source));

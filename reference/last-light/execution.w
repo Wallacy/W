@@ -87,7 +87,7 @@ fn mixJob(job: take MixingJob): MixingResult throws BrigadeError {
 // The body infers maySuspend. The declaration does not repeat async.
 export fn inferredSuspension(job: take MixingJob): MixingResult throws BrigadeError {
   await execution#yield()
-  return try mixJob(take job)
+  return try mixJob(job: take job)
 }
 
 export protocol KitchenExecution {
@@ -101,10 +101,10 @@ export fn executionForms(
   child: take MixingJob,
   parallel: take MixingJob,
 ): (MixingResult, MixingResult, MixingResult, MixingResult) throws BrigadeError {
-  let now = try mixJob(take direct)
-  let later = try await inferredSuspension(take awaited)
-  let childTask = async mixJob(take child)
-  let parallelTask = spawn<domain: .compute> mixJob(take parallel)
+  let now = try mixJob(job: take direct)
+  let later = try await inferredSuspension(job: take awaited)
+  let childTask = async mixJob(job: take child)
+  let parallelTask = spawn<domain: .compute> mixJob(job: take parallel)
   return (now, later, try await childTask, try await parallelTask)
 }
 
@@ -112,14 +112,14 @@ async fn mixCooperatively(job: take MixingJob): MixingResult throws BrigadeError
   execution#checkCancellation()
   await execution#yield()
   execution#checkCancellation()
-  return try mixJob(take job)
+  return try mixJob(job: take job)
 }
 
 export async fn mixWithTrace(job: take MixingJob): MixingResult throws BrigadeError {
   let orderId = job.orderId
   return try await MixingTrace.orderId.withValue(
     .some(orderId),
-    operation: () => try await mixCooperatively(take job),
+    operation: () => try await mixCooperatively(job: take job),
   )
 }
 
@@ -127,13 +127,13 @@ export async fn mixPair(
   left: take MixingJob,
   right: take MixingJob,
 ): (MixingResult, MixingResult) throws BrigadeError {
-  let leftResult = spawn<.compute> mixJob(take left)
-  let rightResult = spawn<.compute> mixJob(take right)
+  let leftResult = spawn<.compute> mixJob(job: take left)
+  let rightResult = spawn<.compute> mixJob(job: take right)
   return try await (leftResult, rightResult)
 }
 
 export async fn mixOnThermalLane(job: take MixingJob): MixingResult throws BrigadeError {
-  let result = spawn<.thermal> mixJob(take job)
+  let result = spawn<.thermal> mixJob(job: take job)
   return try await result
 }
 
@@ -154,7 +154,7 @@ export async fn mixBatch(
     ordering: .input,
     errors: .failFast,
   > each job in take jobs {
-    commit try mixJob(take job)
+    commit try mixJob(job: take job)
   }
 }
 
@@ -165,8 +165,8 @@ export async fn mixAcrossTwoKitchens(
   starboardJobs: take Array<MixingJob>,
   parallelismPerKitchen: usize,
 ): (Array<MixingResult>, Array<MixingResult>) throws BrigadeError {
-  let port = spawn<.compute> mixBatch(take portJobs, parallelism: parallelismPerKitchen)
-  let starboard = spawn<.compute> mixBatch(take starboardJobs, parallelism: parallelismPerKitchen)
+  let port = spawn<.compute> mixBatch(jobs: take portJobs, parallelism: parallelismPerKitchen)
+  let starboard = spawn<.compute> mixBatch(jobs: take starboardJobs, parallelism: parallelismPerKitchen)
   return try await (port, starboard)
 }
 
@@ -184,7 +184,7 @@ export async fn inspectEveryFailure(
     ordering: .completion,
     errors: .collect,
   > each job in take jobs {
-    commit try mixJob(take job)
+    commit try mixJob(job: take job)
   }
 }
 
@@ -192,7 +192,7 @@ export async fn closeBeforeTheLastCourse(
   jobs: take Array<MixingJob>,
   parallelism: usize,
 ): TaskOutcome<Array<MixingResult>, BrigadeError> {
-  let batch = async mixBatch(take jobs, parallelism: parallelism)
+  let batch = async mixBatch(jobs: take jobs, parallelism: parallelism)
   batch#cancel(reason: .shutdown)
   return await (take batch)#outcome()
 }
@@ -225,7 +225,6 @@ fn cancellationResult(cancellation: ref Cancellation): LastBellResult {
 
 /// Structured execution keeps direct calls, await, async initializers and spawn explicit.
 ///
-/// @example
 /// call: explainLastBell(.canceled(.shutdown))
 /// result: .canceled
 export fn explainLastBell(
@@ -234,6 +233,6 @@ export fn explainLastBell(
   return switch take outcome {
     case .success(let result): .mixed(take result)
     case .error(let error): .failed(error)
-    case .canceled(let cancellation): cancellationResult(cancellation)
+    case .canceled(let cancellation): cancellationResult(cancellation: cancellation)
   }
 }

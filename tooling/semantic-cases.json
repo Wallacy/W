@@ -820,7 +820,7 @@
       "kind": "positive",
       "rule": "W-773",
       "source": [
-        "fn estimate(base: Int, named courses: Int...): Int {",
+        "fn estimate(base: Int, courses: Int...): Int {",
         "  return base",
         "}",
         "fn total(planned: ref Array<Int>): Int {",
@@ -1440,7 +1440,7 @@
     {
       "id": "S0-POS-generic-parameter-kinds",
       "kind": "positive",
-      "rule": "W-1155",
+      "rule": "W-1286",
       "source": [
         "struct Box<T> {}",
         "protocol Encodable {}",
@@ -2172,7 +2172,7 @@
       "failureField": "evaluationGraph",
       "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:b507d1fdd0de984d1e9544d6b9f8cafdac50081b7e2f9b852cdc52a7715000a0" },
       "source": [
-        "fn estimate(base: Int, named courses: Int...): Int {",
+        "fn estimate(base: Int, courses: Int...): Int {",
         "  return base",
         "}",
         "fn total(planned: ref Array<Int>): Int {",
@@ -2750,7 +2750,7 @@
     {
       "id": "S0-NEG-generic-parameter-domain",
       "kind": "negative",
-      "rule": "W-1155",
+      "rule": "W-1286",
       "baseline": "S0-POS-generic-parameter-kinds",
       "failureField": "resultType",
       "failureEvidence": { "field": "resultType", "baselineValueDigest": "sha256:de5b8ae8f606cd185cae933a67198f67b66051b38e8f066fe7a1cc5c6f3f83ad" },
@@ -3826,7 +3826,7 @@
     {
       "id": "S0-POS-generic-multiple-unlabeled-values",
       "kind": "positive",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "source": [
         "struct Pair<_ left: usize, _ right: usize> {}",
         "type PairValue = Pair<1, 2>"
@@ -3859,9 +3859,9 @@
       }
     },
     {
-      "id": "S0-NEG-generic-positional-after-named",
+      "id": "S0-NEG-generic-label-before-anchor",
       "kind": "negative",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "baseline": "S0-POS-generic-multiple-unlabeled-values",
       "failureField": "proofFacts",
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:2898cc641bd9a2f99d3c86adf43fe0f62115df7a3a7ccadd03d9f9d166078ab3" },
@@ -3875,7 +3875,7 @@
             "code": "W-GENERIC-0003",
             "phase": "semantic.type",
             "severity": "error",
-            "primary": { "text": "2" },
+            "primary": { "text": "right: 1" },
             "labels": [
               { "role": "generic-parameter", "selector": { "text": "left", "occurrence": 0 } }
             ],
@@ -3884,7 +3884,7 @@
               "kind": "value",
               "externalLabel": "_",
               "position": 0,
-              "reason": "positional-after-named"
+              "reason": "named-argument-crosses-anchor"
             },
             "notes": [],
             "fixes": []
@@ -3895,7 +3895,7 @@
     {
       "id": "S0-POS-generic-positional-to-named",
       "kind": "positive",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "source": [
         "struct Grid<Element, _ rows: usize, _ columns: usize, unit: TimeUnit> {}",
         "type GridValue = Grid<f32, 3, 4, unit: .second>"
@@ -3935,7 +3935,7 @@
     {
       "id": "S0-NEG-generic-type-label-omission",
       "kind": "negative",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "baseline": "S0-POS-generic-positional-to-named",
       "failureField": "proofFacts",
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:02b6f43e58386a96dd3777b738a8fe18a788c086a02e850e4d9cc195c4662d16" },
@@ -3958,7 +3958,7 @@
               "kind": "type",
               "externalLabel": "_",
               "position": 0,
-              "reason": "type-parameter-label-omission"
+              "reason": "type-parameter-positional-marker"
             },
             "notes": [],
             "fixes": []
@@ -3967,17 +3967,17 @@
       }
     },
     {
-      "id": "S0-POS-generic-named-argument-order",
+      "id": "S0-POS-generic-named-argument-reorder",
       "kind": "positive",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "source": [
         "struct ServiceProfile<tables: usize, courses: usize> {}",
         "fn readTables(): usize {",
-        "  return ServiceProfile<tables: 8, courses: 4>.tables",
+        "  return ServiceProfile<courses: 4, tables: 8>.tables",
         "}"
       ],
       "expect": {
-        "focus": { "text": "ServiceProfile<tables: 8, courses: 4>.tables" },
+        "focus": { "text": "ServiceProfile<courses: 4, tables: 8>.tables" },
         "semanticResult": {
           "resultType": "usize",
           "category": "value",
@@ -4001,15 +4001,15 @@
       }
     },
     {
-      "id": "S0-NEG-generic-named-argument-out-of-order",
+      "id": "S0-NEG-generic-label-crosses-anchor",
       "kind": "negative",
-      "rule": "W-1156",
-      "baseline": "S0-POS-generic-named-argument-order",
+      "rule": "W-1514",
+      "baseline": "S0-POS-generic-named-argument-reorder",
       "failureField": "proofFacts",
       "failureEvidence": { "field": "proofFacts", "baselineValueDigest": "sha256:d9042451c49e34865a6c0ebf7adb368fe84eb2a4cfb9339b599c114b675a026c" },
       "source": [
-        "struct ServiceProfile<tables: usize, courses: usize> {}",
-        "type InvalidProfile = ServiceProfile<courses: 4, tables: 8>"
+        "struct ServiceProfile<Element, _ anchor: usize, tables: usize> {}",
+        "type InvalidProfile = ServiceProfile<f32, tables: 8, 0>"
       ],
       "expect": {
         "diagnostics": [
@@ -4017,16 +4017,16 @@
             "code": "W-GENERIC-0003",
             "phase": "semantic.type",
             "severity": "error",
-            "primary": { "text": "courses: 4" },
+            "primary": { "text": "tables: 8" },
             "labels": [
-              { "role": "generic-parameter", "selector": { "text": "tables: usize" } }
+              { "role": "generic-parameter", "selector": { "text": "_ anchor: usize" } }
             ],
             "facts": {
-              "parameter": "tables",
+              "parameter": "anchor",
               "kind": "value",
-              "externalLabel": "courses",
-              "position": 0,
-              "reason": "named-argument-out-of-order"
+              "externalLabel": "_",
+              "position": 1,
+              "reason": "named-argument-crosses-anchor"
             },
             "notes": [],
             "fixes": []
@@ -4037,15 +4037,15 @@
     {
       "id": "S0-POS-generic-associated-contract-lookup",
       "kind": "positive",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "source": [
         "struct Matrix<Element, rows: usize, columns: usize> {}",
         "fn readRows(): usize {",
-        "  return Matrix<f32, rows: 3, columns: 4>.rows",
+         "  return Matrix<f32, columns: 4, rows: 3>.rows",
         "}"
       ],
       "expect": {
-        "focus": { "text": "Matrix<f32, rows: 3, columns: 4>.rows" },
+        "focus": { "text": "Matrix<f32, columns: 4, rows: 3>.rows" },
         "semanticResult": {
           "resultType": "usize",
           "category": "value",
@@ -4069,7 +4069,7 @@
     {
       "id": "S0-NEG-generic-duplicate-associated-name",
       "kind": "negative",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "baseline": "S0-POS-generic-associated-contract-lookup",
       "failureField": "evaluationGraph",
       "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:31297c3bd1c8481d29241f90c72a67a5d7cd9b22e6ee03e3fe01f887882f1d84" },
@@ -4104,7 +4104,7 @@
     {
       "id": "S0-POS-generic-unlabeled-associated-contract-lookup",
       "kind": "positive",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "source": [
         "enum OvenSessionState {",
         "  ready",
@@ -4139,7 +4139,7 @@
     {
       "id": "S0-NEG-generic-unlabeled-duplicate-associated-name",
       "kind": "negative",
-      "rule": "W-1156",
+      "rule": "W-1514",
       "baseline": "S0-POS-generic-unlabeled-associated-contract-lookup",
       "failureField": "evaluationGraph",
       "failureEvidence": { "field": "evaluationGraph", "baselineValueDigest": "sha256:b2bf4369b853643c6c4f80a835e070adabff9210dfb099aa8b4ec8839b0c3e0d" },
@@ -4741,17 +4741,17 @@
       "kind": "positive",
       "rule": "W-1330",
       "source": [
-        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"
+        "fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document { return parse(payload) }"
       ],
       "expect": {
-        "focus": {"text": "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"},
+        "focus": {"text": "fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document { return parse(payload) }"},
         "semanticResult": {
           "resultType": null,
           "category": "declaration",
           "flow": {"kind": "next"},
           "ownerDelta": [],
           "effectSummary": {"signature": [], "control": [], "operational": []},
-          "proofFacts": [{"kind": "contextual-allocator-slot", "subject": "decode", "value": "first-standard-ref"}],
+          "proofFacts": [{"kind": "contextual-allocator-slot", "subject": "decode", "value": "standard-ref-declared-position"}],
           "evaluationGraph": {"nodes": [{"id": "slot", "operation": "publish-contextual-allocator", "subject": "decode"}], "edges": []}
         },
         "diagnostics": []
@@ -4763,12 +4763,12 @@
       "rule": "W-1330",
       "baseline": "S0-POS-contextual-slot-standard-shape",
       "failureField": "proofFacts",
-      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:e85554545018af2cddbfeadb69dd16dd0b37d2f4b422e81812a2a45b9258e4cb"},
+      "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:7d3bfd3320da0f6fe62ef740acfe833cf721af0372d0790750629f0c10b6f12e"},
       "source": [
-        "fn decode(allocator memory: Allocator, payload: ref Bytes): Document { return parse(payload) }"
+        "fn decode(payload: ref Bytes, allocator memory: Allocator): Document { return parse(payload) }"
       ],
       "expect": {
-        "diagnostics": [{"code": "W-ALLOCATOR-0001", "phase": "semantic.capability", "severity": "error", "primary": {"text": "fn decode(allocator memory: Allocator, payload: ref Bytes): Document { return parse(payload) }"}, "labels": [], "facts": {"declaration": "decode", "parameter": "memory", "reason": "standardRefAllocatorRequired"}, "notes": [], "fixes": []}]
+        "diagnostics": [{"code": "W-ALLOCATOR-0001", "phase": "semantic.capability", "severity": "error", "primary": {"text": "fn decode(payload: ref Bytes, allocator memory: Allocator): Document { return parse(payload) }"}, "labels": [], "facts": {"declaration": "decode", "parameter": "memory", "reason": "standardRefAllocatorRequired"}, "notes": [], "fixes": []}]
       }
     },
     {
@@ -4776,10 +4776,10 @@
       "kind": "positive",
       "rule": "W-1350",
       "source": [
-        "fn stage(allocator memory: ref Allocator, payload: ref Bytes): Document {",
+        "fn stage(payload: ref Bytes, allocator memory: ref Allocator): Document {",
         "  return parse(payload)",
         "}",
-        "fn caller(allocator current: ref Allocator, payload: ref Bytes): Document {",
+        "fn caller(payload: ref Bytes, allocator current: ref Allocator): Document {",
         "  return stage(ref payload)",
         "}"
       ],
@@ -4805,7 +4805,7 @@
       "failureField": "proofFacts",
       "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:2fa5720d16c01e9d72a851aca07a8ca880c70327f5adc8bb5277bb4ac2a502ae"},
       "source": [
-        "fn stage(allocator memory: ref Allocator, payload: ref Bytes): Document {",
+        "fn stage(payload: ref Bytes, allocator memory: ref Allocator): Document {",
         "  return parse(payload)",
         "}",
         "fn caller(payload: ref Bytes): Document {",
@@ -4820,11 +4820,11 @@
       "kind": "positive",
       "rule": "W-1350",
       "source": [
-        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }",
+        "fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document { return parse(payload) }",
         "fn decode(payload: ref Bytes, mode: DecodeMode): Document { return parse(payload) }"
       ],
       "expect": {
-        "focus": {"text": "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }"},
+        "focus": {"text": "fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document { return parse(payload) }"},
         "semanticResult": {
           "resultType": null,
           "category": "declaration",
@@ -4845,7 +4845,7 @@
       "failureField": "proofFacts",
       "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:1408c172135bb6f39a0c170b7f26b4d3b5a4c272c4e788a410c6fa8c4fef9977"},
       "source": [
-        "fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document { return parse(payload) }",
+        "fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document { return parse(payload) }",
         "fn decode(payload: ref Bytes): Document { return parse(payload) }"
       ],
       "expect": {"diagnostics": [{"code": "W-LABEL-0004", "phase": "semantic.type", "severity": "error", "primary": {"text": "fn decode(payload: ref Bytes): Document { return parse(payload) }"}, "labels": [], "facts": {"declarations": ["decode-contextual", "decode-ordinary"], "forms": ["positional"], "reason": "contextualOmissionOverloadCollision"}, "notes": [], "fixes": []}]}
@@ -4882,10 +4882,10 @@
       "failureEvidence": {"field": "proofFacts", "baselineValueDigest": "sha256:aa44f7694d6fab9f5613b2e47ae71d724b7b35aadd244c8c15f3099e351cedac"},
       "source": [
         "struct Menu {",
-        "  init(allocator memory: ref Allocator, title: String) { }",
+        "  init(title: String, allocator memory: ref Allocator) { }",
         "}"
       ],
-      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0011", "phase": "semantic.capability", "severity": "error", "primary": {"text": "init(allocator memory: ref Allocator, title: String)"}, "labels": [], "facts": {"declaration": "init", "kind": "initializer", "reason": "contextualAllocatorInInitializer"}, "notes": [], "fixes": []}]}
+      "expect": {"diagnostics": [{"code": "W-ALLOCATOR-0011", "phase": "semantic.capability", "severity": "error", "primary": {"text": "init(title: String, allocator memory: ref Allocator)"}, "labels": [], "facts": {"declaration": "init", "kind": "initializer", "reason": "contextualAllocatorInInitializer"}, "notes": [], "fixes": []}]}
     },
     {
       "id": "S0-POS-bodyless-single-borrow-origin",

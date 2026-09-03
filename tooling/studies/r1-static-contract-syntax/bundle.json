@@ -10,8 +10,8 @@
   ],
   "sourceBase": {
     "path": "../../../reference/last-light/generics.w",
-    "symbol": "Matrix<Element, rows: usize, columns: usize>",
-    "digest": "sha256:6e0b5742c53fb2a0a0bf94fa56d7fe83268d09a076f941acc4125d1aa388c053"
+    "symbol": "Matrix<rows: usize, Element, columns: usize>",
+    "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
   },
   "sourceRefs": [
     {
@@ -26,7 +26,7 @@
       "role": "selected",
       "language": "w",
       "path": "attached-contract.w",
-      "digest": "sha256:c9d48d49fc008c65d982ccf588e151500285506bf12641046e2bcc6c5f087eab",
+      "digest": "sha256:1fcceea7de655e02fb23b92c3c0185f18b782e5e486a44d192428fa0181f2ee7",
       "changedConstructs": [
         "attached Array<Dish> envelope",
         "nested >> close",
@@ -42,7 +42,7 @@
       "role": "alternative",
       "language": "w",
       "path": "spaced-close.w",
-      "digest": "sha256:e5386d3fe22c7835b1a0a865c9d7ad21959ae3c90d4f25172359c1e21e1e0257",
+      "digest": "sha256:ac1e898e7484d4bc552f43dd98b73c9bc9e460233ee5de467f21438f27ce1298",
       "changedConstructs": [
         "mandatory whitespace before nested close",
         "active nested envelope comparison"

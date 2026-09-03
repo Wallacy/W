@@ -209,11 +209,11 @@ static void configure_host(void) {
   fixture.host_parameters[0] = (w_seed_frontend_external_parameter){
       .name = (w_seed_frontend_text){"message", 7u},
       .type = (w_seed_frontend_text){"String", 6u},
-      .label_kind = W_SEED_FRONTEND_LABEL_NAMED_REQUIRED};
+      .label_kind = W_SEED_FRONTEND_LABEL_REQUIRED};
   fixture.host_parameters[1] = (w_seed_frontend_external_parameter){
       .name = (w_seed_frontend_text){"suffix", 6u},
       .type = (w_seed_frontend_text){"String", 6u},
-      .label_kind = W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED};
+      .label_kind = W_SEED_FRONTEND_LABEL_REQUIRED};
   fixture.host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
       .name = (w_seed_frontend_text){"noop", 4u},
       .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
@@ -345,13 +345,13 @@ static bool test_canonical_and_copy_boundary(void) {
   CHECK(fixture.hir_program.host_parameters[0].ordinal == 0u &&
         fixture.hir_program.host_parameters[1].ordinal == 1u &&
         fixture.hir_program.host_parameters[0].label_kind ==
-            W_SEED_HIR0_LABEL_NAMED_REQUIRED &&
+            W_SEED_HIR0_LABEL_REQUIRED &&
         fixture.hir_program.host_parameters[1].label_kind ==
-            W_SEED_HIR0_LABEL_EXTERNAL_REQUIRED);
+            W_SEED_HIR0_LABEL_REQUIRED);
   CHECK(fixture.hir_program.arguments[0].label_kind ==
-            W_SEED_HIR0_LABEL_NAMED_REQUIRED &&
+            W_SEED_HIR0_LABEL_REQUIRED &&
         fixture.hir_program.arguments[1].label_kind ==
-            W_SEED_HIR0_LABEL_EXTERNAL_REQUIRED &&
+            W_SEED_HIR0_LABEL_REQUIRED &&
         fixture.hir_program.arguments[0].label.count == 7u &&
         fixture.hir_program.arguments[1].label.count == 6u);
   CHECK(fixture.hir_program.arguments[0].owner_call == 0u &&
@@ -398,9 +398,10 @@ static bool test_function_parameter_records(void) {
   const w_seed_hir0_parameter *parameter = &fixture.hir_program.parameters[0];
   CHECK(parameter->owner_function == 0u && parameter->ordinal == 0u &&
         parameter->type_index == W_SEED_HIR0_TYPE_STRING &&
-        parameter->label_kind == W_SEED_HIR0_LABEL_POSITIONAL_ONLY &&
-        parameter->name.count == 5u && parameter->label.count == 0u);
+        parameter->label_kind == W_SEED_HIR0_LABEL_REQUIRED &&
+        parameter->name.count == 5u && parameter->label.count == 5u);
   CHECK(memcmp(fixture.hir_text + parameter->name.offset, "value", 5u) == 0);
+  CHECK(memcmp(fixture.hir_text + parameter->label.offset, "value", 5u) == 0);
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }

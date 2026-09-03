@@ -5,8 +5,8 @@ enum SelectedLine {
 }
 
 export fn observeBorrowRelation(
-  primary: ref String,
-  fallback: ref String,
+  _ primary: ref String,
+  _ fallback: ref String,
 ): SelectedLine {
   return .primary(primary.materialize())
 }

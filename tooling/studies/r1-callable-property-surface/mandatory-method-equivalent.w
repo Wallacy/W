@@ -10,6 +10,6 @@ struct PidController {
   }
 }
 
-fn callableSurfaceEntry(arrival: Arrival, gate: usize): Welcome {
+fn callableSurfaceEntry(_ arrival: Arrival, _ gate: usize): Welcome {
   return Welcome(orderId: arrival.orderId, gate: gate)
 }

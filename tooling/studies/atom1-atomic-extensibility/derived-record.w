@@ -36,7 +36,7 @@ export object DerivedSignEpoch {
     return word.exchange<.acquireRelease>(next)
   }
 
-  fn close(expected: SignEpochWord, desired: SignEpochWord): AtomicExchange<SignEpochWord> {
+  fn close(_ expected: SignEpochWord, _ desired: SignEpochWord): AtomicExchange<SignEpochWord> {
     return word.compareExchange<
       success: .acquireRelease,
       failure: .acquire,

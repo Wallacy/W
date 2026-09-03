@@ -119,7 +119,7 @@ export struct Limits: Copy & Equatable {
 export struct MediaType: Equatable {
   storedValue: String
 
-  export init(_ value: String) throws MediaTypeError {
+  export init(value: String) throws MediaTypeError {
     self.storedValue = unsafe {
       try stdPresentationMediaTypeValidate(ref value)
     }
@@ -179,29 +179,29 @@ export struct Writer {
     self.handle = validatedHandle
   }
 
-  export mut fn text(_ value: view String) throws Error {
+  export mut fn text(value: view String) throws Error {
     unsafe {
       try stdPresentationWriterText(inout handle, value)
     }
   }
 
-  export mut fn png(_ image: ref Png) throws Error {
+  export mut fn png(image: ref Png) throws Error {
     unsafe {
       try stdPresentationWriterPng(
-        handle: inout handle,
-        image: image,
+        inout handle,
+        image,
       )
     }
   }
 
-  export mut fn jpeg(_ image: ref Jpeg) throws Error {
+  export mut fn jpeg(image: ref Jpeg) throws Error {
     unsafe {
       try stdPresentationWriterJpeg(inout handle, image)
     }
   }
 
   export mut fn json(
-    _ body: some take fn(inout json.Writer): () throws json.EncodeError,
+    body: some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error {
     unsafe {
       try stdPresentationWriterJson(inout handle, take body)
@@ -210,13 +210,13 @@ export struct Writer {
 
   export mut fn vendorJson(
     media: ref MediaType,
-    _ body: some take fn(inout json.Writer): () throws json.EncodeError,
+    body: some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error {
     unsafe {
       try stdPresentationWriterVendorJson(
-        handle: inout handle,
-        media: media,
-        body: take body,
+        inout handle,
+        media,
+        take body,
       )
     }
   }
@@ -230,44 +230,44 @@ foreign intrinsic from "std.presentation@1" {
   type PresentationWriterHandle
 
   fn stdPresentationMediaTypeValidate(
-    value: ref String,
+    _ value: ref String,
   ): String throws MediaTypeError
   fn stdPresentationMediaTypeKind(
-    media: ref MediaType,
+    _ media: ref MediaType,
   ): MediaKind throws MediaTypeError
-  fn stdPresentationMediaTypePortable(media: ref MediaType): Bool
+  fn stdPresentationMediaTypePortable(_ media: ref MediaType): Bool
 
   fn stdPresentationPngValidate(
-    bytes: take Bytes,
-    width: u32,
-    height: u32,
+    _ bytes: take Bytes,
+    _ width: u32,
+    _ height: u32,
   ): Bytes throws Error
   fn stdPresentationJpegValidate(
-    bytes: take Bytes,
-    width: u32,
-    height: u32,
+    _ bytes: take Bytes,
+    _ width: u32,
+    _ height: u32,
   ): Bytes throws Error
 
   fn stdPresentationWriterText(
-    handle: inout PresentationWriterHandle,
-    value: view String,
+    _ handle: inout PresentationWriterHandle,
+    _ value: view String,
   ) throws Error
   fn stdPresentationWriterPng(
-    named handle: inout PresentationWriterHandle,
-    named image: ref Png,
+    _ handle: inout PresentationWriterHandle,
+    _ image: ref Png,
   ) throws Error
   fn stdPresentationWriterJpeg(
-    handle: inout PresentationWriterHandle,
-    image: ref Jpeg,
+    _ handle: inout PresentationWriterHandle,
+    _ image: ref Jpeg,
   ) throws Error
   fn stdPresentationWriterJson(
-    handle: inout PresentationWriterHandle,
-    body: take some take fn(inout json.Writer): () throws json.EncodeError,
+    _ handle: inout PresentationWriterHandle,
+    _ body: take some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
   fn stdPresentationWriterVendorJson(
-    named handle: inout PresentationWriterHandle,
-    named media: ref MediaType,
-    named body: take some take fn(inout json.Writer): () throws json.EncodeError,
+    _ handle: inout PresentationWriterHandle,
+    _ media: ref MediaType,
+    _ body: take some take fn(inout json.Writer): () throws json.EncodeError,
   ) throws Error
-  fn stdPresentationWriterDrop(handle: inout PresentationWriterHandle)
+  fn stdPresentationWriterDrop(_ handle: inout PresentationWriterHandle)
 }

@@ -40,9 +40,10 @@ w_seed_diagnostic_status w_seed_diagnostic_format_record(
 /* Map only unterminated literal/comment terminal facts covered by W-LEX-0001.
  * Facts use stable semantic names: string-literal with quote, raw-quote,
  * triple-quote, or raw-triple-quote; byte-string-literal with byte-quote;
- * scalar-literal with apostrophe; byte-scalar-literal with byte-apostrophe;
- * and block-comment with block-comment-close. Other lexer facts are
- * explicitly unsupported and must not be mislabeled. */
+ * byte-scalar-literal with byte-apostrophe; and block-comment with
+ * block-comment-close. Apostrophe- and quote-delimited ordinary strings share
+ * string-literal. Other lexer facts are explicitly unsupported and must not be
+ * mislabeled. */
 w_seed_diagnostic_status w_seed_diagnostic_lex_record(
     const char *instance, size_t instance_length, const char *source_id,
     size_t source_id_length, const w_seed_lex_error *error, size_t source_length,

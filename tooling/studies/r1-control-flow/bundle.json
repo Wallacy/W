@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/collections.w",
     "symbol": "foldDiagnosticBits",
-    "digest": "sha256:d2e7e9b5fa2895ba7be1a963d188429353682fde8e705c1896270d68144b19aa"
+    "digest": "sha256:b7a5c952910327eca82b3c28d1d901b91aaabdb88635787f41275c67e7c9976a"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "structured.w",
-      "digest": "sha256:653fec29f89477d6e86ab3ea6438d56fa305417ecd7bae4a82bf17978ebc26f5",
+      "digest": "sha256:be160911db34faf79ee588087c0f769bdd768f91a14bb64c1e547a0180894433",
       "changedConstructs": [
         "labeled block",
         "labeled for",
@@ -31,7 +31,7 @@
       "role": "alternative",
       "language": "w",
       "path": "flags.w",
-      "digest": "sha256:24636e36cf3f051e5bd933f7e233a58c0dda3d332d9d580700f1de87248d3345",
+      "digest": "sha256:18f3a43e2ffdbed95f7dc9cc166487fca48b07374169b2988974a8436f276679",
       "changedConstructs": [
         "mutable stop flag",
         "mutable skip flag",

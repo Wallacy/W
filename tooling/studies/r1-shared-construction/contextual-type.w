@@ -9,7 +9,7 @@ struct MenuSection {
 alias MaybeMenuSectionOwner = shared MenuSection?
 alias SharedOptionalMenuSection = shared Option<MenuSection>
 
-fn makeRoot(title: String): shared MenuSection {
+fn makeRoot(_ title: String): shared MenuSection {
   let root: shared MenuSection = MenuSection(
     title: take title,
     parent: .none,
@@ -19,8 +19,8 @@ fn makeRoot(title: String): shared MenuSection {
 }
 
 fn makeRequestRoot(
+  _ title: String,
   allocator memory: ref Allocator,
-  title: String,
 ): shared MenuSection throws AllocationError {
   let root: shared MenuSection = try MenuSection(
     allocator: memory,

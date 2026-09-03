@@ -82,7 +82,7 @@ describe("syntax atlas coverage checker", () => {
 
   test("callable variants keep W label taxonomy", () => {
     const source = snapshot.blocks.find((block) => block.id === "callables-and-foreign").snippet;
-    for (const witness of ["order: String", "named audit: String", "_ note: String", "to destination: String", "title: String =", "each tags: String..."]) {
+    for (const witness of ["_ order: String", "audit: String", "externalAudit audit: String", "to destination: String", "title: String =", "each tags: String..."]) {
       expect(source.includes(witness)).toBe(true);
     }
     expect(source.includes("fn optionalLabel")).toBe(false);
@@ -101,7 +101,7 @@ describe("syntax atlas coverage checker", () => {
     const source = snapshot.blocks.find((block) => block.id === "execution-forms").snippet;
     const variant = snapshot.variants.find((entry) => entry.id === "execution-sync");
     expect(source).toContain('let direct = try sync fetch("north")');
-    expect(source).toContain("async fn fetch(city: String): String throws AtlasError");
+    expect(source).toContain("async fn fetch(_ city: String): String throws AtlasError");
     expect(variant).toMatchObject({
       construction: "direct neverSuspend entry; requires explicit async fn and a declaration-wide static proof",
       evidenceStatus: "tree-sitter-parse-only-compiler-runtime-missing",

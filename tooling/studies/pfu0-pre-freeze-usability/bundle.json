@@ -27,13 +27,13 @@
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "serveOneByOne",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
       "claim": "Current pull stream control."
     },
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:96329027dc2fe534c7350f0cee07890d29ae208e468ae99aac5077e81ef3d564",
+      "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9",
       "claim": "Current property getter control."
     }
   ],
@@ -47,7 +47,7 @@
       "changedConstructs": [
         "single build.w root with explicit records",
         "explicit stream, channel, and mailbox",
-        "get/set/modify lifecycle"
+        "get/get ref/get mut ref/set lifecycle"
       ],
       "parseEvidence": {
         "status": "tree-sitter-parse",
@@ -59,7 +59,7 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "candidate.txt",
-      "digest": "sha256:378b7fb6155f676f87016b854323e528b2bb95dcdfbadf6d22ee5cb520eb65df",
+      "digest": "sha256:0b393108ab8212795af99afa3334fc2ab166063a5d6af65f5ece6be815c53b14",
       "changedConstructs": [
         "single build.w data-only manifest",
         "rejected stream fn comparison",

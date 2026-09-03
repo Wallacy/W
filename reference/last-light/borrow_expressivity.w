@@ -73,8 +73,8 @@ export fn mapThenFilterBorrowedLines(
 // The adapter factory above moves an owned source into the adapter. The next
 // operation is a separate receiver-shaped borrow: its item is tied to the
 // adapter's reusable storage, not to the factory parameter.
-export async fn nextMappedLine(cursor: inout MenuLineCursor): view String? {
-  return selectFromCursor(ref cursor)
+export async fn nextMappedLine(cursor: mut ref MenuLineCursor): view String? {
+  return selectFromCursor(cursor: ref cursor)
 }
 
 export fn callableBorrow(

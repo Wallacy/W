@@ -87,18 +87,18 @@ fn launchMode(args: ref ProcessArguments): LaunchMode throws AppError {
 }
 
 async fn runConsole(ctx: ProcessContext, mode renderMode: RenderMode): ProcessExitCode throws AppError {
-  let welcome = renderResponse(.help, mode: renderMode)
+  let welcome = renderResponse(response: .help, mode: renderMode)
   try await ctx.stdout.writeAll(text: welcome)
 
   for try await line in ctx.stdin.lines(maximumBytes: commandLimit) {
-    let command = try decodeCommand(line)
+    let command = try decodeCommand(source: line)
     let response = try await dispatch(
-      take command,
+      command: take command,
       restaurant: lastLight,
       authority: .localOperator,
     )
-    let shouldStop = requestsShutdown(response)
-    let output = renderResponse(take response, mode: renderMode)
+    let shouldStop = requestsShutdown(response: response)
+    let output = renderResponse(response: take response, mode: renderMode)
     try await ctx.stdout.writeAll(text: output)
 
     if shouldStop {
@@ -110,9 +110,9 @@ async fn runConsole(ctx: ProcessContext, mode renderMode: RenderMode): ProcessEx
 }
 
 async fn runTui(args: ProcessArguments, ctx context: ProcessContext): ProcessExitCode throws AppError {
-  let backend = terminalBackendLabel(nativeTerminalBackend())
+  let backend = terminalBackendLabel(backend: nativeTerminalBackend())
   print("Opening the final terminal with the ${backend} adapter.")
-  return try await runConsole(context, mode: .ansi)
+  return try await runConsole(ctx: context, mode: .ansi)
 }
 
 async fn runServer(ctx: ProcessContext): ProcessExitCode throws AppError {
@@ -135,13 +135,13 @@ async fn runNative(
   )
   defer { shutdownSignals.cancel() }
 
-  return switch try launchMode(args) {
+  return switch try launchMode(args: args) {
     case .cli:
-      try await runConsole(ctx, mode: .plain)
+      try await runConsole(ctx: ctx, mode: .plain)
     case .tui:
-      try await runTui(args, ctx: ctx)
+      try await runTui(args: args, ctx: ctx)
     case .serve:
-      try await runServer(ctx)
+      try await runServer(ctx: ctx)
   }
 }
 
@@ -154,7 +154,7 @@ async fn runTuiEntry(
     handler: shutdown,
   )
   defer { shutdownSignals.cancel() }
-  return try await runTui(args, ctx: ctx)
+  return try await runTui(args: args, ctx: ctx)
 }
 
 async fn shutdown(signal: ProcessSignal, ctx: ProcessContext): () {

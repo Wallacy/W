@@ -37,8 +37,9 @@ function resolveConstruction(input) {
   if (input.allocatorMeaning === "ordinary-field") {
     return { status: "rejected", reason: "allocator-label-reserved" }
   }
-  if (input.argumentOrder?.indexOf("allocator") > 0) {
-    return { status: "rejected", reason: "allocator-control-argument-must-be-first" }
+  const allocatorCount = input.argumentOrder?.filter((name) => name === "allocator").length ?? 0
+  if (allocatorCount > 1) {
+    return { status: "rejected", reason: "allocator-control-argument-must-be-unique" }
   }
   if (!input.publishesAllocationSite) {
     return { status: "rejected", reason: "allocator-argument-inapplicable" }
@@ -85,7 +86,7 @@ describe("R1 allocator runtime slot host oracle", () => {
     })
   })
 
-  test("reserved position and using labels are explicit semantic boundaries", () => {
+  test("declared position and using labels are explicit semantic boundaries", () => {
     expect(resolveConstruction({
       publishesAllocationSite: false,
       allocatorMeaning: "ordinary-field",
@@ -93,7 +94,11 @@ describe("R1 allocator runtime slot host oracle", () => {
     expect(resolveConstruction({
       publishesAllocationSite: true,
       argumentOrder: ["a", "allocator", "b"],
-    }).reason).toBe("allocator-control-argument-must-be-first")
+    }).semantics).toBe("published-allocation-site")
+    expect(resolveConstruction({
+      publishesAllocationSite: true,
+      argumentOrder: ["a", "allocator", "allocator"],
+    }).reason).toBe("allocator-control-argument-must-be-unique")
     expect(resolveConstruction({ ordinaryUsingLabel: true })).toEqual({
       status: "accepted",
       semantics: "nominal-label",

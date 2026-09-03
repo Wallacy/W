@@ -18,6 +18,6 @@ export fn namedCall(
 }
 
 test "formatter fixture preserves declaration order" for oneLine {
-  let value = oneLine("Last Light")
+  let value = oneLine(value: "Last Light")
   expect value == "Last Light"
 }

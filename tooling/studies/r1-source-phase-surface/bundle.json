@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/app.w",
     "symbol": "runConsole",
-    "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+    "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "imports-first-body.w",
-      "digest": "sha256:af8083ffdd10a39047b3a260703ae271c44cb6970ebe04b34eca4ed5d8a1ba62",
+      "digest": "sha256:735e299c81aa257c214d79bd62000607f8aa5694742ad4e876771ac2cca3cb0d",
       "changedConstructs": [
         "imports before declarations",
         "implemented function body"

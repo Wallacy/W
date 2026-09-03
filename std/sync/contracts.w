@@ -8,20 +8,20 @@ foreign intrinsic from "std.sync@1" {
   type SnapshotCellHandle
 
   fn stdSnapshotCellCreate<Value>(
-    initial: take Value,
+    _ initial: take Value,
   ): SnapshotCellHandle
 
   fn stdSnapshotCellRead<Value, Result, Failure: Error>(
-    named handle: ref SnapshotCellHandle,
-    named operation: some fn(ref Value): Result throws Failure,
+    _ handle: ref SnapshotCellHandle,
+    _ operation: some fn(ref Value): Result throws Failure,
   ): Result throws Failure
 
   fn stdSnapshotCellPublish<Value>(
-    named handle: ref SnapshotCellHandle,
-    named next: take Value,
+    _ handle: ref SnapshotCellHandle,
+    _ next: take Value,
   )
 
-  fn stdSnapshotCellDrop(handle: inout SnapshotCellHandle)
+  fn stdSnapshotCellDrop(_ handle: inout SnapshotCellHandle)
 }
 
 struct TypedSnapshotCellHandle<Value> {
@@ -36,7 +36,7 @@ export struct SnapshotCell<Value> {
   handle: TypedSnapshotCellHandle<Value>
 
   export init(
-    _ initial: take Value<(
+    initial: take Value<(
       .transferable && .shareable && .lifetimeIndependent
     )>,
   ) {
@@ -45,25 +45,25 @@ export struct SnapshotCell<Value> {
   }
 
   export fn read<Result, Failure: Error>(
-    _ operation: some fn(ref Value): Result throws Failure,
+    operation: some fn(ref Value): Result throws Failure,
   ): Result throws Failure {
     return unsafe {
       try stdSnapshotCellRead(
-        handle: handle.raw,
-        operation: operation,
+        handle.raw,
+        operation,
       )
     }
   }
 
   export fn publish(
-    _ next: take Value<(
+    next: take Value<(
       .transferable && .shareable && .lifetimeIndependent
     )>,
   ) {
     unsafe {
       stdSnapshotCellPublish(
-        handle: handle.raw,
-        next: take next,
+        handle.raw,
+        take next,
       )
     }
   }

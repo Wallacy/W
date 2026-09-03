@@ -33,7 +33,7 @@ fn join(left: take String, right: view String): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -43,7 +43,7 @@ fn join(left: take String, right: view String): String {
                   (type_identifier)))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -92,7 +92,8 @@ fn join(left: take String, right: view String): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -110,7 +111,8 @@ fn join(left: take String, right: view String): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -130,12 +132,13 @@ fn join(left: take String, right: view String): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

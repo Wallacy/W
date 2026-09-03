@@ -82,11 +82,14 @@ const OTHER_KEYWORDS = [
   "module",
   "domain",
   "package",
-  "modify",
   "set",
   "some",
   "stream",
   "true",
+  "willGet",
+  "didGet",
+  "willSet",
+  "didSet",
 ];
 
 // Keep this inventory next to the grammar. Highlight projections should use the
@@ -160,6 +163,7 @@ module.exports = grammar({
     [$.reexport_item, $.export_item],
     [$.labeled_tuple_type_element, $.closure_parameter],
     [$.tuple_type, $.unit_literal],
+    [$.behavior_ref_parameter, $.type],
   ],
 
   rules: {
@@ -400,43 +404,73 @@ module.exports = grammar({
     parameter: ($) =>
       choice(
         seq(
-          field("name", alias("allocator", $.identifier)),
-          ":",
-          optional(
-            choice(
-              field("ownership", choice("ref", "inout", "take")),
-              field("const_requirement", "const"),
-            ),
-          ),
-          field("type", alias($.non_borrowed_type, $.type)),
-        ),
-        seq(
           "allocator",
           field("name", $.identifier),
           ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
+          optional(seq("=", field("default", $._expression))),
+        ),
+        seq(
+          field("name", alias("allocator", $.identifier)),
+          ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
+          optional(seq("=", field("default", $._expression))),
+        ),
+        seq(
+          "_",
+          field("name", $.identifier),
+          ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
+          optional(seq("=", field("default", $._expression))),
+        ),
+        seq(
+          field("label", $.identifier),
+          field("name", $.identifier),
+          ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
+          optional(seq("=", field("default", $._expression))),
+        ),
+        seq(
+          field("name", $.identifier),
+          ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
+          optional(seq("=", field("default", $._expression))),
+        ),
+      ),
+    parameter_call_ownership: ($) => choice("inout", "take", "const"),
+    parameter_type: ($) =>
+      prec.right(
+        seq(
           optional(
-            choice(
-              field("ownership", choice("ref", "inout", "take")),
-              field("const_requirement", "const"),
+            field(
+              "qualifier",
+              choice(
+                "any",
+                "some",
+                "shared",
+                "weak",
+                "ref",
+                "view",
+                seq("ref", "any"),
+                seq("ref", "some"),
+                seq("mut", "ref"),
+                seq("mut", "view"),
+              ),
             ),
           ),
-          field("type", alias($.non_borrowed_type, $.type)),
-        ),
-      seq(
-        choice(
-          field("name", $.identifier),
-          seq(field("label", choice($.identifier, "_")), field("name", $.identifier)),
-        ),
-        ":",
-        optional(
-          choice(
-            field("ownership", choice("ref", "inout", "take")),
-            field("const_requirement", "const"),
-          ),
-        ),
-        field("type", alias($.non_borrowed_type, $.type)),
-        optional(field("rest", $.rest_marker)),
-        optional(seq("=", field("default", $._expression))),
+          $._type_core,
+          repeat(seq("&", field("composition", $._type_core))),
+          optional("?"),
         ),
       ),
     rest_marker: (_) => "...",
@@ -612,12 +646,19 @@ module.exports = grammar({
     property_accessor_body: ($) =>
       seq(
         "{",
-        field("getter", $.get_accessor),
-        optional(field("setter", $.set_accessor)),
-        optional(field("modifier", $.modify_accessor)),
+        repeat1(
+          choice(
+            field("getter", $.get_accessor),
+            field("borrowed_getter", $.get_ref_accessor),
+            field("mutable_getter", $.get_mut_ref_accessor),
+            field("setter", $.set_accessor),
+          ),
+        ),
         "}",
       ),
     get_accessor: ($) => seq("get", $.accessor_implementation),
+    get_ref_accessor: ($) => seq("get", "ref", $.accessor_implementation),
+    get_mut_ref_accessor: ($) => seq("get", "mut", "ref", $.accessor_implementation),
     set_accessor: ($) =>
       seq(
         "set",
@@ -626,7 +667,6 @@ module.exports = grammar({
         ")",
         $.accessor_implementation,
       ),
-    modify_accessor: ($) => seq("modify", field("body", $.block)),
     accessor_implementation: ($) =>
       choice(
         field("body", $.block),
@@ -640,12 +680,12 @@ module.exports = grammar({
         ":",
         field("type", $.type),
         "{",
-        "get",
-        optional("set"),
-        optional("modify"),
+        repeat1($.property_requirement_accessor),
         "}",
         optional(";"),
       ),
+    property_requirement_accessor: ($) =>
+      choice("get", seq("get", "ref"), seq("get", "mut", "ref"), "set"),
 
     enum_case: ($) =>
       seq(
@@ -760,11 +800,13 @@ module.exports = grammar({
         $.behavior_initializer,
         seq(
           optional("mut"),
-          field("kind", choice("get", "set", "modify")),
+          field("kind", $.behavior_accessor_kind),
           optional($.behavior_parameter_list),
           field("body", $.block),
         ),
       ),
+    behavior_accessor_kind: ($) =>
+      choice("get", seq("get", "ref"), seq("get", "mut", "ref"), "set"),
     behavior_initializer: ($) =>
       seq(
         "init",
@@ -806,7 +848,7 @@ module.exports = grammar({
     behavior_hook: ($) =>
       seq(
         optional(field("receiver_modifier", "mut")),
-        field("kind", choice("willSet", "didSet", "willModify", "didModify")),
+        field("kind", choice("willGet", "didGet", "willSet", "didSet")),
         field("parameters", $.behavior_hook_parameters),
         field("body", $.block),
       ),
@@ -820,6 +862,13 @@ module.exports = grammar({
           ")",
         ),
         seq("(", field("current", $.behavior_ref_parameter), ")"),
+        seq(
+          "(",
+          field("kind", $.identifier),
+          ":",
+          field("type", $.type),
+          ")",
+        ),
         seq("(", ")"),
       ),
     behavior_ref_parameter: ($) =>
@@ -827,7 +876,7 @@ module.exports = grammar({
         field("name", $.identifier),
         ":",
         "ref",
-        field("type", $.type),
+        field("type", $._type_core),
       ),
 
     entry_declaration: ($) =>
@@ -977,10 +1026,12 @@ module.exports = grammar({
                 "shared",
                 "weak",
                 "ref",
-                "inout",
-                "view",
                 "const",
-                seq("inout", "view"),
+                "view",
+                seq("ref", "any"),
+                seq("ref", "some"),
+                seq("mut", "ref"),
+                seq("mut", "view"),
               ),
             ),
           ),
@@ -992,7 +1043,7 @@ module.exports = grammar({
     non_borrowed_type: ($) =>
       prec.right(
         seq(
-          optional(field("qualifier", choice("any", "some", "shared", "weak", "view"))),
+          optional(field("qualifier", choice("any", "some", "shared", "weak"))),
           $._type_core,
           repeat(seq("&", field("composition", $._type_core))),
           optional("?"),
@@ -1140,26 +1191,17 @@ module.exports = grammar({
     function_type_parameter: ($) =>
       choice(
         seq(
-        "allocator",
-        field("name", $.identifier),
-        ":",
-        optional(
-          choice(
-            field("ownership", choice("ref", "inout", "take")),
-            field("const_requirement", "const"),
-          ),
-        ),
-        field("type", alias($.non_borrowed_type, $.type)),
+          "allocator",
+          field("name", $.identifier),
+          ":",
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
         ),
         seq(
-        optional(
-          choice(
-            field("ownership", choice("ref", "inout", "take")),
-            field("const_requirement", "const"),
-          ),
-        ),
-        field("type", alias($.non_borrowed_type, $.type)),
-        optional(field("rest", $.rest_marker)),
+          optional(field("ownership", $.parameter_call_ownership)),
+          field("type", $.parameter_type),
+          optional(field("rest", $.rest_marker)),
         ),
       ),
 
@@ -1208,8 +1250,8 @@ module.exports = grammar({
       seq(
         field("kind", choice("let", "var")),
         optional(field("storage_modifier", choice("atomic", $.behavior_identifier))),
-        optional(field("pattern_ownership", choice("ref", "inout"))),
-        field("pattern", $.pattern),
+        optional(field("pattern_ownership", choice("ref", seq("mut", "ref"), seq("mut", "view")))),
+        field("pattern", choice($.pattern, $.inferred_struct_pattern)),
         optional(seq(":", field("type", $.type))),
         optional(seq("=", field("value", $._expression))),
         optional(";"),
@@ -1256,8 +1298,8 @@ module.exports = grammar({
       seq(
         "for",
         optional($._asynchronous_iteration_effects),
-        optional(field("ownership", choice("ref", "inout", "copy"))),
-        field("pattern", $.pattern),
+        optional(field("ownership", choice("ref", seq("mut", "ref"), seq("mut", "view"), "copy"))),
+        field("pattern", choice($.pattern, $.inferred_struct_pattern)),
         "in",
         field("value", $._expression),
         $.block,
@@ -1267,8 +1309,8 @@ module.exports = grammar({
     optional_binding: ($) =>
       seq(
         field("kind", choice("let", "var")),
-        optional(field("ownership", choice("ref", "inout", "copy"))),
-        field("pattern", $.pattern),
+        optional(field("ownership", choice("ref", seq("mut", "ref"), seq("mut", "view"), "copy"))),
+        field("pattern", choice($.pattern, $.inferred_struct_pattern)),
         "=",
         field("value", $._expression),
       ),
@@ -1389,6 +1431,19 @@ module.exports = grammar({
         $.shorthand_struct_pattern_field,
         $.labeled_struct_pattern_field,
       ),
+    inferred_struct_pattern: ($) =>
+      seq(
+        "{",
+        choice(
+          seq(
+            commaSep1($.struct_pattern_field),
+            optional(seq(",", $.rest_pattern)),
+          ),
+          $.rest_pattern,
+        ),
+        optional(","),
+        "}",
+      ),
     shorthand_struct_pattern_field: ($) =>
       field("name", $.identifier),
     labeled_struct_pattern_field: ($) =>
@@ -1453,7 +1508,6 @@ module.exports = grammar({
         $.string_literal,
         $.multiline_string_literal,
         $.raw_string_literal,
-        $.scalar_literal,
         $.byte_literal,
         $.boolean_literal,
         $.identifier,
@@ -1465,21 +1519,30 @@ module.exports = grammar({
         seq(field("left", $._expression), field("operator", choice(...ASSIGNMENT_OPERATORS)), field("right", $._expression)),
       ),
 
-    // `|>` has a fixed slot: the right side is always a free-function call
-    // template. The semantic checker owns labels, ownership, and modifiers.
+    // `|>` accepts either a free-function template or an explicitly relative
+    // member template. The semantic checker owns labels, ownership, and
+    // modifiers.
     pipe_forward_expression: ($) =>
       prec.left(
         0,
         seq(
           field("left", $._expression),
           "|>",
-          field("right", $.pipe_call_template),
+          field("right", choice($.pipe_call_template, $.pipe_member_call_template)),
         ),
       ),
     pipe_call_template: ($) =>
       seq(
         repeat($.pipe_call_modifier),
         field("function", $.pipe_callable_path),
+        optional(field("generic_arguments", $.generic_call_arguments)),
+        field("arguments", $.argument_list),
+      ),
+    pipe_member_call_template: ($) =>
+      seq(
+        repeat($.pipe_call_modifier),
+        ".",
+        field("member", $.identifier),
         optional(field("generic_arguments", $.generic_call_arguments)),
         field("arguments", $.argument_list),
       ),
@@ -1575,7 +1638,23 @@ module.exports = grammar({
       prec.right(
         13,
         seq(
-          field("operator", choice("!", "~", "-", "try", "await", "copy", "take", "pin", "inout", "ref")),
+          field(
+            "operator",
+            choice(
+              "!",
+              "~",
+              "-",
+              "try",
+              "await",
+              "copy",
+              "take",
+              "pin",
+              "inout",
+              "ref",
+              seq("mut", "ref"),
+              seq("mut", "view"),
+            ),
+          ),
           field("operand", $._expression),
         ),
       ),
@@ -1627,12 +1706,18 @@ module.exports = grammar({
         choice(
           seq(
             optional(field("expansion", $.argument_expansion)),
+            field("value", $._mutable_object_argument),
+          ),
+          seq(
+            optional(field("expansion", $.argument_expansion)),
             field("value", $._expression),
           ),
           field("value", $.one_sided_range_expression),
         ),
-      ),
+    ),
     argument_expansion: (_) => "each",
+    _mutable_object_argument: ($) =>
+      seq("mut", field("operand", $.identifier)),
     member_expression: ($) =>
       prec.left(
         15,
@@ -1817,7 +1902,17 @@ module.exports = grammar({
         ),
       ),
     closure_parameters: ($) => seq("(", commaSep($.closure_parameter), optional(","), ")"),
-    closure_parameter: ($) => seq(field("name", $.identifier), optional(seq(":", field("type", $.type)))),
+    closure_parameter: ($) =>
+      seq(
+        field("name", $.identifier),
+        optional(
+          seq(
+            ":",
+            optional(field("ownership", "inout")),
+            field("type", $.type),
+          ),
+        ),
+      ),
 
     unit_literal: (_) => seq("(", ")"),
     parenthesized_expression: ($) => seq("(", $._expression, ")"),
@@ -1887,6 +1982,7 @@ module.exports = grammar({
       token(
         choice(
           /"([^"\\\r\n]|\\.)*"/,
+          /'([^'\\\r\n]|\\.)*'/,
           /b"(?:[\x20-\x21\x23-\x5b\x5d-\x7e]|\\(?:x[0-9A-Fa-f]{2}|[\\\"nrt0]))*"/,
         ),
       ),
@@ -1894,11 +1990,18 @@ module.exports = grammar({
       token(
         choice(
           /#"(?:[^"\r\n]|"[^#\r\n])*"#/,
+          /#'(?:[^'\r\n]|'[^#\r\n])*'#/,
           /#"""([^"\r]|"[^"\r]|""[^"\r])*"""#/,
+          /#'''([^'\r]|'[^'\r]|''[^'\r])*'''#/,
         ),
       ),
-    multiline_string_literal: (_) => token(/"""([^"\r]|"[^"\r]|""[^"\r])*"""/),
-    scalar_literal: (_) => token(/'(?:[^'\\\r\n]|\\.)'/),
+    multiline_string_literal: (_) =>
+      token(
+        choice(
+          /"""([^"\r]|"[^"\r]|""[^"\r])*"""/,
+          /'''([^'\r]|'[^'\r]|''[^'\r])*'''/,
+        ),
+      ),
     byte_literal: (_) => token(/b'(?:[\x20-\x26\x28-\x7e]|\\(?:x[0-9A-Fa-f]{2}|[\\'nrt0]))'/),
     boolean_literal: (_) => choice("true", "false"),
 

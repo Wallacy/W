@@ -155,9 +155,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY = 0,
-  W_SEED_FRONTEND_LABEL_NAMED_REQUIRED,
-  W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED,
-  W_SEED_FRONTEND_LABEL_OPTIONAL,
+  W_SEED_FRONTEND_LABEL_REQUIRED,
 } w_seed_frontend_label_kind;
 
 typedef struct {
@@ -385,7 +383,7 @@ typedef struct {
   w_seed_frontend_decl_kind owner_kind;
   uint32_t owner_index;
   uint32_t ordinal;
-  /* Empty for positional and optional-label parameters. */
+  /* Empty for positional-only parameters. */
   w_seed_frontend_text external_label;
   w_seed_frontend_text internal_name;
   w_seed_frontend_label_kind label_kind;

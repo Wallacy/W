@@ -31,11 +31,11 @@ export protocol AudienceApi {
 }
 
 export protocol DiningRoomApi {
-  async fn serve(dish: take Dish, named payment: PaymentProof): Receipt throws DiningRoomError
+  async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError
   async fn serve(
     at tableId: TableId,
-    named dish: take Dish,
-    named payment: PaymentProof,
+    dish: take Dish,
+    payment: PaymentProof,
   ): Receipt throws DiningRoomError
 }
 
@@ -57,11 +57,11 @@ export service diningRoom: DiningRoomApi {
   }
 
   mut fn setTableState(tableId: TableId, state: TableState) {
-    guard let inout table = tables[tableId] else panic("reserved table disappeared")
+    guard let mut ref table = tables[tableId] else panic("reserved table disappeared")
     table.state = state
   }
 
-  mut async fn serve(dish: take Dish, named payment: PaymentProof): Receipt throws DiningRoomError {
+  mut async fn serve(dish: take Dish, payment: PaymentProof): Receipt throws DiningRoomError {
     guard payment.canServe else throw .paymentIncomplete
     guard let tableId = tables.first(where: (entry) => entry.value.state == .available)?.key else throw .full
 
@@ -70,8 +70,8 @@ export service diningRoom: DiningRoomApi {
 
   mut async fn serve(
     at tableId: TableId,
-    named dish: take Dish,
-    named payment: PaymentProof,
+    dish: take Dish,
+    payment: PaymentProof,
   ): Receipt throws DiningRoomError {
     guard payment.canServe else throw .paymentIncomplete
     guard tables[tableId]?.state == .some(.available) else throw .full

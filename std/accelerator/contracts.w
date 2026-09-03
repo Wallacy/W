@@ -78,8 +78,8 @@ export struct ModuleIdentity: Copy & Equatable {
   export fn same(as other: ref ModuleIdentity): Bool {
     return unsafe {
       stdAcceleratorModuleIdentitySame(
-        left: ref handle,
-        right: ref other.handle,
+        ref handle,
+        ref other.handle,
       )
     }
   }
@@ -116,9 +116,9 @@ export async fn open<Module: KernelModule>(
 ): Launch<Module> throws LaunchError {
   let raw = unsafe {
     try await stdAcceleratorOpen(
-      module: ref module,
-      queue: ref queue,
-      limits: ref limits,
+      ref module,
+      ref queue,
+      ref limits,
     )
   }
   let handle = TypedLaunchHandle<Module>(validatedRaw: raw)
@@ -130,17 +130,17 @@ foreign intrinsic from "std.accelerator@1" {
   type LaunchHandle
 
   fn stdAcceleratorModuleIdentitySame(
-    named left: ref ModuleIdentityHandle,
-    named right: ref ModuleIdentityHandle,
+    _ left: ref ModuleIdentityHandle,
+    _ right: ref ModuleIdentityHandle,
   ): Bool
 
   async fn stdAcceleratorOpen<Module: KernelModule>(
-    named module: ref Module,
-    named queue: ref tensor.Queue,
-    named limits: ref Limits,
+    _ module: ref Module,
+    _ queue: ref tensor.Queue,
+    _ limits: ref Limits,
   ): LaunchHandle throws LaunchError
 
   async fn stdAcceleratorClose(
-    handle: take LaunchHandle,
+    _ handle: take LaunchHandle,
   ) throws LaunchError
 }

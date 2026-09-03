@@ -94,16 +94,16 @@ fn incrementRevision(ledger: inout RevisionLedger): u64 {
 }
 
 export fn fourOwnershipForms(
-  named direct: take TrackedCourse,
-  named awaited: take TrackedCourse,
-  named local: take TrackedCourse,
-  named parallel: take TrackedCourse,
+  direct: take TrackedCourse,
+  awaited: take TrackedCourse,
+  local: take TrackedCourse,
+  parallel: take TrackedCourse,
 ): OwnershipBatch {
-  let directCode = inspectDirect(ref direct)
-  let awaitedCode = await inspectAfterYield(ref awaited)
+  let directCode = inspectDirect(course: ref direct)
+  let awaitedCode = await inspectAfterYield(course: ref awaited)
 
-  let localTask = async finishCourse(take local)
-  let parallelTask = spawn<.compute> finishCourse(take parallel)
+  let localTask = async finishCourse(course: take local)
+  let parallelTask = spawn<.compute> finishCourse(course: take parallel)
   let (localResult, parallelResult) = await (localTask, parallelTask)
 
   return OwnershipBatch(
@@ -116,20 +116,20 @@ export fn fourOwnershipForms(
 }
 
 export fn updateWithChild(ledger: inout RevisionLedger): u64 {
-  let update = async incrementRevision(inout ledger)
+  let update = async incrementRevision(ledger: inout ledger)
   let childRevision = await update
   return childRevision + ledger.revision
 }
 
 export fn inspectInCompute(course: ref TrackedCourse): u64 {
-  let code = spawn<.compute> inspectDirect(ref course)
+  let code = spawn<.compute> inspectDirect(course: ref course)
   return await code
 }
 
 export fn cancelTrackedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<TrackedCourse, Never> {
-  let task = async finishCourseAfterYield(take course)
+  let task = async finishCourseAfterYield(course: take course)
   task#cancel(reason: .shutdown)
   return await (take task)#outcome()
 }
@@ -137,7 +137,7 @@ export fn cancelTrackedCourse(
 export fn cancelDiscardedCourse(
   course: take TrackedCourse,
 ): TaskOutcome<(), Never> {
-  let task = async discardCourseAfterYield(take course)
+  let task = async discardCourseAfterYield(course: take course)
   task#cancel(reason: .shutdown)
   return await (take task)#outcome()
 }

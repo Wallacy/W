@@ -4,17 +4,17 @@ struct Counter {
   var value: u32
 }
 
-fn assignUnit(counter: inout Counter, next: u32): () {
+fn assignUnit(_ counter: inout Counter, _ next: u32): () {
   counter.value = next
 }
 
-fn replaceAndRead(counter: inout Counter, next: u32): u32 {
+fn replaceAndRead(_ counter: inout Counter, _ next: u32): u32 {
   let old = counter.value
   counter.value = next
   return old
 }
 
-fn increment(counter: inout Counter): () {
+fn increment(_ counter: inout Counter): () {
   counter.value += 1
 }
 

@@ -245,7 +245,7 @@ entry LastLight(run)
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier))
@@ -269,7 +269,7 @@ entry LastLight(run)
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)
             (type_identifier))
@@ -441,7 +441,7 @@ fn classify<batch: usize>(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -459,7 +459,7 @@ fn classify<batch: usize>(
                     (number_literal))))))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -537,9 +537,9 @@ export behavior WrappedDegrees for u16 {
     current = newValue % 360_u16
   }
 
-  mut modify {
+  get mut ref {
     defer { current %= 360_u16 }
-    return inout current
+    return mut ref current
   }
 }
 
@@ -590,10 +590,12 @@ test "attitude rotation wraps degrees" for Attitude {
                     (argument_list))
                   (number_literal)))))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (block
           (return_statement
             (identifier))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (behavior_parameter_list
           (behavior_parameter
             (identifier)))
@@ -605,6 +607,7 @@ test "attitude rotation wraps degrees" for Attitude {
                 (identifier)
                 (number_literal))))))
       (behavior_accessor
+        (behavior_accessor_kind)
         (block
           (defer_statement
             (block
@@ -633,7 +636,7 @@ test "attitude rotation wraps degrees" for Attitude {
           (parameter
             (identifier)
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block
@@ -756,7 +759,7 @@ fn touch(): () {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (type
@@ -792,7 +795,7 @@ fn touch(): () {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (type
@@ -907,7 +910,7 @@ fn counter(initial: usize): some mut fn(): usize {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -938,16 +941,16 @@ fn counter(initial: usize): some mut fn(): usize {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
         (identifier)
-        (type
+        (parameter_type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (type
@@ -968,16 +971,16 @@ fn counter(initial: usize): some mut fn(): usize {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
         (identifier)
-        (type
+        (parameter_type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (type
@@ -1009,11 +1012,13 @@ fn counter(initial: usize): some mut fn(): usize {
         (type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_call_ownership)
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (function_type_parameter
-              (type
+              (parameter_call_ownership)
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (type
@@ -1024,7 +1029,8 @@ fn counter(initial: usize): some mut fn(): usize {
         (type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_call_ownership)
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (type
@@ -1041,7 +1047,7 @@ fn counter(initial: usize): some mut fn(): usize {
               (contextual_member_expression
                 (identifier)))))
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier)
               (type_identifier))
@@ -1051,7 +1057,7 @@ fn counter(initial: usize): some mut fn(): usize {
                   (type_name
                     (type_identifier)))))))
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier)
               (type_identifier))))
@@ -1062,7 +1068,7 @@ fn counter(initial: usize): some mut fn(): usize {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -1107,7 +1113,7 @@ fn stillVisible(): Bool {
     (type
       (function_type
         (function_type_parameter
-          (type
+          (parameter_type
             (type_name
               (type_identifier))))
         (ERROR
@@ -1180,7 +1186,7 @@ fn inspect(row: WorldRow): i32 {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

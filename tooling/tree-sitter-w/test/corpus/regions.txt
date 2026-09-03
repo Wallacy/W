@@ -17,12 +17,12 @@ fn decodeMenu(allocator memory: ref Allocator, payload: ref Bytes): Menu throws 
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -82,7 +82,7 @@ fn ordinary(allocator: ref Allocator) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -115,7 +115,7 @@ fn bad(allocator memory: Allocator) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -150,15 +150,16 @@ struct Menu {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier))))
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block)))))
+
 ==================
 Retired region syntax is rejected
 ==================

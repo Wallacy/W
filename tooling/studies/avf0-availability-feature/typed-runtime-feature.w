@@ -18,7 +18,7 @@ struct FeatureDecision<Value> {
   freshness: String
 }
 
-fn selectCheckout(decision: FeatureDecision<CheckoutPath>): String {
+fn selectCheckout(_ decision: FeatureDecision<CheckoutPath>): String {
   return switch decision.value {
     case .control: "stable"
     case .candidate: "candidate"

@@ -91,7 +91,7 @@ for (const [index, item] of (corpus.cases ?? []).entries()) {
   expectField(item.id, "cancellations", result.state.cancellations, expected.cancellations)
   expectField(item.id, "captureDrops", result.state.captureDrops, expected.captureDrops)
   expectField(item.id, "valueDrops", result.state.valueDrops, expected.valueDrops)
-  expectField(item.id, "modifications", result.state.modifications, expected.modifications)
+  expectField(item.id, "mutableBorrowCount", result.state.mutableBorrowCount, expected.mutableBorrowCount)
   expectField(item.id, "happensBefore", result.state.happensBefore, expected.happensBefore)
   for (const event of expected.physicalContains ?? []) {
     if (!result.physical.trace.includes(event)) {

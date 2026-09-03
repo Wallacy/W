@@ -11,7 +11,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/horizon.w",
     "symbol": "HorizonSample",
-    "digest": "sha256:ea591c9edcc09cee08c56d7fd759bc41805a65c51f0948f10d9637cb6dd4e9e1"
+    "digest": "sha256:6671dc29755a958c4b67735a44aa208c738c0bbea9f1a4f8f3a51a08f7f74886"
   },
   "variants": [
     {
@@ -19,7 +19,7 @@
       "role": "selected",
       "language": "w",
       "path": "typed-batch.w",
-      "digest": "sha256:f5a7390eb384cda49348abdd5d9e4574e7b5102f9a3a5d7d247a1fb483d74faf",
+      "digest": "sha256:402949a0014fe3a37d42588edcaff8edac2ce6ce57d67c363b36f3d8afbcd1cd",
       "changedConstructs": [
         "data.Row synthesis",
         "typed data.Batch",
@@ -31,7 +31,7 @@
       "role": "alternative",
       "language": "w",
       "path": "dynamic-batch.w",
-      "digest": "sha256:2eee80e91d7983b64c77efa7147f82505b95a47e44a5b79f28ff5c00dab80a45",
+      "digest": "sha256:8931717061aaaaf1008a1bb790f2e7944d8abb26a380c6309a24df417c590d89",
       "changedConstructs": [
         "runtime schema",
         "explicit typed bind",
@@ -43,7 +43,7 @@
       "role": "alternative",
       "language": "w",
       "path": "row-array.w",
-      "digest": "sha256:702b227ceb73f49e5ac23568b88a56bf0aedce9a339c70de7e0c18f246001747",
+      "digest": "sha256:8bafa9cacba9a929a01bcdd60c6bc58b89bdd43e05369325d0fad4be1e3caa6f",
       "changedConstructs": [
         "Array<Row> baseline",
         "row-centric map",

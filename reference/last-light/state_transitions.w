@@ -117,12 +117,12 @@ export fn describeObservedMove(result: AppliedOrStale): String {
 }
 
 test "typestate consumes the previous oven session" for activationMessage {
-  let ready = openOvenSession(7)
-  let faulted = openOvenSession(8)
+  let ready = openOvenSession(id: 7)
+  let faulted = openOvenSession(id: 8)
 
-  expect activationMessage((take ready).activate(sensorWorks: true)) ==
+  expect activationMessage(outcome: (take ready).activate(sensorWorks: true)) ==
     "Oven 7 was ready and closed"
-  expect activationMessage((take faulted).activate(sensorWorks: false)) ==
+  expect activationMessage(outcome: (take faulted).activate(sensorWorks: false)) ==
     "Oven 8 was quarantined: sensor unavailable"
 }
 
@@ -130,6 +130,6 @@ test "runtime snapshot keeps a revision" for describeObservedMove {
   let snapshot = StageSnapshot(orderId: 42, stage: .preparing, revision: 3)
   let result: AppliedOrStale = .applied(snapshot)
 
-  expect describeObservedMove(result) ==
+  expect describeObservedMove(result: result) ==
     "Order 42 moved at revision 3"
 }

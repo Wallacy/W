@@ -36,8 +36,8 @@ export fn route(
 }
 
 export fn recoverableRoute(
-  allocator memory: ref Allocator,
   gate entryGate: usize,
+  allocator memory: ref Allocator,
 ): WelcomeRoute throws AllocationError {
   let concrete = <[copy entryGate]> (arrival) => Welcome(
     orderId: arrival.orderId,
@@ -76,7 +76,7 @@ test "a thin function pointer keeps calls positional" for standardWelcome {
 
 test "an opaque callable stays specialized" for welcome {
   let arrival = Arrival(orderId: 43, guests: try GuestCount(3))
-  let result = welcome(arrival, using: standardWelcome)
+  let result = welcome(arrival: arrival, using: standardWelcome)
 
   expect result.orderId == 43
 }
@@ -85,7 +85,7 @@ test "an erased callable owns its invocation environment" for route {
   let gate = 2
   let handler: any fn(Arrival): Welcome =
     <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
-  let selected = route(take handler)
+  let selected = route(handler: take handler)
   let result = selected.handler(Arrival(orderId: 44, guests: try GuestCount(4)))
 
   expect result.gate == 2
@@ -93,7 +93,7 @@ test "an erased callable owns its invocation environment" for route {
 
 test "explicit erasure exposes allocation recovery" for recoverableRoute {
   allocator memory: .fixed<capacity: 1<iec.KiB>> {
-    let selected = try recoverableRoute(allocator: ref memory, gate: 3)
+    let selected = try recoverableRoute(gate: 3, allocator: ref memory)
     let result = selected.handler(Arrival(orderId: 45, guests: try GuestCount(5)))
 
     expect result.gate == 3
@@ -101,11 +101,11 @@ test "explicit erasure exposes allocation recovery" for recoverableRoute {
 }
 
 test "callable modes expose mutation and consumption" {
-  var nextTicket = ticketSequence(40)
+  var nextTicket = ticketSequence(initial: 40)
   expect nextTicket() == 41
   expect nextTicket() == 42
 
-  let manifest = finalManifest([7, 8, 9])
+  let manifest = finalManifest(orderIds: [7, 8, 9])
   let restored = (take manifest)()
   expect restored.count == 3
 }

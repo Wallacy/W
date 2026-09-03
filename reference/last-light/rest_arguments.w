@@ -13,7 +13,7 @@ fn courseLoad(course: Course): u32 {
 export fn kitchenLoad(kitchens: u16, courses plannedCourses: Course...): u32 {
   var total: u32 = 0
   for course in plannedCourses {
-    total += courseLoad(course) * kitchens
+    total += courseLoad(course: course) * kitchens
   }
   return total
 }
@@ -40,14 +40,14 @@ export fn archive(_ records: take AuditRecord...): usize {
 
 test "rest arguments keep one labeled call shape" for kitchenLoad {
   let direct = kitchenLoad(
-    2,
+    kitchens: 2,
     courses: .nebulaBroth,
     .horizonCake,
   )
   expect direct == 32
 
   let planned = [.photonSouffle, .quietSalad]
-  expect kitchenLoad(3, courses: each planned) == 30
+  expect kitchenLoad(kitchens: 3, courses: each planned) == 30
 
   let estimator: fn(u16, Course...): u32 = kitchenLoad
   expect estimator(1, courses: each planned) == 10

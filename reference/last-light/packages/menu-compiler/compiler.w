@@ -99,7 +99,7 @@ object MenuSymbols {
       return existing
     }
 
-    let id = try checkedMenuSymbol(names.count)
+    let id = try checkedMenuSymbol(value: names.count)
     ids[copy name] = id
     names.append(take name)
     return id
@@ -149,7 +149,7 @@ object MenuParser {
 
   mut fn unsigned(): u32 throws MenuCompileError {
     let (text, foundLine) = try word()
-    return try parseUnsigned(text, line: foundLine)
+    return try parseUnsigned(text: text, line: foundLine)
   }
 
   mut fn instruction(name: take String, line: usize): MenuInstruction throws MenuCompileError {
@@ -219,10 +219,10 @@ fn emit(program: ref MenuProgram): MenuBytecode throws MenuCompileError {
 }
 
 export fn compileMenu(source: ref String): MenuBytecode throws MenuCompileError {
-  let tokens = lexMenu(source)
+  let tokens = lexMenu(source: source)
   var parser = MenuParser(tokens: take tokens)
   let program = try parser.parse()
-  return try emit(program)
+  return try emit(program: program)
 }
 
 test "bootstrap compiler emits deterministic kitchen bytecode" for compileMenu {
@@ -231,8 +231,8 @@ heat 450
 wait 30
 serve"""
 
-  let first = try compileMenu(source)
-  let second = try compileMenu(source)
+  let first = try compileMenu(source: source)
+  let second = try compileMenu(source: source)
   expect first == second
   expect first.bytes.last == 0xff_u8
 }

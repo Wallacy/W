@@ -21,9 +21,9 @@ async fn runSimulation(
     SimulationProfile.photonRush,
     SimulationProfile.timelineCollision,
   ] {
-    let report = try simulateShift(profile)
+    let report = try simulateShift(profile: profile)
     var output = String()
-    writeSimulation(report, to: inout output)
+    writeSimulation(report: report, to: inout output)
     print(output)
   }
 

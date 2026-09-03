@@ -76,19 +76,19 @@ export fn importMatchesProvider(
 }
 
 test "ABI recovery order is deterministic" for chooseAbiArtifact {
-  expect chooseAbiArtifact(true, true, true, true) == .exactArtifact
-  expect chooseAbiArtifact(false, true, true, true) == .rebuildSource
-  expect chooseAbiArtifact(false, false, true, true) == .canonicalBoundary
-  expect chooseAbiArtifact(false, false, false, true) == .reject
-  expect chooseAbiArtifact(false, false, true, false) == .reject
+  expect chooseAbiArtifact(exactArtifact: true, sourceAvailable: true, declaredBoundary: true, boundaryArtifact: true) == .exactArtifact
+  expect chooseAbiArtifact(exactArtifact: false, sourceAvailable: true, declaredBoundary: true, boundaryArtifact: true) == .rebuildSource
+  expect chooseAbiArtifact(exactArtifact: false, sourceAvailable: false, declaredBoundary: true, boundaryArtifact: true) == .canonicalBoundary
+  expect chooseAbiArtifact(exactArtifact: false, sourceAvailable: false, declaredBoundary: false, boundaryArtifact: true) == .reject
+  expect chooseAbiArtifact(exactArtifact: false, sourceAvailable: false, declaredBoundary: true, boundaryArtifact: false) == .reject
 }
 
 test "each boundary accepts only its declared carrier" for boundaryAccepts {
-  expect boundaryAccepts(.internal, .wOpaque)
-  expect boundaryAccepts(.wExact, .wFingerprint)
-  expect boundaryAccepts(.foreignC, .cRecord)
-  expect boundaryAccepts(.component, .schema)
-  expect boundaryAccepts(.wire, .schema)
-  expect !boundaryAccepts(.foreignC, .wFingerprint)
-  expect !boundaryAccepts(.wire, .cPointer)
+  expect boundaryAccepts(boundary: .internal, carrier: .wOpaque)
+  expect boundaryAccepts(boundary: .wExact, carrier: .wFingerprint)
+  expect boundaryAccepts(boundary: .foreignC, carrier: .cRecord)
+  expect boundaryAccepts(boundary: .component, carrier: .schema)
+  expect boundaryAccepts(boundary: .wire, carrier: .schema)
+  expect !boundaryAccepts(boundary: .foreignC, carrier: .wFingerprint)
+  expect !boundaryAccepts(boundary: .wire, carrier: .cPointer)
 }

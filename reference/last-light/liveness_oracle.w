@@ -92,8 +92,8 @@ const fn nextRuntimeWaitPhase(
 
 const fn completionDisposition(
   state: RuntimeWaitPhase,
-  named generationMatches: Bool,
-  named providerOutcome: ProviderOutcome,
+  generationMatches: Bool,
+  providerOutcome: ProviderOutcome,
 ): CompletionDisposition {
   if state == .terminal || state == .drained {
     return .lateDrained
@@ -226,13 +226,13 @@ const fn nextBoundaryShutdownPhase(
 }
 
 test "closure publishes only after cleanup, drops and runtime drain" {
-  let closed = nextTaskClosurePhase(.open, on: .closeAdmission)
-  let drained = nextTaskClosurePhase(.closing, on: .drainChildrenAndWaits)
-  let cleaned = nextTaskClosurePhase(.childWaitDrain, on: .runCleanup)
-  let finished = nextTaskClosurePhase(.explicitCleanup, on: .finishCleanup)
-  let dropped = nextTaskClosurePhase(.typedDrop, on: .typedDrop)
-  let quiescent = nextTaskClosurePhase(.typedDrop, on: .drainRuntime)
-  let committed = nextTaskClosurePhase(.runtimeQuiescent, on: .commitOutcome)
+  let closed = nextTaskClosurePhase(state: .open, on: .closeAdmission)
+  let drained = nextTaskClosurePhase(state: .closing, on: .drainChildrenAndWaits)
+  let cleaned = nextTaskClosurePhase(state: .childWaitDrain, on: .runCleanup)
+  let finished = nextTaskClosurePhase(state: .explicitCleanup, on: .finishCleanup)
+  let dropped = nextTaskClosurePhase(state: .typedDrop, on: .typedDrop)
+  let quiescent = nextTaskClosurePhase(state: .typedDrop, on: .drainRuntime)
+  let committed = nextTaskClosurePhase(state: .runtimeQuiescent, on: .commitOutcome)
 
   expect closed == .some(.closing)
   expect drained == .some(.childWaitDrain)
@@ -241,46 +241,46 @@ test "closure publishes only after cleanup, drops and runtime drain" {
   expect dropped == .some(.typedDrop)
   expect quiescent == .some(.runtimeQuiescent)
   expect committed == .some(.committed)
-  expect nextTaskClosurePhase(.childWaitDrain, on: .commitOutcome) == none
+  expect nextTaskClosurePhase(state: .childWaitDrain, on: .commitOutcome) == none
 }
 
 test "provider completion is distinct from cancellation request" {
   let request = CancelDisposition.requested
   expect request == .requested
-  expect nextRuntimeWaitPhase(.registered, on: .submit) == .some(.submitted)
-  expect nextRuntimeWaitPhase(.registered, on: .cancelBeforeSubmit) == .some(.drained)
-  expect nextRuntimeWaitPhase(.submitted, on: .providerStarted) == .some(.completing)
-  expect nextRuntimeWaitPhase(.completing, on: .providerCanceled) == .some(.terminal)
+  expect nextRuntimeWaitPhase(state: .registered, on: .submit) == .some(.submitted)
+  expect nextRuntimeWaitPhase(state: .registered, on: .cancelBeforeSubmit) == .some(.drained)
+  expect nextRuntimeWaitPhase(state: .submitted, on: .providerStarted) == .some(.completing)
+  expect nextRuntimeWaitPhase(state: .completing, on: .providerCanceled) == .some(.terminal)
   expect completionDisposition(
-    .completing,
+    state: .completing,
     generationMatches: true,
     providerOutcome: .canceled,
   ) == .selectedCanceled
   expect completionDisposition(
-    .completing,
+    state: .completing,
     generationMatches: false,
     providerOutcome: .canceled,
   ) == .staleGeneration
   expect completionDisposition(
-    .terminal,
+    state: .terminal,
     generationMatches: true,
     providerOutcome: .success,
   ) == .lateDrained
   expect completionDisposition(
-    .drained,
+    state: .drained,
     generationMatches: false,
     providerOutcome: .error,
   ) == .lateDrained
 }
 
 test "cleanup mask records incoming cancel but expires on its boundary" {
-  expect cleanupNodeMayContinue(CleanupNodeState(
+  expect cleanupNodeMayContinue(node: CleanupNodeState(
     active: true,
     incomingCancellationRecorded: true,
     localCancellationAllowed: true,
     mask: .active,
   ))
-  expect !cleanupNodeMayContinue(CleanupNodeState(
+  expect !cleanupNodeMayContinue(node: CleanupNodeState(
     active: true,
     incomingCancellationRecorded: true,
     localCancellationAllowed: true,
@@ -298,7 +298,7 @@ test "outcome and frame gates are independent of normal join" {
     typedDropsComplete: true,
     runtimeQuiescent: true,
   )
-  expect canCommitOutcome(gate)
+  expect canCommitOutcome(gate: gate)
 
   let reclaim = FrameReclaimGate(
     closureQuiescent: true,
@@ -310,8 +310,8 @@ test "outcome and frame gates are independent of normal join" {
     zeroWakers: true,
     zeroRuntimeRefs: true,
   )
-  expect canReclaimFrame(reclaim)
-  expect !canReclaimFrame(FrameReclaimGate(
+  expect canReclaimFrame(gate: reclaim)
+  expect !canReclaimFrame(gate: FrameReclaimGate(
     closureQuiescent: true,
     outcomeMoved: true,
     zeroChildren: true,
@@ -324,13 +324,13 @@ test "outcome and frame gates are independent of normal join" {
 }
 
 test "shutdown escalation keeps forced termination distinct" {
-  let closed = nextBoundaryShutdownPhase(.ready, on: .closeAdmission)
-  let requested = nextBoundaryShutdownPhase(.admissionClosed, on: .requestCancellation)
-  let draining = nextBoundaryShutdownPhase(.cancellationRequested, on: .beginDrain)
-  let quiescent = nextBoundaryShutdownPhase(.draining, on: .markQuiescent)
-  let stopped = nextBoundaryShutdownPhase(.quiescent, on: .stopGracefully)
-  let expiring = nextBoundaryShutdownPhase(.draining, on: .expireGrace)
-  let terminated = nextBoundaryShutdownPhase(.terminating, on: .terminateBoundary)
+  let closed = nextBoundaryShutdownPhase(state: .ready, on: .closeAdmission)
+  let requested = nextBoundaryShutdownPhase(state: .admissionClosed, on: .requestCancellation)
+  let draining = nextBoundaryShutdownPhase(state: .cancellationRequested, on: .beginDrain)
+  let quiescent = nextBoundaryShutdownPhase(state: .draining, on: .markQuiescent)
+  let stopped = nextBoundaryShutdownPhase(state: .quiescent, on: .stopGracefully)
+  let expiring = nextBoundaryShutdownPhase(state: .draining, on: .expireGrace)
+  let terminated = nextBoundaryShutdownPhase(state: .terminating, on: .terminateBoundary)
 
   expect closed == .some(.admissionClosed)
   expect requested == .some(.cancellationRequested)
@@ -339,5 +339,5 @@ test "shutdown escalation keeps forced termination distinct" {
   expect stopped == .some(.stopped)
   expect expiring == .some(.terminating)
   expect terminated == .some(.terminated)
-  expect nextBoundaryShutdownPhase(.ready, on: .stopGracefully) == none
+  expect nextBoundaryShutdownPhase(state: .ready, on: .stopGracefully) == none
 }

@@ -100,7 +100,7 @@ async fn prepareDishStep(
   step: StepContext,
 ): Dish throws RestaurantError {
   return try await prepareDish(
-    take input.order,
+    order: take input.order,
     pantry: pantry,
     ovens: ovens,
     oracle: oracle,
@@ -112,8 +112,8 @@ async fn capturePaymentStep(
   dish: take Dish,
   step: StepContext,
 ): CapturedDish throws RestaurantError {
-  let amount = try quote(loadPriceTable(), course: dish.course)
-  let key = paymentKey(dish.orderId)
+  let amount = try quote(policy: loadPriceTable(), course: dish.course)
+  let key = paymentKey(orderId: dish.orderId)
   let payment = try await billing.capture(amount, idempotencyKey: key)
   return CapturedDish(dish: take dish, payment: take payment)
 }
@@ -133,7 +133,7 @@ async fn refundPaymentStep(
   payment: take Payment,
   step: StepContext,
 ): Payment throws RestaurantError {
-  let key = refundKey(payment.id)
+  let key = refundKey(paymentId: payment.id)
   return try await billing.refund(
     take payment,
     idempotencyKey: key,
@@ -177,7 +177,7 @@ async fn fulfillOrderDurably(
   )
 
   let CapturedDish(dish, payment) = take captured
-  let proof = servingProof(payment)
+  let proof = servingProof(payment: payment)
   let serving = ServingInput(
     tableId: tableId,
     dish: take dish,

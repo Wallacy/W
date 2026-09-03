@@ -1292,6 +1292,19 @@ static bool parse_prefix(w_seed_parser *parser, bool value_context) {
     stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
     return false;
   }
+  if (current_is_text(parser, "mut")) {
+    /*
+     * `mut` is a call-site ownership marker.  `mut ref` and `mut view`
+     * retain their explicit mode; bare `mut place` is the object shorthand.
+     * The seed parser is intentionally permissive here.  Later semantic
+     * phases validate the place and the declared type.
+     */
+    (void)consume_current(parser, NULL);
+    if (current_is_text(parser, "ref") || current_is_text(parser, "view")) {
+      (void)consume_current(parser, NULL);
+    }
+    return parse_prefix(parser, value_context);
+  }
   if (current_is_text(parser, "!") || current_is_text(parser, "~") ||
       current_is_text(parser, "-") || current_is_text(parser, "copy") ||
       current_is_text(parser, "take") || current_is_text(parser, "pin") ||
@@ -1506,31 +1519,15 @@ static bool parse_function_type_parameters(w_seed_parser *parser) {
   (void)consume_text(parser, "(", NULL);
   if (!current_is_text(parser, ")")) {
     while (true) {
-      /* Function-type parameter labels use the same `named value: Type`
-       * surface as declaration parameters.  Preserve the label in the raw
-       * owner span while keeping the direct TYPE child authoritative. */
-      w_seed_lex_item next;
-      const bool named_parameter =
-          current_is_text(parser, "named") && next_significant(parser, &next) &&
-          next.kind == W_SEED_LEX_ITEM_WORD;
-      if (named_parameter) {
+      /* Function types carry parameter contracts and types, but declaration
+       * labels and defaults remain outside the callable type identity. */
+      if (current_is_text(parser, "mut")) {
         (void)consume_current(parser, NULL);
-        if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD) ||
-            !next_is_text(parser, ":")) {
-          append_missing(parser, current_span(parser).start_byte,
-                         W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
-          pop_node(parser, parser->has_last_token ? parser->last_token_end
-                                                   : start);
-          return false;
-        }
-        (void)consume_current(parser, NULL);
-        if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
-          pop_node(parser, parser->has_last_token ? parser->last_token_end
-                                                   : start);
-          return false;
+        if (current_is_text(parser, "ref") || current_is_text(parser, "view")) {
+          (void)consume_current(parser, NULL);
         }
       } else if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
-          current_is_text(parser, "take") || current_is_text(parser, "const")) {
+                 current_is_text(parser, "take") || current_is_text(parser, "const")) {
         (void)consume_current(parser, NULL);
       }
       if (!parse_type(parser)) {
@@ -1947,8 +1944,13 @@ static bool parse_for_statement(w_seed_parser *parser) {
     stop_with_remainder(parser, W_SEED_PARSE_ISSUE_UNSUPPORTED_FORM);
     return false;
   }
-  if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
-      current_is_text(parser, "copy")) {
+  if (current_is_text(parser, "mut")) {
+    (void)consume_current(parser, NULL);
+    if (!expect_text(parser, "ref", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN)) {
+      pop_node(parser, parser->last_token_end);
+      return false;
+    }
+  } else if (current_is_text(parser, "ref") || current_is_text(parser, "copy")) {
     (void)consume_current(parser, NULL);
   }
   if (current_is_text(parser, "in") ||
@@ -2721,8 +2723,13 @@ static bool parse_parameter_list(w_seed_parser *parser) {
         pop_node(parser, parser->last_token_end);
         return false;
       }
-      if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
-          current_is_text(parser, "take") || current_is_text(parser, "const")) {
+      if (current_is_text(parser, "mut")) {
+        (void)consume_current(parser, NULL);
+        if (current_is_text(parser, "ref") || current_is_text(parser, "view")) {
+          (void)consume_current(parser, NULL);
+        }
+      } else if (current_is_text(parser, "ref") || current_is_text(parser, "inout") ||
+                 current_is_text(parser, "take") || current_is_text(parser, "const")) {
         (void)consume_current(parser, NULL);
       }
       if (!parse_type(parser)) {

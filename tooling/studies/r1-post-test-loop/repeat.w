@@ -1,6 +1,6 @@
 // R1 expression-core study variant.
 
-fn countDigits(value: u64): u8 {
+fn countDigits(_ value: u64): u8 {
   var remaining = value
   var digits: u8 = 0
 
@@ -12,7 +12,7 @@ fn countDigits(value: u64): u8 {
   return digits
 }
 
-fn countUntil(value: u64, limit: u8): u8 {
+fn countUntil(_ value: u64, _ limit: u8): u8 {
   var remaining = value
   var digits: u8 = 0
 
@@ -25,7 +25,7 @@ fn countUntil(value: u64, limit: u8): u8 {
   return digits
 }
 
-fn countWithContinue(value: u64): u8 {
+fn countWithContinue(_ value: u64): u8 {
   var remaining = value
   var digits: u8 = 0
 

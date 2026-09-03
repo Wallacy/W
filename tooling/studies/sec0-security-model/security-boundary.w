@@ -6,6 +6,6 @@ export struct TenantRequest {
   body: Bytes
 }
 
-export fn route(request: take TenantRequest): Bool {
+export fn route(_ request: take TenantRequest): Bool {
   return request.tenant.count > 0 && request.body.count <= 65_536
 }

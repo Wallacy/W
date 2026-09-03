@@ -4,7 +4,7 @@ Callable label policies are explicit and independent of position
 
 fn reserve(
   order: Order,
-  named audit: Audit,
+  audit: Audit,
   _ note: String,
   to destination: Table,
 ) {}
@@ -17,24 +17,23 @@ fn reserve(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (parameter_type
+          (type_name
+            (type_identifier))))
+      (parameter
+        (identifier)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
-      (parameter
-        (identifier)
-        (type
-          (type_name
-            (type_identifier))))
-      (parameter
-        (identifier)
-        (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block)))
@@ -53,17 +52,19 @@ fn transfer(source: ref Menu, target: inout Menu, payload: take Order) {}
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block)))
@@ -83,7 +84,7 @@ fn consume(take value: Menu) {}
       (parameter
         (identifier)
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block)))
@@ -102,7 +103,7 @@ fn inspect(named: Bool) {}
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block)))

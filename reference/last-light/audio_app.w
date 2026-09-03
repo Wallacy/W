@@ -12,7 +12,7 @@ fn render(
   state: inout AudioRenderState,
   ctx: audio.RenderContext,
 ): audio.RenderResult {
-  return renderFinalSong(inout state, block: inout block, ctx: ctx)
+  return renderFinalSong(state: inout state, block: inout block, ctx: ctx)
 }
 
 entry LastLightAudio(render)

@@ -125,7 +125,7 @@ fn boundedRequestCount(
   parameter key: ref String,
 ): usize<(1...500)> {
   let parameters = request.url.searchParams()
-  return boundedCount(parameters, parameter: key)
+  return boundedCount(parameters: parameters, parameter: key)
 }
 
 fn rejectQueryEdit(
@@ -172,13 +172,13 @@ async fn worlds(
   ctx context: http.Context,
 ): Array<World> throws BenchmarkError {
   let store = context.databases.get(benchmarkDatabase)
-  let keys = randomWorldKeys(count, ctx: context)
+  let keys = randomWorldKeys(count: count, ctx: context)
   let rows = try await store.queryMany(
     worldById,
     parameters: take keys,
     maximumInFlight: 20,
   )
-  return decodeWorlds(take rows)
+  return decodeWorlds(rows: take rows)
 }
 
 async fn renderFortunes(
@@ -214,15 +214,15 @@ async fn updateWorlds(
   ctx context: http.Context,
 ): Array<World> throws BenchmarkError {
   let store = context.databases.get(benchmarkDatabase)
-  let keys = randomWorldKeys(count, ctx: context)
+  let keys = randomWorldKeys(count: count, ctx: context)
   let rows = try await store.queryMany(
     worldById,
     parameters: take keys,
     maximumInFlight: 20,
   )
-  var result = decodeWorlds(take rows)
+  var result = decodeWorlds(rows: take rows)
 
-  for inout world in result {
+  for mut ref world in result {
     world.randomNumber = context.random.integer(in: 1...10_000)
   }
 
@@ -262,7 +262,7 @@ async fn cachedQueries(
   let store = context.databases.get(benchmarkDatabase)
   let local = context.caches.get(cachedWorlds)
   let loader = <[ref store]> (id: ref i32) => {
-    return try await loadCachedWorld(id, store: store)
+    return try await loadCachedWorld(id: id, store)
   }
   var result = Array<CachedWorld>(minimumCapacity: count)
 
@@ -288,24 +288,24 @@ async fn fetchBenchmark(
         maximumBytes: 64<iec.KiB>,
       )
     case (.get, "/db"):
-      let payload = try await world(ctx)
+      let payload = try await world(ctx: ctx)
       try http.Response.json(value: ref payload, maximumBytes: 64<iec.KiB>)
     case (.get, "/queries"):
-      let count = boundedRequestCount(request, parameter: "queries")
-      let payload = try await worlds(count, ctx: ctx)
+      let count = boundedRequestCount(request: request, parameter: "queries")
+      let payload = try await worlds(count: count, ctx: ctx)
       try http.Response.json(value: ref payload, maximumBytes: 64<iec.KiB>)
     case (.get, "/fortunes"):
-      try await renderFortunes(ctx)
+      try await renderFortunes(ctx: ctx)
     case (.get, "/updates"):
-      let count = boundedRequestCount(request, parameter: "queries")
-      let payload = try await updateWorlds(count, ctx: ctx)
+      let count = boundedRequestCount(request: request, parameter: "queries")
+      let payload = try await updateWorlds(count: count, ctx: ctx)
       try http.Response.json(
         value: ref payload,
         maximumBytes: 64<iec.KiB>,
       )
     case (.get, "/cached-queries"):
-      let count = boundedRequestCount(request, parameter: "count")
-      let payload = try await cachedQueries(count, ctx: ctx)
+      let count = boundedRequestCount(request: request, parameter: "count")
+      let payload = try await cachedQueries(count: count, ctx: ctx)
       try http.Response.json(
         value: ref payload,
         maximumBytes: 64<iec.KiB>,
@@ -319,7 +319,7 @@ test "benchmark query URLs preserve canonical Web semantics" for boundedCount {
   let encoded = url.URLSearchParams(
     "queries=%35%30%30&queries=2&note=%2B+dessert",
   )
-  expect boundedCount(encoded, parameter: "queries") == 500
+  expect boundedCount(parameters: encoded, parameter: "queries") == 500
   expect encoded.getAll("queries") == ["500", "2"]
   expect encoded.get("note") == "+ dessert"
 

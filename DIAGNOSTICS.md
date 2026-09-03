@@ -9,11 +9,11 @@
 > Este documento não cria uma autoridade nova.
 > Não edite este arquivo. Use `bun tooling/diagnostic-catalog.mjs --write`.
 
-- Catalog digest: `sha256:ec8616bdd2e139c45366f84d804e9bb8e678c52a909a8943accf151b221d8439`
-- Entries: `332`
+- Catalog digest: `sha256:a925b7c9fdb71c30a02ca45f56ff6e5cdcc9961601933c94f2264cb7176797f2`
+- Entries: `331`
 - Families: `51`
-- Design references: `238` exact, `94` family
-- States: `active` 329, `reserved` 3
+- Design references: `237` exact, `94` family
+- States: `active` 328, `reserved` 3
 
 ## Como ler
 
@@ -51,7 +51,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - [`W-GENERIC`](#w-generic) — 5 entradas
 - [`W-INIT`](#w-init) — 1 entrada
 - [`W-JUPYTER`](#w-jupyter) — 8 entradas
-- [`W-LABEL`](#w-label) — 4 entradas
+- [`W-LABEL`](#w-label) — 3 entradas
 - [`W-LAZY`](#w-lazy) — 6 entradas
 - [`W-LEX`](#w-lex) — 1 entrada
 - [`W-LOCK`](#w-lock) — 13 entradas
@@ -90,7 +90,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.capability`
 - `severity`: `error`
-- `meaning`: an allocator contextual parameter is not the unique first standard ref Allocator slot
+- `meaning`: an allocator contextual parameter is not the unique standard ref Allocator slot
 
 - `requiredFacts`:
   - `declaration`: `string`
@@ -2082,7 +2082,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `phase`: `interface`
 - `severity`: `error`
 - `profile`: `dlpack`
-- `meaning`: a tensor view escapes its lexical callback or creates an unproven inout alias
+- `meaning`: a tensor view escapes its lexical callback or creates an unproven inout value-in/value-out alias
 
 - `requiredFacts`:
   - `actual`: `string`
@@ -3111,7 +3111,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: a generic parameter label or positional order is invalid
+- `meaning`: a generic parameter label, anchor boundary, or positional-only binding is invalid
 
 - `requiredFacts`:
   - `externalLabel`: `string`
@@ -3406,7 +3406,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: a call uses an unknown label or an invalid positional/named form
+- `meaning`: a call uses an unknown label or an invalid positional/labeled form
 
 - `requiredFacts`:
   - `acceptedForms`: `string[]`
@@ -3426,7 +3426,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: a call repeats a label or supplies the same normalized slot twice
+- `meaning`: a call repeats a label, a declaration repeats an external label, or the same normalized slot is supplied twice
 
 - `requiredFacts`:
   - `declaration`: `string`
@@ -3439,28 +3439,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `fixes`:
   - none
 
-- Design authority: `exact` `W-LABEL-0006` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
-
-#### W-LABEL-0007
-
-- `state`: `active`
-- `phase`: `semantic.type`
-- `severity`: `error`
-- `meaning`: a record-like declaration uses the redundant named parameter marker
-
-- `requiredFacts`:
-  - `context`: `string`
-  - `declaration`: `string`
-  - `parameter`: `string`
-  - `reason`: `string`
-
-- `labelRoles`:
-  - none
-
-- `fixes`:
-  - none
-
-- Design authority: `exact` `W-LABEL-0007` — [12.2.1 Suspensão inferida e formas de call](DESIGN.md#1221-suspensão-inferida-e-formas-de-call)
+- Design authority: `exact` `W-LABEL-0006` — [7.2.2 Labels, argument order e pipe holes](DESIGN.md#722-labels-argument-order-e-pipe-holes)
 
 ### W-LAZY
 
@@ -3529,7 +3508,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.ownership`
 - `severity`: `error`
-- `meaning`: a Lazy assignment or modify operation lacks exclusive authority
+- `meaning`: a Lazy assignment or get mut ref access lacks exclusive authority
 
 - `requiredFacts`:
   - `actualAuthority`: `string`
@@ -4914,7 +4893,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.type`
 - `severity`: `error`
-- `meaning`: the first pipe parameter must be a positional slot
+- `meaning`: a pipe call must have exactly one required unbound slot; a named hole may appear at any declaration position and positional anchors preserve their boundaries
 
 - `requiredFacts`:
   - `function`: `string`

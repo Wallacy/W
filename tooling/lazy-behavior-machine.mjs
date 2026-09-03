@@ -252,7 +252,7 @@ function applyOperation(state, operation) {
       return
     }
 
-    case "modify": {
+    case "getMutRef": {
       requireDeclared(state)
       if (operation.exclusive !== true) fail("W-LAZY-0004")
       if (state.phase === "initializing" || activeWaiters(state).length > 0) {
@@ -263,12 +263,12 @@ function applyOperation(state, operation) {
         requireString(operation.initializerValue, "lazyInitializerValueMissing")
         state.initializerRuns += 1
         state.captureState = "executing"
-        publishValue(state, "exclusive-modify", operation.initializerValue, "initializer")
+        publishValue(state, "exclusive-get-mut-ref", operation.initializerValue, "initializer")
       }
-      if (state.phase !== "initialized") fail("lazyModifyInvalidPhase")
+      if (state.phase !== "initialized") fail("lazyGetMutRefInvalidPhase")
       state.value = operation.value
-      state.modifications += 1
-      state.logicalTrace.push(`modify:${operation.value}`)
+      state.mutableBorrowCount += 1
+      state.logicalTrace.push(`get-mut-ref:${operation.value}`)
       return
     }
 
@@ -352,7 +352,7 @@ function projectState(state) {
     captureState: state.captureState,
     captureDrops: state.captureDrops,
     valueDrops: state.valueDrops,
-    modifications: state.modifications,
+    mutableBorrowCount: state.mutableBorrowCount,
     happensBefore: state.happensBefore,
     logicalTrace: state.logicalTrace,
   }
@@ -374,7 +374,7 @@ export function runLazyBehaviorOperations(operations) {
     captureState: "absent",
     captureDrops: 0,
     valueDrops: 0,
-    modifications: 0,
+    mutableBorrowCount: 0,
     happensBefore: [],
     logicalTrace: [],
     physicalTrace: [],

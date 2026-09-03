@@ -15,32 +15,32 @@
     {
       "path": "../../../tooling/final-research-closure-cases.json",
       "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:443bb2b53314f62dae0e5d07ccc548440413a5df3797b2a6e1989343750aa511"
+      "digest": "sha256:d97e489f9bb3b59fa758165b0ffdcd05a98f6e395780d8bf467f634004f3c870"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
       "symbol": "FZ0-G0-statements-control",
-      "digest": "sha256:938840eb90bbf20c653a89b4be789fc69499b774b6d07b73ae14ec16e3e9861d"
+      "digest": "sha256:eedbe8838ad598b015a8cddfd21542d678da481d9c5c46ac430f34496468dc30"
     },
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:cb5539b3e9f072e25dd0986276edb12e0aec963d382aa9feea54642facd8f362"
+      "digest": "sha256:2e985ac8b6f02a2576e0626fd466b2800afcd5d6b92a2210e4ba01d0d235fdf1"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:366abea973dfc4bd927359b9e2013c3480268b1052a0aae70b5a3b28e250338e"
+      "digest": "sha256:b0a56966e67af90d06c829efbf1d9ac9d498e12f0b7f8b143ca630a8a8563ab3"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:1678cc1eac92567cb5c48a03716ae44f58c08387505c5aaea172fede871335df"
+      "digest": "sha256:b2bdf1affa91e0c70850824951845b75c5fbef68039af007b91f6977b079fa5d"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:4a3a696f0b52d6668c95b6d13369dbe4966a3f52819199faf4dc3ab1a9ba6e35"
+      "digest": "sha256:2c090a5dfbc9db4ed44ce582dbd2a7edd41952747892acfcd2909a37c2f7a7f4"
     }
   ],
   "variants": [
@@ -139,7 +139,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:ba6769cc9e84c668d3dd9bb5ba8617b5a5e9283e88ef0ad89e3af9ae189e35b6"
+    "digest": "sha256:23d10c2e6c535e1babe029a4e6af0631eeb22853494e48c15214ee8e20503f27"
   },
   "evidence": {
     "current": [

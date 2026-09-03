@@ -2,7 +2,7 @@ import iec from std
 import * from std.memory
 
 // Current baseline. Fixed storage is bounded and does not request OS storage.
-export fn arenaScope(payload: ref String, memory: ref Allocator): usize throws AllocationError {
+export fn arenaScope(_ payload: ref String, _ memory: ref Allocator): usize throws AllocationError {
   var storage: [u8; 64<iec.KiB>] = [0; 64<iec.KiB>]
   var scratch = Arena.fixed(inout storage)
   var tokens = Array<String>(allocator: ref scratch)

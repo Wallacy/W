@@ -199,10 +199,10 @@ export struct SemanticExtension {
   ): SemanticExtension throws SchemaError {
     return SemanticExtension(validatedHandle: unsafe {
       try stdDataSemanticExtension(
-        id: take id,
-        version: version,
-        parameters: take parameters,
-        limits: limits,
+        take id,
+        version,
+        take parameters,
+        limits,
       )
     })
   }
@@ -411,119 +411,119 @@ foreign intrinsic from "std.data@1" {
   type BytesColumnHandle
   type DynamicColumnHandle
 
-  fn stdDataFixedDecimal(precision: u16, scale: i16): FixedDecimalHandle throws SchemaError
+  fn stdDataFixedDecimal(_ precision: u16, _ scale: i16): FixedDecimalHandle throws SchemaError
   fn stdDataLogicalBoolean(): LogicalTypeHandle
-  fn stdDataLogicalInteger(width: IntegerWidth, sign: IntegerSign): LogicalTypeHandle
-  fn stdDataLogicalFloat(width: FloatWidth): LogicalTypeHandle
+  fn stdDataLogicalInteger(_ width: IntegerWidth, _ sign: IntegerSign): LogicalTypeHandle
+  fn stdDataLogicalFloat(_ width: FloatWidth): LogicalTypeHandle
   fn stdDataLogicalFixedDecimal(
-    precision: u16,
-    scale: i16,
+    _ precision: u16,
+    _ scale: i16,
   ): LogicalTypeHandle throws SchemaError
   fn stdDataLogicalString(): LogicalTypeHandle
   fn stdDataLogicalBytes(): LogicalTypeHandle
   fn stdDataLogicalUuid(): LogicalTypeHandle
   fn stdDataLogicalDate(): LogicalTypeHandle
-  fn stdDataLogicalTime(precision: TemporalPrecision): LogicalTypeHandle
-  fn stdDataLogicalInstant(precision: TemporalPrecision): LogicalTypeHandle
-  fn stdDataLogicalLocalDateTime(precision: TemporalPrecision): LogicalTypeHandle
+  fn stdDataLogicalTime(_ precision: TemporalPrecision): LogicalTypeHandle
+  fn stdDataLogicalInstant(_ precision: TemporalPrecision): LogicalTypeHandle
+  fn stdDataLogicalLocalDateTime(_ precision: TemporalPrecision): LogicalTypeHandle
   fn stdDataLogicalOption(
-    child: take LogicalType,
-    limits: ref Limits,
+    _ child: take LogicalType,
+    _ limits: ref Limits,
   ): LogicalTypeHandle throws SchemaError
   fn stdDataLogicalList(
-    child: take LogicalType,
-    limits: ref Limits,
+    _ child: take LogicalType,
+    _ limits: ref Limits,
   ): LogicalTypeHandle throws SchemaError
   fn stdDataLogicalMap(
-    key: take LogicalType,
-    value: take LogicalType,
-    limits: ref Limits,
+    _ key: take LogicalType,
+    _ value: take LogicalType,
+    _ limits: ref Limits,
   ): LogicalTypeHandle throws SchemaError
-  fn stdDataLogicalNested(identity: ref SchemaIdentity): LogicalTypeHandle throws SchemaError
+  fn stdDataLogicalNested(_ identity: ref SchemaIdentity): LogicalTypeHandle throws SchemaError
   fn stdDataLogicalExtension(
-    extension: take SemanticExtension,
-    limits: ref Limits,
+    _ extension: take SemanticExtension,
+    _ limits: ref Limits,
   ): LogicalTypeHandle throws SchemaError
   fn stdDataSemanticExtension(
-    named id: take String,
-    named version: u32,
-    named parameters: take Array<Bytes>,
-    named limits: ref Limits,
+    _ id: take String,
+    _ version: u32,
+    _ parameters: take Array<Bytes>,
+    _ limits: ref Limits,
   ): SemanticExtensionHandle throws SchemaError
   fn stdDataDecimalValue(
-    decimalType: take FixedDecimalType,
-    unscaled: i128,
+    _ decimalType: take FixedDecimalType,
+    _ unscaled: i128,
   ): DecimalValueHandle throws SchemaError
-  fn stdDataUuidValue(bytes: take Bytes): UUIDValueHandle throws SchemaError
-  fn stdDataDateValue(daysSinceEpoch: i32): DateValueHandle throws SchemaError
-  fn stdDataTimeValue(nanosecondsSinceMidnight: u64): TimeValueHandle throws SchemaError
-  fn stdDataInstantValue(epochNanoseconds: i128): InstantValueHandle throws SchemaError
-  fn stdDataLocalDateTimeValue(civilTicks: i128): LocalDateTimeValueHandle throws SchemaError
+  fn stdDataUuidValue(_ bytes: take Bytes): UUIDValueHandle throws SchemaError
+  fn stdDataDateValue(_ daysSinceEpoch: i32): DateValueHandle throws SchemaError
+  fn stdDataTimeValue(_ nanosecondsSinceMidnight: u64): TimeValueHandle throws SchemaError
+  fn stdDataInstantValue(_ epochNanoseconds: i128): InstantValueHandle throws SchemaError
+  fn stdDataLocalDateTimeValue(_ civilTicks: i128): LocalDateTimeValueHandle throws SchemaError
   fn stdDataDynamicExtensionValue(
-    named logicalType: take LogicalType,
-    named extension: take SemanticExtension,
-    named storage: take Bytes,
-    named limits: ref Limits,
+    _ logicalType: take LogicalType,
+    _ extension: take SemanticExtension,
+    _ storage: take Bytes,
+    _ limits: ref Limits,
   ): DynamicExtensionValueHandle throws SchemaError
   fn stdDataDynamicList(
-    values: take Array<DynamicValue>,
-    limits: ref Limits,
+    _ values: take Array<DynamicValue>,
+    _ limits: ref Limits,
   ): DynamicListHandle throws SchemaError
   fn stdDataDynamicMap(
-    entries: take Array<DynamicEntry>,
-    limits: ref Limits,
+    _ entries: take Array<DynamicEntry>,
+    _ limits: ref Limits,
   ): DynamicMapHandle throws SchemaError
   fn stdDataDynamicNested(
-    entries: take Array<DynamicEntry>,
-    limits: ref Limits,
+    _ entries: take Array<DynamicEntry>,
+    _ limits: ref Limits,
   ): DynamicNestedHandle throws SchemaError
 
 
   fn stdDataSchemaField(
-    named name: take String,
-    named logicalType: take LogicalType,
-    named nullable: Bool,
-    named limits: ref Limits,
+    _ name: take String,
+    _ logicalType: take LogicalType,
+    _ nullable: Bool,
+    _ limits: ref Limits,
   ): SchemaFieldHandle throws SchemaError
 
   fn stdDataSchema(
-    fields: take Array<SchemaField>,
-    rowCount: usize?,
-    limits: ref Limits,
+    _ fields: take Array<SchemaField>,
+    _ rowCount: usize?,
+    _ limits: ref Limits,
   ): SchemaHandle throws SchemaError
 
-  fn stdDataSchemaIdentity(handle: ref SchemaHandle): SchemaIdentityHandle
-  fn stdDataSchemaFieldCount(handle: ref SchemaHandle): usize
+  fn stdDataSchemaIdentity(_ handle: ref SchemaHandle): SchemaIdentityHandle
+  fn stdDataSchemaFieldCount(_ handle: ref SchemaHandle): usize
 
   fn stdDataGeneratedField<Owner: Row, Value>(
-    name: String,
+    _ name: String,
   ): FieldDescriptorHandle
 
-  fn stdDataBatchSchema(handle: ref BatchHandle): SchemaHandle
-  fn stdDataBatchRowCount(handle: ref BatchHandle): usize
+  fn stdDataBatchSchema(_ handle: ref BatchHandle): SchemaHandle
+  fn stdDataBatchRowCount(_ handle: ref BatchHandle): usize
   // Column handles are loans.  They have no retain/release operation and
   // cannot outlive the Batch passed to these intrinsics.
-  fn stdDataBatchColumn(handle: ref BatchHandle, field: ref FieldDescriptorHandle): view ColumnHandle
-  fn stdDataBatchStringColumn(handle: ref BatchHandle, field: ref FieldDescriptorHandle): view StringColumnHandle
-  fn stdDataBatchBytesColumn(handle: ref BatchHandle, field: ref FieldDescriptorHandle): view BytesColumnHandle
-  fn stdDataColumnCount(handle: view ColumnHandle): usize
-  fn stdDataColumnCopy<Value>(named handle: view ColumnHandle, named index: usize): Value
-  fn stdDataStringColumnCount(handle: view StringColumnHandle): usize
-  fn stdDataStringColumnView(handle: view StringColumnHandle, index: usize): view String?
-  fn stdDataStringColumnCopy(handle: view StringColumnHandle, index: usize): String?
-  fn stdDataBytesColumnCount(handle: view BytesColumnHandle): usize
-  fn stdDataBytesColumnView(handle: view BytesColumnHandle, index: usize): view Bytes?
-  fn stdDataBytesColumnCopy(handle: view BytesColumnHandle, index: usize): Bytes?
-  fn stdDataDynamicBatchSchema(handle: ref DynamicBatchHandle): SchemaHandle
-  fn stdDataDynamicBatchRowCount(handle: ref DynamicBatchHandle): usize
-  fn stdDataDynamicBatchColumn(handle: ref DynamicBatchHandle, name: ref String): DynamicColumnHandle
-  fn stdDataDynamicColumnCount(handle: ref DynamicColumnHandle): usize
-  fn stdDataDynamicColumnValue(handle: ref DynamicColumnHandle, index: usize): DynamicValue
+  fn stdDataBatchColumn(_ handle: ref BatchHandle, _ field: ref FieldDescriptorHandle): view ColumnHandle
+  fn stdDataBatchStringColumn(_ handle: ref BatchHandle, _ field: ref FieldDescriptorHandle): view StringColumnHandle
+  fn stdDataBatchBytesColumn(_ handle: ref BatchHandle, _ field: ref FieldDescriptorHandle): view BytesColumnHandle
+  fn stdDataColumnCount(_ handle: view ColumnHandle): usize
+  fn stdDataColumnCopy<Value>(_ handle: view ColumnHandle, _ index: usize): Value
+  fn stdDataStringColumnCount(_ handle: view StringColumnHandle): usize
+  fn stdDataStringColumnView(_ handle: view StringColumnHandle, _ index: usize): view String?
+  fn stdDataStringColumnCopy(_ handle: view StringColumnHandle, _ index: usize): String?
+  fn stdDataBytesColumnCount(_ handle: view BytesColumnHandle): usize
+  fn stdDataBytesColumnView(_ handle: view BytesColumnHandle, _ index: usize): view Bytes?
+  fn stdDataBytesColumnCopy(_ handle: view BytesColumnHandle, _ index: usize): Bytes?
+  fn stdDataDynamicBatchSchema(_ handle: ref DynamicBatchHandle): SchemaHandle
+  fn stdDataDynamicBatchRowCount(_ handle: ref DynamicBatchHandle): usize
+  fn stdDataDynamicBatchColumn(_ handle: ref DynamicBatchHandle, _ name: ref String): DynamicColumnHandle
+  fn stdDataDynamicColumnCount(_ handle: ref DynamicColumnHandle): usize
+  fn stdDataDynamicColumnValue(_ handle: ref DynamicColumnHandle, _ index: usize): DynamicValue
   fn stdDataBind<Element: Row>(
-    named batch: take DynamicBatch,
-    named schema: ref Schema,
-    named policy: BindingPolicy,
-    named limits: ref Limits,
+    _ batch: take DynamicBatch,
+    _ schema: ref Schema,
+    _ policy: BindingPolicy,
+    _ limits: ref Limits,
   ): Batch<Element> throws BindError
   fn stdDataSchemaFor<Element: Row>(): Schema
 }
@@ -551,10 +551,10 @@ export struct SchemaField {
   ): SchemaField throws SchemaError {
     let handle = unsafe {
       try stdDataSchemaField(
-        name: take name,
-        logicalType: take logicalType,
-        nullable: nullable,
-        limits: limits,
+        take name,
+        take logicalType,
+        nullable,
+        limits,
       )
     }
     return SchemaField(validatedHandle: handle)
@@ -608,10 +608,10 @@ export struct DynamicExtensionValue {
   ): DynamicExtensionValue throws SchemaError {
     return DynamicExtensionValue(validatedHandle: unsafe {
       try stdDataDynamicExtensionValue(
-        logicalType: take logicalType,
-        extension: take extension,
-        storage: take storage,
-        limits: limits,
+        take logicalType,
+        take extension,
+        take storage,
+        limits,
       )
     })
   }
@@ -728,7 +728,7 @@ export struct Column<Owner: Row, Value> {
   // Copy values return an owner; the source spelling `column[index]` lowers to
   // this checked operation. There is no generic view operation.
   export fn copy(at index: usize): Value {
-    return unsafe { stdDataColumnCopy<Value>(handle: handle, index: index) }
+    return unsafe { stdDataColumnCopy<Value>(handle, index) }
   }
 }
 
@@ -808,7 +808,7 @@ export struct Batch<Element: Row> {
   // Compiler-generated descriptors carry Element.  The provider rejects a
   // descriptor whose owner does not match this Batch's Element.
   export fn column<Value>(
-    _ field: FieldDescriptor<Element, Value>,
+    field: FieldDescriptor<Element, Value>,
   ): view Column<Element, Value> {
     return view Column(validatedHandle: unsafe {
       stdDataBatchColumn(ref handle, ref field.handle)
@@ -849,7 +849,7 @@ export struct DynamicBatch {
     return unsafe { stdDataDynamicBatchRowCount(ref handle) }
   }
 
-  export fn column(_ name: ref String): DynamicColumn {
+  export fn column(name: ref String): DynamicColumn {
     return DynamicColumn(validatedHandle: unsafe {
       stdDataDynamicBatchColumn(ref handle, name)
     })
@@ -892,10 +892,10 @@ export struct EncodeProgress: Copy & Equatable {
   ): EncodeProgress throws ProgressError {
     return unsafe {
       try stdDataProgressAdding(
-        current: self,
-        bytes: bytes,
-        records: records,
-        partialRecord: partialRecord,
+        self,
+        bytes,
+        records,
+        partialRecord,
       )
     }
   }
@@ -903,10 +903,10 @@ export struct EncodeProgress: Copy & Equatable {
 
 foreign intrinsic from "std.data@1" {
   fn stdDataProgressAdding(
-    named current: EncodeProgress,
-    named bytes: u64,
-    named records: u64,
-    named partialRecord: Bool,
+    _ current: EncodeProgress,
+    _ bytes: u64,
+    _ records: u64,
+    _ partialRecord: Bool,
   ): EncodeProgress throws ProgressError
 }
 
@@ -920,10 +920,10 @@ export fn bind<Element: Row>(
 ): Batch<Element> throws BindError {
   return unsafe {
     try stdDataBind(
-      batch: take batch,
-      schema: schema,
-      policy: policy,
-      limits: limits,
+      take batch,
+      schema,
+      policy,
+      limits,
     )
   }
 }

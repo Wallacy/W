@@ -6,7 +6,7 @@
   const keywords = new Set([
     "alias", "any", "as", "async", "atomic", "await", "behavior", "break", "capture", "case", "catch",
     "const", "continue", "copy", "defer", "deinit", "dimension", "do", "else", "entry", "enum", "export", "extension",
-    "false", "fn", "for", "foreign", "from", "get", "guard", "if", "import", "in", "inout", "is", "let", "modify",
+    "false", "fn", "for", "foreign", "from", "get", "guard", "if", "import", "in", "inout", "is", "let",
     "mut", "object", "package", "panic", "pipeline", "protocol", "ref", "return", "service", "set", "shared", "some",
     "spawn", "struct", "switch", "take", "test", "throw", "throws", "true", "try", "type", "unit", "unsafe", "var",
     "weak", "while",
@@ -95,9 +95,9 @@
         continue;
       }
 
-      if (char === "'" || (char === "b" && source[index + 1] === "'")) {
-        const kind = char === "b" ? "byte" : "scalar";
-        if (kind === "byte") advance();
+      if (char === "b" && source[index + 1] === "'") {
+        const kind = "byte";
+        advance();
         advance();
         let closed = false;
         while (index < source.length && source[index] !== "\n") {
@@ -117,11 +117,16 @@
         continue;
       }
 
-      if (source.startsWith('\"\"\"', index)) {
+      const tripleQuote = source.startsWith('\"\"\"', index)
+        ? '\"\"\"'
+        : source.startsWith("'''", index)
+          ? "'''"
+          : null;
+      if (tripleQuote) {
         advance(3);
         let closed = false;
         while (index < source.length) {
-          if (source.startsWith('\"\"\"', index)) {
+          if (source.startsWith(tripleQuote, index)) {
             advance(3);
             closed = true;
             break;
@@ -136,16 +141,22 @@
       if (char === "#") {
         let hashCount = 0;
         while (source[index + hashCount] === "#") hashCount += 1;
-        if (source[index + hashCount] !== '"') {
+        const quote = source[index + hashCount];
+        if (quote !== '"' && quote !== "'") {
           advance();
           add("operator", start, startLine, startColumn);
           continue;
         }
-        advance(hashCount + 1);
+        const quoteCount = source.slice(index + hashCount, index + hashCount + 3) === quote.repeat(3)
+          ? 3
+          : 1;
+        const delimiter = quote.repeat(quoteCount);
+        advance(hashCount + quoteCount);
         let closed = false;
         while (index < source.length) {
-          if (source[index] === '"' && source.slice(index + 1, index + 1 + hashCount) === "#".repeat(hashCount)) {
-            advance(hashCount + 1);
+          if (source.startsWith(delimiter, index)
+            && source.slice(index + quoteCount, index + quoteCount + hashCount) === "#".repeat(hashCount)) {
+            advance(hashCount + quoteCount);
             closed = true;
             break;
           }
@@ -156,14 +167,15 @@
         continue;
       }
 
-      if (char === '"') {
+      if (char === '"' || char === "'") {
+        const quote = char;
         advance();
         let closed = false;
         while (index < source.length) {
           if (source[index] === "\\") {
             advance();
             if (index < source.length) advance();
-          } else if (source[index] === '"') {
+          } else if (source[index] === quote) {
             advance();
             closed = true;
             break;
