@@ -317,7 +317,7 @@ function validateFactSchema(facts, errors, location = "facts") {
     return errors;
   }
   for (const [section, fields] of Object.entries(REQUIRED_FACTS)) requireFields(facts, section, fields, errors, `${location}.${section}`);
-  checkUnknownKeys(facts, new Set([...Object.keys(REQUIRED_FACTS), "targets", "isolation", "cleanupPlan", "nativeCleanupPlan", "limits", "researchGap"]), location, errors);
+  checkUnknownKeys(facts, new Set([...Object.keys(REQUIRED_FACTS), "targets", "isolation", "cleanupPlan", "nativeCleanupPlan", "limits", "designEvidenceGap"]), location, errors);
   checkUnknownKeys(facts.recipe, new Set(REQUIRED_FACTS.recipe), `${location}.recipe`, errors);
   checkUnknownKeys(facts.artifact, new Set(REQUIRED_FACTS.artifact), `${location}.artifact`, errors);
   checkUnknownKeys(facts.source, new Set(REQUIRED_FACTS.source), `${location}.source`, errors);
@@ -338,9 +338,9 @@ function validateFactSchema(facts, errors, location = "facts") {
   checkUnknownKeys(facts.exportFacts, new Set(REQUIRED_FACTS.exportFacts), `${location}.exportFacts`, errors);
   checkUnknownKeys(facts.provider, new Set(REQUIRED_FACTS.provider), `${location}.provider`, errors);
   checkUnknownKeys(facts.limits, new Set(["maximumEvents", "maximumExportBytes"]), `${location}.limits`, errors);
-  if (isObject(facts.researchGap)) {
-    checkUnknownKeys(facts.researchGap, new Set(["operation", "providerIdentity", "interfaceKey", "schemaDigest", "rights", "stableDomainKey", "savedGenerationPolicy", "currentContract", "languageSurface", "resolveReceipt"]), `${location}.researchGap`, errors);
-    checkUnknownKeys(facts.researchGap.resolveReceipt, new Set(["providerIdentity", "interfaceKey", "schemaDigest", "decision", "digest"]), `${location}.researchGap.resolveReceipt`, errors);
+  if (isObject(facts.designEvidenceGap)) {
+    checkUnknownKeys(facts.designEvidenceGap, new Set(["operation", "providerIdentity", "interfaceKey", "schemaDigest", "rights", "stableDomainKey", "savedGenerationPolicy", "currentContract", "languageSurface", "resolveReceipt"]), `${location}.designEvidenceGap`, errors);
+    checkUnknownKeys(facts.designEvidenceGap.resolveReceipt, new Set(["providerIdentity", "interfaceKey", "schemaDigest", "decision", "digest"]), `${location}.designEvidenceGap.resolveReceipt`, errors);
   }
   if (!validString(facts.recipe?.version) || !validDigest(facts.recipe?.toolArtifactDigest)) errors.push(`${location}.recipe must contain a version and tool artifact digest.`);
   for (const section of ["recipe", "artifact", "source", "interface", "target", "provider"]) {
@@ -367,7 +367,7 @@ function validateFactSchema(facts, errors, location = "facts") {
   if (!Array.isArray(facts.effectFacts?.observed) || facts.effectFacts.observed.length !== 0) errors.push(`${location}.effectFacts.observed must be exactly [] because providerReceipt events are the only operational observations.`);
   if (!validDigest(facts.exportFacts?.provenanceDigest) || !Array.isArray(facts.exportFacts?.redactions) || !Number.isInteger(facts.exportFacts?.bytes) || !Number.isInteger(facts.exportFacts?.maximumBytes)) errors.push(`${location}.exportFacts must contain provenance, redactions, and bounds.`);
   if (!validString(facts.isolation)) errors.push(`${location}.isolation is required.`);
-  if (isObject(facts.researchGap) && (!Array.isArray(facts.researchGap.rights) || facts.researchGap.rights.length === 0 || facts.researchGap.rights.some((right) => !validString(right)) || new Set(facts.researchGap.rights).size !== facts.researchGap.rights.length)) errors.push(`${location}.researchGap.rights must contain unique rights.`);
+  if (isObject(facts.designEvidenceGap) && (!Array.isArray(facts.designEvidenceGap.rights) || facts.designEvidenceGap.rights.length === 0 || facts.designEvidenceGap.rights.some((right) => !validString(right)) || new Set(facts.designEvidenceGap.rights).size !== facts.designEvidenceGap.rights.length)) errors.push(`${location}.designEvidenceGap.rights must contain unique rights.`);
   if (facts.artifact?.physicalPath || facts.artifact?.path || facts.artifact?.name) errors.push(`${location}.artifact cannot use host path or name lookup.`);
   return errors;
 }
@@ -507,7 +507,7 @@ function initialState(facts, mode) {
     imported: false,
     inspected: false,
     migration: false,
-    research: false,
+    historicalCandidate: false,
     capabilityState: "declared",
     ownerGraph: [`old:${oldGeneration}`],
     interfaceResult: "exact",
@@ -806,9 +806,9 @@ function validateInspector(event, state, facts) {
 }
 
 function validatePersistentResolve(event, state, facts) {
-  const gap = facts.researchGap;
+  const gap = facts.designEvidenceGap;
   if (!isObject(gap) || !["persistentResolve", "migration"].includes(gap.operation) || gap.currentContract !== "missing") {
-    pushError(state, "research-descriptor-missing", "Research requires an explicit persistentResolve or migration descriptor with a missing contract");
+    pushError(state, "design-evidence-gap-descriptor-missing", "A current design evidence gap requires an explicit persistentResolve or migration descriptor with a missing contract");
     return;
   }
   if (event.mode === "write" || event.heap || event.liveHandles || event.liveHeap) {
@@ -825,7 +825,7 @@ function validatePersistentResolve(event, state, facts) {
     return;
   }
   state.migration = true;
-  state.research = true;
+  state.historicalCandidate = true;
 }
 
 function validRollbackReceipt(receipt, facts, state) {
@@ -1072,7 +1072,7 @@ function applyLocalEvent(state, facts, event) {
 
 function finishState(state, facts, testCase) {
   let status = "rejected";
-  let route = state.research ? "research" : "composable";
+  let route = state.historicalCandidate ? "historical-candidate" : "composable";
   let code = state.error?.code ?? "none";
   if (state.boundaryViolation) {
     status = "rejected";
@@ -1093,8 +1093,8 @@ function finishState(state, facts, testCase) {
   } else if (state.postSwitchDrainFailure) {
     status = "degraded";
     code = "post-switch-drain-failure";
-  } else if (state.research && state.switched) {
-    status = "research";
+  } else if (state.historicalCandidate && state.switched) {
+    status = "historical-candidate";
   } else if (state.switched && state.cleanup.length !== requiredCleanup(facts).length) {
     status = "draining";
     code = "cleanup-incomplete";
@@ -1123,7 +1123,7 @@ function finishState(state, facts, testCase) {
     imported: state.imported,
     inspected: state.inspected,
     migration: state.migration,
-    research: state.research,
+    historicalCandidate: state.historicalCandidate,
     selection: state.selection,
     selectionReceipt: state.selectionReceipt,
     rollbackReceipt: state.rollbackReceipt,
@@ -1461,11 +1461,11 @@ export function evaluateDyn1Case(testCase, { corpus, mutate } = {}) {
     return { ...comparison.local, caseId: testCase.id, axis: testCase.axis, mode: "paired", projection: { local: comparison.left, split: comparison.right }, physicalTrace: { local: comparison.local.physicalTrace, split: comparison.split.physicalTrace } };
   }
   const result = testCase.mode === "split" ? reduceSplit(facts, testCase.events, testCase) : reduceLocal(facts, testCase.events, testCase);
-  const hasResearchDescriptor = isObject(facts.researchGap) && ["persistentResolve", "migration"].includes(facts.researchGap.operation) && facts.researchGap.currentContract === "missing";
-  if (hasResearchDescriptor) {
-    result.route = "research";
-    if (result.status === "committed") result.status = "research";
-  } else if (result.research && !result.error) result.route = "research";
+  const hasDesignEvidenceGap = isObject(facts.designEvidenceGap) && ["persistentResolve", "migration"].includes(facts.designEvidenceGap.operation) && facts.designEvidenceGap.currentContract === "missing";
+  if (hasDesignEvidenceGap) {
+    result.route = "historical-candidate";
+    if (result.status === "committed") result.status = "historical-candidate";
+  } else if (result.historicalCandidate && !result.error) result.route = "historical-candidate";
   return result;
 }
 
@@ -1481,6 +1481,7 @@ export function validateDyn1(corpus, { root } = {}) {
   const errors = [];
   if (corpus?.$schema !== "w-dyn1-versioned-behavior-cases-1") errors.push("DYN1 corpus schema is invalid.");
   if (corpus?.status !== "design-oracle-input") errors.push("DYN1 corpus status must be design-oracle-input.");
+  if (corpus?.researchState !== "historical" || JSON.stringify(corpus?.successorDecisions ?? []) !== JSON.stringify(["W-1398", "W-1399"])) errors.push("DYN1 corpus must identify historical provenance and SYN2/DYN2 successors.");
   if (!Array.isArray(corpus?.cases) || corpus.cases.length < 45 || corpus.cases.length > 70) {
     errors.push("DYN1 corpus must contain 45–70 cases.");
     return { errors, results: [] };
@@ -1510,8 +1511,8 @@ export function validateDyn1(corpus, { root } = {}) {
   if (dCases.some((result) => corpus.cases.find((item) => item.id === result.caseId)?.family !== "rejected" && result.status !== "invalid-assay")) errors.push("DYN1 forged route D mechanisms must be invalid assays.");
   const pairCases = results.filter((result) => result.mode === "paired");
   if (pairCases.length < 3) errors.push("DYN1 must compare independent local and split reducers.");
-  const researchCases = results.filter((result) => result.route === "research");
-  if (researchCases.length === 0 || researchCases.some((result) => result.axis !== "C")) errors.push("DYN1 Research must come from an explicit route C persistent or migration descriptor.");
+  const historicalCandidateCases = results.filter((result) => result.route === "historical-candidate");
+  if (historicalCandidateCases.length === 0 || historicalCandidateCases.some((result) => result.axis !== "C")) errors.push("DYN1 historical candidates must come from an explicit route C persistent or migration descriptor.");
   if (results.some((result) => result.route === "intentionally-rejected" && result.axis !== "D")) errors.push("DYN1 A/B/C routes cannot inherit route D.");
   return { errors, results };
 }

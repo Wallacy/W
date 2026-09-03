@@ -1,4 +1,5 @@
 VersionedBehaviorFixture
-Research-only gap: persist a bounded generation reference and re-resolve it after
+Historical candidate provenance: persist a bounded generation reference and re-resolve it after
 restart or deployment. The reference carries digests and interface facts only.
-It never carries heap, task, loan, capability, ServiceRef, or provider handles.
+It never carries heap, task, loan, capability, ServiceRef, or provider handles. It
+is superseded as a current design route by W-1398/W-1399.

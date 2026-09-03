@@ -76,8 +76,8 @@ describe("DYN1 versioned behavior host oracle", () => {
 
   test("keeps the persistent generation reference narrow and rejects route D", () => {
     const corpus = readCorpus();
-    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-generation-reference"), { corpus })).toMatchObject({ status: "research", route: "research", migration: true });
-    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-reference-write-rejected"), { corpus })).toMatchObject({ status: "rejected", route: "research", code: "migration-live-state" });
+    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-generation-reference"), { corpus })).toMatchObject({ status: "historical-candidate", route: "historical-candidate", migration: true });
+    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-reference-write-rejected"), { corpus })).toMatchObject({ status: "rejected", route: "historical-candidate", code: "migration-live-state" });
     for (const testCase of corpus.cases.filter((item) => item.axis === "D" && item.family === "rejected")) {
       expect(evaluateDyn1Case(testCase, { corpus })).toMatchObject({ status: "intentionally-rejected", route: "intentionally-rejected" });
     }
@@ -129,7 +129,7 @@ describe("DYN1 versioned behavior host oracle", () => {
     expect(evaluateDyn1Case(byId(corpus, "DYN1-A-export-forged-receipt"), { corpus })).toMatchObject({ status: "rejected", code: "export-receipt-forged" });
   });
 
-  test("keeps Research explicit, target projections distinct, and selection atomic", () => {
+  test("keeps historical candidate provenance explicit, target projections distinct, and selection atomic", () => {
     const corpus = readCorpus();
     expect(corpus.defaults.targets.A.registryDigest).not.toBe(corpus.defaults.targets.B.registryDigest);
     expect(corpus.defaults.targets.A.physicalArtifactDigest).not.toBe(corpus.defaults.targets.B.physicalArtifactDigest);
@@ -139,8 +139,8 @@ describe("DYN1 versioned behavior host oracle", () => {
     expect(paired.projection.local.ownerGraph).toEqual(paired.projection.split.ownerGraph);
     expect(evaluateDyn1Case(byId(corpus, "DYN1-B-concurrent-selection"), { corpus })).toMatchObject({ selection: "g2" });
     expect(evaluateDyn1Case(byId(corpus, "DYN1-B-selection-duplicate-rejected"), { corpus })).toMatchObject({ status: "rejected", code: "concurrent-selection" });
-    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-generation-reference"), { corpus })).toMatchObject({ status: "research", route: "research" });
-    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-reference-write-rejected"), { corpus })).toMatchObject({ status: "rejected", route: "research", code: "migration-live-state" });
+    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-generation-reference"), { corpus })).toMatchObject({ status: "historical-candidate", route: "historical-candidate" });
+    expect(evaluateDyn1Case(byId(corpus, "DYN1-C-persistent-reference-write-rejected"), { corpus })).toMatchObject({ status: "rejected", route: "historical-candidate", code: "migration-live-state" });
     const forgedSelection = structuredClone(byId(corpus, "DYN1-B-concurrent-selection"));
     forgedSelection.events[1].selectionReceipt.receiptDigest = "sha256:" + "f".repeat(64);
     expect(evaluateDyn1Case(forgedSelection, { corpus }).code).toBe("concurrent-selection");

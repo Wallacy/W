@@ -23,14 +23,14 @@
       "id": "DYN1",
       "role": "evidence-input",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:6b6df491da72d5913635663a2c244ae31427a31b1183b2fa02a5c67d57c2404a",
+      "digest": "sha256:32db0be8f116f0d4e0352d33a407db59716652266ac61524b328c2db1fb52db3",
       "claim": "versioned behavior, receipts, cleanup, and rejected dynamic mechanisms"
     },
     {
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:046b7d8fbe2238b459ef8277b3c49ddf3f08441d04370fbc1ce4c9d35f9071ac",
+      "digest": "sha256:8ec8d2eab0f090c92af9efd98bb8e60153e1ea432a40b5f258c8aead262da1f1",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -53,7 +53,7 @@
     },
     "snapshot": {
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
-      "digest": "sha256:7fd5475f062778d93bc2231f9b5ad9b13f1d54945cdc1d89f1d61f6904ec275d"
+      "digest": "sha256:26c5dd24fab1cdf160ddc4a6189b819e7f8288d5745558fdbe8e6a11c00dc9c7"
     },
     "studyOracle": {
       "path": "oracle.test.mjs",
@@ -146,15 +146,15 @@
       "role": "validated-independent-reducer",
       "machine": {
         "path": "../../dyn1-versioned-behavior-machine.mjs",
-        "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4"
+        "digest": "sha256:dbf0d485aba85957a355cf6071263427587c30a1d57b14699a204f0b2a78d038"
       },
       "snapshot": {
         "path": "../../dyn1-versioned-behavior-results.snapshot.jsonl",
-        "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7"
+        "digest": "sha256:01a90b2617c9e2a4d6419eb3ae7219a81af878114b40b60b8841e71aadcfa78b"
       },
       "checker": {
         "path": "../../check-dyn1-versioned-behavior.mjs",
-        "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1"
+        "digest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285"
       }
     },
     {

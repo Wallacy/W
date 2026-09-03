@@ -61,7 +61,7 @@ describe("FRC0 final research closure host oracle", () => {
       status: "normalization-in-progress",
       normalized: false,
       familyCount: 13,
-      normalizationPendingCount: 7,
+      normalizationPendingCount: 6,
     });
     expect(current.facts.designOnlyClosures).toEqual({
       "W-1517": "oracle-backed-current",

@@ -3,6 +3,8 @@
   "status": "design-oracle-input",
   "id": "DYN1",
   "gate": "DYN0-G1",
+  "researchState": "historical",
+  "successorDecisions": ["W-1398", "W-1399"],
   "title": "Versioned dynamic behavior, generation switching, and bounded export",
   "question": "Can W cover controlled REPL and typed service/plugin hot change with immutable snapshots, generation-safe switch and export without arbitrary evaluation or live-frame mutation?",
   "languageDesign": "partial",
@@ -10,11 +12,11 @@
   "providerEvidence": "missing",
   "exactGap": {
     "id": "DYN0-persistent-generation-reference",
-    "route": "research",
+    "route": "current-design-evidence-gap",
     "scope": "read-only reference and migration across restart/deploy",
-    "languageSurface": "unresolved",
+    "languageSurface": "historical-superseded",
     "providerGap": true,
-    "gate": "research-evidence-only"
+    "gate": "historical-provenance"
   },
   "composition": {
     "capabilityMatrix": {
@@ -22,9 +24,9 @@
       "subcapability": "DYN0-versioned-change",
       "classification": "composable",
       "casesPath": "../../capability-matrix-cases.json",
-      "casesDigest": "sha256:c485b4cb735f721c9011063af5724c5f04870ff3e10ff4af61a3a3037ac72858",
+      "casesDigest": "sha256:b400f80739e10d9b6d6a2db470b22810056eb148568339d3ed70feadcbb330be",
       "snapshotPath": "../../capability-matrix-results.snapshot.jsonl",
-      "snapshotDigest": "sha256:710cbc9a0febd21256f974394e5a81e2353ccff697dcf5195e0ad2fe0e51efae",
+      "snapshotDigest": "sha256:21c0c4c5aa5c4cf2022270e19f8ed43a4b20423193f537f13ec6cf6a0b329e4b",
       "gate": "CAP0"
     },
     "dyn0": {
@@ -49,7 +51,7 @@
     {
       "axis": "C",
       "problem": "persistent generation reference and migration receipt",
-      "disposition": "narrow-research-subcapability"
+      "disposition": "current-design-evidence-gap"
     },
     {
       "axis": "D",
@@ -81,10 +83,10 @@
     },
     {
       "id": "persistent-generation-reference",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "persistent-generation-reference.txt",
-      "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54"
+      "digest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2"
     },
     {
       "id": "rejected-dynamic-mutation",
@@ -118,10 +120,10 @@
     },
     {
       "id": "persistent-generation-reference",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "persistent-generation-reference.txt",
-      "digest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54"
+      "digest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2"
     },
     {
       "id": "rejected-dynamic-mutation",
@@ -296,33 +298,33 @@
   ],
   "corpus": {
     "path": "../../dyn1-versioned-behavior-cases.json",
-    "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0"
+    "digest": "sha256:0352eb0a5382703272059db1b593c969946cb49f3203e64fbf2e2b01375112d5"
   },
   "machine": {
     "path": "../../dyn1-versioned-behavior-machine.mjs",
-    "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4"
+    "digest": "sha256:dbf0d485aba85957a355cf6071263427587c30a1d57b14699a204f0b2a78d038"
   },
   "referenceTest": {
     "path": "../../dyn1-versioned-behavior-reference.test.mjs",
-    "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6"
+    "digest": "sha256:e5042685e50dbd5952ded06b17547680230f01fd1d2ebc3bcfecf48c7ecd5f9d"
   },
   "checker": {
     "path": "../../check-dyn1-versioned-behavior.mjs",
-    "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1"
+    "digest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285"
   },
   "snapshot": {
     "path": "../../dyn1-versioned-behavior-results.snapshot.jsonl",
-    "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7"
+    "digest": "sha256:01a90b2617c9e2a4d6419eb3ae7219a81af878114b40b60b8841e71aadcfa78b"
   },
   "studyOracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a"
+    "digest": "sha256:92e5e734cde2306280334cdbd45819d1013b70c11fa9dbec2c68a36201f81270"
   },
   "metrics": {
     "caseCount": 70,
     "routeCounts": {
       "composable": 56,
-      "research": 2,
+      "historical-candidate": 2,
       "invalid-assay": 1,
       "intentionally-rejected": 11
     },
@@ -332,14 +334,14 @@
       "degraded": 2,
       "fault-boundary": 1,
       "rolled-back": 2,
-      "research": 1,
+      "historical-candidate": 1,
       "unknown-effect": 1,
       "invalid-assay": 1,
       "intentionally-rejected": 11
     },
     "pairedProjections": 3,
     "rejectedMechanisms": 11,
-    "researchGapCases": 2,
+    "historicalCandidateCases": 2,
     "degradedAfterSwitch": 2,
     "unknownCrashOutcomes": 1,
     "nativeMappingRetained": 1,
@@ -365,6 +367,6 @@
       "stress-provider"
     ]
   },
-  "recommendation": "Keep DYN0 composable. Use REPL committed snapshots and typed service/plugin generations with explicit admission close, drain, generation identities, capability/effect receipts, and canonical export/import. Keep the persistent generation reference as a separate Research subcapability.",
+  "recommendation": "Keep DYN0 composable. Use REPL committed snapshots and typed service/plugin generations with explicit admission close, drain, generation identities, capability/effect receipts, and canonical export/import. Keep the persistent generation reference as historical candidate provenance; W-1398/W-1399 define the current successor contract.",
   "stopCondition": "Do not promote dynamic behavior to implementation until independent local/split reducers, crash/cancel/fault traces, capability audits, export/import rechecks, FFI unload ordering, quota bounds, and provider/compiler evidence close every contract. A post-switch drain failure remains degraded; only a provider receipt before publication may roll back; unknown crash outcome remains explicit."
 }

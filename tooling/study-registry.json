@@ -182,28 +182,28 @@
     {
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:d6ccc40c8ed15dfae65aed8cbf1718c682c6d75642ee0c2d13f99ac23696a577",
+      "digest": "sha256:40aa78a52167c028ef3c3f606742c7e68271dd5da783de7ab4dc6315074786da",
       "status": "design-oracle-input",
       "id": "R1-dyn1-versioned-behavior"
     },
     {
       "path": "tooling/studies/dyn1-versioned-behavior/study.json",
       "kind": "study",
-      "digest": "sha256:6b6df491da72d5913635663a2c244ae31427a31b1183b2fa02a5c67d57c2404a",
+      "digest": "sha256:32db0be8f116f0d4e0352d33a407db59716652266ac61524b328c2db1fb52db3",
       "status": "design-oracle-input",
       "id": "DYN1"
     },
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:c0caa5bd08fc88e2032a92c1bb9cf7826805e5e493dde5ba31ad0e1ae0ca331d",
+      "digest": "sha256:6c12ad0a7347f002089c9d48ff8a846907be546914c1183b3ca1ca1c72b62265",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:da560471bb8a4803b2e86fc7550ed57a9e82d4d6646c1f928a533647c009cdc1",
+      "digest": "sha256:5206b62c7bbdd75abd65405024ca0a9971b7bc4e74ba7b0a0f16ed252cc64807",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -252,7 +252,7 @@
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/study.json",
       "kind": "study",
-      "digest": "sha256:046b7d8fbe2238b459ef8277b3c49ddf3f08441d04370fbc1ce4c9d35f9071ac",
+      "digest": "sha256:8ec8d2eab0f090c92af9efd98bb8e60153e1ea432a40b5f258c8aead262da1f1",
       "status": "design-oracle-input",
       "id": "HRD0"
     },
@@ -616,7 +616,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:67704d69009567f859c495e1fb8e48248ebd492af7b5ef7c2e11823dc650be2f",
+      "digest": "sha256:a16afc469d77ee562b45ef2af968e1f96ce5cef3742a67a04c93a4669a109524",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -686,7 +686,7 @@
     {
       "path": "tooling/studies/syn2-dyn2-closure/study.json",
       "kind": "study",
-      "digest": "sha256:8e6a2015e35e99137af9b6e567b993f8c70978c2eef43837525890120e08c83a",
+      "digest": "sha256:96cc61f8c830d0a84a52527897e2dcd6fb32d8df7af50a562a5e8e9bc586aca4",
       "status": "design-oracle-input",
       "id": "SYN2-DYN2"
     },
@@ -1170,7 +1170,7 @@
     {
       "path": "tooling/check-dyn1-versioned-behavior.mjs",
       "kind": "script-target",
-      "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1"
+      "digest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285"
     },
     {
       "path": "tooling/check-gen1-incremental-suspension.mjs",
@@ -1260,7 +1260,7 @@
     {
       "path": "tooling/dyn1-versioned-behavior-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6"
+      "digest": "sha256:e5042685e50dbd5952ded06b17547680230f01fd1d2ebc3bcfecf48c7ecd5f9d"
     },
     {
       "path": "tooling/gen1-incremental-suspension-reference.test.mjs",
@@ -1370,12 +1370,12 @@
     {
       "path": "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a"
+      "digest": "sha256:92e5e734cde2306280334cdbd45819d1013b70c11fa9dbec2c68a36201f81270"
     },
     {
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:6546cf1f564ac3fc3a733ba22ff303ed536c02867abffcce902e455beb8efea5"
+      "digest": "sha256:904f729c0f6d15719fc6128e49aa1aaddc14ea194cf8caceda99174b5b45b3aa"
     },
     {
       "path": "tooling/studies/fst0-first-settled-task/check.mjs",
@@ -7887,7 +7887,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs",
-      "declaredDigest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a",
+      "declaredDigest": "sha256:92e5e734cde2306280334cdbd45819d1013b70c11fa9dbec2c68a36201f81270",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/bundle.json"
     },
@@ -7987,7 +7987,7 @@
       "pointer": "variants.3.path",
       "path": "persistent-generation-reference.txt",
       "resolved": "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
-      "declaredDigest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54",
+      "declaredDigest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/bundle.json"
     },
@@ -8037,7 +8037,7 @@
       "pointer": "artifactRefs.3.path",
       "path": "persistent-generation-reference.txt",
       "resolved": "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
-      "declaredDigest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54",
+      "declaredDigest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8057,7 +8057,7 @@
       "pointer": "checker.path",
       "path": "../../check-dyn1-versioned-behavior.mjs",
       "resolved": "tooling/check-dyn1-versioned-behavior.mjs",
-      "declaredDigest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1",
+      "declaredDigest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8067,7 +8067,7 @@
       "pointer": "corpus.path",
       "path": "../../dyn1-versioned-behavior-cases.json",
       "resolved": "tooling/dyn1-versioned-behavior-cases.json",
-      "declaredDigest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0",
+      "declaredDigest": "sha256:0352eb0a5382703272059db1b593c969946cb49f3203e64fbf2e2b01375112d5",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8117,7 +8117,7 @@
       "pointer": "machine.path",
       "path": "../../dyn1-versioned-behavior-machine.mjs",
       "resolved": "tooling/dyn1-versioned-behavior-machine.mjs",
-      "declaredDigest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4",
+      "declaredDigest": "sha256:dbf0d485aba85957a355cf6071263427587c30a1d57b14699a204f0b2a78d038",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8127,7 +8127,7 @@
       "pointer": "referenceTest.path",
       "path": "../../dyn1-versioned-behavior-reference.test.mjs",
       "resolved": "tooling/dyn1-versioned-behavior-reference.test.mjs",
-      "declaredDigest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6",
+      "declaredDigest": "sha256:e5042685e50dbd5952ded06b17547680230f01fd1d2ebc3bcfecf48c7ecd5f9d",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8137,7 +8137,7 @@
       "pointer": "snapshot.path",
       "path": "../../dyn1-versioned-behavior-results.snapshot.jsonl",
       "resolved": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
-      "declaredDigest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7",
+      "declaredDigest": "sha256:01a90b2617c9e2a4d6419eb3ae7219a81af878114b40b60b8841e71aadcfa78b",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8237,7 +8237,7 @@
       "pointer": "studyOracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs",
-      "declaredDigest": "sha256:1f1a1e278b73158314a08394de148402f4d291c7e300713142623630b7b08e7a",
+      "declaredDigest": "sha256:92e5e734cde2306280334cdbd45819d1013b70c11fa9dbec2c68a36201f81270",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8277,7 +8277,7 @@
       "pointer": "variants.3.path",
       "path": "persistent-generation-reference.txt",
       "resolved": "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
-      "declaredDigest": "sha256:39bd2712603ebb46d7c62e84dfeb044ef997a87cfacd060f25999dd4838f3e54",
+      "declaredDigest": "sha256:6f5581c4d34f0b2adbe5a09224b4f00dc88218a78c1b7ef33259f83a971184d2",
       "status": "resolved",
       "source": "tooling/studies/dyn1-versioned-behavior/study.json"
     },
@@ -8297,7 +8297,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:6546cf1f564ac3fc3a733ba22ff303ed536c02867abffcce902e455beb8efea5",
+      "declaredDigest": "sha256:904f729c0f6d15719fc6128e49aa1aaddc14ea194cf8caceda99174b5b45b3aa",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8327,7 +8327,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:c690dc66caab4b83ad2c39b74b32041a5312510e5c2e0802d05522fccd8b8400",
+      "declaredDigest": "sha256:14d84f7fd9382dcfafe1936cbbdbdff4fb1c1a015821ffb2b7776946408cae30",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8417,7 +8417,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:c690dc66caab4b83ad2c39b74b32041a5312510e5c2e0802d05522fccd8b8400",
+      "declaredDigest": "sha256:14d84f7fd9382dcfafe1936cbbdbdff4fb1c1a015821ffb2b7776946408cae30",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8677,7 +8677,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:2f5791ffece401583babb5bd60e57178f7b043c3f4202afe2b282244be7a605f",
+      "declaredDigest": "sha256:e87cc70529e05fa3213067bd98d5dc6209d19feccb439ecda4c267eada0ce659",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8687,7 +8687,7 @@
       "pointer": "artifacts.6.path",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:6546cf1f564ac3fc3a733ba22ff303ed536c02867abffcce902e455beb8efea5",
+      "declaredDigest": "sha256:904f729c0f6d15719fc6128e49aa1aaddc14ea194cf8caceda99174b5b45b3aa",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8697,7 +8697,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:c0caa5bd08fc88e2032a92c1bb9cf7826805e5e493dde5ba31ad0e1ae0ca331d",
+      "declaredDigest": "sha256:6c12ad0a7347f002089c9d48ff8a846907be546914c1183b3ca1ca1c72b62265",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -9467,7 +9467,7 @@
       "pointer": "crossStudies.0.path",
       "path": "../dyn1-versioned-behavior/study.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/study.json",
-      "declaredDigest": "sha256:6b6df491da72d5913635663a2c244ae31427a31b1183b2fa02a5c67d57c2404a",
+      "declaredDigest": "sha256:32db0be8f116f0d4e0352d33a407db59716652266ac61524b328c2db1fb52db3",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -12787,7 +12787,7 @@
       "pointer": "bundles.20.path",
       "path": "tooling/studies/dyn1-versioned-behavior/bundle.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/bundle.json",
-      "declaredDigest": "sha256:d6ccc40c8ed15dfae65aed8cbf1718c682c6d75642ee0c2d13f99ac23696a577",
+      "declaredDigest": "sha256:40aa78a52167c028ef3c3f606742c7e68271dd5da783de7ab4dc6315074786da",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -14677,7 +14677,7 @@
       "pointer": "artifacts.snapshot.path",
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
       "resolved": "tooling/syn2-dyn2-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:7fd5475f062778d93bc2231f9b5ad9b13f1d54945cdc1d89f1d61f6904ec275d",
+      "declaredDigest": "sha256:26c5dd24fab1cdf160ddc4a6189b819e7f8288d5745558fdbe8e6a11c00dc9c7",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14707,7 +14707,7 @@
       "pointer": "buildsOn.1.path",
       "path": "../dyn1-versioned-behavior/study.json",
       "resolved": "tooling/studies/dyn1-versioned-behavior/study.json",
-      "declaredDigest": "sha256:6b6df491da72d5913635663a2c244ae31427a31b1183b2fa02a5c67d57c2404a",
+      "declaredDigest": "sha256:32db0be8f116f0d4e0352d33a407db59716652266ac61524b328c2db1fb52db3",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14717,7 +14717,7 @@
       "pointer": "buildsOn.2.path",
       "path": "../hrd0-hot-reload-dev/study.json",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/study.json",
-      "declaredDigest": "sha256:046b7d8fbe2238b459ef8277b3c49ddf3f08441d04370fbc1ce4c9d35f9071ac",
+      "declaredDigest": "sha256:8ec8d2eab0f090c92af9efd98bb8e60153e1ea432a40b5f258c8aead262da1f1",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14727,7 +14727,7 @@
       "pointer": "independentReducers.0.checker.path",
       "path": "../../check-dyn1-versioned-behavior.mjs",
       "resolved": "tooling/check-dyn1-versioned-behavior.mjs",
-      "declaredDigest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1",
+      "declaredDigest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14737,7 +14737,7 @@
       "pointer": "independentReducers.0.machine.path",
       "path": "../../dyn1-versioned-behavior-machine.mjs",
       "resolved": "tooling/dyn1-versioned-behavior-machine.mjs",
-      "declaredDigest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4",
+      "declaredDigest": "sha256:dbf0d485aba85957a355cf6071263427587c30a1d57b14699a204f0b2a78d038",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14747,7 +14747,7 @@
       "pointer": "independentReducers.0.snapshot.path",
       "path": "../../dyn1-versioned-behavior-results.snapshot.jsonl",
       "resolved": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
-      "declaredDigest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7",
+      "declaredDigest": "sha256:01a90b2617c9e2a4d6419eb3ae7219a81af878114b40b60b8841e71aadcfa78b",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },

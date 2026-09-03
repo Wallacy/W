@@ -20,14 +20,14 @@ describe("DYN1 study oracle", () => {
     expect(study.metrics.caseCount).toBe(70);
     expect(bundle.variants.find((variant) => variant.id === "split-service-plugin")).toMatchObject({ role: "alternative", disposition: "current-composable" });
     expect(study.exactGap.id).toBe("DYN0-persistent-generation-reference");
-    expect(study.exactGap.languageSurface).toBe("unresolved");
+    expect(study.exactGap.languageSurface).toBe("historical-superseded");
   });
 
   test("derives the four route dispositions from events", () => {
     const get = (id) => evaluateDyn1Case(corpus.cases.find((item) => item.id === id), { corpus });
     expect(get("DYN1-A-repl-snapshot").route).toBe("composable");
     expect(get("DYN1-B-local-plugin-generation").route).toBe("composable");
-    expect(get("DYN1-C-persistent-generation-reference").route).toBe("research");
+    expect(get("DYN1-C-persistent-generation-reference").route).toBe("historical-candidate");
     expect(get("DYN1-D-eval-rejected").route).toBe("intentionally-rejected");
   });
 });

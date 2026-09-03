@@ -115,17 +115,18 @@ export function validateDyn1StudyManifest(manifest, { studyDirectory, repository
   if (manifest?.$schema !== "w-dyn1-versioned-behavior-study-1") errors.push("DYN1 study schema is invalid.");
   if (manifest?.status !== "design-oracle-input") errors.push("DYN1 study status must be design-oracle-input.");
   if (manifest?.id !== "DYN1" || manifest?.gate !== "DYN0-G1") errors.push("DYN1 must identify DYN0-G1.");
+  if (manifest?.researchState !== "historical" || JSON.stringify(manifest?.successorDecisions ?? []) !== JSON.stringify(["W-1398", "W-1399"])) errors.push("DYN1 must identify its historical state and SYN2/DYN2 successors.");
   for (const field of ["question", "recommendation", "stopCondition"]) if (!string(manifest?.[field])) errors.push(`DYN1 ${field} is required.`);
   if (manifest?.languageDesign !== "partial") errors.push("DYN1 languageDesign must remain partial until provider and compiler evidence exist.");
   if (manifest?.stdEvidence !== "partial" || manifest?.providerEvidence !== "missing") errors.push("DYN1 std/provider evidence must remain partial/missing.");
-  if (manifest?.exactGap?.id !== "DYN0-persistent-generation-reference" || manifest?.exactGap?.route !== "research" || manifest?.exactGap?.languageSurface !== "unresolved" || manifest?.exactGap?.providerGap !== true) errors.push("DYN1 exact gap must remain an unresolved candidate language surface alongside the provider gap.");
+  if (manifest?.exactGap?.id !== "DYN0-persistent-generation-reference" || manifest?.exactGap?.route !== "current-design-evidence-gap" || manifest?.exactGap?.languageSurface !== "historical-superseded" || manifest?.exactGap?.providerGap !== true) errors.push("DYN1 exact gap must remain an explicitly historical design-evidence gap alongside the provider gap.");
   const variantIds = new Set();
-  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("DYN1 requires current, Research, and rejected variants.");
+  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("DYN1 requires current, historical-candidate, and rejected variants.");
   for (const [index, variant] of (manifest?.variants ?? []).entries()) {
     const location = `variants[${index}]`;
     if (!string(variant?.id) || variantIds.has(variant.id)) errors.push(`${location}.id is missing or duplicated.`);
     variantIds.add(variant?.id);
-    if (!["current", "research-candidate", "rejected-witness"].includes(variant?.role)) errors.push(`${location}.role is invalid.`);
+    if (!["current", "current-design-evidence-gap", "rejected-witness"].includes(variant?.role)) errors.push(`${location}.role is invalid.`);
     const file = fileAt(studyRoot, variant?.path, location, errors);
     checkDigest(file, variant?.digest, location, errors);
     if (variant?.language === "w" && !variant.path?.endsWith(".w")) errors.push(`${location}.language w requires a .w witness.`);
