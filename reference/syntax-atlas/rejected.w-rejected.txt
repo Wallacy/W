@@ -2,6 +2,7 @@ W syntax atlas — Rejected witnesses
 
 This file is not W source. The checker must not parse it.
 
+- raw literals with arbitrary multiple hashes [W-218: rejected; W uses one fence]
 - spawn on .compute let value = work()  [Retirado antes do 1.0]
 - process.main = run                         [Rejeitado por enquanto]
 - [value] as an object literal               [Rejeitado por enquanto]

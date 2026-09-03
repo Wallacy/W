@@ -1,15 +1,10 @@
-W syntax atlas — Research and reserved witnesses
+W syntax atlas — Reserved witnesses
 
 This file is not W source. The checker must not parse it.
 
-Research:
-- raw literals with multiple hashes need a scanner extension.
-
-Current design note:
+Reserved:
 - `.bounded<budget:N>` is the W-1517 lexical allocator plan; this companion is
   not a W parser source file and does not provide a syntax witness.
-
-Reserved:
 - capture(...) is replaced by the contextual <[...]> capture prefix.
 - named type arguments and binding modifiers are not grammar forms.
 - URL, stdin, shebang, and ambient package discovery are reserved.

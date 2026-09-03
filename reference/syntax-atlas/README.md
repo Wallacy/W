@@ -68,10 +68,14 @@ recovery. `tree-sitter-parse-only-provider-missing` e
 que ainda não possuem a rota de implementação correspondente. Este campo não
 é uma alegação de implementação.
 
-Research, reserved e rejected ficam nos companions
-[`reserved.w-reserved.txt`](reserved.w-reserved.txt) e
-[`rejected.w-rejected.txt`](rejected.w-rejected.txt). Esses arquivos não são W
-source, têm status explícito no manifest e o checker não os parseia.
+Research, reserved, and rejected spellings stay in the companions
+[`reserved.w-reserved.txt`](reserved.w-reserved.txt) and
+[`rejected.w-rejected.txt`](rejected.w-rejected.txt). These files are not W
+source, have explicit manifest status, and are not parsed by the checker. The
+reserved companion has `designStatus: reserved`; the rejected companion has
+`designStatus: rejected`. The arbitrary multi-hash raw-literal form is
+explicitly rejected by W-218 in the rejected companion; it is not a Research
+extension.
 
 O atlas não altera a semântica normativa. Para contratos, use
 [`DESIGN.md`](../../DESIGN.md) e os refs do manifest. Para evidência integrada,

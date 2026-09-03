@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS } from "./syntax-atlas.mjs";
+import { buildManifest, checkManifest, deriveSnapshot, renderCoverage, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES } from "./syntax-atlas.mjs";
 
 const snapshot = deriveSnapshot();
 const coverage = renderCoverage(snapshot);
@@ -78,6 +78,16 @@ describe("syntax atlas coverage checker", () => {
   test("rejects a companion role mutation", () => {
     const errors = errorsFor((candidate) => { candidate.companions[0].designStatus = "current"; });
     expect(errors.some((error) => error.includes("companion status inventory is stale"))).toBe(true);
+  });
+
+  test("keeps arbitrary multi-hash raw literals rejected by W-218", async () => {
+    expect(COMPANION_STATUSES.has(manifest.companions.find((companion) => companion.file === "reserved.w-reserved.txt")?.designStatus)).toBe(true);
+    expect(manifest.companions.find((companion) => companion.file === "reserved.w-reserved.txt")?.designStatus).toBe("reserved");
+    const reserved = await Bun.file("reference/syntax-atlas/reserved.w-reserved.txt").text();
+    expect(reserved).not.toContain("raw literals with arbitrary multiple hashes");
+    const rejected = await Bun.file("reference/syntax-atlas/rejected.w-rejected.txt").text();
+    expect(rejected).toContain("raw literals with arbitrary multiple hashes");
+    expect(rejected).toContain("W-218: rejected");
   });
 
   test("callable variants keep W label taxonomy", () => {
