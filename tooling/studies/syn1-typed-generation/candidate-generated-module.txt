@@ -1,4 +1,4 @@
-RESERVED RESEARCH CANDIDATE — not W grammar and not parser evidence.
+HISTORICAL CANDIDATE — not W grammar and not parser evidence; implementation evidence gap.
 
 W0 build transform output would contain a generated module source unit,
 inventory, provenance, and source-map manifest. The frontend would reopen it

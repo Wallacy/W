@@ -25,8 +25,8 @@ describe("SYN1 generated W module study oracle", () => {
 
   test("keeps route separate from status and publication evidence", () => {
     expect(derive("current-menu-data-artifact")).toMatchObject({ status: "accepted", route: "composable", actionResultPublished: false });
-    expect(derive("restaurant-final-menu-generated-module")).toMatchObject({ status: "accepted", route: "research-candidate", actionResultPublished: true, interfacePublished: true, compilerCachePublished: false });
-    expect(derive("failure-discards-staging")).toMatchObject({ status: "discarded", route: "research-candidate", actionResultPublished: false });
+    expect(derive("restaurant-final-menu-generated-module")).toMatchObject({ status: "accepted", route: "historical-candidate", actionResultPublished: true, interfacePublished: true, compilerCachePublished: false });
+    expect(derive("failure-discards-staging")).toMatchObject({ status: "discarded", route: "historical-candidate", actionResultPublished: false });
     expect(derive("proc-macro-rejected")).toMatchObject({ status: "rejected", route: "intentionally-rejected" });
   });
 

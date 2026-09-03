@@ -19,7 +19,7 @@
       "id": "FRC0-research-state-inventory",
       "role": "research-state-inventory",
       "path": "tooling/research-state-inventory.json",
-      "digest": "sha256:14d84f7fd9382dcfafe1936cbbdbdff4fb1c1a015821ffb2b7776946408cae30"
+      "digest": "sha256:c310e7d173ec08fcb063ac33fb407d5ee456abf6c92d378dc6ae3e70dee2f65b"
     },
     {
       "id": "FRC0-machine",
@@ -43,19 +43,19 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:e87cc70529e05fa3213067bd98d5dc6209d19feccb439ecda4c267eada0ce659"
+      "digest": "sha256:0c07f634f906c8a237663ad03d604471090b898654347706b007e91e5702b4ba"
     },
     {
       "id": "FRC0-oracle",
       "role": "oracle",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "digest": "sha256:904f729c0f6d15719fc6128e49aa1aaddc14ea194cf8caceda99174b5b45b3aa"
+      "digest": "sha256:1b2b545ff7978cc4bfa3575fc9eb2e8e9c2cd0588d2516db5bc70a3feb2507b0"
     },
     {
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:6c12ad0a7347f002089c9d48ff8a846907be546914c1183b3ca1ca1c72b62265"
+      "digest": "sha256:03f7b9e2e81cd4b58e80def24a0860aca67e92db5a476f23bbb46b4855e0a4f7"
     },
     {
       "id": "FRC0-study",

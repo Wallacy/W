@@ -47,10 +47,10 @@
       "id": "candidate-generated-module",
       "language": "w-reserved",
       "path": "candidate-generated-module.txt",
-      "role": "research-candidate",
-      "disposition": "research-candidate",
+      "role": "historical-candidate",
+      "disposition": "historical-candidate",
       "fixture": false,
-      "digest": "sha256:d3475250610982e0f6b37eebf35ba902f15e5ae1e2a0fd8f27f425e5f70ff5b3"
+      "digest": "sha256:6553301f2cdc6fee29caa7ddf57937ced6c23123a19525c600d0582dd2ef41d0"
     },
     {
       "id": "rejected-declaration-recipe",
@@ -162,7 +162,7 @@
   ],
   "oracle": {
     "path": "../../syn1-typed-generation-reference.test.mjs",
-    "digest": "sha256:b4e28690ec3e240b0b98b6e01ccdad39a34c7c1b8588bda674fb9330cabbd852"
+    "digest": "sha256:6a5b64f39437c065cba59b906022c922105ea663094033fca8ee528e7e7c2d6a"
   },
   "evidence": {
     "current": [
@@ -185,108 +185,108 @@
     ]
   },
   "notes": {
-    "route": "SYN0 remains composable; generated-module introduction is a Research subcapability.",
+    "route": "SYN0 remains composable; generated-module introduction is historical SYN1 provenance.",
     "fixture": "The .w witnesses are source-backed fixtures. The row witness is synthesis-shaped; it is not an emitted artifact.",
     "c2": "Typed declaration recipe is rejected when it duplicates the frontend; no separate checker is proposed.",
     "d": "Macro/eval/AST mutation/current-module injection are intentionally rejected.",
-    "generatedArtifacts": "The .w files are bounded candidate source-shape artifacts parsed by Tree-sitter. Their structured frontend receipts remain Research and do not prove W name/type/ownership/effect/ConstIR checks."
+    "generatedArtifacts": "The .w files are bounded historical candidate source-shape artifacts parsed by Tree-sitter. Their structured frontend receipts identify an implementation evidence gap and do not prove W name/type/ownership/effect/ConstIR checks."
   },
   "generatedArtifacts": [
     {
       "path": "generated-menu-conformance.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:300c48ad1065b2660e0fabbbe34f2e533a2ed2795389b046a03189b5722072a2"
     },
     {
       "path": "generated-menu-const.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:16cee93ff1d999712d4f41f9e13544111d264a5f5ab7b6034c9d1becdac00f5f"
     },
     {
       "path": "generated-menu-dishid-relocated.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b"
     },
     {
       "path": "generated-menu-dishid.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b"
     },
     {
       "path": "generated-menu-duplicate.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:b55a3fa4f67330dd7487c5d571441ef64620f4ca3b7cff466d2db74ed6bf3d6e"
     },
     {
       "path": "generated-menu-enum.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:474ad230c083e5e899d990e52c7280d374baf4a2bec8dea4295d9f05508eee98"
     },
     {
       "path": "generated-menu-field-secondary.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:c962ae1b68d535f403893481358d976569d9e7fe1e35682454839f9708e24373"
     },
     {
       "path": "generated-menu-field.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:2ab354e0b75bfc2aca473a6725a9fa794e94ad79ea0d2ef134a26f0adf81b9bc"
     },
     {
       "path": "generated-menu-import.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:4d665853501cbe9ce463012346153cd31a91cc3432e5c1238fa566848b222e96"
     },
     {
       "path": "generated-menu-multiline.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:c8b492af73c2e60fa0ba7679d82553b5a034d4c35dd191f1bec16ecc011119f0"
     },
     {
       "path": "generated-menu-order.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:e190b110d20cc8d05ce8c7f44bf60d0de758d7ca23a64f359f7ba289e9a15123"
     },
     {
       "path": "generated-menu-private.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:f2d1e8830ff05b68611d7827850f31c7019db2742430b9a94fd461f56c225b98"
     },
     {
       "path": "generated-menu-routing.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:323d4d5ae20d096d2007ef47d03c147949a0b1f0dccda93310e7f8da4d1c2875"
     },
     {
       "path": "generated-menu-unicode.w",
-      "disposition": "research-candidate",
-      "frontendReceipt": "Research",
+      "disposition": "historical-candidate",
+      "frontendReceipt": "implementation-evidence-gap",
       "compilerEvidence": "missing",
       "digest": "sha256:9c923bfe7a602dc9711c75a55403c6dfa8e892030ff4298fa55e94c526d7fe60"
     }

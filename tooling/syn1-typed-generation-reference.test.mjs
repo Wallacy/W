@@ -159,23 +159,23 @@ describe("SYN1 schema-3 F2 generated-module oracle", () => {
     expect(deriveSyn1Case(graphDigest(unknown), corpus, { root }).code).toBe("invalid-action-recipe");
   });
 
-  test("publishes a Research explain/navigation record without claiming compiler or LSP evidence", () => {
+  test("publishes an implementation-evidence-gap explain/navigation record without claiming compiler or LSP evidence", () => {
     const result = derive("exact-second-mapping-fix");
     expect(result.explainNavigation).toMatchObject({
       logicalGeneratedModule: "last_light.generated.final_menu",
       outputBinding: "generatedMenuModule",
       compilerEvidence: "missing",
       generatedSourceAccess: "read-only-inspectable",
-      navigation: "Research-requirement-not-implemented",
+      navigation: "implementation-evidence-gap-requirement-not-implemented",
     });
     expect(result.explainNavigation.actionResultKey).toBe(result.actionResultKey);
     expect(result.explainNavigation.generatedSources.every((item) => item.logicalPath.endsWith(".w"))).toBe(true);
   });
 
   test("validates recipes before action failure and keeps route independent from status", () => {
-    expect(derive("failure-discards-staging")).toMatchObject({ status: "discarded", route: "research-candidate", actionResultPublished: false });
-    expect(derive("invalid-recipe-on-failure")).toMatchObject({ status: "rejected", route: "research-candidate", code: "invalid-action" });
-    expect(derive("forged-dependency-on-failure")).toMatchObject({ status: "rejected", route: "research-candidate", code: "invalid-action-recipe" });
+    expect(derive("failure-discards-staging")).toMatchObject({ status: "discarded", route: "historical-candidate", actionResultPublished: false });
+    expect(derive("invalid-recipe-on-failure")).toMatchObject({ status: "rejected", route: "historical-candidate", code: "invalid-action" });
+    expect(derive("forged-dependency-on-failure")).toMatchObject({ status: "rejected", route: "historical-candidate", code: "invalid-action-recipe" });
     expect(derive("proc-macro-rejected")).toMatchObject({ status: "rejected", route: "intentionally-rejected" });
   });
 
@@ -186,6 +186,6 @@ describe("SYN1 schema-3 F2 generated-module oracle", () => {
     const flagged = clone("failure-discards-staging");
     flagged.input.actionEvents[1].outcome = "error";
     expect(deriveSyn1Case(flagged, corpus, { root }).code).toBe("invalid-input");
-    expect(derive("authority-request")).toMatchObject({ status: "rejected", route: "research-candidate", code: "ambient-authority" });
+    expect(derive("authority-request")).toMatchObject({ status: "rejected", route: "historical-candidate", code: "ambient-authority" });
   });
 });

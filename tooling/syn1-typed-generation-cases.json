@@ -31,21 +31,21 @@
       "path": "reference/last-light/reflection.w",
       "symbol": "export struct ReservationKey:",
       "claim": "closed Hashable and Reflectable synthesis",
-      "digest": "sha256:d80e7f3c5cda23b3391ca09cbcaff29e9c1626b78337ba8951d5bae392e94b53"
+      "digest": "sha256:a28089bb6a465aee9969f339760c7efd8beaccc2ec7a9285ad18355991415dff"
     },
     {
       "id": "last-light-data",
       "path": "reference/last-light/data_formats.w",
       "symbol": "export struct TabularTelemetryRow:",
       "claim": "closed data.Row schema synthesis",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038"
     },
     {
       "id": "last-light-kernels",
       "path": "reference/last-light/ai_harness.w",
       "symbol": "export const lastLightKernels",
       "claim": "finite compiler-owned kernel synthesis",
-      "digest": "sha256:79151f258b93fc1947509e356eb3ef56a25ad357fd8f49d653d136712f04a9c2"
+      "digest": "sha256:25733ecf867973a49cdfa2e71bb97a6e232df8856ca73f49c85a2a86bd8e03c0"
     },
     {
       "id": "last-light-menu-transform",
@@ -59,14 +59,14 @@
       "path": "reference/last-light/packages/menu-compiler/compiler.w",
       "symbol": "export fn compileMenu(source: ref String)",
       "claim": "menu parser/compiler source",
-      "digest": "sha256:c5d21e0d8a372b3777d0095a31905b3dda5b5c02ab57cfd84bfb715828f0cced"
+      "digest": "sha256:bd52d313bd2b84f187237cf87613f3fb86e7b53569638d62347b612eb454f879"
     },
     {
       "id": "last-light-package",
       "path": "reference/last-light/build.w",
       "symbol": "name: \"compile-final-menu\"",
       "claim": "build action and target separation",
-      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038"
+      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
     },
     {
       "id": "last-light-final-menu",
@@ -418,15 +418,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -465,7 +465,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -522,7 +522,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -746,21 +746,21 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             },
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-routing.w",
               "logicalPath": "generated/routing.w",
-              "digest": "sha256:0b0b6410f182309c9e4c7efd479bb58f00c148dcc50a2770bfa06eb6123732a7",
-              "byteLength": 243
+              "digest": "sha256:323d4d5ae20d096d2007ef47d03c147949a0b1f0dccda93310e7f8da4d1c2875",
+              "byteLength": 247
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:5bd917818f7d67788002343de72dadb0924087f6b0debfc9b9ac74bd53075a93",
+            "moduleSetDigest": "sha256:b5140dc8629c5574e3fdbb7c46bd87552ae3ea7945b254e301304074a17220e5",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -833,7 +833,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:a31b2be87c7868db0bbf0b3c2c77f3e20ccaac199cf61ffac3a24e3487ded816"
+            "digest": "sha256:94d261121a02bde7ce5c8433297af9a615590a9b7215a4ba692f2f8c3e4b26a1"
           },
           "sourceMaps": [
             {
@@ -924,7 +924,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -1148,15 +1148,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-multiline.w",
               "logicalPath": "generated/routes.w",
-              "digest": "sha256:86ecdd4e94611ac6e0cf204e634f7a57d879b017afb51447331a5db87efa29e2",
-              "byteLength": 149
+              "digest": "sha256:c8b492af73c2e60fa0ba7679d82553b5a034d4c35dd191f1bec16ecc011119f0",
+              "byteLength": 153
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-          "moduleSetDigest": "sha256:ca9d85b0f34a2adfa617cb03b46e97ba7225730227b4882bc21e263247802e6a",
+            "moduleSetDigest": "sha256:0dd37555ea224d0417e08ffc58394c874acf41e4b5a7c39c03b2fe1be3121d35",
             "symbols": [
               {
                 "path": "generated/routes.w",
@@ -1195,7 +1195,7 @@
                 "resourceFacts": []
               }
             ],
-          "digest": "sha256:1444d5fc3be9dd616f4136ebf87a5dde35f4bf1bee7c2e9dce7c2bba0f88c3d7"
+            "digest": "sha256:bbaf8bde1bfaa26c75a8acfb0a963ae3b2101a81186908fee99539765b735527"
           },
           "sourceMaps": [
             {
@@ -1252,7 +1252,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -1476,15 +1476,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-routing.w",
               "logicalPath": "generated/routing.w",
-              "digest": "sha256:0b0b6410f182309c9e4c7efd479bb58f00c148dcc50a2770bfa06eb6123732a7",
-              "byteLength": 243
+              "digest": "sha256:323d4d5ae20d096d2007ef47d03c147949a0b1f0dccda93310e7f8da4d1c2875",
+              "byteLength": 247
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9a60af1995c375c0904df88021bb69eee1a7daef11b91b522172d1feb08708ed",
+            "moduleSetDigest": "sha256:12bdf359d09061bf3558d81f6145cf790ad33ad51b4b8fb1f9e3167f9af3a423",
             "symbols": [
               {
                 "path": "generated/routing.w",
@@ -1521,7 +1521,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:a613edcc269c748842fe0d7ec2e85011b6fb246e64b2195639ec145c046e9520"
+            "digest": "sha256:9772dd0cbcadb52665f3cea6a1d6d5c124640f5f82bd80f0a1019a7c4c6831fa"
           },
           "sourceMaps": [
             {
@@ -1578,7 +1578,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -1802,15 +1802,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-field.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:93abc2e9efbd7f1f570cc6446c1e8e6430ea9d923871712e0d2b918f128abfb0",
-              "byteLength": 117
+              "digest": "sha256:2ab354e0b75bfc2aca473a6725a9fa794e94ad79ea0d2ef134a26f0adf81b9bc",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:fb1c227ff6902e62fd57c7526a452e18915076798a142627a3742ad3c5156800",
+            "moduleSetDigest": "sha256:bb334a5a726c25dc6f7c88fe82536be50036424bb28ce080f32fba0102367b59",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -1849,7 +1849,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:70ca2ba95db6836ef26803c65430f464d0844878f321e41f47e5e766f933cc92"
+            "digest": "sha256:b01d5561878f372b1ad84b8706f0d7d5710cb0bfd733cb4ef0b9f5301793bfc3"
           },
           "sourceMaps": [
             {
@@ -1910,7 +1910,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -2134,15 +2134,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-enum.w",
               "logicalPath": "generated/menu-types.w",
-              "digest": "sha256:d8b04633298544ee07ff42287474572ca6b8707e9bdbe3ab24bdb6e0aaa9ee19",
-              "byteLength": 163
+              "digest": "sha256:474ad230c083e5e899d990e52c7280d374baf4a2bec8dea4295d9f05508eee98",
+              "byteLength": 167
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:2903f07a3ea1bbce45122306422e6f92b3ad796d042ed1be8b8a1b35281d29c7",
+            "moduleSetDigest": "sha256:6f33cc438e519a085c692ffef2ea1ef6b8b0a590d036020c4abfd65390f12b39",
             "symbols": [
               {
                 "path": "generated/menu-types.w",
@@ -2198,7 +2198,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:6bc5f8174cb79865b7b87d0433f43e8e689b93f7d13067cecb236b395c2d0f27"
+            "digest": "sha256:ba89cdf0aecb059cb477946d9d9ceb10f48bd9975d62d31a7f36a3709a8d31f0"
           },
           "sourceMaps": [
             {
@@ -2259,7 +2259,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -2483,15 +2483,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -2530,7 +2530,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -2591,7 +2591,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -2815,15 +2815,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-private.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:7f8e8bdc92587b127f6ff8b4cdfa8d0e8ca5bf7a6591278436f2986db97cbea4",
-              "byteLength": 183
+              "digest": "sha256:f2d1e8830ff05b68611d7827850f31c7019db2742430b9a94fd461f56c225b98",
+              "byteLength": 187
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-          "moduleSetDigest": "sha256:89d9a196a49e0b17685c7beed47a59a16b9ec88be6609a485a789854a310d12e",
+            "moduleSetDigest": "sha256:e274a8998f43c290a667b50a2079e092dbef2550892f7dd2f5bd240b498b13d5",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -2881,7 +2881,7 @@
                 "resourceFacts": []
               }
             ],
-          "digest": "sha256:7fcaadfd80f279da6c5082ca3c0068b657571f7103e86882e27260f98704c34a"
+            "digest": "sha256:8f5f82b5e4d74695e9cd80973fe60ed1990b84778431ce3e8d54e56d466990d3"
           },
           "sourceMaps": [
             {
@@ -2942,7 +2942,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -3166,15 +3166,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -3213,7 +3213,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:e6a283c3ccd912b51a9cc4eea288980a614e0b7fe1f7e9587cf14f3b6892b97b"
+            "digest": "sha256:f3da3f0d05db324dd0d238bfc7a9b9d001255faf45e0107a2090df35e47050ba"
           },
           "sourceMaps": [
             {
@@ -3274,7 +3274,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -3498,15 +3498,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -3545,7 +3545,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:df7c33afe2b7f9d1db58dae0813a605d81fb93fb05ac2610e86f182df9182c46"
+            "digest": "sha256:c7479d02f5bc05df82909d435ddc9648089dd88704a7a502975522331b70a558"
           },
           "sourceMaps": [
             {
@@ -3606,7 +3606,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -3830,15 +3830,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-const.w",
               "logicalPath": "generated/menu-constants.w",
-              "digest": "sha256:9fb601de8c4990684c6ba38189b3c235ec8dff69e549054ba68541f049ba8edd",
-              "byteLength": 152
+              "digest": "sha256:16cee93ff1d999712d4f41f9e13544111d264a5f5ab7b6034c9d1becdac00f5f",
+              "byteLength": 156
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:021d4d66bf21f5d5b4a169261a24e5bf7e13240ae8ea543d1ddf8a4cbaed25f1",
+            "moduleSetDigest": "sha256:1bd6ee38cd3d55b695b7617fb4f67a8e54837812355d1b5aaf7840e9d0206f97",
             "symbols": [
               {
                 "path": "generated/menu-constants.w",
@@ -3894,7 +3894,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:c1039ac3281575f4418881df212cc904ca46c5e51cac6969526970cec50d7af9"
+            "digest": "sha256:6e604ea90b6d194c7a620a77fda830f0ad034fcd8d0696f3edfebe79608f7d77"
           },
           "sourceMaps": [
             {
@@ -3955,7 +3955,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -4179,15 +4179,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-conformance.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:fd5d937ef6f31d7063c1ba1a5eaf938d7554ee8e2d14de861884efdbeabd1b53",
-              "byteLength": 127
+              "digest": "sha256:300c48ad1065b2660e0fabbbe34f2e533a2ed2795389b046a03189b5722072a2",
+              "byteLength": 131
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:687fed9dec6170d0aebba068ecbccd7f0a471a001ff8861ffbd967b8539225f9",
+            "moduleSetDigest": "sha256:5ff2bbc6560f55a35c9a4fe4265a16e4f0adcafdfb0422c2e4f7c3427694ff56",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -4228,7 +4228,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:fa2ce98cd6741013e3a2d919fab506b105d8cbeb0f964f7b031c5942d8a5ce61"
+            "digest": "sha256:edc3c636ced6d7efbd189796d554074d2e68f3c951fd995332dff1bfb8b7544d"
           },
           "sourceMaps": [
             {
@@ -4289,7 +4289,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -4513,15 +4513,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -4560,7 +4560,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -4617,7 +4617,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -4841,15 +4841,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -4888,7 +4888,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -4943,7 +4943,7 @@
           "documentation": "generated menu docs"
         },
         "diagnostic": {
-          "provisionalCode": "D0-research",
+          "provisionalCode": "D0-implementation-evidence-gap",
           "causalRoot": "generated-menu",
           "labels": [
             {
@@ -4960,7 +4960,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -5184,15 +5184,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -5231,7 +5231,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -5257,7 +5257,7 @@
           "documentation": "generated menu docs"
         },
         "diagnostic": {
-          "provisionalCode": "D0-research",
+          "provisionalCode": "D0-implementation-evidence-gap",
           "causalRoot": "generated",
           "labels": [
             {
@@ -5275,7 +5275,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -5504,7 +5504,7 @@
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
             "moduleSetDigest": "sha256:c44f8806ac8ffed4123376dc2ee7dbab13f1737ba76b81fa597e54c60625a08f",
@@ -5568,7 +5568,7 @@
           "documentation": "generated menu docs"
         },
         "diagnostic": {
-          "provisionalCode": "D0-research",
+          "provisionalCode": "D0-implementation-evidence-gap",
           "causalRoot": "unicode-menu",
           "labels": [
             {
@@ -5585,7 +5585,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -5809,15 +5809,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -5856,7 +5856,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -5913,7 +5913,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -6140,15 +6140,15 @@
                 {
                   "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-field.w",
                   "logicalPath": "generated/dish-id.w",
-                  "digest": "sha256:93abc2e9efbd7f1f570cc6446c1e8e6430ea9d923871712e0d2b918f128abfb0",
-                  "byteLength": 117
+                  "digest": "sha256:2ab354e0b75bfc2aca473a6725a9fa794e94ad79ea0d2ef134a26f0adf81b9bc",
+                  "byteLength": 121
                 }
               ],
               "frontendReceipt": {
-                "status": "source-shape-receipt-research",
+                "status": "implementation-evidence-gap",
                 "parser": "tree-sitter-w",
                 "compilerEvidence": "missing",
-                "moduleSetDigest": "sha256:fb1c227ff6902e62fd57c7526a452e18915076798a142627a3742ad3c5156800",
+                "moduleSetDigest": "sha256:bb334a5a726c25dc6f7c88fe82536be50036424bb28ce080f32fba0102367b59",
                 "symbols": [
                   {
                     "path": "generated/dish-id.w",
@@ -6187,7 +6187,7 @@
                     "resourceFacts": []
                   }
                 ],
-                "digest": "sha256:70ca2ba95db6836ef26803c65430f464d0844878f321e41f47e5e766f933cc92"
+                "digest": "sha256:b01d5561878f372b1ad84b8706f0d7d5710cb0bfd733cb4ef0b9f5301793bfc3"
               },
               "sourceMaps": [
                 {
@@ -6247,15 +6247,15 @@
                 {
                   "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
                   "logicalPath": "generated/dish-id.w",
-                  "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-                  "byteLength": 117
+                  "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+                  "byteLength": 121
                 }
               ],
               "frontendReceipt": {
-                "status": "source-shape-receipt-research",
+                "status": "implementation-evidence-gap",
                 "parser": "tree-sitter-w",
                 "compilerEvidence": "missing",
-                "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+                "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
                 "symbols": [
                   {
                     "path": "generated/dish-id.w",
@@ -6294,7 +6294,7 @@
                     "resourceFacts": []
                   }
                 ],
-                "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+                "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
               },
               "sourceMaps": [
                 {
@@ -6369,7 +6369,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "target-specialized-generated-module",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -6593,15 +6593,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid-relocated.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -6640,7 +6640,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -6697,7 +6697,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -6921,15 +6921,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -6968,7 +6968,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -7025,7 +7025,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -7258,15 +7258,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -7305,7 +7305,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -7362,7 +7362,7 @@
       },
       "expected": {
         "status": "discarded",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "staging-discarded-error",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -7571,15 +7571,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -7618,7 +7618,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -7675,7 +7675,7 @@
       },
       "expected": {
         "status": "discarded",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "staging-discarded-cancel",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -7881,15 +7881,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -7928,7 +7928,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -7985,7 +7985,7 @@
       },
       "expected": {
         "status": "discarded",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "staging-discarded-panic",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -8189,15 +8189,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -8236,7 +8236,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -8293,7 +8293,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -8494,15 +8494,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -8541,7 +8541,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -8598,7 +8598,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -8801,7 +8801,7 @@
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
             "moduleSetDigest": "sha256:1a9eab19bc1a6450688db6b45046caf3a1ea795076f38f4bed0d752db4972154",
@@ -8872,7 +8872,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-syntax",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -9096,7 +9096,7 @@
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
             "moduleSetDigest": "sha256:74921d1f4839cd7cb287f8c357e358898edb35264236c4e774948ca42fba45fe",
@@ -9167,7 +9167,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-utf8",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -9385,15 +9385,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -9432,7 +9432,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -9456,12 +9456,12 @@
             "generatorPlanDigest": "sha256:ddea337b19912b7eef8ae3a57fb7307aab7bf58d45ed08b799dda1873df7a0d7"
           },
           "documentation": "generated menu docs",
-          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBzdGQKCmV4cG9ydCBzdHJ1Y3QgRGlzaElkIHsKICByYXc6IHUzMgp9CgpleHBvcnQgZm4gbWVudUxvb2t1cChpZDogRGlzaElkKTogU3RyaW5nIHsKICByZXR1cm4gIm1lbnUiCn0K"
+          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBzdGQKCmV4cG9ydCBzdHJ1Y3QgRGlzaElkIHsKICBsZXQgcmF3OiB1MzIKfQoKZXhwb3J0IGZuIG1lbnVMb29rdXAoaWQ6IERpc2hJZCk6IFN0cmluZyB7CiAgcmV0dXJuICJtZW51Igp9Cg=="
         }
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -9685,15 +9685,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:728bcf1a3ca599af756fe62e095c06ca2ff209bd8a5608830c0e1247165ed843",
-              "byteLength": 70
+              "digest": "sha256:09758640e37589a0dff7153f0156e0c09b53cfd04397ff4ab17b51c5b8d60f7f",
+              "byteLength": 74
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:1cecd1d0033fe81f5996d10e99537edd69e57aab190270b36f350eb09590755e",
+            "moduleSetDigest": "sha256:1c4682a3101b5fc73cf671f13b64c11c5d9c9e5d3a6f6c1cc558eac0eed8909e",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -9732,7 +9732,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:d2ec957cc0ac711be9f5e2b928cbab5fc11d6a9f253d8573d926ef1dfd7ab9ae"
+            "digest": "sha256:bdf8903e15a429eba7fb99df453fb2dd7d2c457d58bf57ac769d12a18179ef1f"
           },
           "sourceMaps": [
             {
@@ -9756,12 +9756,12 @@
             "generatorPlanDigest": "sha256:ddea337b19912b7eef8ae3a57fb7307aab7bf58d45ed08b799dda1873df7a0d7"
           },
           "documentation": "generated menu docs",
-          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBzdGQKCmV4cG9ydCBzdHJ1Y3QgRGlzaElkIHsKICByYXc6IHUzMgp9CgplbnRyeShEaXNoSWQpCg=="
+          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBzdGQKCmV4cG9ydCBzdHJ1Y3QgRGlzaElkIHsKICBsZXQgcmF3OiB1MzIKfQoKZW50cnkoRGlzaElkKQo="
         }
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "source-profile-rejected",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -9980,15 +9980,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:95c347ca46aa639a5c6cd71472424c0e5ba55468548e5cf817db2cb2988a0d10",
-              "byteLength": 192
+              "digest": "sha256:cd83fbc87dc12d4999135d71a9e8d08c2b2c7eb654c20b20472ab665661dda33",
+              "byteLength": 196
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:539b58e17cc86bf484434ee75f3d254a7ff65c8dabbbeca39d2dfbd32a83bfaa",
+            "moduleSetDigest": "sha256:67fae736455cc3d7c03a4edf8c1302e7c917b2d10c4cbbd23b4607ca03e30d7d",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -10027,7 +10027,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:cb2e90dadac383d9207f69d83556225c6a2cb5d8df49689b7749ca3b4dae3cae"
+            "digest": "sha256:a30bc0ba8915b45f949a189231c0b54e1ef5efb309af5e7b8108e779e45669a1"
           },
           "sourceMaps": [
             {
@@ -10051,12 +10051,12 @@
             "generatorPlanDigest": "sha256:ddea337b19912b7eef8ae3a57fb7307aab7bf58d45ed08b799dda1873df7a0d7"
           },
           "documentation": "generated menu docs",
-          "byteOverrideBase64": "Ly8gVGhpcyBnZW5lcmF0ZWQtc291cmNlIGVudmVsb3BlIGZpeHR1cmUgaW50ZW50aW9uYWxseSBleGNlZWRzIG9uZSBodW5kcmVkIGFuZCB0d2VudHkgYnl0ZXMgdG8gcHJvdmUgdGhlIGJvdW5kZWQgbGluZS1sZW5ndGggcmVqZWN0aW9uLgppbXBvcnQgKiBmcm9tIHN0ZAoKZXhwb3J0IHN0cnVjdCBEaXNoSWQgewogIHJhdzogdTMyCn0K"
+          "byteOverrideBase64": "Ly8gVGhpcyBnZW5lcmF0ZWQtc291cmNlIGVudmVsb3BlIGZpeHR1cmUgaW50ZW50aW9uYWxseSBleGNlZWRzIG9uZSBodW5kcmVkIGFuZCB0d2VudHkgYnl0ZXMgdG8gcHJvdmUgdGhlIGJvdW5kZWQgbGluZS1sZW5ndGggcmVqZWN0aW9uLgppbXBvcnQgKiBmcm9tIHN0ZAoKZXhwb3J0IHN0cnVjdCBEaXNoSWQgewogIGxldCByYXc6IHUzMgp9Cg=="
         }
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-generated-module",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -10275,15 +10275,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-order.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:586576921c09856384bfb7c989dc082594c2a2cd78361dac9bdb9f6f28b6a55b",
-              "byteLength": 117
+              "digest": "sha256:e190b110d20cc8d05ce8c7f44bf60d0de758d7ca23a64f359f7ba289e9a15123",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:732b0da3de084431db13d80817e63a37ea6fb2775a468d1b4692d0f1c3abedd2",
+            "moduleSetDigest": "sha256:3f7aa0102608a10ad3722b188e2647d30d37d92dccbe2b56aadd2c0f21606d3e",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -10322,7 +10322,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:07cf04abb6d88c8e5d550326b83106e1862bc60d6d0321b717fcca26295fc2b9"
+            "digest": "sha256:7d0b6d25c2db1a19788c807c629ad33d0e199cbd3df5ef15784d596ba573ceb5"
           },
           "sourceMaps": [
             {
@@ -10379,7 +10379,7 @@
       },
       "expected": {
         "status": "accepted",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "generated-module-reopened",
         "actionResultPublished": true,
         "interfacePublished": true,
@@ -10603,15 +10603,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-duplicate.w",
               "logicalPath": "generated/duplicate.w",
-              "digest": "sha256:1c9ebd79cbdf22d03586951f198bdc2c936b62803e6d04c5a460839ecab5c003",
-              "byteLength": 92
+              "digest": "sha256:b55a3fa4f67330dd7487c5d571441ef64620f4ca3b7cff466d2db74ed6bf3d6e",
+              "byteLength": 100
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:54d36860bdfad98e68f8f74644af2b1534c7dea56587215f3d62e98cbcf9437d",
+            "moduleSetDigest": "sha256:5562dd856745ac45e770453fbcf84a622233593daaf7519ffaa3a93e093d2c10",
             "symbols": [
               {
                 "path": "generated/duplicate.w",
@@ -10648,7 +10648,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:1cb7c70114a51af25c222d8e3097ffbc65b53f25fdf7da96d03511f4ee01b71b"
+            "digest": "sha256:5932da772dec304e04278f8daf288945b8c69e89619921c7451ee3227b80e3e6"
           },
           "sourceMaps": [
             {
@@ -10705,7 +10705,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "declaration-collision",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -10924,21 +10924,21 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             },
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-field-secondary.w",
               "logicalPath": "generated/secondary.w",
-              "digest": "sha256:0d9d65303cced8c7ac3904e62340593bb5b74530a7cf524d318f20b94e0c8fc3",
-              "byteLength": 122
+              "digest": "sha256:c962ae1b68d535f403893481358d976569d9e7fe1e35682454839f9708e24373",
+              "byteLength": 126
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:c7b8d8e0a4e64a58510d15962c175d2c34a58408077c44d67c0f59f97d507887",
+            "moduleSetDigest": "sha256:050e8f0d58ac6102bc0bdfd18a51021e751416a3fcc3df80ffb1b24b4005f244",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -11013,7 +11013,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:8de7c29624e7739ddb462e40ff9635d2197219463323f3d4f215fd322363915d"
+            "digest": "sha256:e54c371cdf3425ecdebc26d60361bb85f0db7babfe1a260bd5f3b958fbf0cfb9"
           },
           "sourceMaps": [
             {
@@ -11104,7 +11104,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "declaration-collision",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -11323,15 +11323,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-import.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:2e9a94926b7621cd3f553158d03f0b78a41164a6b6eb5042a931a578642e7f7d",
-              "byteLength": 130
+              "digest": "sha256:4d665853501cbe9ce463012346153cd31a91cc3432e5c1238fa566848b222e96",
+              "byteLength": 134
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:21c173b38e76490bcdb698b9d9bcce9e91f22d96b426a3a0f6da69d22149d927",
+            "moduleSetDigest": "sha256:7f4815f0a9e8b59f3ee20d1c824026aee38c2935e06276b938f8a7e8b26af434",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -11370,7 +11370,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:34bb39f0758eedb53c7acd17bf24dd9f1becf7a1603f0f09c20891e84cb69cc1"
+            "digest": "sha256:24d09e5bf3218af8d61f4e900dfdc05a3d38683ebaf37100242bd491ca2ebb69"
           },
           "sourceMaps": [
             {
@@ -11427,7 +11427,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "dependency-mismatch",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -11646,15 +11646,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:ab443db62af8754391c32b564be3fa31b3e97748cd9d013b10b47065f4f6815d",
-              "byteLength": 145
+              "digest": "sha256:7c89f3c176017ba835fb06b95e8391c93e781274872df48eddd84c3616e69090",
+              "byteLength": 149
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:e3dfcb337255b7a878bce815b4252039eb99c56594eb119621529c112ee552b0",
+            "moduleSetDigest": "sha256:c5de326bfad63e79235226820a2ca3a44fd2e5d5a6ce50693ac297bdce86e58a",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -11693,7 +11693,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:899d7d6f667cb0b6452f272124f381a682eb90690ea4a60130553933c43b8095"
+            "digest": "sha256:51c9e9902662090060ec5641971e0b2e890f7599893fe5e2e63c8894e7ebf5b8"
           },
           "sourceMaps": [
             {
@@ -11717,12 +11717,12 @@
             "generatorPlanDigest": "sha256:ddea337b19912b7eef8ae3a57fb7307aab7bf58d45ed08b799dda1873df7a0d7"
           },
           "documentation": "generated menu docs",
-          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBsYXN0X2xpZ2h0LmdlbmVyYXRlZC5maW5hbF9tZW51CgpleHBvcnQgc3RydWN0IERpc2hJZCB7CiAgcmF3OiB1MzIKfQoKZXhwb3J0IGZuIG1lbnVMb29rdXAoaWQ6IERpc2hJZCk6IFN0cmluZyB7CiAgcmV0dXJuICJtZW51Igp9Cg=="
+          "byteOverrideBase64": "aW1wb3J0ICogZnJvbSBsYXN0X2xpZ2h0LmdlbmVyYXRlZC5maW5hbF9tZW51CgpleHBvcnQgc3RydWN0IERpc2hJZCB7CiAgbGV0IHJhdzogdTMyCn0KCmV4cG9ydCBmbiBtZW51TG9va3VwKGlkOiBEaXNoSWQpOiBTdHJpbmcgewogIHJldHVybiAibWVudSIKfQo="
         }
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "dependency-mismatch",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -11941,15 +11941,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -11988,7 +11988,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -12045,7 +12045,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "source-map-invalid",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -12264,15 +12264,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -12311,7 +12311,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -12325,7 +12325,7 @@
                   },
                   "sourceBinding": "menu",
                   "sourceId": "input:menu",
-                  "sourceRef": "sha256:a03f2386ae06b21109577020844df367857b72c2fcce384c1896fed98a89c82b",
+                  "sourceRef": "sha256:19c240d029c50ceae0cb270f6ac5f0d25c4a0a00e04b7d8d16fa3b2ee7aacc94",
                   "sourceSpan": {
                     "start": 11,
                     "end": 24
@@ -12367,11 +12367,11 @@
         }
       },
       "expected": {
-        "status": "rejected",
-        "route": "research-candidate",
-        "code": "source-map-invalid",
+        "status": "accepted",
+        "route": "historical-candidate",
+        "code": "generated-module-reopened",
         "actionResultPublished": true,
-        "interfacePublished": false,
+        "interfacePublished": true,
         "compilerCachePublished": false,
         "stagingCleanupCount": 0,
         "cleanupCount": 0,
@@ -12587,15 +12587,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -12634,7 +12634,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -12689,7 +12689,7 @@
           "documentation": "generated menu docs"
         },
         "diagnostic": {
-          "provisionalCode": "D0-research",
+          "provisionalCode": "D0-implementation-evidence-gap",
           "causalRoot": "x",
           "labels": [
             {
@@ -12706,7 +12706,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "source-map-invalid",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -12930,7 +12930,7 @@
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
             "moduleSetDigest": "sha256:c44f8806ac8ffed4123376dc2ee7dbab13f1737ba76b81fa597e54c60625a08f",
@@ -12996,7 +12996,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "source-map-invalid",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -13215,15 +13215,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -13262,7 +13262,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:b2cdf59a91aba37df0f1039489ecb0d45d7ce2b6c4f1dafe4289e16104c6145e"
+            "digest": "sha256:bdbfdf9553984d1a56f77fae1ee90df9202f3c929a88aa655506735b21bd4a9c"
           },
           "sourceMaps": [
             {
@@ -13319,7 +13319,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "unsupported-public-effect",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -13538,15 +13538,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -13642,7 +13642,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "frontend-receipt-mismatch",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -13861,15 +13861,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -13908,7 +13908,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -13965,7 +13965,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-result-container",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -14167,15 +14167,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -14214,7 +14214,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -14271,7 +14271,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "ambient-authority",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -14469,15 +14469,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -14516,7 +14516,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -14573,7 +14573,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -14766,15 +14766,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -14813,7 +14813,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -14870,7 +14870,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -15073,15 +15073,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -15120,7 +15120,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -15177,7 +15177,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -15375,15 +15375,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -15422,7 +15422,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -15479,7 +15479,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -15677,15 +15677,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -15724,7 +15724,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -15781,7 +15781,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-action-recipe",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -15979,15 +15979,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -16026,7 +16026,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -16083,7 +16083,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-target-metadata",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -16281,15 +16281,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -16328,7 +16328,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -16385,7 +16385,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-target-metadata",
         "actionResultPublished": false,
         "interfacePublished": false,
@@ -16583,15 +16583,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -16630,7 +16630,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -16694,7 +16694,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-baseline-ref",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -16892,15 +16892,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -16939,7 +16939,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -16999,7 +16999,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-baseline-ref",
         "actionResultPublished": true,
         "interfacePublished": false,
@@ -17197,15 +17197,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-dishid.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8",
-              "byteLength": 117
+              "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b",
+              "byteLength": 121
             }
           ],
           "frontendReceipt": {
-            "status": "source-shape-receipt-research",
+            "status": "implementation-evidence-gap",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:9f80be7f67649466d7a2426654864ca5a8dbe20fc661bf0e403ed3ddcdb792be",
+            "moduleSetDigest": "sha256:524ecff8c29452eebc6590393fc5db91d14d2bc92343fd059c289ff58ee4a715",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -17244,7 +17244,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:048809179fed91a0eafcc30372d629e957b6b22da4afb1c00ba03ab333342fb4"
+            "digest": "sha256:9e410e46b0659805904eee63b895c47706d3907f4679e0175a67d8b324c7bd8f"
           },
           "sourceMaps": [
             {
@@ -17304,7 +17304,7 @@
       },
       "expected": {
         "status": "rejected",
-        "route": "research-candidate",
+        "route": "historical-candidate",
         "code": "invalid-baseline-ref",
         "actionResultPublished": true,
         "interfacePublished": false,
