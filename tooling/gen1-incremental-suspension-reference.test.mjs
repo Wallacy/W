@@ -94,6 +94,7 @@ describe("GEN1 incremental suspension host oracle", () => {
     expect(validateVariantDisposition(compiler)).toBe(true);
     expect(validateVariantDisposition(publicFrame)).toBe(true);
     expect(validateVariantDisposition({ ...compiler, role: publicFrame.role, disposition: publicFrame.disposition })).toBe(false);
+    expect(validateVariantDisposition({ ...compiler, role: "research-candidate", disposition: "research-candidate" })).toBe(false);
     expect(validateVariantDisposition({ ...publicFrame, id: compiler.id, role: compiler.role, disposition: compiler.disposition, hiddenStatePolicy: compiler.hiddenStatePolicy })).toBe(false);
     expect(validateVariantDisposition({ ...compiler, hiddenStatePolicy: "public" })).toBe(false);
     expect(validateVariantDisposition({ ...publicFrame, hiddenStatePolicy: "compiler-owned" })).toBe(false);

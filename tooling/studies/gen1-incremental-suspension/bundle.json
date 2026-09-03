@@ -2,6 +2,9 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-gen1-incremental-suspension",
+  "researchState": "historical",
+  "supersededBy": "W-1437",
+  "implementationEvidenceGaps": ["W-1438", "W-1440"],
   "title": "Incremental suspension ergonomics and lowering at the Last Light restaurant",
   "r0Cases": [
     "R0-consuming-call",
@@ -116,11 +119,11 @@
     },
     {
       "id": "compiler-stream-block",
-      "role": "research-candidate",
-      "disposition": "research-candidate",
+      "role": "rejected-witness",
+      "disposition": "historical-rejected",
       "language": "w-reserved",
       "path": "compiler-stream-block.txt",
-      "digest": "sha256:e2ac8d351ea1c3a05a59fa5c16d0c9bd66186ee98b12bab727ccab1872d49b7d",
+      "digest": "sha256:e06174424abeaefefaa84343e8b8f4ee7127d63a9f0f948428557707c587a648",
       "hiddenStatePolicy": "compiler-owned",
       "changedConstructs": [
         "some Stream<Item, Failure> contract",
@@ -131,7 +134,7 @@
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "Textual Research witness only; no grammar or public frame contract."
+        "note": "Historical rejected/non-promoted witness only; no grammar or public frame contract."
       }
     },
     {

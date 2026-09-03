@@ -468,7 +468,7 @@ export function validateVariantDisposition(variant) {
     "stream-structured": { role: "selected", disposition: "current-composable", language: "w", path: "stream-structured.w" },
     "nominal-state-machine": { role: "alternative", disposition: "current-composable", language: "w", path: "nominal-state-machine.w" },
     "dual-bounded-channels": { role: "alternative", disposition: "current-composable", language: "w", path: "dual-bounded-channels.w" },
-    "compiler-stream-block": { role: "research-candidate", disposition: "research-candidate", language: "w-reserved", path: "compiler-stream-block.txt", hiddenStatePolicy: "compiler-owned" },
+    "compiler-stream-block": { role: "rejected-witness", disposition: "historical-rejected", language: "w-reserved", path: "compiler-stream-block.txt", hiddenStatePolicy: "compiler-owned" },
     "public-resumable-frame": { role: "rejected-witness", disposition: "intentionally-rejected", language: "w-reserved", path: "public-resumable-frame.txt", hiddenStatePolicy: "public" },
   }[variant?.id];
   return Boolean(expected && variant.role === expected.role && variant.disposition === expected.disposition && variant.language === expected.language && variant.path === expected.path && /^sha256:[0-9a-f]{64}$/u.test(variant.digest ?? "") && (expected.hiddenStatePolicy === undefined || (variant.hiddenStatePolicy ?? "public") === expected.hiddenStatePolicy));

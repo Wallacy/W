@@ -122,12 +122,16 @@
       "decisionRefs": ["W-1353", "W-1354"],
       "successorDecisions": ["W-1437"],
       "implementationGaps": ["W-1438", "W-1440"],
-      "normalizationPending": true,
+      "normalizationPending": false,
       "artifacts": [
         "tooling/gen1-incremental-suspension-cases.json",
         "tooling/gen1-incremental-suspension-machine.mjs",
+        "tooling/check-gen1-incremental-suspension.mjs",
+        "tooling/gen1-incremental-suspension-reference.test.mjs",
+        "tooling/gen1-incremental-suspension-results.snapshot.jsonl",
         "tooling/studies/gen1-incremental-suspension/bundle.json",
-        "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt"
+        "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt",
+        "tooling/studies/gen1-incremental-suspension/README.md"
       ]
     },
     {

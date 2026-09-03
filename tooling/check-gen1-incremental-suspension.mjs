@@ -52,6 +52,7 @@ function checkOfficialSources() {
 }
 function checkBundle() {
   if (bundle.$schema !== "w-substitution-study-bundle-1" || bundle.id !== "R1-gen1-incremental-suspension") errors.push("bundle identity is stale.");
+  if (bundle.researchState !== "historical" || bundle.supersededBy !== "W-1437" || JSON.stringify(bundle.implementationEvidenceGaps ?? []) !== JSON.stringify(["W-1438", "W-1440"])) errors.push("GEN1 bundle must identify historical state, W-1437 successor, and W-1438/W-1440 implementation evidence gaps.");
   const ids = new Set();
   for (const [index, variant] of (bundle.variants ?? []).entries()) {
     if (!nonEmpty(variant.id) || ids.has(variant.id)) errors.push(`bundle.variants[${index}].id must be unique.`); ids.add(variant.id);
@@ -64,7 +65,7 @@ function checkBundle() {
     if (variant.id === "compiler-stream-block" && (!["some Stream<Item, Failure>", "capture", "capacity", "prefetch", "Result<Item, Failure>", "cancellation", "cleanup", "view does not escape"].every((term) => source.includes(term)) || /\bprotocol\s+Resumable\b|\bpublic\s+frame\s+identity\s*[:=]|\byield\s+frame\.resume\b/u.test(source.replaceAll(/\s+/gu, " ")))) errors.push("compiler-stream-block witness must keep its source contract and no public frame identity.");
     if (variant.id === "public-resumable-frame" && (!["protocol Resumable", "public frame identity", "resume token", "scheduler", "runtime metadata", "ABI"].every((term) => source.includes(term)))) errors.push("public-resumable-frame witness must expose the rejected public mechanism facts.");
   }
-  if (ids.size !== 5 || !ids.has("stream-structured") || !ids.has("nominal-state-machine") || !ids.has("dual-bounded-channels") || !ids.has("compiler-stream-block") || !ids.has("public-resumable-frame")) errors.push("GEN1 must contain A/B/C, a compiler-owned Research witness, and a public-frame rejected witness.");
+  if (ids.size !== 5 || !ids.has("stream-structured") || !ids.has("nominal-state-machine") || !ids.has("dual-bounded-channels") || !ids.has("compiler-stream-block") || !ids.has("public-resumable-frame")) errors.push("GEN1 must contain A/B/C, a historical rejected compiler-owned witness, and a public-frame rejected witness.");
   for (const variant of bundle.variants ?? []) if (!validateVariantDisposition(variant)) errors.push(`bundle variant ${variant.id} has an invalid role/disposition manifest.`);
   const compilerWitness = bundle.variants?.find((variant) => variant.id === "compiler-stream-block");
   const publicWitness = bundle.variants?.find((variant) => variant.id === "public-resumable-frame");
@@ -93,7 +94,7 @@ function deriveConclusions(metricsByVariant, scenarioSliceMetrics) {
   const invalidSourceSlices = [...scenarioSliceMetrics.values()].filter((slice) => slice.implementations.some((implementation) => !implementation.applicable)).map((slice) => slice.scenario);
   const sourceBackedScenarios = [...scenarioSliceMetrics.keys()].sort();
   const operationalScenarios = [...operationalByScenario.keys()].sort();
-  const capabilityGap = { status: missingOperational.length || invalidSourceSlices.length ? "candidate" : "none", uncoveredScenarios: [...new Set([...missingOperational, ...invalidSourceSlices])], sourceBackedScenarios, operationalScenarios, basis: "each source-backed scenario requires a validated unique symbol slice and every required scenario requires an operational trace; A/B/C applicability is recorded per source slice" };
+  const capabilityGap = { status: missingOperational.length || invalidSourceSlices.length ? "historical-candidate" : "none", uncoveredScenarios: [...new Set([...missingOperational, ...invalidSourceSlices])], sourceBackedScenarios, operationalScenarios, basis: "each source-backed scenario requires a validated unique symbol slice and every required scenario requires an operational trace; A/B/C applicability is recorded per source slice" };
   const ergonomicScenarios = [];
   for (const slice of scenarioSliceMetrics.values()) {
     const sliceMetrics = slice.implementations.filter((implementation) => implementation.applicable).map((implementation) => implementation.metrics);
@@ -107,17 +108,18 @@ function deriveConclusions(metricsByVariant, scenarioSliceMetrics) {
   const builder = metricsByVariant.get("bounded-dialogue-builder");
   return {
     capabilityGap,
-    ergonomicGap: { status: ergonomicScenarios.length ? "candidate" : "none", scenarios: ergonomicScenarios, observedStructuralDifference: ergonomicScenarios, humanDecisionPending: true, basis: "same-scenario declaration slices only; structural difference is a question, not a human ergonomics conclusion" },
-    ergonomicQuestion: { status: "open", scenarios: ergonomicScenarios, observedStructuralDifference: ergonomicScenarios, humanDecisionPending: true },
+    ergonomicGap: { status: ergonomicScenarios.length ? "historical-candidate" : "none", scenarios: ergonomicScenarios, observedStructuralDifference: ergonomicScenarios, humanDecisionPending: true, basis: "same-scenario declaration slices only; structural difference is a historical question, not a current design opening" },
+    ergonomicQuestion: { status: "historical-question", scenarios: ergonomicScenarios, observedStructuralDifference: ergonomicScenarios, humanDecisionPending: true },
     dispositions: {
       publicResumableFrameOrScheduler: { status: publicFrame?.hiddenStateCount > 0 ? "intentionally-rejected" : "candidate", witness: "public-resumable-frame", exposure: "public", mechanism: "protocol/frame identity, resume token, scheduler, runtime metadata, or ABI" },
       boundedLibraryProducerBuilder: { status: builder?.capacityFacts?.length >= 2 ? "current-candidate" : "placeholder", scenarios: ["dialogue-resume-value"], doesNotResolve: ["traversal-local-retention", "delegation-equivalent"], helper: "bounded-dialogue-builder" },
-      compilerOwnedStreamBlock: { status: compilerBlock?.hiddenStateCount === 0 ? "research-candidate" : "candidate", witness: "compiler-stream-block", exposure: "compiler-owned", prerequisites: ["explicit capture modes", "some Stream<Item,Failure> source contract", "capacity and prefetch", "item-only Result emission", "compiler/lowering proof", "human/model evidence"] },
+      compilerOwnedStreamBlock: { status: compilerBlock?.hiddenStateCount === 0 ? "historical-rejected" : "historical-candidate", witness: "compiler-stream-block", exposure: "compiler-owned", prerequisites: ["explicit capture modes", "some Stream<Item,Failure> source contract", "capacity and prefetch", "item-only Result emission", "compiler/lowering proof", "human/model evidence"], supersededBy: "W-1437", implementationEvidenceGaps: ["W-1438", "W-1440"] },
     },
   };
 }
 
 if (corpus.$schema !== "w-gen1-incremental-suspension-1" || corpus.status !== "design-oracle-input-gen1" || corpus.id !== "GEN1") errors.push("corpus identity is stale.");
+if (corpus.historicalStatus !== "superseded" || corpus.supersededBy !== "W-1437" || JSON.stringify(corpus.implementationEvidenceGaps ?? []) !== JSON.stringify(["W-1438", "W-1440"])) errors.push("GEN1 corpus must identify W-1437 as successor and W-1438/W-1440 as implementation evidence gaps.");
 if (JSON.stringify(corpus.lowerings ?? []) !== JSON.stringify(LOWERINGS)) errors.push("corpus lowerings must preserve both target lowerings.");
 if (Object.prototype.hasOwnProperty.call(corpus, "conclusion")) errors.push("corpus must not contain a caller-provided conclusion.");
 checkOfficialSources(); checkBundle();
