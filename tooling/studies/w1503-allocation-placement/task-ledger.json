@@ -1,15 +1,16 @@
 {
-  "$schema": "w-w1503-allocation-placement-ledger-1",
+  "$schema": "w-w1503-allocation-placement-ledger-2",
   "id": "W-1503",
-  "status": "registered-research-bundle",
-  "title": "Finite allocation and placement evidence for W-1503",
+  "status": "complete-design-study",
+  "supersededBy": "W-1517",
+  "title": "Historical allocation and placement evidence for W-1503; W-1517 design contract",
   "languageSurface": "none",
   "statePolicy": {
-    "registrationOnly": true,
+    "registrationOnly": false,
     "syntaxPromotionRequiresEvidence": true,
     "workspaceIsDataOnly": true,
     "productGenericSourceSpelling": false,
-    "promotionRule": "Não ratificar policy, effect ou placement source até os gates de HIR, escape, frames, target/linker/provider e diagnostics produzirem evidence independente."
+    "promotionRule": "W-1517 fecha somente o design contract por oracle; não promover implementation claim até os gates de HIR, escape, frames, target/linker/provider, diagnostics e runtime produzirem evidence independente."
   },
   "contractRefs": [
     "DESIGN.md §9.2.2",
@@ -17,7 +18,9 @@
     "DESIGN.md §9.6",
     "DESIGN.md §24.3.1",
     "DESIGN.md §24.5",
-    "RATIONALE.md §1.17"
+    "RATIONALE.md §1.17",
+    "DESIGN.md W-1517",
+    "RATIONALE.md W-1517"
   ],
   "sourceRefs": [
     { "path": "DESIGN.md", "symbol": "W-1503", "claim": "normative current-versus-research boundary" },
@@ -26,6 +29,9 @@
     { "path": "tooling/allocator-scope-cases.json", "symbol": "w-allocator-scope-cases-asc0", "claim": "existing capability-position oracle remains focused" },
     { "path": "tooling/allocator-scope-machine.mjs", "symbol": "runAllocatorScope", "claim": "existing allocator resolution reducer" },
     { "path": "tooling/allocation-cases.json", "symbol": "w-physical-allocation-cases-a0", "claim": "existing physical allocation reducer" }
+    ,{ "path": "tooling/w1517-memory-contract-cases.json", "symbol": "W1517-current-contract", "claim": "design-contract adversarial oracle corpus" }
+    ,{ "path": "tooling/w1517-memory-contract-machine.mjs", "symbol": "evaluateMemoryContract", "claim": "design-only contract reducer" }
+    ,{ "path": "tooling/check-w1517-memory-contract.mjs", "symbol": "checkW1517MemoryContract", "claim": "corpus/checker gate" }
   ],
   "officialRefs": [
     {
@@ -52,34 +58,50 @@
       "url": "https://llvm.org/docs/Coroutines.html",
       "accessed": "2026-08-31",
       "claim": "LLVM coroutine and frame lowering boundary"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/MemRef/",
+      "accessed": "2026-09-03",
+      "claim": "MLIR MemRef allocation and alloca lowering reference"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/LLVM/",
+      "accessed": "2026-09-03",
+      "claim": "MLIR LLVM dialect lowering reference"
     }
   ],
   "currentBoundary": {
-    "memoryGeneralAllocatorNone": "build-profile policy: no general/root allocator and no reachable general-allocation request; it does not select register, stack, static storage or task frame",
-    "fixed": "lexical current form with target-selected stack, task-frame or local/fixed placement",
-    "bounded": "Research budget over committed bytes on a provider; it does not select placement",
-    "rootAndNonePlans": "not current source plans",
+    "memoryGeneralAllocatorNone": "build-profile policy: no general/root allocator; it never means stack, register, static storage, task frame or no-allocation",
+    "fixed": "lexical current form with target-selected portable placement",
+    "bounded": "lexical AllocatorPlan over the explicit/contextual backing; counts physically committed live bytes from receipts, fails before budget, refunds on deallocation and closes/drains; it does not select placement",
+    "stack": "lexical strict native-stack AllocatorPlan; capacity, alignment, target, guard probing and call-path admission must be proven; no heap/task-frame/static/fixed-provider fallback",
+    "moduleEnvelope": "current source contract is module<allocation: .forbidDynamic, storage: .stack(maximumFrame:N)>; module only preserves or restricts owner/workspace/profile",
+    "functionSummary": "functions publish inferred memory summaries and are checked/explained by memory commands; no new function annotation",
+    "profileMemory": "required fields dynamicAllocation: .allow|.forbid and automaticStorage: .infer|.stack(maximumFrame:N, maximumCallPath:N); no defaults",
+    "rootAndNonePlans": "allocator .root and allocator .none remain non-current source plans",
     "productGeneric": "product is manifest/artifact selection; product<...> is not a generic source declaration or candidate",
-    "workspace": "current record is data-only; a new allocator policy field is a research candidate"
+    "noAllocationSurface": "generic no-allocation is rejected; no-general-allocation, allocation: .forbidDynamic and storage: .stack(...) remain separate contracts",
+    "workspace": "module may preserve or restrict workspace/profile policy and never relax it",
+    "implementationBoundary": "design-only; compiler/HIR-general, escape, linker, target, provider, runtime, MLIR, explain and benchmark evidence remain missing"
   },
   "candidates": [
     {
       "id": "workspace-policy",
       "scope": "workspace/default",
-      "status": "research",
+      "status": "design-contract",
       "constraint": "module may preserve or restrict the workspace policy, never relax it"
     },
     {
       "id": "static-contract",
-      "scope": "module/function",
-      "status": "research",
-      "constraint": "allocation: .forbid and stack: .bounded<maximum:N> are candidate contracts, not current syntax"
+      "scope": "module",
+      "status": "design-contract",
+      "constraint": "module<allocation: .forbidDynamic, storage: .stack(maximumFrame:N)> is current source; functions publish inferred summaries and have no new annotation"
     },
     {
       "id": "lexical-stack",
       "scope": "allocator",
-      "status": "research",
-      "constraint": ".stack<capacity:N> would require guaranteed placement with no fallback"
+      "status": "design-contract",
+      "constraint": ".stack<capacity:N> is strict native stack and rejects fallback; proof gaps remain"
     }
   ],
   "contractComparison": [
@@ -92,26 +114,26 @@
     },
     {
       "id": "no-allocation",
-      "status": "research-candidate",
-      "hypothesis": "no allocation event is permitted in the declared scope, including provider, runtime, implicit frame or storage reservation unless the evidence classifies it as pre-existing",
-      "allows": ["register/elided", "pre-existing static/TLS", "caller-provided fixed storage"],
-      "forbids": ["provider/heap/arena allocation", "dynamic resize", "new native-stack or async-task-frame reservation unless separately classified"],
-      "doesNotProve": "a complete event taxonomy, that pre-existing storage is available, or physical placement"
+      "status": "rejected-surface",
+      "hypothesis": "generic no-allocation conflates logical allocation effect with physical storage and is not a current source contract",
+      "allows": [],
+      "forbids": ["generic no-allocation spelling"],
+      "doesNotProve": "the separate no-general-allocation, allocation: .forbidDynamic or storage: .stack contracts"
     },
     {
       "id": "dynamic-allocation-forbid",
-      "status": "research-candidate",
-      "hypothesis": "no dynamic/provider/runtime allocation may commit after admission in the declared scope",
-      "allows": ["register/elided", "static/TLS", "native stack", "async task frame", "fixed/local storage when separately bounded"],
+      "status": "design-contract",
+      "hypothesis": "allocation: .forbidDynamic prohibits transitively committed provider/runtime/heap/arena allocation and resize in the module contract",
+      "allows": ["register/elided", "static/TLS", "native stack", "task frame only when separately permitted"],
       "forbids": ["general/provider/heap/arena allocation", "dynamic resize or runtime allocation"],
-      "doesNotProve": "no allocation event at all, bounded physical placement, escape safety or concurrency multiplication"
+      "doesNotProve": "physical placement, escape safety, target capacity or concurrency multiplication"
     },
     {
       "id": "allowed-storage-classes",
-      "status": "research-candidate",
-      "allows": ["closed declared subset of register/elided, static/TLS, native stack, task frame and fixed/local"],
+      "status": "design-taxonomy",
+      "allows": ["ssa/elided", "inline", "nativeStack", "taskFrame", "static", "threadLocal", "fixedLease", "providerLease", "foreign"],
       "forbids": [],
-      "doesNotProve": "target capacity, escape safety or concurrency multiplication"
+      "doesNotProve": "target capacity, escape safety, linker/provider receipts or concurrency multiplication"
     }
   ],
   "tasks": [
@@ -199,11 +221,13 @@
     "adversarial corpus and independent benchmarks"
   ],
   "evidenceBoundary": {
-    "current": ["design-source", "existing-focused-allocation-oracles", "official-primary-references", "research-ledger"],
+    "current": ["design-source", "w1517-design-oracle", "existing-focused-allocation-oracles", "official-primary-references", "research-ledger"],
     "missing": ["w-compile", "w-run", "allocation-aware-compiler", "verified-HIR", "MLIR", "target", "linker", "provider", "async-runtime", "FFI", "fault-stress", "benchmark-results", "human-study", "model-study"],
     "hostOnly": true,
     "syntaxPromotion": false,
-    "implementationClaimed": false
+    "implementationClaimed": false,
+    "designContractClosed": true,
+    "implementationGap": "No compiler/provider/runtime/backend/MLIR implementation claim follows from this oracle."
   },
   "stopCondition": "Stop on stale source or evidence, conflated policy/effect/placement, unbounded recursion or concurrency, closure or callee-frame escape, missing caller destination/rehome, ABI or linker assertion without target receipt, provider fallback, diagnostic unknown presented as fact, reducer divergence, or benchmark that changes values/errors. Reopen only with a bounded case, exact source, independent evidence and Sol review."
 }

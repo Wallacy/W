@@ -57,6 +57,8 @@ package {
         memory: {
           generalAllocator: .system
           representation: .portable
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
     ]

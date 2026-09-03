@@ -966,6 +966,8 @@ package {
         memory: {
           generalAllocator: .system
           representation: .portable
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
       {
@@ -977,6 +979,8 @@ package {
         memory: {
           generalAllocator: .system
           representation: .optimized
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
       {
@@ -988,6 +992,8 @@ package {
         memory: {
           generalAllocator: .system
           representation: .optimized
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
       {
@@ -1002,6 +1008,8 @@ package {
             mode: .default,
           )
           representation: .optimized
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
     ]

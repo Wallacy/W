@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-1",
+      "runtimeVersion": "w-seed-mlir0-2",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-1-print-literal",
+      "scope": "w-seed-mlir0-2-verified-hir-print",
       "claim": null,
       "axes": {
         "backend": {
@@ -107,7 +107,7 @@
               "kind": "source",
               "path": "compiler/seed-c/src/w_seed_mlir0.c",
               "symbol": "build_artifact",
-              "claim": "The emitter renders deterministic builtin and LLVM dialect text from a verified HLO0 plan."
+              "claim": "The emitter renders deterministic builtin and LLVM dialect text from a verified HIR native-subset selection."
             }
           ]
         },
@@ -117,8 +117,8 @@
             {
               "kind": "unit",
               "path": "compiler/seed-c/tests/test_mlir0.c",
-              "symbol": "test_exact_and_deterministic",
-              "claim": "The unit checks deterministic output, bounded payloads, NUL bytes, aliases, and forged plans."
+              "symbol": "test_restaurant_and_nul",
+              "claim": "The unit checks deterministic literal and binding artifacts, bounded payloads, and NUL bytes; adjacent tests cover aliases and forged HIR inputs and records."
             }
           ]
         },
@@ -129,7 +129,7 @@
               "kind": "check",
               "path": "compiler/seed-c/tests/hlo1_gate.c",
               "symbol": "W_SEED_MLIR0_GATE",
-              "claim": "The gate reuses the source, parser, frontend, HIR0, and HLO0 route before emission."
+              "claim": "The gate proves source, parser, frontend, and verified HIR0 before direct MLIR0 emission."
             }
           ]
         },

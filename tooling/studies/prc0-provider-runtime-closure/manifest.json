@@ -175,13 +175,13 @@
       "id": "prc0-reused-asc0-corpus",
       "role": "reused-asc0-corpus",
       "path": "tooling/allocator-scope-cases.json",
-      "digest": "sha256:9feec5fb7454eb665057606926e0b4380d4efb7f2e97e657fbce985146376b34"
+      "digest": "sha256:f94d0aed0a77a40c42e953aca27f67e90e398ffe01e9530cde34248d80073240"
     },
     {
       "id": "prc0-reused-asc0-machine",
       "role": "reused-asc0-machine",
       "path": "tooling/allocator-scope-machine.mjs",
-      "digest": "sha256:cbe4e2270a899fb7b564de26f4d6637f4a1f61b173c495e5a5dc6d42734702e2"
+      "digest": "sha256:aae4811bb03f7cb06348f309c3375afb6a27a3661e6d49e1a1048b1dcbaa8d2d"
     },
     {
       "id": "prc0-reused-r1-units-bundle",

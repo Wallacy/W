@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-1"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-2"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -43,6 +43,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_INSTRUCTION_CALL = 0,
+  W_SEED_HIR0_INSTRUCTION_BINDING,
 } w_seed_hir0_instruction_kind;
 
 typedef enum {
@@ -52,6 +53,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_VALUE_CONST_STRING = 0,
+  W_SEED_HIR0_VALUE_BINDING_READ,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -150,9 +152,22 @@ typedef struct {
   uint32_t owner_block;
   uint32_t ordinal;
   uint32_t call_index;
+  uint32_t binding_index;
   uint32_t result_type;
   w_seed_span source_span;
 } w_seed_hir0_instruction;
+
+typedef struct {
+  uint32_t owner_instruction;
+  uint32_t owner_block;
+  uint32_t ordinal;
+  uint32_t type_index;
+  w_seed_hir0_text name;
+  bool is_mutable;
+  uint32_t byte_offset;
+  uint32_t byte_count;
+  w_seed_span source_span;
+} w_seed_hir0_binding;
 
 typedef struct {
   uint32_t owner_identity;
@@ -197,6 +212,7 @@ typedef struct {
   w_seed_hir0_value_kind kind;
   uint32_t owner_argument;
   uint32_t type_index;
+  uint32_t binding_index;
   uint32_t byte_offset;
   uint32_t byte_count;
   w_seed_span source_span;
@@ -229,6 +245,7 @@ typedef struct {
   size_t parameters;
   size_t blocks;
   size_t instructions;
+  size_t bindings;
   size_t calls;
   size_t host_parameters;
   size_t arguments;
@@ -265,6 +282,9 @@ typedef struct {
   const w_seed_hir0_instruction *instructions;
   size_t instruction_count;
   size_t instruction_capacity;
+  const w_seed_hir0_binding *bindings;
+  size_t binding_count;
+  size_t binding_capacity;
   const w_seed_hir0_call *calls;
   size_t call_count;
   size_t call_capacity;
@@ -312,6 +332,8 @@ typedef struct {
   size_t block_capacity;
   w_seed_hir0_instruction *instructions;
   size_t instruction_capacity;
+  w_seed_hir0_binding *bindings;
+  size_t binding_capacity;
   w_seed_hir0_call *calls;
   size_t call_capacity;
   w_seed_hir0_host_parameter *host_parameters;

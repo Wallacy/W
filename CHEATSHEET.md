@@ -274,7 +274,7 @@ test "collections expose labels, bounds, and counts" for collectionSummary {
 
 ## Operators and pipe-forward
 
-<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,operatorSummary observable=value -->
+<!-- w-example role=executable use=addOne,double,renderNumber,clamp,multiply,divide,remainder,Reading,operatorSummary observable=value -->
 ```w
 fn addOne(_ value: i32): i32 { return value + 1 }
 fn double(_ value: i32): i32 { return value * 2 }
@@ -286,6 +286,20 @@ fn multiply(_ value: i32, by factor: i32): i32 { return value * factor }
 fn divide(_ value: i32, by divisor: i32): i32 { return value / divisor }
 fn remainder(_ value: i32, by divisor: i32): i32 { return value % divisor }
 
+object Reading {
+  let value: i32
+
+  fn scaled(by factor: i32): Reading {
+    return Reading(value: value * factor)
+  }
+
+  fn limited(to maximum: i32): Reading {
+    return Reading(value: value.min(maximum))
+  }
+
+  fn render(): String { return renderNumber(value) }
+}
+
 fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
   var flags: u8 = 0b0001
   flags |= 0b0100
@@ -296,16 +310,16 @@ fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
     |> double()
     |> renderNumber()
 
-  let selected = [1, 2, 3, 4]
-    |> .filter((value) => value % 2 == 0)
-    |> .map((value) => value * 10)
+  let objectFlow = Reading(value: 4)
+    |> .scaled(by: 3)
+    |> .limited(to: 10)
+    |> .render()
 
   let bounded = 20
     |> clamp(minimum: 0, maximum: 12)
     |> multiply(by: 3)
 
-  var functional = 8
-  functional = functional
+  let functional = 8
     |> multiply(by: 2)
     |> divide(by: 3)
     |> remainder(by: 5)
@@ -318,7 +332,7 @@ fn operatorSummary(): (String, u8, Bool, u8, i32, i32, i32, Bool, i32) {
   let rangeCheck = 2 in 1...3
   let optional: i32? = .none
   let fallback = optional ?? 7
-  expect selected == [20, 40]
+  expect objectFlow == "10"
   expect bounded == 36
   expect functional == 0
   return (rendered, flags, relation, xor, power, quotient, remainder, rangeCheck, fallback)

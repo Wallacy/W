@@ -188,7 +188,7 @@ try {
   const restaurantPath = join(buildDirectory, "restaurant.w")
   const emptyPath = join(buildDirectory, "empty.w")
   await writeFile(restaurantPath,
-    "fn serve() { print(\"Table 42 remains open\") }\nentry(serve)\n")
+    "fn serve() { let message = \"Table 42 remains open\" print(message) }\nentry(serve)\n")
   await writeFile(emptyPath, "fn main() { print(\"\") }\nentry(main)\n")
   expectExactGate(run0Gate, restaurantPath,
     Buffer.from("Table 42 remains open\n", "utf8"),
@@ -214,6 +214,8 @@ try {
       "fn main() { print(\"a\")\nprint(\"b\") }\nentry(main)\n"],
     ["outside_subset.w",
       "fn main(value: String) { print(value) }\nentry(main)\n"],
+    ["var_binding.w",
+      "fn main() { var message = \"Hello, world!\" print(message) }\nentry(main)\n"],
     ["qualified_call.w",
       "fn main() { console.print(\"Hello, world!\") }\nentry(main)\n"],
     ["imported_call.w",
@@ -271,8 +273,9 @@ try {
     ["shadow_print.w", frontendFailure, "shadowed print"],
     ["noop_payload.w", hlo0Unsupported, "noop payload"],
     ["comment_with_print.w", frontendFailure, "comment with print"],
-    ["two_calls.w", hir0Failure, "two calls"],
+    ["two_calls.w", hlo0Unsupported, "two calls outside HLO0 subset"],
     ["outside_subset.w", hir0Failure, "outside HLO0 subset"],
+    ["var_binding.w", hir0Failure, "mutable binding"],
     ["qualified_call.w", frontendFailure, "qualified call"],
     ["imported_call.w", frontendFailure, "imported call"],
     ["extra_entry.w", parseFailure, "extra entry"],

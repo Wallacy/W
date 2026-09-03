@@ -3,8 +3,8 @@
   "status": "design-oracle-input",
   "id": "FRC0",
   "gate": "FZ0-freeze-completeness/freeze-research-close/HUM0-promotion",
-  "title": "Historical snapshot of the three research gates",
-  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary, validate the exact PFU0 dispositions and the W-1452 to W-1480 and W-1453 to W-1516 supersessions, preserve historical Research=0 through W-1459, and expose exactly W-1486 and W-1503 as the active post-snapshot research gates without implementation or human/model results?",
+  "title": "Historical snapshot and empty current research residual",
+  "question": "Does the reuse-only oracle close the historical W-001–W-1450 boundary, validate the exact PFU0 dispositions and the W-1452 to W-1480 and W-1453 to W-1516 supersessions, preserve historical Research=0 through W-1459, preserve W-1486/W-1503 as historical post-snapshot gates, and expose an empty current research residual after W-1517 and W-1518 close their design contracts, without implementation or human/model results?",
   "manifest": { "path": "manifest.json" },
   "corpus": { "path": "../../final-research-closure-cases.json" },
   "artifacts": {
@@ -24,5 +24,5 @@
     "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
     "hostOnly": true
   },
-  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or any residual Research gate outside W-1486 and W-1503. Require PFU0 and DRC0 closure evidence before canonical recascade."
+  "stopCondition": "Stop on stale digest, caller echo, manual metric, forged human/model record, preference or score, missing or duplicate decision/case, source escape, wrong category, or any non-empty current Research residual after W-1517 and W-1518 close W-1503 and W-1486. Preserve the historical W-1486/W-1503 snapshot and require PFU0 and DRC0 closure evidence before canonical recascade."
 }

@@ -14,11 +14,12 @@ formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
 coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
 no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
 O seed também executa o subset print-literal input-driven verified-HLO0 por
-HLO1/RUN0 em gates internos bounded e test-only. A primeira rota nativa real é
-MLIR0: source → HIR0 → HLO0 → LLVM dialect → LLVM IR → clang/native, sem passar
-por C source. Hello é o witness canônico, mas o mesmo caminho aceita payloads
-String variáveis e compara stdout exato. A evidência MLIR0 é Linux x86_64 sob
-WSL no checkout Windows, não suporte Windows nativo.
+HLO1/RUN0 em gates internos bounded e test-only. W-1520 define a primeira rota
+nativa real: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect →
+LLVM IR → clang/native, sem passar por C source ou depender de HLO0. Hello é o
+witness canônico, mas o mesmo caminho aceita payloads String variáveis e
+compara stdout exato. A evidência MLIR0 é Linux x86_64 sob WSL no checkout
+Windows, não suporte Windows nativo.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
@@ -30,13 +31,30 @@ evidência corrente.
 [`DEPENDENCIES.md`](DEPENDENCIES.md) publica o catálogo gerado de currency,
 compatibility floors, evidence snapshots e external evaluations.
 HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
-seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma exata de uma
-função/entry/block/call/argument. Os nomes target/handler são byte strings
+seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma direta de uma
+função/entry/block/call/argument. W-1519 adds a bounded verified binding shape.
+Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
 Essa evidência não publica `w run` nem a leitura segura dos arquivos de entrada.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
+
+W-1519 is `source-backed-current` for a strictly bounded immutable local
+String path. Frontend schema `w-seed-frontend-11` publishes an indexed lexical
+binding relation. HIR0 schema `w-seed-hir0-2` copies the binding name and bytes,
+then verifies its owners, order, types, spans, dense ranges, alias barriers,
+digests, and receipt. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING`
+or exactly one `BINDING → CALL` chain with `BINDING_READ` by binding index.
+HLO0 proves that binding plan independently; MLIR0 consumes the same verified
+HIR directly. The Restaurant witness reaches MLIR0 and native execution with
+exact stdout `Table 42 remains open\n`.
+W-1520 replaces MLIR0 schema v1 in place with `w-seed-mlir0-2`: its internal
+API accepts only `{ program, hir_result }`, re-verifies HIR through the private
+shared native-subset selector, and performs no textual lookup. HLO0/HLO1/RUN0
+remain bootstrap, audit, and recovery paths, not native prerequisites.
+This decision does not claim general locals, `var`, assignment, nested scopes,
+general SSA, ownership, additional targets, public `w run`, or performance.
 
 MAN0 é o reader C controlado, compilado em modo C23, guarded, caller-owned e
 bounded de manifests estruturais. C11 é somente a lane explícita de

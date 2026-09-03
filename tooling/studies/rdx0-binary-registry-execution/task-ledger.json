@@ -1,47 +1,67 @@
 {
-  "$schema": "w-rdx0-binary-registry-execution-ledger-1",
+  "$schema": "w-rdx0-binary-registry-execution-ledger-2",
   "id": "RDX0",
-  "status": "registered-research-bundle",
-  "title": "Binary-first distribution, static-first registry, signed execution, and provider research",
+  "status": "complete-design-study",
+  "decisionId": "W-1518",
+  "supersededDecision": "W-1486",
+  "title": "W-1518 design contract for binary-first registry, signed execution, and provider research",
   "languageSurface": "none",
   "statePolicy": {
-    "registrationOnly": true,
+    "registrationOnly": false,
+    "designContractClosed": true,
+    "implementationClaimed": false,
     "taskStatesAtRegistration": ["Direção", "Pesquisa"],
     "promotionRequiresEvidence": true,
-    "promotionRule": "Uma revisão futura do schema e do checker pode promover uma task somente após evidence suficiente; os estados atuais são temporários e podem mudar com essa evidence."
+    "promotionRule": "Uma revisão futura do schema e do checker pode promover somente uma implementação após evidence independente suficiente; o oracle atual fecha design e não prova crypto, server, provider ou runner."
   },
   "contractRefs": [
     "DESIGN.md §20.4.9",
     "DESIGN.md §20.4.12",
     "DESIGN.md §21.2.2",
     "DESIGN.md §§21.3–21.4",
+    "DESIGN.md §21.6.2",
     "DESIGN.md §22.2",
     "DESIGN.md §24.1.2",
     "DESIGN.md §§26.9–26.11",
     "RATIONALE.md §1.17",
+    "RATIONALE.md W-1518",
+    "tooling/studies/rdx0-binary-registry-execution/cases.json",
+    "tooling/studies/rdx0-binary-registry-execution/machine.mjs",
+    "tooling/studies/rdx0-binary-registry-execution/reference.test.mjs",
+    "tooling/studies/rdx0-binary-registry-execution/results.snapshot.jsonl",
+    "tooling/studies/rdx0-binary-registry-execution/check.mjs",
     "tooling/studies/sec0-security-model/README.md",
     "tooling/studies/sea0-simulated-effects-approval/README.md"
   ],
   "candidatePaths": {
     "discovery": "/.well-known/w-registry.json",
-    "packageIndex": "/v1/packages/<encoded-package-id>/index.json",
-    "releaseRecord": "/v1/releases/<algorithm>/<digest>.json",
-    "object": "/v1/objects/<algorithm>/<digest>",
-    "catalogCheckpoint": "/v1/catalog/checkpoint.json",
-    "catalogPages": "/v1/catalog/pages/<first>-<last>.jsonl",
-    "evidenceProjection": "/v1/evidence/<algorithm>/<subject-digest>/index.json",
-    "channel": "/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json"
+    "root": "/v1/root/<version>.dsse",
+    "timestamp": "/v1/timestamp.dsse",
+    "object": "/v1/o/sha256/<hex>",
+    "channel": "/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json",
+    "search": "/v1/search"
   },
   "serializationPolicy": {
+    "wOwnedPayload": "deterministic-CBOR",
+    "wOwnedEnvelope": "DSSE-role-specific",
+    "externalAttestation": "in-toto-Statement-v1/SLSA-provenance-v1.2-JSON-inside-DSSE",
+    "objectDigest": "exact-stored-bytes-including-envelope",
+    "dssePayload": "exact-payload-bytes",
+    "jsonConvenience": ["discovery", "search", "channel", "update"],
     "jsonEncoding": "UTF-8-strict",
     "duplicateKeys": "reject",
-    "canonicalSigningPayload": "research-output-no-choice"
+    "canonicalSigningPayload": "deterministic-CBOR-selected-by-W-1518"
   },
   "sourceRefs": [
     { "path": "DESIGN.md", "anchor": "21.4.1 RDX0", "claim": "candidate registry resources and resolution boundary" },
     { "path": "DESIGN.md", "anchor": "21.3.3 PCB0", "claim": "closed-source publication and evidence separation" },
     { "path": "DESIGN.md", "anchor": "21.4.2 SEV0, SBX0, RSX0 e ENT0", "claim": "security evidence, signed runner, sandbox and entitlement research" },
     { "path": "DESIGN.md", "anchor": "22.2 Documentação e testes", "claim": "test carriers and evidence lanes" },
+    { "path": "RATIONALE.md", "anchor": "W-1518 — contrato RDX0 de registry", "claim": "W-1518 rationale and external reference boundary" },
+    { "path": "tooling/studies/rdx0-binary-registry-execution/cases.json", "anchor": "w-w1518-rdx0-binary-registry-execution-cases-1", "claim": "design-only adversarial corpus" },
+    { "path": "tooling/studies/rdx0-binary-registry-execution/machine.mjs", "anchor": "Pure W-1518 design oracle", "claim": "structural state reducer" },
+    { "path": "tooling/studies/rdx0-binary-registry-execution/reference.test.mjs", "anchor": "all W-1518 RDX0 cases", "claim": "host reference test" },
+    { "path": "tooling/studies/rdx0-binary-registry-execution/check.mjs", "anchor": "W-1518 RDX0 design oracle", "claim": "ledger and oracle gate" },
     { "path": "tooling/studies/sec0-security-model/README.md", "anchor": "Invariantes", "claim": "security evidence boundary and profile limits" },
     { "path": "tooling/studies/sea0-simulated-effects-approval/README.md", "anchor": "Test-infrastructure crosspoint", "claim": "bounded test lanes and independent oracle boundary" },
     { "path": "reference/last-light/README.md", "anchor": "compile-final-menu / menu-compiler", "claim": "official Last Light menu compiler integration flow" },
@@ -55,6 +75,14 @@
   "precedentRefs": [
     { "url": "https://github.com/cloudflare/sandbox", "role": "Linux seccomp project with allow, deny and log rules; not the Cloudflare Sandbox SDK and not proof of W isolation" }
   ],
+  "officialRefs": [
+    { "url": "https://theupdateframework.github.io/specification/latest/", "accessed": "2026-09-03", "claim": "TUF latest metadata roles, freshness and rollback/freeze boundaries; W infers a bounded policy and does not claim TUF conformance" },
+    { "url": "https://github.com/secure-systems-lab/dsse/blob/master/protocol.md", "accessed": "2026-09-03", "claim": "DSSE envelope and exact payload signing precedent" },
+    { "url": "https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md", "accessed": "2026-09-03", "claim": "in-toto Statement v1 external attestation payload" },
+    { "url": "https://slsa.dev/spec/v1.2/provenance", "accessed": "2026-09-03", "claim": "SLSA provenance v1.2 external attestation payload" },
+    { "url": "https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows", "accessed": "2026-09-03", "claim": "GitHub Actions OIDC claims and reusable workflow identity boundary" },
+    { "url": "https://github.com/opencontainers/distribution-spec/blob/main/spec.md", "accessed": "2026-09-03", "claim": "OCI distribution object and digest transport precedent; W remains a separate protocol" }
+  ],
   "evidenceBoundary": {
     "designOnly": true,
     "current": ["design-source", "source-links", "host-ledger-checker"],
@@ -67,7 +95,9 @@
       "sandbox-enforcement",
       "hardware",
       "fault-stress",
-      "canonical-signing-payload",
+      "crypto-verifier",
+      "registry-server",
+      "clock-provider",
       "private-download-auth",
       "advisory-database",
       "platform-os-controls",
@@ -84,22 +114,25 @@
       "drm-inviolable",
       "ci-source-confidentiality",
       "zero-day-known-before-disclosure",
-      "canonicalization-selected"
+      "crypto-verified",
+      "runner-available",
+      "provider-receipt"
     ]
   },
   "tasks": [
     {
       "id": "RDX0",
-      "state": "Direção",
-      "title": "Registry HTTP static-first candidate protocol",
+      "stateAtRegistration": "Direção",
+      "currentDesignDisposition": "closed-by-W-1518",
+      "title": "Registry HTTP static-first design contract",
       "dependencies": ["DESIGN.md §21.4", "W-1469", "SEC0"],
       "outputs": [
-        { "id": "RDX0-bounded-schema-set", "kind": "schema", "observable": "discovery, package, release, object, catalog, channel and evidence records with bounded fields" },
+        { "id": "RDX0-bounded-schema-set", "kind": "schema", "observable": "discovery, root, timestamp, object, package, channel and evidence records with bounded fields" },
         { "id": "RDX0-transport-fixtures", "kind": "fixture-matrix", "observable": "equivalent HTTP/1.1, HTTP/2 and HTTP/3 fixtures with HTTPS and explicit-local cases" },
         { "id": "RDX0-catalog-rebuild-report", "kind": "conformance-report", "observable": "search index reconstructed only from checkpoint and immutable catalog pages without authority" },
         { "id": "RDX0-monotonic-update-vectors", "kind": "test-vectors", "observable": "sequence, channel, yank, deprecation and revocation decisions anchored in trusted checkpoint" },
-        { "id": "RDX0-tuf-metadata-gap-matrix", "kind": "gap-matrix", "observable": "targets, snapshot, timestamp, expiry, download and archive remain explicit research outputs" },
-        { "id": "RDX0-canonical-signing-payload-report", "kind": "research-report", "observable": "candidate deterministic signing payload fixtures compare serialization choices without selecting canonicalization" },
+        { "id": "RDX0-tuf-metadata-gap-matrix", "kind": "gap-matrix", "observable": "targets, snapshot, timestamp, expiry, download and archive remain explicit implementation-evidence gaps" },
+        { "id": "RDX0-canonical-signing-payload-report", "kind": "design-contract", "observable": "W-owned deterministic CBOR payload uses role-specific DSSE; external in-toto/SLSA JSON remains JSON inside DSSE" },
         { "id": "RDX0-private-read-capability-record", "kind": "access-record", "observable": "short-lived read capability or signed URL is scoped by object, package, audience and expiry and is not authority" },
         { "id": "RDX0-privacy-error-mode-vectors", "kind": "test-vectors", "observable": "private download policy distinguishes 401, 403 and 404 outcomes" },
         { "id": "RDX0-mirror-private-access-report", "kind": "mirror-report", "observable": "mirror serves matching digest bytes without gaining package authority or private-download scope" }
@@ -112,10 +145,10 @@
         { "id": "RDX0-mirror-authority-substitution", "expected": "reject unlisted mirror as authority" },
         { "id": "RDX0-catalog-gap", "expected": "reject missing append-only catalog page" },
         { "id": "RDX0-channel-lock-bypass", "expected": "channel convenience cannot replace lock and release verification" },
-        { "id": "RDX0-timestamp-freeze-gap", "expected": "keep timestamp, expiry and freeze as explicit research gaps" },
+        { "id": "RDX0-timestamp-freeze-gap", "expected": "reject missing explicit clock/provider or monotonic timestamp persistence" },
         { "id": "RDX0-download-archive-gap", "expected": "keep download and archive behavior outside the current implementation claim" },
         { "id": "RDX0-duplicate-json-key", "expected": "reject duplicate keys in strict UTF-8 JSON" },
-        { "id": "RDX0-canonicalization-premature", "expected": "keep canonical signing payload as a research output until evidence selects a choice" },
+        { "id": "RDX0-canonicalization-premature", "expected": "reject JSON or alternate bytes as W authority; deterministic CBOR is selected" },
         { "id": "RDX0-read-capability-authority-confusion", "expected": "token or signed URL grants only scoped access and never package authority" },
         { "id": "RDX0-private-download-privacy-mode", "expected": "return the selected 401, 403 or 404 privacy outcome without leaking private existence" },
         { "id": "RDX0-mirror-private-object", "expected": "mirror cannot widen object, package, audience or expiry scope" }
@@ -124,18 +157,19 @@
         "current": ["design-source", "official-precedent-note", "ledger-checker"],
         "missing": ["canonical-serialization", "HTTP-conformance", "signature-verifier", "freeze-freshness-probe", "mirror-fault-probe"]
       },
-      "stopCondition": "Pare quando schemas, strict JSON, bounds, transport equivalence, trusted-checkpoint rollback, catalog reconstruction, private access modes, canonical-payload alternatives e todos os cases adversariais tiverem resultados observáveis. Não promova um registry implementado."
+      "stopCondition": "Pare quando schemas, strict JSON, bounds, transport equivalence, trusted-root/checkpoint rollback, catalog reconstruction, private access modes, selected CBOR/DSSE payload and all adversarial cases have observable design results. Não promova um registry implementado."
     },
     {
       "id": "PCB0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Closed-source publication through ephemeral CI",
       "dependencies": ["DESIGN.md §21.3.1", "DESIGN.md §21.3.2", "RDX0", "W-1469"],
       "outputs": [
         { "id": "PCB0-release-intent-schema", "kind": "schema", "observable": "signed intent binds source authority, recipe, target, policy and final digest scope" },
-        { "id": "PCB0-oidc-assertion-validation-trace", "kind": "evidence-record", "observable": "short-lived OIDC assertion is validated for issuer, audience, subject, workflow and ref without assuming one-use" },
+        { "id": "PCB0-oidc-assertion-validation-trace", "kind": "evidence-record", "observable": "short-lived GitHub OIDC assertion validates iss, aud, sub, repository, ref, sha and pinned job_workflow_ref without assuming one-use" },
         { "id": "PCB0-publication-capability-record", "kind": "capability-record", "observable": "W service emits a one-use, short-lived, scoped publication capability after OIDC validation" },
-        { "id": "PCB0-publication-attestations", "kind": "attestation-set", "observable": "artifact, builder, test and security attestation links" },
+        { "id": "PCB0-publication-attestations", "kind": "attestation-set", "observable": "artifact, builder, test and security attestations use role-specific DSSE; in-toto Statement v1 and SLSA provenance v1.2 remain JSON payloads" },
         { "id": "PCB0-final-authorization-record", "kind": "authorization-record", "observable": "maintainer or separate automation authorizes exact final digests" },
         { "id": "PCB0-source-visibility-matrix", "kind": "state-matrix", "observable": "publicSource, sourceClosedBinary and private package remain separate" },
         { "id": "PCB0-builder-toolchain-action-pin", "kind": "provenance-record", "observable": "builder image, toolchain and actions are pinned to digests or revisions" },
@@ -168,11 +202,12 @@
     },
     {
       "id": "WEC0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Bounded binary capsule and artifact family",
       "dependencies": ["DESIGN.md §20.4.9", "DESIGN.md §20.4.12", "DESIGN.md §21.2.2", "PCB0"],
       "outputs": [
-        { "id": "WEC0-capsule-schema", "kind": "schema", "observable": "root digest and bounded index that reference internal chunks by digest" },
+        { "id": "WEC0-capsule-schema", "kind": "schema", "observable": "target/profile/toolchain capsule has a root digest and bounded index that reference internal chunks by digest" },
         { "id": "WEC0-execution-descriptor-capsule", "kind": "schema", "observable": "ExecutionDescriptor records entrypoints, requirements, sandbox profile and payload refs" },
         { "id": "WEC0-chunk-kind-matrix", "kind": "matrix", "observable": "WInterface, WMeta, WAbi, native objects, symbols, requirements and allowed summaries" },
         { "id": "WEC0-toolchain-private-ir-gate", "kind": "admission-rule", "observable": "HIR, MLIR or LLVM bitcode requires exact toolchain key" },
@@ -201,14 +236,15 @@
     },
     {
       "id": "TEV0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Test descriptor, evidence key and separated lanes",
       "dependencies": ["DESIGN.md §22.2", "W-1474", "SEC0", "RDX0"],
       "outputs": [
         { "id": "TEV0-test-plan-normalization", "kind": "mapping", "observable": "@example, w test, colocated test and *.test.w map to TestDescriptor and TestPlan" },
         { "id": "TEV0-test-descriptor-complete-schema", "kind": "schema", "observable": "stable ID, owner declaration, origin carrier, source map, kind, fixtures/effects, oracle or expected diagnostic/outcome, target/profile, seed/limits and body/plan digest are required" },
         { "id": "TEV0-evidence-key-schema", "kind": "schema", "observable": "source, release, artifact, plan, analyzer, recipe, toolchain, target and profile keys plus seed, limits and outcome" },
-        { "id": "TEV0-lane-matrix", "kind": "lane-matrix", "observable": "unit, compile-fail, property/fuzz, simulation, provider, fault and performance remain distinct" },
+        { "id": "TEV0-lane-matrix", "kind": "lane-matrix", "observable": "unit, compile-fail, property/fuzz, simulation, provider, fault and performance remain distinct; simulation is not provider evidence" },
         { "id": "TEV0-subject-projection-fixture", "kind": "projection-fixture", "observable": "subject digest points to immutable attestation objects and axis facts" },
         { "id": "TEV0-freshness-policy-vectors", "kind": "test-vectors", "observable": "stale evidence and advisory changes produce new projections without rewriting attestations" }
       ],
@@ -231,7 +267,8 @@
     },
     {
       "id": "SEV0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Continuous security and advisory evidence",
       "dependencies": ["DESIGN.md §21.4.2", "SEC0", "TEV0", "RDX0"],
       "outputs": [
@@ -262,14 +299,15 @@
     },
     {
       "id": "SBX0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Provider/profile sandbox enforcement",
       "dependencies": ["DESIGN.md §21.4.2", "SEC0", "WEC0"],
       "outputs": [
         { "id": "SBX0-capability-effect-plan", "kind": "mapping", "observable": "capability and effect plan maps to provider-specific controls" },
         { "id": "SBX0-linux-enforcement-profile", "kind": "profile", "observable": "seccomp allowlist plus namespaces, credentials, filesystem, network and resource controls" },
         { "id": "SBX0-cross-platform-equivalence", "kind": "profile-matrix", "observable": "Windows, macOS and WASI equivalents preserve explicit admission facts" },
-        { "id": "SBX0-pre-user-code-receipt", "kind": "enforcement-receipt", "observable": "provider enforcement completes before user code" },
+        { "id": "SBX0-pre-user-code-receipt", "kind": "enforcement-receipt", "observable": "provider enforcement completes before loader and user code; missing receipt is unsupported with no fallback" },
         { "id": "SBX0-learn-mode-separation", "kind": "policy", "observable": "audit or learn mode is suggestion-only and never an enforcement receipt" }
       ],
       "adversarialCases": [
@@ -290,11 +328,12 @@
     },
     {
       "id": "RSX0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Signed remote runner with explicit admission",
       "dependencies": ["DESIGN.md §21.4.2", "DESIGN.md §24.1.2", "RDX0", "WEC0", "SBX0"],
       "outputs": [
-        { "id": "RSX0-exact-resolution-machine", "kind": "state-machine", "observable": "package version resolves to exact lock, release, artifact and digest" },
+        { "id": "RSX0-exact-resolution-machine", "kind": "state-machine", "observable": "registry package version resolves to exact lock, release, artifact and digest for w run" },
         { "id": "RSX0-admission-receipt-schema", "kind": "schema", "observable": "authorization, registry admission, freshness, revocation and consumer policy facts" },
         { "id": "RSX0-remote-launch-trace", "kind": "launch-trace", "observable": "native code starts in child process or compartment after enforcement" },
         { "id": "RSX0-local-debug-policy", "kind": "policy", "observable": "unsigned local source is allowed only by explicit local debug policy" },
@@ -318,13 +357,14 @@
     },
     {
       "id": "ENT0",
-      "state": "Pesquisa",
+      "stateAtRegistration": "Pesquisa",
+      "currentDesignDisposition": "closed-by-W-1518",
       "title": "Opaque entitlement or lease capability",
       "dependencies": ["DESIGN.md §21.4.2", "RSX0", "SBX0"],
       "outputs": [
         { "id": "ENT0-opaque-lease-schema", "kind": "schema", "observable": "product, feature, audience and expiry are bound without raw token in app API" },
         { "id": "ENT0-online-offline-policy", "kind": "policy-matrix", "observable": "online and offline validation rules have explicit expiry and revocation behavior" },
-        { "id": "ENT0-provider-redaction-boundary", "kind": "boundary-record", "observable": "provider owns opaque entitlement material and app receives only capability result" },
+        { "id": "ENT0-provider-redaction-boundary", "kind": "boundary-record", "observable": "provider owns opaque entitlement material and app receives only capability result, never a raw token" },
         { "id": "ENT0-expiry-revocation-vectors", "kind": "test-vectors", "observable": "expired, revoked, audience-mismatch and product-mismatch decisions" },
         { "id": "ENT0-residual-risk-record", "kind": "risk-record", "observable": "tamper, replay, offline and provider compromise limits are explicit" }
       ],
@@ -358,7 +398,7 @@
         { "path": "reference/last-light/execution.w", "anchor": "module execution<", "claim": "bounded task and cancellation fixture" }
       ],
       "taskIds": ["RDX0", "PCB0", "WEC0", "TEV0", "SEV0", "SBX0", "RSX0", "ENT0"],
-      "scenario": "A closed-source last-light/menu-compiler package presents a release intent, uses two authorized builders, emits one WEC capsule per target, runs doctests and fuzz lanes, publishes security evidence, applies update and deprecation metadata, revokes a release, rebuilds search, and attempts w run in a sandbox without network by default with optional entitlement.",
+      "scenario": "A closed-source last-light/menu-compiler package presents a release intent, uses two authorized builders, emits one WEC capsule per target, runs doctests and fuzz lanes, publishes security evidence, applies append-only update and deprecation metadata, revokes a release, rebuilds search from trusted objects, and attempts w run registry:last-light/restaurant@0.1.0 --product last-light-native in a sandbox without network by default with optional entitlement.",
       "outputs": [
         { "id": "RDX0-last-light-witness-output", "kind": "fixture-report", "observable": "one bounded report traverses all eight tasks in dependency order and names every source, digest, target, profile and policy boundary" },
         { "id": "RDX0-last-light-witness-resolution", "kind": "resolution-trace", "observable": "known identity, private read capability, trusted checkpoint, catalog search rebuild and channel convenience remain separate" },
@@ -378,10 +418,13 @@
     "taskIds": ["RDX0", "PCB0", "WEC0", "TEV0", "SEV0", "SBX0", "RSX0", "ENT0"],
     "witnessIds": ["RDX0-last-light-restaurant-full-traversal"],
     "requiredPerTask": ["dependencies", "outputs", "adversarialCases", "evidence", "stopCondition"],
-    "registrationOnly": true,
+    "registrationOnly": false,
+    "designContractClosed": true,
+    "implementationClaimed": false,
     "taskStatesAtRegistration": ["Direção", "Pesquisa"],
+    "currentDesignDisposition": "closed-by-W-1518",
     "promotionRequiresEvidence": true,
-    "promotionRule": "Uma revisão futura do schema e do checker pode promover uma task somente após evidence suficiente; os estados atuais são temporários e podem mudar com essa evidence.",
+    "promotionRule": "Uma revisão futura do schema e do checker pode promover somente uma implementação após evidence independente suficiente; o oracle atual fecha design e não prova crypto, server, provider ou runner.",
     "stopCondition": "Pare o bundle quando cada task satisfizer sua stop condition, o witness passar, o checker passar e a revisão Sol confirmar que nenhum output virou implementação."
   },
   "nonClaims": [
@@ -390,6 +433,6 @@
     "Este ledger não prova conformance, isolamento, reprodução pública ou DRM inviolável.",
     "Uma assertion OIDC curta é prova da identity do workflow, não credencial W de uso único; somente a capability W de publicação pode ter one-use explícito.",
     "Ephemeral CI, provider identity ou billing não provam source confidentiality nem tornam GitHub gratuito suficiente para source fechado.",
-    "Este ledger não escolhe canonicalização de signing payload nem alega conhecer zero-days antes da divulgação."
+    "Este ledger não prova crypto, server, provider, runner, clock/freshness ou attestation verifier, e não alega conhecer zero-days antes da divulgação."
   ]
 }

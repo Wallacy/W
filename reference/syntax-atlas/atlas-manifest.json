@@ -2862,7 +2862,7 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038"
+          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
         }
       ],
       "snippetDigest": "sha256:44876160bc88c3baf20a592326d9cdb4fc40ef3804e3b7ef1d0c9d2251d2e325",
@@ -2888,7 +2888,7 @@
         {
           "path": "reference/last-light/build.w",
           "symbol": "workspace {",
-          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038"
+          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc"
         }
       ],
       "snippetDigest": "sha256:538bc3384f73031187fc9f9ad2caec358951f8e584c075e9cf212ac0075db345",

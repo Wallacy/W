@@ -12,13 +12,13 @@
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "workspace {",
-      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
       "claim": "Unified physical workspace root with nested resolution and deployments."
     },
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "package {",
-      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
       "claim": "Isolated package root remains a data-only manifest."
     },
     {
@@ -30,7 +30,7 @@
     {
       "path": "../../../reference/last-light/build.w",
       "symbol": "resolution: {",
-      "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+      "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
       "claim": "Resolution is a nested logical record."
     }
   ],
@@ -118,7 +118,7 @@
     },
     {
       "path": "bundle.json",
-      "digest": "sha256:082f50cdc2baddb9b65b0a125c8bb3f1b36600936d63b7ac4cdfafb10079b306",
+      "digest": "sha256:8656b706f853915a67ef37c6983b17587dd3997e1d387855919a0ed93e662f94",
       "role": "study-bundle"
     },
     {

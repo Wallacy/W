@@ -143,8 +143,11 @@ seed, adapter D0, ACQ0, OWN0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consul
 [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) para a superfície
 local. Execute `bun run check:compiler` para os gates do bundle.
 
-O caminho source → parser → frontend → HIR0 verificada → HLO0 → HLO1 → C23
-continua limitado aos subset e witnesses documentados. ACQ0 executa CHK6 em
+O caminho C23 `source → parser → frontend → HIR0 verificada → HLO0 → HLO1`
+continua limitado aos subset e witnesses documentados. A rota nativa primária
+W-1520 é independente: `source → parser/frontend → HIR0 verificada → MLIR0 →
+mlir-opt → mlir-translate → clang/native`; HLO0, HLO1 e RUN0 são bootstrap,
+auditoria e recovery, não pré-requisitos dessa rota. ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,
 rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. OWN0 observa e

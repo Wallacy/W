@@ -39,10 +39,10 @@ export fn archive(_ records: take AuditRecord...): usize {
 }
 
 test "rest arguments keep one labeled call shape" for kitchenLoad {
+  let directCourses = [.nebulaBroth, .horizonCake]
   let direct = kitchenLoad(
     kitchens: 2,
-    courses: .nebulaBroth,
-    .horizonCake,
+    courses: each directCourses,
   )
   expect direct == 32
 

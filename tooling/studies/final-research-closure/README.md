@@ -1,4 +1,4 @@
-# FRC0 — snapshot histórico das três gates de pesquisa
+# FRC0 — fechamento histórico e residual current
 
 FRC0 é um bundle R1 de design-oracle-input. Ele fecha o snapshot histórico de
 processo de W-707, W-731 e W-1408 até W-1450. Ele valida W-1451 como
@@ -6,8 +6,11 @@ processo de W-707, W-731 e W-1408 até W-1450. Ele valida W-1451 como
 e de W-1453 por W-1516. O snapshot mantém
 `Research=0` até esse limite. AEG0/SIMD1 preservam o fechamento histórico até
 W-1459. DRC0 fecha as gates posteriores W-1484, W-1473, W-1474 e W-1475 e
-preserva W-1471 como superseded; W-1486 e W-1503 são as research gates ativas
-post-snapshot. FRC0 não compila,
+preserva W-1471 como superseded; o snapshot histórico preserva W-1486 e W-1503
+como gates posteriores. W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486;
+o residual current de research é exatamente `[]`. W-1517 e W-1518 são
+closures de design-only, não implementação.
+FRC0 não compila,
 executa ou promove uma implementação W. Ele não cria registros humanos ou de
 modelos.
 
@@ -18,7 +21,8 @@ score, preferência ou resultado fornecido pelo caller para selecionar o
 outcome.
 
 W-707 fecha o protocolo de completude FZ0. W-731 confirma uma disposition
-explícita para cada decisão e a lista exata de research gates post-snapshot.
+explícita para cada decisão e que o residual current de research é vazio;
+W-1486/W-1503 ficam apenas na lista histórica post-snapshot.
 W-1408 preserva stop-on-first-violation,
 no-automatic-promotion e zero registros humanos/modelos. A reabertura explícita
 posterior PFU0 deixa de ser residual. W-1452 e W-1453 permanecem como
@@ -27,8 +31,8 @@ proveniência histórica; W-1480 e W-1516 contêm os contratos vigentes.
 Os gaps de `w-compile`, `w-run`, compiler, runtime, provider, human-study e
 model-study permanecem missing. O estudo usa somente source refs, máquinas,
 snapshots e oracles host existentes. O stop condition rejeita qualquer Research
-residual fora de W-1486 e W-1503 e exige evidência PFU0 e fechamento DRC0 antes de
-recascade.
+residual current (o residual permitido é `[]`) e exige evidência PFU0 e
+fechamento DRC0 antes de recascade.
 
 Checks scoped:
 

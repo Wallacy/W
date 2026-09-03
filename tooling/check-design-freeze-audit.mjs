@@ -140,8 +140,9 @@ for (const testCase of substitutions.cases ?? []) legacySubstitutionCases.set(te
 
 const corpusNames = fs.readdirSync(toolingDirectory)
   .filter((name) => name.endsWith("-cases.json") && name !== "substitution-cases.json");
+const nestedCorpusNames = ["studies/rdx0-binary-registry-execution/cases.json"];
 const oracleCases = new Map();
-for (const name of corpusNames) {
+for (const name of [...corpusNames, ...nestedCorpusNames]) {
   const corpusPath = path.join(toolingDirectory, name);
   const corpus = JSON.parse(fs.readFileSync(corpusPath, "utf8"));
   for (const [index, testCase] of (corpus.cases ?? []).entries()) {
@@ -195,6 +196,7 @@ function validateEvidence(ref, location, decisionId) {
   validateFileRef(ref, location);
   if (!nonEmptyString(ref.caseId, `${location}.caseId`)) return;
   if (ref.kind === "source") {
+    if (decisionId === "W-1519" && ref.caseId === "W-1519-native-seed") return;
     if (!legacySubstitutionCases.has(ref.caseId)) fail(`${location}.caseId is not a substitution case.`);
     const testCase = legacySubstitutionCases.get(ref.caseId);
     if (!(testCase.decisions ?? []).includes(decisionId)) fail(`${location}.caseId does not cite ${decisionId}.`);
@@ -228,9 +230,11 @@ function validateEvidence(ref, location, decisionId) {
   } else if (ref.kind === "study") {
     const expectedStudyPaths = new Map([
       ["RDX0-task-ledger", "tooling/studies/rdx0-binary-registry-execution/task-ledger.json"],
+      ["RDX0-cases", "tooling/studies/rdx0-binary-registry-execution/cases.json"],
       ["RDX0-checker", "tooling/studies/rdx0-binary-registry-execution/check.mjs"],
+      ["RDX0-snapshot", "tooling/studies/rdx0-binary-registry-execution/results.snapshot.jsonl"],
     ]);
-    if (decisionId !== "W-1486") fail(`${location}.study evidence is only valid for W-1486.`);
+    if (!(["W-1486", "W-1518"].includes(decisionId))) fail(`${location}.study evidence is only valid for W-1486 or W-1518.`);
     if (!nonEmptyString(ref.caseId, `${location}.caseId`)) return;
     if (expectedStudyPaths.get(ref.caseId) !== ref.path) {
       fail(`${location}.path does not match its RDX0 study artifact.`);
@@ -381,13 +385,15 @@ for (const [index, entry] of (classification.entries ?? []).entries()) {
       if (refs.has(key)) fail(`${refLocation} duplicates ${key}.`);
       refs.add(key);
     }
-    if (entry.decisionId === "W-1486") {
+    if (["W-1486", "W-1518"].includes(entry.decisionId)) {
       const studyEvidence = [...new Set(entry.evidence
         .filter((ref) => ref?.kind === "study")
         .map((ref) => ref?.caseId))].sort();
-      const expectedStudyEvidence = ["RDX0-checker", "RDX0-task-ledger"];
+      const expectedStudyEvidence = entry.decisionId === "W-1486"
+        ? []
+        : ["RDX0-cases", "RDX0-checker", "RDX0-snapshot"];
       if (JSON.stringify(studyEvidence) !== JSON.stringify(expectedStudyEvidence)) {
-        fail(`${location}.evidence must include exactly the RDX0 task ledger and checker study refs.`);
+        fail(`${location}.evidence has invalid RDX0 study refs.`);
       }
     }
   }
@@ -633,10 +639,15 @@ for (const [decisionId, category, authorityId] of fixedCategoryAssertions) {
   const actualId = category === "research-gated" ? entry.researchGate?.id : entry.authorityRef?.caseId;
   if (actualId !== authorityId) fail(`fixed category assertion ${decisionId} must use ${authorityId}.`);
 }
-const fixedRdx0Gate = entriesById.get("W-1486");
-if (!fixedRdx0Gate || fixedRdx0Gate.category !== "research-gated" ||
-    fixedRdx0Gate.researchGate?.id !== "RDX0-binary-registry-execution") {
-  fail("fixed research gate assertion W-1486 must remain the sole RDX0-binary-registry-execution gate.");
+const fixedRdx0History = entriesById.get("W-1486");
+const fixedRdx0Contract = entriesById.get("W-1518");
+if (!fixedRdx0History || fixedRdx0History.category !== "superseded" ||
+    fixedRdx0History.authorityRef?.decisionId !== "W-1518") {
+  fail("fixed RDX0 history assertion W-1486 must be superseded by W-1518.");
+}
+if (!fixedRdx0Contract || fixedRdx0Contract.category !== "oracle-backed-current" ||
+    fixedRdx0Contract.authorityRef?.caseId !== "W1518-cbor-dsse-role") {
+  fail("fixed RDX0 contract assertion W-1518 must be oracle-backed-current.");
 }
 const baselineExtension = entriesById.get("W-1436");
 if (baselineExtension && (baselineExtension.researchExtension !== undefined ||
@@ -660,6 +671,141 @@ for (const [decisionId, successorId] of fixedSupersessionTargets) {
   if (!entry || entry.category !== "superseded" || entry.authorityRef?.decisionId !== successorId ||
       entry.supersessionClaim?.decisionId !== successorId) {
     fail(`fixed supersession assertion ${decisionId} must point to semantic successor ${successorId}.`);
+  }
+}
+
+const w1519 = entriesById.get("W-1519");
+const w1519SourceRefs = [
+  ["compiler/seed-c/include/w_seed_frontend.h", "W_SEED_FRONTEND_SCHEMA_VERSION"],
+  ["compiler/seed-c/src/w_seed_frontend.c", "resolved_binding_statement"],
+  ["compiler/seed-c/include/w_seed_hir0.h", "w_seed_hir0_binding"],
+  ["compiler/seed-c/src/w_seed_hir0.c", "frontend_statement_and_expression_ok"],
+  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select"],
+  ["compiler/seed-c/tests/test_frontend.c", "test_local_binding_resolution"],
+  ["compiler/seed-c/tests/test_hir0.c", "test_local_binding_lowering"],
+  ["compiler/seed-c/tests/test_hlo0.c", "test_hlo_binding_chain_all_or_nothing"],
+  ["tooling/check-hlo0.mjs", "const accepted = ["],
+  ["tooling/check-hlo1.mjs", "const products = ["],
+  ["tooling/check-run0.mjs", "const sources = new Map(["],
+  ["tooling/check-mlir0.mjs", "const products = ["],
+];
+if (!w1519 || w1519.category !== "source-backed-current" ||
+    w1519.authorityRef?.caseId !== "W-1519-native-seed" ||
+    w1519.authorityRef?.kind !== "source-case" || w1519.supersessionClaim !== undefined) {
+  fail("fixed VAL1 assertion W-1519 must be current source-backed without supersession.");
+} else {
+  if (!Array.isArray(w1519.sourceRefs) || w1519.sourceRefs.length !== w1519SourceRefs.length) {
+    fail("fixed VAL1 assertion W-1519 must provide the complete concrete sourceRefs set.");
+  } else {
+    const seen = new Set();
+    for (const [index, [expectedPath, expectedSymbol]] of w1519SourceRefs.entries()) {
+      const ref = w1519.sourceRefs[index];
+      const location = `entries[${classification.entries.indexOf(w1519)}].sourceRefs[${index}]`;
+      validateSourceRef(ref, location);
+      const key = `${ref?.path}\0${ref?.symbol}`;
+      if (seen.has(key)) fail(`${location} duplicates a W-1519 source reference.`);
+      seen.add(key);
+      if (ref?.path !== expectedPath || ref?.symbol !== expectedSymbol) {
+        fail(`${location} must identify ${expectedPath} and ${expectedSymbol}.`);
+        continue;
+      }
+      const source = fs.readFileSync(path.join(wDirectory, expectedPath), "utf8");
+      if (!source.includes(expectedSymbol)) {
+        fail(`${location}.symbol is absent from ${expectedPath}.`);
+      }
+    }
+  }
+  if (w1519.benchmarkDisposition !== "compiler-lifecycle" ||
+      typeof w1519.benchmarkEvidence !== "string" ||
+      !/correctness-only/i.test(w1519.benchmarkEvidence) ||
+      !/no timing or result/i.test(w1519.benchmarkEvidence)) {
+    fail("fixed VAL1 assertion W-1519 must publish compiler-lifecycle correctness-only evidence without timing or result.");
+  }
+  const w1519Text = `${w1519.canonicalClaim} ${w1519.reason}`.toLowerCase();
+  for (const boundedGap of [
+    "general locals", "var", "assignment", "nested", "shadowing", "cfg", "general ssa",
+    "ownership", "borrows", "dce", "optimization", "w dialect", "additional hosts or targets",
+    "public w run", "performance",
+  ]) {
+    if (!w1519Text.includes(boundedGap)) fail(`fixed VAL1 assertion W-1519 must retain bounded gap ${boundedGap}.`);
+  }
+  for (const currentId of ["W-1505", "W-1520"]) {
+    const current = entriesById.get(currentId);
+    if (!current || !["source-backed-current", "oracle-backed-current"].includes(current.category)) {
+      fail(`fixed VAL1 assertion ${currentId} must remain current.`);
+    }
+  }
+}
+
+const w1506 = entriesById.get("W-1506");
+if (!w1506 || w1506.category !== "superseded" ||
+    w1506.authorityRef?.kind !== "superseding-decision" ||
+    w1506.authorityRef?.decisionId !== "W-1520" ||
+    w1506.supersessionClaim?.decisionId !== "W-1520") {
+  fail("fixed VAL1 assertion W-1506 must be superseded by W-1520.");
+}
+
+const w1520 = entriesById.get("W-1520");
+const w1520Case = legacySubstitutionCases.get("R0-mlir0-native-terminal");
+const w1520SourceRefs = [
+  ["compiler/seed-c/include/w_seed_mlir0.h", "w_seed_mlir0_input"],
+  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select"],
+  ["compiler/seed-c/src/w_seed_mlir0.c", "build_artifact"],
+  ["compiler/seed-c/tests/test_mlir0.c", "test_restaurant_and_nul"],
+  ["compiler/seed-c/tests/hlo1_gate.c", "W_SEED_MLIR0_GATE"],
+  ["tooling/check-mlir0.mjs", "const products = ["],
+  ["tooling/mlir0-toolchain.json", "pipeline"],
+];
+if (!w1520 || w1520.category !== "source-backed-current" ||
+    w1520.authorityRef?.kind !== "source-case" ||
+    w1520.authorityRef?.caseId !== "R0-mlir0-native-terminal" ||
+    w1520.supersessionClaim !== undefined || !w1520Case ||
+    !(w1520Case.decisions ?? []).includes("W-1520")) {
+  fail("fixed VAL1 assertion W-1520 must be current source-backed through case R0.");
+} else {
+  if (!Array.isArray(w1520.sourceRefs) || w1520.sourceRefs.length !== w1520SourceRefs.length) {
+    fail("fixed VAL1 assertion W-1520 must provide concrete direct-route sourceRefs.");
+  } else {
+    const seen = new Set();
+    for (const [index, [expectedPath, expectedSymbol]] of w1520SourceRefs.entries()) {
+      const ref = w1520.sourceRefs[index];
+      const location = `entries[${classification.entries.indexOf(w1520)}].sourceRefs[${index}]`;
+      validateSourceRef(ref, location);
+      const key = `${ref?.path}\0${ref?.symbol}`;
+      if (seen.has(key)) fail(`${location} duplicates a W-1520 source reference.`);
+      seen.add(key);
+      if (ref?.path !== expectedPath || ref?.symbol !== expectedSymbol) {
+        fail(`${location} must identify ${expectedPath} and ${expectedSymbol}.`);
+        continue;
+      }
+      const source = fs.readFileSync(path.join(wDirectory, expectedPath), "utf8");
+      if (!source.includes(expectedSymbol)) fail(`${location}.symbol is absent from ${expectedPath}.`);
+    }
+  }
+  const mlirHeader = fs.readFileSync(path.join(wDirectory, "compiler/seed-c/include/w_seed_mlir0.h"), "utf8");
+  const mlirSource = fs.readFileSync(path.join(wDirectory, "compiler/seed-c/src/w_seed_mlir0.c"), "utf8");
+  if (!mlirHeader.includes("w_seed_hir0.h") || !mlirHeader.includes("w_seed_mlir0_input") ||
+      /w_seed_hlo0/u.test(mlirHeader) || /w_seed_hlo0/u.test(mlirSource)) {
+    fail("fixed VAL1 assertion W-1520 must keep MLIR0 direct-HIR and free of w_seed_hlo0 references.");
+  }
+  const caseText = JSON.stringify(w1520Case);
+  if (!/verified HIR0/iu.test(caseText) || /HLO0 prerequisite|depends on HLO0|HLO0 payload/iu.test(caseText)) {
+    fail("fixed VAL1 assertion R0 must describe direct verified HIR0 without an HLO0 prerequisite.");
+  }
+  if (w1520.benchmarkDisposition !== "compiler-lifecycle" ||
+      typeof w1520.benchmarkEvidence !== "string" ||
+      !/correctness-only/i.test(w1520.benchmarkEvidence) ||
+      !/no timing or result/i.test(w1520.benchmarkEvidence)) {
+    fail("fixed VAL1 assertion W-1520 must publish compiler-lifecycle correctness-only evidence without timing or result.");
+  }
+  const w1520Text = `${w1520.canonicalClaim} ${w1520.reason}`.toLowerCase();
+  for (const boundedGap of [
+    "general hir", "multiple values", "bindings", "cfg", "general ssa", "w mlir dialect",
+    "mlir c api builder", "ownership", "effects", "tasks", "optimizer", "pass pipeline",
+    "provider", "runtime", "linker", "sdk", "packaging", "other hosts/targets",
+    "public w run", "performance",
+  ]) {
+    if (!w1520Text.includes(boundedGap)) fail(`fixed VAL1 assertion W-1520 must retain bounded gap ${boundedGap}.`);
   }
 }
 

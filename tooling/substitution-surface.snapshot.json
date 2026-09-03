@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:4d8542993cb02b22bec3208b13db28ca1280f9b27d76e4db2f5dc11fe3de8ac0",
+  "corpusDigest": "sha256:9afa9e431618c22b5a7e43ce26f3e55fe9e888a2138356aca5a90c00f8b0d975",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3739,9 +3739,9 @@
     {
       "id": "R0-mlir0-native-terminal",
       "task": {
-        "utf8Bytes": 154,
-        "codePoints": 154,
-        "nonWhitespaceCodePoints": 131,
+        "utf8Bytes": 152,
+        "codePoints": 152,
+        "nonWhitespaceCodePoints": 129,
         "lines": 1,
         "surfaceLexemes": 27
       },
@@ -3766,6 +3766,18 @@
             "utf8Bytes": 41,
             "codePoints": 35,
             "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "historical-hlo0-adapter",
+          "language": "historical-mlir0",
+          "sourceDigest": "sha256:8b16fc62302b55a2b153037577584f9bfff757886d8505481608f50dd7d5cafa",
+          "metrics": {
+            "utf8Bytes": 43,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 30,
             "lines": 1,
             "surfaceLexemes": 8
           }

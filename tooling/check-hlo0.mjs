@@ -88,7 +88,7 @@ try {
     fail("gate output does not contain the canonical payload identity")
   }
   const accepted = [
-    ["restaurant.w", "fn serve() { print(\"Table 42 remains open\") }\nentry(serve)\n",
+    ["restaurant.w", "fn serve() { let message = \"Table 42 remains open\" print(message) }\nentry(serve)\n",
       ["entry=serve", "payload=21", "payload_hex=5461626c652034322072656d61696e73206f70656e", "stdout=22"]],
     ["empty.w", "fn main() { print(\"\") }\nentry(main)\n",
       ["entry=main", "payload=0 payload_hex=", "stdout=1"]],
@@ -110,6 +110,7 @@ try {
     ["noop.w", "fn main() { noop(\"Other\") }\nentry(main)\n"],
     ["two-calls.w", "fn main() { print(\"a\")\nprint(\"b\") }\nentry(main)\n"],
     ["outside-subset.w", "fn main(value: String) { print(value) }\nentry(main)\n"],
+    ["var-binding.w", "fn main() { var message = \"Hello, world!\" print(message) }\nentry(main)\n"],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(caseDirectory, name)

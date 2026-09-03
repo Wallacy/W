@@ -29,7 +29,12 @@
     },
     "gate": "PFU0-pre-freeze-usability"
   },
-  "activeResearchGates": ["W-1486", "W-1503"],
+  "historicalPostSnapshotResearchGates": ["W-1486", "W-1503"],
+  "activeResearchGates": [],
+  "designOnlyClosures": {
+    "W-1517": "oracle-backed-current",
+    "W-1518": "oracle-backed-current"
+  },
   "reuse": {
     "W-707": [
       "tooling/frontend-freeze-cases.json",

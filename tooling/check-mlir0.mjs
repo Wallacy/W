@@ -7,6 +7,8 @@ import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs"
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
+const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
+const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "20.1.2"
@@ -140,6 +142,11 @@ function invokeProgram(command, args, label) {
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
 validateManifest(manifest)
 
+const mlirSourceContract = `${await readFile(mlirHeaderPath, "utf8")}\n` +
+  await readFile(mlirSourcePath, "utf8")
+assert(!/\bw_seed_hlo0(?:_[A-Za-z0-9_]+)?\b/u.test(mlirSourceContract),
+  "MLIR0 source/API still includes or calls HLO0")
+
 const cmake = Bun.which("cmake")
 const ninja = Bun.which("ninja")
 const compiler = ["cc", "gcc", "clang", "cl"].map((name) => Bun.which(name))
@@ -216,19 +223,24 @@ try {
   const unit = run(resolve(buildDirectory, `w_seed_mlir0_tests${suffix}`), [])
   assert(unit.exitCode === 0, `unit tests failed: ${unit.stderrText}`)
   assert(unit.stderr.length === 0 &&
-    unit.stdoutText.includes("deterministic LLVM dialect emitter"),
+    unit.stdoutText.includes("verified HIR0 native subset"),
   "unit witness is missing or wrote to stderr")
 
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
+  const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
+    `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
+  await writeFile(restaurantLiteralPath,
     `fn serve() { print("Table 42 remains open") }\nentry(serve)\n`)
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
       expected: Buffer.from("Hello, world!\n", "utf8") },
-    { name: "restaurant", source: restaurantPath,
+    { name: "restaurant-binding", source: restaurantPath,
+      expected: Buffer.from("Table 42 remains open\n", "utf8") },
+    { name: "restaurant-literal", source: restaurantLiteralPath,
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
@@ -264,7 +276,10 @@ try {
     assert(Buffer.from(execution.stdout).equals(product.expected),
       `${product.name} stdout is not exact payload plus LF`)
   }
-  assert(!artifacts.get("hello").equals(artifacts.get("restaurant")),
+  assert(artifacts.get("restaurant-binding").equals(
+    artifacts.get("restaurant-literal")),
+  "Restaurant literal and binding MLIR artifacts differ")
+  assert(!artifacts.get("hello").equals(artifacts.get("restaurant-binding")),
     "Restaurant payload did not change MLIR")
   assert(!artifacts.get("hello").equals(artifacts.get("empty")),
     "empty payload did not change MLIR")
@@ -284,6 +299,8 @@ try {
     ["two-calls.w", `fn main() { print("a")\nprint("b") }\nentry(main)\n`],
     ["outside-subset.w",
       `fn main(value: String) { print(value) }\nentry(main)\n`],
+    ["var-binding.w",
+      `fn main() { var message = "Hello, world!" print(message) }\nentry(main)\n`],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(artifactDirectory, name)
@@ -292,7 +309,7 @@ try {
     assert(rejected.exitCode !== 0 && rejected.stdout.length === 0,
       `${name} was accepted or emitted partial MLIR`)
   }
-  console.log(`MLIR0: verified HLO0 → LLVM dialect → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)})`)
+  console.log(`MLIR0: verified HIR0 → LLVM dialect → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)})`)
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
   await rm(artifactDirectory, { recursive: true, force: true })

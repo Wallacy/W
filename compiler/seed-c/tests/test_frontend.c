@@ -2030,6 +2030,149 @@ static bool test_module_named_consts(void) {
   return true;
 }
 
+static void fixture_configure_print_host(fixture *value) {
+  value->host_requirements[0] = (w_seed_frontend_host_requirement){
+      .name = (w_seed_frontend_text){"Console", 7u}};
+  value->host_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"message", 7u},
+      .type = (w_seed_frontend_text){"String", 6u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  value->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"print", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .parameters = value->host_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .is_const = false,
+      .requirements = value->host_requirements,
+      .requirement_count = 1u};
+  value->host_scope = (w_seed_frontend_host_prelude){
+      .profile = (w_seed_frontend_text){"native-process@1", 16u},
+      .symbols = value->host_symbols,
+      .symbol_count = 1u};
+  value->input.host_scope = &value->host_scope;
+}
+
+static bool test_local_binding_resolution(void) {
+  static const char source[] =
+      "fn main() { let message = \"Table 42 remains open\" "
+      "print(message) }\nentry(main)\n";
+  fixture *value = &fixture_literal;
+  CHECK(fixture_parse(value, source));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        frontend_text_is(value->result.schema_version,
+                         "w-seed-frontend-11") &&
+        value->result.written.statements == 2u);
+  const w_seed_frontend_statement *binding = &value->statements[0];
+  CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
+        frontend_text_is(binding->binding_name, "message") &&
+        binding->declared_type == W_SEED_FRONTEND_NONE &&
+        binding->effective_type != W_SEED_FRONTEND_NONE &&
+        (size_t)binding->effective_type < value->result.written.types &&
+        value->types[binding->effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_STRING);
+  CHECK(binding->expression_index != W_SEED_FRONTEND_NONE &&
+        (size_t)binding->expression_index < value->result.written.expressions &&
+        value->expressions[binding->expression_index].kind ==
+            W_SEED_FRONTEND_EXPR_STRING &&
+        value->expressions[binding->expression_index].inferred_type ==
+            binding->effective_type);
+  uint32_t binding_symbol = W_SEED_FRONTEND_NONE;
+  uint32_t message_expression = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.symbols; index += 1u) {
+    if (value->symbols[index].kind == W_SEED_FRONTEND_SYMBOL_BINDING) {
+      CHECK(binding_symbol == W_SEED_FRONTEND_NONE);
+      binding_symbol = (uint32_t)index;
+      CHECK(value->symbols[index].owner_index == 0u &&
+            value->symbols[index].type_index == binding->effective_type);
+    }
+  }
+  for (size_t index = 0u; index < value->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "message")) {
+      CHECK(message_expression == W_SEED_FRONTEND_NONE);
+      message_expression = (uint32_t)index;
+      CHECK(expression->supported &&
+            expression->inferred_type == binding->effective_type &&
+            expression->resolved_binding_statement == 0u);
+    }
+  }
+  CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
+        message_expression != W_SEED_FRONTEND_NONE &&
+        receipt_contains(value, "schema=w-seed-frontend-11\n",
+                         strlen("schema=w-seed-frontend-11\n")));
+
+  fixture *trivia = &fixture_a;
+  CHECK(fixture_parse(
+      trivia,
+      "// leading\nfn main() { let message = \"Table 42 remains open\"\n"
+      "  // call\n  print ( message ) }\nentry ( main )\n"));
+  fixture_configure_print_host(trivia);
+  CHECK(w_seed_frontend_run(&trivia->input, &trivia->output,
+                            &trivia->result) == W_SEED_FRONTEND_OK);
+  CHECK(trivia->statements[0].kind == binding->kind &&
+        frontend_text_is(trivia->statements[0].binding_name, "message") &&
+        trivia->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
+        trivia->types[trivia->statements[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_STRING);
+  for (size_t index = 0u; index < trivia->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &trivia->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "message"))
+      CHECK(expression->resolved_binding_statement == 0u);
+  }
+
+  fixture *forward = &fixture_condition;
+  CHECK(fixture_parse(
+      forward,
+      "fn main() { print(message) let message = \"Table 42 remains open\" }\n"
+      "entry(main)\n"));
+  fixture_configure_print_host(forward);
+  CHECK(w_seed_frontend_run(&forward->input, &forward->output,
+                            &forward->result) == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(forward, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL));
+  for (size_t index = 0u; index < forward->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &forward->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "message"))
+      CHECK(expression->resolved_binding_statement == W_SEED_FRONTEND_NONE);
+  }
+
+  fixture *duplicate = &fixture_narrowing;
+  CHECK(fixture_parse(
+      duplicate,
+      "fn main() { let message = \"a\" let message = \"b\" "
+      "print(message) }\nentry(main)\n"));
+  fixture_configure_print_host(duplicate);
+  (void)w_seed_frontend_run(&duplicate->input, &duplicate->output,
+                            &duplicate->result);
+  for (size_t index = 0u; index < duplicate->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &duplicate->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "message"))
+      CHECK(expression->resolved_binding_statement == W_SEED_FRONTEND_NONE);
+  }
+
+  fixture *nested = &fixture_label;
+  CHECK(fixture_parse(
+      nested,
+      "fn main() { let message = \"a\" if true { let message = \"b\" "
+      "print(message) } }\nentry(main)\n"));
+  fixture_configure_print_host(nested);
+  (void)w_seed_frontend_run(&nested->input, &nested->output, &nested->result);
+  for (size_t index = 0u; index < nested->result.written.expressions; index += 1u) {
+    const w_seed_frontend_expression *expression = &nested->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "message"))
+      CHECK(expression->resolved_binding_statement == W_SEED_FRONTEND_NONE);
+  }
+  return true;
+}
+
 static bool test_multidocument_const_ordinals(void) {
   static fixture first;
   static fixture second;
@@ -3893,6 +4036,7 @@ int main(void) {
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
   if (!test_host_scope_and_callee_identity()) return 1;
+  if (!test_local_binding_resolution()) return 1;
   if (!test_multidocument_const_ordinals()) return 1;
   if (!test_multidocument_predicate_owner()) return 1;
   if (!test_resolved_import_edges_and_identity()) return 1;

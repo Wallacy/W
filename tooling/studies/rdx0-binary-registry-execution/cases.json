@@ -1,0 +1,303 @@
+{
+  "$schema": "w-w1518-rdx0-binary-registry-execution-cases-1",
+  "status": "design-oracle-input-1",
+  "machine": "w1518-rdx0-binary-registry-execution-machine-1",
+  "decisions": ["W-1518"],
+  "evidenceBoundary": "design-only; no crypto/server/provider/runner result",
+  "cases": [
+    {
+      "id": "W1518-cbor-dsse-role",
+      "decisions": ["W-1518"],
+      "input": {"kind":"serialization","wOwned":{"payloadEncoding":"deterministic-CBOR","envelope":"DSSE","roleSpecific":true,"payloadBytesExact":true,"objectDigestDomain":"stored-envelope-bytes","dssePayloadDomain":"exact-payload-bytes"},"externalAttestation":{"formats":["in-toto-Statement-v1","SLSA-provenance-v1.2"],"payloadEncoding":"JSON","envelope":"DSSE","convertToCbor":false},"hash":{"algorithm":"sha256","tagged":true}},
+      "expected": {"status":"accepted","facts":{"wOwned":"deterministic-CBOR/DSSE","external":"in-toto/SLSA JSON inside DSSE","objectDigest":"stored-envelope-bytes","payloadDigest":"exact-payload-bytes","hash":"sha256-tagged"}}
+    },
+    {
+      "id": "W1518-json-authority",
+      "decisions": ["W-1518"],
+      "input": {"kind":"serialization","wOwned":{"payloadEncoding":"deterministic-CBOR","envelope":"DSSE","roleSpecific":true,"payloadBytesExact":true,"objectDigestDomain":"stored-envelope-bytes","dssePayloadDomain":"exact-payload-bytes"},"hash":{"algorithm":"sha256","tagged":true},"jsonAuthority":true},
+      "expected": {"status":"rejected","code":"jsonAuthorityForbidden"}
+    },
+    {
+      "id": "W1518-digest-domain-confusion",
+      "decisions": ["W-1518"],
+      "input": {"kind":"serialization","wOwned":{"payloadEncoding":"deterministic-CBOR","envelope":"DSSE","roleSpecific":true,"payloadBytesExact":true,"objectDigestDomain":"exact-payload-bytes","dssePayloadDomain":"exact-payload-bytes"},"hash":{"algorithm":"sha256","tagged":true}},
+      "expected": {"status":"rejected","code":"digestDomainConfusion"}
+    },
+    {
+      "id": "W1518-paths-current",
+      "decisions": ["W-1518"],
+      "input": {"kind":"paths","paths":{"discovery":"/.well-known/w-registry.json","root":"/v1/root/<version>.dsse","timestamp":"/v1/timestamp.dsse","object":"/v1/o/sha256/<hex>","channel":"/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json","search":"/v1/search"},"objectMethods":["GET","HEAD"],"range":"optional","discoveryTrusted":false,"searchAuthority":false},
+      "expected": {"status":"accepted","facts":{"objectMethods":["GET","HEAD"],"range":"optional"}}
+    },
+    {
+      "id": "W1518-old-path-set",
+      "decisions": ["W-1518"],
+      "input": {"kind":"paths","paths":{"discovery":"/.well-known/w-registry.json","root":"/v1/root/<version>.dsse","timestamp":"/v1/timestamp.dsse","object":"/v1/objects/sha256/<hex>","channel":"/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json","search":"/v1/search"},"objectMethods":["GET","HEAD"],"range":"optional"},
+      "expected": {"status":"rejected","code":"pathSetMismatch"}
+    },
+    {
+      "id": "W1518-extra-path",
+      "decisions": ["W-1518"],
+      "input": {"kind":"paths","paths":{"discovery":"/.well-known/w-registry.json","root":"/v1/root/<version>.dsse","timestamp":"/v1/timestamp.dsse","object":"/v1/o/sha256/<hex>","channel":"/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json","search":"/v1/search","legacyRelease":"/v1/releases/<digest>.json"},"objectMethods":["GET","HEAD"],"range":"optional"},
+      "expected": {"status":"rejected","code":"pathSetMismatch"}
+    },
+    {
+      "id": "W1518-root-old-new-threshold",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"mixMatch":false,"freeze":false,"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"accepted","facts":{"trustedGenesis":"out-of-band-complete-payload","rootTransition":"7->8","thresholds":"old+new"}}
+    },
+    {
+      "id": "W1518-root-rollback",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":8,"nextVersion":7,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootRollback"}
+    },
+    {
+      "id": "W1518-root-old-threshold-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":false,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootThresholdMissing"}
+    },
+    {
+      "id": "W1518-root-new-threshold-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":false,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootThresholdMissing"}
+    },
+    {
+      "id": "W1518-root-persistence-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":false,"expiryValid":true},
+      "expected": {"status":"rejected","code":"timestampPersistence"}
+    },
+    {
+      "id": "W1518-root-gap",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":9,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootVersionGap"}
+    },
+    {
+      "id": "W1518-root-version-unsafe",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":9007199254740991,"nextVersion":9007199254740992,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootRollback"}
+    },
+    {
+      "id": "W1518-root-freeze-mixmatch",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"mixMatch":true,"freeze":false,"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"rootMixMatch"}
+    },
+    {
+      "id": "W1518-root-clock-expiry",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":false,"persistedMonotonic":true,"expiryValid":false},
+      "expected": {"status":"rejected","code":"clockUnproven"}
+    },
+    {
+      "id": "W1518-root-expiry",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"clockProven":true,"persistedMonotonic":true,"expiryValid":false},
+      "expected": {"status":"rejected","code":"expiryUnproven"}
+    },
+    {
+      "id": "W1518-root-freeze",
+      "decisions": ["W-1518"],
+      "input": {"kind":"root","genesis":{"outOfBand":true,"completePayload":true,"signed":false},"previousVersion":7,"nextVersion":8,"oldThresholdValid":true,"newThresholdValid":true,"roles":["root","targets","snapshot","timestamp"],"mixMatch":false,"freeze":true,"clockProven":true,"persistedMonotonic":true,"expiryValid":true},
+      "expected": {"status":"rejected","code":"timestampFreeze"}
+    },
+    {
+      "id": "W1518-sha256-only",
+      "decisions": ["W-1518"],
+      "input": {"kind":"serialization","wOwned":{"payloadEncoding":"deterministic-CBOR","envelope":"DSSE","roleSpecific":true,"payloadBytesExact":true,"objectDigestDomain":"stored-envelope-bytes","dssePayloadDomain":"exact-payload-bytes"},"hash":{"algorithm":"sha512","tagged":true}},
+      "expected": {"status":"rejected","code":"sha256TaggedRequired"}
+    },
+    {
+      "id": "W1518-catalog-channel-update",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"searchAuthority":false,"searchInLock":false,"knownIdentityUsesSearch":false,"updateUsesSearch":false,"update":{"schema":"w.channel/1","snapshotDigest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","package":"last-light/restaurant","channel":"stable","targetProfile":"native","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","artifactDigest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","state":"published","revalidatesAuthority":true,"json":true,"noChange204":true,"statusCode":204},"states":{"deprecation":"append-only","yank":"append-only","revocation":"append-only"},"clockProven":true,"expiryProven":true,"appendOnly":true,"rewritesRelease":false,"rewritesAttestation":false},
+      "expected": {"status":"accepted","facts":{"knownIdentity":"not-search-dependent","states":"append-only","update":"json-convenience-revalidated"}}
+    },
+    {
+      "id": "W1518-catalog-known-identity-no-update",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"searchAuthority":false,"searchInLock":false,"knownIdentityUsesSearch":false,"updateUsesSearch":false,"states":{"deprecation":"append-only","yank":"append-only","revocation":"append-only"},"clockProven":true,"expiryProven":true,"appendOnly":true,"rewritesRelease":false,"rewritesAttestation":false},
+      "expected": {"status":"accepted","facts":{"knownIdentity":"not-search-dependent","states":"append-only","update":"none"}}
+    },
+    {
+      "id": "W1518-search-no-authority",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"searchAuthority":true,"appendOnly":true},
+      "expected": {"status":"rejected","code":"convenienceAuthorityForbidden"}
+    },
+    {
+      "id": "W1518-known-identity-search",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"knownIdentityUsesSearch":true,"updateUsesSearch":false},
+      "expected": {"status":"rejected","code":"convenienceAuthorityForbidden"}
+    },
+    {
+      "id": "W1518-update-search",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"knownIdentityUsesSearch":false,"updateUsesSearch":true},
+      "expected": {"status":"rejected","code":"convenienceAuthorityForbidden"}
+    },
+    {
+      "id": "W1518-catalog-clock-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"knownIdentityUsesSearch":false,"updateUsesSearch":false,"update":{"schema":"w.channel/1","snapshotDigest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","package":"last-light/restaurant","channel":"stable","targetProfile":"native","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","artifactDigest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","state":"published","revalidatesAuthority":true,"json":true},"states":{"deprecation":"append-only","yank":"append-only","revocation":"append-only"},"expiryProven":true,"appendOnly":true},
+      "expected": {"status":"rejected","code":"freshnessUnproven"}
+    },
+    {
+      "id": "W1518-state-rewrite",
+      "decisions": ["W-1518"],
+      "input": {"kind":"catalog","packageIndex":{"package":"last-light/restaurant","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","objectPath":"/v1/o/sha256/<hex>"},"knownIdentityUsesSearch":false,"updateUsesSearch":false,"update":{"schema":"w.channel/1","snapshotDigest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","package":"last-light/restaurant","channel":"stable","targetProfile":"native","version":"0.1.0","releaseDigest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","artifactDigest":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc","state":"published","revalidatesAuthority":true,"json":true},"states":{"deprecation":"append-only","yank":"append-only","revocation":"append-only"},"clockProven":true,"expiryProven":true,"appendOnly":false,"rewritesRelease":true,"rewritesAttestation":false},
+      "expected": {"status":"rejected","code":"appendOnlyViolation"}
+    },
+    {
+      "id": "W1518-private-read-scoped",
+      "decisions": ["W-1518"],
+      "input": {"kind":"private-read","scope":{"object":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","package":"last-light/restaurant","audience":"builder","expiry":"2026-09-03T12:00:00Z"},"authority":false,"mirrorAuthority":false,"authForwardedToUnconfiguredOrigin":false,"privacyStatus":404},
+      "expected": {"status":"accepted","facts":{"scope":"object/package/audience/expiry","authority":false,"privacyStatus":404}}
+    },
+    {
+      "id": "W1518-private-mirror-auth",
+      "decisions": ["W-1518"],
+      "input": {"kind":"private-read","scope":{"object":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","package":"last-light/restaurant","audience":"builder","expiry":"2026-09-03T12:00:00Z"},"authority":false,"mirrorAuthority":true,"privacyStatus":403},
+      "expected": {"status":"rejected","code":"capabilityAuthorityForbidden"}
+    },
+    {
+      "id": "W1518-oidc-capability-separated",
+      "decisions": ["W-1518"],
+      "input": {"kind":"publication","oidc":{"claims":["iss","aud","sub","repository","ref","sha","job_workflow_ref"],"jobWorkflowPinned":true,"replayed":false},"publicationCapability":{"oneUse":true,"shortLived":true,"scoped":true,"reused":false},"rolesDistinct":true,"visibilityStates":["publicSource","authorizedReproduction","independentPublicReproduction"],"providerDeletionProof":false},
+      "expected": {"status":"accepted","facts":{"oidc":"validated-pinned-claims","capability":"one-use-short-lived-scoped","authorities":"separate"}}
+    },
+    {
+      "id": "W1518-oidc-replay",
+      "decisions": ["W-1518"],
+      "input": {"kind":"publication","oidc":{"claims":["iss","aud","sub","repository","ref","sha","job_workflow_ref"],"jobWorkflowPinned":true,"replayed":true},"publicationCapability":{"oneUse":true,"shortLived":true,"scoped":true},"rolesDistinct":true,"visibilityStates":["publicSource","authorizedReproduction","independentPublicReproduction"]},
+      "expected": {"status":"rejected","code":"oidcReplay"}
+    },
+    {
+      "id": "W1518-capability-replay",
+      "decisions": ["W-1518"],
+      "input": {"kind":"publication","oidc":{"claims":["iss","aud","sub","repository","ref","sha","job_workflow_ref"],"jobWorkflowPinned":true},"publicationCapability":{"oneUse":true,"shortLived":true,"scoped":true,"reused":true},"rolesDistinct":true,"visibilityStates":["publicSource","authorizedReproduction","independentPublicReproduction"]},
+      "expected": {"status":"rejected","code":"capabilityReplay"}
+    },
+    {
+      "id": "W1518-capsule-target-profile-toolchain",
+      "decisions": ["W-1518"],
+      "input": {"kind":"capsule","format":"w.capsule/1","target":"x86_64-unknown-linux-gnu","profile":"release","toolchain":"llvm-23","contentAddressed":true,"boundedIndex":true,"chunkKinds":["native-object","static-archive","WInterface","WMeta","WAbi","symbols","runtime-requirements"],"privateIR":true,"exactToolchainKey":true,"rawMemoryHash":false,"reuseLink":"exact","futureDylibExe":"future"},
+      "expected": {"status":"accepted","facts":{"format":"w.capsule/1","identity":"x86_64-unknown-linux-gnu/release/llvm-23","reuse":"exact","futureDylibExe":true}}
+    },
+    {
+      "id": "W1518-capsule-private-ir-key",
+      "decisions": ["W-1518"],
+      "input": {"kind":"capsule","format":"w.capsule/1","target":"x86_64-unknown-linux-gnu","profile":"release","toolchain":"llvm-23","contentAddressed":true,"boundedIndex":true,"chunkKinds":["native-object","static-archive","WInterface","WMeta","WAbi","symbols","runtime-requirements"],"privateIR":true,"exactToolchainKey":false,"reuseLink":"exact","futureDylibExe":"future"},
+      "expected": {"status":"rejected","code":"capsuleToolchainKeyRequired"}
+    },
+    {
+      "id": "W1518-evidence-separated-lanes",
+      "decisions": ["W-1518"],
+      "input": {"kind":"evidence","descriptorKeys":["stableId","owner","origin","sourceMap","kind","fixtures","effects","oracle","target","profile","seed","limits","bodyDigest"],"evidenceKeys":["source","release","artifact","plan","analyzer","recipe","toolchain","target","profile","seed","limits","outcome"],"lanes":["unit","compile-fail","property/fuzz","simulation","provider","fault","performance"],"simulationProvesProvider":false,"aggregateSafeBadge":false,"sbomSeparate":true,"runtimeClosureSeparate":true,"reachabilitySeparate":true},
+      "expected": {"status":"accepted","facts":{"simulation":"not-provider-proof","badge":"none"}}
+    },
+    {
+      "id": "W1518-evidence-key-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"evidence","descriptorKeys":["stableId","owner","origin","sourceMap","kind","fixtures","effects","oracle","target","profile","seed","limits","bodyDigest"],"evidenceKeys":["source","release","artifact","plan","analyzer","recipe","toolchain","target","profile","seed","limits"],"lanes":["unit","compile-fail","property/fuzz","simulation","provider","fault","performance"],"simulationProvesProvider":false,"aggregateSafeBadge":false,"sbomSeparate":true,"runtimeClosureSeparate":true,"reachabilitySeparate":true},
+      "expected": {"status":"rejected","code":"evidenceKeyMissing"}
+    },
+    {
+      "id": "W1518-evidence-lane-collapse",
+      "decisions": ["W-1518"],
+      "input": {"kind":"evidence","descriptorKeys":["stableId","owner","origin","sourceMap","kind","fixtures","effects","oracle","target","profile","seed","limits","bodyDigest"],"evidenceKeys":["source","release","artifact","plan","analyzer","recipe","toolchain","target","profile","seed","limits","outcome"],"lanes":["unit","unit","property/fuzz","simulation","provider","fault","performance"],"simulationProvesProvider":false,"aggregateSafeBadge":false,"sbomSeparate":true,"runtimeClosureSeparate":true,"reachabilitySeparate":true},
+      "expected": {"status":"rejected","code":"evidenceLaneCollapse"}
+    },
+    {
+      "id": "W1518-sandbox-child-no-fallback",
+      "decisions": ["W-1518"],
+      "input": {"kind":"sandbox","remoteNative":true,"launch":"child-process","enforcementBeforeLoader":true,"providerReceiptRequired":true,"capabilitiesExplicit":true,"requirementsExplicit":true,"budgetsExplicit":true,"signatureGrantsCapability":false,"fallback":false,"unsupportedFallsBack":false,"seccompOnly":false,"denylist":false,"ldPreload":false,"ptrace":false,"capSysAdmin":false,"sameProcessPlugin":false,"learnModeReceipt":false},
+      "expected": {"status":"accepted","facts":{"launch":"child-process","enforcement":"before-loader","missingReceipt":"unsupported-no-fallback"}}
+    },
+    {
+      "id": "W1518-sandbox-controls-missing",
+      "decisions": ["W-1518"],
+      "input": {"kind":"sandbox","remoteNative":true,"launch":"child-process","enforcementBeforeLoader":true,"providerReceiptRequired":true,"capabilitiesExplicit":false,"requirementsExplicit":true,"budgetsExplicit":true,"signatureGrantsCapability":false},
+      "expected": {"status":"rejected","code":"sandboxAdmissionContract"}
+    },
+    {
+      "id": "W1518-signature-as-capability",
+      "decisions": ["W-1518"],
+      "input": {"kind":"sandbox","remoteNative":true,"launch":"child-process","enforcementBeforeLoader":true,"providerReceiptRequired":true,"capabilitiesExplicit":true,"requirementsExplicit":true,"budgetsExplicit":true,"signatureGrantsCapability":true},
+      "expected": {"status":"rejected","code":"sandboxAdmissionContract"}
+    },
+    {
+      "id": "W1518-sandbox-fallback",
+      "decisions": ["W-1518"],
+      "input": {"kind":"sandbox","remoteNative":true,"launch":"child-process","enforcementBeforeLoader":true,"providerReceiptRequired":true,"capabilitiesExplicit":true,"requirementsExplicit":true,"budgetsExplicit":true,"signatureGrantsCapability":false,"fallback":true},
+      "expected": {"status":"rejected","code":"providerFallbackForbidden"}
+    },
+    {
+      "id": "W1518-remote-cli-admission",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","command":"w run registry:last-light/restaurant@0.1.0 --product last-light-native --entry default --","exactVersion":true,"range":false,"implicitChannel":false,"admissionStages":["trusted-root","freshness-snapshot","package-release-artifact-digest","evidence-policy","sandbox","entrypoint"],"providerReceipt":true,"networkDefault":"denied","launch":"child-process","signatureGrantsCapability":false,"osSigningSeparate":true},
+      "expected": {"status":"accepted","facts":{"version":"exact","network":"denied-by-default"}}
+    },
+    {
+      "id": "W1518-remote-cli-admission-no-entry",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","command":"w run registry:last-light/restaurant@0.1.0 --product last-light-native --","exactVersion":true,"range":false,"implicitChannel":false,"admissionStages":["trusted-root","freshness-snapshot","package-release-artifact-digest","evidence-policy","sandbox","entrypoint"],"providerReceipt":true,"networkDefault":"denied","launch":"child-process","signatureGrantsCapability":false,"osSigningSeparate":true},
+      "expected": {"status":"accepted","facts":{"version":"exact","network":"denied-by-default"}}
+    },
+    {
+      "id": "W1518-remote-cli-range",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","command":"w run registry:last-light/restaurant@^0.1 --product last-light-native --entry default --","exactVersion":false,"range":true,"implicitChannel":false},
+      "expected": {"status":"rejected","code":"exactVersionRequired"}
+    },
+    {
+      "id": "W1518-admission-order",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","command":"w run registry:last-light/restaurant@0.1.0 --product last-light-native --entry default --","exactVersion":true,"range":false,"implicitChannel":false,"admissionStages":["freshness-snapshot","trusted-root","package-release-artifact-digest","evidence-policy","sandbox","entrypoint"],"providerReceipt":true,"networkDefault":"denied","launch":"child-process","signatureGrantsCapability":false,"osSigningSeparate":true},
+      "expected": {"status":"rejected","code":"admissionOrderMismatch"}
+    },
+    {
+      "id": "W1518-run-signature-capability",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","command":"w run registry:last-light/restaurant@0.1.0 --product last-light-native --entry default --","exactVersion":true,"range":false,"implicitChannel":false,"admissionStages":["trusted-root","freshness-snapshot","package-release-artifact-digest","evidence-policy","sandbox","entrypoint"],"providerReceipt":true,"networkDefault":"denied","launch":"child-process","signatureGrantsCapability":true,"osSigningSeparate":true},
+      "expected": {"status":"rejected","code":"runAdmissionIncomplete"}
+    },
+    {
+      "id": "W1518-offline-pinned-reuse",
+      "decisions": ["W-1518"],
+      "input": {"kind":"offline","pinned":true,"artifactVerified":true,"action":"reuse","downloads":false,"updates":false,"defaultPolicy":false,"freshness":"stale"},
+      "expected": {"status":"accepted","facts":{"action":"verified-artifact-reuse","freshness":"stale","network":"none"}}
+    },
+    {
+      "id": "W1518-offline-download",
+      "decisions": ["W-1518"],
+      "input": {"kind":"offline","pinned":true,"artifactVerified":true,"action":"reuse","downloads":true,"updates":false,"defaultPolicy":false,"freshness":"unknown"},
+      "expected": {"status":"rejected","code":"offlineNetworkForbidden"}
+    },
+    {
+      "id": "W1518-entitlement-opaque",
+      "decisions": ["W-1518"],
+      "input": {"kind":"entitlement","scope":{"product":"last-light-native","feature":"pro","audience":"customer","expiry":"2026-10-01T00:00:00Z"},"rawTokenInApp":false,"tokenReturnedToApp":false,"inviolableDrmClaim":false,"policy":"online"},
+      "expected": {"status":"accepted","facts":{"entitlement":"opaque","scope":"product/feature/audience/expiry","policy":"online"}}
+    },
+    {
+      "id": "W1518-entitlement-raw-token",
+      "decisions": ["W-1518"],
+      "input": {"kind":"entitlement","scope":{"product":"last-light-native","feature":"pro","audience":"customer","expiry":"2026-10-01T00:00:00Z"},"rawTokenInApp":true,"tokenReturnedToApp":false,"policy":"online"},
+      "expected": {"status":"rejected","code":"rawEntitlementTokenForbidden"}
+    },
+    {
+      "id": "W1518-design-only-boundary",
+      "decisions": ["W-1518"],
+      "input": {"kind":"run","claim":"provider-conformant"},
+      "expected": {"status":"rejected","code":"implementationClaimForbidden"}
+    }
+  ]
+}

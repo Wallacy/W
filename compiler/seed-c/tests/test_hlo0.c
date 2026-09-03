@@ -94,6 +94,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
+  w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
   w_seed_hir0_host_parameter hir_host_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
@@ -260,6 +261,8 @@ static void setup_hir_output(void) {
       .block_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
+      .bindings = fixture.hir_bindings,
+      .binding_capacity = TEST_HIR_RECORDS,
       .calls = fixture.hir_calls,
       .call_capacity = TEST_HIR_RECORDS,
       .host_parameters = fixture.hir_host_parameters,
@@ -684,6 +687,62 @@ static bool test_hir_record_forgery(void) {
   return true;
 }
 
+static bool test_hlo_binding_chain_all_or_nothing(void) {
+  static const char SOURCE[] =
+      "fn main() { let message = \"Table 42 remains open\" "
+      "print(message) }\nentry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hlo0_input input = hlo_input();
+  CHECK(fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.instruction_count == 2u &&
+        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ);
+
+  const w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
+  const w_seed_hir0_instruction saved_binding_instruction =
+      fixture.hir_instructions[0];
+  const w_seed_hir0_instruction saved_call_instruction =
+      fixture.hir_instructions[1];
+  const w_seed_hir0_value saved_value = fixture.hir_values[0];
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_bindings[0].owner_instruction = 1u;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_bindings[0] = saved_binding;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_bindings[0].type_index = W_SEED_HIR0_TYPE_UNIT;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_bindings[0] = saved_binding;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_bindings[0].is_mutable = true;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_bindings[0] = saved_binding;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_instructions[0].kind = W_SEED_HIR0_INSTRUCTION_CALL;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_instructions[0] = saved_binding_instruction;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_instructions[1].owner_block = W_SEED_HIR0_NONE;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_instructions[1] = saved_call_instruction;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_values[0].binding_index = W_SEED_HIR0_NONE;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_values[0] = saved_value;
+
+  prepare_hlo_output(0xa5u);
+  fixture.hir_values[0].byte_count = 1u;
+  CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
+  fixture.hir_values[0] = saved_value;
+
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_hlo_selection_is_input_driven(void) {
   static const char OTHER_SOURCE[] =
       "fn main() { print(\"north\") }\nentry(main)\n";
@@ -711,11 +770,34 @@ static bool test_hlo_selection_is_input_driven(void) {
   prepare_hlo_output(0x5au);
   CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output, &fixture.hlo_result) ==
         W_SEED_HLO0_OK);
+  const w_seed_hlo0_plan restaurant_literal_plan = fixture.hlo_plan;
+  const size_t restaurant_literal_receipt_bytes =
+      fixture.hlo_result.written.receipt_bytes;
+  uint8_t restaurant_literal_receipt[TEST_HLO_RECEIPT];
+  (void)memcpy(restaurant_literal_receipt, fixture.hlo_receipt,
+               sizeof(restaurant_literal_receipt));
   CHECK(strcmp(fixture.hlo_plan.entry_target, "serve") == 0 &&
         strcmp(fixture.hlo_plan.handler, "serve") == 0 &&
         fixture.hlo_plan.payload_bytes == 21u &&
         memcmp(fixture.hlo_plan.payload, "Table 42 remains open", 21u) == 0 &&
         fixture.hlo_plan.stdout_bytes == 22u &&
+        w_seed_hlo0_verify_plan(&fixture.hlo_plan));
+
+  static const char RESTAURANT_BINDING_SOURCE[] =
+      "fn serve() { let message = \"Table 42 remains open\" "
+      "print(message) }\nentry(serve)\n";
+  CHECK(lower(RESTAURANT_BINDING_SOURCE));
+  CHECK(w_seed_hlo0_measure(&input, &counts, &result) == W_SEED_HLO0_OK &&
+        counts.payload_bytes == 21u);
+  prepare_hlo_output(0x5au);
+  CHECK(w_seed_hlo0_run(&input, &fixture.hlo_output, &fixture.hlo_result) ==
+        W_SEED_HLO0_OK);
+  CHECK(memcmp(&fixture.hlo_plan, &restaurant_literal_plan,
+               sizeof(restaurant_literal_plan)) == 0 &&
+        fixture.hlo_result.written.receipt_bytes ==
+            restaurant_literal_receipt_bytes &&
+        memcmp(fixture.hlo_receipt, restaurant_literal_receipt,
+               restaurant_literal_receipt_bytes) == 0 &&
         w_seed_hlo0_verify_plan(&fixture.hlo_plan));
 
   static const char EMPTY_SOURCE[] =
@@ -777,6 +859,7 @@ int main(void) {
   if (!test_hlo_result_alias_barriers()) return 1;
   if (!test_hir_result_forgery()) return 1;
   if (!test_hir_record_forgery()) return 1;
+  if (!test_hlo_binding_chain_all_or_nothing()) return 1;
   if (!test_hlo_selection_is_input_driven()) return 1;
   if (!test_payload_boundary()) return 1;
   (void)puts("seed HLO0: verified-HIR print-literal plan and adversarial cases passed");

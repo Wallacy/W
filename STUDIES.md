@@ -11,19 +11,18 @@
 
 | Status | Estudos |
 |---|---:|
-| `complete-design-study` | 8 |
+| `complete-design-study` | 10 |
 | `design-oracle-input` | 60 |
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
-| `registered-research-bundle` | 2 |
 | `superseded-by-W-1511` | 1 |
 | **Total** | **74** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
 Use `bun run study:registry` para regenerar as duas projeções e `bun run check:study-registry` para validá-las.
 
-## Status: `complete-design-study` (8)
+## Status: `complete-design-study` (10)
 
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
@@ -32,9 +31,11 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | `LLM0` | Training and inference readiness inventory — `complete-design-study` | [`tooling/studies/llm0-training-inference`](./tooling/studies/llm0-training-inference/) | `—` | `bun run check:llm0` |
 | `MEM0` | Virtual memory and data movement performance contract — `complete-design-study` | [`tooling/studies/mem0-virtual-memory-data-movement`](./tooling/studies/mem0-virtual-memory-data-movement/) | `—` | `bun run check:mem0` |
 | `QOS0` | Domain placement without portable task priority or QoS — `complete-design-study` | [`tooling/studies/qos0-scheduling-boundary`](./tooling/studies/qos0-scheduling-boundary/) | `—` | `bun run check:qos0` |
+| `RDX0` | W-1518 design contract for binary-first registry, signed execution, and provider research — `complete-design-study` | [`tooling/studies/rdx0-binary-registry-execution`](./tooling/studies/rdx0-binary-registry-execution/) | `—` | `bun run check:rdx0` |
 | `SEA0` | Simulated effects, deferred approval, and deterministic test infrastructure — `complete-design-study` | [`tooling/studies/sea0-simulated-effects-approval`](./tooling/studies/sea0-simulated-effects-approval/) | `—` | `bun run check:sea0` |
 | `SVC0` | Directional service streams without implicit channels — `complete-design-study` | [`tooling/studies/svc0-service-stream-directions`](./tooling/studies/svc0-service-stream-directions/) | `—` | `bun run check:svc0` |
 | `TGM0` | Pipeline task map and collect evidence — `complete-design-study` | [`tooling/studies/tgm0-task-group-map-collect`](./tooling/studies/tgm0-task-group-map-collect/) | `—` | `bun run check:tgm0` |
+| `W-1503` | Historical allocation and placement evidence for W-1503; W-1517 design contract — `complete-design-study` | [`tooling/studies/w1503-allocation-placement`](./tooling/studies/w1503-allocation-placement/) | `—` | `bun run check:study-bundles` |
 
 ## Status: `design-oracle-input` (60)
 
@@ -50,7 +51,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | `CYC1` | Explicit cycle lifecycle and conditional liveness — `design-oracle-input` | [`tooling/studies/cyc1-explicit-cycle-lifecycle`](./tooling/studies/cyc1-explicit-cycle-lifecycle/) | `CYC0-G1` | `bun run check:cyc1` |
 | `CYC2` | Close conditional liveness by composition — `design-oracle-input` | [`tooling/studies/cyc2-conditional-liveness`](./tooling/studies/cyc2-conditional-liveness/) | `CYC2-R1` | `bun run check:cyc2` |
 | `DYN1` | Versioned dynamic behavior, generation switching, and bounded export — `design-oracle-input` | [`tooling/studies/dyn1-versioned-behavior`](./tooling/studies/dyn1-versioned-behavior/) | `DYN0-G1` | `bun run check:dyn1` |
-| `FRC0` | Historical snapshot of the three research gates — `design-oracle-input` | [`tooling/studies/final-research-closure`](./tooling/studies/final-research-closure/) | `FZ0-freeze-completeness/freeze-research-close/HUM0-promotion` | `bun run check:frc0` |
+| `FRC0` | Historical snapshot and empty current research residual — `design-oracle-input` | [`tooling/studies/final-research-closure`](./tooling/studies/final-research-closure/) | `FZ0-freeze-completeness/freeze-research-close/HUM0-promotion` | `bun run check:frc0` |
 | `HRD0` | Development-only hot reload around normal W units — `design-oracle-input` | [`tooling/studies/hrd0-hot-reload-dev`](./tooling/studies/hrd0-hot-reload-dev/) | `HRD0-G1` | `bun run check:hrd0` |
 | `IPC1` | Mapped immutable snapshots and bounded process-shared channels — `design-oracle-input` | [`tooling/studies/ipc1-mapped-ipc`](./tooling/studies/ipc1-mapped-ipc/) | `IPC0-R1` | `bun run check:ipc1` |
 | `PFU0` | PFU0 closure evidence for roots, service streams, and properties — `design-oracle-input` | [`tooling/studies/pfu0-pre-freeze-usability`](./tooling/studies/pfu0-pre-freeze-usability/) | `PFU0-pre-freeze-usability` | `bun run check:pfu0` |
@@ -118,13 +119,6 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun run check
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
 | `HUM0` | Human and model review protocol for W ergonomics — `protocol-ready` | [`tooling/studies/hum0-human-review`](./tooling/studies/hum0-human-review/) | `HUM0` | `bun run check:hum0` |
-
-## Status: `registered-research-bundle` (2)
-
-| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
-|---|---|---|---|---|
-| `RDX0` | Binary-first distribution, static-first registry, signed execution, and provider research — `registered-research-bundle` | [`tooling/studies/rdx0-binary-registry-execution`](./tooling/studies/rdx0-binary-registry-execution/) | `—` | `bun run check:rdx0` |
-| `W-1503` | Finite allocation and placement evidence for W-1503 — `registered-research-bundle` | [`tooling/studies/w1503-allocation-placement`](./tooling/studies/w1503-allocation-placement/) | `—` | `bun run check:study-bundles` |
 
 ## Status: `superseded-by-W-1511` (1)
 
