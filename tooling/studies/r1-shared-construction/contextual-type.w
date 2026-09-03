@@ -1,9 +1,9 @@
 // R1 shared-construction study: the written shared declaration is the operation.
 
 struct MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 }
 
 alias MaybeMenuSectionOwner = shared MenuSection?

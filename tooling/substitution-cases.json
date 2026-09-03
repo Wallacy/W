@@ -1265,7 +1265,7 @@
     },
     {
       "id": "R0-call-label-order",
-      "reviewItem": "labels reordenáveis por segmento contra uma âncora positional-only",
+      "reviewItem": "labels globalmente reordenáveis com subsequências positional-only estáveis",
       "decisions": ["W-978", "W-1514"],
       "task": "Construct Money with the same values in either label order and report a collision for a duplicate label set.",
       "selected": {
@@ -2017,14 +2017,11 @@
           "    current = initialValue() % 360_u16",
           "  }",
           "  get {",
+          "    defer { current %= 360_u16 }",
           "    return current",
           "  }",
           "  mut set(newValue) {",
           "    current = newValue % 360_u16",
-          "  }",
-          "  get mut ref {",
-          "    defer { current %= 360_u16 }",
-          "    return mut ref current",
           "  }",
           "}"
         ]
@@ -2049,7 +2046,7 @@
         }
       ],
       "sourceRefs": [
-        { "path": "reference/last-light/orbit.w", "symbol": "export behavior WrappedDegrees", "claim": "Canonical behavior backing, thunk, get/get mut ref/set, defer normalization and observed Attitude rotation witness." },
+        { "path": "reference/last-light/orbit.w", "symbol": "export behavior WrappedDegrees", "claim": "Canonical behavior backing, thunk, single get/set lifecycle, declaration-owned mut-ref mode, defer normalization and observed Attitude rotation witness." },
         { "path": "tooling/tree-sitter-w/test/corpus/module_run.txt", "symbol": "Behavior supports the zero-slot initializer form", "claim": "Zero-slot behavior initializer witness." }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -2417,7 +2414,7 @@
           "name": "ufcs-or-value-receiver-pipe",
           "language": "w-rejected",
           "source": ["value |> receiver.method()", "value |> f(_)"],
-          "expectedDifference": "Pipe-forward resolves a free or static callable path with exactly one required unbound slot; a named hole may occur in any declaration segment, while anchors preserve their boundaries. It does not use a receiver value, UFCS fallback, or placeholder."
+          "expectedDifference": "Pipe-forward resolves a free or static callable path with exactly one required unbound slot; a named hole may occur anywhere in the call, while positional `_` slots retain declaration order. It does not use a receiver value, UFCS fallback, or placeholder."
         },
         {
           "name": "implicit-task-group-or-transaction",

@@ -1301,7 +1301,8 @@ Aceite:
 - rounding policy é parte da operação;
 - overflow não usa binary float;
 - `WrappedDegrees` normaliza a atribuição e a mutação composta no accessor;
-- `WrappedDegrees.get mut ref` retoma seu cleanup depois do borrow, e uma
+- o `get` da property `WrappedDegrees` em modo `mut ref` retoma seu cleanup
+  depois do borrow, e uma
   rotação de `350` graus por `25` graus produz `15`;
 - um behavior aceita somente o thunk `initialValue`, sem configuração runtime;
 - `priceTable` usa lowering isolado no service serial e não cria lock;
@@ -1627,13 +1628,13 @@ Aceite:
 - `PidController.isIdle` usa um getter local, síncrono e sem allocation;
 - `PaymentProof.canServe` não oculta I/O, `throws` ou suspensão;
 - `BrigadeMetrics.completionCount` atende ao property requirement;
-- o corpus estrutural cobre `get`, `get ref`, `get mut ref` e `set`;
-- `get mut ref` devolve um borrow exclusivo escopado com `return mut ref`;
+- o corpus estrutural cobre o `get` único e `set`, com o access mode na property;
+- uma property `mut ref` devolve um borrow exclusivo escopado pelo `get`;
 - `willGet`/`didGet` observam leituras somente quando o behavior opta por esses hooks;
 - uma mutation composta usa value `get` + `set` e observa `willGet`/`didGet` e
   `willSet`/`didSet`;
-- `willSet`/`didSet` observam writeback pela modalidade owned `set`, não pelo acesso
-  direto `get mut ref`;
+- `willSet`/`didSet` observam writeback pela modalidade `inout`/`set`, não pelo
+  acesso direto `mut ref`;
 - uma storage facet mutável chama `didSet` depois do cleanup, sem
   `proposed`/`willSet`;
 - `PropertyAccessKind` é o enum core real `value | borrowed | mutableBorrowed`.
@@ -1729,8 +1730,8 @@ Aceite:
 - `source:`, `duty:`, `during:` selecionam power e duty por labels;
 - `name: Type` exige o label externo homônimo; `external internal: Type` separa
   label externo e nome interno; `_ name: Type` é positional-only;
-- labels podem reordenar dentro do próprio segmento entre âncoras `_`, mas não
-  atravessam uma âncora; permutações do mesmo conjunto de labels colidem;
+- labels podem reordenar na call inteira; argumentos sem label preservam a ordem
+  dos slots `_`, e permutações do mesmo conjunto de labels colidem;
 - o slot contextual `allocator name: ref Allocator` pode aparecer em qualquer
   posição, e a call pode omitir `allocator:` quando o contexto o preenche;
 - `lhs |> call(...)` preenche exatamente um slot obrigatório não contextual ainda
@@ -1829,11 +1830,11 @@ Aceite:
 - o call site não escolhe uma conformance por import ou ranking;
 - a interface registra generic HIR e witness IDs;
 - `name: Type` exige label externo homônimo, `external internal: Type` separa os
-  nomes e `_ name: Type` mantém uma âncora positional-only;
-- labels reordenam somente no segmento entre âncoras; named arguments não dependem
-  da ordem textual da declaração;
-- types e predicates não escolhem binding; `Matrix<rows: 3, f32, columns: 4>`
-  prova o binding por labels dentro dos segmentos sem cruzar o type anchor;
+  nomes e `_ name: Type` mantém um slot positional-only;
+- labels reordenam na aplicação inteira e não consomem as sequências
+  positional-only;
+- types e predicates não escolhem binding; `Matrix<columns: 4, f32, rows: 3>`
+  prova o binding global por labels e o type slot posicional;
 - named values de type heads aparecem por lookup estático e não viram fields;
 - `Matrix<rows: 3, f32, columns: 4>.rows` consulta a contract value associada;
 - monomorphization e shared lowering preservam a mesma semântica.

@@ -67,9 +67,9 @@ export enum NamespaceError: Error & Duplicable {
 }
 
 export struct DirectoryLimits: Copy & Equatable {
-  export maximumEntries: usize<(1...)>
-  export maximumNameUnits: usize<(1...)>
-  export maximumTotalNameUnits: usize<(1...)>
+  export let maximumEntries: usize<(1...)>
+  export let maximumNameUnits: usize<(1...)>
+  export let maximumTotalNameUnits: usize<(1...)>
 
   export init(
     maximumEntries: usize<(1...)> = 4_096,
@@ -199,7 +199,7 @@ foreign intrinsic from "std.fs@1" {
 }
 
 export struct Path: Duplicable {
-  handle: PathHandle
+  let handle: PathHandle
 
   export init(native: ref OsString) throws PathEncodingError {
     self.handle = unsafe { try stdFsPathFromNative(native) }
@@ -232,7 +232,7 @@ export struct Path: Duplicable {
 }
 
 export struct Utf8Path: Duplicable {
-  value: String
+  let value: String
 
   export init(text: String) throws PathEncodingError {
     let validated = unsafe { try stdFsPathFromUtf8(ref text) }
@@ -258,43 +258,43 @@ export struct Utf8Path: Duplicable {
 }
 
 export struct FileMetadata {
-  kindValue: FileKind
-  byteLengthValue: u64?
+  let kindValue: FileKind
+  let byteLengthValue: u64?
 
   init(kind: FileKind, byteLength: u64?) {
     self.kindValue = kind
     self.byteLengthValue = byteLength
   }
 
-  export kind: FileKind {
+  export let kind: FileKind {
     get => kindValue
   }
 
-  export byteLength: u64? {
+  export let byteLength: u64? {
     get => byteLengthValue
   }
 }
 
 export struct DirectoryEntry {
-  nameValue: OsString
-  kindHintValue: FileKind?
+  let nameValue: OsString
+  let kindHintValue: FileKind?
 
   init(name: OsString, kindHint: FileKind?) {
     self.nameValue = take name
     self.kindHintValue = kindHint
   }
 
-  export name: ref OsString {
+  export let name: ref OsString {
     get => ref nameValue
   }
 
-  export kindHint: FileKind? {
+  export let kindHint: FileKind? {
     get => kindHintValue
   }
 }
 
 export struct FileSnapshot: SnapshotByteSource<IoError> {
-  handle: FileSnapshotHandle
+  let handle: FileSnapshotHandle
 
   init(validatedHandle: FileSnapshotHandle) {
     self.handle = validatedHandle
@@ -325,7 +325,7 @@ export struct FileSnapshot: SnapshotByteSource<IoError> {
 }
 
 struct DirectoryStream: Stream<DirectoryEntry, DirectoryError> {
-  handle: DirectoryStreamHandle
+  let handle: DirectoryStreamHandle
 
   init(validatedHandle: DirectoryStreamHandle) {
     self.handle = validatedHandle
@@ -345,7 +345,7 @@ struct DirectoryStream: Stream<DirectoryEntry, DirectoryError> {
 }
 
 struct FileCursor: ByteSource<IoError> {
-  handle: FileCursorHandle
+  let handle: FileCursorHandle
 
   init(validatedHandle: FileCursorHandle) {
     self.handle = validatedHandle
@@ -370,7 +370,7 @@ struct FileCursor: ByteSource<IoError> {
 }
 
 export struct File<_ rights: StaticList<FileRight>> {
-  handle: FileHandle
+  let handle: FileHandle
 
   init(validatedHandle: FileHandle) {
     self.handle = validatedHandle
@@ -440,7 +440,7 @@ export struct File<_ rights: StaticList<FileRight>> {
 }
 
 export struct FileSystem {
-  handle: FileSystemHandle
+  let handle: FileSystemHandle
 
   init(validatedHandle: FileSystemHandle) {
     self.handle = validatedHandle

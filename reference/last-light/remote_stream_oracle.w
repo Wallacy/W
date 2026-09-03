@@ -3,13 +3,13 @@ import iec from std
 // Pure oracle for service stream eligibility, credits, terminals, and routing.
 
 export struct StreamCreditTotals {
-  items: u64
-  bytes: u64
+  let items: u64
+  let bytes: u64
 }
 
 export struct StreamSentTotals {
-  items: u64
-  bytes: u64
+  let items: u64
+  let bytes: u64
 }
 
 export enum StreamCreditDecision {
@@ -154,13 +154,13 @@ export enum StreamAction {
 }
 
 export struct StreamState {
-  phase: StreamPhase
-  deliveredItems: u64
+  let phase: StreamPhase
+  let deliveredItems: u64
 }
 
 export struct StreamStep {
-  state: StreamState
-  action: StreamAction
+  let state: StreamState
+  let action: StreamAction
 }
 
 export const fn advanceStream(

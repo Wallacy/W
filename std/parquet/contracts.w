@@ -70,21 +70,21 @@ export enum LimitKind: Copy & Equatable {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumEncodedBytes: u64<(1...)>
-  maximumDecodedBytes: u64<(1...)>
-  maximumAllocationBytes: u64<(1...)>
-  maximumFooterBytes: u64<(1...)>
-  maximumThriftStringBytes: u64<(1...)>
-  maximumThriftContainers: usize<(1...)>
-  maximumNesting: usize<(1...)>
-  maximumRowGroups: usize<(1...)>
-  maximumColumnChunks: usize<(1...)>
-  maximumPages: usize<(1...)>
-  maximumDictionaries: usize<(1...)>
-  maximumIndexes: usize<(1...)>
-  maximumBloomFilters: usize<(1...)>
-  maximumCompressionRatio: usize<(1...)>
-  maximumKeyBytes: u64<(1...)>
+  let maximumEncodedBytes: u64<(1...)>
+  let maximumDecodedBytes: u64<(1...)>
+  let maximumAllocationBytes: u64<(1...)>
+  let maximumFooterBytes: u64<(1...)>
+  let maximumThriftStringBytes: u64<(1...)>
+  let maximumThriftContainers: usize<(1...)>
+  let maximumNesting: usize<(1...)>
+  let maximumRowGroups: usize<(1...)>
+  let maximumColumnChunks: usize<(1...)>
+  let maximumPages: usize<(1...)>
+  let maximumDictionaries: usize<(1...)>
+  let maximumIndexes: usize<(1...)>
+  let maximumBloomFilters: usize<(1...)>
+  let maximumCompressionRatio: usize<(1...)>
+  let maximumKeyBytes: u64<(1...)>
 
   export static fn standard(): Limits {
     return Limits(
@@ -157,7 +157,7 @@ export enum KeyScope: Copy & Equatable {
 // secret provider.  It is not ambient and has no public forgeable factory;
 // the entry binding never exposes plaintext.
 export struct KeyResolverCapability {
-  handle: ParquetKeyCapability
+  let handle: ParquetKeyCapability
 
   init(validatedHandle: ParquetKeyCapability) {
     self.handle = validatedHandle
@@ -168,7 +168,7 @@ export struct KeyResolverCapability {
 // KeyResolver is an explicit, bounded capability.  It does not expose a
 // plaintext key and cannot be inferred from a path, environment, or profile.
 export struct KeyResolver {
-  handle: ParquetKeyResolverHandle
+  let handle: ParquetKeyResolverHandle
 
   init(validatedHandle: ParquetKeyResolverHandle) {
     self.handle = validatedHandle
@@ -193,15 +193,15 @@ export struct KeyResolver {
 // A provider rejects encryption or a deterministic claim when either digest
 // is absent; no ambient codec or extension is selected.
 export struct WriterPlan {
-  compression: Compression
-  rowGroupBytes: usize<(1...)>
-  pageBytes: usize<(1...)>
-  dictionary: DictionaryPolicy
-  statistics: StatisticsPolicy
-  checksum: ChecksumPolicy
-  encryption: EncryptionPolicy
-  codecDigest: String?
-  providerDigest: String?
+  let compression: Compression
+  let rowGroupBytes: usize<(1...)>
+  let pageBytes: usize<(1...)>
+  let dictionary: DictionaryPolicy
+  let statistics: StatisticsPolicy
+  let checksum: ChecksumPolicy
+  let encryption: EncryptionPolicy
+  let codecDigest: String?
+  let providerDigest: String?
 
   export static fn standard(): WriterPlan {
     return WriterPlan(
@@ -241,12 +241,12 @@ export struct WriterPlan {
 }
 
 export struct DecodeOptions {
-  profile: DecodeProfile
-  binding: data.BindingPolicy
-  mapping: data.MappingPolicy
-  checksum: ChecksumPolicy
-  limits: Limits
-  keyResolver: KeyResolver?
+  let profile: DecodeProfile
+  let binding: data.BindingPolicy
+  let mapping: data.MappingPolicy
+  let checksum: ChecksumPolicy
+  let limits: Limits
+  let keyResolver: KeyResolver?
 
   export static fn standard(): DecodeOptions {
     return DecodeOptions(
@@ -277,10 +277,10 @@ export struct DecodeOptions {
 }
 
 export struct EncodeOptions {
-  profile: EncodeProfile
-  plan: WriterPlan
-  limits: Limits
-  keyResolver: KeyResolver?
+  let profile: EncodeProfile
+  let plan: WriterPlan
+  let limits: Limits
+  let keyResolver: KeyResolver?
 
   export static fn standard(): EncodeOptions {
     return EncodeOptions(

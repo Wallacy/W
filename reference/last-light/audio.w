@@ -24,8 +24,8 @@ export alias DeviceAudioBlock = AudioBlock<
 
 export struct OscillatorState {
   var phase: f32
-  frequency: f32
-  gain: f32<(0.0...1.0)>
+  let frequency: f32
+  let gain: f32<(0.0...1.0)>
 }
 
 export enum AudioRenderError: Error {

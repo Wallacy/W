@@ -9,7 +9,7 @@ import json from std.json
 import net from std.net
 
 struct OraclePayload: json.Codable {
-  message: String
+  let message: String
 }
 
 fn requestConstructorOracle(): http.Request throws http.RequestError {

@@ -49,7 +49,7 @@
       "id": "prc0-bundle",
       "role": "bundle",
       "path": "tooling/studies/prc0-provider-runtime-closure/bundle.json",
-      "digest": "sha256:7c099c872a1af9ac32ec054eaee36dc1c50d712d490a21aec62ff0cf881a1a14"
+      "digest": "sha256:a3ee97f3cbd70f50a57c011e47746f3cc45274d447c5c922ba227fe1356e1937"
     },
     {
       "id": "prc0-study",
@@ -67,31 +67,31 @@
       "id": "prc0-source-ref-sr0",
       "role": "source-ref-sr0",
       "path": "reference/last-light/supervision.w",
-      "digest": "sha256:12c594dcb3e75fd8228579434674c006421ce21339178680ad25328b6fe8bb3e"
+      "digest": "sha256:bbe5725cb07455a8c4d9aea8994149e108c36c64983ffdd614b1ebec93e717f1"
     },
     {
       "id": "prc0-source-ref-sr0-oracle",
       "role": "source-ref-sr0-oracle",
       "path": "reference/last-light/service_recovery_oracle.w",
-      "digest": "sha256:3f9409e7c9f8a806c79184acb3e6a258137fabbc33729e58a096d662aa2c9eae"
+      "digest": "sha256:9b6debfbffec41dbc3e4fd8cd994b07ac8fa0f65748da21d0149938566378036"
     },
     {
       "id": "prc0-source-ref-ru0",
       "role": "source-ref-ru0",
       "path": "reference/last-light/horizon_tool.w",
-      "digest": "sha256:da255c1def2f1062bd76a7001710c5b799f09538615e50ec501d8fc689b168ac"
+      "digest": "sha256:9772dde9ff3fc0123048e3ca771c490bd5ac428dbdd5044a1da869e1d27d874e"
     },
     {
       "id": "prc0-source-ref-pyn3",
       "role": "source-ref-pyn3",
       "path": "reference/last-light/pyn3_oracle.w",
-      "digest": "sha256:f8dd197de5b401e4552b929b7ae38351f8d780eb4d14ba7b4c0937ca38ec6a9e"
+      "digest": "sha256:f2750d8aeb3c167735e76755ebc5009a4846afb3970b6abda5d7e279390bb424"
     },
     {
       "id": "prc0-source-ref-pyn4",
       "role": "source-ref-pyn4",
       "path": "reference/last-light/tensor_interop.w",
-      "digest": "sha256:2c624e1a5140b13bd49922a026b5ccd0418bc34dc7235cbb5627c464f58d6ca5"
+      "digest": "sha256:8f512e029d963728fdf8e5f3ec000a64d2443afe1069f18fb5cfa26397f86ff1"
     },
     {
       "id": "prc0-source-ref-lz0",
@@ -103,7 +103,7 @@
       "id": "prc0-source-ref-asc0",
       "role": "source-ref-asc0",
       "path": "reference/last-light/allocator_oracle.w",
-      "digest": "sha256:0b02181e81dca1e597cde95c8775f0ff1aec7512ce0853d7371497682d05b90a"
+      "digest": "sha256:af56cbf20b253a740fe0d98d1d73e47c2824acf02b468f936b3f35ad8d1ab8d2"
     },
     {
       "id": "prc0-source-ref-si",
@@ -187,7 +187,7 @@
       "id": "prc0-reused-r1-units-bundle",
       "role": "reused-r1-units-bundle",
       "path": "tooling/studies/r1-units/bundle.json",
-      "digest": "sha256:fd53d432c870bb58a2ec67dd027b3a0c9dfa96a5f3404113ab65e90705cd3dbf"
+      "digest": "sha256:5ca0e60ab8264c02bdee5cec24a8e9514c9856f5a9b4912b50b4385d46f4a37d"
     },
     {
       "id": "prc0-reused-r1-units-oracle",

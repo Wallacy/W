@@ -9,8 +9,8 @@ export protocol Consumable {
 }
 
 export struct MenuSnapshot: Inspectable {
-  revision: u64
-  courses: Array<String>
+  let revision: u64
+  let courses: Array<String>
 
   fn inspectionCode(): u64 {
     return revision
@@ -18,7 +18,7 @@ export struct MenuSnapshot: Inspectable {
 }
 
 export struct TemperatureBatch: Consumable {
-  samples: Array<f64>
+  let samples: Array<f64>
 
   take fn finish(): u64 {
     return u64(samples.count)

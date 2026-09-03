@@ -10,19 +10,19 @@
   ],
   "sourceBase": {
     "path": "../../../reference/last-light/kitchen.w",
-    "symbol": "export isIdle",
-    "digest": "sha256:dda875507156dce9cde357bb322781040ddeee5ce098c508ea94445ea2dca002"
+    "symbol": "export let isIdle",
+    "digest": "sha256:f418de9403a32bc79f46de665c16c5d5aac9f1a72d52fc4d0df320e2f958e54e"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/hardware.w",
       "symbol": "unsafe fn<C> legacyProbeStatus",
-      "digest": "sha256:08ef069efd791b4a6fdfc9c92413d7f45496d5284bbafa122e6494afd38d4918"
+      "digest": "sha256:753053f0c6af4f3232a02c8db4f3c3fe4ee5c9f27b263cdafeb68f661f4ff658"
     },
     {
       "path": "../../../reference/last-light/callables.w",
       "symbol": "let concrete = <[copy entryGate]>",
-      "digest": "sha256:00357e941c038cdebdebfbf12f12a0e327f6899765946b81c77680b4c0b7a154"
+      "digest": "sha256:299fc28e2593a8cbcb5231f94636b25967a317fb3ef226e368c5c3468fc96200"
     }
   ],
   "variants": [
@@ -31,7 +31,7 @@
       "role": "selected",
       "language": "w",
       "path": "property-safe-closure-island.w",
-      "digest": "sha256:7e1ea0188c5c20473a81daef13f68b3f1a409b2df7d7f06e0d87914b5785157e",
+      "digest": "sha256:8b2acb10ded38717147dfcc5015515496c28334d1afa6fff24e77a4c47167e4a",
       "changedConstructs": [
         "effect-free computed property",
         "fn<C> inline language island",
@@ -47,7 +47,7 @@
       "role": "alternative",
       "language": "w",
       "path": "mandatory-method-equivalent.w",
-      "digest": "sha256:ec713c2a1dc0b7b74baf4bab737862dfbffd59428830bb7e9b2a3368e5a0f61d",
+      "digest": "sha256:b980ec85311f45d7426f89a8fe00d271259d44df8565b1f2f1990d4862ad6544",
       "changedConstructs": [
         "mandatory method equivalent for property projection"
       ],

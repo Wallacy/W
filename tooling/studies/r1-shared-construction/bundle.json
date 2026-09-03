@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "makeMenuRoot",
-    "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+    "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "alternative",
       "language": "w",
       "path": "explicit-share.w",
-      "digest": "sha256:d068c94ddd5568d095e8dd78981774b6621dc66f372a6cd4e48b476e19bfa87d",
+      "digest": "sha256:3c3095452107e4363ce57afec1bc3a53b917e9242c1650d3b7e1ecff55c3ea2a",
       "changedConstructs": [
         "retired share expression allocation",
         "retired custom allocator call",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "distinct-try-share.w",
-      "digest": "sha256:2dc7f64bca6c58fde3add17ee04267f582d441711cb52d7c31f235f761fd6b78",
+      "digest": "sha256:de00ca5203a758a4b85e94d10189f93e27e5181eddf5fbc6317574218eecd9d1",
       "changedConstructs": [
         "retired tryShare verb",
         "allocator in rejected recoverable path",
@@ -41,7 +41,7 @@
       "role": "selected",
       "language": "w",
       "path": "contextual-type.w",
-      "digest": "sha256:aadc7a84bfa83e33ade54ed5b9a09eaf7ff3f48b4a13a7a7a0b4b2208fff7dd3",
+      "digest": "sha256:feafc073a3a366a58e501e1af4077fa132e738578f86b19782fec973bf51019f",
       "changedConstructs": [
         "written shared declaration",
         "binding-only allocation",

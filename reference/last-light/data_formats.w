@@ -27,20 +27,20 @@ import arrow from std.arrow
 // encodeIpcStream encodeIpcFile importCArray importCArrayDynamic importCStream
 
 export struct TabularTelemetryRow: data.Row {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
+  let sequence: u64
+  let hawkingFlux: f64
+  let warning: String?
 }
 
 export struct TabularOutcome {
-  rows: u64
-  schemaIdentity: data.SchemaIdentity
-  warningViewLength: u64
-  warningWasNull: Bool
-  warningCopy: String?
-  bytesCommitted: u64
-  completeRecords: u64
-  partialRecord: Bool
+  let rows: u64
+  let schemaIdentity: data.SchemaIdentity
+  let warningViewLength: u64
+  let warningWasNull: Bool
+  let warningCopy: String?
+  let bytesCommitted: u64
+  let completeRecords: u64
+  let partialRecord: Bool
 }
 
 // Schema is generated and validated from the Row declaration.  No field

@@ -8,8 +8,8 @@
 import time from std
 
 export struct ObservationWindow {
-  export elapsed: time.Duration
-  export deadlineReached: Bool
+  export let elapsed: time.Duration
+  export let deadlineReached: Bool
 }
 
 export fn openObservationWindow(

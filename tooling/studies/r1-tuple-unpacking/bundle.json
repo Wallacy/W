@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/packages/menu-compiler/compiler.w",
     "symbol": "word()",
-    "digest": "sha256:c5d21e0d8a372b3777d0095a31905b3dda5b5c02ab57cfd84bfb715828f0cced"
+    "digest": "sha256:bd52d313bd2b84f187237cf87613f3fb86e7b53569638d62347b612eb454f879"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "binding.w",
-      "digest": "sha256:b0921a45d9775a850c9676c5e04c4887a60e1733d6d1986a6fe8cfef6a3c7530",
+      "digest": "sha256:636e41eb0e2b0fa45f6c786539cba1e0f5921400a8c9216375e4c4bd459b1183",
       "changedConstructs": [
         "fixed tuple binding",
         "single word call"
@@ -28,7 +28,7 @@
       "role": "alternative",
       "language": "w",
       "path": "projections.w",
-      "digest": "sha256:d5ce2b22fc41db85d0ee69b23f5b766123f0c7e73b459b42980eb335c80e5859",
+      "digest": "sha256:da42ea2d5be80fcf588736e3eb879336571f5bee1aa662cfc426972c96b07b3b",
       "changedConstructs": [
         "tuple projections .0/.1",
         "copy for move-only component",

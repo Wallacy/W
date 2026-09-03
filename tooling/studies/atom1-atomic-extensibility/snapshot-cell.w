@@ -5,12 +5,12 @@ module atom1_snapshot_cell
 import { SnapshotCell } from std.sync
 
 export struct MenuSnapshot: Duplicable {
-  revision: u64
-  courses: Array<String>
+  let revision: u64
+  let courses: Array<String>
 }
 
 export object MenuPublication {
-  snapshots: SnapshotCell<MenuSnapshot>
+  let snapshots: SnapshotCell<MenuSnapshot>
 
   export init(_ initial: take MenuSnapshot) {
     self.snapshots = SnapshotCell(take initial)

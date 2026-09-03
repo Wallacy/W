@@ -5,8 +5,8 @@ enum Currency {
 }
 
 struct Money {
-  minorUnits: i64
-  currency: Currency
+  let minorUnits: i64
+  let currency: Currency
 
   init(currency: Currency, majorUnits value: i64) {
     self.minorUnits = value * 100

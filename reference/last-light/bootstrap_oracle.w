@@ -73,13 +73,13 @@ const fn belongsToW0(capability: BootstrapCapability): Bool {
 }
 
 struct BootstrapComparison {
-  inputsComplete: Bool
-  sourceSame: Bool
-  interfaceSame: Bool
-  hirSame: Bool
-  diagnosticsSame: Bool
-  payloadSame: Bool
-  targetMetadataOnly: Bool
+  let inputsComplete: Bool
+  let sourceSame: Bool
+  let interfaceSame: Bool
+  let hirSame: Bool
+  let diagnosticsSame: Bool
+  let payloadSame: Bool
+  let targetMetadataOnly: Bool
 }
 
 enum BootstrapVerdict {

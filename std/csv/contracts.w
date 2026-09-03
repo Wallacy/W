@@ -73,8 +73,8 @@ export enum LocationKind: Copy & Equatable {
 }
 
 export struct Location: Copy & Equatable {
-  kind: LocationKind
-  value: u64
+  let kind: LocationKind
+  let value: u64
 
   export const init(kind: LocationKind, value: u64) {
     self.kind = kind
@@ -93,13 +93,13 @@ export enum LimitKind: Copy & Equatable {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumBytes: u64<(1...)>
-  maximumRecords: usize<(1...)>
-  maximumFields: usize<(1...)>
-  maximumFieldBytes: usize<(1...)>
-  maximumAllocationBytes: u64<(1...)>
-  maximumTokenBytes: usize<(1...)>
-  maximumChunks: usize<(1...)>
+  let maximumBytes: u64<(1...)>
+  let maximumRecords: usize<(1...)>
+  let maximumFields: usize<(1...)>
+  let maximumFieldBytes: usize<(1...)>
+  let maximumAllocationBytes: u64<(1...)>
+  let maximumTokenBytes: usize<(1...)>
+  let maximumChunks: usize<(1...)>
 
   export static fn standard(): Limits {
     return Limits(
@@ -146,13 +146,13 @@ export enum ConfigError: Error {
 // Decode and encode dialects are separate.  A reader never receives writer
 // null/formula policy, and a writer never receives reader token policy.
 export struct DecodeDialect {
-  delimiter: u8
-  quote: u8
-  header: HeaderPolicy
-  whitespace: WhitespacePolicy
-  nullDecode: NullDecodePolicy
-  boolTokens: BoolTokenPolicy
-  floatTokens: FloatTokenPolicy
+  let delimiter: u8
+  let quote: u8
+  let header: HeaderPolicy
+  let whitespace: WhitespacePolicy
+  let nullDecode: NullDecodePolicy
+  let boolTokens: BoolTokenPolicy
+  let floatTokens: FloatTokenPolicy
 
   init(validatedDelimiter: u8, validatedQuote: u8, validatedHeader: HeaderPolicy,
     validatedWhitespace: WhitespacePolicy, validatedNullDecode: NullDecodePolicy,
@@ -192,12 +192,12 @@ export struct DecodeDialect {
 }
 
 export struct EncodeDialect {
-  delimiter: u8
-  quote: u8
-  header: HeaderPolicy
-  nullEncode: NullEncodePolicy
-  formula: FormulaPolicy
-  floatPolicy: WriterFloatPolicy
+  let delimiter: u8
+  let quote: u8
+  let header: HeaderPolicy
+  let nullEncode: NullEncodePolicy
+  let formula: FormulaPolicy
+  let floatPolicy: WriterFloatPolicy
 
   init(validatedDelimiter: u8, validatedQuote: u8, validatedHeader: HeaderPolicy,
     validatedNullEncode: NullEncodePolicy, validatedFormula: FormulaPolicy,
@@ -256,8 +256,8 @@ foreign intrinsic from "std.csv@1" {
 }
 
 export struct DecodeOptions {
-  profile: Profile
-  limits: Limits
+  let profile: Profile
+  let limits: Limits
 
   export static fn standard(): DecodeOptions {
     return DecodeOptions(limits: Limits.standard(), profile: .portable)
@@ -270,8 +270,8 @@ export struct DecodeOptions {
 }
 
 export struct EncodeOptions {
-  profile: WriterProfile
-  limits: Limits
+  let profile: WriterProfile
+  let limits: Limits
 
   export static fn standard(): EncodeOptions {
     return EncodeOptions(limits: Limits.standard(), profile: .canonical)

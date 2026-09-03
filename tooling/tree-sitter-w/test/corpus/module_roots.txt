@@ -12,7 +12,7 @@ import service {
 } from orbit
 
 export struct Forecast {
-  samples: Tensor<f64>
+  let samples: Tensor<f64>
 }
 
 fn inspect() {}
@@ -66,14 +66,15 @@ entry Diagnostics(inspect)
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))
-          (type_arguments
-            (type_argument
-              (type
-                (type_name
-                  (type_identifier)))))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))))))
   (function_declaration
     (identifier)
     (parameter_list)

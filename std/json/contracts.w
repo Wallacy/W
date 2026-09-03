@@ -31,23 +31,23 @@ const fn smallerSize(left: usize, right: usize): usize {
 }
 
 export struct Limits: Copy & Equatable {
-  storedMaximumBytes: usize<(1...)>
-  storedMaximumDepth: usize<(1...)>
-  storedMaximumValues: usize<(1...)>
-  storedMaximumStringBytes: usize<(1...)>
-  storedMaximumNumberTokenBytes: usize<(1...)>
-  storedMaximumObjectMembers: usize<(1...)>
-  storedMaximumAllocationBytes: usize<(1...)>
+  let storedMaximumBytes: usize<(1...)>
+  let storedMaximumDepth: usize<(1...)>
+  let storedMaximumValues: usize<(1...)>
+  let storedMaximumStringBytes: usize<(1...)>
+  let storedMaximumNumberTokenBytes: usize<(1...)>
+  let storedMaximumObjectMembers: usize<(1...)>
+  let storedMaximumAllocationBytes: usize<(1...)>
 
-  export maximumBytes: usize<(1...)> { get => storedMaximumBytes }
-  export maximumDepth: usize<(1...)> { get => storedMaximumDepth }
-  export maximumValues: usize<(1...)> { get => storedMaximumValues }
-  export maximumStringBytes: usize<(1...)> { get => storedMaximumStringBytes }
-  export maximumNumberTokenBytes: usize<(1...)> {
+  export let maximumBytes: usize<(1...)> { get => storedMaximumBytes }
+  export let maximumDepth: usize<(1...)> { get => storedMaximumDepth }
+  export let maximumValues: usize<(1...)> { get => storedMaximumValues }
+  export let maximumStringBytes: usize<(1...)> { get => storedMaximumStringBytes }
+  export let maximumNumberTokenBytes: usize<(1...)> {
     get => storedMaximumNumberTokenBytes
   }
-  export maximumObjectMembers: usize<(1...)> { get => storedMaximumObjectMembers }
-  export maximumAllocationBytes: usize<(1...)> {
+  export let maximumObjectMembers: usize<(1...)> { get => storedMaximumObjectMembers }
+  export let maximumAllocationBytes: usize<(1...)> {
     get => storedMaximumAllocationBytes
   }
 
@@ -87,13 +87,13 @@ export enum EncodeError: Error {
 }
 
 export struct Location: Copy & Equatable {
-  storedByteOffset: usize
+  let storedByteOffset: usize
 
   export const init(byteOffset: usize) {
     self.storedByteOffset = byteOffset
   }
 
-  export byteOffset: usize { get => storedByteOffset }
+  export let byteOffset: usize { get => storedByteOffset }
 }
 
 export enum SyntaxKind: Copy & Equatable {
@@ -151,7 +151,7 @@ export enum DecodeError: Error {
 // Number is nominal and invariant-preserving. Construction validates and
 // normalizes a bounded RFC token; callers cannot fabricate an unchecked case.
 export struct Number: Duplicable & Equatable {
-  token: String
+  let token: String
 
   export init(token: String, limits: Limits) throws ValueError {
     self.token = unsafe {
@@ -195,19 +195,19 @@ export struct Number: Duplicable & Equatable {
 }
 
 export struct ObjectEntry: Duplicable & Equatable {
-  storedName: String
-  storedValue: Value
+  let storedName: String
+  let storedValue: Value
 
   export init(name: String, value: take Value) {
     self.storedName = take name
     self.storedValue = take value
   }
 
-  export name: view String {
+  export let name: view String {
     get => storedName
   }
 
-  export value: ref Value {
+  export let value: ref Value {
     get => storedValue
   }
 
@@ -223,7 +223,7 @@ export struct ObjectEntry: Duplicable & Equatable {
 // Object preserves source/insertion order for iteration and re-encoding. Its
 // equality is map-like: member order does not affect the result.
 export struct Object: Duplicable & Equatable {
-  entries: Array<ObjectEntry>
+  let entries: Array<ObjectEntry>
 
   export init(
     entries: take Array<ObjectEntry>,
@@ -254,7 +254,7 @@ export struct Object: Duplicable & Equatable {
     return Object(validatedEntries: take copied)
   }
 
-  export count: usize {
+  export let count: usize {
     get => entries.count
   }
 
@@ -448,7 +448,7 @@ foreign intrinsic from "std.json@1" {
 }
 
 export struct Writer {
-  handle: JsonWriterHandle
+  let handle: JsonWriterHandle
 
   init(limits: ref Limits, profile: Profile) throws EncodeError {
     self.handle = unsafe {
@@ -510,7 +510,7 @@ export struct Writer {
 }
 
 export struct ObjectWriter {
-  handle: JsonObjectWriterHandle
+  let handle: JsonObjectWriterHandle
 
   init(validatedHandle: JsonObjectWriterHandle) {
     self.handle = validatedHandle
@@ -543,7 +543,7 @@ export struct ObjectWriter {
 }
 
 export struct ArrayWriter {
-  handle: JsonArrayWriterHandle
+  let handle: JsonArrayWriterHandle
 
   init(validatedHandle: JsonArrayWriterHandle) {
     self.handle = validatedHandle
@@ -569,7 +569,7 @@ export struct ArrayWriter {
 }
 
 export struct Reader {
-  handle: JsonReaderHandle
+  let handle: JsonReaderHandle
 
   init(
     bytes: ref Bytes,
@@ -647,7 +647,7 @@ export struct Reader {
 }
 
 export struct ObjectReader {
-  handle: JsonObjectReaderHandle
+  let handle: JsonObjectReaderHandle
 
   init(validatedHandle: JsonObjectReaderHandle) {
     self.handle = validatedHandle
@@ -679,7 +679,7 @@ export struct ObjectReader {
 }
 
 export struct ArrayReader {
-  handle: JsonArrayReaderHandle
+  let handle: JsonArrayReaderHandle
 
   init(validatedHandle: JsonArrayReaderHandle) {
     self.handle = validatedHandle

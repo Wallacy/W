@@ -13,7 +13,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/callables.w",
     "symbol": "ticketSequence",
-    "digest": "sha256:00357e941c038cdebdebfbf12f12a0e327f6899765946b81c77680b4c0b7a154"
+    "digest": "sha256:299fc28e2593a8cbcb5231f94636b25967a317fb3ef226e368c5c3468fc96200"
   },
   "variants": [
     {
@@ -21,7 +21,7 @@
       "role": "selected",
       "language": "w",
       "path": "separated.w",
-      "digest": "sha256:7ff472de6063169239e41101fc80ee87bf025203d14fa76cd2539b1f2ab5b77d",
+      "digest": "sha256:6238fd06a42b77294db22d7e08da419b76a4a84ccaf1313a229d6ec074f47243",
       "changedConstructs": [
         "fn, some fn, and any fn expose representation",
         "fn, mut fn, and take fn expose environment access",
@@ -35,7 +35,7 @@
       "role": "alternative",
       "language": "w-rejected",
       "path": "unified.w",
-      "digest": "sha256:d0f851e023b80b93b5941b4680c6cdf1cbad573b6a4ae5e806e68031660e4581",
+      "digest": "sha256:e7cbabb56b42af70ecd8de89c29e1035884a51cb4716c971d4f8e9210782af97",
       "changedConstructs": [
         "one fn spelling accepts thin and capturing callables",
         "mutation and consumption are absent from the callable type",
@@ -47,7 +47,7 @@
       "role": "alternative",
       "language": "w-alternative",
       "path": "protocols.w",
-      "digest": "sha256:217177da2d30cff6c62ffd15fc6f0552645da0b54c2f8bc186ccf744a496b1c3",
+      "digest": "sha256:751e2f3df937d72edd130bea89faefeb3cc291a768423cb122584ede66665b12",
       "changedConstructs": [
         "Callable, MutableCallable, and ConsumingCallable are nominal protocols",
         "call uses a protocol method and nominal conformance",

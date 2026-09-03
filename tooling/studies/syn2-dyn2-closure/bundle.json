@@ -23,12 +23,12 @@
     {
       "path": "../../../reference/last-light/repl_session_oracle.w",
       "symbol": "GenerationReceipt",
-      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666"
+      "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b"
     },
     {
       "path": "../../../reference/last-light/hot_reload_dev_contract.w",
       "symbol": "ReloadResult",
-      "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e"
+      "digest": "sha256:2ffb021551f8e44f1428af885a4e232776a0a47e1a85f3678eb0d42f04bdb4e5"
     },
     {
       "path": "../../../reference/last-light/abi.w",
@@ -38,7 +38,7 @@
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "watchClosingBell",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
     },
     {
       "path": "../../../reference/last-light/build.w",

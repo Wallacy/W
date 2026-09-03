@@ -9,7 +9,7 @@
 > Este documento não cria uma autoridade nova.
 > Não edite este arquivo. Use `bun tooling/diagnostic-catalog.mjs --write`.
 
-- Catalog digest: `sha256:a925b7c9fdb71c30a02ca45f56ff6e5cdcc9961601933c94f2264cb7176797f2`
+- Catalog digest: `sha256:2bca6e8162b393d981ba6cded6e3d40f558c705f5ab5ab31c9362bab10d565a7`
 - Entries: `331`
 - Families: `51`
 - Design references: `237` exact, `94` family
@@ -3508,7 +3508,7 @@ Cada entrada mantém os nomes do JSON para facilitar a busca cruzada.
 - `state`: `active`
 - `phase`: `semantic.ownership`
 - `severity`: `error`
-- `meaning`: a Lazy assignment or get mut ref access lacks exclusive authority
+- `meaning`: a Lazy assignment or mut ref property access lacks exclusive authority
 
 - `requiredFacts`:
   - `actualAuthority`: `string`

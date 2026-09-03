@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:3cba70e4fd02a01adaa1c66dd6a754be6c4d49f25d5620a30327a596bd21cce3",
-    "publicRuleSetDigest": "sha256:ed1c71d9f5ad6031d91f3cbbb92b78492711e366320c8c12a5bffd09d980188b"
+    "digest": "sha256:d697ca80b5be2513513ccb120b7aec9668fa98e13575a0a3caf4849741ebe3fd",
+    "publicRuleSetDigest": "sha256:866b57f39e89574d586890e57cf43d352de650e89607cb4417c3c5ee9b6c9621"
   },
   "sourceFiles": [
     "build.w",
@@ -769,22 +769,6 @@
       ]
     },
     {
-      "name": "get_mut_ref_accessor",
-      "surface": "composed",
-      "reason": "Composed by the data-declarations atlas block.",
-      "markers": [
-        "data-declarations"
-      ]
-    },
-    {
-      "name": "get_ref_accessor",
-      "surface": "composed",
-      "reason": "Composed by the data-declarations atlas block.",
-      "markers": [
-        "data-declarations"
-      ]
-    },
-    {
       "name": "guard_statement",
       "surface": "direct",
       "reason": "Direct source construction shown in the control-flow atlas block.",
@@ -1284,6 +1268,14 @@
     },
     {
       "name": "property_requirement_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "property_type",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -2154,20 +2146,52 @@
       "witness": "set(value)"
     },
     {
-      "id": "property-get-ref",
+      "id": "property-let-value",
       "block": "data-declarations",
-      "construction": "property borrowed get accessor",
+      "construction": "immutable value property",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "get ref => label"
+      "witness": "let summary: String"
     },
     {
-      "id": "property-get-mut-ref",
+      "id": "property-let-ref",
       "block": "data-declarations",
-      "construction": "property mutable borrowed get accessor",
+      "construction": "immutable borrowed property",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "get mut ref { return mut ref label }"
+      "witness": "let labelView: ref String"
+    },
+    {
+      "id": "property-var-value",
+      "block": "data-declarations",
+      "construction": "mutable value property",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "var replaceable: String"
+    },
+    {
+      "id": "property-var-ref",
+      "block": "data-declarations",
+      "construction": "replaceable borrowed property",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "var replaceableView: ref String"
+    },
+    {
+      "id": "property-var-mut-ref",
+      "block": "data-declarations",
+      "construction": "exclusive borrowed property",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "var title: mut ref String"
+    },
+    {
+      "id": "property-var-inout",
+      "block": "data-declarations",
+      "construction": "copy-in copy-out property",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "var buffered: inout String"
     },
     {
       "id": "pattern-enum",
@@ -2362,14 +2386,13 @@
         "extension_declaration",
         "field_declaration",
         "get_accessor",
-        "get_mut_ref_accessor",
-        "get_ref_accessor",
         "initializer_declaration",
         "object_declaration",
         "primary_associated_types",
         "property_accessor_body",
         "property_requirement",
         "property_requirement_accessor",
+        "property_type",
         "protocol_body",
         "protocol_declaration",
         "service_declaration",
@@ -2387,17 +2410,17 @@
         {
           "path": "reference/last-light/domain.w",
           "symbol": "export enum Course",
-          "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
+          "digest": "sha256:7caca1c77bc66e3d98a8f88eee030cb7a64377e54981cb3fc9f9d2378f7710e5"
         }
       ],
-      "snippetDigest": "sha256:fe8b8daec1c1a7f1770f27902d9bacb29938b9d3df59a96b2be3cfe963d9d735",
-      "snippetBytes": 2154
+      "snippetDigest": "sha256:d216dbfeb607c193b696e19360074e574e1d76cf50643adaf8f4fbc29ade66bf",
+      "snippetBytes": 2453
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 165,
+      "line": 181,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2427,17 +2450,17 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export struct Matrix",
-          "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
+          "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
-      "snippetDigest": "sha256:f584bf29c517ed997e4281cf6546a88c663e5889d69ad85ffe4867c0ac25eeb5",
-      "snippetBytes": 678
+      "snippetDigest": "sha256:d4c607874669559808acac467f5fba30002e4328d8599e77353cee47b590b036",
+      "snippetBytes": 682
     },
     {
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 134,
+      "line": 150,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2474,7 +2497,7 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export protocol Source<Item>",
-          "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
+          "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
         }
       ],
       "snippetDigest": "sha256:08f66de8817c89eb677aae5a8f1e7eb4196882aae000e9d5aa4e1f971c1f9c5b",
@@ -2484,7 +2507,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 215,
+      "line": 231,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2517,7 +2540,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 189,
+      "line": 205,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2547,7 +2570,7 @@
         {
           "path": "reference/last-light/enum_contracts.w",
           "symbol": "export enum KitchenOutcome<T>",
-          "digest": "sha256:e2879fc415cba071c97b88f0e09db24f559e578a47d29335b88d4d8286f29b8e"
+          "digest": "sha256:63fbfc03fe38bba0482997188034d0f8b0f07dffa8ab5b9897332927ce3a5221"
         }
       ],
       "snippetDigest": "sha256:4d12b56cc1dbaa7cbe594e975f1e0d66ade220254cf2ed758a2ff7c5d0eaba56",
@@ -2577,7 +2600,7 @@
         {
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
         }
       ],
       "snippetDigest": "sha256:b623a9b023aa1ed974bf7282f449ec04807c38b7bb5a7c24e3c01f834bf52da3",
@@ -2618,7 +2641,7 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
+          "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
         }
       ],
       "snippetDigest": "sha256:219bcaad6ebf9a800ae055ca7b3d6fce567e1c4f30965d9d7ed29061a3bf9e00",
@@ -2660,11 +2683,11 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
+          "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
         }
       ],
-      "snippetDigest": "sha256:fddcfd7d31d89d2fb59bc3de294442a4183c1beeb6ec60cf9ffdfeac31dc64cf",
-      "snippetBytes": 1432
+      "snippetDigest": "sha256:c28062855119f90c1949c11c01d79c1951c17db574eca837be29f7200d614a9f",
+      "snippetBytes": 1436
     },
     {
       "id": "restricted-expressions",
@@ -2706,11 +2729,11 @@
         {
           "path": "reference/last-light/transaction_oracle.w",
           "symbol": "reserveTableAtomically",
-          "digest": "sha256:2886034803e0efacab5135c6a2ae814abf0be7c3a49d42ef861b15b32b08bfb9"
+          "digest": "sha256:b5d5da66b2d0a1552792cb8020542dc526707a6a7b8ed2b1a0392da08e4e23ae"
         }
       ],
-      "snippetDigest": "sha256:8b17c7cc784a086fcbc0d48d7663f4c3f395555a5fb3e10129e0cfa671613f32",
-      "snippetBytes": 1454
+      "snippetDigest": "sha256:303d225d1e9764755453fd59368a548ed63be6617ee1aa8b4c2ae0c7cfd81e29",
+      "snippetBytes": 1458
     },
     {
       "id": "operators",
@@ -2772,7 +2795,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 253,
+      "line": 269,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2892,6 +2915,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:53f8d31d304c81295a1ae6ab36111328f75bb36971b7a05e88dfda6ded8611b2"
+    "coverageDigest": "sha256:ee1f61cc818819842f8072979bc6255aee91962c57d2bf3bb6b5c6dc1a4f45dd"
   }
 }

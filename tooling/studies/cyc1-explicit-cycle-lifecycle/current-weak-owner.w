@@ -3,8 +3,8 @@
 module cyc1_current_weak_owner
 
 export object CycleFixture {
-  parent: weak CycleFixture?
-  children: Array<shared CycleFixture>
+  let parent: weak CycleFixture?
+  let children: Array<shared CycleFixture>
 }
 
 export fn makeCycleFixture(): CycleFixture {

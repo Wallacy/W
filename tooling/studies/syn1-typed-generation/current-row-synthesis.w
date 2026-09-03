@@ -1,8 +1,8 @@
 import data from std
 
 export struct TabularTelemetryRow: data.Row {
-  warning: String?
-  count: u64
+  let warning: String?
+  let count: u64
 }
 
 fn emitRow(row: TabularTelemetryRow): u64 {

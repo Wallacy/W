@@ -1,7 +1,7 @@
 import * from std.memory
 
 object MenuSection {
-  title: String
+  let title: String
 }
 
 // Current baseline. The expected target supplies the weak context.

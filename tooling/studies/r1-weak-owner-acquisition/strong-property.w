@@ -1,7 +1,7 @@
 import * from std.memory
 
 object MenuSection {
-  title: String
+  let title: String
 }
 
 // Retired alternative. The property spelling is rejected before W 1.0.

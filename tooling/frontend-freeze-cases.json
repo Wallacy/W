@@ -69,7 +69,7 @@
       "sourceRef": {
         "path": "reference/last-light/horizon_tool.w",
         "symbol": "print(result)",
-        "digest": "sha256:da255c1def2f1062bd76a7001710c5b799f09538615e50ec501d8fc689b168ac"
+        "digest": "sha256:9772dde9ff3fc0123048e3ca771c490bd5ac428dbdd5044a1da869e1d27d874e"
       },
       "positive": {
         "formatterCase": "F0-module-run-entry",
@@ -123,7 +123,7 @@
     {
       "id": "FZ0-G2-types-and-contracts",
       "family": "G2",
-      "construction": "generic type/value anchors and segmented labels",
+      "construction": "generic type/value anchors, globally reorderable named labels, and ordered positional slots",
       "decisions": [
         "W-1514",
         "W-1286"
@@ -131,7 +131,7 @@
       "sourceRef": {
         "path": "reference/last-light/generics.w",
         "symbol": "struct StaticWindow<",
-        "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
+        "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
       },
       "positive": {
         "formatterCases": [
@@ -167,7 +167,7 @@
       "sourceRef": {
         "path": "reference/last-light/command.w",
         "symbol": "case \"place\": .place",
-        "digest": "sha256:848d3dc3d29dbdb0841161f61e51eae5c3061f2392869fe8593e869d6ed75e12"
+        "digest": "sha256:146154bed623bdd6820c8047c7dc5f863452337cfdd80babd49fd10d89721994"
       },
       "positive": {
         "formatterCase": "F0-enum-subset-switch",
@@ -206,7 +206,7 @@
       "sourceRef": {
         "path": "reference/last-light/execution.w",
         "symbol": "let childTask = async mixJob",
-        "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
+        "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c"
       },
       "positive": {
         "formatterCases": [
@@ -236,7 +236,7 @@
     {
       "id": "FZ0-G5-integration-and-allocator",
       "family": "G5",
-      "construction": "contextual allocator scope, segmented labels, and recovery boundary",
+      "construction": "contextual allocator scope, globally reorderable named labels, and recovery boundary",
       "decisions": [
         "W-1348",
         "W-1350"
@@ -244,7 +244,7 @@
       "sourceRef": {
         "path": "reference/last-light/allocation.w",
         "symbol": "allocator .fixed<capacity: 2<iec.MiB>>",
-        "digest": "sha256:8fb5d1db0a50fa28c0de66ff2145a29a3c0e3295964dc2b63abc1972bff7a6e7"
+        "digest": "sha256:826bdbb9cf5b4551c3ee9484a7556f4d6cbed22482864110c28c06d5aaef3b6a"
       },
       "positive": {
         "formatterCases": [

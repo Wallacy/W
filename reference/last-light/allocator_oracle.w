@@ -61,17 +61,17 @@ export enum ReclamationGate {
 }
 
 export struct AllocationLayout {
-  size: usize
-  alignment: usize
+  let size: usize
+  let alignment: usize
 }
 
 export struct AllocatorProviderProfile {
-  allocationProgress: AllocatorProgress
-  deallocationProgress: AllocatorProgress
-  mobility: AllocatorMobility
-  resize: ResizeCapability
-  maximumBytes: usize
-  maximumAlignment: usize
+  let allocationProgress: AllocatorProgress
+  let deallocationProgress: AllocatorProgress
+  let mobility: AllocatorMobility
+  let resize: ResizeCapability
+  let maximumBytes: usize
+  let maximumAlignment: usize
 }
 
 export const fn isPowerOfTwo(value: usize): Bool {

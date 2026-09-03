@@ -4,9 +4,9 @@
 import data from std
 
 struct HorizonReading: data.Row {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
+  let sequence: u64
+  let hawkingFlux: f64
+  let warning: String?
 }
 
 fn summarizeHorizon(_ batch: data.DynamicBatch): f64? throws data.BindError {

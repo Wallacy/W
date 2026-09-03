@@ -39,9 +39,9 @@ export const fn taskLocalVisibility(
 }
 
 export struct TaskLocalPopFacts {
-  operationSettled: Bool
-  childrenDrained: Bool
-  dependenciesClosed: Bool
+  let operationSettled: Bool
+  let childrenDrained: Bool
+  let dependenciesClosed: Bool
 }
 
 export const fn canPopTaskLocal(facts: TaskLocalPopFacts): Bool {
@@ -61,12 +61,12 @@ export enum ThreadLocalDecision {
 }
 
 export struct ThreadLocalFacts {
-  copyable: Bool
-  hasDrop: Bool
-  nativeTls: Bool
-  operationMaySuspend: Bool
-  dependencyEscapes: Bool
-  fiberEmulation: Bool
+  let copyable: Bool
+  let hasDrop: Bool
+  let nativeTls: Bool
+  let operationMaySuspend: Bool
+  let dependencyEscapes: Bool
+  let fiberEmulation: Bool
 }
 
 export const fn threadLocalDecision(

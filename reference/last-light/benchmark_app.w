@@ -9,31 +9,31 @@ import random from std
 import url from std
 
 export struct BenchmarkMessage: json.Codable {
-  message: String
+  let message: String
 }
 
 export struct World: json.Codable {
-  id: i32
-  randomNumber: i32
+  let id: i32
+  let randomNumber: i32
 }
 
 export struct CachedWorld: json.Codable {
-  id: i32
-  randomNumber: i32
+  let id: i32
+  let randomNumber: i32
 }
 
 export struct Fortune: json.Codable {
-  id: i32
-  message: String
+  let id: i32
+  let message: String
 }
 
 struct WorldKey {
-  id: i32
+  let id: i32
 }
 
 struct WorldUpdate {
-  id: i32
-  randomNumber: i32
+  let id: i32
+  let randomNumber: i32
 }
 
 type WorldRow = (id: i32, randomNumber: i32)

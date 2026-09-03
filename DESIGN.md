@@ -498,15 +498,16 @@ Os contratos estáticos seguem estas regras:
 2. O evaluator aceita somente valores compile-time herméticos.
 3. O formatter preserva a ordem source; a HIR normaliza cada argumento no slot
    declarado.
-4. Type parameters e value parameters positional-only são âncoras. Eles mantêm
-   a ordem e as fronteiras declaradas.
-5. Value parameters com label obrigatório vinculam por label e podem reordenar
-   somente dentro do segmento entre âncoras. Um label não cruza um type ou
-   positional anchor.
-6. Types, predicates e a ordem textual dos argumentos não escolhem binding.
-7. A adição de um slot não reinterpreta source anterior.
-8. `w explain` mostra defaults, inferências e a HIR normalizada.
-9. Nenhum slot concede authority, memory safety ou capability.
+4. Type parameters e value parameters positional-only são slots posicionais.
+   Eles mantêm a ordem declarada.
+5. Value parameters com label obrigatório vinculam por label em qualquer ordem na
+   call inteira. Named arguments não bloqueiam slots posicionais.
+6. Argumentos sem label vinculam aos slots posicionais na ordem declarada,
+   ignorando named, contextual e type arguments.
+7. Types, predicates e a ordem textual dos argumentos não escolhem binding.
+8. A adição de um slot não reinterpreta source anterior.
+9. `w explain` mostra defaults, inferências e a HIR normalizada.
+10. Nenhum slot concede authority, memory safety ou capability.
 
 Nomes de argumentos fazem parte da compatibilidade source. A evidência fica em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
@@ -1140,11 +1141,9 @@ behavior_member = behavior_field_declaration
                  | function_declaration ;
 behavior_field_declaration = "var" identifier ":" type
                              ("=" expression)? ";"? ;
-behavior_facet_property = "export" ("var")? identifier ":" type
+behavior_facet_property = "export" ("let" | "var") identifier ":" property_type
                           "{" behavior_property_accessor+ "}" ;
 behavior_property_accessor = "get" ("=>" expression | block)
-                           | "get" "ref" ("=>" expression | block)
-                           | "get" "mut" "ref" ("=>" expression | block)
                            | "set" parameter_list? block ;
 behavior_hook = "mut"? "willSet" "(" "current" ":" "ref" type "," "proposed" ":" "ref" type ")" block
               | "mut"? "didSet" "(" "current" ":" "ref" type ")" block
@@ -1152,7 +1151,7 @@ behavior_hook = "mut"? "willSet" "(" "current" ":" "ref" type "," "proposed" ":"
 behavior_accessor = behavior_initializer
                   | behavior_get_accessor
                   | behavior_set_accessor ;
-behavior_get_accessor = "get" ("ref" | "mut" "ref")? block ;
+behavior_get_accessor = "get" block ;
 behavior_set_accessor = "mut"? "set" behavior_parameter_list? block ;
 behavior_initializer = "init" behavior_initializer_parameters block ;
 behavior_initializer_parameters = "("
@@ -1479,8 +1478,8 @@ mais amplo. Nenhum desses slots cria storage runtime.
 
 Binding falha fechado: label desconhecido usa `W-CONTRACT-0001`, kind ou domain
 incompatível usa `W-CONTRACT-0002`, slot duplicado usa `W-CONTRACT-0004`, e
-label-policy, cruzamento de âncora, ordem de âncora ou positional que não ocupa
-uma âncora usam `W-GENERIC-0003`. Slot ausente ou inferência aberta usa
+label-policy, ordem de slot positional-only ou argumento positional que não
+ocupa o próximo slot usam `W-GENERIC-0003`. Slot ausente ou inferência aberta usa
 `W-GENERIC-0002`;
 `_ name` é uma âncora positional-only e não fornece label ou default. Uma aplicação com falha mantém,
 quando útil para diagnostics, um record append-only não consumível como
@@ -1525,18 +1524,18 @@ O CST chama o envelope de `generic_parameters` e cada item de
 `label_omission` opcional e o `domain` opcional. Ele não expõe `constraint` ou
 `value_type`; o resolver decide se o item é type parameter ou value parameter.
 
-Um type parameter é uma âncora posicional e não recebe label. Um value parameter
+Um type parameter é um slot posicional e não recebe label. Um value parameter
 sem `_` usa seu nome como label externo e interno, e esse label é obrigatório. A
 forma `external internal: Type` separa explicitamente esses nomes e exige
 `external: value` no call. `label_omission` (`_`) torna o value parameter
-positional-only e cria uma âncora; ele não remove o binding interno nem aceita
-label. Esta é a policy do schema de um generic head. Named values podem reordenar
-somente dentro do segmento entre âncoras; as âncoras conservam a ordem e as
-fronteiras declaradas. Tipos, constraints e predicates não desambiguam binding.
-Type parameters e `_ name: Type` são, portanto, o mesmo tipo de boundary para
-binding; external labels são únicos em todo o head. Calls runtime seguem a
-policy uniforme da seção 7.2.2 e não inferem labels pela posição. O marker não
-indica ordem preferencial ou quantidade:
+positional-only e cria um slot; ele não remove o binding interno nem aceita
+label. Named values podem aparecer em qualquer ordem. Arguments type sem label
+seguem a sequência dos type parameters, e arguments value sem label seguem a
+sequência dos value slots `_`. Named values não alteram nenhuma sequência.
+Tipos, constraints e predicates não desambiguam binding. External labels são
+únicos em todo o head. Calls runtime seguem a policy uniforme da seção 7.2.2 e
+não inferem labels pela posição. O marker não indica ordem preferencial ou
+quantidade:
 
 ```w
 struct Matrix<rows: usize, Element, columns: usize> {}
@@ -1547,9 +1546,10 @@ type ServicePath = StagePath<[.accepted, .preparing, .serving]>
 ```
 
 O parser aceita a estrutura antes de resolver o head. O checker rejeita label
-desconhecido, duplicado, cruzamento de segmento, âncora fora de ordem ou label
-aplicado a type parameter. O checker também rejeita omissão do label required e
-um argumento posicional que não preserve as âncoras declaradas.
+desconhecido, duplicado, label aplicado a type parameter ou argumento posicional
+que não tenha o slot correspondente. O checker também rejeita omissão do label
+required. Um type parameter ou value slot `_` mantém sua ordem própria, mesmo
+quando named values aparecem antes ou depois.
 Binding modifiers e named type arguments não pertencem a esta grammar.
 
 ##### Tuples e arrays fixos
@@ -3312,9 +3312,9 @@ import platform.clock
 ```
 
 Applications de type head e generic em contextos compile-time seguem W-1514:
-type parameters e value parameters positional-only (`_ name: Type`) são âncoras
-na ordem declarada; labels de value parameters podem reordenar somente dentro
-do segmento corrente e não atravessam âncoras. Um tipo ou predicate não escolhe
+type parameters e value parameters positional-only (`_ name: Type`) mantêm suas
+sequências declaradas; labels de value parameters podem aparecer em qualquer
+posição na aplicação e não consomem slots posicionais. Um tipo ou predicate não escolhe
 binding. Essa regra altera somente a aplicação/binding; a especialização finita
 e o ConstIR preservados por W-1286 continuam os mesmos.
 
@@ -4772,37 +4772,30 @@ names, GAT, campo WAbi ou metadata de lifetime no runtime.
 `external internal: T` publica `external:` e mantém `internal` como binding.
 `_ name: T` é positional-only. O marker `_` e o binding são separados por
 whitespace. `_name: T` é um parâmetro labeled comum com label `_name:`.
-External labels precisam ser únicos na declaration inteira; uma âncora não
-torna labels repetidos válidos. Repetição em callable ou generic head produz
-`W-LABEL-0006`, pois âncoras omitíveis não podem tornar lookup ambíguo.
+External labels precisam ser únicos na declaration inteira. Repetição em
+callable ou generic head produz `W-LABEL-0006`.
 
-Named arguments fazem bind por label, sem depender da ordem textual. A assinatura
-é dividida em segmentos pelos parâmetros `_`. Labels podem reordenar somente
-dentro do próprio segmento. Cada âncora fica na posição declarada e todas as
-âncoras preservam sua ordem. Um default omitido não remove a fronteira lógica.
+Named arguments fazem bind por label em qualquer ordem na call inteira. Eles não
+formam regiões e não bloqueiam os slots positional-only. Cada argumento sem
+label vincula ao próximo `_` na ordem declarada, sem contar named, contextual ou
+type arguments. As âncoras preservam essa ordem. Tipos nunca escolhem binding.
 
 ```w
-fn route(_ source: Source, to target: Target, with mode: Mode) {}
-route(source, with: .safe, to: target)
+fn f(a: A, _ x: X, b: B, _ y: Y, c: C) {}
+f(c: c, x, a: a, y, b: b)
 
-fn window(leftStart start: Index, leftEnd end: Index, _ center: Index,
-          rightStart start2: Index, rightEnd end2: Index) {}
-window(leftEnd: end, leftStart: start, center,
-       rightEnd: end2, rightStart: start2)
-
-// error: named argument cannot cross the positional anchor
-window(leftStart: start, rightStart: start2, center,
-       leftEnd: end, rightEnd: end2)
+// error: a call without a positional anchor has no slot for this argument
+fn labeled(a: A) {}
+labeled(a: value, extra)
 ```
 
-A call `window` reordena dois labels em cada segmento sem cruzar `center`. A
-segunda call tenta entrar no segmento posterior antes de fornecer a âncora e é
-rejeitada. O checker seleciona a call shape antes de verificar types. A shape
-usa nome e receiver, o conjunto de labels de cada segmento e a aridade/âncoras
-posicionais. Permutações do mesmo conjunto de labels não criam overloads
-distintos. Duas declarações que diferem somente pela ordem desses labels
-colidem. Types nunca escolhem binding, reordenam positional-only ou desempatam
-um pipe hole.
+A call `f` intercala named e positional-only arguments sem mudar o vínculo de
+`x` e `y`.
+O checker seleciona a call shape antes de verificar types. A shape usa nome e
+receiver, o conjunto global de labels e a aridade de argumentos sem label.
+Permutações do mesmo conjunto de labels não criam overloads distintos. Duas
+declarações que diferem somente pela ordem desses labels colidem. A ordem da
+declaration continua sendo a ordem de signature e ABI.
 
 Receiver ou pipe lhs avalia primeiro. Cada expression explícita avalia uma vez,
 da esquerda para a direita na ordem escrita. O lowering reorganiza os values para
@@ -4824,10 +4817,10 @@ fn decode(frame: ref Bytes, allocator memory: ref Allocator, format: Format): Fr
 decode(frame: ref input, format: .binary) // memory vem do contexto
 ```
 
-`|>` aceita um único slot obrigatório não contextual ainda sem binding no
-template. Zero ou dois ou mais slots faltantes é diagnostic, mesmo quando types
+`|>` aceita um único slot obrigatório não contextual ainda sem binding na call
+inteira. Zero ou dois ou mais slots faltantes é diagnostic, mesmo quando types
 parecem desambiguar. Defaults não são holes. Um named hole pode estar em
-qualquer posição de declaration e segmento:
+qualquer posição da declaration:
 
 ```w
 fn labelRoute(prefix: Prefix, value: Value, suffix: Suffix = .default) {}
@@ -4840,13 +4833,14 @@ fn namedAndAnchor(prefix: Prefix, _ center: Center, suffix: Suffix) {}
 input |> namedAndAnchor(suffix: .right) // error: named hole + anchor hole
 ```
 
-Uma âncora com default ou preenchimento contextual pode ser omitida sem remover
-a fronteira lógica. Assim, uma label de segmento posterior pode saltar somente
-âncoras omitíveis; uma âncora required bloqueia o salto fora de pipe e cria o
-único pipe hole quando esse for o único slot obrigatório faltante. Um positional
-anchor só pode ser o hole quando é o único slot obrigatório faltante e os
-argumentos explícitos preservam suas fronteiras. A pipe avalia lhs uma vez e
-não introduz placeholder ou topic token.
+Uma âncora positional com default pode ser omitida somente no sufixo da
+subsequência de âncoras posicionais. Uma âncora contextual não entra nessa
+subsequência e pode ser omitida em qualquer posição. Omitir defaults preserva a
+ordem lógica dos slots. Argumentos sem label continuam vinculando
+deterministicamente aos `_` em ordem, e named arguments não alteram essa ordem.
+A pipe pode preencher uma âncora required como seu único hole, sem usar tipo para
+escolher outro slot. A pipe avalia lhs uma vez e não introduz placeholder ou
+topic token.
 
 Quando o hole é encontrado, a operação do `lhs` também precisa satisfazer o
 contract do parâmetro: `take value |> consume()` e `mut document |> update()` são
@@ -4856,12 +4850,14 @@ correspondente). O oracle de ergonomia valida a shape e os argumentos
 explícitos; ele ainda não recebe provenance do lhs, portanto sua checagem
 completa de `acceptsPipeCallContract` permanece um gap declarado.
 
-Applications de type head e generic seguem exatamente o mesmo modelo: type
-parameters são âncoras posicionais, `_ name: Type` é uma âncora value
-positional-only, e named value arguments podem reordenar somente dentro do
-segmento entre âncoras. Types, constraints e predicates nunca desambiguam
-binding. A regra preserva a especialização e o ConstIR de W-1286; somente a
-forma de binding da application muda.
+Applications de type head e generic seguem exatamente o mesmo modelo. Type
+parameters são slots posicionais sem label, `_ name: Type` é um slot value
+positional-only, e named value arguments podem aparecer antes ou depois desses
+slots. Argumentos type sem label vinculam à sequência de type parameters.
+Argumentos value sem label vinculam à sequência de `_` value slots. Named value
+arguments não alteram nenhuma sequência. Types, constraints e predicates nunca
+desambiguam binding. A regra preserva a especialização e o ConstIR de W-1286.
+Somente a forma de binding da application muda.
 
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
 `mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
@@ -4987,10 +4983,9 @@ expectedEnergy(telemetry:, during:)
 expectedEnergy(power:, duty:, during:)
 ```
 
-Uma forma de call registra, por segmento, o conjunto de labels externos. `_`
-registra cada argumento posicional e sua âncora. A quantidade de itens em cada
-segmento identifica a aridade daquele segmento. A ordem dos labels dentro de um
-segmento não entra na identidade.
+Uma forma de call registra o conjunto global de labels externos e a aridade dos
+argumentos sem label. `_` registra os slots posicionais e sua ordem declarada.
+A ordem textual dos labels não entra na identidade.
 
 Name lookup primeiro encontra um único owner e seu overload set. Free functions,
 instance methods e static functions pertencem a espaços de lookup distintos.
@@ -5009,11 +5004,11 @@ parâmetros, return type, constraints, receiver mode, `async`, `throws`,
 ownership e conversões não ordenam candidatos. Duas declarações do mesmo owner
 não podem aceitar a mesma forma.
 
-Um parâmetro com default cria formas adicionais, sem remover a fronteira de um
-anchor. Cada forma deve mapear uma única lista de parâmetros. Um argumento
-labeled com default pode ser omitido. A omissão de um default não permite que um
-label atravesse um anchor. O compiler rejeita a declaração se duas omissões
-produzirem a mesma forma.
+Um parâmetro com default cria formas adicionais. Cada forma deve mapear uma
+única lista de parâmetros. Um argumento labeled com default pode ser omitido.
+Um default em slot positional-only só pode ocorrer no sufixo da subsequência de
+slots posicionais. A omissão de um default não muda a ordem dos slots. O
+compiler rejeita a declaração se duas omissões produzirem a mesma forma.
 
 Estas declarações entram em conflito:
 
@@ -5762,8 +5757,8 @@ A assinatura segue estas regras:
 2. um field sem initializer cria um parâmetro obrigatório;
 3. um field com initializer cria um parâmetro que pode ser omitido;
 4. computed properties não criam parâmetros;
-5. argumentos nomeados podem reordenar somente dentro de seu segmento; âncoras
-   posicionais preservam as fronteiras declaradas;
+5. argumentos nomeados podem aparecer em qualquer ordem na call inteira; slots
+   positional-only preservam sua ordem declarada;
 6. expressions explícitas são avaliadas uma vez, da esquerda para a direita na
    ordem lexical da call; depois, defaults omitidos são avaliados na ordem de
    declaração;
@@ -5923,16 +5918,26 @@ Precedentes e alternativas de inicialização ficam no
 
 ### 8.4 Propriedades computadas
 
-Uma computed property precisa declarar seus accessors. Ela continua diferente
-de um stored field:
+Toda property de `struct`, `object`, `enum`, `protocol` ou `behavior` declara
+`let`, `var` ou `const`. A forma bare `name: T` é rejeitada. Enum payload labels,
+tuple labels e parâmetros não são properties e continuam sem esse marker. Um
+member de `foreign c struct` descreve layout ABI estrangeiro, não uma property
+W, e conserva a forma C-like `name: c.type`. Chaves de `build.w` também são
+dados de manifesto, não declarações de property.
+
+`let` declara uma property sem replacement ou acesso mutável. `var` declara uma
+property que pode publicar replacement, borrow exclusivo ou copy-in/copy-out.
+`const` continua compile-time e não recebe accessors runtime. Uma computed
+property precisa declarar seus accessors e continua diferente de um stored
+field:
 
 ```w
 export struct PaymentProof {
-  paymentId: PaymentId
-  amount: Money
-  state: PaymentState
+  let paymentId: PaymentId
+  let amount: Money
+  let state: PaymentState
 
-  export canServe: Bool {
+  export let canServe: Bool {
     get => state == .captured
   }
 }
@@ -5940,39 +5945,49 @@ export struct PaymentProof {
 object Cursor {
   var storedIndex: usize = 0
 
-  var index: usize {
+  var index: inout usize {
     get => storedIndex
     set(value) => storedIndex = value
-    get mut ref {
-      return mut ref storedIndex
-    }
+  }
+
+  let indexView: ref usize {
+    get => storedIndex
+  }
+
+  var indexPlace: mut ref usize {
+    get => storedIndex
   }
 }
 ```
 
-Uma propriedade read-only não recebe `var`. Uma propriedade writable recebe
-`var`, sempre declara `get` e declara `set`, `get mut ref` ou ambos. W não
-possui write-only property.
+O modo fica no type da property. O accessor possui um único nome, `get`:
 
-`let` é um place imutável depois da inicialização: ele não oferece `set`,
-`inout` ou `get mut ref`, salvo quando um tipo declara uma abstração explícita
-de interior mutation. `var` é mutável somente pelas modalidades que a property
-publica. `const` é compile-time e não recebe observers runtime nem mutation por
-borrow.
+| Declaração computed | Receiver de `get` | Resultado/acesso | `set` |
+|---|---|---|---|
+| `let p: T` | `ref self` | value lógico | proibido |
+| `let p: ref T` | `ref self` | borrow read-only | proibido |
+| `var p: T` | `ref self` | value lógico | replacement opcional |
+| `var p: ref T` | `ref self` | borrow read-only | replacement opcional |
+| `var p: mut ref T` | `mut ref self` | borrow exclusivo scoped | replacement opcional |
+| `var p: inout T` | `mut ref self` | value-in/value-out | obrigatório |
 
-Os accessors usam estes receivers:
+`let p: mut ref T`, `let p: inout T`, `let` com `set` e property write-only são
+rejeitados. Uma computed property `var p: T` com `get`/`set` permite leitura e
+replacement, mas não se torna argumento `inout` arbitrário. `var p: inout T`
+publica essa capacidade. Um stored field `var p: T` já é um place real e
+continua elegível para `mut ref` ou `inout` pelas regras normais de ownership;
+o modifier extra é necessário somente quando accessors precisam projetar o
+place.
 
-| Accessor | Receiver | Resultado |
-|---|---|---|
-| `get` | `ref self` | produz o value lógico |
-| `get ref` | `ref self` | produz borrow read-only |
-| `get mut ref` | `mut ref self` | produz borrow exclusivo scoped |
-| `set(value)` | `mut ref self` interno | substitui o valor lógico |
-
-`get => expression`, `get ref`, `get mut ref` e `set(value) => expression` são
-corpos curtos. Um bloco permanece disponível. `return ref place` produz um
-borrow read-only. `return mut ref place` produz um borrow exclusivo. Um
-`get mut ref` pode usar `defer`; o accessor retoma depois que o borrow fecha.
+`get => expression` e `set(value) => expression` são corpos curtos; blocks
+permanecem disponíveis. O expected mode vem da declaration, não de uma variante
+do accessor. Em `ref T`, a expressão de `get` precisa identificar um place que
+possa produzir um borrow read-only. Em `mut ref T`, ela precisa identificar um
+place estável que possa produzir um borrow exclusivo. Em `inout T`, `get` e
+`set` formam a operação reservada de copy-in/copy-out. O source nunca escreve
+`get ref`, `get mut ref`, `return ref` ou `return mut ref`; essas formas são
+rejeitadas. Um getter borrowed pode usar `defer`; o accessor retoma depois que
+o borrow fecha.
 Em um `behavior` body, o prefixo opcional `mut` em `mut set(value)` declara que
 a implementação muta seu backing; a surface de computed property continua
 `set(value)`.
@@ -5982,29 +5997,27 @@ a implementação muta seu backing; a surface de computed property continua
 Uma property armazenada e uma property apoiada por `behavior` possuem
 `storage` e participam de `init` e `drop`. Uma property computada participa
 somente das fases que declara e não recebe `storage` implícito. Quando existe
-storage em construção, sua escrita de inicialização bypassa `get`, `set` e os
-getters borrowed.
+storage em construção, sua escrita de inicialização bypassa `get` e `set`.
 
-Uma atribuição simples chama `set` quando ele existe (ou substitui o storage
-diretamente). Uma operação composta (`+=` e equivalentes) usa value get + set
-quando a property oferece ambos; essa composição executa `willGet`/`didGet` e
-`willSet`/`didSet`. Se a property expõe `get mut ref` sem value get + set, a
-operação composta pode operar no borrow direto e não chama observers de set.
-Binding ou call explicitamente `mut ref` é sempre direct borrow e bypassa
-observers de set.
+Uma atribuição simples chama `set` quando ele existe ou substitui o storage
+diretamente. Uma operação composta (`+=` e equivalentes) em `var p: T` usa value
+get + set como replacement explícito; isso não autoriza uma call `inout`. Em
+`var p: inout T`, a operação usa a reserva value-in/value-out. Em
+`var p: mut ref T`, ela pode operar no borrow direto. Value/inout executam
+`willGet`/`didGet` e `willSet`/`didSet`; direct borrow não chama observers de
+set.
 
-Passar uma property para `inout T` compõe owned/value `get` com `set` e segue a
+Passar uma computed property para `inout T` exige `var p: inout T` e segue a
 sequência observável `willGet`, produção do value, `didGet`, mutation local,
-`willSet`, set/writeback e `didSet`. A composição é rejeitada quando não há
-ambos os accessors necessários. Passar a property como `mut ref T` exige
-`get mut ref`; não chama `willSet` ou `didSet`, embora possa chamar
-`willGet`/`didGet` e outros access observers. Uma property que precisa validar
-cada mutation lógica não deve publicar acesso mut ref direto.
+`willSet`, set/writeback e `didSet`. Passar a property como `mut ref T` exige
+`var p: mut ref T`; não chama `willSet` ou `didSet`, embora possa chamar
+`willGet`/`didGet`. Uma property que precisa validar cada mutation lógica não
+deve publicar acesso mut ref direto.
 
-`return ref place` e `return mut ref place` são pre-borrows: o accessor produz o place antes de
-transferir o controle ao chamador. O `defer` declarado no accessor retoma como
-hook local depois que o borrow termina, antes de o accessor devolver o
-resultado. Ele não observa um valor por uma segunda cópia.
+Para uma property `ref` ou `mut ref`, a expressão final de `get` seleciona o
+place antes de transferir o controle ao caller. O `defer` declarado no getter
+retoma como hook local depois que o borrow termina. Ele não observa o valor por
+uma segunda cópia.
 
 Quando uma substituição explícita realmente ocorre, o valor antigo é consumido
 ou sofre `drop` exatamente uma vez. Um setter que valida ou delega pode não
@@ -6014,14 +6027,13 @@ declarado no tipo de backing; um property behavior não cria `deinit` nem tipo
 de backing oculto. A notificação externa é um método, service ou channel
 nomeado. `willSet`, `didSet` e observers implícitos continuam rejeitados como
 accessors ad hoc. Os hooks de behavior W-1516 são permitidos somente quando o
-behavior é explicitamente aplicado ou composto. Um direct `mut ref` não executa
-`willSet`/`didSet` de set.
+behavior é explicitamente aplicado ou composto.
 
 Não há supressão ou reentrada implícita de observer. Um acesso à mesma property
 dentro de um accessor faz o dispatch normal e pode recursar explicitamente;
 somente o acesso direto ao storage ou ao backing evita esse dispatch. Enquanto
-`get mut ref` mantém o borrow exclusivo, um acesso sobreposto ao mesmo place falha
-na regra de exclusividade.
+uma property `mut ref` mantém o borrow exclusivo, um acesso sobreposto ao mesmo
+place falha na regra de exclusividade.
 
 Accessors são property-safe. O compiler aplica este teto de efeitos:
 
@@ -6038,19 +6050,16 @@ custo no call site.
 
 Um getter de receiver borrowed não move um valor move-only para fora de
 `self`. Ele pode devolver um valor `Copy`, um novo valor owned ou uma view
-permitida pelo borrow checker.
-
-`get mut ref` projeta um place exclusivo sem copiar o value. `inout property`
-compõe um owned/value `get` com `set` e executa writeback. Essa composição exige
-as duas modalidades. `get` não retorna sempre `ref`: seu resultado é o type
-declarado pelo accessor e obedece às opções Copy/owned/view acima.
+permitida pelo borrow checker. Uma property `mut ref T` projeta um place
+exclusivo sem copiar. Uma property `inout T` usa o único `get` com `set` e
+executa writeback. O resultado de `get` é determinado pelo mode da declaration.
 
 Um protocol pode exigir uma propriedade:
 
 ```w
 protocol CompletionMetric {
-  completionCount: u64 { get }
-  var limit: usize { get set get mut ref }
+  let completionCount: u64 { get }
+  var limit: inout usize { get set }
 }
 ```
 
@@ -6059,10 +6068,10 @@ computed properties, mas não storage. Associated state continua ausente:
 compile-time usa `const`, e cálculo associado usa `static fn` ou
 `static const fn`.
 
-Uma declaração não combina behavior e accessors explícitos. O behavior possui
-o storage e gera os accessors. A inicialização do field chama `init` do
-behavior. Ela não chama `set`. Um behavior publica seu contrato adicional de
-custo conforme a seção 10.
+Uma declaration não combina behavior e accessors explícitos. O behavior possui
+o storage e gera o único `get` e, quando aplicável, `set`. A inicialização do
+field chama `init` do behavior; ela não chama `set`. Um behavior publica seu
+contrato adicional de custo conforme a seção 10.
 
 Um behavior definido pelo programa continua sob o teto property-safe. `Lazy`
 é um behavior padrão reconhecido pelo compiler. Ele acrescenta somente os
@@ -7037,9 +7046,9 @@ independentes de `Matrix`. `rows` e `columns` são associated contract values da
 especialização `Matrix<...>`: nunca são propriedades de `Element` nem fields da
 instância.
 
-`_ name: Type` declara um value parameter positional-only e uma âncora. O nome
-interno continua disponível no body, mas a aplicação não pode usar um label para
-esse slot. As âncoras preservam ordem e fronteiras:
+`_ name: Type` declara um value parameter positional-only. O nome interno
+continua disponível no body, mas a aplicação não pode usar um label para esse
+slot. Os argumentos sem label preservam a ordem dessa subsequência:
 
 ```w
 struct StagePath<
@@ -7057,11 +7066,10 @@ struct Window<_ start: usize, _ end: usize, unit: TimeUnit> {
 let window: Window<0, 60, unit: .second>
 ```
 
-Type parameters e value anchors `_ name: Type` dividem a aplicação em segmentos
-na ordem declarada. Value labels podem reordenar somente dentro do segmento
-corrente; eles não cruzam uma âncora. Um head que declarar uma âncora omitível
-pode saltá-la sem remover a fronteira, mas uma âncora required bloqueia o salto.
-External labels continuam únicos em todo o head:
+Type parameters e value slots `_ name: Type` formam sequências posicionais
+independentes na ordem declarada. Value labels podem aparecer em qualquer
+posição na aplicação e não mudam essas sequências. External labels continuam
+únicos em todo o head:
 
 ```w
 struct Tensor<Element, shape: StaticList<usize>> { ... }
@@ -7069,23 +7077,22 @@ struct Tensor<Element, shape: StaticList<usize>> { ... }
 let scores: Tensor<f32, shape: [8, 4]>
 ```
 
-`Matrix<rows: usize, Element, columns: usize>` aceita
-`Matrix<rows: 3, f32, columns: 4>`. A forma
-`Matrix<rows: 3, columns: 4, f32>` cruza o type anchor `Element` e é inválida.
-`ValueHead<rows: 3, 4, columns: 5>` usa `_ count` como value anchor; a forma
-`ValueHead<rows: 3, columns: 5, 4>` cruza essa âncora e é inválida.
-Uma aplicação que cruza uma âncora, omite um label required, aplica label a type
-parameter ou fornece um positional que não ocupa a próxima âncora é inválida.
-Um `_` em type parameter é inválido porque type parameters já são âncoras
+`Matrix<rows: usize, Element, columns: usize>` aceita tanto
+`Matrix<rows: 3, f32, columns: 4>` quanto
+`Matrix<columns: 4, f32, rows: 3>`. `ValueHead<rows: 3, 4, columns: 5>` e
+`ValueHead<columns: 5, 4, rows: 3>` vinculam `4` ao mesmo `_ count`.
+Uma aplicação que omite um label required, aplica label a type parameter ou
+fornece um positional que não ocupa o próximo slot da sua sequência é inválida.
+Um `_` em type parameter é inválido porque type parameters já são slots
 posicionais. Um label externo explícito diferente do nome interno segue a mesma
 policy de normalização e aparece na HIR como `required(external)`.
 
 Cada slot da aplicação é obrigatório; `_` não declara um default. Type slots e
-value anchors positional-only consomem o próximo slot declarado, preservando sua
-ordem. Value slots com label required exigem o label externo exato e podem ser
-reordenados somente dentro do segmento atual; um label não salta uma âncora nem
-cruza sua fronteira. Label desconhecido, duplicado, extra ou aplicado a type
-slot, além de positional que não ocupe a próxima âncora, produz as famílias de
+value slots positional-only consomem o próximo slot da sua própria sequência,
+preservando a ordem declarada. Value slots com label required exigem o label
+externo exato e podem ser reordenados globalmente. Label desconhecido,
+duplicado, extra ou aplicado a type slot, além de positional que não ocupe o
+próximo slot da sua sequência, produz as famílias de
 diagnostics da seção 3.5.4.
 
 O value usado na identidade de um type head ou generic specialization deve
@@ -7111,8 +7118,8 @@ classificação após name resolution, sem heurística de casing:
 5. RHS unresolved ou ambiguous falha antes da classificação do kind.
 
 W não possui inheritance ou base-class constraint. Um existential value exige
-`any P` e não muda o kind de `T: P`. Um label desconhecido, duplicado ou que
-cruza uma âncora é erro. A classificação usa o nome interno e o label externo
+`any P` e não muda o kind de `T: P`. Um label desconhecido, duplicado ou aplicado
+a um slot sem label é erro. A classificação usa o nome interno e o label externo
 required, sem heurística de casing.
 
 Value parameters declarados no envelope são compile-time e imutáveis por
@@ -7406,10 +7413,10 @@ let forecast = try forecast<tables: 2, courses: 4>(
 )
 ```
 
-Type arguments explícitos ocupam as âncoras de type na ordem declarada. Named
-value arguments ocupam labels required e podem reordenar somente no segmento
-entre âncoras; eles não atravessam type ou value anchors e não fazem inferência
-por tipo ou predicate. Parâmetros que não aparecem podem ser inferidos pelas
+Type arguments explícitos ocupam os type slots na ordem declarada. Named value
+arguments ocupam labels required em qualquer posição e não alteram as
+sequências de type ou positional-only value slots; tipos e predicates não fazem
+desambiguação. Parâmetros que não aparecem podem ser inferidos pelas
 fontes normais de inference, mas `_` não é placeholder generic:
 
 ```w
@@ -7831,7 +7838,7 @@ Os precedentes de generics e inference ficam em
 |---|---|
 | `W-GENERIC-0001` | domain de parâmetro generic não resolve para constraint de protocol, `StaticArgumentRepresentable` ou type parameter anterior permitido |
 | `W-GENERIC-0002` | slot obrigatório está ausente ou inference não possui solução única para um parâmetro aberto |
-| `W-GENERIC-0003` | binding generic viola o label required, a ordem de uma âncora, uma fronteira de segmento, ou aplica label a type/positional-only slot |
+| `W-GENERIC-0003` | binding generic viola label required ou a ordem da sequência positional-only, ou aplica label a type/positional-only slot |
 | `W-GENERIC-0004` | nome de associated contract value duplica um member do type head |
 | `W-GENERIC-0005` | sequência de instantiations cresce sem convergir |
 
@@ -8774,7 +8781,8 @@ TypeInfo.Property
   name: view String
   valueType: TypeId
   mutability: immutable | mutable
-  accessorAvailability: get | get ref | get mut ref | set | combinations
+  accessMode: value | borrowed | mutableBorrowed | inout
+  hasSetter: Bool
 
 TypeInfo.Case
   name: view String
@@ -11169,8 +11177,8 @@ a property lógica e não expõe o storage de backing.
 Uma aplicação de `behavior` segue as fases normativas de
 [§8.4.1](#841-lifecycle-explícito-de-property): a inicialização escreve seu
 storage sem chamar accessors, atribuição simples usa `set`/replacement,
-mutação composta usa value get + set quando ambos existem, ou `get mut ref`
-direto quando somente essa modalidade existe,
+mutação composta usa value get + set para uma property value/inout ou o `get`
+único de uma property `mut ref`,
 e `defer` retoma depois do borrow.
 Nenhum `behavior` adiciona observer implícito, tipo de backing ou `deinit`
 oculto. Hooks `willSet` e `didSet` só existem em um behavior observer nominal
@@ -11208,7 +11216,7 @@ semântico.
 **W-1509 — facet projection `#` (Forma vigente):** um behavior aplicado pode
 publicar facets somente por `export fn`/`export mut fn` e por computed facet
 properties escritas no próprio body. Um `fn` sem `export` continua helper do
-behavior. Backing fields, `init`, `get`, `set` e `get mut ref` pertencem ao lifecycle
+behavior. Backing fields, `init`, `get` e `set` pertencem ao lifecycle
 da property e não viram members comuns. Facets de programa são síncronas,
 nonthrows, bounded, sem I/O, task, bloqueio, allocation geral oculta ou
 authority implícita; `mut` exige um place exclusivo. Facet `take` fica rejeitada
@@ -11222,13 +11230,12 @@ export behavior WrappedDegrees for u16 {
     current = initialValue() % 360_u16
   }
 
-  get { return current }
+  get {
+    defer { current %= 360_u16 }
+    return current
+  }
   mut set(newValue) {
     current = newValue % 360_u16
-  }
-  get mut ref {
-    defer { current %= 360_u16 }
-    return mut ref current
   }
 
   export mut fn reset() { current = 0 }
@@ -11288,15 +11295,16 @@ export behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
 
 export struct Attitude {
-  var VersionedDegrees yaw: u16 = 0
+  var VersionedDegrees yaw: mut ref u16 = 0
 }
 ```
 
 Não há lista ad hoc na property, keywords `storage`/`input` ou uso de `|>` para
 composição. Não há observer implícito: hooks só existem em um behavior observer
 nominal explicitamente aplicado ou composto. A definição infere dois papéis.
-Um behavior de storage declara `get`, `set`, `get ref`, `get mut ref` ou uma
-combinação permitida. Ele possui o storage
+Um behavior de storage declara um único `get` e, quando a property admite
+replacement ou writeback, `set`. O mode `T`, `ref T`, `mut ref T` ou `inout T`
+fica na declaração da property aplicada. O behavior possui o storage
 principal da property. Um behavior observer não declara esses accessors. Seus
 fields são metadata auxiliar do componente, não um segundo storage lógico da
 property; eles não podem substituir o valor, participar do getter ou ser
@@ -11313,11 +11321,13 @@ export behavior Versioned<Value> for Value {
     reads = 0
   }
 
-  export mutationEpoch: u64 { get => epoch }
+  export let mutationEpoch: u64 { get => epoch }
   export mut fn resetMutationEpoch() { epoch = 0 }
 
   mut willGet(kind: PropertyAccessKind) { reads += 1 }
-  didGet(kind: PropertyAccessKind) { }
+  mut didGet(kind: PropertyAccessKind) {
+    if kind == .mutableBorrowed { epoch += 1 }
+  }
   mut willSet(current: ref Value, proposed: ref Value) { }
   mut didSet(current: ref Value) { epoch += 1 }
 }
@@ -11362,8 +11372,8 @@ initializer one-slot. Em uma atribuição simples, `willSet` roda em ordem
 lexical com current e proposed, a operação de storage acontece uma vez e
 `didSet` roda em ordem inversa com o current final. Uma property passada a
 `inout` compõe value get + set e executa os observers de set no writeback.
-Uma mutação composta também usa essa composição quando value get + set existem;
-somente a forma sem esses accessors pode operar por `get mut ref` direto. Um
+Uma mutação composta também usa essa composição para value/inout; uma property
+`mut ref` opera pelo `get` único em modo borrow exclusivo. Um
 direct `mut ref` não executa `willSet`/`didSet`. `willGet`/`didGet` observam cada
 acesso lógico conforme `PropertyAccessKind`, inclusive quando o acesso borrowed
 fecha. Panic ou fault não fabrica cleanup. No drop, observers são descartados em
@@ -11422,13 +11432,14 @@ O uso de inicialização tardia continua simples:
 var Lazy heatProfile = deriveHeatProfile(model)
 ```
 
-Um behavior de storage definido pelo programa aceita somente `init`, `get`,
-`get ref`, `get mut ref` e `set` síncronos e sem `throws`. Um behavior observer
+Um behavior de storage definido pelo programa aceita somente `init`, `get` e
+`set` síncronos e sem `throws`. Um behavior observer
 pode declarar `willGet`, `didGet`, `willSet` e `didSet`, sob o mesmo teto. Nenhum deles suspende,
 bloqueia, faz I/O, cria tasks ou adquire authority. Behavior não concede
 mobilidade ou atomicidade.
 
-`get mut ref` pode usar `defer` como hook local pós-borrow. O accessor retoma
+O `get` de uma property `mut ref` pode usar `defer` como hook local pós-borrow.
+O accessor retoma
 uma vez depois que o borrow exclusivo termina, inclusive quando a operação do
 caller termina com error. Ele observa uma mutation admission, não uma comparação
 de valor. Um behavior que precisa detectar mudança real usa storage explícito ou
@@ -11493,10 +11504,10 @@ observa o pedido depois da publicação e do cleanup. Panic no initializer falha
 a fault boundary. OOM segue a policy normal de allocation e não publica valor
 parcial. Waiters não recebem um valor parcial.
 
-Atribuição e `get mut ref` exigem autoridade exclusiva sobre o place. Uma atribuição
+Atribuição e acesso a uma property `mut ref` exigem autoridade exclusiva sobre o place. Uma atribuição
 antes do primeiro acesso encerra os capture paths e impede a execução do
 initializer. Uma atribuição posterior executa drop do valor anterior uma vez.
-`get mut ref` inicializa quando necessário e abre o borrow scoped normal. Não
+O `get` em modo `mut ref` inicializa quando necessário e abre o borrow scoped normal. Não
 existe setter concorrente implícito.
 
 Se o valor nunca for lido, drop encerra somente os capture paths do initializer.

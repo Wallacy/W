@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200"
+    "digest": "sha256:7990af949683713b527e927a813901c9afd9f6b5723ad84e648b1d78891499ec"
   },
   "entry": "observeBorrowRelation",
   "variants": [

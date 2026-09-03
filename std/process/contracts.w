@@ -132,17 +132,17 @@ foreign intrinsic from "std.process@1" {
 }
 
 export struct Arguments {
-  handle: ArgumentsHandle
+  let handle: ArgumentsHandle
 
   init(validatedHandle: ArgumentsHandle) {
     self.handle = validatedHandle
   }
 
-  export count: usize {
+  export let count: usize {
     get => unsafe { stdProcessArgumentsCount(ref handle) }
   }
 
-  export isEmpty: Bool {
+  export let isEmpty: Bool {
     get => count == 0
   }
 
@@ -167,8 +167,8 @@ export struct Arguments {
 }
 
 struct ArgumentIterator {
-  arguments: ref Arguments
-  index: usize
+  let arguments: ref Arguments
+  let index: usize
 
   init(arguments: ref Arguments) {
     self.arguments = arguments
@@ -191,7 +191,7 @@ extension Arguments: Sequence {
 }
 
 export struct Input: ByteSource<IoError> {
-  handle: InputHandle
+  let handle: InputHandle
 
   init(validatedHandle: InputHandle) {
     self.handle = validatedHandle
@@ -225,7 +225,7 @@ export struct Input: ByteSource<IoError> {
 }
 
 struct LineStream: Stream<String, InputError> {
-  handle: LineStreamHandle
+  let handle: LineStreamHandle
 
   init(validatedHandle: LineStreamHandle) {
     self.handle = validatedHandle
@@ -245,7 +245,7 @@ struct LineStream: Stream<String, InputError> {
 }
 
 export struct Output: ByteSink<IoError> {
-  handle: OutputHandle
+  let handle: OutputHandle
 
   init(validatedHandle: OutputHandle) {
     self.handle = validatedHandle
@@ -271,7 +271,7 @@ export struct Output: ByteSink<IoError> {
 }
 
 export struct SignalRegistry {
-  handle: SignalRegistryHandle
+  let handle: SignalRegistryHandle
 
   init(validatedHandle: SignalRegistryHandle) {
     self.handle = validatedHandle
@@ -293,7 +293,7 @@ export struct SignalRegistry {
 }
 
 export struct SignalRegistration {
-  handle: SignalRegistrationHandle
+  let handle: SignalRegistrationHandle
 
   init(validatedHandle: SignalRegistrationHandle) {
     self.handle = validatedHandle
@@ -317,7 +317,7 @@ export struct SignalRegistration {
 }
 
 export struct Services {
-  handle: ServicesHandle
+  let handle: ServicesHandle
 
   init(validatedHandle: ServicesHandle) {
     self.handle = validatedHandle
@@ -333,35 +333,35 @@ export struct Services {
 }
 
 export struct Context {
-  handle: ContextHandle
+  let handle: ContextHandle
 
   init(validatedHandle: ContextHandle) {
     self.handle = validatedHandle
   }
 
-  export stdin: Input {
+  export let stdin: Input {
     get => Input(validatedHandle: unsafe {
       stdProcessContextInput(ref handle)
     })
   }
 
-  export stdout: Output {
+  export let stdout: Output {
     get => Output(validatedHandle: unsafe {
       stdProcessContextOutput(ref handle)
     })
   }
 
-  export stderr: Output {
+  export let stderr: Output {
     get => Output(validatedHandle: unsafe {
       stdProcessContextError(ref handle)
     })
   }
 
-  export filesystem: fs.FileSystem {
+  export let filesystem: fs.FileSystem {
     get => unsafe { stdProcessContextFileSystem(ref handle) }
   }
 
-  export network: net.Network {
+  export let network: net.Network {
     get => unsafe { stdProcessContextNetwork(ref handle) }
   }
 
@@ -377,19 +377,19 @@ export struct Context {
     }
   }
 
-  export signals: SignalRegistry {
+  export let signals: SignalRegistry {
     get => SignalRegistry(validatedHandle: unsafe {
       stdProcessContextSignals(ref handle)
     })
   }
 
-  export services: Services {
+  export let services: Services {
     get => Services(validatedHandle: unsafe {
       stdProcessContextServices(ref handle)
     })
   }
 
-  export deadline: time.Deadline {
+  export let deadline: time.Deadline {
     get => unsafe { stdProcessContextDeadline(ref handle) }
   }
 

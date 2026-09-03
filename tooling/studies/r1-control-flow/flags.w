@@ -1,8 +1,8 @@
 // R1 Last Light control-flow study variant.
 
 struct DiagnosticFold {
-  bits: u32
-  finalizedRows: u32
+  let bits: u32
+  let finalizedRows: u32
 }
 
 fn foldDiagnosticBits(_ rows: ref Array<Array<u8>>): DiagnosticFold {

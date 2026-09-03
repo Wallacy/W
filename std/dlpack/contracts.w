@@ -51,16 +51,16 @@ export enum ViewError<OperationFailure: Error>: Error {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumRank: usize<(1...)>
-  maximumDimension: u64<(1...)>
-  maximumElements: u64<(1...)>
-  maximumSpanBytes: u64<(1...)>
-  maximumMetadataBytes: u64<(1...)>
-  maximumControlBytes: u64<(1...)>
-  maximumLeases: usize<(1...)>
-  maximumReleaseJobs: usize<(1...)>
-  maximumWaitUnits: u64<(1...)>
-  maximumDeadlineUnits: u64<(1...)>
+  let maximumRank: usize<(1...)>
+  let maximumDimension: u64<(1...)>
+  let maximumElements: u64<(1...)>
+  let maximumSpanBytes: u64<(1...)>
+  let maximumMetadataBytes: u64<(1...)>
+  let maximumControlBytes: u64<(1...)>
+  let maximumLeases: usize<(1...)>
+  let maximumReleaseJobs: usize<(1...)>
+  let maximumWaitUnits: u64<(1...)>
+  let maximumDeadlineUnits: u64<(1...)>
 
   export const init(
     maximumRank: usize<(1...)>,
@@ -88,7 +88,7 @@ export struct Limits: Copy & Equatable {
 }
 
 export struct ManagedTensor {
-  handle: ManagedTensorHandle
+  let handle: ManagedTensorHandle
 
   init(validatedHandle: ManagedTensorHandle) {
     self.handle = validatedHandle
@@ -101,7 +101,7 @@ export struct ManagedTensor {
 }
 
 export struct ImportedTensor<Element, shape: StaticList<usize>> {
-  handle: ImportedTensorHandle
+  let handle: ImportedTensorHandle
 
   init(validatedHandle: ImportedTensorHandle) {
     self.handle = validatedHandle
@@ -122,7 +122,7 @@ export struct ImportedTensor<Element, shape: StaticList<usize>> {
 }
 
 export struct DynamicImportedTensor {
-  handle: DynamicImportedTensorHandle
+  let handle: DynamicImportedTensorHandle
 
   init(validatedHandle: DynamicImportedTensorHandle) {
     self.handle = validatedHandle

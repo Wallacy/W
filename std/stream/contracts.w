@@ -79,7 +79,7 @@ foreign intrinsic from "std.readable-stream@1" {
 // Item and Failure at every safe call site. Only the intrinsic provider sees
 // the raw handle and must validate its matching runtime witness.
 struct TypedReadableStreamHandle<Item, Failure: Error> {
-  raw: ReadableStreamHandle
+  let raw: ReadableStreamHandle
 
   init(validatedRaw: ReadableStreamHandle) {
     self.raw = validatedRaw
@@ -87,7 +87,7 @@ struct TypedReadableStreamHandle<Item, Failure: Error> {
 }
 
 export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure> {
-  handle: TypedReadableStreamHandle<Item, Failure>
+  let handle: TypedReadableStreamHandle<Item, Failure>
 
   export static fn from<Source: Stream<Item, Failure>>(
     source: take Source,

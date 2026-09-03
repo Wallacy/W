@@ -1,12 +1,12 @@
 // Directional service streaming for the Last Light restaurant.
 
 export struct MenuSignal {
-  sequence: u64
-  message: String
+  let sequence: u64
+  let message: String
 }
 
 export struct MenuSignalSummary {
-  received: u64
+  let received: u64
 }
 
 export enum MenuStreamError: Error {

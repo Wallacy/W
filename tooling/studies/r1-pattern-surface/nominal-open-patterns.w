@@ -2,18 +2,18 @@ module pattern_surface
 import { PartySize, ServiceStage } from domain
 
 struct Guest {
-  name: String
-  note: String
+  let name: String
+  let note: String
 }
 
 struct Order {
-  id: usize
-  guest: Guest
-  stage: ServiceStage
-  guests: usize
-  route: Route
-  newField: String
-  newFieldValue: String
+  let id: usize
+  let guest: Guest
+  let stage: ServiceStage
+  let guests: usize
+  let route: Route
+  let newField: String
+  let newFieldValue: String
 }
 
 enum Route {

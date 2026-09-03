@@ -97,10 +97,10 @@ const fn expectedRestartDecision(for kind: CapabilityKind): RestartDecision {
 }
 
 struct CapabilityLimits {
-  importSlots: u32
-  exportSlots: u32
-  ordinalsPerFrame: u16
-  entriesPerPipeline: u16
+  let importSlots: u32
+  let exportSlots: u32
+  let ordinalsPerFrame: u16
+  let entriesPerPipeline: u16
 }
 
 const fn fitsCapabilityLimits(

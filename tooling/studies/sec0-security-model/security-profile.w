@@ -2,8 +2,8 @@ import std
 // security profile witness
 
 export struct SecurityBudget {
-  memory: usize
-  requests: usize
+  let memory: usize
+  let requests: usize
 }
 
 export protocol MediatedBoundary {

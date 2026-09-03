@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/collections.w",
     "symbol": "urgent",
-    "digest": "sha256:b7a5c952910327eca82b3c28d1d901b91aaabdb88635787f41275c67e7c9976a"
+    "digest": "sha256:27f7edc4cd6814772217948d702392a98660d8d46e0ec6841e731852d32fce2c"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "pipeline.w",
-      "digest": "sha256:4b2896190aa7bd5bf71ad77e70dadf0bb5c4630de39547673a3b3c5048411b5a",
+      "digest": "sha256:0b7bcc77bdda0e460b2deddd382bcec003e8fa4177e5fe0ecac7c8bfb1f4fed5",
       "changedConstructs": [
         "lazy filter-map pipeline",
         "bounded collect"
@@ -28,7 +28,7 @@
       "role": "alternative",
       "language": "w",
       "path": "loop.w",
-      "digest": "sha256:8b8aa69cbcf70ff4c7fea2516c5a56a881ad6d8d8f7c0d46121502adfae82eef",
+      "digest": "sha256:7d81d015d58522feda0284e5693936e4f67b62a2fcb3950bb1f0f3dda8e4f232",
       "changedConstructs": [
         "explicit loop",
         "mutable result append"

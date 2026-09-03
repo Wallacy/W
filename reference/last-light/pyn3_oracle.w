@@ -17,7 +17,7 @@ export type CellId = String
 // GenerationId is an opaque identity. It is deliberately not a formatted
 // execution ordinal and is never used as a display counter.
 export struct GenerationId {
-  token: String
+  let token: String
 
   init(_ token: String) {
     self.token = token
@@ -68,16 +68,16 @@ export enum Failure: Error {
 }
 
 export struct Limits {
-  bytes: usize
-  rows: usize
-  columns: usize
-  jsonDepth: usize
-  jsonStringBytes: usize
-  imageWidth: u32
-  imageHeight: u32
-  imagePixels: u64
-  workUnits: usize
-  representations: usize
+  let bytes: usize
+  let rows: usize
+  let columns: usize
+  let jsonDepth: usize
+  let jsonStringBytes: usize
+  let imageWidth: u32
+  let imageHeight: u32
+  let imagePixels: u64
+  let workUnits: usize
+  let representations: usize
 
   export const init(
     bytes: usize,
@@ -107,8 +107,8 @@ export struct Limits {
 // User values conform to the real presentation protocol. The provider owns the writer
 // and closes it after this call; user code has no finish operation.
 export struct MenuPreview: presentation.Presentable {
-  rows: usize
-  columns: usize
+  let rows: usize
+  let columns: usize
 
   export fn present(to writer: inout presentation.Writer) throws presentation.Error {
     try writer.text("menu preview")
@@ -116,10 +116,10 @@ export struct MenuPreview: presentation.Presentable {
 }
 
 export struct TabularPreview: presentation.Presentable {
-  inspectedRows: usize
-  emittedRows: usize
-  hasMore: Bool
-  columns: usize
+  let inspectedRows: usize
+  let emittedRows: usize
+  let hasMore: Bool
+  let columns: usize
 
   export fn present(to writer: inout presentation.Writer) throws presentation.Error {
     try writer.text("bounded table preview")
@@ -127,8 +127,8 @@ export struct TabularPreview: presentation.Presentable {
 }
 
 export struct BlackHoleSensor: presentation.Presentable {
-  distance: f64
-  watcher: String
+  let distance: f64
+  let watcher: String
 
   export fn present(to writer: inout presentation.Writer) throws presentation.Error {
     // The preview borrows a stable sensor summary. It does not read a live
@@ -138,9 +138,9 @@ export struct BlackHoleSensor: presentation.Presentable {
 }
 
 export struct DeviceTensorSummary: presentation.Presentable {
-  device: String
-  shape: String
-  dtype: String
+  let device: String
+  let shape: String
+  let dtype: String
 
   export fn present(to writer: inout presentation.Writer) throws presentation.Error {
     // Device storage remains on the device. Only a bounded textual summary is
@@ -150,7 +150,7 @@ export struct DeviceTensorSummary: presentation.Presentable {
 }
 
 export struct BistromathText: presentation.Presentable {
-  text: String
+  let text: String
 
   export fn present(to writer: inout presentation.Writer) throws presentation.Error {
     try writer.text(text)
@@ -158,21 +158,21 @@ export struct BistromathText: presentation.Presentable {
 }
 
 export struct ReceiptProof {
-  sourceDigest: String
-  session: SessionId
-  incarnation: SessionIncarnation
-  generationBefore: GenerationId
-  generationAfter: GenerationId
-  binding: BindingId
-  lockDigest: String
-  effectDigest: String
+  let sourceDigest: String
+  let session: SessionId
+  let incarnation: SessionIncarnation
+  let generationBefore: GenerationId
+  let generationAfter: GenerationId
+  let binding: BindingId
+  let lockDigest: String
+  let effectDigest: String
 }
 
 export struct NotebookCell {
-  id: CellId
-  sourceDigest: String
-  ordinal: ExecutionOrdinal
-  receipt: ReceiptProof
+  let id: CellId
+  let sourceDigest: String
+  let ordinal: ExecutionOrdinal
+  let receipt: ReceiptProof
 }
 
 export enum Lifecycle: Copy & Equatable {
@@ -185,24 +185,24 @@ export enum Lifecycle: Copy & Equatable {
 }
 
 export struct JupyterIdentity {
-  requestId: String
-  sessionId: SessionId
-  incarnation: SessionIncarnation
-  ordinal: ExecutionOrdinal
-  generation: GenerationId
+  let requestId: String
+  let sessionId: SessionId
+  let incarnation: SessionIncarnation
+  let ordinal: ExecutionOrdinal
+  let generation: GenerationId
 }
 
 export struct ExportResult {
-  kind: String
-  sourceDigest: String
-  auditDigest: String
-  executed: Bool
+  let kind: String
+  let sourceDigest: String
+  let auditDigest: String
+  let executed: Bool
 }
 
 export struct RedactedError {
-  code: String
-  message: String
-  privateFields: Array<String>
+  let code: String
+  let message: String
+  let privateFields: Array<String>
 }
 
 export const fn boundedMenu(limits: Limits, rows: usize, columns: usize): Bool {

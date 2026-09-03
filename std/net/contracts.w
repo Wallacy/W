@@ -61,7 +61,7 @@ export enum NetworkError: Error & Duplicable {
 }
 
 export struct Ipv4Address: Duplicable & Equatable & Hashable {
-  octetValues: [u8; 4]
+  let octetValues: [u8; 4]
 
   // The fixed shape makes every value valid without a runtime parser.
   export const init(
@@ -111,7 +111,7 @@ export struct Ipv4Address: Duplicable & Equatable & Hashable {
 }
 
 export struct Ipv6Address: Duplicable & Equatable & Hashable {
-  segmentValues: [u16; 8]
+  let segmentValues: [u16; 8]
 
   // The fixed shape makes every value valid without a runtime parser.
   export const init(
@@ -225,9 +225,9 @@ export enum IpAddress: Duplicable & Equatable & Hashable {
 }
 
 export struct SocketAddress: Duplicable & Equatable & Hashable {
-  export ip: IpAddress
-  export port: u16
-  export scopeId: u32?
+  export let ip: IpAddress
+  export let port: u16
+  export let scopeId: u32?
 
   export init(
     ip: IpAddress,
@@ -294,7 +294,7 @@ export struct SocketAddress: Duplicable & Equatable & Hashable {
 // bounds apply. One trailing dot is accepted and removed. An OS search suffix
 // is never applied.
 export struct HostName: Duplicable & Equatable & Hashable {
-  canonical: String
+  let canonical: String
 
   export init(value: String) throws AddressError {
     self.canonical = unsafe {
@@ -324,8 +324,8 @@ export struct HostName: Duplicable & Equatable & Hashable {
 }
 
 export struct Endpoint: Duplicable & Equatable & Hashable {
-  export host: EndpointHost
-  export port: u16<(1...65_535)>
+  export let host: EndpointHost
+  export let port: u16<(1...65_535)>
 
   export init(
     ip: IpAddress,
@@ -435,7 +435,7 @@ enum ListenAddressShape: Duplicable & Equatable & Hashable {
 // ListenAddress is nominal so a caller cannot smuggle a remote Endpoint into
 // a bind operation. Port zero asks the host to select a free local port.
 export struct ListenAddress: Duplicable & Equatable & Hashable {
-  shape: ListenAddressShape
+  let shape: ListenAddressShape
 
   init(validatedShape: ListenAddressShape) {
     self.shape = validatedShape
@@ -477,10 +477,10 @@ export struct ListenAddress: Duplicable & Equatable & Hashable {
 }
 
 export struct ResolveLimits: Copy & Equatable {
-  export maximumAddresses: usize<(1...)>
-  export maximumCnameDepth: usize
-  export maximumResponseBytes: usize<(1...)>
-  export maximumAllocationBytes: usize<(1...)>
+  export let maximumAddresses: usize<(1...)>
+  export let maximumCnameDepth: usize
+  export let maximumResponseBytes: usize<(1...)>
+  export let maximumAllocationBytes: usize<(1...)>
 
   export const init(
     maximumAddresses: usize<(1...)> = 16,
@@ -502,10 +502,10 @@ export enum AddressPreference: Copy & Equatable {
 }
 
 export struct ConnectOptions: Duplicable & Equatable {
-  export maximumAttempts: usize<(1...16)>
-  export fallbackDelay: Duration<(0...30<si.s>)>
-  export preference: AddressPreference
-  export local: SocketAddress?
+  export let maximumAttempts: usize<(1...16)>
+  export let fallbackDelay: Duration<(0...30<si.s>)>
+  export let preference: AddressPreference
+  export let local: SocketAddress?
 
   export const init(
     maximumAttempts: usize<(1...16)> = 4,
@@ -537,8 +537,8 @@ export struct ConnectOptions: Duplicable & Equatable {
 }
 
 export struct ListenerLimits: Copy & Equatable {
-  export maximumBacklog: usize<(1...)>
-  export maximumQueuedAccepts: usize<(1...)>
+  export let maximumBacklog: usize<(1...)>
+  export let maximumQueuedAccepts: usize<(1...)>
 
   export const init(
     maximumBacklog: usize<(1...)> = 128,
@@ -550,9 +550,9 @@ export struct ListenerLimits: Copy & Equatable {
 }
 
 export struct DatagramLimits: Copy & Equatable {
-  export maximumDatagramBytes: usize<(1...)>
-  export maximumQueuedDatagrams: usize<(1...)>
-  export maximumQueuedBytes: usize<(1...)>
+  export let maximumDatagramBytes: usize<(1...)>
+  export let maximumQueuedDatagrams: usize<(1...)>
+  export let maximumQueuedBytes: usize<(1...)>
 
   export const init(
     maximumDatagramBytes: usize<(1...)> = 65_507,
@@ -566,9 +566,9 @@ export struct DatagramLimits: Copy & Equatable {
 }
 
 export struct Datagram: Duplicable {
-  export bytes: Bytes
-  export peer: SocketAddress
-  export truncated: Bool
+  export let bytes: Bytes
+  export let peer: SocketAddress
+  export let truncated: Bool
 
   init(validatedBytes: take Bytes, peer: SocketAddress, truncated: Bool) {
     self.bytes = take validatedBytes
@@ -699,7 +699,7 @@ foreign intrinsic from "std.net@1" {
 // The host creates this owner through the entry binding. Source code cannot
 // call the initializer or duplicate the capability.
 export struct Network {
-  handle: NetworkHandle
+  let handle: NetworkHandle
 
   init(hostHandle: NetworkHandle) {
     self.handle = hostHandle
@@ -774,7 +774,7 @@ export struct Network {
 }
 
 export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
-  handle: TcpConnectionHandle
+  let handle: TcpConnectionHandle
 
   // Mutating async reads and writes hold an exclusive borrow until completion
   // or cancellation drain. EOF is sticky; a latched error is observed before
@@ -839,7 +839,7 @@ export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError> {
 }
 
 export struct TcpReadHalf: ByteSource<NetworkError> {
-  handle: TcpReadHalfHandle
+  let handle: TcpReadHalfHandle
 
   // The read cursor keeps its exclusive borrow through completion or drain.
   // EOF and terminal transport errors remain latched.
@@ -869,7 +869,7 @@ export struct TcpReadHalf: ByteSource<NetworkError> {
 }
 
 export struct TcpWriteHalf: ByteSink<NetworkError> {
-  handle: TcpWriteHalfHandle
+  let handle: TcpWriteHalfHandle
 
   // Mutating async writes hold the exclusive borrow through completion or
   // cancellation drain. Full duplex TCP uses split to provide two cursors.
@@ -903,8 +903,8 @@ export struct TcpWriteHalf: ByteSink<NetworkError> {
 }
 
 export struct AcceptedTcp {
-  export connection: TcpConnection
-  export peer: SocketAddress
+  export let connection: TcpConnection
+  export let peer: SocketAddress
 
   init(validatedConnection: TcpConnection, peer: SocketAddress) {
     self.connection = take validatedConnection
@@ -913,7 +913,7 @@ export struct AcceptedTcp {
 }
 
 export struct TcpListener {
-  handle: TcpListenerHandle
+  let handle: TcpListenerHandle
 
   // accept is a mutating async operation. Its exclusive borrow lasts through
   // completion or cancellation drain.
@@ -944,7 +944,7 @@ export struct TcpListener {
 }
 
 export struct UdpSocket {
-  handle: UdpSocketHandle
+  let handle: UdpSocketHandle
 
   // W-1252: the whole socket serializes mutation. A consuming split creates
   // one independent receive cursor and one independent send cursor.
@@ -997,7 +997,7 @@ export struct UdpSocket {
 }
 
 export struct UdpReceiveHalf {
-  handle: UdpReceiveHalfHandle
+  let handle: UdpReceiveHalfHandle
 
   init(validatedHandle: UdpReceiveHalfHandle) {
     self.handle = validatedHandle
@@ -1020,7 +1020,7 @@ export struct UdpReceiveHalf {
 }
 
 export struct UdpSendHalf {
-  handle: UdpSendHalfHandle
+  let handle: UdpSendHalfHandle
 
   init(validatedHandle: UdpSendHalfHandle) {
     self.handle = validatedHandle

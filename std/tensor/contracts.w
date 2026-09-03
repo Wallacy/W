@@ -48,7 +48,7 @@ export enum TensorError: Error {
 }
 
 export struct Device {
-  handle: DeviceHandle
+  let handle: DeviceHandle
 
   init(validatedHandle: DeviceHandle) {
     self.handle = validatedHandle
@@ -66,7 +66,7 @@ export struct Device {
 }
 
 export struct Queue {
-  handle: QueueHandle
+  let handle: QueueHandle
 
   init(validatedHandle: QueueHandle) {
     self.handle = validatedHandle
@@ -81,9 +81,9 @@ export struct Queue {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumElements: u64<(1...)>
-  maximumBytes: u64<(1...)>
-  maximumMetadataBytes: u64<(1...)>
+  let maximumElements: u64<(1...)>
+  let maximumBytes: u64<(1...)>
+  let maximumMetadataBytes: u64<(1...)>
 
   export const init(
     maximumElements: u64<(1...)>,

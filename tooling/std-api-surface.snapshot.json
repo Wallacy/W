@@ -39,13 +39,13 @@
           "wpt-dom-abort"
         ]
       },
-      "catalogedDeclarationsDigest": "52c98ec41f540b64898f4c025e43b14de2e79180e657d85546d0d4fdf4bdbb05",
+      "catalogedDeclarationsDigest": "d6ff9e651c7873e99bfcaf66e766c442c505bd9f62bc3cfb6a4129d041cc0afe",
       "apis": [
         {
           "symbol": "AbortController",
           "kind": "struct",
           "signature": "export struct AbortController",
-          "declarationDigest": "f5c0f7e3ae7025334021d974c62cb00fd268d621b5bd06184164222e0717fb2c",
+          "declarationDigest": "caf42e8b85054d3695be23bb4efd0d0848a542f827c2930d342997028196fe17",
           "line": 139,
           "profile": "web-abort-control",
           "members": [
@@ -64,7 +64,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export signal: ref AbortSignal",
+                  "signature": "export let signal: ref AbortSignal",
                   "line": 149
                 }
               ],
@@ -105,7 +105,7 @@
           "symbol": "AbortSignal",
           "kind": "struct",
           "signature": "export struct AbortSignal: Duplicable",
-          "declarationDigest": "2dbdb136fec38e9c4edaa0a7c97372036a688aeaf9f1d3927142fc3a0ef6b31f",
+          "declarationDigest": "d13cad095e93b4b9be3c21e2bb097c33424405569cfcb20aa2a40e28de1bca02",
           "line": 61,
           "profile": "web-abort-carrier",
           "members": [
@@ -144,7 +144,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export aborted: Bool",
+                  "signature": "export let aborted: Bool",
                   "line": 104
                 }
               ],
@@ -155,7 +155,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export reason: AbortReason?",
+                  "signature": "export let reason: AbortReason?",
                   "line": 108
                 }
               ],
@@ -231,7 +231,7 @@
           "queue-receipts"
         ]
       },
-      "catalogedDeclarationsDigest": "8c81f9a90659140f0354bf2a7b8474e529b3ad2b03c10e335dc0f763cdd8dfac",
+      "catalogedDeclarationsDigest": "e3715bc10e89146dd3e0e0f8cea871bcc337bf182e937cb9507a9e787713b554",
       "apis": [
         {
           "symbol": "KernelModule",
@@ -246,7 +246,7 @@
           "symbol": "Launch",
           "kind": "struct",
           "signature": "export struct Launch<Module: KernelModule>",
-          "declarationDigest": "3b6cbc7ea2cc6ecb67e8918f4d7f751f0d003306ae32f4765064e46d4ae912ea",
+          "declarationDigest": "3939a2e92b6c260db7c1819868b298cf41949c2895c60ef36a2f3790118da705",
           "line": 100,
           "profile": "accelerator-launch",
           "members": [
@@ -276,7 +276,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "59aead5bd5c0500662937287e763ccbe427ffe1de0df9ed5cf331581627cadd9",
+          "declarationDigest": "774268a699f03d221189d3c15ab55c7fc331cf57eca6a3e300de6e95f9ec3e1e",
           "line": 27,
           "profile": "value-contract",
           "members": [
@@ -307,7 +307,7 @@
           "symbol": "ModuleIdentity",
           "kind": "struct",
           "signature": "export struct ModuleIdentity: Copy & Equatable",
-          "declarationDigest": "99c912df9981db861b318b64d9a0627a1b5434193775f49d587cb26e0f56ef90",
+          "declarationDigest": "d100cef2c563c7ee1e12ab7b6a830610937c3483ccaa0d8455ee26328984326b",
           "line": 71,
           "profile": "accelerator-module",
           "members": [
@@ -352,13 +352,13 @@
           "schema-footer-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "b97adb5af4bd16441475a383fc54063928852333c790bde875d1783af730381e",
+      "catalogedDeclarationsDigest": "74e1828236b88a0f93165cf1f393e772aa292ca6fefae67ac8017b5e94d89673",
       "apis": [
         {
           "symbol": "BlockingQuota",
           "kind": "struct",
           "signature": "export struct BlockingQuota: Copy & Equatable",
-          "declarationDigest": "db3dd5256a822e14c28f80a52e67a76e0f9dd3b757ccbf5b674d2613559aa920",
+          "declarationDigest": "7efb11661955217000a29af60fea16a68e3640dc03502ac0fc554d701030c4e7",
           "line": 111,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -376,7 +376,7 @@
           "symbol": "CArrayHandle",
           "kind": "struct",
           "signature": "export struct CArrayHandle",
-          "declarationDigest": "86265dcbc17a3fb22783baf130afea0911dfe401cc9ff78480e965e88de6acfb",
+          "declarationDigest": "ea51062f14511542b967c562c809fa15be3c2dc2160fa13d794b98a2ec9e3d36",
           "line": 306,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -394,7 +394,7 @@
           "symbol": "CExportOptions",
           "kind": "struct",
           "signature": "export struct CExportOptions: Copy & Equatable",
-          "declarationDigest": "d8e50d194f6e4c1e11ea63a94272c7e2110d2bd2800285bd1261e9ea1305223c",
+          "declarationDigest": "2182f588d25e213709533498d11c3f7c1f3e292eaeda0f79ab206a535c36e0ae",
           "line": 189,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -412,7 +412,7 @@
           "symbol": "CImportLimits",
           "kind": "struct",
           "signature": "export struct CImportLimits: Copy & Equatable",
-          "declarationDigest": "c7027f5d5aeb085d7bb52841090300791f964268092a258f93f352c3e2d328a6",
+          "declarationDigest": "10c9ca252c35d53c28e8ed0426d8044896ef2f935b0b03f627d85b0b7a7329b7",
           "line": 75,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -421,7 +421,7 @@
           "symbol": "CImportOptions",
           "kind": "struct",
           "signature": "export struct CImportOptions: Copy & Equatable",
-          "declarationDigest": "02b3eec4fa7a1d78d274c3432e7703eab0adf997ae78b0b2ac69f744cccba7ca",
+          "declarationDigest": "570756000e49afe3bd944a9adbaef0aa8e672fd4faabe1b59b97703568cd9d76",
           "line": 140,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -430,7 +430,7 @@
           "symbol": "CStreamHandle",
           "kind": "struct",
           "signature": "export struct CStreamHandle",
-          "declarationDigest": "f5c9450675de071b41d782d8529d35bc01a4089116e541437172b20d59232a22",
+          "declarationDigest": "4e619e4d254f7b44929b6e19e7a59c0171285c1ebfbb756729cf0cb4a9bcbdd9",
           "line": 318,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -439,7 +439,7 @@
           "symbol": "CStreamImportOptions",
           "kind": "struct",
           "signature": "export struct CStreamImportOptions: Copy & Equatable",
-          "declarationDigest": "f71caeace2d94f3eea071960428c1a04c937f41ce771663353b7885af2278ef5",
+          "declarationDigest": "09a138db581aa98a06b72d76442970eca0f8a3fe2e45c71b6dac004d89589a02",
           "line": 157,
           "profile": "arrow-c-bridge",
           "status": "draft"
@@ -511,7 +511,7 @@
           "symbol": "DecodeOptions",
           "kind": "struct",
           "signature": "export struct DecodeOptions: Copy & Equatable",
-          "declarationDigest": "75f939292d16b61203c5da6e53607a2efd2a7fffb74090a6145b42f6c29e16fc",
+          "declarationDigest": "257b43b55eb64d4fc7cdd43b7117464537cedc9c6b1c8fca2471b9b7384b1e76",
           "line": 330,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -565,7 +565,7 @@
           "symbol": "EncodeOptions",
           "kind": "struct",
           "signature": "export struct EncodeOptions: Copy & Equatable",
-          "declarationDigest": "e4af9e20d89201203c9ba3e12716b0ec84d0033c3d03f800c6a9d0a22d8f181c",
+          "declarationDigest": "0e6e6711bc59a799cf4d350fc07e605ac65816a12a27209fe523cfba47c13df5",
           "line": 358,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -637,7 +637,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "c21d9b7ca3dcd3e0e9ec6c9f8ae33ec683cae29853bf9d001c0e1f57eac7a36e",
+          "declarationDigest": "83185d0f56cdd240daabc42b0a29190d9bd28fa371dd36de8b204bedbd3b3657",
           "line": 27,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -648,13 +648,13 @@
       "id": "std.blob",
       "availability": "bundled-portable",
       "source": "std/blob/contracts.w",
-      "catalogedDeclarationsDigest": "abd9903e5588dacdad9a8a78cca4f31ad76310b105f94587737ef34fe3682665",
+      "catalogedDeclarationsDigest": "504d6cbd3a181d657fc822b7e314b826d2f729cbcba7a02d1635a38cc767994f",
       "apis": [
         {
           "symbol": "Blob",
           "kind": "struct",
           "signature": "export struct Blob: Duplicable & SnapshotByteSource<BlobError>",
-          "declarationDigest": "e14aee5bc06b1372e45b56fe78f34234e7ad0e7c058afaa5c8b31c7808968c9e",
+          "declarationDigest": "80b3f5df4febd4bb142374a41e99507c85a443d5933d0b60542fb6cdeceaaab6",
           "line": 57,
           "profile": "blob-carrier",
           "members": [
@@ -673,7 +673,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export size: usize",
+                  "signature": "export let size: usize",
                   "line": 83
                 }
               ],
@@ -684,7 +684,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export type: view String",
+                  "signature": "export let type: view String",
                   "line": 87
                 }
               ],
@@ -800,13 +800,13 @@
           "strict-utf8-and-byte-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "c78bee702074fc4fec416e1a2782db920c1f88c95095b859393b635aee08ffd8",
+      "catalogedDeclarationsDigest": "85ea976a98b830c11b07893cde0a4ed965e27bd8e5ba72ceff1b421c7b283ab8",
       "apis": [
         {
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "dee084f62f576281d608c171c6fd1a230f9d846eae22a6fe831de7e6c7960b8c",
+          "declarationDigest": "8330fdca40f1d9e699cb86f05bcbe6b28ad3a7f5ebe8a35db7d77e47c624548c",
           "line": 99,
           "profile": "build-context",
           "members": [
@@ -854,7 +854,7 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input<Value>",
-          "declarationDigest": "e047ae1b6783b1f972a16b03cf3529a42e9ff7a624b91864f40f155a888b37ba",
+          "declarationDigest": "558fddec4bb6bc620addf8c21daf61d4a6efb6f23f2fb101aab242a71f9c8afa",
           "line": 22,
           "profile": "const-binding",
           "status": "draft"
@@ -863,7 +863,7 @@
           "symbol": "Output",
           "kind": "struct",
           "signature": "export struct Output<Value>",
-          "declarationDigest": "d101cc1622609f1ef992e595a6b085fddbf14f76d09e71602d8e56b811f4a2d3",
+          "declarationDigest": "109c2110a48bce21e0c5f273b1b98a8b83937017dd7fda9308d23455bcd29647",
           "line": 32,
           "profile": "const-binding",
           "status": "draft"
@@ -874,7 +874,7 @@
       "id": "std.cache",
       "availability": "process-local-cache-adapter",
       "source": "std/cache/contracts.w",
-      "catalogedDeclarationsDigest": "94b80849f8921842d90561db686892006f7fbfba739c24c87b3b845c9e46a513",
+      "catalogedDeclarationsDigest": "7d35423256c95e698ae593cfa40bd175f04a788faaec83c4ee362c42330dfa43",
       "apis": [
         {
           "symbol": "CacheError",
@@ -907,7 +907,7 @@
           "symbol": "LocalBinding",
           "kind": "struct",
           "signature": "export struct LocalBinding<Key: Equatable & Hashable & Duplicable, Value: Duplicable,>",
-          "declarationDigest": "6fbdb508268246517409ab91ee546d0e950832be964f56fb5bbacb85d026af8d",
+          "declarationDigest": "b711c33c2a8015fc6e30032c4413261fe72e3bab92725198fa0da57384ec7897",
           "line": 11,
           "profile": "const-binding",
           "status": "draft"
@@ -940,7 +940,7 @@
           "utf8-errors"
         ]
       },
-      "catalogedDeclarationsDigest": "c0320e99efaa5c9e5330f4593d641b8d808f85459e0a10596bd43dcaf8c6f2eb",
+      "catalogedDeclarationsDigest": "d2c69b36faacfb58233ce3adac83dc0264120a218787412cb2a474967d815255",
       "apis": [
         {
           "symbol": "BoolTokenPolicy",
@@ -982,7 +982,7 @@
           "symbol": "DecodeDialect",
           "kind": "struct",
           "signature": "export struct DecodeDialect",
-          "declarationDigest": "4f6a27a88b52bda657054d21fe85d12e8108e16e35148205b7bd5bb371150289",
+          "declarationDigest": "9bd462d1e19dcafa3d0634278c67abf5e1441fa792519100ebaf09b71705565d",
           "line": 148,
           "profile": "csv-codec",
           "status": "draft"
@@ -1009,7 +1009,7 @@
           "symbol": "DecodeOptions",
           "kind": "struct",
           "signature": "export struct DecodeOptions",
-          "declarationDigest": "72a7e3da70726bcddee4732fbed5be5c05ce54c75489fc8f8bc8c9653ba3ea57",
+          "declarationDigest": "525666b38e59165fce9e59dcaf3b6d8b3b28a28f6590eb9897a3e4ef44189d7b",
           "line": 258,
           "profile": "csv-codec",
           "status": "draft"
@@ -1027,7 +1027,7 @@
           "symbol": "EncodeDialect",
           "kind": "struct",
           "signature": "export struct EncodeDialect",
-          "declarationDigest": "b42acecf85cba0dbbbaa009cda1ef5976099be1bb9958a24e41059422880bcf7",
+          "declarationDigest": "0847eb6e1464c0f889d27ac9ac0c88d8e7003884d4a71d4d8382a5cfd8acfcdd",
           "line": 194,
           "profile": "csv-codec",
           "status": "draft"
@@ -1045,7 +1045,7 @@
           "symbol": "EncodeOptions",
           "kind": "struct",
           "signature": "export struct EncodeOptions",
-          "declarationDigest": "b59baf0c085f9424c5e9d6da4057472cd5ed4f7bb42119b366942ef0a1539012",
+          "declarationDigest": "22edd6128f611ec28fda4b19461208abb6000cdea46c25d2cdba55db9f06e9a6",
           "line": 272,
           "profile": "csv-codec",
           "status": "draft"
@@ -1099,7 +1099,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "8e17e1d00a6594253f58f1da3dd6d251503350e134ceb71d5f10ee108d9317b0",
+          "declarationDigest": "dff48ffe131ac3fba52bcec95d43fcaeb9fb36076949be8d6e7127a92c37b45e",
           "line": 95,
           "profile": "value-contract",
           "status": "draft"
@@ -1108,7 +1108,7 @@
           "symbol": "Location",
           "kind": "struct",
           "signature": "export struct Location: Copy & Equatable",
-          "declarationDigest": "5debc3eb0d4729629abbdff0857f0d38d75cc525f8232e261ab084078b71edc3",
+          "declarationDigest": "e6d278c4bd881dd08c30da163f42d4b999241face97ba66dc892d141784004f5",
           "line": 75,
           "profile": "value-contract",
           "status": "draft"
@@ -1195,13 +1195,13 @@
           "schema-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "d16cd7dc248e572a7c931fb3195a48691e3dd065c4ab0aed74e15406ebe0caea",
+      "catalogedDeclarationsDigest": "7bd315e38d3665fbc64e8a53fdfe644eeef4516e6e115e2f4c709d613e5b4e3f",
       "apis": [
         {
           "symbol": "Batch",
           "kind": "struct",
           "signature": "export struct Batch<Element: Row>",
-          "declarationDigest": "12df7f03790b9e016dbe62fd4f1701444765db383adde891076a933031184c27",
+          "declarationDigest": "1a40ec1e619e3ba4e55dfe70985b840a6bcfdc0eac4373b4818a05d34a430a3d",
           "line": 793,
           "profile": "data-carrier",
           "status": "draft"
@@ -1237,7 +1237,7 @@
           "symbol": "BytesColumn",
           "kind": "struct",
           "signature": "export struct BytesColumn<Owner: Row>",
-          "declarationDigest": "2c551bad95c2e56e819d057e6c6fd7e6c3a5589eebf1bf13628800de257f1db6",
+          "declarationDigest": "11afbbf33f390f5124003f7c782254654f04dfb5837a12e284c58694a92db3f5",
           "line": 757,
           "profile": "data-carrier",
           "status": "draft"
@@ -1246,7 +1246,7 @@
           "symbol": "Column",
           "kind": "struct",
           "signature": "export struct Column<Owner: Row, Value>",
-          "declarationDigest": "9290ec95b9053c17ef1b47b06668f824a0108ef6fffff377f311c12034f86b00",
+          "declarationDigest": "90472056edd6a4199246943293498294ecb94a9525eeac3a519711321d540ccb",
           "line": 715,
           "profile": "data-carrier",
           "status": "draft"
@@ -1264,7 +1264,7 @@
           "symbol": "DateValue",
           "kind": "struct",
           "signature": "export struct DateValue",
-          "declarationDigest": "e7867975797d598ac77ff385f0940acf3dcf917f049fec5014176a9b44669f37",
+          "declarationDigest": "cdcde74328112ff2cd4d1b20156d6c47dc4da481aefd8cd4112c0c1da8c2ddce",
           "line": 245,
           "profile": "data-carrier",
           "status": "draft"
@@ -1273,7 +1273,7 @@
           "symbol": "DecimalValue",
           "kind": "struct",
           "signature": "export struct DecimalValue",
-          "declarationDigest": "3b1af5bfce0ce8951c6b5b2f6a29ff158e4590e9269a557efc1db9234f93c9ad",
+          "declarationDigest": "0f01665603bf266d7ca6d1b2e5b26c89c0cfb62cf18c4a358a0078ce4e05452f",
           "line": 216,
           "profile": "data-carrier",
           "status": "draft"
@@ -1282,7 +1282,7 @@
           "symbol": "DynamicBatch",
           "kind": "struct",
           "signature": "export struct DynamicBatch",
-          "declarationDigest": "599c4958e361e84d4651d0150dd397c216a5ac4863c85ea23df6001585bb4dd9",
+          "declarationDigest": "ad29d56a091c4182d64c46deef582029bd6693394cc6a9c6fdac78618f74cdcf",
           "line": 835,
           "profile": "data-carrier",
           "status": "draft"
@@ -1291,7 +1291,7 @@
           "symbol": "DynamicColumn",
           "kind": "struct",
           "signature": "export struct DynamicColumn",
-          "declarationDigest": "bf84e72684085759f44b2b39e99c61c7e8ec189e88c4b5c0815177216d2e8b81",
+          "declarationDigest": "4a379f5deee503abaeb31fe18e8116b6d83b0d3c117f89bfd0d588a66d696f6a",
           "line": 777,
           "profile": "data-carrier",
           "status": "draft"
@@ -1300,7 +1300,7 @@
           "symbol": "DynamicEntry",
           "kind": "struct",
           "signature": "export struct DynamicEntry",
-          "declarationDigest": "3f89a98e9174d2e25b5bf558515e2f9b48dc4eb704bfa75a50b3d86642e97125",
+          "declarationDigest": "79e37c63502b134f5f7caed77bb3565510c84057fef5ba14b564b2fcb2803393",
           "line": 697,
           "profile": "data-carrier",
           "status": "draft"
@@ -1309,7 +1309,7 @@
           "symbol": "DynamicExtensionValue",
           "kind": "struct",
           "signature": "export struct DynamicExtensionValue",
-          "declarationDigest": "48f72edcca29a52dd5951e7622b882efc730e5a6079a5e9ff2bbbbc3e11b19f7",
+          "declarationDigest": "b0b06c85f44cdb413ae2273ded971793a72dd616e72eb12509c02ae4b201c402",
           "line": 596,
           "profile": "data-carrier",
           "status": "draft"
@@ -1318,7 +1318,7 @@
           "symbol": "DynamicListValue",
           "kind": "struct",
           "signature": "export struct DynamicListValue",
-          "declarationDigest": "81f48a4528a09bbb4e2fdf6fbdfea34c0fcaaf3e74c65085952d9e8b6c2bae33",
+          "declarationDigest": "11a1bcdf8420c310223536cd99d37c9f21ce2da657893e12375dac7f12fcdf74",
           "line": 622,
           "profile": "data-carrier",
           "status": "draft"
@@ -1327,7 +1327,7 @@
           "symbol": "DynamicMapValue",
           "kind": "struct",
           "signature": "export struct DynamicMapValue",
-          "declarationDigest": "030e7dbbc4fbca1d88f7b8968323a4f66087f6dad9f90e9f276d8c1ed2fc0639",
+          "declarationDigest": "9e8e921afe9d9be4828267d45f6d2d290225848710974e4b3d46ad3282981a35",
           "line": 639,
           "profile": "data-carrier",
           "status": "draft"
@@ -1336,7 +1336,7 @@
           "symbol": "DynamicNestedValue",
           "kind": "struct",
           "signature": "export struct DynamicNestedValue",
-          "declarationDigest": "aaa991f34581c4d11e4ce8dfc19a6a22b74dd152c38c492760cfac78c240b15a",
+          "declarationDigest": "f84b84fbf640995b62787b7729b5f3839d8ea22b43e7b80ea79c6f4ae59f15e2",
           "line": 656,
           "profile": "data-carrier",
           "status": "draft"
@@ -1354,7 +1354,7 @@
           "symbol": "EncodeProgress",
           "kind": "struct",
           "signature": "export struct EncodeProgress: Copy & Equatable",
-          "declarationDigest": "3be632c724cdbda8f1c8d581f5350692c5000f1e3112c6ae7bc5b257b0fc25da",
+          "declarationDigest": "65d8efb6ceb1ab10d188cf9926ddcbea41bf1e1397104232d2723b05fdb3f447",
           "line": 873,
           "profile": "value-contract",
           "status": "draft"
@@ -1363,7 +1363,7 @@
           "symbol": "FieldDescriptor",
           "kind": "struct",
           "signature": "export struct FieldDescriptor<Owner: Row, Value>",
-          "declarationDigest": "81bd48e3e51ef3f7e2dc2df4994cc1970e76e9b27b9baeee45acb9316222d80d",
+          "declarationDigest": "6dcb41781fd820139ee71e77a89debf8debb31902cfa0e2c99804e9c5c107b26",
           "line": 707,
           "profile": "data-carrier",
           "status": "draft"
@@ -1372,7 +1372,7 @@
           "symbol": "FixedDecimalType",
           "kind": "struct",
           "signature": "export struct FixedDecimalType",
-          "declarationDigest": "23053f7a6f07d35b43affc80647e4d36ccfdb052cd75dd5b8120ba29833704e6",
+          "declarationDigest": "5e7f87f17890feeb094a976218677be0c0134c0f47e853f56e4faad533dd23d0",
           "line": 57,
           "profile": "data-carrier",
           "status": "draft"
@@ -1390,7 +1390,7 @@
           "symbol": "InstantValue",
           "kind": "struct",
           "signature": "export struct InstantValue",
-          "declarationDigest": "1f53526f0289993de318e56acf6b51583804c1ac0e979aa88a2f1311ee9fc35e",
+          "declarationDigest": "00a9bcc19b179d052eea104cf423df5cca370438a7014945ac7368945a41f6f7",
           "line": 273,
           "profile": "data-carrier",
           "status": "draft"
@@ -1426,7 +1426,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "4ed806ae729aa33eb7797cdfb85db5d6bc9abe1f8ff9a51c2218ba87957e884f",
+          "declarationDigest": "ddd1ffef61564d0fd32cf36d00d102291f78708d93fd6067dbcdb961eb096ec1",
           "line": 317,
           "profile": "value-contract",
           "status": "draft"
@@ -1435,7 +1435,7 @@
           "symbol": "LocalDateTimeValue",
           "kind": "struct",
           "signature": "export struct LocalDateTimeValue",
-          "declarationDigest": "de9cc3bbbd4e389803fbcc1fe183873ea6b72b2fd6a7effd151fa8f00b8e2ddb",
+          "declarationDigest": "eb36992fef909c9fa16ea80a0b777d95a08ea04626ff0bc34e060d1207f01a03",
           "line": 287,
           "profile": "data-carrier",
           "status": "draft"
@@ -1444,7 +1444,7 @@
           "symbol": "LogicalType",
           "kind": "struct",
           "signature": "export struct LogicalType",
-          "declarationDigest": "42e8e68227c3f9d807df473a851675d5a2bfd48c2d582a14c27f558761fcb029",
+          "declarationDigest": "b43027b8fbfd75b8ae49b7d1ca6509c2209778e13c8aea38cd6e1bc3b8afaa1b",
           "line": 71,
           "profile": "data-carrier",
           "status": "draft"
@@ -1489,7 +1489,7 @@
           "symbol": "Schema",
           "kind": "struct",
           "signature": "export struct Schema",
-          "declarationDigest": "6800591a55ef5608c394de6187695415680efe5dc96a3f5207b679a24426a1a3",
+          "declarationDigest": "dd584178c6e356084925e2d9f6b333d4deaeabece3810848db7cafbd9e7027e7",
           "line": 564,
           "profile": "data-carrier",
           "status": "draft"
@@ -1507,7 +1507,7 @@
           "symbol": "SchemaField",
           "kind": "struct",
           "signature": "export struct SchemaField",
-          "declarationDigest": "4a531ac9754f654aa285b115c887114351b05136beb7fc374c2ee4431b1077ab",
+          "declarationDigest": "7e2df47922cb06cda0c5ae8bfca7b5f8bf990c5d306f66ba3d16e4e4c2f689a5",
           "line": 539,
           "profile": "data-carrier",
           "status": "draft"
@@ -1516,7 +1516,7 @@
           "symbol": "SchemaIdentity",
           "kind": "struct",
           "signature": "export struct SchemaIdentity: Copy & Equatable",
-          "declarationDigest": "7e1599f77ca4574a804213fde22470182ea41f82a0eb5bb150c53cca9243288f",
+          "declarationDigest": "d099a2d59d4f4fd3615d378c9907e72a5eaa8ed064ec44f23a163b3273f98719",
           "line": 531,
           "profile": "data-carrier",
           "status": "draft"
@@ -1525,7 +1525,7 @@
           "symbol": "SemanticExtension",
           "kind": "struct",
           "signature": "export struct SemanticExtension",
-          "declarationDigest": "ced0cf0c5f26738b4ef935de6bf245f7712e017d688711578cd234695fbfbc63",
+          "declarationDigest": "199ad49f52facac181cec1c8aa0204a0a05e5884b6de2c69b5130921c8473977",
           "line": 187,
           "profile": "data-carrier",
           "status": "draft"
@@ -1534,7 +1534,7 @@
           "symbol": "StringColumn",
           "kind": "struct",
           "signature": "export struct StringColumn<Owner: Row>",
-          "declarationDigest": "1ff86e96ff2f800a1b4576d1ac4e82dfa1b4951df74e622a8529e335fdebe572",
+          "declarationDigest": "53bf5bc696c83a07f65bb8ba76117b42ba055cb8978a4adc8f9ad1f7f4753ae0",
           "line": 735,
           "profile": "data-carrier",
           "status": "draft"
@@ -1552,7 +1552,7 @@
           "symbol": "TimeValue",
           "kind": "struct",
           "signature": "export struct TimeValue",
-          "declarationDigest": "454f64f85d7e9e84f3af3dd29ffa038602e185e0a5c6b00b5b5a2953ce6b6296",
+          "declarationDigest": "a907ee27b6ff9072b774f7bca68966896a874a2798c032093fd82cca5b3c0d49",
           "line": 259,
           "profile": "data-carrier",
           "status": "draft"
@@ -1561,7 +1561,7 @@
           "symbol": "UUIDValue",
           "kind": "struct",
           "signature": "export struct UUIDValue",
-          "declarationDigest": "a426f0e43b4b772042179c697ded66e6928a48f6b773b08f1c08e0381afbbfb0",
+          "declarationDigest": "12d4b0614deea102140f651041b6b3ecbeb020c58edfe9c242d569b6d9e9ca4c",
           "line": 233,
           "profile": "data-carrier",
           "status": "draft"
@@ -1572,13 +1572,13 @@
       "id": "std.database",
       "availability": "database-adapter",
       "source": "std/database/contracts.w",
-      "catalogedDeclarationsDigest": "4ba72d5069b2252e5d8ddda0c0889c939c3ad14b177a729afdec66a453e61e95",
+      "catalogedDeclarationsDigest": "0bebfe5629fb2e53593e39f988312764d082fb80ba78944567eaa5236c8ad002",
       "apis": [
         {
           "symbol": "Binding",
           "kind": "struct",
           "signature": "export struct Binding",
-          "declarationDigest": "58c72a4efb6adb57d77b0c8420886b05df94af153d5ca0767b17757552e42b17",
+          "declarationDigest": "8679a7bc746fe8fb3a91f8a80ea7d4657085779496f50a4b05e8bb835e7b7c34",
           "line": 15,
           "profile": "const-binding",
           "status": "draft"
@@ -1587,7 +1587,7 @@
           "symbol": "Command",
           "kind": "struct",
           "signature": "export struct Command<Parameters>",
-          "declarationDigest": "fcd37aeeb366041c31e6250680d47ed9fa329a54e52cbc1677bc17cef28c3e15",
+          "declarationDigest": "30d4fd030a713c368a781011f1e2c8300f46ba14392009a55927492c3066c908",
           "line": 38,
           "profile": "const-binding",
           "status": "draft"
@@ -1632,7 +1632,7 @@
           "symbol": "Query",
           "kind": "struct",
           "signature": "export struct Query<Parameters, Row>",
-          "declarationDigest": "ccdbc49264a3892b7730aa2c11546c6b277f22445d773b6f9b5c950435bb958d",
+          "declarationDigest": "ddfaf128379812ec701e62c5b108fedc4fe08da405837b2cc92455912f9fff15",
           "line": 25,
           "profile": "const-binding",
           "status": "draft"
@@ -1641,7 +1641,7 @@
           "symbol": "RowLimits",
           "kind": "struct",
           "signature": "export struct RowLimits",
-          "declarationDigest": "4c47493b600cd52499ef6407125c4366582d3982b5076844e128697bcfc2afba",
+          "declarationDigest": "bd7d46f371d74176bb9456376517faa9d6bf1bc785b59d673b5317a0c208098a",
           "line": 51,
           "profile": "value-contract",
           "status": "draft"
@@ -1668,7 +1668,7 @@
           "symbol": "TransactionContract",
           "kind": "struct",
           "signature": "export struct TransactionContract",
-          "declarationDigest": "134095577a2935c1d0cefd5b30770d955c3259438f07d8ee7205857071b1cc95",
+          "declarationDigest": "dfbe650f57cf12423517fd8335a9adf320b056363a85aa6b963c63b5acb01eac",
           "line": 67,
           "profile": "value-contract",
           "status": "draft"
@@ -1701,7 +1701,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "9109d9dfcdafdf49b8d2a994c97e8f05de4f1e72a4f6d1f3160b967fcd702914",
+      "catalogedDeclarationsDigest": "94e49bdc958aa1fd4a35bf3684737eb55cb7d567dd40f23d7ed96bf8207aa9d3",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1716,7 +1716,7 @@
           "symbol": "DynamicImportedTensor",
           "kind": "struct",
           "signature": "export struct DynamicImportedTensor",
-          "declarationDigest": "c02d6cced39572ba3bad600bcc7d0f6ba5efffe7acb688d8e4723c8b8e43ed1d",
+          "declarationDigest": "ba1450ccf5aa7d66904f57727db3990e90bd2dcb246d87d9d5de5024fbd32c8a",
           "line": 124,
           "profile": "dlpack-import",
           "members": [
@@ -1765,7 +1765,7 @@
           "symbol": "ImportedTensor",
           "kind": "struct",
           "signature": "export struct ImportedTensor<Element, shape: StaticList<usize>>",
-          "declarationDigest": "1a412467f9302fdd4100a454f68c8ab259151176e0f2c31027598c2fe29adc60",
+          "declarationDigest": "d51700f9dc757e5f9990c4fdf22c120a545d66362a78f36b6745024d9e7f4291",
           "line": 103,
           "profile": "dlpack-import",
           "members": [
@@ -1796,7 +1796,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "52e63e089690b4042e73c4f96cd1ccf3fa7871f8cb600b19b0cf223d5365b3d5",
+          "declarationDigest": "0d8ba3cc44a10a7e6095bf808f5552163297db8890bd2aa6b13eed35d47e1c3d",
           "line": 53,
           "profile": "value-contract",
           "members": [
@@ -1817,7 +1817,7 @@
           "symbol": "ManagedTensor",
           "kind": "struct",
           "signature": "export struct ManagedTensor",
-          "declarationDigest": "a1fd66b9dd11c58978de2b6f71cb5fe72288bf43409cb49f584b5e5adb024ea8",
+          "declarationDigest": "a18e47b7668a2493f50be2d400f7274201c13ee188e70e9f928be8a1219da182",
           "line": 90,
           "profile": "dlpack-carrier",
           "status": "draft"
@@ -1882,13 +1882,13 @@
           "static-rights"
         ]
       },
-      "catalogedDeclarationsDigest": "6fd941d59edef3c34d75b6ccc9acc67bd4b3581f438bbe559af47988e4e80724",
+      "catalogedDeclarationsDigest": "a44dd2f22c4e83c1841d8a4ed2849f533cbe9185e4ae854a1c975ed455573056",
       "apis": [
         {
           "symbol": "DirectoryEntry",
           "kind": "struct",
           "signature": "export struct DirectoryEntry",
-          "declarationDigest": "56c7ad84e628c3e9fa13f128a4e9635fd0827109dd21b4b9e239443552a361c0",
+          "declarationDigest": "b59a73754d59cf9ac9aaeb946a8bb345a7d0e93c12b45b7abb68adc36e923cbb",
           "line": 278,
           "profile": "fs-directory",
           "members": [
@@ -1897,7 +1897,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export name: ref OsString",
+                  "signature": "export let name: ref OsString",
                   "line": 287
                 }
               ],
@@ -1908,7 +1908,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export kindHint: FileKind?",
+                  "signature": "export let kindHint: FileKind?",
                   "line": 291
                 }
               ],
@@ -1930,7 +1930,7 @@
           "symbol": "DirectoryLimits",
           "kind": "struct",
           "signature": "export struct DirectoryLimits: Copy & Equatable",
-          "declarationDigest": "2d7d570824af2b767c884365b20d3877d0e9b451079af1b95f36016af707d8fd",
+          "declarationDigest": "205982fd818f3d0d5fa6c8d709144a21447b1d152e5bb89566c0312d35799aed",
           "line": 69,
           "profile": "fs-directory",
           "members": [
@@ -1939,7 +1939,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumEntries: usize<(1...)> export maximumNameUnits: usize<(1...)> export maximumTotalNameUnits: usize<(1...)>",
+                  "signature": "export let maximumEntries: usize<(1...)> export let maximumNameUnits: usize<(1...)> export let maximumTotalNameUnits: usize<(1...)>",
                   "line": 70
                 }
               ],
@@ -1950,7 +1950,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumNameUnits: usize<(1...)> export maximumTotalNameUnits: usize<(1...)>",
+                  "signature": "export let maximumNameUnits: usize<(1...)> export let maximumTotalNameUnits: usize<(1...)>",
                   "line": 71
                 }
               ],
@@ -1961,7 +1961,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumTotalNameUnits: usize<(1...)>",
+                  "signature": "export let maximumTotalNameUnits: usize<(1...)>",
                   "line": 72
                 }
               ],
@@ -1993,7 +1993,7 @@
           "symbol": "File",
           "kind": "struct",
           "signature": "export struct File<_ rights: StaticList<FileRight>>",
-          "declarationDigest": "d800c5870fab1f395ab6f845a30434c8e6d17a55a70a7d6cca27ff40b49b96b1",
+          "declarationDigest": "cdefbc003608a158d41329bc185e3125e9a900a642cba7f29d27ab04a40e0da9",
           "line": 372,
           "profile": "fs-root",
           "members": [
@@ -2092,7 +2092,7 @@
           "symbol": "FileMetadata",
           "kind": "struct",
           "signature": "export struct FileMetadata",
-          "declarationDigest": "965730cdef1822ba7fd0a43469b435bae6906c092443ff39438acb760739c8f5",
+          "declarationDigest": "7f81ed0f086d34d0045cf393f342ff9e07436cbfa84a83fb1e16dd6dbfbf0c4b",
           "line": 260,
           "profile": "fs-root",
           "members": [
@@ -2101,7 +2101,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export kind: FileKind",
+                  "signature": "export let kind: FileKind",
                   "line": 269
                 }
               ],
@@ -2112,7 +2112,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export byteLength: u64?",
+                  "signature": "export let byteLength: u64?",
                   "line": 273
                 }
               ],
@@ -2143,7 +2143,7 @@
           "symbol": "FileSnapshot",
           "kind": "struct",
           "signature": "export struct FileSnapshot: SnapshotByteSource<IoError>",
-          "declarationDigest": "356262ca00a193b0b9491288f5ad8d2c475a0a2a8c4d2326d6b49da0f9f8a856",
+          "declarationDigest": "a707cf8ecd97fee1b2f37e03257fed4ee7cad0a4273ef177aca5361d8e9f0e9d",
           "line": 296,
           "profile": "fs-snapshot",
           "members": [
@@ -2174,7 +2174,7 @@
           "symbol": "FileSystem",
           "kind": "struct",
           "signature": "export struct FileSystem",
-          "declarationDigest": "f5eb2c9fa4703674e06dcbfef0080e1c426638b2016d0ef0ac0857ec4df96e75",
+          "declarationDigest": "e0b45930c0c53188e0cf66f924c7449ad3eb9dd5c52aa96fe67821735c235714",
           "line": 442,
           "profile": "fs-root",
           "members": [
@@ -2284,7 +2284,7 @@
           "symbol": "Path",
           "kind": "struct",
           "signature": "export struct Path: Duplicable",
-          "declarationDigest": "4d23a7dafa8bb535ce4e86aa6c34bf1da3217261e09a17e1c7e480fb235eb835",
+          "declarationDigest": "1ca5a423734a70e19a55fcd6f920119fd5371673aa2d4a4e3548660740f7d38b",
           "line": 201,
           "profile": "fs-path",
           "members": [
@@ -2372,7 +2372,7 @@
           "symbol": "Utf8Path",
           "kind": "struct",
           "signature": "export struct Utf8Path: Duplicable",
-          "declarationDigest": "912d774a97650683813bf04767a2c42ee61c5bda1bc9cbea77c5ff4a2265c722",
+          "declarationDigest": "bad64b22a3bf28d81d772b0fbe4b9c6e82aec0c79b72ee4027e4bd9dfc758367",
           "line": 234,
           "profile": "fs-path",
           "members": [
@@ -2435,7 +2435,7 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "34dfecfb51c7d4e0009a25a24639844d3638573b8d585f0a325dd672d80a2e06",
+      "catalogedDeclarationsDigest": "3c9b1eb76ee294d1aacc51008538a32d70cf0bc9e6489e7a80d095c082aa1f49",
       "apis": [
         {
           "symbol": "BodyCloneError",
@@ -2486,7 +2486,7 @@
           "symbol": "CacheRegistry",
           "kind": "struct",
           "signature": "export struct CacheRegistry",
-          "declarationDigest": "1fbd6c903e944839c043098ca64dfdb8c0f551ee13e824c7130df01a17c6d13d",
+          "declarationDigest": "4a3e7195f57e4861d8bfcebcb893867ee6a142f429bf28eef594de71a3ba8f24",
           "line": 2030,
           "profile": "http-context",
           "members": [
@@ -2507,7 +2507,7 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "cb3acb226df4947837d78978ae3187a883887f4bb5e217a38fcfa4824173e470",
+          "declarationDigest": "120191d3cc03c1cdaaf5775566dd077b6b4a5eed9a6c41a1b666c20121d559c6",
           "line": 2107,
           "profile": "http-context",
           "members": [
@@ -2516,7 +2516,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export random: RandomSource",
+                  "signature": "export let random: RandomSource",
                   "line": 2118
                 }
               ],
@@ -2527,7 +2527,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export databases: DatabaseRegistry",
+                  "signature": "export let databases: DatabaseRegistry",
                   "line": 2124
                 }
               ],
@@ -2538,7 +2538,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export caches: CacheRegistry",
+                  "signature": "export let caches: CacheRegistry",
                   "line": 2130
                 }
               ],
@@ -2549,7 +2549,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export templates: TemplateRegistry",
+                  "signature": "export let templates: TemplateRegistry",
                   "line": 2136
                 }
               ],
@@ -2560,7 +2560,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export signal: AbortSignal",
+                  "signature": "export let signal: AbortSignal",
                   "line": 2144
                 }
               ],
@@ -2582,7 +2582,7 @@
           "symbol": "DatabaseRegistry",
           "kind": "struct",
           "signature": "export struct DatabaseRegistry",
-          "declarationDigest": "761b5bbca15e305eecbd5cf19dd0d0121fb07852cdb7461fc90d6e0830603df8",
+          "declarationDigest": "b463428a61f274157a44c15a8df85aa4e3049175bd59f517ee5b9865d61acddb",
           "line": 2012,
           "profile": "http-context",
           "members": [
@@ -2612,7 +2612,7 @@
           "symbol": "FormData",
           "kind": "struct",
           "signature": "export struct FormData: Duplicable",
-          "declarationDigest": "b02a2794782a1d6f2f7b130473d315c95ecc84788631ba195c53f1b2cbd44573",
+          "declarationDigest": "c73d883cdcc0c0e13ef9f0cb11ff2346bf0fd7e9cd14d38cd972d9779160cbfe",
           "line": 893,
           "profile": "form-data-value",
           "members": [
@@ -2631,7 +2631,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export size: usize",
+                  "signature": "export let size: usize",
                   "line": 914
                 }
               ],
@@ -2642,7 +2642,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export limits: FormDataLimits",
+                  "signature": "export let limits: FormDataLimits",
                   "line": 918
                 }
               ],
@@ -2746,7 +2746,7 @@
           "symbol": "FormDataEntry",
           "kind": "struct",
           "signature": "export struct FormDataEntry: Duplicable",
-          "declarationDigest": "310b75336c848a3273f710be7dabbe87f3513db62069510a7e0744a1b4a187a0",
+          "declarationDigest": "ea04d6e838f5e7deedab3614ee648400b350d7bf155e22684be2782b26b5c53f",
           "line": 856,
           "profile": "form-data-value",
           "members": [
@@ -2805,7 +2805,7 @@
           "symbol": "FormDataLimits",
           "kind": "struct",
           "signature": "export struct FormDataLimits: Copy & Equatable",
-          "declarationDigest": "9ae8d287a50aea02924dfb40a3e45bd246f3bb39cebde91bfbc44aca2e80b469",
+          "declarationDigest": "6bcc3761dde7eed23a30b5ee5c1380ce315d6880f3aa3ada34fe799828b515b8",
           "line": 802,
           "profile": "value-contract",
           "members": [
@@ -2860,7 +2860,7 @@
           "symbol": "HeaderField",
           "kind": "struct",
           "signature": "export struct HeaderField",
-          "declarationDigest": "87b7afdb91067a2fb453d4451685dcbdc6253a80b054f46e2d41905bd589e89c",
+          "declarationDigest": "90c00a72bf9503a55dfda87bddfcf1ef11d6dc246c24169c24641252dd2c42a7",
           "line": 384,
           "profile": "normalized-http-header-component",
           "status": "draft"
@@ -2878,7 +2878,7 @@
           "symbol": "HeaderName",
           "kind": "struct",
           "signature": "export struct HeaderName",
-          "declarationDigest": "34d38b430d01863b7ab834b52bb902494b2af3dd6b5ce101b50adaa637d0619e",
+          "declarationDigest": "03c504f71c041fc2a57543c9fc2a3e50549e2e9333364a28eab60b725f1a2bf9",
           "line": 306,
           "profile": "normalized-http-header-component",
           "status": "draft"
@@ -2887,7 +2887,7 @@
           "symbol": "Headers",
           "kind": "struct",
           "signature": "export struct Headers",
-          "declarationDigest": "b2155d852874d3a27d0742b9e3f9ff5087308638364fa8dcfe065f8faf85456c",
+          "declarationDigest": "9c17c2ae44b59cea4ca150ff8d6b0c052760574d17ff859aec2a2dbc5a564a59",
           "line": 475,
           "profile": "http-headers",
           "members": [
@@ -3035,7 +3035,7 @@
           "symbol": "MessageLimits",
           "kind": "struct",
           "signature": "export struct MessageLimits",
-          "declarationDigest": "042016cbfcfa023aa8f3f98f913b268adc952ff0de81f66ff81c9e50d4183842",
+          "declarationDigest": "4743825b5db048351fbf48cd7fe67844bdc9af2548517196cb65b4005238f5f4",
           "line": 770,
           "profile": "value-contract",
           "status": "draft"
@@ -3053,7 +3053,7 @@
           "symbol": "MethodToken",
           "kind": "struct",
           "signature": "export struct MethodToken",
-          "declarationDigest": "c2c889813c7306ee058624cb521e0b96fb41a98dd2dece91e977a28f20cebdb1",
+          "declarationDigest": "4d12f560a4daae3b212242a186b31c4f6a20056144430ee371337dd665359d0a",
           "line": 265,
           "profile": "validated-http-token",
           "status": "draft"
@@ -3071,7 +3071,7 @@
           "symbol": "RandomSource",
           "kind": "struct",
           "signature": "export struct RandomSource",
-          "declarationDigest": "f77a8c642a83631f2893c0539296d0951b7f0a67fcb306b9a55a3dd501589b78",
+          "declarationDigest": "9fc1f9356667750d219d4e4516dec9ce862e6bf1e70884e296e24f73b62016ff",
           "line": 1996,
           "profile": "http-context",
           "members": [
@@ -3110,7 +3110,7 @@
           "symbol": "Request",
           "kind": "struct",
           "signature": "export struct Request",
-          "declarationDigest": "92f6826c87f8a95d979d76b248949631ca75c3194fdc5b741298b64d0c9c022f",
+          "declarationDigest": "14f3c22b5fcd01798e2ed632cd902448a1e341a7f41d98cb80d4c138edcd2e7a",
           "line": 1525,
           "profile": "http-request",
           "members": [
@@ -3141,7 +3141,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export method: Method",
+                  "signature": "export let method: Method",
                   "line": 1560
                 }
               ],
@@ -3152,7 +3152,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export url: ref URL",
+                  "signature": "export let url: ref URL",
                   "line": 1564
                 }
               ],
@@ -3163,7 +3163,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export headers: ref Headers",
+                  "signature": "export let headers: ref Headers",
                   "line": 1568
                 }
               ],
@@ -3174,7 +3174,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export signal: ref AbortSignal",
+                  "signature": "export let signal: ref AbortSignal",
                   "line": 1572
                 }
               ],
@@ -3185,7 +3185,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export bodyUsed: Bool",
+                  "signature": "export let bodyUsed: Bool",
                   "line": 1576
                 }
               ],
@@ -3196,7 +3196,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export destination: RequestDestination",
+                  "signature": "export let destination: RequestDestination",
                   "line": 1580
                 }
               ],
@@ -3207,7 +3207,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export mode: RequestMode",
+                  "signature": "export let mode: RequestMode",
                   "line": 1584
                 }
               ],
@@ -3218,7 +3218,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export credentials: CredentialsMode",
+                  "signature": "export let credentials: CredentialsMode",
                   "line": 1588
                 }
               ],
@@ -3229,7 +3229,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export cache: CacheMode",
+                  "signature": "export let cache: CacheMode",
                   "line": 1592
                 }
               ],
@@ -3240,7 +3240,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export redirect: RedirectMode",
+                  "signature": "export let redirect: RedirectMode",
                   "line": 1596
                 }
               ],
@@ -3251,7 +3251,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export referrer: RequestReferrer",
+                  "signature": "export let referrer: RequestReferrer",
                   "line": 1600
                 }
               ],
@@ -3262,7 +3262,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export referrerPolicy: ReferrerPolicy",
+                  "signature": "export let referrerPolicy: ReferrerPolicy",
                   "line": 1604
                 }
               ],
@@ -3273,7 +3273,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export integrity: view String",
+                  "signature": "export let integrity: view String",
                   "line": 1608
                 }
               ],
@@ -3284,7 +3284,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export duplex: Duplex",
+                  "signature": "export let duplex: Duplex",
                   "line": 1612
                 }
               ],
@@ -3295,7 +3295,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export priority: Priority",
+                  "signature": "export let priority: Priority",
                   "line": 1616
                 }
               ],
@@ -3409,7 +3409,7 @@
           "symbol": "RequestInit",
           "kind": "struct",
           "signature": "export struct RequestInit",
-          "declarationDigest": "032a5c7bb02099d00930a5023fef65d1547403b96af1b9a4012f4765eeea063f",
+          "declarationDigest": "7235686d2846ed09397585d4c9cde070bc376be282a3948ff36490eac6d6211c",
           "line": 1261,
           "profile": "http-request",
           "members": [
@@ -3448,7 +3448,7 @@
           "symbol": "RequestOverride",
           "kind": "struct",
           "signature": "export struct RequestOverride",
-          "declarationDigest": "ca500fe1c720ac8edabf93afa6b3c4df4c60d5a5d868eaae5b01b0ec2e7f57d5",
+          "declarationDigest": "3d6786fde418d921a596fcf08b06e9657b3c76e88feea6e02c420a9b0888ef41",
           "line": 1309,
           "profile": "http-request",
           "members": [
@@ -3478,7 +3478,7 @@
           "symbol": "Response",
           "kind": "struct",
           "signature": "export struct Response",
-          "declarationDigest": "4f7497a0efa1f25bc905c5a83a2a340e942899f78b20e8c23d3a3c876f432acc",
+          "declarationDigest": "4ed13f3911a61cc89af21d9c622c6f2ef8df4bd99f1666f64b0debb433ee132d",
           "line": 1697,
           "profile": "http-response",
           "members": [
@@ -3557,7 +3557,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export status: u16<(0..<600)>",
+                  "signature": "export let status: u16<(0..<600)>",
                   "line": 1889
                 }
               ],
@@ -3568,7 +3568,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export ok: Bool",
+                  "signature": "export let ok: Bool",
                   "line": 1893
                 }
               ],
@@ -3579,7 +3579,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export statusText: view String",
+                  "signature": "export let statusText: view String",
                   "line": 1897
                 }
               ],
@@ -3590,7 +3590,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export headers: ref Headers",
+                  "signature": "export let headers: ref Headers",
                   "line": 1901
                 }
               ],
@@ -3601,7 +3601,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export url: URL?",
+                  "signature": "export let url: URL?",
                   "line": 1905
                 }
               ],
@@ -3612,7 +3612,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export redirected: Bool",
+                  "signature": "export let redirected: Bool",
                   "line": 1909
                 }
               ],
@@ -3623,7 +3623,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export type: ResponseType",
+                  "signature": "export let type: ResponseType",
                   "line": 1913
                 }
               ],
@@ -3634,7 +3634,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export bodyUsed: Bool",
+                  "signature": "export let bodyUsed: Bool",
                   "line": 1917
                 }
               ],
@@ -3760,7 +3760,7 @@
           "symbol": "ServerLimits",
           "kind": "struct",
           "signature": "export struct ServerLimits",
-          "declarationDigest": "4bd70d562362b3ed761f6f146c1993a7c666cae8f0482c4dbbf06eee02db24b3",
+          "declarationDigest": "12f996cd7e53bba049c42ca1a0e453988823ae0ae24eef166c5bc742879c2116",
           "line": 777,
           "profile": "value-contract",
           "status": "draft"
@@ -3778,7 +3778,7 @@
           "symbol": "Template",
           "kind": "struct",
           "signature": "export struct Template",
-          "declarationDigest": "299e1b1b8fa043986291f91ebd76799e2b3688e95921d5c919effa68ca47489e",
+          "declarationDigest": "535d29f39510f3c1062743b8b61860bc12c15d16bd3eab878dacdbe8ba93cc13",
           "line": 2069,
           "profile": "template-provider",
           "members": [
@@ -3802,7 +3802,7 @@
           "symbol": "TemplateBinding",
           "kind": "struct",
           "signature": "export struct TemplateBinding",
-          "declarationDigest": "4b901c14b9688b4ca179d05a91a3dc8dae95f4bade8fae948872ff6b1fe13866",
+          "declarationDigest": "858daf2987dd5c4c288193f196a57c9b805c86cfc7de38932272d962c2454657",
           "line": 2051,
           "profile": "value-contract",
           "members": [
@@ -3841,7 +3841,7 @@
           "symbol": "TemplateLimits",
           "kind": "struct",
           "signature": "export struct TemplateLimits",
-          "declarationDigest": "91044be5884ee2dcf30d6b7ba396abac01b414a3a5c77a69f1c55c57e5bb4838",
+          "declarationDigest": "f1c6838a091cae2e6b43ce712ac5dbe61d9f88c2943c456c069bd8bf6c0e227b",
           "line": 1368,
           "profile": "value-contract",
           "members": [
@@ -3862,7 +3862,7 @@
           "symbol": "TemplateRegistry",
           "kind": "struct",
           "signature": "export struct TemplateRegistry",
-          "declarationDigest": "3fd4df06f1d57a2b5650e62ac1abdf76fd611c0623cbbe7339af9cc57be1fe91",
+          "declarationDigest": "97a0d5c88a30f793aac243f4506d60a4dcc6696895023a5315a7797da61413bd",
           "line": 2089,
           "profile": "http-context",
           "members": [
@@ -3976,7 +3976,7 @@
           "snapshot-positional-read"
         ]
       },
-      "catalogedDeclarationsDigest": "90b3eef157908c313470312cfb0b0b781675fd7285c3e0eefc73686fa2659c39",
+      "catalogedDeclarationsDigest": "79280978fb3376eb46371e93695b9fcb972d58ca32068d8f0b8ff1ac4f6d35b7",
       "apis": [
         {
           "symbol": "ByteSink",
@@ -4000,7 +4000,7 @@
           "symbol": "IoCause",
           "kind": "struct",
           "signature": "export struct IoCause: Duplicable",
-          "declarationDigest": "8df5ebcb61d6c54ea38e8b11097aec17acbbe0806c34c2d76b574eb2ab873329",
+          "declarationDigest": "e1688f7798951be19f2800bcfca9e1b5db1a45abcc868c45cfafe29ec1e3e2e3",
           "line": 106,
           "profile": "io-error",
           "members": [
@@ -4021,7 +4021,7 @@
           "symbol": "IoError",
           "kind": "struct",
           "signature": "export struct IoError: Error & Duplicable",
-          "declarationDigest": "23744070db3dc9b055e3843d3983a9cac285359db42f7676873a7a781293ba94",
+          "declarationDigest": "95dde53afb8d23675f3cc8b92fdb11dc4296e78784d75d4badd75f2ef1cb1852",
           "line": 123,
           "profile": "io-error",
           "members": [
@@ -4030,7 +4030,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export kind: IoErrorKind",
+                  "signature": "export let kind: IoErrorKind",
                   "line": 138
                 }
               ],
@@ -4041,7 +4041,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export operation: IoOperation",
+                  "signature": "export let operation: IoOperation",
                   "line": 142
                 }
               ],
@@ -4052,7 +4052,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export cause: ref IoCause?",
+                  "signature": "export let cause: ref IoCause?",
                   "line": 146
                 }
               ],
@@ -4093,7 +4093,7 @@
           "symbol": "ReadBatch",
           "kind": "struct",
           "signature": "export struct ReadBatch",
-          "declarationDigest": "098cd6a91eec586f76f62c34b2b1f46ec28414064a68f733770a71575567e954",
+          "declarationDigest": "bda077b61c86f2478191db630f17fb30371d008ce973d926b07f59bc4a1d6b3c",
           "line": 205,
           "profile": "scatter-read-owner",
           "members": [
@@ -4112,7 +4112,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export segmentCount: usize",
+                  "signature": "export let segmentCount: usize",
                   "line": 212
                 }
               ],
@@ -4123,7 +4123,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export filledBytes: usize",
+                  "signature": "export let filledBytes: usize",
                   "line": 216
                 }
               ],
@@ -4134,7 +4134,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export isFull: Bool",
+                  "signature": "export let isFull: Bool",
                   "line": 220
                 }
               ],
@@ -4240,7 +4240,7 @@
           "symbol": "TransferError",
           "kind": "struct",
           "signature": "export struct TransferError<ReadFailure: Error, WriteFailure: Error>: Error",
-          "declarationDigest": "ad0b98edc2a38226316cb3cbd793aebb32f331010e6cffb1c9ea441aa7c88fc3",
+          "declarationDigest": "254a27b400a6c0a8a9c54689fa81bbabfcf91f8377329c23948ad6c2c75dd293",
           "line": 198,
           "profile": "byte-transfer",
           "status": "draft"
@@ -4249,7 +4249,7 @@
           "symbol": "TransferPlan",
           "kind": "struct",
           "signature": "export struct TransferPlan",
-          "declarationDigest": "3eaf4ab0e9a7e96d630b8b2af93ee92c9a325cba77229dbbdb19f417d9e49d44",
+          "declarationDigest": "1a2b93a18b31818a7a9f767c68d3c2845978abf3b8fd464b1a06cc194211954d",
           "line": 244,
           "profile": "byte-transfer",
           "members": [
@@ -4268,7 +4268,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export transferred: u64",
+                  "signature": "export let transferred: u64",
                   "line": 257
                 }
               ],
@@ -4279,7 +4279,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export remaining: u64",
+                  "signature": "export let remaining: u64",
                   "line": 261
                 }
               ],
@@ -4290,7 +4290,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export pendingBytes: usize",
+                  "signature": "export let pendingBytes: usize",
                   "line": 265
                 }
               ],
@@ -4321,7 +4321,7 @@
           "symbol": "WriteAllError",
           "kind": "struct",
           "signature": "export struct WriteAllError<Cause: Error>: Error",
-          "declarationDigest": "2abf0702f643c0d371db42009f5b5733ce18ef1a57750b0dda111a2487e73394",
+          "declarationDigest": "e52b3deede4ae625d4d71fcc942b310c4a918d7249f9ecf2c474ab78accb09eb",
           "line": 274,
           "profile": "value-contract",
           "status": "draft"
@@ -4357,13 +4357,13 @@
           "web-differential-vectors"
         ]
       },
-      "catalogedDeclarationsDigest": "7ff0393ede5424375fadb29b32880f1fc6c728ae30f5b8f9c973d7b458144d96",
+      "catalogedDeclarationsDigest": "6b1a96c49ea946824cf43d5971367c679f8b9ec3190bfaf3324b4453277d3b20",
       "apis": [
         {
           "symbol": "ArrayReader",
           "kind": "struct",
           "signature": "export struct ArrayReader",
-          "declarationDigest": "9296cbf5770ff24441205955f53d9aa805ec4e633fe314f25770b055fc3e6443",
+          "declarationDigest": "d7ef958ba38a31cc559215d736c7b0b03a8cbdae6b2944747e9c2142871148c7",
           "line": 681,
           "profile": "json-codec-carrier",
           "members": [
@@ -4384,7 +4384,7 @@
           "symbol": "ArrayWriter",
           "kind": "struct",
           "signature": "export struct ArrayWriter",
-          "declarationDigest": "693f1b52299d89f2214fcf7651b52812015fe7fdfa9af796b49a3ad01abdee7f",
+          "declarationDigest": "ba03d847af64e5fbcb956ab61d61bc6311c383ef1f70ad71c5ff89d781b716ce",
           "line": 545,
           "profile": "json-codec-carrier",
           "members": [
@@ -4477,7 +4477,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "399bd8c57e09079a7ef99ea3adfec54b39d7dc2fc7d712e750d384998c2b97e1",
+          "declarationDigest": "3fcc471a0b416d2a318bd4a8c25a5ca362ec206240c3394dee23b0c6aa453489",
           "line": 33,
           "profile": "value-contract",
           "members": [
@@ -4500,7 +4500,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumBytes: usize<(1...)> { get => storedMaximumBytes }",
+                  "signature": "export let maximumBytes: usize<(1...)> { get => storedMaximumBytes }",
                   "line": 42
                 }
               ],
@@ -4511,7 +4511,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumDepth: usize<(1...)> { get => storedMaximumDepth }",
+                  "signature": "export let maximumDepth: usize<(1...)> { get => storedMaximumDepth }",
                   "line": 43
                 }
               ],
@@ -4522,7 +4522,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumValues: usize<(1...)> { get => storedMaximumValues }",
+                  "signature": "export let maximumValues: usize<(1...)> { get => storedMaximumValues }",
                   "line": 44
                 }
               ],
@@ -4533,7 +4533,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumStringBytes: usize<(1...)> { get => storedMaximumStringBytes }",
+                  "signature": "export let maximumStringBytes: usize<(1...)> { get => storedMaximumStringBytes }",
                   "line": 45
                 }
               ],
@@ -4544,7 +4544,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumNumberTokenBytes: usize<(1...)>",
+                  "signature": "export let maximumNumberTokenBytes: usize<(1...)>",
                   "line": 46
                 }
               ],
@@ -4555,7 +4555,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumObjectMembers: usize<(1...)> { get => storedMaximumObjectMembers }",
+                  "signature": "export let maximumObjectMembers: usize<(1...)> { get => storedMaximumObjectMembers }",
                   "line": 49
                 }
               ],
@@ -4566,7 +4566,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumAllocationBytes: usize<(1...)>",
+                  "signature": "export let maximumAllocationBytes: usize<(1...)>",
                   "line": 50
                 }
               ],
@@ -4579,7 +4579,7 @@
           "symbol": "Location",
           "kind": "struct",
           "signature": "export struct Location: Copy & Equatable",
-          "declarationDigest": "6d586b9fd4389f241164ed91e7c979ab9ef4ba75e788d86009f5f06057a531e4",
+          "declarationDigest": "9ac2697533d4cf8141a9389e2908485fb0c9cdc4e1b71c7ba18bc3c1c9805b69",
           "line": 89,
           "profile": "value-contract",
           "members": [
@@ -4598,7 +4598,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export byteOffset: usize { get => storedByteOffset }",
+                  "signature": "export let byteOffset: usize { get => storedByteOffset }",
                   "line": 96
                 }
               ],
@@ -4611,7 +4611,7 @@
           "symbol": "Number",
           "kind": "struct",
           "signature": "export struct Number: Duplicable & Equatable",
-          "declarationDigest": "e594ab461e286882de2a76eddead380f92ed81dae6690497f8c0bd51d8192a58",
+          "declarationDigest": "7a592272f7ee66523f8dc3c9c5057c62caa99780eae5bc767e94aeea1747c937",
           "line": 153,
           "profile": "value-contract",
           "members": [
@@ -4672,7 +4672,7 @@
           "symbol": "Object",
           "kind": "struct",
           "signature": "export struct Object: Duplicable & Equatable",
-          "declarationDigest": "2021d7736e3755f2163095d1487bb2f98a3b18bc624fe2c3f968b3e244d71581",
+          "declarationDigest": "d74a281651eba8da4152bec9db7dbe5850cd75785e94148b28bf152c249bf594",
           "line": 225,
           "profile": "value-contract",
           "members": [
@@ -4701,7 +4701,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export count: usize",
+                  "signature": "export let count: usize",
                   "line": 257
                 }
               ],
@@ -4744,7 +4744,7 @@
           "symbol": "ObjectEntry",
           "kind": "struct",
           "signature": "export struct ObjectEntry: Duplicable & Equatable",
-          "declarationDigest": "e2e871449babdec211a3c838defe534a34b7e626e5982a0465898d98bde72096",
+          "declarationDigest": "3769582031c6a3df54dc82369653630227e53e9b260e0272f79b08ba04036606",
           "line": 197,
           "profile": "value-contract",
           "members": [
@@ -4763,7 +4763,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export name: view String",
+                  "signature": "export let name: view String",
                   "line": 206
                 }
               ],
@@ -4774,7 +4774,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export value: ref Value",
+                  "signature": "export let value: ref Value",
                   "line": 210
                 }
               ],
@@ -4807,7 +4807,7 @@
           "symbol": "ObjectReader",
           "kind": "struct",
           "signature": "export struct ObjectReader",
-          "declarationDigest": "423541460e30ceca15f6ca94062d61afe8d9b224c65a445a167c3ffab5c49ac9",
+          "declarationDigest": "cafc90268795a0ceb34f48812f11bfedc9d7a1a6de090e56bfd43110bb642228",
           "line": 649,
           "profile": "json-codec-carrier",
           "members": [
@@ -4838,7 +4838,7 @@
           "symbol": "ObjectWriter",
           "kind": "struct",
           "signature": "export struct ObjectWriter",
-          "declarationDigest": "c177b92c3aaeef57f203c072ab40e3ba819ce30ec73a0ca0a3a611d56be71760",
+          "declarationDigest": "dbe6e1cb41a2d86526dcfb6c15bce40b5f22a93c4383ca8e9b83038b35c4e4fe",
           "line": 512,
           "profile": "json-codec-carrier",
           "members": [
@@ -4868,7 +4868,7 @@
           "symbol": "Reader",
           "kind": "struct",
           "signature": "export struct Reader",
-          "declarationDigest": "6e475699c1702c37a3707e76d6a25a3ce800f8bd56a7577e850d58a7f4af10a6",
+          "declarationDigest": "46dd31e7af30198d273c6a64a67f2c1d713ca51a1ed54135f08097449f27b8c8",
           "line": 571,
           "profile": "json-codec-carrier",
           "members": [
@@ -5015,7 +5015,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "7ee0e44d60e43407e48475c033989bdca7502e25c1314a391e83af5d11f1d480",
+          "declarationDigest": "a9f6500711cf68f48066e2792e7b555346dbdc6884811990e4da8334d1521bbb",
           "line": 450,
           "profile": "json-codec-carrier",
           "members": [
@@ -5104,7 +5104,7 @@
           "refined-to-base"
         ]
       },
-      "catalogedDeclarationsDigest": "188e37c066a838e0fa399849921a7502cae2e0e1969e86f1172867f7c9b8e10b",
+      "catalogedDeclarationsDigest": "ee602fd54d647d2064425a13bf8dd11faee6c06aac5cccc722cb2f0194e3b88a",
       "apis": [
         {
           "symbol": "AllocationError",
@@ -5119,7 +5119,7 @@
           "symbol": "Allocator",
           "kind": "struct",
           "signature": "export struct Allocator",
-          "declarationDigest": "5f4481d4ab8030acba90c0894e25972e950bb60f24dec95baed4f82d4092b376",
+          "declarationDigest": "48a65eb905834d471cf6781eb2c36297030ef4216efb3faa5eff98c33fa034eb",
           "line": 56,
           "profile": "allocator-carrier",
           "status": "draft"
@@ -5173,7 +5173,7 @@
           "symbol": "AllocatorPlanDescriptor",
           "kind": "struct",
           "signature": "export struct AllocatorPlanDescriptor: Copy & Equatable",
-          "declarationDigest": "3ccfe9ceeb72863a1b0a9afd4e9a046d461cfc0b1a444edb9e4c790d72c48ed6",
+          "declarationDigest": "d4a878a5d72bc0ea9eddee5ddf994bf9cd6ea322fd32c50f81c3f2c1d2aef41e",
           "line": 48,
           "profile": "allocator-plan-descriptor",
           "status": "draft"
@@ -5182,7 +5182,7 @@
           "symbol": "BudgetExceeded",
           "kind": "struct",
           "signature": "export struct BudgetExceeded: Copy & Equatable",
-          "declarationDigest": "49b0f6ec5ec9c1ac1295aca7f8cfc2f71cb924d9b87ef4da603eb81c02d698af",
+          "declarationDigest": "223d44ee7cb904aff0d6657ab44c3161cb732a27330c89cde469758df438466d",
           "line": 14,
           "profile": "value-contract",
           "status": "draft"
@@ -5213,13 +5213,13 @@
           "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "505d378219b2c85aa48b9a8650ccf758afccbe33a7240c084dba6c982b087221",
+      "catalogedDeclarationsDigest": "780a241a33cd91d58aa382be38ce2d78a109f6be7a10e5fa850387ae7ecf4c9c",
       "apis": [
         {
           "symbol": "AcceptedTcp",
           "kind": "struct",
           "signature": "export struct AcceptedTcp",
-          "declarationDigest": "9fcbfccc6597d717c293473de6be62561d089a4540ad78113ff5c3db119b3860",
+          "declarationDigest": "c24f872aea80a6bd7aeb8af9deec460b68544774ca3d52daf23f2ca30f002415",
           "line": 905,
           "profile": "net-transport",
           "members": [
@@ -5228,7 +5228,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export connection: TcpConnection export peer: SocketAddress",
+                  "signature": "export let connection: TcpConnection export let peer: SocketAddress",
                   "line": 906
                 }
               ],
@@ -5239,7 +5239,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export peer: SocketAddress",
+                  "signature": "export let peer: SocketAddress",
                   "line": 907
                 }
               ],
@@ -5279,7 +5279,7 @@
           "symbol": "ConnectOptions",
           "kind": "struct",
           "signature": "export struct ConnectOptions: Duplicable & Equatable",
-          "declarationDigest": "8615729539d554ac0684116997619111c689e39371ad26cff9bbb9bc81300c86",
+          "declarationDigest": "0f6dcea4e1f97454077e1f0a29cae4e1d219614c2113238bb6d550bdfac9f32b",
           "line": 504,
           "profile": "value-contract",
           "members": [
@@ -5298,7 +5298,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumAttempts: usize<(1...16)> export fallbackDelay: Duration<(0...30<si.s>)> export preference: AddressPreference export local: SocketAddress?",
+                  "signature": "export let maximumAttempts: usize<(1...16)> export let fallbackDelay: Duration<(0...30<si.s>)> export let preference: AddressPreference export let local: SocketAddress?",
                   "line": 505
                 }
               ],
@@ -5309,7 +5309,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export fallbackDelay: Duration<(0...30<si.s>)> export preference: AddressPreference export local: SocketAddress?",
+                  "signature": "export let fallbackDelay: Duration<(0...30<si.s>)> export let preference: AddressPreference export let local: SocketAddress?",
                   "line": 506
                 }
               ],
@@ -5320,7 +5320,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export preference: AddressPreference export local: SocketAddress?",
+                  "signature": "export let preference: AddressPreference export let local: SocketAddress?",
                   "line": 507
                 }
               ],
@@ -5331,7 +5331,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export local: SocketAddress?",
+                  "signature": "export let local: SocketAddress?",
                   "line": 508
                 }
               ],
@@ -5364,7 +5364,7 @@
           "symbol": "Datagram",
           "kind": "struct",
           "signature": "export struct Datagram: Duplicable",
-          "declarationDigest": "d2249d98686ef56c283f5f83b5c206b393699a06146e4cbd1a94b45b92fa5cb7",
+          "declarationDigest": "1292c33df06d5abbb008f23fcd0d1a896ba462587bd92922366a8f3ae054df53",
           "line": 568,
           "profile": "net-transport",
           "members": [
@@ -5373,7 +5373,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export bytes: Bytes export peer: SocketAddress export truncated: Bool",
+                  "signature": "export let bytes: Bytes export let peer: SocketAddress export let truncated: Bool",
                   "line": 569
                 }
               ],
@@ -5384,7 +5384,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export peer: SocketAddress export truncated: Bool",
+                  "signature": "export let peer: SocketAddress export let truncated: Bool",
                   "line": 570
                 }
               ],
@@ -5395,7 +5395,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export truncated: Bool",
+                  "signature": "export let truncated: Bool",
                   "line": 571
                 }
               ],
@@ -5418,7 +5418,7 @@
           "symbol": "DatagramLimits",
           "kind": "struct",
           "signature": "export struct DatagramLimits: Copy & Equatable",
-          "declarationDigest": "645d714d30f335e294a635df52903250f37654c72ace69d064a436b97600d197",
+          "declarationDigest": "c55d89b5733f6078600257b1c85acf267c24a2970daba4e0d694fa8581c00a18",
           "line": 552,
           "profile": "value-contract",
           "members": [
@@ -5437,7 +5437,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumDatagramBytes: usize<(1...)> export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
+                  "signature": "export let maximumDatagramBytes: usize<(1...)> export let maximumQueuedDatagrams: usize<(1...)> export let maximumQueuedBytes: usize<(1...)>",
                   "line": 553
                 }
               ],
@@ -5448,7 +5448,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumQueuedDatagrams: usize<(1...)> export maximumQueuedBytes: usize<(1...)>",
+                  "signature": "export let maximumQueuedDatagrams: usize<(1...)> export let maximumQueuedBytes: usize<(1...)>",
                   "line": 554
                 }
               ],
@@ -5459,7 +5459,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumQueuedBytes: usize<(1...)>",
+                  "signature": "export let maximumQueuedBytes: usize<(1...)>",
                   "line": 555
                 }
               ],
@@ -5472,7 +5472,7 @@
           "symbol": "Endpoint",
           "kind": "struct",
           "signature": "export struct Endpoint: Duplicable & Equatable & Hashable",
-          "declarationDigest": "df5963fc18970ac5720b96a7ad8d3e7e2b6fba0ede9878ebe6552347f543a3b6",
+          "declarationDigest": "833af5922b2ec863d81a97b2150a7459de095752a7e8d8462138142690d46248",
           "line": 326,
           "profile": "net-address-value",
           "members": [
@@ -5495,7 +5495,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export host: EndpointHost export port: u16<(1...65_535)>",
+                  "signature": "export let host: EndpointHost export let port: u16<(1...65_535)>",
                   "line": 327
                 }
               ],
@@ -5506,7 +5506,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export port: u16<(1...65_535)>",
+                  "signature": "export let port: u16<(1...65_535)>",
                   "line": 328
                 }
               ],
@@ -5570,7 +5570,7 @@
           "symbol": "HostName",
           "kind": "struct",
           "signature": "export struct HostName: Duplicable & Equatable & Hashable",
-          "declarationDigest": "35e8d12275c6ab79ea8c1f5dd68adf8f3792113eb5445efbf2b71f544f82c4c3",
+          "declarationDigest": "ee2ca12d4de37e509602f929d6b411021fb3b34e32475a0fb02e9958686adff2",
           "line": 296,
           "profile": "net-address-value",
           "members": [
@@ -5682,7 +5682,7 @@
           "symbol": "Ipv4Address",
           "kind": "struct",
           "signature": "export struct Ipv4Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "a0eb4f7fd969eacdca9404950576be2db66a4cc599eb6a0fd75cb2fc5d66dc9f",
+          "declarationDigest": "6f2fead2fb9c0b01f522df29cc93354842d4c212286f529c278e0c2a62ad1240",
           "line": 63,
           "profile": "net-address-value",
           "members": [
@@ -5773,7 +5773,7 @@
           "symbol": "Ipv6Address",
           "kind": "struct",
           "signature": "export struct Ipv6Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "76c1e4d94169f12a7174c4569e7062df54d7989f06a74ca8b0f7c99bfd079cb5",
+          "declarationDigest": "6f11f99f75c86e31385e81cc94623596216dcd73a9858747bd27c5e06a67053a",
           "line": 113,
           "profile": "net-address-value",
           "members": [
@@ -5864,7 +5864,7 @@
           "symbol": "ListenAddress",
           "kind": "struct",
           "signature": "export struct ListenAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "28e899681f99d68c1c7bade745710fc97ee16a87e19950b620212da20d7f7e9f",
+          "declarationDigest": "00f0e8856231dbd4f1bdd7902dad79c8aa88f9bdf5daff6ebd3fb0dcba8e1f46",
           "line": 437,
           "profile": "net-address-value",
           "members": [
@@ -5925,7 +5925,7 @@
           "symbol": "ListenerLimits",
           "kind": "struct",
           "signature": "export struct ListenerLimits: Copy & Equatable",
-          "declarationDigest": "eebc400f6a9ba8e6bff4019c06baeb1660123db525792e0d1be658c613aea23f",
+          "declarationDigest": "4cb1579b5598a296fcd8e6dbce2bd6054ca8c0c66c0a2fc63b043f48a50e5794",
           "line": 539,
           "profile": "value-contract",
           "members": [
@@ -5944,7 +5944,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumBacklog: usize<(1...)> export maximumQueuedAccepts: usize<(1...)>",
+                  "signature": "export let maximumBacklog: usize<(1...)> export let maximumQueuedAccepts: usize<(1...)>",
                   "line": 540
                 }
               ],
@@ -5955,7 +5955,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumQueuedAccepts: usize<(1...)>",
+                  "signature": "export let maximumQueuedAccepts: usize<(1...)>",
                   "line": 541
                 }
               ],
@@ -5968,7 +5968,7 @@
           "symbol": "Network",
           "kind": "struct",
           "signature": "export struct Network",
-          "declarationDigest": "ea17c7a87deffef0c9a022d7b91ad69ac492c9c6810404a77cf5d333886867d9",
+          "declarationDigest": "e8e7bbdd742e52e3a3b143e432620e94477d0645cbf64e3ce6ea635bc8468e13",
           "line": 701,
           "profile": "net-listener-carrier",
           "members": [
@@ -6037,7 +6037,7 @@
           "symbol": "ResolveLimits",
           "kind": "struct",
           "signature": "export struct ResolveLimits: Copy & Equatable",
-          "declarationDigest": "04852fc2468a2edbaa471235ce8345160d2057e3df30c06b687e7abd561141ce",
+          "declarationDigest": "f57b7da6e64f4901741798adc5da684e8dca95fc89295c27058752b087309621",
           "line": 479,
           "profile": "value-contract",
           "members": [
@@ -6056,7 +6056,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumAddresses: usize<(1...)> export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
+                  "signature": "export let maximumAddresses: usize<(1...)> export let maximumCnameDepth: usize export let maximumResponseBytes: usize<(1...)> export let maximumAllocationBytes: usize<(1...)>",
                   "line": 480
                 }
               ],
@@ -6067,7 +6067,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumCnameDepth: usize export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
+                  "signature": "export let maximumCnameDepth: usize export let maximumResponseBytes: usize<(1...)> export let maximumAllocationBytes: usize<(1...)>",
                   "line": 481
                 }
               ],
@@ -6078,7 +6078,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumResponseBytes: usize<(1...)> export maximumAllocationBytes: usize<(1...)>",
+                  "signature": "export let maximumResponseBytes: usize<(1...)> export let maximumAllocationBytes: usize<(1...)>",
                   "line": 482
                 }
               ],
@@ -6089,7 +6089,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumAllocationBytes: usize<(1...)>",
+                  "signature": "export let maximumAllocationBytes: usize<(1...)>",
                   "line": 483
                 }
               ],
@@ -6102,7 +6102,7 @@
           "symbol": "SocketAddress",
           "kind": "struct",
           "signature": "export struct SocketAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "12fa7b841341528719d0293408219c1c304f71778d2d1a58ba611e5c6f2fb04e",
+          "declarationDigest": "24efb8b314f8407ae4afec6f4d8eeff1b5c7aa7da1c8149c95e46295300d2c79",
           "line": 227,
           "profile": "net-address-value",
           "members": [
@@ -6121,7 +6121,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export ip: IpAddress export port: u16 export scopeId: u32?",
+                  "signature": "export let ip: IpAddress export let port: u16 export let scopeId: u32?",
                   "line": 228
                 }
               ],
@@ -6132,7 +6132,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export port: u16 export scopeId: u32?",
+                  "signature": "export let port: u16 export let scopeId: u32?",
                   "line": 229
                 }
               ],
@@ -6143,7 +6143,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export scopeId: u32?",
+                  "signature": "export let scopeId: u32?",
                   "line": 230
                 }
               ],
@@ -6206,7 +6206,7 @@
           "symbol": "TcpConnection",
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
-          "declarationDigest": "6766c2c94817e9e5909dbe6266f419eea12c76e5a3fe783d12cd90ce03cc948c",
+          "declarationDigest": "977310b75c6086f2ba3e1a16116d17854e96266eb16a1de903602d96f2f014f9",
           "line": 776,
           "profile": "net-transport",
           "members": [
@@ -6277,7 +6277,7 @@
           "symbol": "TcpListener",
           "kind": "struct",
           "signature": "export struct TcpListener",
-          "declarationDigest": "0fb1bcd9828aeecbdc4967595d6cee6b157718df66ac4e0eccf4f9bd321c66bc",
+          "declarationDigest": "df512c0ea28b8a6989fca116441ec771523e5979d365210c757a580bbef18e56",
           "line": 915,
           "profile": "net-transport",
           "members": [
@@ -6308,7 +6308,7 @@
           "symbol": "TcpReadHalf",
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
-          "declarationDigest": "6fdc4f5726a99ae3604b7da2ee81d1475302cdb3377740fb54f22bc5dc4102d4",
+          "declarationDigest": "42fed2359dfa89aad016443594a1af3adf435845a5b49b9ddb8e30594e58db56",
           "line": 841,
           "profile": "net-transport",
           "members": [
@@ -6329,7 +6329,7 @@
           "symbol": "TcpWriteHalf",
           "kind": "struct",
           "signature": "export struct TcpWriteHalf: ByteSink<NetworkError>",
-          "declarationDigest": "9e49edc1c6516a06236783d1d509a761690d6db87244ee539094b8d6ffda3f50",
+          "declarationDigest": "381bd474dbc383ad50d045e2a54c9630fe1c5509377e8d8d5addb950f16f8517",
           "line": 871,
           "profile": "net-transport",
           "members": [
@@ -6360,7 +6360,7 @@
           "symbol": "UdpReceiveHalf",
           "kind": "struct",
           "signature": "export struct UdpReceiveHalf",
-          "declarationDigest": "3c803bcddafd7ab428e16b251fea4f9fee853fb5d02d2ef4e5bdf34c5f001e8e",
+          "declarationDigest": "9e43d788426300ff066b0fd3229cb910f3c25856aae0bb4e7933058b4a021b6a",
           "line": 999,
           "profile": "net-transport",
           "members": [
@@ -6381,7 +6381,7 @@
           "symbol": "UdpSendHalf",
           "kind": "struct",
           "signature": "export struct UdpSendHalf",
-          "declarationDigest": "8c2ca3ecf7c3310f443946574b1398a6e5fc2f45a6ffb124cbd6e6a386165745",
+          "declarationDigest": "69647a9099ae7b2b26ecc4f931a1ff7bdecda0fdfa21d3b71a2f209bed4dcc06",
           "line": 1022,
           "profile": "net-transport",
           "members": [
@@ -6402,7 +6402,7 @@
           "symbol": "UdpSocket",
           "kind": "struct",
           "signature": "export struct UdpSocket",
-          "declarationDigest": "e2210c303eee5427ce219a177c5f25fe0215d6220f9befeb428605ca76cd95cf",
+          "declarationDigest": "bd4be426e5f4cef34fc2ed87b5294ce744b22158aad2b6d69e6627a65f5158c7",
           "line": 946,
           "profile": "net-transport",
           "members": [
@@ -6468,7 +6468,7 @@
           "page-checksum"
         ]
       },
-      "catalogedDeclarationsDigest": "7c1b810579ae60135f1f964e8dc6c7bdda378f222cb42237021e8bbef6fb41d9",
+      "catalogedDeclarationsDigest": "c7181bf350fa23671b870af7005648aaaacf3bf46fafe558670374a7212cedf2",
       "apis": [
         {
           "symbol": "ChecksumPolicy",
@@ -6528,7 +6528,7 @@
           "symbol": "DecodeOptions",
           "kind": "struct",
           "signature": "export struct DecodeOptions",
-          "declarationDigest": "352d0e1e8c19cbdb35fbe6887a1ed938111df3dbe0d9443b6740a1dba38e3a33",
+          "declarationDigest": "7beacff2e1fb14645ae276c7ee1a4f2ef23f1e8de2b69c8bc593bdaba666d42c",
           "line": 243,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6573,7 +6573,7 @@
           "symbol": "EncodeOptions",
           "kind": "struct",
           "signature": "export struct EncodeOptions",
-          "declarationDigest": "15a7ba01d55b580d9f72b32a65b64e84537886d25aa1eaf7b75fd11a92171787",
+          "declarationDigest": "c51b7809c5a7ccbd0761fac6be155cd79f47c49fd7d39e65065286f93c753d3c",
           "line": 279,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6609,7 +6609,7 @@
           "symbol": "KeyResolver",
           "kind": "struct",
           "signature": "export struct KeyResolver",
-          "declarationDigest": "358a2e7feae395cdc4e3766aef1dadb8a78cc0817181a43f25705558f354df0c",
+          "declarationDigest": "623493c8e4fee9e5eab84fe5e9296fa28376cb9af3e2d53bec795af0ec14623e",
           "line": 170,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6618,7 +6618,7 @@
           "symbol": "KeyResolverCapability",
           "kind": "struct",
           "signature": "export struct KeyResolverCapability",
-          "declarationDigest": "86670012203ae74647cde80bc0317bb816df56082b65cbbc9ceaa694d5f2ce39",
+          "declarationDigest": "1c49b6dccd2dfdd667718371c44403455e2651365d13ad09d82cb4cf77e26926",
           "line": 159,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6654,7 +6654,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "8f186c9a1c319b5ea22174c4023c7813da0cd8b819846cbecd7cecd36db327e1",
+          "declarationDigest": "72cd7b75a5a58c1d56036f0cbb24769095c1aad13602a88ef0e4ed1e904daf8c",
           "line": 72,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6672,7 +6672,7 @@
           "symbol": "WriterPlan",
           "kind": "struct",
           "signature": "export struct WriterPlan",
-          "declarationDigest": "66f35a15281b7505d6c51e8255328aae49d18809f51a6ad9df489c0e6e2ef9af",
+          "declarationDigest": "1145a04555d8fb53537cab56bffebe1c9756fcb8f15aa68948ca4905dc336bd8",
           "line": 195,
           "profile": "parquet-encode",
           "status": "draft"
@@ -6697,7 +6697,7 @@
           "writer-bounds"
         ]
       },
-      "catalogedDeclarationsDigest": "c2615e2d6aff51da329914e2bc863b64a797721dd1eee24120716ebc54993e27",
+      "catalogedDeclarationsDigest": "d14d8fbb5059214f9a70eb1384cb96971d4111374cf575a0910dccb8835ab185",
       "apis": [
         {
           "symbol": "Error",
@@ -6712,7 +6712,7 @@
           "symbol": "Jpeg",
           "kind": "struct",
           "signature": "export struct Jpeg",
-          "declarationDigest": "eb11199a135ad652a875c836ac243600c3778bded13bff682a090e8bef7b9673",
+          "declarationDigest": "326b24d0d20f6e1636d2d9f24b86ef5d04a6382ad60d0c54770e27874f918078",
           "line": 157,
           "profile": "presentation-contract",
           "status": "draft"
@@ -6730,7 +6730,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "4a7812149134d93e5af32eebd52addd8217b942445913295ce56224399bbe8a3",
+          "declarationDigest": "3deb815a0ee9700f9fbc8ede0b3f2790fc141c515fe0a379f3f6b636dfe98949",
           "line": 49,
           "profile": "presentation-contract",
           "members": [
@@ -6753,7 +6753,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumBytes: usize<(1...)> { get => storedMaximumBytes }",
+                  "signature": "export let maximumBytes: usize<(1...)> { get => storedMaximumBytes }",
                   "line": 62
                 }
               ],
@@ -6764,7 +6764,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumRepresentations: usize<(1...)>",
+                  "signature": "export let maximumRepresentations: usize<(1...)>",
                   "line": 63
                 }
               ],
@@ -6775,7 +6775,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumTextBytes: usize<(1...)> { get => storedMaximumTextBytes }",
+                  "signature": "export let maximumTextBytes: usize<(1...)> { get => storedMaximumTextBytes }",
                   "line": 66
                 }
               ],
@@ -6786,7 +6786,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumImageBytes: usize<(1...)> { get => storedMaximumImageBytes }",
+                  "signature": "export let maximumImageBytes: usize<(1...)> { get => storedMaximumImageBytes }",
                   "line": 67
                 }
               ],
@@ -6797,7 +6797,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumImageWidth: u32<(1...)> { get => storedMaximumImageWidth }",
+                  "signature": "export let maximumImageWidth: u32<(1...)> { get => storedMaximumImageWidth }",
                   "line": 68
                 }
               ],
@@ -6808,7 +6808,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumImageHeight: u32<(1...)> { get => storedMaximumImageHeight }",
+                  "signature": "export let maximumImageHeight: u32<(1...)> { get => storedMaximumImageHeight }",
                   "line": 69
                 }
               ],
@@ -6819,7 +6819,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumImagePixels: u64<(1...)> { get => storedMaximumImagePixels }",
+                  "signature": "export let maximumImagePixels: u64<(1...)> { get => storedMaximumImagePixels }",
                   "line": 70
                 }
               ],
@@ -6830,7 +6830,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumJsonDepth: usize<(1...)> { get => storedMaximumJsonDepth }",
+                  "signature": "export let maximumJsonDepth: usize<(1...)> { get => storedMaximumJsonDepth }",
                   "line": 71
                 }
               ],
@@ -6841,7 +6841,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumJsonNodes: usize<(1...)> { get => storedMaximumJsonNodes }",
+                  "signature": "export let maximumJsonNodes: usize<(1...)> { get => storedMaximumJsonNodes }",
                   "line": 72
                 }
               ],
@@ -6852,7 +6852,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumJsonStringBytes: usize<(1...)> { get => storedMaximumJsonStringBytes }",
+                  "signature": "export let maximumJsonStringBytes: usize<(1...)> { get => storedMaximumJsonStringBytes }",
                   "line": 73
                 }
               ],
@@ -6863,7 +6863,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export maximumWorkUnits: usize<(1...)> { get => storedMaximumWorkUnits }",
+                  "signature": "export let maximumWorkUnits: usize<(1...)> { get => storedMaximumWorkUnits }",
                   "line": 74
                 }
               ],
@@ -6885,7 +6885,7 @@
           "symbol": "MediaType",
           "kind": "struct",
           "signature": "export struct MediaType: Equatable",
-          "declarationDigest": "ba56dc751924abe36f3029e5c9dd44ca4a8190da8babd977ba1129bacec046a4",
+          "declarationDigest": "81569ba04751b76b4680d41edf6ea66ca99ff0de2721a8cfb2c8f2e8ac7c154b",
           "line": 119,
           "profile": "presentation-contract",
           "members": [
@@ -6904,7 +6904,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export value: view String { get => storedValue }",
+                  "signature": "export let value: view String { get => storedValue }",
                   "line": 132
                 }
               ],
@@ -6946,7 +6946,7 @@
           "symbol": "Png",
           "kind": "struct",
           "signature": "export struct Png",
-          "declarationDigest": "4ee9752634af4249d225a4491ee50153b6e7719501bc1371a94c3b1297b8f179",
+          "declarationDigest": "6cbf1313ae694fd8e371195cf950c6ce389bf7093038d8302a0e4e80149f594b",
           "line": 145,
           "profile": "presentation-contract",
           "status": "draft"
@@ -6964,7 +6964,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "d87a65d1676761d9a864cc92fdf200196e649368af992440d62cb8fde356714f",
+          "declarationDigest": "dd3514f2783cfea4651cfedc9ee57c76c73f6abae80453802d3fdc5a1ffe89b0",
           "line": 175,
           "profile": "presentation-contract",
           "members": [
@@ -7041,13 +7041,13 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "031a1385219f9de8471d7f842c9e31418d9524c7ef20f7f5e051ef39a959d8ff",
+      "catalogedDeclarationsDigest": "0ebe14cc792dd660401a14462a68cf2eeceb414f3f208963197fb6dea99f0f1c",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
-          "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
+          "declarationDigest": "ce29f8b84a7e312b4420dc25e6c3b000e5fabcf773d97fc044ef170335292720",
           "line": 134,
           "profile": "process-arguments",
           "members": [
@@ -7056,7 +7056,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export count: usize",
+                  "signature": "export let count: usize",
                   "line": 141
                 }
               ],
@@ -7067,7 +7067,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export isEmpty: Bool",
+                  "signature": "export let isEmpty: Bool",
                   "line": 145
                 }
               ],
@@ -7114,7 +7114,7 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "4fac0266bb1e32329e116c812aec4714405afa2f7b51ec3cb8a5313afd000101",
+          "declarationDigest": "8fff33832af6960f83d57ac0a456abfea8eada9b4acdb43cfaba746c3719f7b5",
           "line": 335,
           "profile": "process-context",
           "members": [
@@ -7123,7 +7123,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export stdin: Input",
+                  "signature": "export let stdin: Input",
                   "line": 342
                 }
               ],
@@ -7134,7 +7134,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export stdout: Output",
+                  "signature": "export let stdout: Output",
                   "line": 348
                 }
               ],
@@ -7145,7 +7145,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export stderr: Output",
+                  "signature": "export let stderr: Output",
                   "line": 354
                 }
               ],
@@ -7156,7 +7156,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export filesystem: fs.FileSystem",
+                  "signature": "export let filesystem: fs.FileSystem",
                   "line": 360
                 }
               ],
@@ -7167,7 +7167,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export network: net.Network",
+                  "signature": "export let network: net.Network",
                   "line": 364
                 }
               ],
@@ -7192,7 +7192,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export signals: SignalRegistry",
+                  "signature": "export let signals: SignalRegistry",
                   "line": 380
                 }
               ],
@@ -7203,7 +7203,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export services: Services",
+                  "signature": "export let services: Services",
                   "line": 386
                 }
               ],
@@ -7214,7 +7214,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export deadline: time.Deadline",
+                  "signature": "export let deadline: time.Deadline",
                   "line": 392
                 }
               ],
@@ -7236,7 +7236,7 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
-          "declarationDigest": "13cf44364409adcf5e52e58498f1273393bc4bf457eda0b55443ed010ac1c8cd",
+          "declarationDigest": "d4b765df72d0d5989b2a7e40ddd3587bd510eb4fe54e18b82fb60eda66abf5a4",
           "line": 193,
           "profile": "process-input",
           "members": [
@@ -7276,7 +7276,7 @@
           "symbol": "Output",
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
-          "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
+          "declarationDigest": "893c04a0e6901c6bc636ac1c37e2ffa04224daf00e77a1051f91182f9cdadb0c",
           "line": 247,
           "profile": "process-output",
           "members": [
@@ -7307,7 +7307,7 @@
           "symbol": "Services",
           "kind": "struct",
           "signature": "export struct Services",
-          "declarationDigest": "bf3ac350a2ec229accf40677e4fcd1acb369ce8965f3c6da82f53522299e14bd",
+          "declarationDigest": "0974bbd8ba372eaa3e155c0bdf51fda7970dfd668825ec470a575c6de64b7ae8",
           "line": 319,
           "profile": "process-services",
           "members": [
@@ -7346,7 +7346,7 @@
           "symbol": "SignalRegistration",
           "kind": "struct",
           "signature": "export struct SignalRegistration",
-          "declarationDigest": "e1a8b938dd29a7f7555668a3957fd1d6c625ee0d501d6fa5108f0a735a8b2f1b",
+          "declarationDigest": "6dde87f5c0b43b311d31a4cc4147a1bc4c3b79973fd31c1057ded1aebe4a24aa",
           "line": 295,
           "profile": "process-signals",
           "members": [
@@ -7377,7 +7377,7 @@
           "symbol": "SignalRegistry",
           "kind": "struct",
           "signature": "export struct SignalRegistry",
-          "declarationDigest": "0514dd18d3a7b8a677c9f96728fbfbe1b2fa9cd1c93a58d0cd1fa8275ac6cc48",
+          "declarationDigest": "a5764a6146ced7f02f11dbc98f20bbe7044318e822a5e58e2f47d0852cc340dd",
           "line": 273,
           "profile": "process-signals",
           "members": [
@@ -7414,7 +7414,7 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "6f84dd349d644b5c021e827cad392182acea1747ad55d3239ea2fb2821d65b30",
+      "catalogedDeclarationsDigest": "0239b51bffda44dcad46e0cb8bb8d223dc13bccaa1ffa5f24c4d31c976fe5df8",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -7438,7 +7438,7 @@
           "symbol": "TaskLocal",
           "kind": "struct",
           "signature": "export struct TaskLocal<Value>",
-          "declarationDigest": "29e88f1f95a572ed2d0b14891f294e5e3938bc60c4e000b180374ccb96bbb720",
+          "declarationDigest": "8d9954bd33c316972cd8c6405433e5c65e9e19b43dc00128e0f24cb110395ecf",
           "line": 60,
           "profile": "task-local-descriptor",
           "members": [
@@ -7497,7 +7497,7 @@
           "symbol": "TaskSettlement",
           "kind": "struct",
           "signature": "export struct TaskSettlement<Value, Failure: Error>",
-          "declarationDigest": "fe32af03fb04a999ec4d416f842f2f62c9923997812dd7d69c0e059e263e345d",
+          "declarationDigest": "5dc66fa200c57131f2d1e9914195e39a656043bb89ae22477c80d428996cee4e",
           "line": 32,
           "profile": "value-contract",
           "status": "draft"
@@ -7531,13 +7531,13 @@
           "target-availability"
         ]
       },
-      "catalogedDeclarationsDigest": "a2122218bd9daca74a5feadaa09585245823f83e5366c5684963d64f34cafaae",
+      "catalogedDeclarationsDigest": "3f1bea8280b14943fb8ed0a7f630e393142aa30e6c551cfe08a109ea68d5f0c5",
       "apis": [
         {
           "symbol": "ThreadLocal",
           "kind": "struct",
           "signature": "export struct ThreadLocal<Value: Copy>",
-          "declarationDigest": "cba29a4d797c263ac2e7ab830b8e1f9b6cd29d2db1046b80235ae723bc1c74bc",
+          "declarationDigest": "2bc64a0a78bfff5c80bda59b9f8be0613bf5e6b885260cf42511515425983123",
           "line": 21,
           "profile": "thread-local-descriptor",
           "members": [
@@ -7606,7 +7606,7 @@
       "id": "std.runtime.work",
       "availability": "runtime-profile",
       "source": "std/runtime/work.w",
-      "catalogedDeclarationsDigest": "2be3f1f59395c3db1a8e2becf3995087ca42e3aad5dfb035b83c1a167c6eb07c",
+      "catalogedDeclarationsDigest": "297ad8ca5cbd70f99dce5ccedb293292fb8c40b36943d98765fb93cbdbce9282",
       "apis": [
         {
           "symbol": "SupervisorFailure",
@@ -7666,7 +7666,7 @@
           "symbol": "WorkSnapshot",
           "kind": "struct",
           "signature": "export struct WorkSnapshot<Progress>",
-          "declarationDigest": "0ead9cefee5c8b20ce33bb5217ebb1be4fdac542545d01c2a929215ebfc91c83",
+          "declarationDigest": "bcb82489eb29f189424d74e2985c0c2d4c17926da82c4e69843976d55a04d50a",
           "line": 19,
           "profile": "value-contract",
           "status": "draft"
@@ -7695,7 +7695,7 @@
       "id": "std.runtime.workflow",
       "availability": "workflow-adapter",
       "source": "std/runtime/workflow.w",
-      "catalogedDeclarationsDigest": "4db85ff04e2c1dd6777cb29046805a4fa76bd5a33c71153a70d09028b9fde410",
+      "catalogedDeclarationsDigest": "a8dcffea6c1677387afc75707380709a9886e5ea21ace5370b319f7b32ba0fa1",
       "apis": [
         {
           "symbol": "StepBackoff",
@@ -7719,7 +7719,7 @@
           "symbol": "StepRetry",
           "kind": "struct",
           "signature": "export struct StepRetry<Failure: Error>",
-          "declarationDigest": "9e6f357bd65771d8c6dd35051a6be414f9028475dcd3cc2e75f1c7ed60bb4f43",
+          "declarationDigest": "ed17d56e29f165950ec73563db388321112af8d75d82126f8a72404726871037",
           "line": 27,
           "profile": "value-contract",
           "status": "draft"
@@ -7737,7 +7737,7 @@
           "symbol": "WorkEventBinding",
           "kind": "struct",
           "signature": "export struct WorkEventBinding<Payload>",
-          "declarationDigest": "122b7b1af6da7aa01cc11c9dd3ee5d057ebe692d4a26c9ffb2ea6c57fa4109bf",
+          "declarationDigest": "2cce53b43f132dc8df5458730555efecb3c6e1fc4fc19962d600ca931e164adf",
           "line": 44,
           "profile": "const-binding",
           "status": "draft"
@@ -8139,13 +8139,13 @@
           "wpt-streams"
         ]
       },
-      "catalogedDeclarationsDigest": "03b33f210ffe62e39c6b72057d282473256ca2b28c7af7dd9202333a3e342465",
+      "catalogedDeclarationsDigest": "3c0ccc6f8eab8c4fa2181dcab623acda527d49856cf3d69bbb2bd51429a30ed3",
       "apis": [
         {
           "symbol": "ReadableStream",
           "kind": "struct",
           "signature": "export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure>",
-          "declarationDigest": "c4a2d10e2ea0d3802714cb83790b43218cc3d494335058f057564430f71da2c3",
+          "declarationDigest": "ceca43487fa6694d3cd377555bea88dbfa85daa336a0f2433bf9edb773176a0d",
           "line": 89,
           "profile": "web-stream-carrier",
           "members": [
@@ -8238,13 +8238,13 @@
           "version-linearization"
         ]
       },
-      "catalogedDeclarationsDigest": "54aaa2ef53b4d42157dccd0fa1774605c52d8dab666a5c055aec585e6653ed31",
+      "catalogedDeclarationsDigest": "5e8721c9496129df89ef61a9712b75bd10490f784579863b4ab695c0845764f9",
       "apis": [
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
           "signature": "export struct SnapshotCell<Value>",
-          "declarationDigest": "6dbbd88d0ac8f8a51f4f2d862ef417cc6aa4fdb6c484128a0264a667a270ca96",
+          "declarationDigest": "6f89bd7c898a7ea50ea0e72f8632223053a3104a661c171494d5c3365a2c6d5a",
           "line": 35,
           "profile": "snapshot-cell-carrier",
           "members": [
@@ -8309,13 +8309,13 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "d8bd98e1bb3389e3a686ce71e312f8637ca3b0b9155fdee2b840c8289d77bb83",
+      "catalogedDeclarationsDigest": "e1a1d65eca0ab5c13c261e044222e1a420febd37b4bd99d298dd807ac1ab11ab",
       "apis": [
         {
           "symbol": "Device",
           "kind": "struct",
           "signature": "export struct Device",
-          "declarationDigest": "05f4bc67d853f0eab106497565882b9fcdd7889c1709e3d19827882ec3f33efa",
+          "declarationDigest": "ef8d22103759d8231b7823851cd0862461f27519f7efa086099abeb92c38f8dd",
           "line": 50,
           "profile": "tensor-device",
           "members": [
@@ -8373,7 +8373,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "19dda6531bb3d38ef27000b77c867956000c9cb3dcbf377b6309f2d0a75986ed",
+          "declarationDigest": "705e666988cb9ecaf1afc8c408872a437b06a39eaa10efad25a0796b4c339f3c",
           "line": 83,
           "profile": "value-contract",
           "members": [
@@ -8394,7 +8394,7 @@
           "symbol": "Queue",
           "kind": "struct",
           "signature": "export struct Queue",
-          "declarationDigest": "2a56aa0fc78805dcce8b624594f4e1a743942278d34cb8102809811585fbdc06",
+          "declarationDigest": "dfd9f562a4d8820c046645fcc715992baa2245c9ae1f90f6912546562e747086",
           "line": 68,
           "profile": "tensor-queue",
           "members": [
@@ -8458,13 +8458,13 @@
           "virtual-clock-determinism"
         ]
       },
-      "catalogedDeclarationsDigest": "4e2f369bcf2087808e1b0894c9af565a5ee6fcd919e1c3994e03d86b1e237da4",
+      "catalogedDeclarationsDigest": "b3c536050bab9b97b9f57b225ae0d403c11119621348163bef7eb1d32dbc42f4",
       "apis": [
         {
           "symbol": "Clock",
           "kind": "struct",
           "signature": "export struct Clock",
-          "declarationDigest": "e39c6b9666cbd1bb37f0ba2c0aecd354baead054f43a944fdb7f9897d519f322",
+          "declarationDigest": "c5d01885d6d264654207d05f9c88808e6685e512d9caae1e951c2d8a615acd09",
           "line": 100,
           "profile": "time-clock",
           "members": [
@@ -8493,7 +8493,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export hostSuspendPolicy: HostSuspendPolicy",
+                  "signature": "export let hostSuspendPolicy: HostSuspendPolicy",
                   "line": 115
                 }
               ],
@@ -8564,7 +8564,7 @@
           "symbol": "Deadline",
           "kind": "struct",
           "signature": "export struct Deadline: Copy",
-          "declarationDigest": "f20c7e90fb382f647ff9fe869af24b42b57d2d2b41ad3a11e541d080411ebe69",
+          "declarationDigest": "a529ff6cc39563eb5e9b2a7a8608ceff2baf7f863b16e13a37cc214b50d01ec6",
           "line": 89,
           "profile": "time-local-value",
           "status": "draft"
@@ -8573,7 +8573,7 @@
           "symbol": "Duration",
           "kind": "struct",
           "signature": "export struct Duration: Copy & Equatable & Hashable",
-          "declarationDigest": "fb25018eca7583dac141efba72c0ce7d636656a7bfe4fece9feb3b2f37ac8531",
+          "declarationDigest": "cf45bd04598e8d63a84a2e3f0ce712ed9d485f40ae6d6e8d713fb3b3edd06814",
           "line": 37,
           "profile": "time-duration",
           "members": [
@@ -8592,7 +8592,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export nanoseconds: i128",
+                  "signature": "export let nanoseconds: i128",
                   "line": 44
                 }
               ],
@@ -8614,7 +8614,7 @@
           "symbol": "Instant",
           "kind": "struct",
           "signature": "export struct Instant: Copy",
-          "declarationDigest": "e1949b511ccbfe1ec39c30df022f55015d30cb4a7613013f7291e857e780aeab",
+          "declarationDigest": "a81e92b644cb6b4a8900f60ceaa78611f9de0e84aff4b817641cf8ebd80f10f9",
           "line": 81,
           "profile": "time-local-value",
           "status": "draft"
@@ -8635,13 +8635,13 @@
           "wpt-url"
         ]
       },
-      "catalogedDeclarationsDigest": "9e8022b8ec3d553e595b390737dbaac9208b313d72bfc219018078bfa6e09dbe",
+      "catalogedDeclarationsDigest": "e13d4ff9ce4d00b4173a3aad4543a3483a2823dce43886b95080883e646443dd",
       "apis": [
         {
           "symbol": "URL",
           "kind": "struct",
           "signature": "export struct URL: Duplicable",
-          "declarationDigest": "400ad5dca26b6d7a1fdcfdca4bf60e75f1b77e34e47ca8174f19dc79c949e961",
+          "declarationDigest": "528c7a8ac3146bd1ac005df8f8c696ce823e416c71e7e6f2cd67925f81928ab4",
           "line": 241,
           "profile": "web-url-carrier",
           "members": [
@@ -8692,7 +8692,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export href: view String",
+                  "signature": "export let href: view String",
                   "line": 274
                 }
               ],
@@ -8703,7 +8703,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export origin: view String",
+                  "signature": "export let origin: view String",
                   "line": 278
                 }
               ],
@@ -8714,7 +8714,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export protocol: view String",
+                  "signature": "export let protocol: view String",
                   "line": 282
                 }
               ],
@@ -8725,7 +8725,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export username: view String",
+                  "signature": "export let username: view String",
                   "line": 286
                 }
               ],
@@ -8736,7 +8736,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export password: view String",
+                  "signature": "export let password: view String",
                   "line": 290
                 }
               ],
@@ -8747,7 +8747,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export host: view String",
+                  "signature": "export let host: view String",
                   "line": 294
                 }
               ],
@@ -8758,7 +8758,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export hostname: view String",
+                  "signature": "export let hostname: view String",
                   "line": 298
                 }
               ],
@@ -8769,7 +8769,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export port: view String",
+                  "signature": "export let port: view String",
                   "line": 302
                 }
               ],
@@ -8780,7 +8780,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export pathname: view String",
+                  "signature": "export let pathname: view String",
                   "line": 306
                 }
               ],
@@ -8791,7 +8791,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export search: view String",
+                  "signature": "export let search: view String",
                   "line": 310
                 }
               ],
@@ -8812,7 +8812,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export hash: view String",
+                  "signature": "export let hash: view String",
                   "line": 314
                 }
               ],
@@ -8992,7 +8992,7 @@
           "symbol": "URLSearchParam",
           "kind": "struct",
           "signature": "export struct URLSearchParam: Duplicable",
-          "declarationDigest": "231556053366d58ee7cc1476a9507ef79b2db23c657e1c09c8a30236ccfb90ce",
+          "declarationDigest": "504aa15321210ed4d30ed771bc38b6060c6938821b663c679a178019a2717c0d",
           "line": 29,
           "profile": "web-url-search-params-carrier",
           "members": [
@@ -9043,7 +9043,7 @@
           "symbol": "URLSearchParams",
           "kind": "struct",
           "signature": "export struct URLSearchParams: Duplicable",
-          "declarationDigest": "756b1fa90f918fd5e394e1aedc89d7bad809e7ca754e4ec0f4dbb05bf9071196",
+          "declarationDigest": "0d90d5860e9195f86474ef01d9082f1315250025297ed7f3ce7b3a303c33327c",
           "line": 96,
           "profile": "web-url-search-params-carrier",
           "members": [
@@ -9070,7 +9070,7 @@
               "kind": "property",
               "overloads": [
                 {
-                  "signature": "export size: usize",
+                  "signature": "export let size: usize",
                   "line": 115
                 }
               ],

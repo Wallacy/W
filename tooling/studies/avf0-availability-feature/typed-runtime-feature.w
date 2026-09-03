@@ -7,15 +7,15 @@ enum CheckoutPath {
 }
 
 struct CheckoutContext {
-  tenant: String
-  userId: String
+  let tenant: String
+  let userId: String
 }
 
 struct FeatureDecision<Value> {
-  value: Value
-  generation: String
-  configurationDigest: String
-  freshness: String
+  let value: Value
+  let generation: String
+  let configurationDigest: String
+  let freshness: String
 }
 
 fn selectCheckout(_ decision: FeatureDecision<CheckoutPath>): String {

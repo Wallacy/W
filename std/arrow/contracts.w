@@ -25,15 +25,15 @@ export enum LimitKind: Copy & Equatable {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumMetadataBytes: u64<(1...)>
-  maximumMessages: usize<(1...)>
-  maximumBuffers: usize<(1...)>
-  maximumBodyBytes: u64<(1...)>
-  maximumDictionaryEntries: usize<(1...)>
-  maximumNesting: usize<(1...)>
-  maximumCompressionRatio: usize<(1...)>
-  maximumAllocationBytes: u64<(1...)>
-  maximumCallbacks: usize<(1...)>
+  let maximumMetadataBytes: u64<(1...)>
+  let maximumMessages: usize<(1...)>
+  let maximumBuffers: usize<(1...)>
+  let maximumBodyBytes: u64<(1...)>
+  let maximumDictionaryEntries: usize<(1...)>
+  let maximumNesting: usize<(1...)>
+  let maximumCompressionRatio: usize<(1...)>
+  let maximumAllocationBytes: u64<(1...)>
+  let maximumCallbacks: usize<(1...)>
 
   export static fn standard(): Limits {
     return Limits(
@@ -73,10 +73,10 @@ export struct Limits: Copy & Equatable {
 }
 
 export struct CImportLimits: Copy & Equatable {
-  maximumRows: usize<(1...)>
-  maximumBuffers: usize<(1...)>
-  maximumBytes: u64<(1...)>
-  maximumCallbacks: usize<(1...)>
+  let maximumRows: usize<(1...)>
+  let maximumBuffers: usize<(1...)>
+  let maximumBytes: u64<(1...)>
+  let maximumCallbacks: usize<(1...)>
 
   export static fn standard(): CImportLimits {
     return CImportLimits(
@@ -109,9 +109,9 @@ export enum BlockingStrategy: Copy & Equatable {
 // quota bounds concurrent callbacks, queued jobs, and total jobs; it is not a
 // hidden unbounded executor.
 export struct BlockingQuota: Copy & Equatable {
-  maximumConcurrent: usize<(1...)>
-  maximumQueued: usize<(1...)>
-  maximumJobs: usize<(1...)>
+  let maximumConcurrent: usize<(1...)>
+  let maximumQueued: usize<(1...)>
+  let maximumJobs: usize<(1...)>
 
   export static fn standard(): BlockingQuota {
     return BlockingQuota(
@@ -138,8 +138,8 @@ export enum DrainPolicy: Copy & Equatable {
 }
 
 export struct CImportOptions: Copy & Equatable {
-  copyPolicy: data.CopyPolicy
-  limits: CImportLimits
+  let copyPolicy: data.CopyPolicy
+  let limits: CImportLimits
 
   export static fn standard(): CImportOptions {
     return CImportOptions(copyPolicy: .ifNeeded, limits: CImportLimits.standard())
@@ -155,11 +155,11 @@ export struct CImportOptions: Copy & Equatable {
 }
 
 export struct CStreamImportOptions: Copy & Equatable {
-  copyPolicy: data.CopyPolicy
-  limits: CImportLimits
-  blocking: BlockingStrategy
-  quota: BlockingQuota
-  drain: DrainPolicy
+  let copyPolicy: data.CopyPolicy
+  let limits: CImportLimits
+  let blocking: BlockingStrategy
+  let quota: BlockingQuota
+  let drain: DrainPolicy
 
   export static fn standard(): CStreamImportOptions {
     return CStreamImportOptions(
@@ -187,8 +187,8 @@ export struct CStreamImportOptions: Copy & Equatable {
 }
 
 export struct CExportOptions: Copy & Equatable {
-  copyPolicy: data.CopyPolicy
-  limits: CImportLimits
+  let copyPolicy: data.CopyPolicy
+  let limits: CImportLimits
 
   export static fn standard(): CExportOptions {
     return CExportOptions(copyPolicy: .ifNeeded, limits: CImportLimits.standard())
@@ -304,7 +304,7 @@ foreign intrinsic from "std.arrow@1" {
 // initializer.  The provider stores the raw Arrow schema beside the array or
 // stream and release is idempotent at exactly one owner boundary.
 export struct CArrayHandle {
-  raw: RawCArrayHandle
+  let raw: RawCArrayHandle
 
   init(validatedRaw: RawCArrayHandle) {
     self.raw = validatedRaw
@@ -316,7 +316,7 @@ export struct CArrayHandle {
 }
 
 export struct CStreamHandle {
-  raw: RawCStreamHandle
+  let raw: RawCStreamHandle
 
   init(validatedRaw: RawCStreamHandle) {
     self.raw = validatedRaw
@@ -328,10 +328,10 @@ export struct CStreamHandle {
 }
 
 export struct DecodeOptions: Copy & Equatable {
-  binding: data.BindingPolicy
-  mapping: data.MappingPolicy
-  copyPolicy: data.CopyPolicy
-  limits: Limits
+  let binding: data.BindingPolicy
+  let mapping: data.MappingPolicy
+  let copyPolicy: data.CopyPolicy
+  let limits: Limits
 
   export static fn standard(): DecodeOptions {
     return DecodeOptions(
@@ -356,7 +356,7 @@ export struct DecodeOptions: Copy & Equatable {
 }
 
 export struct EncodeOptions: Copy & Equatable {
-  limits: Limits
+  let limits: Limits
 
   export static fn standard(): EncodeOptions {
     return EncodeOptions(limits: Limits.standard())

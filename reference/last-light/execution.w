@@ -20,7 +20,7 @@ export type BatchIndex = usize
 export alias ClosingTimeout = TaskTimeout
 
 export protocol CompletionMetric {
-  completionCount: u64 { get }
+  let completionCount: u64 { get }
 }
 
 export object BrigadeMetrics: CompletionMetric {
@@ -32,23 +32,23 @@ export object BrigadeMetrics: CompletionMetric {
     completed.saturatingAdd<.relaxed>(1)
   }
 
-  completionCount: u64 {
+  let completionCount: u64 {
     get => completed.load<.relaxed>()
   }
 }
 
 export struct MixingJob {
-  index: BatchIndex
-  orderId: OrderId
-  ingredients: Array<Ingredient>
-  recipe: Recipe
-  metrics: shared BrigadeMetrics
+  let index: BatchIndex
+  let orderId: OrderId
+  let ingredients: Array<Ingredient>
+  let recipe: Recipe
+  let metrics: shared BrigadeMetrics
 }
 
 export struct MixingResult {
-  index: BatchIndex
-  orderId: OrderId
-  mixture: Mixture
+  let index: BatchIndex
+  let orderId: OrderId
+  let mixture: Mixture
 }
 
 export enum BrigadeError: Error {

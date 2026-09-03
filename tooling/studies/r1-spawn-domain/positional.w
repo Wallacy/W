@@ -1,8 +1,8 @@
 // R1 Last Light spawn-domain study source.
 
 struct MixResult {
-  port: Int
-  starboard: Int
+  let port: Int
+  let starboard: Int
 }
 
 fn mix(_ value: Int): Int {

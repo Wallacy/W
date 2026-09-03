@@ -3,8 +3,8 @@
 enum Currency { cr }
 
 struct Money {
-  minorUnits: i128
-  currency: Currency
+  let minorUnits: i128
+  let currency: Currency
 
   const init(minorUnits value: i128, currency: Currency) {
     self.minorUnits = value

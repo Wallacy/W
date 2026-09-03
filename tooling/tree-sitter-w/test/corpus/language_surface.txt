@@ -530,6 +530,7 @@ export behavior WrappedDegrees for u16 {
   }
 
   get {
+    defer { current %= 360_u16 }
     return current
   }
 
@@ -537,14 +538,10 @@ export behavior WrappedDegrees for u16 {
     current = newValue % 360_u16
   }
 
-  get mut ref {
-    defer { current %= 360_u16 }
-    return mut ref current
-  }
 }
 
 export struct Attitude {
-  var WrappedDegrees yaw: u16 = 0
+  var WrappedDegrees yaw: mut ref u16 = 0
 
   mut fn rotate(by delta: u16) {
     yaw += delta
@@ -592,6 +589,12 @@ test "attitude rotation wraps degrees" for Attitude {
       (behavior_accessor
         (behavior_accessor_kind)
         (block
+          (defer_statement
+            (block
+              (expression_statement
+                (assignment_expression
+                  (identifier)
+                  (number_literal)))))
           (return_statement
             (identifier))))
       (behavior_accessor
@@ -605,30 +608,18 @@ test "attitude rotation wraps degrees" for Attitude {
               (identifier)
               (binary_expression
                 (identifier)
-                (number_literal))))))
-      (behavior_accessor
-        (behavior_accessor_kind)
-        (block
-          (defer_statement
-            (block
-              (expression_statement
-                (assignment_expression
-                  (identifier)
-                  (number_literal)))))
-          (return_statement
-            (unary_expression
-              (identifier)))))))
+                (number_literal))))))))
   (struct_declaration
     (declaration_prefix)
     (type_identifier)
     (type_body
       (field_declaration
-        (identifier))
-      (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier)))
+        (identifier)
+        (property_type
+          (type
+            (type_name
+              (type_identifier))))
         (number_literal))
       (function_declaration
         (identifier)
@@ -779,9 +770,10 @@ fn touch(): () {
             (type_identifier))))
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (const_declaration
         (identifier)
         (call_expression
@@ -840,7 +832,7 @@ enum Stage {
 }
 
 struct StagePlan<_ stages: StaticList<Stage>> {
-  id: usize
+  let id: usize
 }
 
 fn standardPlan(id: usize): StagePlan<[.reserve, .prepare, .serve]> {
@@ -859,8 +851,8 @@ fn load(
 }
 
 struct Pipeline {
-  transform: any mut fn(inout Buffer, take Command): Result
-  finalize: any take fn(take Session): Receipt
+  let transform: any mut fn(inout Buffer, take Command): Result
+  let finalize: any take fn(take Session): Receipt
 }
 
 type SensorCallback =
@@ -902,9 +894,10 @@ fn counter(initial: usize): some mut fn(): usize {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))))
   (function_declaration
     (identifier)
     (parameter_list
@@ -1009,33 +1002,35 @@ fn counter(initial: usize): some mut fn(): usize {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (function_type
-            (function_type_parameter
-              (parameter_call_ownership)
-              (parameter_type
+        (property_type
+          (type
+            (function_type
+              (function_type_parameter
+                (parameter_call_ownership)
+                (parameter_type
+                  (type_name
+                    (type_identifier))))
+              (function_type_parameter
+                (parameter_call_ownership)
+                (parameter_type
+                  (type_name
+                    (type_identifier))))
+              (type
                 (type_name
-                  (type_identifier))))
-            (function_type_parameter
-              (parameter_call_ownership)
-              (parameter_type
-                (type_name
-                  (type_identifier))))
-            (type
-              (type_name
-                (type_identifier))))))
+                  (type_identifier)))))))
       (field_declaration
         (identifier)
-        (type
-          (function_type
-            (function_type_parameter
-              (parameter_call_ownership)
-              (parameter_type
+        (property_type
+          (type
+            (function_type
+              (function_type_parameter
+                (parameter_call_ownership)
+                (parameter_type
+                  (type_name
+                    (type_identifier))))
+              (type
                 (type_name
-                  (type_identifier))))
-            (type
-              (type_name
-                (type_identifier))))))))
+                  (type_identifier)))))))))
   (type_declaration
     (type_identifier)
     (type

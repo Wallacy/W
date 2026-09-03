@@ -1,8 +1,8 @@
 // BMD3 source-shaped idiomatic profile. Backend and runtime remain unavailable.
 
 struct ByteScanResult {
-  bytes: u64
-  matches: u64
+  let bytes: u64
+  let matches: u64
 }
 
 export fn byteScanView(source: view Bytes, delimiter: u8): ByteScanResult {

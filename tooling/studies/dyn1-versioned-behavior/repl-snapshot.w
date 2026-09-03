@@ -2,6 +2,6 @@
 module dyn1_repl_snapshot
 
 export object VersionedBehaviorFixture {
-  snapshot: SnapshotCell
-  generation: GenerationId
+  let snapshot: SnapshotCell
+  let generation: GenerationId
 }

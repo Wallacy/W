@@ -25,14 +25,14 @@ export enum LaunchError: Error {
 }
 
 export struct Limits: Copy & Equatable {
-  maximumInFlight: usize<(1...)>
-  maximumCommandBytes: u64<(1...)>
-  maximumArgumentBytes: u64<(1...)>
-  maximumResultBytes: u64<(1...)>
-  maximumDependencyEdges: usize<(1...)>
-  maximumRetainedDeviceBytes: u64<(1...)>
-  maximumCompletionRecords: usize<(1...)>
-  maximumCleanupSteps: u64<(1...)>
+  let maximumInFlight: usize<(1...)>
+  let maximumCommandBytes: u64<(1...)>
+  let maximumArgumentBytes: u64<(1...)>
+  let maximumResultBytes: u64<(1...)>
+  let maximumDependencyEdges: usize<(1...)>
+  let maximumRetainedDeviceBytes: u64<(1...)>
+  let maximumCompletionRecords: usize<(1...)>
+  let maximumCleanupSteps: u64<(1...)>
 
   export const init(
     maximumInFlight: usize<(1...)>,
@@ -69,7 +69,7 @@ export struct Limits: Copy & Equatable {
 }
 
 export struct ModuleIdentity: Copy & Equatable {
-  handle: ModuleIdentityHandle
+  let handle: ModuleIdentityHandle
 
   init(validatedHandle: ModuleIdentityHandle) {
     self.handle = validatedHandle
@@ -90,7 +90,7 @@ export protocol KernelModule {
 }
 
 struct TypedLaunchHandle<Module: KernelModule> {
-  raw: LaunchHandle
+  let raw: LaunchHandle
 
   init(validatedRaw: LaunchHandle) {
     self.raw = validatedRaw
@@ -98,7 +98,7 @@ struct TypedLaunchHandle<Module: KernelModule> {
 }
 
 export struct Launch<Module: KernelModule> {
-  handle: TypedLaunchHandle<Module>
+  let handle: TypedLaunchHandle<Module>
 
   init(validatedHandle: TypedLaunchHandle<Module>) {
     self.handle = validatedHandle

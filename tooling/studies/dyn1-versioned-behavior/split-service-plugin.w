@@ -2,7 +2,7 @@
 module dyn1_split_plugin
 
 export object VersionedBehaviorFixture {
-  receipt: ProviderReceipt
-  generation: GenerationId
-  drainReceipt: DrainReceipt
+  let receipt: ProviderReceipt
+  let generation: GenerationId
+  let drainReceipt: DrainReceipt
 }

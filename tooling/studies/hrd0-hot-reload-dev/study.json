@@ -44,13 +44,13 @@
     {
       "id": "DYN1",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:bf187d300cfc0993c2e8bc62dcd6fc4963e96e908b5d372a6f52d24d0c088ebb",
+      "digest": "sha256:2189f241ef11ff4cd05eb4c625ff7127745611a88d5439018256694aba167e08",
       "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms"
     },
     {
       "id": "SYN1",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:72dae5e6f36341a26b2f7a6a7d69fc215086e33fe1a1325535c12e8aeaca193b",
+      "digest": "sha256:661446d7bfa6c31b073cb65a6f84f1aca92b65dd8b09dc11c2ac5e6db83bf197",
       "claim": "content-addressed generated module set and normal-unit reopen"
     },
     {
@@ -64,25 +64,25 @@
     {
       "path": "reference/last-light/hot_reload_dev_contract.w",
       "symbol": "ReloadResult",
-      "digest": "sha256:df68bb6bc675cae9e7a541cdbb17bc8ef84ddabdcc228c87c2f50eeb2bf7127e",
+      "digest": "sha256:2ffb021551f8e44f1428af885a4e232776a0a47e1a85f3678eb0d42f04bdb4e5",
       "claim": "shared nominal event/outcome/input/result contract and identity fields"
     },
     {
       "path": "reference/last-light/hot_reload_dev_local.w",
       "symbol": "LocalGenerationWitness",
-      "digest": "sha256:ff67008961b08664f251fc13d1f4e9945e526059f3a71cf85ff46e4350ff528a",
+      "digest": "sha256:7ad4de281f5940301c524567a44a3031ede95daa0036352aa49f38bfaa19a8d6",
       "claim": "paired local runner using the shared input/result contract"
     },
     {
       "path": "reference/last-light/hot_reload_dev_split.w",
       "symbol": "SplitGenerationWitness",
-      "digest": "sha256:51db64fbfcdecce9102745daf2c5c2fb33e9a9199e83decfef2071559c07c10a",
+      "digest": "sha256:301af53eaa5850961da5c7e280c2bbe67e691481767c26f3ac51e636e6fe0868",
       "claim": "paired split runner using the shared input/result contract"
     },
     {
       "path": "reference/last-light/repl_session_oracle.w",
       "symbol": "SessionSnapshot",
-      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
+      "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
       "claim": "committed snapshot and generation receipt"
     },
     {
@@ -106,7 +106,7 @@
     {
       "path": "reference/last-light/memory.w",
       "symbol": "watchClosingBell",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
       "claim": "callback lease registration and close"
     }
   ],

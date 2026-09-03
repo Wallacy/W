@@ -20,19 +20,19 @@ export enum BookingError: Error {
 }
 
 export struct TableReservation {
-  id: ReservationId
-  tableId: TableId
-  guestId: GuestId
+  let id: ReservationId
+  let tableId: TableId
+  let guestId: GuestId
 }
 
 export struct ReservationReceipt {
-  reservationId: ReservationId
-  tableId: TableId
+  let reservationId: ReservationId
+  let tableId: TableId
 }
 
 export struct TableTransactionContract {
-  isolation: Isolation
-  access: TransactionAccess
+  let isolation: Isolation
+  let access: TransactionAccess
 }
 
 export protocol TableTransaction {

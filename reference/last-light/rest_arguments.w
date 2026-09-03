@@ -27,7 +27,7 @@ export fn announce(_ messages: ref String...): usize {
 }
 
 export struct AuditRecord {
-  message: String
+  let message: String
 }
 
 export fn archive(_ records: take AuditRecord...): usize {

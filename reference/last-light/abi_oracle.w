@@ -55,11 +55,11 @@ export const fn boundaryAccepts(
 // The consumer's own interface key is deliberately absent. An import compares
 // its provider expectation with the provider interface that owns the symbol.
 export struct AbiImportExpectation {
-  symbol: String
-  providerInterfaceKey: String
-  semanticSignature: String
-  physicalSignature: String
-  representationFingerprint: String
+  let symbol: String
+  let providerInterfaceKey: String
+  let semanticSignature: String
+  let physicalSignature: String
+  let representationFingerprint: String
 }
 
 export fn importMatchesProvider(

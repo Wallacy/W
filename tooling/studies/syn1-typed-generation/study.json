@@ -14,7 +14,7 @@
       "role": "fixture-current",
       "disposition": "fixture",
       "fixture": true,
-      "digest": "sha256:5e530cecd23ec3a8889fbdc6303ebd725939782f136d0ef46b82291a9a42518f"
+      "digest": "sha256:e9ed9f3e8191fa12e3468648798f760397984d6576136ea597e5211456a3450b"
     },
     {
       "id": "current-row-synthesis",
@@ -23,7 +23,7 @@
       "role": "fixture-current",
       "disposition": "fixture",
       "fixture": true,
-      "digest": "sha256:68f4789552009adae69f592460d04c26128ad1d2421dee726a32054269fdfdb8"
+      "digest": "sha256:35b448841cfe48b90ecfb6091ac3203851a03c7be737d50e06779cb975c639c4"
     },
     {
       "id": "current-menu-transform",
@@ -77,21 +77,21 @@
       "path": "reference/last-light/reflection.w",
       "symbol": "export struct ReservationKey:",
       "claim": "closed Hashable and Reflectable synthesis",
-      "digest": "sha256:d80e7f3c5cda23b3391ca09cbcaff29e9c1626b78337ba8951d5bae392e94b53"
+      "digest": "sha256:a28089bb6a465aee9969f339760c7efd8beaccc2ec7a9285ad18355991415dff"
     },
     {
       "id": "last-light-data",
       "path": "reference/last-light/data_formats.w",
       "symbol": "export struct TabularTelemetryRow:",
       "claim": "closed data.Row schema synthesis",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038"
     },
     {
       "id": "last-light-kernels",
       "path": "reference/last-light/ai_harness.w",
       "symbol": "export const lastLightKernels",
       "claim": "finite compiler-owned kernel synthesis",
-      "digest": "sha256:79151f258b93fc1947509e356eb3ef56a25ad357fd8f49d653d136712f04a9c2"
+      "digest": "sha256:25733ecf867973a49cdfa2e71bb97a6e232df8856ca73f49c85a2a86bd8e03c0"
     },
     {
       "id": "last-light-menu-transform",
@@ -105,7 +105,7 @@
       "path": "reference/last-light/packages/menu-compiler/compiler.w",
       "symbol": "export fn compileMenu(source: ref String)",
       "claim": "menu parser/compiler source",
-      "digest": "sha256:c5d21e0d8a372b3777d0095a31905b3dda5b5c02ab57cfd84bfb715828f0cced"
+      "digest": "sha256:bd52d313bd2b84f187237cf87613f3fb86e7b53569638d62347b612eb454f879"
     },
     {
       "id": "last-light-package",
@@ -197,91 +197,91 @@
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:fd5d937ef6f31d7063c1ba1a5eaf938d7554ee8e2d14de861884efdbeabd1b53"
+      "digest": "sha256:300c48ad1065b2660e0fabbbe34f2e533a2ed2795389b046a03189b5722072a2"
     },
     {
       "path": "generated-menu-const.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:9fb601de8c4990684c6ba38189b3c235ec8dff69e549054ba68541f049ba8edd"
+      "digest": "sha256:16cee93ff1d999712d4f41f9e13544111d264a5f5ab7b6034c9d1becdac00f5f"
     },
     {
       "path": "generated-menu-dishid-relocated.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8"
+      "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b"
     },
     {
       "path": "generated-menu-dishid.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:8d7fa17a081d285c29ab8e186ddcbf25f13b2caf6577484acce983f70c19e5f8"
+      "digest": "sha256:e3882f9155dbdf421d503dbc70f37aba13782c095f890a96d7a142cddfe92e1b"
     },
     {
       "path": "generated-menu-duplicate.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:1c9ebd79cbdf22d03586951f198bdc2c936b62803e6d04c5a460839ecab5c003"
+      "digest": "sha256:b55a3fa4f67330dd7487c5d571441ef64620f4ca3b7cff466d2db74ed6bf3d6e"
     },
     {
       "path": "generated-menu-enum.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:d8b04633298544ee07ff42287474572ca6b8707e9bdbe3ab24bdb6e0aaa9ee19"
+      "digest": "sha256:474ad230c083e5e899d990e52c7280d374baf4a2bec8dea4295d9f05508eee98"
     },
     {
       "path": "generated-menu-field-secondary.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:0d9d65303cced8c7ac3904e62340593bb5b74530a7cf524d318f20b94e0c8fc3"
+      "digest": "sha256:c962ae1b68d535f403893481358d976569d9e7fe1e35682454839f9708e24373"
     },
     {
       "path": "generated-menu-field.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:93abc2e9efbd7f1f570cc6446c1e8e6430ea9d923871712e0d2b918f128abfb0"
+      "digest": "sha256:2ab354e0b75bfc2aca473a6725a9fa794e94ad79ea0d2ef134a26f0adf81b9bc"
     },
     {
       "path": "generated-menu-import.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:2e9a94926b7621cd3f553158d03f0b78a41164a6b6eb5042a931a578642e7f7d"
+      "digest": "sha256:4d665853501cbe9ce463012346153cd31a91cc3432e5c1238fa566848b222e96"
     },
     {
       "path": "generated-menu-multiline.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:86ecdd4e94611ac6e0cf204e634f7a57d879b017afb51447331a5db87efa29e2"
+      "digest": "sha256:c8b492af73c2e60fa0ba7679d82553b5a034d4c35dd191f1bec16ecc011119f0"
     },
     {
       "path": "generated-menu-order.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:586576921c09856384bfb7c989dc082594c2a2cd78361dac9bdb9f6f28b6a55b"
+      "digest": "sha256:e190b110d20cc8d05ce8c7f44bf60d0de758d7ca23a64f359f7ba289e9a15123"
     },
     {
       "path": "generated-menu-private.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:7f8e8bdc92587b127f6ff8b4cdfa8d0e8ca5bf7a6591278436f2986db97cbea4"
+      "digest": "sha256:f2d1e8830ff05b68611d7827850f31c7019db2742430b9a94fd461f56c225b98"
     },
     {
       "path": "generated-menu-routing.w",
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:0b0b6410f182309c9e4c7efd479bb58f00c148dcc50a2770bfa06eb6123732a7"
+      "digest": "sha256:323d4d5ae20d096d2007ef47d03c147949a0b1f0dccda93310e7f8da4d1c2875"
     },
     {
       "path": "generated-menu-unicode.w",

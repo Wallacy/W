@@ -13,8 +13,8 @@ export enum Dialect {
 }
 
 export struct Binding {
-  name: String
-  dialect: Dialect
+  let name: String
+  let dialect: Dialect
 
   export const init(name: String, dialect: Dialect) {
     self.name = name
@@ -23,8 +23,8 @@ export struct Binding {
 }
 
 export struct Query<Parameters, Row> {
-  text: String
-  dialect: Dialect
+  let text: String
+  let dialect: Dialect
 
   export const init(
     text: String,
@@ -36,8 +36,8 @@ export struct Query<Parameters, Row> {
 }
 
 export struct Command<Parameters> {
-  text: String
-  dialect: Dialect
+  let text: String
+  let dialect: Dialect
 
   export const init(
     text: String,
@@ -49,8 +49,8 @@ export struct Command<Parameters> {
 }
 
 export struct RowLimits {
-  rows: usize<(1...)>
-  bytes: usize<(1...)>
+  let rows: usize<(1...)>
+  let bytes: usize<(1...)>
 }
 
 export enum Isolation {
@@ -65,8 +65,8 @@ export enum TransactionAccess {
 }
 
 export struct TransactionContract {
-  isolation: Isolation
-  access: TransactionAccess
+  let isolation: Isolation
+  let access: TransactionAccess
 }
 
 export enum DatabaseError: Error {

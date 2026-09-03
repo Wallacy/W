@@ -13,12 +13,12 @@ export enum OracleError: Error {
 }
 
 export struct Forecast<tables: usize, courses: usize> {
-  demand: Tensor<f32, shape: [tables, courses]>
-  confidence: Tensor<Probability, shape: [tables, courses]>
+  let demand: Tensor<f32, shape: [tables, courses]>
+  let confidence: Tensor<Probability, shape: [tables, courses]>
 }
 
 export struct PlanningRequest {
-  features: Tensor<f32, shape: [1, 8]>
+  let features: Tensor<f32, shape: [1, 8]>
 }
 
 export protocol OracleApi {
@@ -116,8 +116,8 @@ fn defaultRecipes(): Map<Course, Recipe> {
 }
 
 export service oracle: OracleApi {
-  weights: Tensor<f32, shape: [8, 4]> = defaultWeights()
-  recipes: Map<Course, Recipe> = defaultRecipes()
+  let weights: Tensor<f32, shape: [8, 4]> = defaultWeights()
+  let recipes: Map<Course, Recipe> = defaultRecipes()
 
   async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError {
     let prediction = try forecast(observations: request.features, weights: weights)

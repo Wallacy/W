@@ -5,6 +5,6 @@ module hrd0_bundle_local
 import { ReloadInput, ReloadResult } from hot_reload_dev_contract
 
 export struct HotReloadDevFixture {
-  input: ReloadInput
-  result: ReloadResult
+  let input: ReloadInput
+  let result: ReloadResult
 }

@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/data_formats.w",
     "symbol": "summarize",
-    "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
+    "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "csv-stream.w",
-      "digest": "sha256:5e2a61416ac80be6e5bf120ff88ffa0090ff1514803e556b5fa631e0c8fb56d9",
+      "digest": "sha256:621c3c720e8c48b6e50f1ba160ac968c19a746718c1955d75639fdf0c22ccd97",
       "changedConstructs": [
         "typed CSV async stream",
         "explicit null policy",
@@ -30,7 +30,7 @@
       "role": "alternative",
       "language": "w",
       "path": "parquet-snapshot.w",
-      "digest": "sha256:824d9566c39282b99c1377eb2e3b31091cdc562f314f9f9e14b533ee9e0041ed",
+      "digest": "sha256:f945471686b264eb98a9dd26a8273078fe53857a033f5ce5cd6deb34395cd907",
       "changedConstructs": [
         "SnapshotByteSource",
         "exact schema binding",
@@ -42,7 +42,7 @@
       "role": "alternative",
       "language": "w",
       "path": "arrow-ipc-stream.w",
-      "digest": "sha256:a2f82af1bf44571796f6f2c966ed5dbdc59baf2329493a57f5b16c3a2242bee1",
+      "digest": "sha256:3b933731231974179b10e58bac2e1bdf65aecbcfd58972d4d925b1edefe2a2d3",
       "changedConstructs": [
         "IPC stream naming",
         "dictionary validation",

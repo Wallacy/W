@@ -8,8 +8,8 @@ export enum DiningRoomState {
 }
 
 export struct OrderAdmission {
-  state: DiningRoomState
-  canServe: Bool
+  let state: DiningRoomState
+  let canServe: Bool
 }
 
 export fn canAcceptOrder(open: Bool): Bool {

@@ -2170,7 +2170,7 @@
       "state": "active",
       "phase": "semantic.ownership",
       "defaultSeverity": "error",
-      "meaning": "a Lazy assignment or get mut ref access lacks exclusive authority",
+      "meaning": "a Lazy assignment or mut ref property access lacks exclusive authority",
       "requiredFacts": { "actualAuthority": "string", "operation": "string", "property": "string" },
       "labelRoles": {},
       "fixes": {}

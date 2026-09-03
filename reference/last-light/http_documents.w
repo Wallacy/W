@@ -38,17 +38,17 @@ import {
 } from simulation
 
 export struct CommandGuestDocument: json.Decodable {
-  id: String
-  name: String
+  let id: String
+  let name: String
 }
 
 export struct CommandOrderDocument: json.Decodable {
-  id: String
-  guest: CommandGuestDocument
-  guests: u16
-  course: String
-  notes: String?
-  timeline: u32
+  let id: String
+  let guest: CommandGuestDocument
+  let guests: u16
+  let course: String
+  let notes: String?
+  let timeline: u32
 
   take fn command(): Order throws CommandDocumentError {
     let id = try canonicalOrderId(text: id, field: .orderId)
@@ -71,10 +71,10 @@ export struct CommandOrderDocument: json.Decodable {
 }
 
 export struct CommandDocument: json.Decodable {
-  kind: String
-  order: CommandOrderDocument?
-  orderId: String?
-  profile: String?
+  let kind: String
+  let order: CommandOrderDocument?
+  let orderId: String?
+  let profile: String?
 
   fn noPayload(): () throws CommandDocumentError {
     switch order {
@@ -246,7 +246,7 @@ fn decimalOrderId(value: OrderId): String { u64(value).display() }
 fn decimalSigned(value: i128): String { value.display() }
 
 struct MoneyDocument: json.Encodable {
-  money: ref Money
+  let money: ref Money
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let minorUnits = decimalSigned(value: money.minorUnits)
@@ -259,7 +259,7 @@ struct MoneyDocument: json.Encodable {
 }
 
 struct MenuItemDocument: json.Encodable {
-  item: ref MenuItem
+  let item: ref MenuItem
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let course = courseToken(course: item.course)
@@ -273,7 +273,7 @@ struct MenuItemDocument: json.Encodable {
 }
 
 struct MenuItemsDocument: json.Encodable {
-  items: ref Array<MenuItem>
+  let items: ref Array<MenuItem>
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withArray((array) => {
@@ -286,7 +286,7 @@ struct MenuItemsDocument: json.Encodable {
 }
 
 struct ReceiptDocument: json.Encodable {
-  receipt: ref Receipt
+  let receipt: ref Receipt
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let orderId = decimalOrderId(value: receipt.orderId)
@@ -299,7 +299,7 @@ struct ReceiptDocument: json.Encodable {
 }
 
 struct OrderSummaryDocument: json.Encodable {
-  summary: ref OrderSummary
+  let summary: ref OrderSummary
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let orderId = decimalOrderId(value: summary.orderId)
@@ -320,7 +320,7 @@ struct OrderSummaryDocument: json.Encodable {
 }
 
 struct OrderSummariesDocument: json.Encodable {
-  summaries: ref Array<OrderSummary>
+  let summaries: ref Array<OrderSummary>
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withArray((array) => {
@@ -333,7 +333,7 @@ struct OrderSummariesDocument: json.Encodable {
 }
 
 struct SnapshotDocument: json.Encodable {
-  snapshot: ref RestaurantSnapshot
+  let snapshot: ref RestaurantSnapshot
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let completedOrders = decimal(value: snapshot.completedOrders)
@@ -347,7 +347,7 @@ struct SnapshotDocument: json.Encodable {
 }
 
 struct SimulationOrderDocument: json.Encodable {
-  order: ref SimulationOrderSummary
+  let order: ref SimulationOrderSummary
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let orderId = decimalOrderId(value: order.orderId)
@@ -364,7 +364,7 @@ struct SimulationOrderDocument: json.Encodable {
 }
 
 struct SimulationEventDocument: json.Encodable {
-  event: ref SimulationEvent
+  let event: ref SimulationEvent
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let orderId = decimalOrderId(value: event.orderId)
@@ -378,7 +378,7 @@ struct SimulationEventDocument: json.Encodable {
 }
 
 struct SimulationOrdersDocument: json.Encodable {
-  orders: ref Array<SimulationOrderSummary>
+  let orders: ref Array<SimulationOrderSummary>
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withArray((array) => {
@@ -391,7 +391,7 @@ struct SimulationOrdersDocument: json.Encodable {
 }
 
 struct SimulationEventsDocument: json.Encodable {
-  events: ref Array<SimulationEvent>
+  let events: ref Array<SimulationEvent>
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withArray((array) => {
@@ -404,7 +404,7 @@ struct SimulationEventsDocument: json.Encodable {
 }
 
 struct SecondsDocument: json.Encodable {
-  value: f64
+  let value: f64
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let unit = "s"
@@ -416,7 +416,7 @@ struct SecondsDocument: json.Encodable {
 }
 
 struct JoulesDocument: json.Encodable {
-  value: f64
+  let value: f64
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let unit = "J"
@@ -428,7 +428,7 @@ struct JoulesDocument: json.Encodable {
 }
 
 struct SimulationReportDocument: json.Encodable {
-  report: ref SimulationReport
+  let report: ref SimulationReport
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     let profile = profileToken(profile: report.profile)
@@ -461,7 +461,7 @@ struct SimulationReportDocument: json.Encodable {
 // This document is borrowed.  Response.json calls encode synchronously and
 // does not copy or move the AppResponse domain model.
 export struct AppResponseDocument: json.Encodable {
-  response: ref AppResponse
+  let response: ref AppResponse
 
   export init(response: ref AppResponse) {
     self.response = response
@@ -570,9 +570,9 @@ fn problemDetail(code: ProblemCode): String {
 }
 
 export struct ProblemDocument: json.Encodable {
-  code: ProblemCode
+  let code: ProblemCode
 
-  export status: http.StatusCode {
+  export let status: http.StatusCode {
     get => problemStatus(code: code)
   }
 

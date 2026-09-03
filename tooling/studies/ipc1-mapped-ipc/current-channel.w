@@ -5,8 +5,8 @@ module ipc1CurrentChannel
 import * from std.io
 
 export struct Ipc1MappedIpcChannel {
-  requests: Channel<send: Bytes>
-  replies: Channel<receive: Bytes>
+  let requests: Channel<send: Bytes>
+  let replies: Channel<receive: Bytes>
 }
 
 export async fn Ipc1MappedIpc(

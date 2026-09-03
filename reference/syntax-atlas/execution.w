@@ -110,7 +110,7 @@ fn directCall(_ values: Array<String>): String {
 }
 
 object CaptureBox {
-  value: String
+  let value: String
 }
 
 fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, _ sharedValue: shared CaptureBox): (String, String, String, String, String?) {
@@ -132,7 +132,7 @@ fn captureModes(_ target: String, _ borrowed: ref String, _ moved: take String, 
 
 // atlas:begin restricted-expressions
 struct AtlasLease {
-  target: String
+  let target: String
 }
 
 fn acquireLease(_ target: String): AtlasLease {

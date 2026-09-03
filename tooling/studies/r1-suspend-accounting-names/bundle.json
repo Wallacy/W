@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/time_oracle.w",
     "symbol": "openObservationWindow",
-    "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8"
+    "digest": "sha256:d142b4165fc9b8ca529ada9209ec9f837e02e2c88b6019c4d2e0fedc2a725cd6"
   },
   "variants": [
     {

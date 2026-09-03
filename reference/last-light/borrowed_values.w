@@ -4,41 +4,41 @@ import * from std.memory
 import std.task
 
 export struct Oven {
-  name: String
+  let name: String
   var temperature: f64
 }
 
 export struct Kitchen {
-  westOven: Oven
-  eastOven: Oven
+  let westOven: Oven
+  let eastOven: Oven
 }
 
 export struct Menu {
-  title: String
-  labels: Array<String>
+  let title: String
+  let labels: Array<String>
 }
 
 // Stored borrowed fields are values with inferred origins.
 export struct MenuDocument {
-  title: ref String
-  body: view String
+  let title: ref String
+  let body: view String
 }
 
 export struct BorrowedMenu {
   // This is an owned aggregate. Its fields carry the two input origins.
-  document: MenuDocument
-  labels: Array<ref String>
+  let document: MenuDocument
+  let labels: Array<ref String>
 }
 
 // A stored mut ref field is a move-only exclusive capability. It does not own
 // or keep the referent alive; `inout` remains only a parameter/call convention.
 export struct OvenControl {
-  temperature: mut ref f64
+  let temperature: mut ref f64
 }
 
 export struct OvenReadings {
-  west: f64
-  east: f64
+  let west: f64
+  let east: f64
 }
 
 // Known fields are disjoint places. The HIR can borrow one oven while it reads

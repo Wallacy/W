@@ -1,8 +1,8 @@
 // R1 Last Light Python-transform study variant.
 
 struct ArrivalTicket {
-  orderId: u64
-  priority: u8
+  let orderId: u64
+  let priority: u8
 }
 
 fn urgentOrderIds(

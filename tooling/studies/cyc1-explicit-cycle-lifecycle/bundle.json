@@ -11,13 +11,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/memory.w",
     "symbol": "MenuSection",
-    "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+    "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "expectedSharedCycleDisposition",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
     },
     {
       "path": "../../../reference/last-light/app.w",
@@ -32,12 +32,12 @@
     {
       "path": "../../../reference/last-light/liveness_oracle.w",
       "symbol": "CommitGate",
-      "digest": "sha256:7204a9fe49de311781c43eba4d08f0d41d151a8fc065e29242fcd84e1f8214a9"
+      "digest": "sha256:7eed46303204a25deabf45b2261d09a74f14b058840f004dae0efe5f3d6c2fcf"
     },
     {
       "path": "../../../reference/last-light/shared_control_oracle.w",
       "symbol": "crossDomainOrder",
-      "digest": "sha256:06fff9c6d9e43f078ea47290a45d1338b00f201755c1e487c3a339b099ef2c16"
+      "digest": "sha256:e5f50ead8c51c897bfae52a12dea399be478b444d4830a9944e5102c7d11ff9a"
     }
   ],
   "variants": [
@@ -47,7 +47,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "current-weak-owner.w",
-      "digest": "sha256:c7b7064fe3a71ec2a0b4d3166a020997918a07a3011aa9572efbb9f423ac947a",
+      "digest": "sha256:cf4cf8bc0b281d79a4e2ee156e7e6628186548b677e375a731adb9973f72393d",
       "changedConstructs": [
         "weak parent edge",
         "shared children",
@@ -64,7 +64,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "explicit-owner-close.w",
-      "digest": "sha256:48db2812abb36d3956ced04558e7efdb6d95e05bc2c5754e90b8575fa7f8d0c0",
+      "digest": "sha256:c2ad04d3226402b3d80b6d8284e02868dc1a4549d5e977e3e0f97eabb3ea5342",
       "changedConstructs": [
         "strong callback edge",
         "consuming close boundary",
@@ -81,7 +81,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "post-init-self-weak.w",
-      "digest": "sha256:914b17c7589c9f093e98db7c262fcab5ada85537815b3a9e75417cd4c344dc13",
+      "digest": "sha256:c7e74e75c0cbbf163fc9c00d94e9101cbb2024505c05d1fc81f934107df5f60f",
       "changedConstructs": [
         "published owner",
         "post-init weak self link",
@@ -98,7 +98,7 @@
       "disposition": "research-candidate",
       "language": "w",
       "path": "conditional-liveness.w",
-      "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c",
+      "digest": "sha256:00c0bb0e3dfc5a8030730211bee20d1c210f8b79307e4b5d50bcfe4d423bab7c",
       "changedConstructs": [
         "generation/ID cache with explicit invalidation",
         "owner-scoped lease with close",

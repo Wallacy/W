@@ -1,7 +1,7 @@
 import * from std
 
 export struct DishId {
-  raw: u64
+  let raw: u64
 }
 
 export fn menuLookup(id: DishId): String {

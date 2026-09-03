@@ -13,20 +13,20 @@ protocol ConsumingCallable<Input, Output> {
 }
 
 struct Arrival {
-  orderId: u64
+  let orderId: u64
 }
 
 struct Welcome {
-  orderId: u64
-  gate: usize
+  let orderId: u64
+  let gate: usize
 }
 
 struct CallableObservation {
-  firstGate: usize
-  routedGate: usize
-  tickets: (usize, usize)
-  manifestCount: usize
-  manifestAvailable: Bool
+  let firstGate: usize
+  let routedGate: usize
+  let tickets: (usize, usize)
+  let manifestCount: usize
+  let manifestAvailable: Bool
 }
 
 alias ErasedWelcomeRoute = any Callable<Arrival, Welcome>

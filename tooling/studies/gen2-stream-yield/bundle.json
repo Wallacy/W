@@ -32,17 +32,17 @@
     {
       "path": "../../../reference/last-light/command.w",
       "symbol": "object CommandStream",
-      "digest": "sha256:848d3dc3d29dbdb0841161f61e51eae5c3061f2392869fe8593e869d6ed75e12"
+      "digest": "sha256:146154bed623bdd6820c8047c7dc5f863452337cfdd80babd49fd10d89721994"
     },
     {
       "path": "../../../reference/last-light/data_formats.w",
       "symbol": "uploadCsv",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038"
     },
     {
       "path": "../../../reference/last-light/remote_stream_oracle.w",
       "symbol": "export const fn advanceStream",
-      "digest": "sha256:6a9bca8ca4a79fecae81ed4237ffee114c014f12d7dced7bd9fcae20751e6e5f"
+      "digest": "sha256:593062bd6fda94a4e68013d27b6818b9b80047b313a5c7af3841052da8d7f0dd"
     }
   ],
   "fixtures": [

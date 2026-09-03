@@ -2,7 +2,7 @@ import * from std
 
 /* export struct CommentGhost {} */
 export struct RouteTable {
-  label: String
+  let label: String
 
   fn nestedLookup(): String {
     return "import ghost from hidden_comment"

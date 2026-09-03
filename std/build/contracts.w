@@ -21,7 +21,7 @@ const fn isBindingName(value: ref String): Bool {
 
 export struct Input<Value> {
   // Value is phantom. It selects the closed provider codec at the call site.
-  name: String
+  let name: String
 
   export const init(name: String) {
     assert(isBindingName(value: name), "invalid build input binding")
@@ -31,7 +31,7 @@ export struct Input<Value> {
 
 export struct Output<Value> {
   // Value is phantom. It selects the closed provider codec at the call site.
-  name: String
+  let name: String
 
   export const init(name: String) {
     assert(isBindingName(value: name), "invalid build output binding")
@@ -97,7 +97,7 @@ foreign intrinsic from "std.build@1" {
 // w.host/build-transform@1 entry slot. It has no public initializer. It only
 // reads inputs and materializes private output candidates.
 export struct Context {
-  handle: ContextHandle
+  let handle: ContextHandle
 
   init(validatedHandle: ContextHandle) {
     self.handle = validatedHandle

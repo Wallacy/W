@@ -19,7 +19,7 @@ export type ShortMessage = String<(.graphemes.count <= 120)>
 struct StagePath<
   _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
 > {
-  orderId: OrderId
+  let orderId: OrderId
 }
 
 protocol Source<Item> {
@@ -48,7 +48,7 @@ enum OvenSessionState {
 }
 
 struct OvenSession<_ state: OvenSessionState> {
-  id: u16
+  let id: u16
 }
 
 extension OvenSession<.idle> {
@@ -62,8 +62,8 @@ fn reserveCourse(): WorkStage throws RecoverableServiceFault {
 }
 
 struct ReservationKey: Hashable & Reflectable {
-  orderId: OrderId
-  course: Course
+  let orderId: OrderId
+  let course: Course
 }
 
 fn kitchenLoad(_ kitchens: u16, _ courses: Course...): u32 {
@@ -108,7 +108,7 @@ struct ServiceFlow {
     self.stage = initialStage
   }
 
-  isTerminal: Bool {
+  let isTerminal: Bool {
     get => stage in (.completed, .cancelled)
   }
 
@@ -126,7 +126,7 @@ object FixtureMetrics {
 }
 
 object FixtureLedger {
-  entries: shared Array<String>
+  let entries: shared Array<String>
 
   init() {
     self.entries = []
@@ -138,7 +138,7 @@ object FixtureLedger {
 }
 
 export service lastLight: RestaurantApi {
-  pantry: ServiceRef<PantryApi>
+  let pantry: ServiceRef<PantryApi>
   var Lazy calibration = loadCalibration()
   var completed: u64 = 0
 
@@ -262,8 +262,8 @@ fn collectionForms() {
 }
 
 struct Route {
-  handler: any mut fn(Arrival): Welcome
-  finalize: any take fn(): Receipt
+  let handler: any mut fn(Arrival): Welcome
+  let finalize: any take fn(): Receipt
 }
 
 fn numericForms(): () {

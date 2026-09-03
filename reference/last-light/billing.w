@@ -21,25 +21,25 @@ export enum PaymentState {
 }
 
 export struct Payment {
-  id: PaymentId
-  amount: Money
-  state: PaymentState
+  let id: PaymentId
+  let amount: Money
+  let state: PaymentState
 }
 
 export struct PaymentProof {
-  paymentId: PaymentId
-  amount: Money
-  state: PaymentState
+  let paymentId: PaymentId
+  let amount: Money
+  let state: PaymentState
 
-  export canServe: Bool {
+  export let canServe: Bool {
     get => state == .captured
   }
 }
 
 export struct MenuItem {
-  course: Course
-  label: DishLabel
-  price: Money
+  let course: Course
+  let label: DishLabel
+  let price: Money
 }
 
 export enum BillingError: Error {
@@ -57,7 +57,7 @@ export protocol PricingPolicy {
 }
 
 export struct PriceTable {
-  prices: Map<Course, Money>
+  let prices: Map<Course, Money>
 }
 
 extension PriceTable: PricingPolicy {
@@ -121,7 +121,7 @@ export protocol BillingApi {
 }
 
 export service billing: BillingApi {
-  gateway: ServiceRef<PaymentGatewayApi>
+  let gateway: ServiceRef<PaymentGatewayApi>
   var payments: Map<IdempotencyKey, Payment> = Map()
 
   init(gateway: ServiceRef<PaymentGatewayApi>) {

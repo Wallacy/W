@@ -4,8 +4,8 @@ import * from std.io
 import streaming from std.stream
 
 export struct DialogueChannels {
-  requests: Channel<send: String>
-  replies: Channel<receive: String>
+  let requests: Channel<send: String>
+  let replies: Channel<receive: String>
 }
 
 export async fn observeSuspension(

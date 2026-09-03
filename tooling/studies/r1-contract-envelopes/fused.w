@@ -35,7 +35,7 @@ const fn isValidStagePath(_ stages: StaticList<ServiceStage>): Bool {
 struct StagePath<
   _ stages: StaticList<[ServiceStage, (isValidStagePath(.member))]>,
 > {
-  orderId: u64
+  let orderId: u64
 }
 
 fn standardStagePath(

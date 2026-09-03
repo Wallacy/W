@@ -47,7 +47,7 @@ export alias UsableOvenReading =
   OvenReading<[.stable, .warming]>
 
 export struct CancelRequest {
-  stage: CancellableStage
+  let stage: CancellableStage
 }
 
 export fn nextWorkStage(inventoryReady: Bool): WorkStage {

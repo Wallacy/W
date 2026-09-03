@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/generics.w",
     "symbol": "Matrix<rows: usize, Element, columns: usize>",
-    "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
+    "digest": "sha256:4e8a1d38b0f002b7a3546ae103eba50e846e242039f8771ed588fae0fb87065e"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "named.w",
-      "digest": "sha256:71e190b28fdb0f8f27a5d215e09abf53975451022bacbae91fceaa788ad21063",
+      "digest": "sha256:113831239cd1365e6951337a1afa825b5b108de4b630e3dc85a468af70d4d3be",
       "changedConstructs": [
         "named static value slots on the type head",
         "reordered named static categories within one segment",
@@ -30,7 +30,7 @@
       "role": "alternative",
       "language": "w",
       "path": "positional.w",
-      "digest": "sha256:094850478e055868dd37602016de29a05dab240399f26f96fc40cc8e84aea9c9",
+      "digest": "sha256:64ce7a20146f411e3f64ad4ff928e3b3e7a846198ea21d0e298282097cac7a72",
       "changedConstructs": [
         "positional-only anchors on every static value slot",
         "positional type and generic-call arguments",
@@ -42,7 +42,7 @@
       "role": "alternative",
       "language": "w",
       "path": "split-call.w",
-      "digest": "sha256:f096c52e87871f208fe5936b9d7229a3d25c7917dc307c6d64397dae98e9c422",
+      "digest": "sha256:67c5b0b069770814fb7cfd5015bb6365a45a0b0e0e8128fb7205baccb0a39912",
       "changedConstructs": [
         "full static contract on the type head",
         "restricted static categories on the generic call",
@@ -143,7 +143,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:39114a5049737c200eb1265514147da8227402082279bc7dc94c672c7623268d"
+    "digest": "sha256:814d17f94cfbf96ba282ebe6022f09c056aa499b2bdce07c7ea56488518d5f06"
   },
   "evidence": {
     "current": [

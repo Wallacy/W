@@ -35,13 +35,13 @@ export enum ClockSelectionError: Error & Copy & Equatable {
 // The semantic value is an exact signed total of nanoseconds. The physical
 // layout remains private, and integer arithmetic keeps checked semantics.
 export struct Duration: Copy & Equatable & Hashable {
-  value: i128
+  let value: i128
 
   export const init(nanoseconds: i128) {
     self.value = nanoseconds
   }
 
-  export nanoseconds: i128 {
+  export let nanoseconds: i128 {
     get => value
   }
 }
@@ -79,7 +79,7 @@ foreign intrinsic from "std.time@1" {
 // Copies keep the same root dependency. They do not become portable numeric
 // timestamps and cannot cross service, wire, storage, or foreign boundaries.
 export struct Instant: Copy {
-  value: InstantValue
+  let value: InstantValue
 
   init(validatedValue: InstantValue) {
     self.value = validatedValue
@@ -87,7 +87,7 @@ export struct Instant: Copy {
 }
 
 export struct Deadline: Copy {
-  value: DeadlineValue
+  let value: DeadlineValue
 
   init(validatedValue: DeadlineValue) {
     self.value = validatedValue
@@ -98,7 +98,7 @@ export struct Deadline: Copy {
 // duplicate authority. Each Context projection retains an owner in the same
 // root; all values produced by that owner keep that root as their origin.
 export struct Clock {
-  handle: ClockHandle
+  let handle: ClockHandle
 
   init(hostHandle: ClockHandle) {
     self.handle = hostHandle
@@ -112,7 +112,7 @@ export struct Clock {
     return unsafe { stdTimeClockResolution(ref handle) }
   }
 
-  export hostSuspendPolicy: HostSuspendPolicy {
+  export let hostSuspendPolicy: HostSuspendPolicy {
     get => unsafe { stdTimeClockHostSuspendPolicy(ref handle) }
   }
 

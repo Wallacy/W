@@ -4,7 +4,7 @@ Script remains an identifier in names, bindings, members, and properties
 
 module script
 struct Holder {
-  script: String
+  let script: String
 }
 fn script(script: String): String {
   let holder = Holder(script: script)
@@ -22,9 +22,10 @@ fn script(script: String): String {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))))
   (function_declaration
     (identifier)
     (parameter_list

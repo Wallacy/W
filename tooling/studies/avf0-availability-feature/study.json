@@ -51,7 +51,7 @@
       "role": "composable",
       "language": "w",
       "path": "typed-runtime-feature.w",
-      "digest": "sha256:9375af45227e7da1a4ab29d3a4263429cf386b21b67b6f4b3eb654a8e3562da0"
+      "digest": "sha256:e3680ef4933e9c03866135a2c43bf5177b42ad4f151e47effb1f5efec7064541"
     },
     {
       "id": "availability-binding",
@@ -122,19 +122,19 @@
     {
       "path": "reference/last-light/billing.w",
       "symbol": "gatewayUnavailable",
-      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
+      "digest": "sha256:9ef053d4b7cb62958065ba6e663092fdb184d3986f96a2dce6324edadd0888ce",
       "claim": "provider-backed operation already has an explicit unavailable outcome"
     },
     {
       "path": "reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
+      "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5",
       "claim": "immutable atomic publication composes with runtime configuration"
     },
     {
       "path": "reference/last-light/billing.w",
       "symbol": "export service billing: BillingApi {",
-      "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58",
+      "digest": "sha256:9ef053d4b7cb62958065ba6e663092fdb184d3986f96a2dce6324edadd0888ce",
       "claim": "billing composes provider availability, effects, generation, and fallback"
     }
   ],

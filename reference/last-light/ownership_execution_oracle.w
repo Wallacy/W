@@ -26,9 +26,9 @@ export object LifetimeLedger {
 }
 
 export object TrackedCourse {
-  orderId: OrderId
-  revision: u64
-  ledger: shared LifetimeLedger
+  let orderId: OrderId
+  let revision: u64
+  let ledger: shared LifetimeLedger
 
   export init(
     orderId: OrderId,
@@ -46,15 +46,15 @@ export object TrackedCourse {
 }
 
 export struct OwnershipBatch {
-  direct: TrackedCourse
-  awaited: TrackedCourse
-  local: TrackedCourse
-  parallel: TrackedCourse
-  checksum: u64
+  let direct: TrackedCourse
+  let awaited: TrackedCourse
+  let local: TrackedCourse
+  let parallel: TrackedCourse
+  let checksum: u64
 }
 
 export struct RevisionLedger {
-  revision: u64
+  let revision: u64
 }
 
 fn inspectDirect(course: ref TrackedCourse): u64 {

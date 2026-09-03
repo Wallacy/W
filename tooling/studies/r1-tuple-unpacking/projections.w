@@ -1,7 +1,7 @@
 // R1 Last Light tuple-unpacking study variant.
 
 struct MenuCompileError {
-  line: usize
+  let line: usize
 }
 
 fn word(): (String, usize) throws MenuCompileError {

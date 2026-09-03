@@ -5,13 +5,13 @@ import { GuestCount, OrderId } from domain
 import * from std.memory
 
 export struct Arrival {
-  orderId: OrderId
-  guests: GuestCount
+  let orderId: OrderId
+  let guests: GuestCount
 }
 
 export struct Welcome {
-  orderId: OrderId
-  gate: usize
+  let orderId: OrderId
+  let gate: usize
 }
 
 fn standardWelcome(arrival: ref Arrival): Welcome {
@@ -26,7 +26,7 @@ export fn welcome(
 }
 
 export struct WelcomeRoute {
-  handler: any fn(Arrival): Welcome
+  let handler: any fn(Arrival): Welcome
 }
 
 export fn route(

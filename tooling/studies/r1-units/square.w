@@ -3,8 +3,8 @@
 import si from std
 
 struct ImpactEstimate {
-  energy: f64
-  fallTime: f64
+  let energy: f64
+  let fallTime: f64
 }
 
 fn estimateHorizonImpact(_ mass: f64, height: f64): ImpactEstimate {

@@ -5,17 +5,17 @@ module atom1_generational_handle
 import atomic from std
 
 export struct MenuHandle: Duplicable {
-  slot: u32
-  generation: u32
+  let slot: u32
+  let generation: u32
 }
 
 export struct Menu: Duplicable {
-  name: String
+  let name: String
 }
 
 export struct MenuSlot {
-  generation: u32
-  menu: Menu
+  let generation: u32
+  let menu: Menu
 }
 
 fn pack(_ handle: MenuHandle): u64 {
@@ -30,7 +30,7 @@ fn unpack(_ packed: u64): MenuHandle {
 }
 
 export object MenuOwnerTable {
-  slots: Array<MenuSlot>
+  let slots: Array<MenuSlot>
 
   export init(_ initial: take Array<MenuSlot>) {
     self.slots = take initial

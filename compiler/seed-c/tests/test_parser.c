@@ -471,7 +471,7 @@ static bool test_for_control_recovery(void) {
 static bool test_phase2_declaration_tree(void) {
   static const char text[] =
       "import {Command,Result} from command\n"
-      "export struct FormatCase {value:String expected:String}\n"
+      "export struct FormatCase {let value:String let expected:String}\n"
       "export fn namedCall(command:Command,audit:Audit):String throws KitchenError {"
       "return command}\n"
       "test \"fixture\" for namedCall {expect command == audit}\n";
@@ -2037,7 +2037,7 @@ static bool test_spawn_tuple_shapes(void) {
 
 static bool test_phase2_generic_contract_switch(void) {
   static const char generic_text[] =
-      "struct Box<_ state:State>{value:state}\n"
+      "struct Box<_ state:State>{let value:state}\n"
       "fn identity<T:Order>(value:T):T{return value}\n"
       "type Alias<T:Order> = Array<T>\n"
       "alias Legacy<U> = Array<Array<u8>>\n";

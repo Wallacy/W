@@ -19,13 +19,13 @@ export enum MenuInstruction {
 }
 
 export struct MenuProgram {
-  instructions: Array<MenuInstruction>
-  symbols: Array<String>
+  let instructions: Array<MenuInstruction>
+  let symbols: Array<String>
 }
 
 export struct MenuBytecode {
-  bytes: Bytes
-  symbols: Array<String>
+  let bytes: Bytes
+  let symbols: Array<String>
 }
 
 export enum MenuCompileError: Error {
@@ -111,7 +111,7 @@ object MenuSymbols {
 }
 
 object MenuParser {
-  tokens: Array<MenuToken>
+  let tokens: Array<MenuToken>
   var cursor: usize = 0
   var symbols = MenuSymbols()
 

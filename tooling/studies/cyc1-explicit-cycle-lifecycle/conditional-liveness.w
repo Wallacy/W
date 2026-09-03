@@ -7,8 +7,8 @@
 module cyc1_conditional_liveness
 
 export object GenerationIdCache {
-  generation: u64
-  value: String
+  let generation: u64
+  let value: String
 }
 
 export fn generationIdCacheWithInvalidation(_ cache: GenerationIdCache): String {
@@ -16,7 +16,7 @@ export fn generationIdCacheWithInvalidation(_ cache: GenerationIdCache): String 
 }
 
 export object OwnerScopedCacheLease {
-  value: String
+  let value: String
 
   fn close() {
     value = ""
@@ -28,8 +28,8 @@ export fn ownerScopedLeaseWithClose(_ lease: OwnerScopedCacheLease): String {
 }
 
 export object DetachedCacheValue {
-  keyId: u64
-  payload: String
+  let keyId: u64
+  let payload: String
 }
 
 export fn detachedValueWithoutBackEdge(_ value: DetachedCacheValue): String {

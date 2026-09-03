@@ -17,25 +17,25 @@
     {
       "path": "../../../reference/last-light/capability_security_oracle.w",
       "symbol": "enum CapabilityOrigin {",
-      "digest": "sha256:2dc7f514f2af65fc61c1e160a93ac2f4d76a5790077849537c1547307dfd26b3",
+      "digest": "sha256:8c11b36eb2165c512c0b8cfa36b987f5f6c5bcbf1a3f5b9fc281692837407bd7",
       "claim": "Explicit capability binding and projection."
     },
     {
       "path": "../../../reference/last-light/time_oracle.w",
       "symbol": "export fn openObservationWindow(",
-      "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8",
+      "digest": "sha256:d142b4165fc9b8ca529ada9209ec9f837e02e2c88b6019c4d2e0fedc2a725cd6",
       "claim": "Operational clock and deadline boundary."
     },
     {
       "path": "../../../reference/last-light/benchmark_app.w",
       "symbol": "fn randomWorldKeys(",
-      "digest": "sha256:e399bf1a0613b990f9557d4fdaae1ca6bc2a0af88900cee9bebcba0de9396061",
+      "digest": "sha256:0c2f9a733ea3a983729f902b2b19a581c1492e3197dedd3014098f1311a42881",
       "claim": "Context random capability projection."
     },
     {
       "path": "../../../reference/last-light/data_formats.w",
       "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038",
       "claim": "Explicit source, options, and typed codec error."
     },
     {

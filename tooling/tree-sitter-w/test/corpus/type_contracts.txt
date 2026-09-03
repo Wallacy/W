@@ -31,7 +31,7 @@ struct Matrix<
   rows: usize<(1...4_096)>,
   columns: usize<(1...4_096)>,
 > {
-  values: [Element; rows * columns]
+  let values: [Element; rows * columns]
 }
 
 struct CoursePath<_ stages: StaticList<ServiceStage>> {}
@@ -287,14 +287,15 @@ fn useContracts(bytes: view Bytes, edit: mut view Bytes) {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (fixed_array_type
-            (type
-              (type_name
-                (type_identifier)))
-            (binary_expression
-              (identifier)
-              (identifier)))))))
+        (property_type
+          (type
+            (fixed_array_type
+              (type
+                (type_name
+                  (type_identifier)))
+              (binary_expression
+                (identifier)
+                (identifier))))))))
   (struct_declaration
     (type_identifier)
     (generic_parameters

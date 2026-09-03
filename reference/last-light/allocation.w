@@ -8,8 +8,8 @@ import * from std.task
 // AllocatorPlanDescriptor; the compiler owns the AllocatorLease lifecycle.
 
 export struct MenuSnapshot {
-  title: String
-  dishes: Array<String>
+  let title: String
+  let dishes: Array<String>
 }
 
 export fn stageMenu(

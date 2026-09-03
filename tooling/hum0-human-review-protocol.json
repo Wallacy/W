@@ -29,14 +29,14 @@
           "id": "restaurant-place",
           "path": "reference/last-light/restaurant.w",
           "symbol": "mut async fn place",
-          "digest": "sha256:9d771184098c5b8e9a93e5f3676193dcbe2791ddae99896a5b4c15041a681f18",
+          "digest": "sha256:278d72e473037021128214be2e5646012cd1f55cfc7deee849067c00685f73f1",
           "claim": "Restaurant order placement and consuming ownership"
         },
         {
           "id": "restaurant-status",
           "path": "reference/last-light/restaurant.w",
           "symbol": "async fn status(orderId: OrderId): ServiceStage throws RestaurantError {",
-          "digest": "sha256:9d771184098c5b8e9a93e5f3676193dcbe2791ddae99896a5b4c15041a681f18",
+          "digest": "sha256:278d72e473037021128214be2e5646012cd1f55cfc7deee849067c00685f73f1",
           "claim": "Restaurant observation after a failed or completed turn"
         }
       ],
@@ -193,14 +193,14 @@
           "id": "menu-root",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Shared menu root construction"
         },
         {
           "id": "borrow-primary",
           "path": "reference/last-light/borrow_expressivity.w",
           "symbol": "export fn selectPrimary",
-          "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
+          "digest": "sha256:7990af949683713b527e927a813901c9afd9f6b5723ad84e648b1d78891499ec",
           "claim": "Receiver and body-derived borrow relation"
         }
       ],
@@ -357,7 +357,7 @@
           "id": "stage-menu",
           "path": "reference/last-light/allocation.w",
           "symbol": "export fn stageMenu",
-          "digest": "sha256:8fb5d1db0a50fa28c0de66ff2145a29a3c0e3295964dc2b63abc1972bff7a6e7",
+          "digest": "sha256:826bdbb9cf5b4551c3ee9484a7556f4d6cbed22482864110c28c06d5aaef3b6a",
           "claim": "Lexical and contextual staging allocator"
         }
       ],
@@ -514,7 +514,7 @@
           "id": "mix-pair",
           "path": "reference/last-light/execution.w",
           "symbol": "export async fn mixPair",
-          "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9",
+          "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c",
           "claim": "Async execution form and domain preference"
         }
       ],
@@ -522,13 +522,13 @@
         {
           "id": "execution-ergonomics-cases",
           "path": "tooling/execution-ergonomics-cases.json",
-          "digest": "sha256:fd2fbbc5f40f2f24977c7076350ee78ecea68d75e8baec8a8eeacc3c901fe027",
+          "digest": "sha256:a821673192302a07197d895923728736d896044243ae8c57f28a4feca5e9ee97",
           "claim": "Execution labels, ownership operations, suspension, and placement cases"
         },
         {
           "id": "execution-ergonomics-reference",
           "path": "tooling/execution-ergonomics-reference.test.mjs",
-          "digest": "sha256:cf106129f6f0dac05abd746cf01fd93ea4701a458f9283d6e0ddd664d661a8e7",
+          "digest": "sha256:d9c678bab5b9313eb1d1741deda038b2ab00a8ea68af4c080595891aa18a969c",
           "claim": "Independent execution form assertions"
         }
       ],
@@ -835,7 +835,7 @@
           "id": "generation-receipt",
           "path": "reference/last-light/repl_session_oracle.w",
           "symbol": "export struct GenerationReceipt",
-          "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
+          "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
           "claim": "Generation publication and invalidation receipt"
         }
       ],
@@ -1006,7 +1006,7 @@
           "id": "session-snapshot",
           "path": "reference/last-light/repl_session_oracle.w",
           "symbol": "export struct SessionSnapshot",
-          "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666",
+          "digest": "sha256:91ff22e5416418ebba6d6dd42617c5453660674750ae6e8341a7993ff1946d1b",
           "claim": "Committed REPL snapshot and bounded receipts"
         }
       ],
@@ -1163,14 +1163,14 @@
           "id": "bell-lease",
           "path": "reference/last-light/memory.w",
           "symbol": "export object BellLease",
-          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Callback lease ownership and cleanup"
         },
         {
           "id": "watch-closing-bell",
           "path": "reference/last-light/memory.w",
           "symbol": "export fn watchClosingBell",
-          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+          "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
           "claim": "Callback admission and lease creation"
         },
         {
@@ -1207,7 +1207,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:5028b6aef09fd8119988ce74cfefbfa08e1a8802c3fabd8614d8073b7b2e8c0a"
+            "derivedStimulusDigest": "sha256:a069ec708e27db4fa971b1ba31dc80dff12ab2309f148b833dc55c15ba044c3c"
           },
           "participantInput": {
             "scenario": "A foreign closing-bell callback is admitted under a W lease with an optional registration and guarded unsubscribe.",
@@ -1225,7 +1225,7 @@
             "beforeLines": 2,
             "afterLines": 16,
             "maxBytes": 700,
-            "derivedStimulusDigest": "sha256:96441db7c6c3056b55d7d559c4f4c4cc190358fb6375d2ab7daa362d5f4dbf6a"
+            "derivedStimulusDigest": "sha256:d85f300db901a021fee9d84e2b3ff38bfcd67a10217e4b6fdcc9fb02bf85d970"
           },
           "observerOnly": {
             "baseInputId": "ffi-primary",

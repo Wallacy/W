@@ -2,7 +2,7 @@
 module dyn1_typed_plugin
 
 export object VersionedBehaviorFixture {
-  semanticInterface: SemanticInterfaceKey
-  abi: WAbiKey
-  runtimeClosure: RuntimeClosureKey
+  let semanticInterface: SemanticInterfaceKey
+  let abi: WAbiKey
+  let runtimeClosure: RuntimeClosureKey
 }

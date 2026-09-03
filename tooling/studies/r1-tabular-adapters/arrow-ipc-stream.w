@@ -6,9 +6,9 @@ import arrow from std.arrow
 import io from std.io
 
 struct HorizonReading: data.Row {
-  sequence: u64
-  hawkingFlux: f64
-  warning: String?
+  let sequence: u64
+  let hawkingFlux: f64
+  let warning: String?
 }
 
 async fn summarizeArrow<Failure: Error, Source: io.ByteSource<Failure>>(

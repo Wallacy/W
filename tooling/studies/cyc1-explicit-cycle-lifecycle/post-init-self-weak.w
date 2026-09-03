@@ -3,7 +3,7 @@
 module cyc1_post_init_self_weak
 
 export object CycleFixture {
-  selfLink: weak CycleFixture?
+  let selfLink: weak CycleFixture?
 
   export init() {
     self.selfLink = .none

@@ -20,7 +20,7 @@ extension Counted {
 protocol Catalog<Item>: Source<Item> & Counted {}
 
 struct Shelf<T> {
-  values: Array<T>
+  let values: Array<T>
 }
 
 extension<T: Display & Equatable> Shelf<T>: Catalog {
@@ -61,11 +61,11 @@ enum Fault: Error {
 alias RecoverableFault = Fault<[.delayed]>
 
 struct StagePath<_ stages: StaticList<Stage>> {
-  id: usize
+  let id: usize
 }
 
 struct Tile<rows: usize, columns: usize> {
-  pixels: [u8; rows * columns]
+  let pixels: [u8; rows * columns]
 }
 
 fn render<T: Display & Equatable, S: Source<T>>(source: ref S): String? {
@@ -148,14 +148,15 @@ fn reserve(): WorkStage throws RecoverableFault {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))
-          (type_arguments
-            (type_argument
-              (type
-                (type_name
-                  (type_identifier)))))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier))
+            (type_arguments
+              (type_argument
+                (type
+                  (type_name
+                    (type_identifier))))))))))
   (extension_declaration
     (generic_parameters
       (generic_parameter
@@ -332,9 +333,10 @@ fn reserve(): WorkStage throws RecoverableFault {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))))
   (struct_declaration
     (type_identifier)
     (generic_parameters
@@ -351,14 +353,15 @@ fn reserve(): WorkStage throws RecoverableFault {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (fixed_array_type
-            (type
-              (type_name
-                (type_identifier)))
-            (binary_expression
-              (identifier)
-              (identifier)))))))
+        (property_type
+          (type
+            (fixed_array_type
+              (type
+                (type_name
+                  (type_identifier)))
+              (binary_expression
+                (identifier)
+                (identifier))))))))
   (function_declaration
     (identifier)
     (generic_parameters
@@ -694,7 +697,7 @@ enum Mode {
 }
 
 struct Session<_ state: Mode> {
-  id: u16
+  let id: u16
 }
 
 enum Activation {
@@ -728,9 +731,10 @@ extension Session<.idle> {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))))
   (enum_declaration
     (type_identifier)
     (enum_body

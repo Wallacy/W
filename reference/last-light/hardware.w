@@ -27,8 +27,8 @@ export enum ProbeError: Error {
 }
 
 export struct ProbeSample {
-  aroma: Probability
-  temperature: Temperature
+  let aroma: Probability
+  let temperature: Temperature
 }
 
 export protocol AromaProbeApi {
@@ -36,9 +36,9 @@ export protocol AromaProbeApi {
 }
 
 export object AromaProbeDevice {
-  handle: c.ptr<ll_probe>
+  let handle: c.ptr<ll_probe>
 
-  package init(handle: c.ptr<ll_probe>) {
+  init(handle: c.ptr<ll_probe>) {
     self.handle = handle
   }
 
@@ -58,7 +58,7 @@ unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
 }
 
 export service aromaProbe: AromaProbeApi {
-  device: AromaProbeDevice
+  let device: AromaProbeDevice
 
   init(device: AromaProbeDevice) {
     self.device = device

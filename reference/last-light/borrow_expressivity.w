@@ -7,12 +7,12 @@
 import streaming from std.stream
 
 export struct MenuLine {
-  text: String
+  let text: String
 }
 
 export struct MenuLineCursor {
-  lines: Array<String>
-  position: usize
+  let lines: Array<String>
+  let position: usize
 
   init(lines: Array<String>) {
     self.lines = take lines
@@ -89,7 +89,7 @@ export fn erasedHandler(line: ref String): view String {
 }
 
 export struct BorrowedHandlerStorage {
-  handler: any fn(ref String): view String
+  let handler: any fn(ref String): view String
 }
 
 // The callable owner may be stored. A later invocation still applies the

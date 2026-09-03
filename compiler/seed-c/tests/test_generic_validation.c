@@ -574,7 +574,7 @@ static const char *const STAGE_PREFIX =
     "for index in 1..<stages.count { if !canMove(from: stages[index - 1], "
     "to: stages[index]) { return false } } return true }\n"
     "struct StagePath<_ stages: StaticList<ServiceStage>"
-    "<(isValidStagePath(.member))>> { orderId: u64 }\n";
+    "<(isValidStagePath(.member))>> { let orderId: u64 }\n";
 
 static bool fixture_lower_stage(fixture *fixture_value, const char *suffix) {
   const size_t prefix_length = strlen(STAGE_PREFIX);
@@ -1183,13 +1183,13 @@ static bool probe_module_const_zero_capacity(const char *path) {
 
 static bool test_verified_and_rejected_paths(void) {
   static const char standard[] =
-      "struct Use { standard: StagePath<[.accepted, .reserving, .preparing, "
+      "struct Use { let standard: StagePath<[.accepted, .reserving, .preparing, "
       ".serving, .completed]> }\n";
-  static const char empty[] = "struct Use { empty: StagePath<[]> }\n";
+  static const char empty[] = "struct Use { let empty: StagePath<[]> }\n";
   static const char skipped[] =
-      "struct Use { skipped: StagePath<[.accepted, .completed]> }\n";
+      "struct Use { let skipped: StagePath<[.accepted, .completed]> }\n";
   static const char duplicate[] =
-      "struct Use { duplicate: StagePath<[.accepted, .reserving, .reserving]> }\n";
+      "struct Use { let duplicate: StagePath<[.accepted, .reserving, .reserving]> }\n";
   w_seed_generic_validation_result result;
   CHECK(fixture_lower_stage(&value, standard));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK);
@@ -1296,7 +1296,7 @@ static bool test_verified_and_rejected_paths(void) {
 
 static bool test_quota_unsupported_and_invalid(void) {
   static const char standard[] =
-      "struct Use { standard: StagePath<[.accepted, .reserving, .preparing, "
+      "struct Use { let standard: StagePath<[.accepted, .reserving, .preparing, "
       ".serving, .completed]> }\n";
   w_seed_generic_validation_result result;
   CHECK(fixture_lower_stage(&value, standard));
@@ -1498,22 +1498,22 @@ static bool test_direct_scalar_predicates(void) {
   static const char bool_source[] =
       "const fn identity(value: Bool): Bool { return value }\n"
       "struct BoolBox<_ value: Bool<(identity(.member))>> {}\n"
-      "struct Use { yes: BoolBox<true> no: BoolBox<false> }\n";
+      "struct Use { let yes: BoolBox<true> let no: BoolBox<false> }\n";
   static const char integer_source[] =
       "const fn isSeven(value: u8): Bool { return value == 7 }\n"
       "struct IntBox<_ value: u8<(isSeven(.member))>> {}\n"
-      "struct Use { yes: IntBox<7> no: IntBox<8> }\n";
+      "struct Use { let yes: IntBox<7> let no: IntBox<8> }\n";
   static const char two_predicate_source[] =
       "const fn firstPredicate(value: Bool): Bool { return value }\n"
       "const fn secondPredicate(value: Bool): Bool { return value }\n"
       "struct Pair<_ first: Bool<(firstPredicate(.member))>, _ second: Bool<(secondPredicate(.member))>> {}\n"
-      "struct Use { valid: Pair<true, true> }\n";
+      "struct Use { let valid: Pair<true, true> }\n";
   static const char enum_source[] =
       "enum Color { red green blue }\n"
       "enum Other { red }\n"
       "const fn isRed(value: Color): Bool { return switch value { case .red: true case .green: false case .blue: false } }\n"
       "struct ColorBox<_ value: Color<(isRed(.member))>> {}\n"
-      "struct Use { yes: ColorBox<.red> no: ColorBox<.green> }\n";
+      "struct Use { let yes: ColorBox<.red> let no: ColorBox<.green> }\n";
   w_seed_generic_validation_result result;
 
   CHECK(fixture_lower(&value, bool_source));
@@ -1774,10 +1774,10 @@ static bool test_typed_const_expression_predicates(void) {
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
       "struct Use {\n"
-      "  immediate: UltimateAnswer<42>\n"
-      "  computed: UltimateAnswer<(6 * 7)>\n"
-      "  duplicate: UltimateAnswer<(6 * 7)>\n"
-      "  rejected: UltimateAnswer<(6 * 6)>\n"
+      "  let immediate: UltimateAnswer<42>\n"
+      "  let computed: UltimateAnswer<(6 * 7)>\n"
+      "  let duplicate: UltimateAnswer<(6 * 7)>\n"
+      "  let rejected: UltimateAnswer<(6 * 6)>\n"
       "}\n";
   CHECK(fixture_lower(&value, source));
   CHECK(value.frontend_result.written.generic_applications == 4u);
@@ -1922,7 +1922,7 @@ static bool test_typed_const_expression_predicates(void) {
 
   static const char computed_without_predicate[] =
       "struct Box<_ value: i64> {}\n"
-      "struct Use { field: Box<(6 * 7)> }\n";
+      "struct Use { let field: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, computed_without_predicate));
   (void)memset(value.conversion_values, 0xa5, sizeof(value.conversion_values));
   (void)memset(value.receipts, 0xa5, sizeof(value.receipts));
@@ -1961,7 +1961,7 @@ static bool test_typed_const_expression_predicates(void) {
 
   static const char overflow_source[] =
       "struct Box<_ value: i8> {}\n"
-      "struct Use { field: Box<(127 + 1)> }\n";
+      "struct Use { let field: Box<(127 + 1)> }\n";
   CHECK(fixture_lower(&value, overflow_source));
   w_seed_generic_validation_result overflow_result;
   CHECK(validate_application_at(
@@ -1983,7 +1983,7 @@ static bool test_typed_const_expression_predicates(void) {
   static const char unsupported_call_source[] =
       "const fn helper(_ value: i64): i64 { return value }\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { field: Box<(helper(6))> }\n";
+      "struct Use { let field: Box<(helper(6))> }\n";
   CHECK(fixture_lower(&value, unsupported_call_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
         value.constir_result.written.functions == 2u &&
@@ -2002,7 +2002,7 @@ static bool test_typed_const_expression_predicates(void) {
 
   static const char audit_only_source[] =
       "struct Pair<_ first: i64, _ second: i64> {}\n"
-      "struct Use { pair: Pair<(6 * 7), (\"42\")> }\n";
+      "struct Use { let pair: Pair<(6 * 7), (\"42\")> }\n";
   CHECK(fixture_lower(&value, audit_only_source));
   w_seed_generic_validation_result audit_only_result;
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED &&
@@ -2021,7 +2021,7 @@ static bool test_typed_const_expression_predicates(void) {
 
   static const char unsupported_identifier_source[] =
       "struct Box<_ value: i64> {}\n"
-      "struct Use { field: Box<(unknownValue)> }\n";
+      "struct Use { let field: Box<(unknownValue)> }\n";
   CHECK(fixture_lower(&value, unsupported_identifier_source));
   w_seed_generic_validation_result unsupported_identifier_result;
   CHECK(validate_application_at(
@@ -2037,7 +2037,7 @@ static bool test_typed_const_expression_predicates(void) {
 
   static const char unsupported_string_result_source[] =
       "struct Box<_ value: i64> {}\n"
-      "struct Use { field: Box<(\"42\")> }\n";
+      "struct Use { let field: Box<(\"42\")> }\n";
   CHECK(fixture_lower(&value, unsupported_string_result_source));
   w_seed_generic_validation_result unsupported_string_result;
   CHECK(validate_application_at(
@@ -2098,7 +2098,7 @@ static bool test_preflight_capacity_precedence(void) {
   static const char source[] =
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { computed: UltimateAnswer<(6 * 7)> }\n";
+      "struct Use { let computed: UltimateAnswer<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, source));
   CHECK(value.frontend_result.written.generic_applications == 1u &&
         value.frontend_result.written.typed_const_expressions == 1u);
@@ -2154,13 +2154,13 @@ static bool test_preflight_capacity_precedence(void) {
 static bool test_dependent_effective_domains(void) {
   static const char static_value_source[] =
       "struct StaticValue<T, _ value: T> {}\n"
-      "struct Use { boolValue: StaticValue<Bool, true> "
-      "stringValue: StaticValue<String, \"The final seating\"> }\n";
+      "struct Use { let boolValue: StaticValue<Bool, true> "
+      "let stringValue: StaticValue<String, \"The final seating\"> }\n";
   static const char static_value_with_alias_source[] =
       "alias UnrelatedAlias = Bool\n"
       "struct Unrelated {}\n"
       "\nstruct StaticValue<T, _ value: T> {}\n"
-      "struct Use { boolValue: StaticValue<Bool, true> }\n";
+      "struct Use { let boolValue: StaticValue<Bool, true> }\n";
   w_seed_generic_validation_result result;
   CHECK(fixture_lower(&value, static_value_source));
   CHECK(value.frontend_result.written.generic_applications == 2u);
@@ -2222,7 +2222,7 @@ static bool test_dependent_effective_domains(void) {
         result.evaluation.consumed_steps == 0u && fingerprint_not_available(&result));
   static const char forward_source[] =
       "struct Forward<T, _ value: T, U> {}\n"
-      "struct Use { item: Forward<Bool, true, Bool> }\n";
+      "struct Use { let item: Forward<Bool, true, Bool> }\n";
   CHECK(fixture_lower(&value, forward_source));
   CHECK(value.frontend_result.written.generic_applications == 1u);
   const uint32_t forward_parameter =
@@ -2317,7 +2317,7 @@ static bool test_string_predicate_conversion_boundary(void) {
       "const fn acceptsLabel(value: String): Bool { "
       "return value == \"The final seating\" }\n"
       "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
-      "struct Use { item: StringBox<\"The final seating\"> }\n";
+      "struct Use { let item: StringBox<\"The final seating\"> }\n";
   w_seed_generic_validation_result result;
   w_seed_constir_status constir_status = W_SEED_CONSTIR_OK;
   CHECK(fixture_lower_base(&value, source, "generic_test", &constir_status));
@@ -2345,7 +2345,7 @@ static bool test_string_predicate_conversion_boundary(void) {
       "const fn acceptsLabel(value: String): Bool { "
       "return value != \"Mostly harmless\" }\n"
       "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
-      "struct Use { item: StringBox<\"Mostly harmless\"> }\n";
+      "struct Use { let item: StringBox<\"Mostly harmless\"> }\n";
   CHECK(fixture_lower(&value, false_source));
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
@@ -2358,7 +2358,7 @@ static bool test_string_predicate_conversion_boundary(void) {
   static const char empty_source[] =
       "const fn acceptsEmpty(value: String): Bool { return value == \"\" }\n"
       "struct StringBox<_ value: String<(acceptsEmpty(.member))>> {}\n"
-      "struct Use { item: StringBox<\"\"> }\n";
+      "struct Use { let item: StringBox<\"\"> }\n";
   CHECK(fixture_lower(&value, empty_source));
   CHECK(validate_application(&value, CONVERSION_VALUES,
                              (w_seed_constir_quota){100000u, 0u, 64u, SIZE_MAX},
@@ -2385,7 +2385,7 @@ static bool test_string_predicate_conversion_boundary(void) {
   static const char over_limit_prefix[] =
       "const fn acceptsLabel(value: String): Bool { return true }\n"
       "struct StringBox<_ value: String<(acceptsLabel(.member))>> {}\n"
-      "struct Use { item: StringBox<\"";
+      "struct Use { let item: StringBox<\"";
   static const char over_limit_suffix[] = "\"> }\n";
   const size_t over_limit_prefix_length = strlen(over_limit_prefix);
   const size_t over_limit_suffix_length = strlen(over_limit_suffix);
@@ -2461,64 +2461,64 @@ static bool test_fingerprint_adversarial_inputs(void) {
   static const char always_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
       "struct Box<value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: true> }\n";
+      "struct Use { let item: Box<value: true> }\n";
   static const char always_spaced_source[] =
       "\n// formatting does not change the semantic projection\n"
       "const fn always(value: Bool): Bool { return true }\n\n"
       "struct Box<value: Bool<(always(.member))>> {}\n"
       "// named value labels remain outside the semantic projection\n"
-      "struct Use { item: Box<value: true> }\n";
+      "struct Use { let item: Box<value: true> }\n";
   static const char always_prefixed_source[] =
       "struct Unrelated {}\n"
       "const fn always(value: Bool): Bool { return true }\n"
       "struct Box<value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: true> }\n";
+      "struct Use { let item: Box<value: true> }\n";
   static const char always_label_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
       "struct Box<value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: true> }\n";
+      "struct Use { let item: Box<value: true> }\n";
   static const char other_head_source[] =
       "const fn always(value: Bool): Bool { return true }\n"
       "struct OtherBox<value: Bool<(always(.member))>> {}\n"
-      "struct Use { item: OtherBox<value: true> }\n";
+      "struct Use { let item: OtherBox<value: true> }\n";
   static const char list_source[] =
       "enum Color { red green }\n"
       "const fn alwaysList(value: StaticList<Color>): Bool { return true }\n"
       "struct ListBox<value: StaticList<Color><(alwaysList(.member))>> {}\n"
-      "struct Use { item: ListBox<value: [.red, .green]> }\n";
+      "struct Use { let item: ListBox<value: [.red, .green]> }\n";
   static const char nominal_source[] =
       "const fn keep(value: Bool): Bool { return value }\n"
       "type LocalId = u64\n"
       "struct Box<T> {}\n"
-      "struct Use { item: Box<LocalId> }\n";
+      "struct Use { let item: Box<LocalId> }\n";
   static const char alias_source[] =
       "const fn keep(value: Bool): Bool { return value }\n"
       "type LocalId = u64\n"
       "alias AliasId = LocalId\n"
       "struct Box<T> {}\n"
-      "struct Use { item: Box<AliasId> }\n";
+      "struct Use { let item: Box<AliasId> }\n";
   static const char unknown_nominal_source[] =
       "const fn keep(value: Bool): Bool { return value }\n"
       "struct Box<T> {}\n"
-      "struct Use { item: Box<Unknown> }\n";
+      "struct Use { let item: Box<Unknown> }\n";
   static const char nested_nominal_source[] =
       "const fn keep(value: Bool): Bool { return value }\n"
       "struct Inner<T> {}\n"
       "struct Outer<T> {}\n"
-      "struct Use { item: Outer<Inner<u64>> }\n";
+      "struct Use { let item: Outer<Inner<u64>> }\n";
   static const char integer_source[] =
       "const fn alwaysInt(value: u8): Bool { return true }\n"
       "struct IntBox<value: u8<(alwaysInt(.member))>> {}\n"
-      "struct Use { item: IntBox<value: 7> }\n";
+      "struct Use { let item: IntBox<value: 7> }\n";
   static const char same_head_integer_source[] =
       "const fn always(value: u8): Bool { return true }\n"
       "struct Box<value: u8<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: 7> }\n";
+      "struct Use { let item: Box<value: 7> }\n";
   static const char enum_source[] =
       "enum Color { red green blue }\n"
       "const fn isRed(value: Color): Bool { return true }\n"
       "struct ColorBox<value: Color<(isRed(.member))>> {}\n"
-      "struct Use { item: ColorBox<value: .red> }\n";
+      "struct Use { let item: ColorBox<value: .red> }\n";
   w_seed_generic_validation_result result;
   CHECK(fixture_lower(&value, always_source));
   CHECK(validate_application(&value, CONVERSION_VALUES,
@@ -2886,7 +2886,7 @@ static bool test_predicate_session_isolation(void) {
       "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "const fn isUltimateAnswer(value: i64): Bool { return value == assembledUltimateAnswer }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { computed: UltimateAnswer<(assembledUltimateAnswer)> }\n";
+      "struct Use { let computed: UltimateAnswer<(assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, source));
   CHECK(value.frontend_result.written.generic_applications == 1u);
   w_seed_generic_validation_result result;
@@ -2922,9 +2922,9 @@ static bool test_named_module_const_d4(void) {
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
       "struct Use {\n"
-      "  immediate: UltimateAnswer<42>\n"
-      "  computed: UltimateAnswer<(6 * 7)>\n"
-      "  named: UltimateAnswer<(ultimateAnswer)>\n"
+      "  let immediate: UltimateAnswer<42>\n"
+      "  let computed: UltimateAnswer<(6 * 7)>\n"
+      "  let named: UltimateAnswer<(ultimateAnswer)>\n"
       "}\n";
   CHECK(fixture_lower(&value, named_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK);
@@ -2971,9 +2971,9 @@ static bool test_named_module_const_d4(void) {
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
       "struct Use {\n"
-      "  immediate: UltimateAnswer<42>\n"
-      "  computed: UltimateAnswer<(6 * 7)>\n"
-      "  named: UltimateAnswer<(ultimateAnswer)>\n"
+      "  let immediate: UltimateAnswer<42>\n"
+      "  let computed: UltimateAnswer<(6 * 7)>\n"
+      "  let named: UltimateAnswer<(ultimateAnswer)>\n"
       "}\n";
   CHECK(fixture_lower(&value, inferred_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
@@ -2996,12 +2996,12 @@ static bool test_named_module_const_d4(void) {
       "const answer = target + 1\n"
       "const target = 41\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(answer)> }\n";
+      "struct Use { let value: Box<(answer)> }\n";
   static const char ordered_source[] =
       "const target = 41\n"
       "const answer = target + 1\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { value: Box<(answer)> }\n";
+      "struct Use { let value: Box<(answer)> }\n";
   uint8_t forward_digest[W_SEED_GENERIC_VALIDATION_FINGERPRINT_BYTES];
   CHECK(fixture_lower(&value, forward_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
@@ -3035,7 +3035,7 @@ static bool test_named_module_const_d4(void) {
       "const left = right\n"
       "const right = left == true\n"
       "struct Box<_ value: Bool> {}\n"
-      "struct Use { cycle: Box<(left)> independent: Box<(true)> }\n";
+      "struct Use { let cycle: Box<(left)> let independent: Box<(true)> }\n";
   CHECK(fixture_lower(&value, bool_cycle_source));
   CHECK(value.const_declarations[0].declared_type == W_SEED_FRONTEND_NONE &&
         value.const_declarations[1].declared_type == W_SEED_FRONTEND_NONE &&
@@ -3071,7 +3071,7 @@ static bool test_named_module_const_d4(void) {
       "const left = right\n"
       "const right = left + 1\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
+      "struct Use { let cycle: Box<(left)> let independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, integer_cycle_source));
   CHECK(value.const_declarations[0].effective_type != W_SEED_FRONTEND_NONE &&
         value.types[value.const_declarations[0].effective_type].kind ==
@@ -3111,7 +3111,7 @@ static bool test_named_module_const_d4(void) {
       "const left = right && true\n"
       "const right = left + 1\n"
       "struct Box<_ value: Bool> {}\n"
-      "struct Use { cycle: Box<(left)> }\n";
+      "struct Use { let cycle: Box<(left)> }\n";
   CHECK(fixture_lower(&value, incompatible_cycle_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         value.const_declarations[0].effective_type == W_SEED_FRONTEND_NONE &&
@@ -3191,7 +3191,7 @@ static bool test_named_module_const_d4(void) {
       "const left = right && true\n"
       "const right = left + 1\n"
       "struct Box<_ first: Bool, _ second: Bool> {}\n"
-      "struct Use { cycle: Box<(left), (left)> }\n";
+      "struct Use { let cycle: Box<(left), (left)> }\n";
   CHECK(fixture_lower(&value, incompatible_multi_slot_source));
   CHECK(value.frontend_result.written.generic_applications == 1u &&
         value.generic_applications[0].binding_status ==
@@ -3353,7 +3353,7 @@ static bool test_named_module_const_d4(void) {
       "const left = right\n"
       "const right = left\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
+      "struct Use { let cycle: Box<(left)> let independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, cycle_source));
   CHECK(value.frontend_result.written.const_declarations == 2u &&
         value.frontend_result.written.generic_applications == 2u);
@@ -3385,7 +3385,7 @@ static bool test_named_module_const_d4(void) {
       "const left: i64 = right\n"
       "const right: i64 = left\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(left)> independent: Box<(6 * 7)> }\n";
+      "struct Use { let cycle: Box<(left)> let independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, anchored_cycle_source));
   w_seed_generic_validation_result anchored_cycle_result;
   CHECK(validate_application_at(
@@ -3403,7 +3403,7 @@ static bool test_named_module_const_d4(void) {
   static const char self_cycle_source[] =
       "const self = self\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(self)> independent: Box<(6 * 7)> }\n";
+      "struct Use { let cycle: Box<(self)> let independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, self_cycle_source));
   w_seed_generic_validation_result self_cycle_result;
   CHECK(validate_application_at(
@@ -3437,7 +3437,7 @@ static bool test_named_module_const_d4(void) {
       "const second = third\n"
       "const third = first\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { cycle: Box<(first)> independent: Box<(6 * 7)> }\n";
+      "struct Use { let cycle: Box<(first)> let independent: Box<(6 * 7)> }\n";
   CHECK(fixture_lower(&value, three_cycle_source));
   w_seed_generic_validation_result three_cycle_result;
   CHECK(validate_application_at(
@@ -3468,7 +3468,7 @@ static bool test_named_module_const_d4(void) {
       "const no: Bool = false\n"
       "const fn isTrue(value: Bool): Bool { return value }\n"
       "struct Box<_ value: Bool<(isTrue(.member))>> {}\n"
-      "struct Use { rejected: Box<(no)> }\n";
+      "struct Use { let rejected: Box<(no)> }\n";
   CHECK(fixture_lower(&value, false_const_source));
   w_seed_generic_validation_result false_result;
   CHECK(validate_application(
@@ -3485,7 +3485,7 @@ static bool test_named_module_const_d4(void) {
       "const duplicate: i64 = 42\n"
       "const duplicate: i64 = 42\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { duplicate: Box<(duplicate)> }\n";
+      "struct Use { let duplicate: Box<(duplicate)> }\n";
   CHECK(fixture_lower(&value, duplicate_const_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
   w_seed_generic_validation_result duplicate_result;
@@ -3500,7 +3500,7 @@ static bool test_named_module_const_d4(void) {
   static const char unresolved_d4_source[] =
       "const anchor: i64 = 42\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { missing: Box<(missing)> }\n";
+      "struct Use { let missing: Box<(missing)> }\n";
   CHECK(fixture_lower(&value, unresolved_d4_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         value.frontend_result.written.diagnostics != 0u);
@@ -3522,7 +3522,7 @@ static bool test_named_module_const_d4(void) {
   static const char quantity_d4_source[] =
       "const duration: PhysicalDuration = 10<si.s>\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { unsupported: Box<(duration)> }\n";
+      "struct Use { let unsupported: Box<(duration)> }\n";
   CHECK(fixture_lower(&value, quantity_d4_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
   w_seed_generic_validation_result quantity_result;
@@ -3537,7 +3537,7 @@ static bool test_named_module_const_d4(void) {
   static const char size_d4_source[] =
       "const sizeValue: usize = 1<iec.MiB>\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { unsupported: Box<(sizeValue)> }\n";
+      "struct Use { let unsupported: Box<(sizeValue)> }\n";
   CHECK(fixture_lower(&value, size_d4_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
   w_seed_generic_validation_result size_result;
@@ -3553,7 +3553,7 @@ static bool test_named_module_const_d4(void) {
       "const overflowValue: i8 = 127 + 1\n"
       "const fn isUltimateAnswer(value: i8): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i8<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { overflow: UltimateAnswer<(overflowValue)> }\n";
+      "struct Use { let overflow: UltimateAnswer<(overflowValue)> }\n";
   CHECK(fixture_lower(&value, named_arithmetic_overflow_source));
   CHECK(value.frontend_result.status == W_SEED_FRONTEND_OK &&
         value.frontend_result.written.const_declarations == 1u);
@@ -3606,7 +3606,7 @@ static bool test_named_module_const_d4(void) {
       "const unsupported: String = \"42\"\n"
       "const call: i64 = helper(6)\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { field: Box<(unsupported)> }\n";
+      "struct Use { let field: Box<(unsupported)> }\n";
   CHECK(fixture_lower(&value, unsupported_source));
   CHECK(value.frontend_result.written.const_declarations == 2u &&
         value.frontend_result.status == W_SEED_FRONTEND_UNSUPPORTED);
@@ -3648,7 +3648,7 @@ static bool test_named_module_const_d4(void) {
   const int dependency_limit_tail = snprintf(
       dependency_limit_source + dependency_limit_length,
       sizeof(dependency_limit_source) - dependency_limit_length,
-      "struct Box<_ value: i64> {}\nstruct Use { chain: Box<(c0)> }\n");
+      "struct Box<_ value: i64> {}\nstruct Use { let chain: Box<(c0)> }\n");
   CHECK(dependency_limit_tail > 0 &&
         (size_t)dependency_limit_tail <
             sizeof(dependency_limit_source) - dependency_limit_length);
@@ -3680,7 +3680,7 @@ static bool test_named_module_const_d4(void) {
       "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n"
       "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n"
-      "struct Use { shared: UltimateAnswer<(assembledUltimateAnswer)> }\n";
+      "struct Use { let shared: UltimateAnswer<(assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, diamond_source));
   CHECK(value.frontend_result.written.const_declarations == 4u);
   CHECK(value.frontend_result.written.generic_applications == 1u);
@@ -3720,7 +3720,7 @@ static bool test_named_module_const_d4(void) {
       "const secondAnswerHalf = answerSeed\n"
       "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct Box<_ value: i64> {}\n"
-      "struct Use { shared: Box<(assembledUltimateAnswer)> }\n";
+      "struct Use { let shared: Box<(assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, diamond_without_predicate));
   w_seed_generic_validation_result diamond_quota_ok;
   CHECK(validate_application(
@@ -3752,7 +3752,7 @@ static bool test_named_module_const_d4(void) {
       "const secondAnswerHalf = answerSeed\n"
       "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
-      "struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
+      "struct Use { let pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, sibling_source));
   CHECK(value.frontend_result.written.generic_applications == 1u);
   w_seed_generic_validation_result sibling_result;
@@ -3800,7 +3800,7 @@ static bool test_named_module_const_d4(void) {
       "const secondAnswerHalf = answerSeed\n"
       "export const assembledUltimateAnswer = firstAnswerHalf + secondAnswerHalf\n"
       "struct AnswerPair<_ left: i64, _ right: i64> {}\n"
-      "struct Use { first: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> second: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
+      "struct Use { let first: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> let second: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, two_application_source));
   CHECK(value.frontend_result.written.generic_applications == 2u);
   w_seed_generic_validation_result first_application_result;
@@ -3833,7 +3833,7 @@ static bool test_named_module_const_d4(void) {
       "const secondAnswerHalf: i64 = answerSeed\n"
       "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
       "struct AnswerPair<_ left: i8, _ right: i64> {}\n"
-      "struct Use { pair: AnswerPair<(broken), (assembledUltimateAnswer)> }\n";
+      "struct Use { let pair: AnswerPair<(broken), (assembledUltimateAnswer)> }\n";
   CHECK(fixture_lower(&value, failure_first_source));
   CHECK(value.frontend_result.written.generic_applications == 1u);
   w_seed_generic_validation_result failure_first_result;
@@ -3854,23 +3854,23 @@ static bool test_specialization_contract(void) {
   static const char base_source[] =
       "const fn always(value: i64): Bool { return true }\n"
       "struct Box<value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: 42> }\n";
+      "struct Use { let item: Box<value: 42> }\n";
   static const char label_source[] =
       "const fn always(value: i64): Bool { return true }\n"
       "struct Box<value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: 42> }\n";
+      "struct Use { let item: Box<value: 42> }\n";
   static const char other_head_source[] =
       "const fn always(value: i64): Bool { return true }\n"
       "struct OtherBox<value: i64<(always(.member))>> {}\n"
-      "struct Use { item: OtherBox<value: 42> }\n";
+      "struct Use { let item: OtherBox<value: 42> }\n";
   static const char other_body_source[] =
       "const fn always(value: i64): Bool { return value == value }\n"
       "struct Box<value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<value: 42> }\n";
+      "struct Use { let item: Box<value: 42> }\n";
   static const char rejected_source[] =
       "const fn never(value: i64): Bool { return false }\n"
       "struct Box<value: i64<(never(.member))>> {}\n"
-      "struct Use { item: Box<value: 42> }\n";
+      "struct Use { let item: Box<value: 42> }\n";
   uint8_t base_preimage[65536];
   w_seed_generic_validation_result base_result;
   CHECK(fixture_lower(&value, base_source));
@@ -4509,7 +4509,7 @@ static bool test_nominal_origin_contract(void) {
   static const char validation_source[] =
       "const fn always(value: i64): Bool { return true }\n"
       "struct Box<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Use { let item: Box<42> }\n";
   CHECK(fixture_lower(&value, validation_source));
   CHECK(fixture_prepare_nominal_origin(&value, 0u));
   static uint8_t over_segment_receipt[4096];
@@ -4944,7 +4944,7 @@ static bool probe_nominal_origin_matrix(const uint8_t *authority_a,
   static const char validation_source[] =
       "const fn always(value: i64): Bool { return true }\n"
       "struct Box<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Use { let item: Box<42> }\n";
   if (!fixture_lower_with_module(&value, validation_source, module_a) ||
       !fixture_prepare_nominal_origin_with_authority(
           &value, 0u, authority_a, authority_a_length))
@@ -4963,7 +4963,7 @@ static bool probe_nominal_origin_matrix(const uint8_t *authority_a,
   static const char predicate_body_variant_source[] =
       "const fn always(value: i64): Bool { return value == value }\n"
       "struct Box<_ value: i64<(always(.member))>> {}\n"
-      "struct Use { item: Box<42> }\n";
+      "struct Use { let item: Box<42> }\n";
   CHECK(fixture_lower_with_module(&value, predicate_body_variant_source,
                                   module_a) &&
         fixture_prepare_nominal_origin_with_authority(

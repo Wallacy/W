@@ -39,9 +39,9 @@ export enum BellSignal {
 
 // Children own descendants. A child does not keep its parent alive.
 export object MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 
   fn parentTitle(): String? {
     guard let parent = parent else return .none
@@ -143,7 +143,7 @@ export const fn expectedSharedCycleDisposition(
 }
 
 export object MenuObserverHub {
-  callbacks: shared Array<any fn(): ()>
+  let callbacks: shared Array<any fn(): ()>
 
   export init() {
     self.callbacks = []
@@ -232,7 +232,7 @@ export async fn announceAfterYield(section: ref MenuSection): String {
 }
 
 export struct BellState {
-  label: String
+  let label: String
   var atomic rings: u64
 }
 
@@ -266,11 +266,11 @@ export fn describeBell(signal: BellSignal<[.ringing, .silent, .unavailable]>): S
 // These are three logical states. The compiler cannot collapse the two forms
 // of absence when it selects a niche or an explicit tag.
 export struct BellDiscovery {
-  current: Option<Option<shared BellState>>
+  let current: Option<Option<shared BellState>>
 }
 
 export object BellHandle {
-  handle: c.ptr<ll_bell>?
+  let handle: c.ptr<ll_bell>?
 
   deinit {
     if let handle = handle {
@@ -281,9 +281,9 @@ export object BellHandle {
 
 // Moving this lease may move the Pinned handle. It does not move BellState.
 export object BellLease {
-  bell: BellHandle
-  registration: c.ptr<ll_registration>?
-  state: Pinned<BellState>
+  let bell: BellHandle
+  let registration: c.ptr<ll_registration>?
+  let state: Pinned<BellState>
 
   deinit {
     if let registration = registration {

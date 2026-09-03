@@ -37,34 +37,34 @@ export enum SimulationStage {
 }
 
 export struct SimulationEvent {
-  tick: SimulationTick
-  orderId: OrderId
-  stage: SimulationStage
+  let tick: SimulationTick
+  let orderId: OrderId
+  let stage: SimulationStage
 }
 
 export struct SimulationOrderSummary {
-  orderId: OrderId
-  guestName: GuestName
-  course: Course
-  timeline: u32
-  stage: SimulationStage
+  let orderId: OrderId
+  let guestName: GuestName
+  let course: Course
+  let timeline: u32
+  let stage: SimulationStage
 }
 
 export struct SimulationReport {
-  profile: SimulationProfile
-  maximumTicks: SimulationTicks
-  cooks: SimulationCooks
-  tables: SimulationTables
-  tickDuration: PhysicalDuration
-  ticksRun: SimulationTick
-  completed: u32
-  departed: u32
-  unfinished: u32
-  queueHighWater: u32
-  energyUsed: Energy
-  revenue: Money
-  orders: Array<SimulationOrderSummary>
-  events: Array<SimulationEvent>
+  let profile: SimulationProfile
+  let maximumTicks: SimulationTicks
+  let cooks: SimulationCooks
+  let tables: SimulationTables
+  let tickDuration: PhysicalDuration
+  let ticksRun: SimulationTick
+  let completed: u32
+  let departed: u32
+  let unfinished: u32
+  let queueHighWater: u32
+  let energyUsed: Energy
+  let revenue: Money
+  let orders: Array<SimulationOrderSummary>
+  let events: Array<SimulationEvent>
 }
 
 export enum SimulationError: Error {
@@ -73,27 +73,27 @@ export enum SimulationError: Error {
 }
 
 struct SimulationConfig {
-  maximumTicks: SimulationTicks
-  cooks: SimulationCooks
-  tables: SimulationTables
-  ovenPower: Power
-  ovenDuty: DutyCycle
-  tickDuration: PhysicalDuration
+  let maximumTicks: SimulationTicks
+  let cooks: SimulationCooks
+  let tables: SimulationTables
+  let ovenPower: Power
+  let ovenDuty: DutyCycle
+  let tickDuration: PhysicalDuration
 }
 
 struct SimulatedOrder {
-  order: Order
-  arrivalTick: SimulationTick
-  preparationTicks: SimulationTicks
-  patienceTicks: SimulationTicks
+  let order: Order
+  let arrivalTick: SimulationTick
+  let preparationTicks: SimulationTicks
+  let patienceTicks: SimulationTicks
   var preparationRemaining: SimulationTick
   var waitedTicks: SimulationTick
   var stage: SimulationStage
 }
 
 struct Scenario {
-  config: SimulationConfig
-  orders: Array<SimulatedOrder>
+  let config: SimulationConfig
+  let orders: Array<SimulatedOrder>
 }
 
 fn simulatedOrder(

@@ -12,8 +12,8 @@ export enum SignState {
 }
 
 export struct SignEpochWord: Duplicable {
-  state: SignState
-  generation: u32
+  let state: SignState
+  let generation: u32
 }
 
 export object ScalarSignEpoch {
@@ -88,7 +88,7 @@ export fn publishWithLock(
 }
 
 export object MenuVersions {
-  snapshots: SnapshotCell<SignEpochWord>
+  let snapshots: SnapshotCell<SignEpochWord>
 
   export init(_ initial: take SignEpochWord) {
     self.snapshots = SnapshotCell(take initial)

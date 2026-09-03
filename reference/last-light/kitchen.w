@@ -17,37 +17,37 @@ export enum Ingredient {
 }
 
 export struct Recipe {
-  course: Course
-  ingredients: Array<Ingredient>
-  target: Temperature
-  duration: PhysicalDuration
-  energyBudget: Energy
+  let course: Course
+  let ingredients: Array<Ingredient>
+  let target: Temperature
+  let duration: PhysicalDuration
+  let energyBudget: Energy
 }
 
 export struct Mixture {
-  course: Course
-  mass: Mass
-  homogeneity: Probability
+  let course: Course
+  let mass: Mass
+  let homogeneity: Probability
 }
 
 export struct KitchenPlan {
-  recipe: Recipe
-  minimumAroma: Probability
-  duration: PhysicalDuration
-  energyBudget: Energy
+  let recipe: Recipe
+  let minimumAroma: Probability
+  let duration: PhysicalDuration
+  let energyBudget: Energy
 }
 
 export struct OvenTelemetry {
-  ovenId: OvenId
-  temperature: Temperature
-  power: Power
-  duty: DutyCycle
-  sampleSequence: u64
+  let ovenId: OvenId
+  let temperature: Temperature
+  let power: Power
+  let duty: DutyCycle
+  let sampleSequence: u64
 }
 
 export struct OvenReady {
-  ovenId: OvenId
-  token: u64
+  let ovenId: OvenId
+  let token: u64
 }
 
 export enum PantryError: Error {
@@ -79,9 +79,9 @@ export enum KitchenError: Error {
 }
 
 export object StockReservation {
-  id: ReservationId
-  export ingredients: Array<Ingredient>
-  releaser: ServiceRef<PantryLeaseApi>
+  let id: ReservationId
+  export let ingredients: Array<Ingredient>
+  let releaser: ServiceRef<PantryLeaseApi>
 
   export take async fn release() throws PantryError {
     try await releaser.release(id)
@@ -118,9 +118,9 @@ export protocol OvenApi {
 }
 
 export struct PidController {
-  proportionalGain: f64
-  integralGain: f64
-  derivativeGain: f64
+  let proportionalGain: f64
+  let integralGain: f64
+  let derivativeGain: f64
   var accumulatedError: f64
   var previousError: f64
 
@@ -146,7 +146,7 @@ export struct PidController {
     self.previousError = 0.0
   }
 
-  export isIdle: Bool {
+  export let isIdle: Bool {
     get => accumulatedError == 0.0 && previousError == 0.0
   }
 }

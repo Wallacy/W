@@ -47,31 +47,31 @@ export enum Error: Error {
 }
 
 export struct Limits: Copy & Equatable {
-  storedMaximumBytes: usize<(1...)>
-  storedMaximumRepresentations: usize<(1...)>
-  storedMaximumTextBytes: usize<(1...)>
-  storedMaximumImageBytes: usize<(1...)>
-  storedMaximumImageWidth: u32<(1...)>
-  storedMaximumImageHeight: u32<(1...)>
-  storedMaximumImagePixels: u64<(1...)>
-  storedMaximumJsonDepth: usize<(1...)>
-  storedMaximumJsonNodes: usize<(1...)>
-  storedMaximumJsonStringBytes: usize<(1...)>
-  storedMaximumWorkUnits: usize<(1...)>
+  let storedMaximumBytes: usize<(1...)>
+  let storedMaximumRepresentations: usize<(1...)>
+  let storedMaximumTextBytes: usize<(1...)>
+  let storedMaximumImageBytes: usize<(1...)>
+  let storedMaximumImageWidth: u32<(1...)>
+  let storedMaximumImageHeight: u32<(1...)>
+  let storedMaximumImagePixels: u64<(1...)>
+  let storedMaximumJsonDepth: usize<(1...)>
+  let storedMaximumJsonNodes: usize<(1...)>
+  let storedMaximumJsonStringBytes: usize<(1...)>
+  let storedMaximumWorkUnits: usize<(1...)>
 
-  export maximumBytes: usize<(1...)> { get => storedMaximumBytes }
-  export maximumRepresentations: usize<(1...)> {
+  export let maximumBytes: usize<(1...)> { get => storedMaximumBytes }
+  export let maximumRepresentations: usize<(1...)> {
     get => storedMaximumRepresentations
   }
-  export maximumTextBytes: usize<(1...)> { get => storedMaximumTextBytes }
-  export maximumImageBytes: usize<(1...)> { get => storedMaximumImageBytes }
-  export maximumImageWidth: u32<(1...)> { get => storedMaximumImageWidth }
-  export maximumImageHeight: u32<(1...)> { get => storedMaximumImageHeight }
-  export maximumImagePixels: u64<(1...)> { get => storedMaximumImagePixels }
-  export maximumJsonDepth: usize<(1...)> { get => storedMaximumJsonDepth }
-  export maximumJsonNodes: usize<(1...)> { get => storedMaximumJsonNodes }
-  export maximumJsonStringBytes: usize<(1...)> { get => storedMaximumJsonStringBytes }
-  export maximumWorkUnits: usize<(1...)> { get => storedMaximumWorkUnits }
+  export let maximumTextBytes: usize<(1...)> { get => storedMaximumTextBytes }
+  export let maximumImageBytes: usize<(1...)> { get => storedMaximumImageBytes }
+  export let maximumImageWidth: u32<(1...)> { get => storedMaximumImageWidth }
+  export let maximumImageHeight: u32<(1...)> { get => storedMaximumImageHeight }
+  export let maximumImagePixels: u64<(1...)> { get => storedMaximumImagePixels }
+  export let maximumJsonDepth: usize<(1...)> { get => storedMaximumJsonDepth }
+  export let maximumJsonNodes: usize<(1...)> { get => storedMaximumJsonNodes }
+  export let maximumJsonStringBytes: usize<(1...)> { get => storedMaximumJsonStringBytes }
+  export let maximumWorkUnits: usize<(1...)> { get => storedMaximumWorkUnits }
 
   export const init(
     maximumBytes: usize<(1...)>,
@@ -117,7 +117,7 @@ export struct Limits: Copy & Equatable {
 // MediaType accepts only the validated baseline set.  HTML and SVG are
 // represented so a provider can report missing sanitizer policy explicitly.
 export struct MediaType: Equatable {
-  storedValue: String
+  let storedValue: String
 
   export init(value: String) throws MediaTypeError {
     self.storedValue = unsafe {
@@ -129,7 +129,7 @@ export struct MediaType: Equatable {
     self.storedValue = take validatedValue
   }
 
-  export value: view String { get => storedValue }
+  export let value: view String { get => storedValue }
 
   export fn kind(): MediaKind throws MediaTypeError {
     return unsafe { try stdPresentationMediaTypeKind(ref self) }
@@ -143,9 +143,9 @@ export struct MediaType: Equatable {
 // Images are typed at the API boundary.  A caller cannot attach an arbitrary
 // media string to image bytes; the provider validates the encoding and bounds.
 export struct Png {
-  bytes: Bytes
-  width: u32
-  height: u32
+  let bytes: Bytes
+  let width: u32
+  let height: u32
 
   export init(bytes: take Bytes, width: u32, height: u32) throws Error {
     self.bytes = unsafe { try stdPresentationPngValidate(take bytes, width, height) }
@@ -155,9 +155,9 @@ export struct Png {
 }
 
 export struct Jpeg {
-  bytes: Bytes
-  width: u32
-  height: u32
+  let bytes: Bytes
+  let width: u32
+  let height: u32
 
   export init(bytes: take Bytes, width: u32, height: u32) throws Error {
     self.bytes = unsafe { try stdPresentationJpegValidate(take bytes, width, height) }
@@ -173,7 +173,7 @@ export protocol Presentable {
 // Writer is created by the host with Limits for one presentation call.  The
 // raw handle and its lifetime never cross the call or become a public object.
 export struct Writer {
-  handle: PresentationWriterHandle
+  let handle: PresentationWriterHandle
 
   init(validatedHandle: PresentationWriterHandle) {
     self.handle = validatedHandle

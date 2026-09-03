@@ -10,18 +10,18 @@
   "sourceBase": {
     "path": "../../../reference/last-light/synchronization.w",
     "symbol": "export object HorizonTelemetryEpoch",
-    "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
+    "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "HorizonMenuPublication",
-      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
+      "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5"
     },
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "BellLease",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6"
     },
     {
       "path": "../../../reference/last-light/abi.w",
@@ -36,7 +36,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "current-composition.w",
-      "digest": "sha256:12ee4053e59f5b76e84d1366b9ebf8706a08699a7ed183bb0cec8cc264e6f3a9",
+      "digest": "sha256:a262e195f871c17a9078bf18ff1dc04312c14fd6fe7037b97c3cd4df9830c886",
       "changedConstructs": [
         "scalar atomic",
         "SnapshotCell",
@@ -55,7 +55,7 @@
       "disposition": "promoted-contract",
       "language": "w",
       "path": "canonical-carrier.w",
-      "digest": "sha256:54de86a2b2c3c8002f2ba758bd922baea5f122c949c66cbe89d9f017e03a1f61",
+      "digest": "sha256:e0bba52356e7654d62d5d74c1136b15122b29497b6dae0d36ee980cc4502c546",
       "changedConstructs": [
         "compiler-synthesized carrier",
         "closed value-only record",
@@ -75,7 +75,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "generational-handle.w",
-      "digest": "sha256:0814062b070ddbd95f04695dcfaf2ecc62f983cb7d0980439aa2ed9af08f2bd5",
+      "digest": "sha256:dd4fca8bcbe08750221f616115b7a8bc23bfe8db4b391d2008a5bba7cde95917",
       "changedConstructs": [
         "slot and generation",
         "owner table",
@@ -92,7 +92,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "snapshot-cell.w",
-      "digest": "sha256:206006159a2edcff56ce4161930797a12904a8c991323aa3df7d3f6f3205e41f",
+      "digest": "sha256:c1a18e78f0a73cdcf72d320f786348a68685289fcb5cbc47041672e9884d73a7",
       "changedConstructs": [
         "SnapshotCell",
         "scoped read",

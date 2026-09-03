@@ -2,15 +2,15 @@
 import { Course, OrderId } from domain
 
 export struct ReservationKey: Hashable & Reflectable {
-  orderId: OrderId
-  course: Course
+  let orderId: OrderId
+  let course: Course
 }
 
 export alias T = ReservationKey
 
 export object OvenIdentity: Reflectable {
-  export serial: String
-  secretCalibration: i32
+  export let serial: String
+  let secretCalibration: i32
 
   export init(serial: String, secretCalibration: i32) {
     self.serial = serial

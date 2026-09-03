@@ -17,15 +17,15 @@ export enum WifiRole {
 }
 
 export struct LoginRequest {
-  device: DeviceId
-  voucher: WifiVoucher
+  let device: DeviceId
+  let voucher: WifiVoucher
 }
 
 export struct WifiSession {
-  id: SessionId
-  device: DeviceId
-  role: WifiRole
-  remaining: Duration<(0...)>
+  let id: SessionId
+  let device: DeviceId
+  let role: WifiRole
+  let remaining: Duration<(0...)>
 }
 
 export enum WifiError: Error {

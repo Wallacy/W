@@ -17,13 +17,13 @@ export enum WorkState {
 }
 
 export struct WorkSnapshot<Progress> {
-  id: WorkId
-  revision: u64
-  attempt: u32
-  state: WorkState
-  progress: Progress?
-  cancellation: Cancellation?
-  suspension: WorkSuspension?
+  let id: WorkId
+  let revision: u64
+  let attempt: u32
+  let state: WorkState
+  let progress: Progress?
+  let cancellation: Cancellation?
+  let suspension: WorkSuspension?
 }
 
 export enum WorkOutcome<Output, Failure: Error> {

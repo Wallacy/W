@@ -20,7 +20,7 @@ export enum OvenSessionFault: Error {
 }
 
 export struct OvenSession<_ state: OvenSessionState> {
-  id: OvenId
+  let id: OvenId
 
   init(id: OvenId) {
     self.id = id
@@ -93,9 +93,9 @@ export fn activationMessage(outcome: take ActivationOutcome): String {
 export type StageRevision = u64
 
 export struct StageSnapshot {
-  orderId: OrderId
-  stage: ServiceStage
-  revision: StageRevision
+  let orderId: OrderId
+  let stage: ServiceStage
+  let revision: StageRevision
 }
 
 export enum MoveOrderResult {

@@ -1,7 +1,7 @@
 import secret from hidden_menu
 
 export struct DishId {
-  raw: u32
+  let raw: u32
 }
 
 export fn menuLookup(id: DishId): String {

@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "BoundedText<_ bounds: TextBounds>",
-    "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
+    "digest": "sha256:7caca1c77bc66e3d98a8f88eee030cb7a64377e54981cb3fc9f9d2378f7710e5"
   },
   "variants": [
     {

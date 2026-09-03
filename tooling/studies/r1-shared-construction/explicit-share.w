@@ -1,9 +1,9 @@
 // R1 shared-construction study: explicit expression and allocator operations.
 
 struct MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 }
 
 fn makeRoot(_ title: String): shared MenuSection {

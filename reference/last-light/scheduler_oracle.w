@@ -50,12 +50,12 @@ const fn contributesToLogicalTrace(event: ReplayEvent): Bool {
 }
 
 struct ReplayComparison {
-  scheduleIdSame: Bool
-  decisionsSame: Bool
-  logicalTraceSame: Bool
-  outcomeSame: Bool
-  ownersClosed: Bool
-  packingSame: Bool
+  let scheduleIdSame: Bool
+  let decisionsSame: Bool
+  let logicalTraceSame: Bool
+  let outcomeSame: Bool
+  let ownersClosed: Bool
+  let packingSame: Bool
 }
 
 const fn compareReplay(comparison: ReplayComparison): ReplayVerdict {
@@ -123,11 +123,11 @@ enum FaultAction {
 }
 
 struct FaultSpec {
-  caseId: u32
-  boundary: FaultBoundary
-  point: FaultPoint
-  action: FaultAction
-  occurrence: u32
+  let caseId: u32
+  let boundary: FaultBoundary
+  let point: FaultPoint
+  let action: FaultAction
+  let occurrence: u32
 }
 
 const maximumFaultOccurrence: u32 = 1_000_000

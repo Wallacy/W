@@ -94,9 +94,10 @@ protocol ConstDecodable {
     (type_body
       (field_declaration
         (identifier)
-        (type
-          (type_name
-            (type_identifier))))
+        (property_type
+          (type
+            (type_name
+              (type_identifier)))))
       (initializer_declaration
         (parameter_list
           (parameter

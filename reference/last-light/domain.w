@@ -6,8 +6,8 @@ export type GuestCount = u16<(1...4096)>
 export type Probability = f64<(0.0...1.0)>
 export type BasisPoints = u16<(0...10_000)>
 export struct TextBounds {
-  min: usize
-  max: usize
+  let min: usize
+  let max: usize
 }
 
 export type BoundedText<_ bounds: TextBounds> =
@@ -104,7 +104,7 @@ export fn classifyParty(
 export struct StagePath<
   _ stages: StaticList<ServiceStage><(isValidStagePath(stages: .member))>,
 > {
-  orderId: OrderId
+  let orderId: OrderId
 }
 
 export fn standardStagePath(
@@ -114,29 +114,29 @@ export fn standardStagePath(
 }
 
 export struct Guest {
-  id: GuestId
-  name: GuestName
+  let id: GuestId
+  let name: GuestName
 }
 
 export struct Order {
-  id: OrderId
-  guest: Guest
-  guests: GuestCount
-  course: Course
-  notes: String?
-  timeline: u32 = 0
+  let id: OrderId
+  let guest: Guest
+  let guests: GuestCount
+  let course: Course
+  let notes: String?
+  let timeline: u32 = 0
 }
 
 export struct Dish {
-  orderId: OrderId
-  course: Course
-  label: DishLabel
+  let orderId: OrderId
+  let course: Course
+  let label: DishLabel
 }
 
 export struct Receipt {
-  orderId: OrderId
-  total: Money
-  traceId: TraceId
+  let orderId: OrderId
+  let total: Money
+  let traceId: TraceId
 }
 
 export enum Currency {
@@ -154,8 +154,8 @@ export const fn currencyCode(currency: Currency): String {
 }
 
 export struct Money {
-  export minorUnits: i128
-  export currency: Currency
+  export let minorUnits: i128
+  export let currency: Currency
 
   export const zeroCredits = Money(minorUnits: 0, currency: .ww)
 

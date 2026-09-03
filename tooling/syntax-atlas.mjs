@@ -9,7 +9,7 @@ const GRAMMAR = path.join(ROOT, "tooling", "tree-sitter-w", "grammar.js");
 const MANIFEST = path.join(ATLAS, "atlas-manifest.json");
 const SYNTAX_COVERAGE = path.join(ATLAS, "SYNTAX-COVERAGE.md");
 const DIGEST = /^sha256:[0-9a-f]{64}$/u;
-const RULE_SET_DIGEST = "sha256:ed1c71d9f5ad6031d91f3cbbb92b78492711e366320c8c12a5bffd09d980188b";
+const RULE_SET_DIGEST = "sha256:866b57f39e89574d586890e57cf43d352de650e89607cb4417c3c5ee9b6c9621";
 const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
@@ -27,7 +27,8 @@ const REQUIRED_VARIANT_IDS = [
   "execution-direct", "execution-await", "execution-sync", "execution-async-initializer", "execution-spawn",
   "callable-positional", "callable-required-homonym", "callable-required-external", "callable-default", "callable-rest", "callable-some-fn", "callable-any-fn", "callable-static", "callable-generic",
   "closure-copy", "closure-ref", "closure-take", "closure-weak",
-  "property-get", "property-get-ref", "property-get-mut-ref", "property-set",
+  "property-get", "property-set", "property-let-value", "property-let-ref",
+  "property-var-value", "property-var-ref", "property-var-mut-ref", "property-var-inout",
   "pattern-enum", "pattern-struct", "pattern-inferred-struct", "pattern-tuple", "pattern-range", "pattern-wildcard",
   "static-record", "static-list", "channel-send", "channel-receive",
 ];
@@ -42,8 +43,8 @@ const LEXICAL_RULES = new Set([
 // future grammar change cannot silently turn a human construct into a waiver.
 const VISIBLE_RULES_MUST_NOT_BE_INTERNAL = new Set([
   "declaration_prefix", "function_signature", "parameter", "rest_marker", "non_borrowed_type",
-  "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body",
-  "get_accessor", "get_ref_accessor", "get_mut_ref_accessor", "set_accessor", "accessor_implementation", "behavior_initializer_parameters", "behavior_parameter_list",
+  "type_body", "protocol_body", "enum_body", "behavior_body", "property_accessor_body", "property_type",
+  "get_accessor", "set_accessor", "accessor_implementation", "behavior_initializer_parameters", "behavior_parameter_list",
   "behavior_parameter", "enum_case_parameter", "pattern_bound", "struct_pattern_field",
   "shorthand_struct_pattern_field", "labeled_struct_pattern_field", "tuple_element", "labeled_tuple_element",
   "map_entry", "capture_item", "closure_parameter", "closure_parameters", "switch_case", "catch_clause",
@@ -150,7 +151,7 @@ function markerForRule(name) {
   if (["function_declaration", "function_signature", "language_tag", "abi_contract", "parameter_list", "parameter_call_ownership", "parameter_type", "generic_parameters", "generic_parameter", "function_type", "function_type_parameter", "rest_marker", "borrow_clause", "borrow_pair", "slot_ref"].includes(name)) return "callables-and-foreign";
   if (["struct_declaration", "object_declaration", "service_declaration", "protocol_declaration", "enum_declaration", "primary_associated_types", "conformance_clause", "associated_type_requirement", "associated_const_requirement", "initializer_declaration", "field_declaration", "computed_property_declaration", "property_requirement", "enum_case", "type_declaration", "alias_declaration", "dimension_declaration", "unit_declaration", "extension_declaration", "behavior_declaration", "behavior_field_declaration", "behavior_facet_property", "behavior_initializer", "behavior_accessor", "behavior_accessor_kind", "behavior_initializer_parameters", "deinit_declaration", "const_declaration", "test_declaration", "export_list_declaration", "export_item"].includes(name)) return "data-declarations";
   if (["type", "type_name", "type_arguments", "type_argument", "static_argument_value", "contract_expression_argument", "static_record_literal", "static_array_literal", "fixed_array_type", "tuple_type", "labeled_tuple_type_element", "unit_literal"].includes(name)) return "types-and-contracts";
-  if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "behavior_initializer_parameters", "property_accessor_body", "get_accessor", "get_ref_accessor", "get_mut_ref_accessor", "set_accessor", "accessor_implementation", "property_requirement_accessor", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";
+  if (["declaration_prefix", "type_body", "protocol_body", "enum_body", "behavior_body", "behavior_initializer_parameters", "property_accessor_body", "property_type", "get_accessor", "set_accessor", "accessor_implementation", "property_requirement_accessor", "behavior_parameter_list", "behavior_parameter", "enum_case_parameter"].includes(name)) return "data-declarations";
   if (["non_borrowed_type"].includes(name)) return "types-and-contracts";
   if (["parameter", "rest_marker", "function_signature"].includes(name)) return "callables-and-foreign";
   if (["array_literal", "map_literal", "repeat_array_literal", "tuple_expression", "parenthesized_expression"].includes(name)) return "literals-and-collections";

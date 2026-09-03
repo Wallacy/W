@@ -13,7 +13,7 @@ export protocol Counted {
 export protocol Catalog<Item>: Source<Item> & Counted {}
 
 export struct Shelf<T> {
-  values: Array<T>
+  let values: Array<T>
 }
 
 export struct StaticValue<T, _ value: T> {

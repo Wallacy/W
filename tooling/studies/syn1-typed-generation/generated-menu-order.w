@@ -5,5 +5,5 @@ export fn menuLookup(id: DishId): String {
 }
 
 export struct DishId {
-  raw: u32
+  let raw: u32
 }
