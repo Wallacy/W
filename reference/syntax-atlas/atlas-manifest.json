@@ -2902,9 +2902,9 @@
   "companions": [
     {
       "file": "reserved.w-reserved.txt",
-      "designStatus": "research",
+      "designStatus": "reserved",
       "evidenceStatus": "not-parseable",
-      "purpose": "Reserved or research spellings. Never parse as accepted atlas syntax."
+      "purpose": "Reserved spellings. Never parse as accepted atlas syntax."
     },
     {
       "file": "rejected.w-rejected.txt",

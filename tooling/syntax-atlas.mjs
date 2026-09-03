@@ -14,6 +14,7 @@ const SCHEMA = "w-syntax-atlas-1";
 
 const ROOT_KINDS = new Set(["module", "package", "workspace"]);
 const STATUSES = new Set(["current", "research", "rejected"]);
+const COMPANION_STATUSES = new Set(["reserved", "research", "rejected"]);
 const EVIDENCE = new Set(["tree-sitter-parse-only", "tree-sitter-parse-only-provider-missing", "tree-sitter-parse-only-compiler-runtime-missing"]);
 
 // IDs are the closed gate for the human-facing variant inventory. The
@@ -343,7 +344,7 @@ function deriveSnapshot(manifestInput) {
   const companions = expected?.companions;
   if (!Array.isArray(companions) || companions.length !== 2) throw new Error("atlas-manifest.json must list the two non-parseable companion files.");
   for (const companion of companions) {
-    if (!companion || Object.hasOwn(companion, "implementationEvidence") || !["research", "rejected"].includes(companion.designStatus) || companion.evidenceStatus !== "not-parseable" || !companion.file || companion.file.endsWith(".w")) throw new Error(`invalid companion status for ${companion?.file ?? "unknown"}.`);
+    if (!companion || Object.hasOwn(companion, "implementationEvidence") || !COMPANION_STATUSES.has(companion.designStatus) || companion.evidenceStatus !== "not-parseable" || !companion.file || companion.file.endsWith(".w")) throw new Error(`invalid companion status for ${companion?.file ?? "unknown"}.`);
     const companionPath = path.join(ATLAS, companion.file);
     if (!fs.existsSync(companionPath)) throw new Error(`missing companion file ${companion.file}.`);
   }
@@ -519,4 +520,4 @@ if (import.meta.main) {
   }
 }
 
-export { buildManifest, deriveSnapshot, renderCoverage, checkManifest, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS };
+export { buildManifest, deriveSnapshot, renderCoverage, checkManifest, VISIBLE_RULES_MUST_NOT_BE_INTERNAL, REQUIRED_VARIANT_IDS, COMPANION_STATUSES };
