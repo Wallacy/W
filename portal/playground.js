@@ -130,7 +130,7 @@ function scanWithNotes(source) {
     [/\bforeign\s+c\b/u, "foreign c marca uma fronteira de ABI C."],
     [/\bentry\b/u, "entry liga funções comuns a slots tipados do host."],
     [/\bunit\b/u, "unit declara uma unidade verificada estaticamente."],
-    [/\b(?:take|inout|copy)\b/u, "Há uma operação explícita de ownership ou mutabilidade."],
+    [/\b(?:mut\s+ref|mut\s+view|take|inout|copy)\b/u, "Há uma operação explícita de ownership ou mutabilidade."],
     [/\bthrows\s+[\p{L}_]/u, "A assinatura declara um conjunto de erro tipado candidato."],
     [/\bServiceRef\s*</u, "ServiceRef é um handle tipado; a análise lexical não prova localidade ou contrato."],
     [/\bdefer\b/u, "defer sugere cleanup lexical; o lexer não verifica se o recurso é liberado corretamente."],

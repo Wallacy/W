@@ -12,7 +12,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/formatting.w",
     "symbol": "oneLine",
-    "digest": "sha256:bd71e5e93863f389cfa5212549e081affe42934eebec2aeec9620297f6076f64"
+    "digest": "sha256:65584c9c0a1e4886864eb261dfbab4f935ccf53a45cfbe3fd9a4b4dff40567e3"
   },
   "variants": [
     {
@@ -20,7 +20,7 @@
       "role": "selected",
       "language": "w",
       "path": "selected-boundaries.w",
-      "digest": "sha256:32bc5b58ac5501e4ad5f420e936f68191aae45b6025c70fc019b95ad12ac84c8",
+      "digest": "sha256:44a2c802b649be9f6046abe73285756e31a782de522a58dc8e96a13d12069e29",
       "changedConstructs": [
         "newline return value",
         "forced semicolon discard operation",

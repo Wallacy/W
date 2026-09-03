@@ -53,7 +53,7 @@ function checkStudyArtifacts(errors) {
     if (id !== "candidate" && (variant.language !== "w" || variant.parseEvidence?.status !== "tree-sitter-parse" || !String(variant.path).endsWith(".w"))) errors.push(`PFU0 ${id} must use a thin parseable witness.`);
   }
   const candidateText = fs.readFileSync(path.join(studyDirectory, "candidate.txt"), "utf8");
-  for (const token of ["build.w", "one or two records", "order-independent", "stream fn updates(...): Item throws Failure", "some Stream<Item,Failure>", "ServiceFailure", "willSet", "didSet", "modify + defer", "no final spelling or owner"]) if (!candidateText.includes(token)) errors.push(`PFU0 candidate text omits ${token}.`);
+  for (const token of ["build.w", "one or two records", "order-independent", "stream fn updates(...): Item throws Failure", "some Stream<Item,Failure>", "ServiceFailure", "willSet", "didSet", "get mut ref + defer", "no final spelling or owner"]) if (!candidateText.includes(token)) errors.push(`PFU0 candidate text omits ${token}.`);
   if (candidateText.includes("-> some Stream")) errors.push("PFU0 candidate must not spell a direct some Stream return.");
   if (containsForbiddenKey(study)) errors.push("PFU0 study metadata must not echo expected or result.");
   const hiddenFields = new Set(bundle.blinding?.hide ?? []);

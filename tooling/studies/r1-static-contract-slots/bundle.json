@@ -9,8 +9,8 @@
   ],
   "sourceBase": {
     "path": "../../../reference/last-light/generics.w",
-    "symbol": "Matrix<Element, rows: usize, columns: usize>",
-    "digest": "sha256:6e0b5742c53fb2a0a0bf94fa56d7fe83268d09a076f941acc4125d1aa388c053"
+    "symbol": "Matrix<rows: usize, Element, columns: usize>",
+    "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
   },
   "variants": [
     {
@@ -18,10 +18,10 @@
       "role": "selected",
       "language": "w",
       "path": "named.w",
-      "digest": "sha256:26c0bdd8b279753aa6458e1b4191fd2800df128afcce4e19339721d47fc7d599",
+      "digest": "sha256:71e190b28fdb0f8f27a5d215e09abf53975451022bacbae91fceaa788ad21063",
       "changedConstructs": [
         "named static value slots on the type head",
-        "the same named static categories on the generic call",
+        "reordered named static categories within one segment",
         "associated contract values with stable field identity"
       ]
     },
@@ -32,9 +32,9 @@
       "path": "positional.w",
       "digest": "sha256:094850478e055868dd37602016de29a05dab240399f26f96fc40cc8e84aea9c9",
       "changedConstructs": [
-        "optional labels on every static value slot",
+        "positional-only anchors on every static value slot",
         "positional type and generic-call arguments",
-        "same-type slots identified only by ordinal at the application"
+        "same-type slots kept by declared anchor order"
       ]
     },
     {
@@ -42,7 +42,7 @@
       "role": "alternative",
       "language": "w",
       "path": "split-call.w",
-      "digest": "sha256:757cdf263f51f7998137a826b92fb27de52cf3a6f24e7429f4f076f82bf50005",
+      "digest": "sha256:f096c52e87871f208fe5936b9d7229a3d25c7917dc307c6d64397dae98e9c422",
       "changedConstructs": [
         "full static contract on the type head",
         "restricted static categories on the generic call",
@@ -101,9 +101,9 @@
       "kind": "repair",
       "instruction": "Repair the prepared defect that exchanges tables and courses without changing their usize type.",
       "mutations": {
-        "named": "Move the `courses:` argument before `tables:` and preserve both labels.",
-        "positional": "Exchange the fourth and fifth positional arguments.",
-        "split-call": "Exchange the second and third static arguments of `start`."
+        "named": "Move the `courses:` argument before `tables:` and preserve both labels; the result must not change.",
+        "positional": "Exchange the fourth and fifth positional arguments and record the swapped meaning.",
+        "split-call": "Exchange the second and third static arguments of `start` and record the swapped meaning."
       }
     },
     {
@@ -143,7 +143,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:19b8709a45bffeee9257fb7c5a7d9a8dfe60810c923771d5831dec24ee69d6d5"
+    "digest": "sha256:39114a5049737c200eb1265514147da8227402082279bc7dc94c672c7623268d"
   },
   "evidence": {
     "current": [

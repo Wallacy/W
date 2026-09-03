@@ -50,7 +50,11 @@ A ordem de bootstrap e o pipeline que motivam este componente estão em
 [DESIGN §20.2 — Pipeline](../../DESIGN.md#202-pipeline). O gate SH0 continua
 ausente, conforme [DESIGN §26.6.1 — Gates internos do self-host](../../DESIGN.md#2661-gates-internos-do-self-host).
 
-O lexer é uma fatia interna destinada a SH0. Palavra é sempre crua: a tabela de
+O lexer é uma fatia interna destinada a SH0. Strings normais com aspas simples
+ou duplas publicam o mesmo kind e permitem interpolation; a expected type decide
+se um literal de um scalar satisfaz `UnicodeScalar`. Raw simples ou multiline
+desativa interpolation, e byte literals permanecem separados. Palavra é sempre
+crua: a tabela de
 keywords pertence ao owner/parser. O sinal numérico permanece pontuação
 separada. Números preservam os sufixos correntes e só recebem a flag de
 quantity quando a expressão de unidade lexical fechada está adjacente. UTF-8
@@ -116,7 +120,7 @@ origem, e
 envelopes de contract sequenciais em tipos e em postfix de expressão. Para
 `struct`, a normalização semântica publica agora o schema caller-owned dos
 parâmetros genéricos. Ela distingue `type` de `value` por resolução de domínio,
-preserva policy de label (`positional`, `named`, `external` ou `optional`), normaliza o
+preserva policy de label (`positional-only` ou `required`), normaliza o
 domínio base sem incluir um refinement posterior e registra predicate const,
 span e subject `.member` somente para um call direto `identifier(.member)`
 com assinatura compatível. Refinements inline/range e calls compostos ou
@@ -143,10 +147,11 @@ O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
 bytes little-endian canônicos; strings usam offsets em `const_bytes`; listas
 preservam ordem, vazio e duplicatas com `const_elements`. O teto explícito de
-lista é 4096 elementos e o de slots de uma aplicação é 64. `_ value: T` é um
+lista é 4096 elementos e o de slots de uma aplicação é 64. `value: T` é um
 value domain dependente somente quando
 `T` é type parameter anterior e resolve para `StaticArgumentRepresentable`.
-Todos os slots continuam obrigatórios: `_` torna apenas o label externo opcional.
+Todos os slots continuam obrigatórios: `_ value: T` é positional-only e cria uma
+âncora; value parameters sem `_` exigem seu label externo.
 O status de binding não prova predicate, especialização ou execução posterior.
 
 A resolução exige head `struct` local, inclusive forward reference, e não chama,
@@ -846,9 +851,8 @@ parameters, blocks, host parameters/requirements e call arguments/values são
 partições densas: não há gap, overlap ou record órfão. `symbols` é um índice
 auxiliar validado na ordem module → parâmetros → function → entry; ele não é
 autoridade para o lowering. Famílias frontend sem record HIR0 falham fechadas.
-Labels host named/external copiam o nome público, positional usa label vazio e
-`OPTIONAL` só entra quando a call publica o label; a forma opcional sem label
-permanece fora deste subset.
+Labels host required copiam o nome público, positional usa label vazio e
+qualquer outra policy permanece fora deste subset.
 
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,
@@ -1064,8 +1068,10 @@ aplicações genéricas desta seção é independente: ele não chama nem inclui
 executor. Uma integração posterior pode consumir facts compatíveis; ela usa os
 spans apenas para provenance e diagnósticos.
 Para parâmetros com dois nomes, o primeiro é o label externo required e o
-segundo é o nome interno (`from current: Stage`, `at index: u8`). `named name`
-é required(name), `_ name` é optional(name), e um único nome é positional-only.
+segundo é o nome interno (`from current: Stage`, `at index: u8`). Um único nome
+publica o label homônimo required; `_ name` é positional-only. Não existe um
+modifier `named`: use diretamente `external internal: Type` quando os nomes
+externo e interno forem distintos.
 
 O lowering publica registros tipados para uma `const fn` com expressão única ou
 com uma árvore bounded de statements. A projeção preserva a função owner, a

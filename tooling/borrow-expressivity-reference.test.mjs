@@ -43,7 +43,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
     const declaration = {
       kind: "instance",
       body: true,
-      inputs: [{ slot: "receiver", mode: "inout" }],
+      inputs: [{ slot: "receiver", mode: "mut ref" }],
       results: [{ slot: "result", mode: "view" }],
       bodyTrace: [{ operation: "return", result: "result", source: "receiver" }],
     };
@@ -113,7 +113,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
           kind,
           body: false,
           inputs: [
-            { slot: "receiver", mode: "inout" },
+            { slot: "receiver", mode: "mut ref" },
             { slot: "other", mode: "ref" },
           ],
           results: [{ slot: "result", mode: "view" }],
@@ -198,7 +198,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
       declaration: {
         kind: "instance",
         body: true,
-        inputs: [{ slot: "receiver", mode: "inout", origin: "receiver.storage" }],
+        inputs: [{ slot: "receiver", mode: "mut ref", origin: "receiver.storage" }],
         results: [{ slot: "result", mode: "view" }],
         bodyTrace: [
           { operation: "adapter", adapter: "map", input: "receiver", output: "mapped" },

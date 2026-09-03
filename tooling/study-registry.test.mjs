@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test } from "bun:test";
 import {
   buildStudyRegistry,
   checkStudyRegistry,
+  refreshStudyDigests,
   repositoryRoot,
   serializeStudyMarkdown,
   serializeStudyRegistry,
@@ -129,6 +130,21 @@ describe("study registry integrity", () => {
     }]);
     const result = buildStudyRegistry({ root });
     expect(result.issues.stale.some((issue) => issue.reason === "digest-mismatch")).toBe(true);
+  });
+
+  test("refreshes only resolved stale digest references", () => {
+    const content = "current bytes\n";
+    const root = makeRoot([{
+      directory: "refresh",
+      id: "REFRESH",
+      files: { "fixture.txt": content },
+      metadata: { references: [{ path: "fixture.txt", digest: `sha256:${"0".repeat(64)}` }] },
+    }]);
+    const refreshed = refreshStudyDigests({ root });
+    expect(refreshed).toEqual({ written: true, updatedFiles: 1, updatedReferences: 1, errors: [] });
+    const metadata = JSON.parse(fs.readFileSync(path.join(root, "tooling", "studies", "refresh", "study.json"), "utf8"));
+    expect(metadata.references[0].digest).toBe(digest(content));
+    expect(buildStudyRegistry({ root }).issues.stale).toHaveLength(0);
   });
 
   test("rejects an invalid digest", () => {

@@ -18,7 +18,7 @@ export function loadCorpus() {
 function validateSync1() {
   const accepted = deriveExecutionErgonomics("async fn func(): Value throws String { return value }\nlet y = try sync func()");
   const suspending = deriveExecutionErgonomics("async fn func(): Value { await execution#yield(); return value }\nlet y = sync func()");
-  const dynamicPath = deriveExecutionErgonomics("async fn cached(hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
+  const dynamicPath = deriveExecutionErgonomics("async fn cached(_ hit: Bool): Value { if hit { return value }; return await catalog() }\nlet y = sync cached(true)", {
     functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
   });
   const inferred = deriveExecutionErgonomics("fn inferredMay(): Value { await execution#yield(); return value }\nlet y = sync inferredMay()");
@@ -37,7 +37,7 @@ function validateSync1() {
     functionTypes: [{ name: "catalog", suspension: "may", sourceSpelling: "explicit", directEntry: "absent" }],
   });
   const invalidSyncCaller = deriveExecutionErgonomics("fn ordinary(): Value { return value }\nasync fn wrapper(): Value { return sync ordinary() }\nlet y = sync wrapper()");
-  const recursive = deriveExecutionErgonomics("async fn even(n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }\nasync fn odd(n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }\nlet y = sync even(2)");
+  const recursive = deriveExecutionErgonomics("async fn even(_ n: usize): Bool { return if n == 0 { true } else { sync odd(n - 1) } }\nasync fn odd(_ n: usize): Bool { return if n == 0 { false } else { sync even(n - 1) } }\nlet y = sync even(2)");
   const publicFacet = deriveExecutionErgonomics("export async fn published(): Value { return value }", {
     publicContract: {
       previous: "may",

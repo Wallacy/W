@@ -6,8 +6,8 @@ struct ArrivalTicket {
 }
 
 fn urgentOrderIds(
-  tickets: ref Array<ArrivalTicket>,
-  named limit: usize,
+  _ tickets: ref Array<ArrivalTicket>,
+  limit: usize,
 ): Array<u64> {
   return tickets.lazy
     .filter((ticket) => ticket.priority == 1)

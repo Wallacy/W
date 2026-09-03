@@ -189,9 +189,11 @@ static bool test_longest_punctuation(void) {
 static bool test_literals_and_interpolation(void) {
   fixture fixture_value;
   CHECK(fixture_init(&fixture_value,
-                     "\"hi ${name {x}} end\" #\"raw ${no}\"# "
-                     "\"\"\"multi ${value}\"\"\" b\"bytes\" 'λ' b'A' "
-                     "#\"raw\"# #\"\"\"multi\"\"\"#"));
+                     "\"hi ${name {x}} end\" 'single ${name}' "
+                     "#\"raw ${no}\"# #'raw ${no}'# "
+                     "\"\"\"multi ${value}\"\"\" '''multi ${value}''' "
+                     "b\"bytes\" b'A' #\"\"\"raw multi\"\"\"# "
+                     "#'''raw single multi'''#"));
   w_seed_lex_item item;
   CHECK(next_item(&fixture_value, &item));
   CHECK(item.kind == W_SEED_LEX_ITEM_LITERAL_EVENT &&
@@ -223,6 +225,7 @@ static bool test_literals_and_interpolation(void) {
   size_t starts = 0;
   size_t ends = 0;
   bool saw_raw_interpolation = false;
+  bool saw_second_ordinary_interpolation = false;
   for (;;) {
     CHECK(next_item(&fixture_value, &item));
     if (item.kind == W_SEED_LEX_ITEM_EOF) break;
@@ -230,14 +233,19 @@ static bool test_literals_and_interpolation(void) {
       if (item.payload.literal.event == W_SEED_LITERAL_START) starts += 1;
       if (item.payload.literal.event == W_SEED_LITERAL_END) ends += 1;
       if (item.payload.literal.event == W_SEED_INTERPOLATION_START &&
+          item.payload.literal.literal == W_SEED_LITERAL_STRING) {
+        saw_second_ordinary_interpolation = true;
+      }
+      if (item.payload.literal.event == W_SEED_INTERPOLATION_START &&
           (item.payload.literal.literal == W_SEED_LITERAL_RAW_STRING ||
            item.payload.literal.literal == W_SEED_LITERAL_BYTE_STRING)) {
         saw_raw_interpolation = true;
       }
     }
   }
-  CHECK(starts == 7);
-  CHECK(ends == 7);
+  CHECK(starts == 9);
+  CHECK(ends == 9);
+  CHECK(saw_second_ordinary_interpolation);
   CHECK(!saw_raw_interpolation);
   return true;
 }

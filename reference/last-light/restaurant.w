@@ -87,12 +87,12 @@ struct OrderState {
 
 async fn prepareDish(
   order: take Order,
-  named pantry: ref ServiceRef<PantryApi>,
-  named ovens: ref ServiceRef<OvenApi>,
-  named oracle: ref ServiceRef<OracleApi>,
-  named probe: ref ServiceRef<AromaProbeApi>,
+  pantry: ref ServiceRef<PantryApi>,
+  ovens: ref ServiceRef<OvenApi>,
+  oracle: ref ServiceRef<OracleApi>,
+  probe: ref ServiceRef<AromaProbeApi>,
 ): Dish throws RestaurantError {
-  let planning = planningRequest(order)
+  let planning = planningRequest(order: order)
   let Order(guests, course, ...) = take order
   let stock = async pantry.reserve(course, guests: guests)
   let telemetry = async ovens.telemetry()
@@ -112,12 +112,12 @@ async fn prepareDish(
     throw .kitchen(.lowAroma(found: aromaSample.aroma, required: schedule.minimumAroma))
   }
 
-  let projectedEnergy = expectedEnergy(telemetry, during: schedule.duration)
+  let projectedEnergy = expectedEnergy(telemetry: telemetry, during: schedule.duration)
   guard projectedEnergy <= schedule.energyBudget else {
     throw .kitchen(.energyBudgetExceeded(found: projectedEnergy, limit: schedule.energyBudget))
   }
 
-  let mixture = spawn<.compute> mix(stock.ingredients, recipe: schedule.recipe)
+  let mixture = spawn<.compute> mix(ingredients: stock.ingredients, recipe: schedule.recipe)
 
   let (lease, ready) = try await pipeline {
     let lease = ovens.acquire(schedule.recipe.target, duration: schedule.duration)
@@ -152,7 +152,7 @@ service lastLight: RestaurantApi {
     orders[orderId] = state
 
     let dish = try await prepareDish(
-      take order,
+      order: take order,
       pantry: pantry,
       ovens: ovens,
       oracle: oracle,
@@ -162,10 +162,10 @@ service lastLight: RestaurantApi {
     try state.advance(to: .serving)
     orders[orderId] = state
 
-    let amount = try quote(priceTable, course: dish.course)
-    let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId))
-    let proof = servingProof(payment)
-    let refundIdempotencyKey = refundKey(payment.id)
+    let amount = try quote(policy: priceTable, course: dish.course)
+    let payment = try await billing.capture(amount, idempotencyKey: paymentKey(orderId: orderId))
+    let proof = servingProof(payment: payment)
+    let refundIdempotencyKey = refundKey(paymentId: payment.id)
     defer async {
       if state.stage != .completed {
         do {
@@ -190,13 +190,13 @@ service lastLight: RestaurantApi {
   }
 
   mut async fn cancel(orderId: OrderId): CancelledStage throws RestaurantError {
-    guard let inout state = orders[orderId] else throw .domain(.unknownOrder(orderId))
+    guard let mut ref state = orders[orderId] else throw .domain(.unknownOrder(orderId))
     try state.advance(to: .cancelled)
     return .cancelled
   }
 
   async fn menu(): Array<MenuItem> throws RestaurantError {
-    return try menuItems(priceTable)
+    return try menuItems(table: priceTable)
   }
 
   async fn snapshot(): RestaurantSnapshot {

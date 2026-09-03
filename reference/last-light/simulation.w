@@ -98,14 +98,14 @@ struct Scenario {
 
 fn simulatedOrder(
   orderId: OrderId,
-  named guestId: GuestId,
-  named name: GuestName,
-  named guests: GuestCount,
-  named course: Course,
-  named arrivalTick: SimulationTick,
-  named preparationTicks: SimulationTicks,
-  named patienceTicks: SimulationTicks,
-  named timeline: u32,
+  guestId: GuestId,
+  name: GuestName,
+  guests: GuestCount,
+  course: Course,
+  arrivalTick: SimulationTick,
+  preparationTicks: SimulationTicks,
+  patienceTicks: SimulationTicks,
+  timeline: u32,
 ): SimulatedOrder {
   return SimulatedOrder(
     order: Order(
@@ -138,11 +138,11 @@ fn scenario(profile: SimulationProfile): Scenario {
           tickDuration: 30<si.s>,
         ),
         orders: [
-          simulatedOrder(101, guestId: 501, name: "Ada Quasar", guests: 2, course: .quietSalad,
+          simulatedOrder(orderId: 101, guestId: 501, name: "Ada Quasar", guests: 2, course: .quietSalad,
             arrivalTick: 0, preparationTicks: 2, patienceTicks: 8, timeline: 0),
-          simulatedOrder(102, guestId: 502, name: "Capitão Ontem", guests: 4, course: .horizonCake,
+          simulatedOrder(orderId: 102, guestId: 502, name: "Capitão Ontem", guests: 4, course: .horizonCake,
             arrivalTick: 1, preparationTicks: 4, patienceTicks: 10, timeline: 0),
-          simulatedOrder(103, guestId: 503, name: "Comitê de Uma Pessoa Só", guests: 1, course: .nebulaBroth,
+          simulatedOrder(orderId: 103, guestId: 503, name: "Comitê de Uma Pessoa Só", guests: 1, course: .nebulaBroth,
             arrivalTick: 2, preparationTicks: 2, patienceTicks: 6, timeline: 0),
         ],
       )
@@ -157,17 +157,17 @@ fn scenario(profile: SimulationProfile): Scenario {
           tickDuration: 20<si.s>,
         ),
         orders: [
-          simulatedOrder(201, guestId: 601, name: "Dra. Lira Pós-Agora", guests: 3, course: .photonSouffle,
+          simulatedOrder(orderId: 201, guestId: 601, name: "Dra. Lira Pós-Agora", guests: 3, course: .photonSouffle,
             arrivalTick: 0, preparationTicks: 5, patienceTicks: 9, timeline: 0),
-          simulatedOrder(202, guestId: 602, name: "Milo Sem Pressa", guests: 2, course: .quietSalad,
+          simulatedOrder(orderId: 202, guestId: 602, name: "Milo Sem Pressa", guests: 2, course: .quietSalad,
             arrivalTick: 0, preparationTicks: 2, patienceTicks: 5, timeline: 0),
-          simulatedOrder(203, guestId: 603, name: "Fiscal do Último Minuto", guests: 8, course: .horizonCake,
+          simulatedOrder(orderId: 203, guestId: 603, name: "Fiscal do Último Minuto", guests: 8, course: .horizonCake,
             arrivalTick: 1, preparationTicks: 6, patienceTicks: 8, timeline: 0),
-          simulatedOrder(204, guestId: 604, name: "Orquestra de Um Fóton", guests: 12, course: .nebulaBroth,
+          simulatedOrder(orderId: 204, guestId: 604, name: "Orquestra de Um Fóton", guests: 12, course: .nebulaBroth,
             arrivalTick: 1, preparationTicks: 3, patienceTicks: 7, timeline: 0),
-          simulatedOrder(205, guestId: 605, name: "Turista do Setor Improvável", guests: 4, course: .photonSouffle,
+          simulatedOrder(orderId: 205, guestId: 605, name: "Turista do Setor Improvável", guests: 4, course: .photonSouffle,
             arrivalTick: 2, preparationTicks: 5, patienceTicks: 6, timeline: 0),
-          simulatedOrder(206, guestId: 606, name: "Auditora da Causalidade", guests: 1, course: .quietSalad,
+          simulatedOrder(orderId: 206, guestId: 606, name: "Auditora da Causalidade", guests: 1, course: .quietSalad,
             arrivalTick: 3, preparationTicks: 2, patienceTicks: 4, timeline: 0),
         ],
       )
@@ -182,13 +182,13 @@ fn scenario(profile: SimulationProfile): Scenario {
           tickDuration: 45<si.s>,
         ),
         orders: [
-          simulatedOrder(301, guestId: 701, name: "Visitante que Já Pagou Amanhã", guests: 2,
+          simulatedOrder(orderId: 301, guestId: 701, name: "Visitante que Já Pagou Amanhã", guests: 2,
             course: .horizonCake, arrivalTick: 0, preparationTicks: 7, patienceTicks: 9, timeline: 7),
-          simulatedOrder(302, guestId: 702, name: "Visitante que Ainda Não Chegou", guests: 2,
+          simulatedOrder(orderId: 302, guestId: 702, name: "Visitante que Ainda Não Chegou", guests: 2,
             course: .photonSouffle, arrivalTick: 0, preparationTicks: 6, patienceTicks: 3, timeline: 12),
-          simulatedOrder(303, guestId: 703, name: "Visitante Duplicado Legalmente", guests: 2,
+          simulatedOrder(orderId: 303, guestId: 703, name: "Visitante Duplicado Legalmente", guests: 2,
             course: .nebulaBroth, arrivalTick: 0, preparationTicks: 4, patienceTicks: 2, timeline: 7),
-          simulatedOrder(304, guestId: 704, name: "Advogada do Paradoxo", guests: 1,
+          simulatedOrder(orderId: 304, guestId: 704, name: "Advogada do Paradoxo", guests: 1,
             course: .quietSalad, arrivalTick: 1, preparationTicks: 2, patienceTicks: 2, timeline: 99),
         ],
       )
@@ -235,25 +235,25 @@ fn record(
 }
 
 export fn simulateShift(profile: SimulationProfile): SimulationReport throws SimulationError {
-  let selectedScenario = scenario(profile)
+  let selectedScenario = scenario(profile: profile)
   let SimulationConfig(maximumTicks, cooks, tables, ovenPower, ovenDuty, tickDuration) =
     selectedScenario.config
   var orders = take selectedScenario.orders
   let priceTable = loadPriceTable()
   let pricing: any PricingPolicy = priceTable
-  let energyPerCookingTick = expectedEnergy(ovenPower, duty: ovenDuty, during: tickDuration)
+  let energyPerCookingTick = expectedEnergy(power: ovenPower, duty: ovenDuty, during: tickDuration)
   var events: Array<SimulationEvent> = []
   var revenue = Money.zeroCredits
   var energyUsed: Energy = 0<si.J>
   var queueHighWater = 0_u32
   var tick: SimulationTick = 0
 
-  while tick < maximumTicks && !isTerminal(orders) {
-    for inout candidate in orders {
+  while tick < maximumTicks && !isTerminal(orders: orders) {
+    for mut ref candidate in orders {
       switch candidate.stage {
         case .scheduled if candidate.arrivalTick <= tick:
           candidate.stage = .waiting
-          record(inout events, tick: tick, orderId: candidate.order.id, stage: .waiting)
+          record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .waiting)
         case .cooking:
           energyUsed += energyPerCookingTick
 
@@ -262,53 +262,53 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
           } else {
             candidate.preparationRemaining = 0
             candidate.stage = .ready
-            record(inout events, tick: tick, orderId: candidate.order.id, stage: .ready)
+            record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .ready)
           }
         case .seated:
-          let price = try quote(pricing, course: candidate.order.course)
-          revenue = try add(revenue, to: price)
+          let price = try quote(policy: pricing, course: candidate.order.course)
+          revenue = try add(left: revenue, to: price)
           candidate.stage = .completed
-          record(inout events, tick: tick, orderId: candidate.order.id, stage: .completed)
+          record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .completed)
         case _:
       }
     }
 
-    let seated = countStage(orders, stage: .seated)
+    let seated = countStage(orders: orders, stage: .seated)
     var freeTables: u32 = u32(tables)
     freeTables -= seated
 
-    for inout candidate in orders {
+    for mut ref candidate in orders {
       if candidate.stage == .ready && freeTables > 0 {
         candidate.stage = .seated
         freeTables -= 1
-        record(inout events, tick: tick, orderId: candidate.order.id, stage: .seated)
+        record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .seated)
       }
     }
 
-    let cooking = countStage(orders, stage: .cooking)
+    let cooking = countStage(orders: orders, stage: .cooking)
     var freeCooks: u32 = u32(cooks)
     freeCooks -= cooking
 
-    for inout candidate in orders {
+    for mut ref candidate in orders {
       if candidate.stage == .waiting && freeCooks > 0 {
         candidate.stage = .cooking
         freeCooks -= 1
-        record(inout events, tick: tick, orderId: candidate.order.id, stage: .cooking)
+        record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .cooking)
       }
     }
 
-    for inout candidate in orders {
+    for mut ref candidate in orders {
       if candidate.stage == .waiting {
         candidate.waitedTicks += 1
 
         if candidate.waitedTicks >= candidate.patienceTicks {
           candidate.stage = .departed
-          record(inout events, tick: tick, orderId: candidate.order.id, stage: .departed)
+          record(events: inout events, tick: tick, orderId: candidate.order.id, stage: .departed)
         }
       }
     }
 
-    queueHighWater = max(queueHighWater, countStage(orders, stage: .waiting))
+    queueHighWater = max(queueHighWater, countStage(orders: orders, stage: .waiting))
     tick += 1
   }
 
@@ -324,8 +324,8 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
     ))
   }
 
-  let completed = countStage(orders, stage: .completed)
-  let departed = countStage(orders, stage: .departed)
+  let completed = countStage(orders: orders, stage: .completed)
+  let departed = countStage(orders: orders, stage: .departed)
 
   return SimulationReport(
     profile: profile,
@@ -336,7 +336,7 @@ export fn simulateShift(profile: SimulationProfile): SimulationReport throws Sim
     ticksRun: tick,
     completed: completed,
     departed: departed,
-    unfinished: countUnfinished(ref orders),
+    unfinished: countUnfinished(orders: ref orders),
     queueHighWater: queueHighWater,
     energyUsed: energyUsed,
     revenue: revenue,
@@ -389,7 +389,7 @@ export fn writeSimulation(report: ref SimulationReport, to output: inout String)
 }
 
 test "the quiet orbit completes without losing an order" for simulateShift {
-  let report = try simulateShift(.quietOrbit)
+  let report = try simulateShift(profile: .quietOrbit)
 
   expect report.completed == 3
   expect report.departed == 0
@@ -401,7 +401,7 @@ test "the quiet orbit completes without losing an order" for simulateShift {
 }
 
 test "the timeline collision makes overload visible" for simulateShift {
-  let report = try simulateShift(.timelineCollision)
+  let report = try simulateShift(profile: .timelineCollision)
 
   expect report.completed == 1
   expect report.departed == 3
@@ -412,8 +412,8 @@ test "the timeline collision makes overload visible" for simulateShift {
 }
 
 test "a simulation profile replays the same observable history" for simulateShift {
-  let first = try simulateShift(.photonRush)
-  let replay = try simulateShift(.photonRush)
+  let first = try simulateShift(profile: .photonRush)
+  let replay = try simulateShift(profile: .photonRush)
 
   expect first.ticksRun == replay.ticksRun
   expect first.completed == replay.completed

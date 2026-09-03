@@ -17,9 +17,9 @@ enum ChannelDecision {
 }
 
 const fn expectedChannelDecision(
-  named profile: OracleChannelProfile,
-  named peerMatchesBinding: Bool,
-  named freshChannelBinding: Bool,
+  profile: OracleChannelProfile,
+  peerMatchesBinding: Bool,
+  freshChannelBinding: Bool,
 ): ChannelDecision {
   if profile in (.plaintext, .tls13ServerOnly, .ipcPathOnly) {
     return .rejectSecurity
@@ -88,9 +88,9 @@ enum FrameDecision {
 }
 
 const fn expectedFrameDecision(
-  named phase: OracleSessionPhase,
-  named frame: OracleFrameFamily,
-  named earlyData: Bool,
+  phase: OracleSessionPhase,
+  frame: OracleFrameFamily,
+  earlyData: Bool,
 ): FrameDecision {
   if earlyData {
     return .rejectEarlyData
@@ -116,9 +116,9 @@ enum SequenceDecision {
 }
 
 const fn expectedSequenceDecision(
-  named sessionMatches: Bool,
-  named expected: u64,
-  named received: u64,
+  sessionMatches: Bool,
+  expected: u64,
+  received: u64,
 ): SequenceDecision {
   if !sessionMatches {
     return .rejectSession
@@ -136,10 +136,10 @@ const fn expectedSequenceDecision(
 }
 
 const fn canAllocateSessionTables(
-  named channelAccepted: Bool,
-  named helloBounded: Bool,
-  named transcriptConfirmed: Bool,
-  named bilateralReady: Bool,
+  channelAccepted: Bool,
+  helloBounded: Bool,
+  transcriptConfirmed: Bool,
+  bilateralReady: Bool,
 ): Bool {
   return channelAccepted && helloBounded && transcriptConfirmed && bilateralReady
 }

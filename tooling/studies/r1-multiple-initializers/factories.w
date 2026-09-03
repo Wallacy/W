@@ -11,16 +11,16 @@ struct Money {
     self.currency = currency
   }
 
-  static const fn fromMajorUnits(value: i64, currency: Currency): Money {
+  static const fn fromMajorUnits(_ value: i64, _ currency: Currency): Money {
     return Money(minorUnits: i128(value) * 100, currency: currency)
   }
 }
 
-fn exactPrice(value: i128): Money {
+fn exactPrice(_ value: i128): Money {
   return Money(minorUnits: value, currency: .ww)
 }
 
-fn majorPrice(value: i64): Money {
+fn majorPrice(_ value: i64): Money {
   return Money.fromMajorUnits(value, currency: .ww)
 }
 

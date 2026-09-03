@@ -84,28 +84,28 @@
       "path": "reference/last-light/data_formats.w",
       "symbol": "export struct TabularTelemetryRow:",
       "claim": "closed data.Row schema synthesis",
-      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
     },
     {
       "id": "last-light-kernels",
       "path": "reference/last-light/ai_harness.w",
       "symbol": "export const lastLightKernels",
       "claim": "finite compiler-owned kernel synthesis",
-      "digest": "sha256:5a30e65a8175dbe6434cdfdbcac4c0cc2dbd9c33cf4349676c9be87c77add338"
+      "digest": "sha256:79151f258b93fc1947509e356eb3ef56a25ad357fd8f49d653d136712f04a9c2"
     },
     {
       "id": "last-light-menu-transform",
       "path": "reference/last-light/packages/menu-compiler/transform.w",
       "symbol": "async fn transform(ctx: build.Context)",
       "claim": "hermetic typed transform",
-      "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+      "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff"
     },
     {
       "id": "last-light-menu-compiler",
       "path": "reference/last-light/packages/menu-compiler/compiler.w",
       "symbol": "export fn compileMenu(source: ref String)",
       "claim": "menu parser/compiler source",
-      "digest": "sha256:7d1ddf74f17a526f1dda4f0f97414ff817bec353e6d19b9b22d91980fc670f50"
+      "digest": "sha256:c5d21e0d8a372b3777d0095a31905b3dda5b5c02ab57cfd84bfb715828f0cced"
     },
     {
       "id": "last-light-package",
@@ -260,7 +260,7 @@
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:1548f8f0109adc19f82862d4466e0439ad4a626dd18cde23dd539567330bb795"
+      "digest": "sha256:86ecdd4e94611ac6e0cf204e634f7a57d879b017afb51447331a5db87efa29e2"
     },
     {
       "path": "generated-menu-order.w",
@@ -274,7 +274,7 @@
       "disposition": "research-candidate",
       "frontendReceipt": "Research",
       "compilerEvidence": "missing",
-      "digest": "sha256:afffb31099ed054926981422a2a4b5f461678b55a3d33163a1e948126de68b98"
+      "digest": "sha256:7f8e8bdc92587b127f6ff8b4cdfa8d0e8ca5bf7a6591278436f2986db97cbea4"
     },
     {
       "path": "generated-menu-routing.w",

@@ -67,42 +67,42 @@ enum URLViewComponent {
 // The draft deliberately does not substitute a partial parser.
 foreign intrinsic from "std.url-record@1" {
   type URLRecord
-  fn stdURLParseAbsolute(input: ref String): URLRecord throws UrlParseError
+  fn stdURLParseAbsolute(_ input: ref String): URLRecord throws UrlParseError
   fn stdURLParseRelative(
-    input: ref String,
-    base: ref URLRecord,
+    _ input: ref String,
+    _ base: ref URLRecord,
   ): URLRecord throws UrlParseError
-  fn stdURLCanParseAbsolute(input: ref String): Bool
-  fn stdURLCanParseRelative(input: ref String, base: ref URLRecord): Bool
+  fn stdURLCanParseAbsolute(_ input: ref String): Bool
+  fn stdURLCanParseRelative(_ input: ref String, _ base: ref URLRecord): Bool
   fn stdURLReplaceComponent(
-    record: ref URLRecord,
-    component: URLComponent,
-    value: ref String,
+    _ record: ref URLRecord,
+    _ component: URLComponent,
+    _ value: ref String,
   ): URLRecord throws UrlMutationError
-  fn stdURLReplaceSearch(record: ref URLRecord, value: ref String): URLRecord
-  fn stdURLReplaceHash(record: ref URLRecord, value: ref String): URLRecord
-  fn stdURLReplaceQuery(record: ref URLRecord, query: ref String?): URLRecord
+  fn stdURLReplaceSearch(_ record: ref URLRecord, _ value: ref String): URLRecord
+  fn stdURLReplaceHash(_ record: ref URLRecord, _ value: ref String): URLRecord
+  fn stdURLReplaceQuery(_ record: ref URLRecord, _ query: ref String?): URLRecord
   fn stdURLView(
-    record: ref URLRecord,
-    component: URLViewComponent,
+    _ record: ref URLRecord,
+    _ component: URLViewComponent,
   ): view String
-  fn stdURLDuplicate(record: ref URLRecord): URLRecord
-  fn stdURLMaterializeSearchParams(record: ref URLRecord): URLSearchParams
-  fn stdURLParseForm(input: ref String): Array<URLSearchParam>
-  fn stdURLSerializeForm(input: ref Array<URLSearchParam>): String
-  fn stdURLSortForm(input: inout Array<URLSearchParam>): ()
+  fn stdURLDuplicate(_ record: ref URLRecord): URLRecord
+  fn stdURLMaterializeSearchParams(_ record: ref URLRecord): URLSearchParams
+  fn stdURLParseForm(_ input: ref String): Array<URLSearchParam>
+  fn stdURLSerializeForm(_ input: ref Array<URLSearchParam>): String
+  fn stdURLSortForm(_ input: inout Array<URLSearchParam>): ()
 }
 
 export struct URLSearchParams: Duplicable {
   pairs: Array<URLSearchParam>
   edited: Bool
 
-  export init(_ initialPairs: take URLSearchParam...) {
+  export init(initialPairs: take URLSearchParam...) {
     self.pairs = take initialPairs
     self.edited = false
   }
 
-  export init(_ encoded: String) {
+  export init(encoded: String) {
     self.pairs = unsafe { stdURLParseForm(encoded) }
     self.edited = false
   }
@@ -241,11 +241,11 @@ export struct URLSearchParams: Duplicable {
 export struct URL: Duplicable {
   record: URLRecord
 
-  export init(_ input: String) throws UrlParseError {
+  export init(input: String) throws UrlParseError {
     self.record = unsafe { try stdURLParseAbsolute(input) }
   }
 
-  export init(_ input: String, base: ref URL) throws UrlParseError {
+  export init(input: String, base: ref URL) throws UrlParseError {
     self.record = unsafe {
       try stdURLParseRelative(input, base.record)
     }
@@ -255,19 +255,19 @@ export struct URL: Duplicable {
     self.record = validatedRecord
   }
 
-  export static fn parse(_ input: ref String): URL? {
+  export static fn parse(input: ref String): URL? {
     return try? URL(copy input)
   }
 
-  export static fn parse(_ input: ref String, base: ref URL): URL? {
+  export static fn parse(input: ref String, base: ref URL): URL? {
     return try? URL(copy input, base: base)
   }
 
-  export static fn canParse(_ input: ref String): Bool {
+  export static fn canParse(input: ref String): Bool {
     return unsafe { stdURLCanParseAbsolute(input) }
   }
 
-  export static fn canParse(_ input: ref String, base: ref URL): Bool {
+  export static fn canParse(input: ref String, base: ref URL): Bool {
     return unsafe { stdURLCanParseRelative(input, base.record) }
   }
 
@@ -331,64 +331,64 @@ export struct URL: Duplicable {
     return copy href
   }
 
-  export mut fn setHref(_ value: String): () throws UrlMutationError {
+  export mut fn setHref(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .href, value)
     }
   }
 
-  export mut fn setProtocol(_ value: String): () throws UrlMutationError {
+  export mut fn setProtocol(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .protocol, value)
     }
   }
 
-  export mut fn setUsername(_ value: String): () throws UrlMutationError {
+  export mut fn setUsername(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .username, value)
     }
   }
 
-  export mut fn setPassword(_ value: String): () throws UrlMutationError {
+  export mut fn setPassword(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .password, value)
     }
   }
 
-  export mut fn setHost(_ value: String): () throws UrlMutationError {
+  export mut fn setHost(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .host, value)
     }
   }
 
-  export mut fn setHostname(_ value: String): () throws UrlMutationError {
+  export mut fn setHostname(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .hostname, value)
     }
   }
 
-  export mut fn setPort(_ value: String): () throws UrlMutationError {
+  export mut fn setPort(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .port, value)
     }
   }
 
-  export mut fn setPathname(_ value: String): () throws UrlMutationError {
+  export mut fn setPathname(value: String): () throws UrlMutationError {
     record = unsafe {
       try stdURLReplaceComponent(record, .pathname, value)
     }
   }
 
-  export mut fn setSearch(_ value: String) {
+  export mut fn setSearch(value: String) {
     record = unsafe { stdURLReplaceSearch(record, value) }
   }
 
-  export mut fn setHash(_ value: String) {
+  export mut fn setHash(value: String) {
     record = unsafe { stdURLReplaceHash(record, value) }
   }
 
   export mut fn editSearchParams<Failure: Error>(
-    _ edit: fn(inout URLSearchParams): () throws Failure,
+    edit: fn(inout URLSearchParams): () throws Failure,
   ): () throws Failure {
     var params = unsafe { stdURLMaterializeSearchParams(record) }
     params.beginEdit()

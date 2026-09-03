@@ -90,7 +90,7 @@ const globalKeywordText = keywordPatterns
 assert.doesNotMatch(globalKeywordText, /\binfo\b/u, "TextMate must not reserve info globally");
 assert.doesNotMatch(globalKeywordText, /\bof\b/u, "TextMate must not reserve of globally");
 assert.doesNotMatch(globalKeywordText, /\btransaction\b/u, "TextMate must not reserve transaction globally");
-for (const hook of ["willSet", "didSet", "willModify", "didModify"]) {
+for (const hook of ["willSet", "didSet"]) {
   assert.doesNotMatch(globalKeywordText, new RegExp(`\\b${hook}\\b`, "u"), `TextMate must not reserve ${hook} globally`);
 }
 const pipelineContractPattern = tm.repository?.["pipeline-contract"]?.patterns?.[0];
@@ -100,7 +100,9 @@ assert.match(pipelineContractPattern.patterns?.find((pattern) => pattern.match?.
 const behaviorBodyPattern = tm.repository?.["behavior-bodies"]?.patterns?.[0];
 assert.ok(behaviorBodyPattern, "TextMate must define a behavior body context");
 assert.match(behaviorBodyPattern.begin, /behavior/u);
-assert.match(behaviorBodyPattern.patterns?.find((pattern) => pattern.match?.includes("willSet"))?.match ?? "", /didModify/u);
+const behaviorHookPattern = behaviorBodyPattern.patterns?.find((pattern) => pattern.match?.includes("willSet"))?.match ?? "";
+assert.match(behaviorHookPattern, /didSet/u);
+assert.doesNotMatch(behaviorHookPattern, /willModify|didModify/u);
 const operatorPattern = tm.repository?.operators?.patterns?.find((pattern) => pattern.name === "keyword.operator.w");
 assert.ok(operatorPattern, "TextMate must define the operator pattern");
 const operatorRegex = new RegExp(operatorPattern.match, "u");

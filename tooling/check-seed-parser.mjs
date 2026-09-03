@@ -27,7 +27,7 @@ const selectedIds = [
   "F0-structured-pipeline-transaction",
   "F0-language-lock",
   "F0-borrows-clause-source-order",
-  "F0-optional-label-slots",
+  "F0-generic-anchor-slots",
   "F0-contracts-and-source-order",
   "F0-enum-subset-switch",
   "F0-allocator-anonymous-contextual-call",
@@ -790,7 +790,7 @@ function assertBorrowClause(parsed, bytes, label) {
   if (viewTypes.length < 1) fail(`${label} does not preserve view WORDs inside TYPE nodes`)
 }
 
-function assertPhase2OptionalLabels(parsed, bytes, label) {
+function assertPhase2GenericAnchors(parsed, bytes, label) {
   assertClean(parsed, label)
   if (parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETERS).length !== 1 ||
       parsed.nodes.filter((node) => node.kind === CST.GENERIC_PARAMETER).length !== 1) {
@@ -810,12 +810,7 @@ function assertPhase2OptionalLabels(parsed, bytes, label) {
     }
     const hasLabel = directKind(parsed, envelope.index, CST.WORD)
       .some((word) => nodeText(parsed, bytes, word) === "state")
-    if (index === 0 && hasLabel) fail(`${label} first envelope is not positional`)
-    if (index === 1 && (!hasLabel ||
-        !directKind(parsed, envelope.index, CST.PUNCTUATION)
-          .some((punctuation) => nodeText(parsed, bytes, punctuation) === ":"))) {
-      fail(`${label} second envelope does not preserve state: label`)
-    }
+    if (hasLabel) fail(`${label} envelope ${index} is not positional-only`)
   }
   const expressions = parsed.nodes.filter((node) => node.kind === CST.EXPRESSION)
   if (!expressions.some((expression) =>
@@ -1039,7 +1034,7 @@ function assertMarkerVector(parsed, bytes) {
   if (!block) fail("for-marker-vector has no function block")
   const loops = directKind(parsed, block.index, CST.FOR)
   if (loops.length !== 3) fail("for-marker-vector does not contain three FOR nodes")
-  for (const [loop, marker] of loops.map((node, index) => [node, ["ref", "inout", "copy"][index]])) {
+  for (const [loop, marker] of loops.map((node, index) => [node, ["ref", "mut", "copy"][index]])) {
     if (!directKind(parsed, loop.index, CST.WORD).some((node) => nodeText(parsed, bytes, node) === marker)) {
       fail(`for-marker-vector is missing raw marker ${marker}`)
     }
@@ -1186,9 +1181,9 @@ async function main() {
         assertBorrowClause(inputParsed, input, `${id}:input`)
         assertBorrowClause(outputParsed, output, `${id}:output`)
       }
-      if (id === "F0-optional-label-slots") {
-        assertPhase2OptionalLabels(inputParsed, input, `${id}:input`)
-        assertPhase2OptionalLabels(outputParsed, output, `${id}:output`)
+      if (id === "F0-generic-anchor-slots") {
+        assertPhase2GenericAnchors(inputParsed, input, `${id}:input`)
+        assertPhase2GenericAnchors(outputParsed, output, `${id}:output`)
       }
       if (id === "F0-contracts-and-source-order") {
         assertPhase2Contracts(inputParsed, input, `${id}:input`)
@@ -1379,7 +1374,7 @@ async function main() {
     const callablesPath = resolve(root, "reference", "last-light", "callables.w")
     const callablesSource = await Bun.file(callablesPath).bytes()
     const callablesDigest = createHash("sha256").update(callablesSource).digest("hex")
-    if (callablesDigest !== "9b8c63d17e3293322ac8e589fa87092c73cfb912b0985260275a733d28ee0368") {
+    if (callablesDigest !== "00357e941c038cdebdebfbf12f12a0e327f6899765946b81c77680b4c0b7a154") {
       fail(`callables.w source digest changed: ${callablesDigest}`)
     }
     const callablesFull = invoke(probe, callablesSource, "callables.w:full", "complete")
@@ -1596,7 +1591,8 @@ async function main() {
       ["var-missing-equals", Buffer.from("fn f(){var value 1}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
       ["test-optional-target", Buffer.from("test \"fixture\" {}\n"), "complete"],
       ["test-malformed-target", Buffer.from("test \"fixture\" for {}\n"), "recovered", ISSUE.UNEXPECTED_TOKEN],
-      ["for-marker-vector", Buffer.from("fn markers(rows:Rows){for ref row in rows{}for inout item in rows{}for copy value in rows{}}\n"), "complete"],
+      ["for-marker-vector", Buffer.from("fn markers(rows:Rows){for ref row in rows{}for mut ref item in rows{}for copy value in rows{}}\n"), "complete"],
+      ["call-ownership-marker-vector", Buffer.from("fn calls(ticket:Ticket){inspect(mut ticket);update(mut ref ticket);update(mut view ticket)}\n"), "complete"],
       ["for-in-operator-and-nested", Buffer.from("fn expr(rows:Rows,flags:Flags){for row in rows in flags{}for value in (rows[0]){}}\n"), "complete"],
       ["labeled-block-for-witness", Buffer.from("fn scan(rows:Rows){assembleWord:{scanRows:for ref row in rows{for value in row{if value==0{continue scanRows} if value>31{break assembleWord}}}}}\n"), "complete"],
       ["for-missing-binder", Buffer.from("fn f(rows:Rows){for ref in rows{}}\n"), "recovered", 1],

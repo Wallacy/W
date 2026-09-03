@@ -58,7 +58,7 @@ export fn forecast<tables: usize, features: usize, courses: usize>(
   guard tables > 0 else throw .emptyBatch
 
   let logits = observations @ modelWeights
-  let demand = try normalized(logits.softmax(axis: 1))
+  let demand = try normalized(values: logits.softmax(axis: 1))
   let confidence = try demand.map((value) => try Probability(value))
 
   return Forecast(demand: demand, confidence: confidence)
@@ -120,9 +120,9 @@ export service oracle: OracleApi {
   recipes: Map<Course, Recipe> = defaultRecipes()
 
   async fn plan(request: take PlanningRequest): KitchenPlan throws OracleError {
-    let prediction = try forecast(request.features, weights: weights)
+    let prediction = try forecast(observations: request.features, weights: weights)
     let courseIndex = prediction.demand[0].argmax(mode: .reproducible)
-    let course = Course.fromOrdinal(courseIndex)
+    let course = Course.fromOrdinal(value: courseIndex)
     guard let ref recipe = recipes[course] else throw .missingRecipe(course)
 
     return KitchenPlan(
@@ -146,6 +146,6 @@ test "matrix contraction preserves the declared shape" for forecast {
     [0.4, 0.2, 0.7, 0.1],
   ]
 
-  let result = try forecast(observations, weights: weights)
+  let result = try forecast(observations: observations, weights: weights)
   expect result.demand.shape == [2, 4]
 }

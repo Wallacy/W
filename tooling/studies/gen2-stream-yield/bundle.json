@@ -11,38 +11,38 @@
   "sourceBase": {
     "path": "../../../reference/last-light/streams.w",
     "symbol": "serveOneByOne",
-    "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+    "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "inspectMenuLines",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "mixOrderStream",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "runBoundedOrderWindow",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
     },
     {
       "path": "../../../reference/last-light/command.w",
       "symbol": "object CommandStream",
-      "digest": "sha256:cf1615b9fc46a6e4b47f6eaec0bb70ff337de8cce534370df9733e6c4f4befea"
+      "digest": "sha256:848d3dc3d29dbdb0841161f61e51eae5c3061f2392869fe8593e869d6ed75e12"
     },
     {
       "path": "../../../reference/last-light/data_formats.w",
       "symbol": "uploadCsv",
-      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
     },
     {
       "path": "../../../reference/last-light/remote_stream_oracle.w",
       "symbol": "export const fn advanceStream",
-      "digest": "sha256:08fdfc9c61abc41bb4cd1a02b4765c8755feffe881953f36a9be554ce977568b"
+      "digest": "sha256:6a9bca8ca4a79fecae81ed4237ffee114c014f12d7dced7bd9fcae20751e6e5f"
     }
   ],
   "fixtures": [
@@ -66,7 +66,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:4b820a842631fbaf63d1e789700186c312ab3ed422ca7d3c535809688de77e8e",
+      "digest": "sha256:85bf88433789b791dd798058c5707741423e3dccd255e97e8b9313dd3feec32a",
       "changedConstructs": [
         "Stream pull adapter",
         "for try await",
@@ -84,7 +84,7 @@
       "disposition": "current-candidate",
       "language": "w",
       "path": "yield.w",
-      "digest": "sha256:8002e634ac49131328704a91c0be05f13d89c6f128c3cf287af2d4a0279ad1d9",
+      "digest": "sha256:951d8144994cd4a1e91d863f1e466f33fd1bbf2ff630e85c4b3164b913c172c4",
       "hiddenStatePolicy": "compiler-owned",
       "changedConstructs": [
         "stream expression",
@@ -104,7 +104,7 @@
       "disposition": "intentionally-rejected",
       "language": "w-reserved",
       "path": "rejected.txt",
-      "digest": "sha256:9ab16b39df41f120eabe55390ad0e0a27c8fb9ca6b1fd4367d1d21b771c891dc",
+      "digest": "sha256:e9fa205c235161ad0fa7cc4db8d2894f9a856396da6c1d6a4aa41605fcc79d1d",
       "hiddenStatePolicy": "not-public",
       "changedConstructs": [
         "public frame",

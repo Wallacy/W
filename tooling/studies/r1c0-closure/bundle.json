@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/formatting.w",
     "symbol": "oneLine",
-    "digest": "sha256:bd71e5e93863f389cfa5212549e081affe42934eebec2aeec9620297f6076f64"
+    "digest": "sha256:65584c9c0a1e4886864eb261dfbab4f935ccf53a45cfbe3fd9a4b4dff40567e3"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "portable.w",
-      "digest": "sha256:afac7a6a9da2e702ab209901087e9d16c72475d29c7cd6eba14e72754afc0097",
+      "digest": "sha256:699381d050487db58a66edb22793ba914806eeadd65fe1eae6efd94a323691a7",
       "changedConstructs": [
         "deterministic-CBOR payload",
         "portable target receipt",
@@ -33,7 +33,7 @@
       "role": "alternative",
       "language": "w",
       "path": "native.w",
-      "digest": "sha256:b4e4c0ef9c580c4dd89a2ac8cb820994b90c8daaaac2bd0acdb98085496878e0",
+      "digest": "sha256:a5e93e77d9da334c1a7bed8ac3f697ae8b0f88d1c504f0085c10c913346e0328",
       "changedConstructs": [
         "deterministic-CBOR payload",
         "native layout receipt",

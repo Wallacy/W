@@ -56,15 +56,15 @@ fn decodeTicket(
 ): Ticket throws json.DecodeError {
   return try json.decode<Ticket>(
     ref source,
-    limits: limits(4<iec.KiB>),
+    limits: limits(maximumBytes: 4<iec.KiB>),
     unknownMembers: memberPolicy,
   )
 }
 
 test "explicit conformance synthesizes a struct object" {
   let ticket = Ticket(id: 42, title: "horizon cake", garnish: .none)
-  let bytes = try json.encode(ref ticket, limits: limits(4<iec.KiB>))
-  let restored = try json.decode<Ticket>(ref bytes, limits: limits(4<iec.KiB>))
+  let bytes = try json.encode(ref ticket, limits: limits(maximumBytes: 4<iec.KiB>))
+  let restored = try json.decode<Ticket>(ref bytes, limits: limits(maximumBytes: 4<iec.KiB>))
 
   expect restored.id == 42
   expect restored.title == "horizon cake"
@@ -83,8 +83,8 @@ test "manual witness can rename and encapsulate a field" {
     payload: Payload(orderId: 7, amount: 4242),
     comment: .some("late window"),
   )
-  let bytes = try json.encode(ref source, limits: limits(4<iec.KiB>))
-  let restored = try json.decode<Envelope>(ref bytes, limits: limits(4<iec.KiB>))
+  let bytes = try json.encode(ref source, limits: limits(maximumBytes: 4<iec.KiB>))
+  let restored = try json.decode<Envelope>(ref bytes, limits: limits(maximumBytes: 4<iec.KiB>))
 
   expect restored.payload.orderId == 7
   expect restored.comment == .some("late window")
@@ -92,8 +92,8 @@ test "manual witness can rename and encapsulate a field" {
 
 test "round trip preserves declaration order and optional null" {
   var source = Ticket(id: 9, title: "nebula broth", garnish: .some("salt"))
-  let bytes = try json.encode(ref source, limits: limits(4<iec.KiB>))
-  let restored = try json.decode<Ticket>(ref bytes, limits: limits(4<iec.KiB>))
+  let bytes = try json.encode(ref source, limits: limits(maximumBytes: 4<iec.KiB>))
+  let restored = try json.decode<Ticket>(ref bytes, limits: limits(maximumBytes: 4<iec.KiB>))
 
   expect bytes == b"{\"id\":9,\"title\":\"nebula broth\",\"garnish\":\"salt\"}"
   expect restored.id == source.id
@@ -103,19 +103,19 @@ test "round trip preserves declaration order and optional null" {
 
 test "struct decode accepts members in any order and escaping stays stable" {
   var reversed: Bytes = b"{\"garnish\":null,\"title\":\"nebula\",\"id\":9}"
-  let restored = try decodeTicket(ref reversed)
+  let restored = try decodeTicket(source: ref reversed)
   expect restored.id == 9
   expect restored.garnish == .none
 
   let escaped = Escaped(text: "line\nquote\"")
-  let bytes = try json.encode(ref escaped, limits: limits(1<iec.KiB>))
+  let bytes = try json.encode(ref escaped, limits: limits(maximumBytes: 1<iec.KiB>))
   expect bytes == b"{\"text\":\"line\\nquote\\\"\"}"
 }
 
 test "escape vectors cover C0, slash, and direct Unicode" {
   // Provider-gated vector: it fixes escapes without claiming JCS identity.
   let escaped = Escaped(text: "\"\\/\b\t\n\f\r\u{0001}é😀")
-  let bytes = try json.encode(ref escaped, limits: limits(1<iec.KiB>))
+  let bytes = try json.encode(ref escaped, limits: limits(maximumBytes: 1<iec.KiB>))
   expect bytes == b"{\"text\":\"\\\"\\\\/\\b\\t\\n\\f\\r\\u0001\xC3\xA9\xF0\x9F\x98\x80\"}"
 }
 
@@ -123,8 +123,8 @@ test "float vectors keep signed zero and exponent round-trip" {
   // Provider-gated vectors: these do not claim canonical JSON or JCS.
   var negativeZero = -0.0_f64
   var exponent = 1.25e-7_f64
-  let zeroBytes = try json.encode(ref negativeZero, limits: limits(1<iec.KiB>))
-  let exponentBytes = try json.encode(ref exponent, limits: limits(1<iec.KiB>))
+  let zeroBytes = try json.encode(ref negativeZero, limits: limits(maximumBytes: 1<iec.KiB>))
+  let exponentBytes = try json.encode(ref exponent, limits: limits(maximumBytes: 1<iec.KiB>))
   expect zeroBytes == b"-0"
   expect exponentBytes == b"1.25e-7"
 }
@@ -134,7 +134,7 @@ test "Map<String, V> preserves insertion order" {
   labels["first"] = 1
   labels["second"] = 2
 
-  let bytes = try json.encode(ref labels, limits: limits(1<iec.KiB>))
+  let bytes = try json.encode(ref labels, limits: limits(maximumBytes: 1<iec.KiB>))
   expect bytes == b"{\"first\":1,\"second\":2}"
 }
 
@@ -149,19 +149,19 @@ test "Object equality ignores order but encoding preserves each order" {
   ]
   let first = try json.Object(
     take firstEntries,
-    limits: limits(1<iec.KiB>),
+    limits: limits(maximumBytes: 1<iec.KiB>),
   )
   let second = try json.Object(
     take secondEntries,
-    limits: limits(1<iec.KiB>),
+    limits: limits(maximumBytes: 1<iec.KiB>),
   )
 
   expect first == second
 
   var firstValue = json.Value.object(copy first)
   var secondValue = json.Value.object(copy second)
-  let firstBytes = try json.encode(ref firstValue, limits: limits(1<iec.KiB>))
-  let secondBytes = try json.encode(ref secondValue, limits: limits(1<iec.KiB>))
+  let firstBytes = try json.encode(ref firstValue, limits: limits(maximumBytes: 1<iec.KiB>))
+  let secondBytes = try json.encode(ref secondValue, limits: limits(maximumBytes: 1<iec.KiB>))
   expect firstBytes == b"{\"a\":\"one\",\"b\":\"two\"}"
   expect secondBytes == b"{\"b\":\"two\",\"a\":\"one\"}"
 }
@@ -169,7 +169,7 @@ test "Object equality ignores order but encoding preserves each order" {
 test "duplicate object names always fail" {
   var input: Bytes = b"{\"id\":1,\"id\":2,\"title\":\"duplicate\"}"
   do {
-    let _ = try decodeTicket(ref input)
+    let _ = try decodeTicket(source: ref input)
     panic("duplicate JSON member was accepted")
   } catch .duplicateMember(let name, let location) {
     expect name == "id"
@@ -180,7 +180,7 @@ test "duplicate object names always fail" {
 test "syntax diagnostics identify the offending byte" {
   var input: Bytes = b"{\"id\":1,}"
   do {
-    let _ = try decodeTicket(ref input)
+    let _ = try decodeTicket(source: ref input)
     panic("trailing comma was accepted")
   } catch .syntax(let kind, let location) {
     expect kind == .object
@@ -192,20 +192,20 @@ test "unknown members follow the call policy" {
   var input: Bytes = b"{\"id\":1,\"title\":\"known\",\"extra\":true}"
 
   do {
-    let _ = try decodeTicket(ref input, unknownMembers: .reject)
+    let _ = try decodeTicket(source: ref input, unknownMembers: .reject)
     panic("unknown JSON member was accepted by reject policy")
   } catch .unknownMember(let name, _) {
     expect name == "extra"
   }
 
-  let ignored = try decodeTicket(ref input, unknownMembers: .ignore)
+  let ignored = try decodeTicket(source: ref input, unknownMembers: .ignore)
   expect ignored.id == 1
 }
 
 test "missing required field fails" {
   var input: Bytes = b"{\"title\":\"missing id\"}"
   do {
-    let _ = try decodeTicket(ref input)
+    let _ = try decodeTicket(source: ref input)
     panic("missing required field was accepted")
   } catch .missingMember(let name, _) {
     expect name == "id"
@@ -216,7 +216,7 @@ test "decode reports JSON kind, enum, and refinement failures" {
   // Provider-gated vectors.  They do not claim execution without std.json@1.
   var object: Bytes = b"{}"
   do {
-    let _ = try json.decode<u64>(ref object, limits: limits(1<iec.KiB>))
+    let _ = try json.decode<u64>(ref object, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("object was accepted as an integer")
   } catch .typeMismatch(.number, .object, let location) {
     expect location.byteOffset == 0
@@ -224,7 +224,7 @@ test "decode reports JSON kind, enum, and refinement failures" {
 
   var unknownCase: Bytes = b"\"unknown\""
   do {
-    let _ = try json.decode<CourseTag>(ref unknownCase, limits: limits(1<iec.KiB>))
+    let _ = try json.decode<CourseTag>(ref unknownCase, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("unknown enum case was accepted")
   } catch .invalidValue(.enumCase, let location) {
     expect location.byteOffset == 0
@@ -232,7 +232,7 @@ test "decode reports JSON kind, enum, and refinement failures" {
 
   var outOfRefinement: Bytes = b"4"
   do {
-    let _ = try json.decode<TinyCount>(ref outOfRefinement, limits: limits(1<iec.KiB>))
+    let _ = try json.decode<TinyCount>(ref outOfRefinement, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("refinement failure was accepted")
   } catch .invalidValue(.refinement, let location) {
     expect location.byteOffset == 0
@@ -243,14 +243,14 @@ test "Option accepts missing and explicit null as none" {
   var missing: Bytes = b"{\"id\":1,\"title\":\"missing option\"}"
   var explicitNull: Bytes = b"{\"id\":1,\"title\":\"null option\",\"garnish\":null}"
 
-  expect (try decodeTicket(ref missing)).garnish == .none
-  expect (try decodeTicket(ref explicitNull)).garnish == .none
+  expect (try decodeTicket(source: ref missing)).garnish == .none
+  expect (try decodeTicket(source: ref explicitNull)).garnish == .none
 }
 
 test "interoperable profile rejects an unsafe integer" {
   var input: Bytes = b"9007199254740992"
   do {
-    let _ = try json.decode<i64>(ref input, limits: limits(1<iec.KiB>))
+    let _ = try json.decode<i64>(ref input, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("interoperable JSON accepted an unsafe integer")
   } catch .unsafeInteger(_, _) {
     // Expected I-JSON range failure.
@@ -260,7 +260,7 @@ test "interoperable profile rejects an unsafe integer" {
 test "interoperable encoding reports an unsafe integer precisely" {
   var unsafeInteger: i64 = 9_007_199_254_740_992
   do {
-    let _ = try json.encode(ref unsafeInteger, limits: limits(1<iec.KiB>))
+    let _ = try json.encode(ref unsafeInteger, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("interoperable JSON encoded an unsafe integer")
   } catch .integerOutOfRange(let value, .interoperable) {
     expect value == "9007199254740992"
@@ -271,7 +271,7 @@ test "rfc8259 profile preserves an exact integer token" {
   var input: Bytes = b"9007199254740993"
   let value = try json.decode<json.Number>(
     ref input,
-    limits: limits(1<iec.KiB>),
+    limits: limits(maximumBytes: 1<iec.KiB>),
     profile: .rfc8259,
   )
 
@@ -281,7 +281,7 @@ test "rfc8259 profile preserves an exact integer token" {
 test "nonfinite floats are rejected" {
   var nan = f64.nan
   do {
-    let _ = try json.encode(ref nan, limits: limits(1<iec.KiB>))
+    let _ = try json.encode(ref nan, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("JSON encoded NaN")
   } catch .nonFiniteFloat(.interoperable) {
     // JSON has no NaN or Infinity value.
@@ -291,7 +291,7 @@ test "nonfinite floats are rejected" {
 test "invalid surrogate escape is rejected" {
   var input: Bytes = b"\"\\ud800\""
   do {
-    let _ = try json.decode<String>(ref input, limits: limits(1<iec.KiB>))
+    let _ = try json.decode<String>(ref input, limits: limits(maximumBytes: 1<iec.KiB>))
     panic("JSON accepted a lone surrogate")
   } catch .invalidSurrogate(let location) {
     // W String contains Unicode scalar values only.
@@ -302,7 +302,7 @@ test "invalid surrogate escape is rejected" {
 test "input, depth, value, and allocation limits are independent" {
   var tooManyBytes: Bytes = b"\"123456789\""
   do {
-    let _ = try json.decode<String>(ref tooManyBytes, limits: limits(4))
+    let _ = try json.decode<String>(ref tooManyBytes, limits: limits(maximumBytes: 4))
     panic("input byte limit was ignored")
   } catch .limitExceeded(.bytes, _, let location) {
     expect location.byteOffset == 4

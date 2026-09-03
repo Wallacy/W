@@ -2,7 +2,7 @@ PFU0 candidate witness. This file is reserved text, not W source.
 
 build.w contains direct package and/or workspace records (no wrapper) // one or two records, at least one; order-independent; standalone package owns its fields; declared workspace owns a member or colocated package
 service stream fn updates(...): Item throws Failure // interface normalizes to some Stream<Item,Failure>; ServiceFailure admission/open stays distinct from terminal Failure
-property value { modify + defer is the current local-hook control; replace / modify phases are reserved comparison text; willSet / didSet has no final spelling or owner }
+property value { get mut ref + defer is the current local-borrow control; replace / get mut ref phases are reserved comparison text; willSet / didSet has no final spelling or owner }
 
 The build manifest form is current and accepted. The stream fn and willSet / didSet spellings are rejected candidates because their ownership and lifecycle are ambiguous; those rejected spellings have no grammar or current atlas entry. This text records closure evidence.
 pfu0Study

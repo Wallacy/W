@@ -50,13 +50,14 @@
           "match": "b\\\"(?:[\\x20-\\x21\\x23-\\x5b\\x5d-\\x7e]|\\\\(?:x[0-9A-Fa-f]{2}|[\\\\\\\"nrt0]))*\\\""
         },
         {
-          "name": "constant.character.scalar.w",
-          "match": "'(?:[^'\\\\\\r\\n]|\\\\.)'"
-        },
-        {
           "name": "string.quoted.raw.triple.w",
           "begin": "(#)\\\"\\\"\\\"",
           "end": "\\\"\\\"\\\"\\1"
+        },
+        {
+          "name": "string.quoted.raw.triple.w",
+          "begin": "(#)'''",
+          "end": "'''\\1"
         },
         {
           "name": "string.quoted.triple.w",
@@ -65,9 +66,20 @@
           "patterns": [{ "include": "#interpolation" }]
         },
         {
+          "name": "string.quoted.triple.w",
+          "begin": "'''",
+          "end": "'''",
+          "patterns": [{ "include": "#interpolation" }]
+        },
+        {
           "name": "string.quoted.raw.w",
           "begin": "(#)\\\"",
           "end": "\\\"\\1"
+        },
+        {
+          "name": "string.quoted.raw.w",
+          "begin": "(#)'",
+          "end": "'\\1"
         },
         {
           "name": "string.quoted.double.w",
@@ -75,6 +87,15 @@
           "end": "\\\"",
           "patterns": [
             { "name": "constant.character.escape.w", "match": "\\\\(?:[\\\"\\\\nrt0]|u\\{[0-9A-Fa-f]+\\})" },
+            { "include": "#interpolation" }
+          ]
+        },
+        {
+          "name": "string.quoted.single.w",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            { "name": "constant.character.escape.w", "match": "\\\\(?:['\\\\nrt0]|u\\{[0-9A-Fa-f]+\\})" },
             { "include": "#interpolation" }
           ]
         }
@@ -154,16 +175,12 @@
           "match": "\\batomic\\b"
         },
         {
-          "name": "keyword.other.parameter.w",
-          "match": "\\bnamed\\b(?=\\s+[A-Za-z_][A-Za-z0-9_]*\\s*:)"
-        },
-        {
           "name": "keyword.other.ownership.w",
           "match": "\\b(?:copy|inout|pin|ref|shared|take|view|weak)\\b"
         },
         {
           "name": "keyword.operator.w",
-          "match": "\\b(?:any|as|each|get|init|is|modify|set|some|storage)\\b"
+          "match": "\\b(?:any|as|each|get|init|is|set|some|storage)\\b"
         }
       ]
     },
@@ -205,7 +222,7 @@
             { "include": "#strings" },
             {
               "name": "entity.name.function.hook.w",
-              "match": "\\b(?:mut\\s+)?(willSet|didSet|willModify|didModify)(?=\\s*\\()",
+              "match": "\\b(?:mut\\s+)?(willGet|didGet|willSet|didSet)(?=\\s*\\()",
               "captures": {
                 "1": { "name": "entity.name.function.hook.w" }
               }

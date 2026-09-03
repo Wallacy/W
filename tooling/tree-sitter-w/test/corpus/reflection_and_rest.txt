@@ -99,12 +99,12 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))
         (rest_marker)))
@@ -123,7 +123,7 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))
         (rest_marker)))
@@ -140,7 +140,8 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))
         (rest_marker)))
@@ -157,12 +158,12 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -269,11 +270,11 @@ fn inspect(value: ref any Reflectable, other: TypeId) {
         (type
           (function_type
             (function_type_parameter
-              (type
+              (parameter_type
                 (type_name
                   (type_identifier))))
             (function_type_parameter
-              (type
+              (parameter_type
                 (type_name
                   (type_identifier)))
               (rest_marker))

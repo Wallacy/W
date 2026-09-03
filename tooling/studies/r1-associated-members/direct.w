@@ -8,7 +8,7 @@ enum Course {
 
   const count: usize = 4
 
-  static fn fromOrdinal(value: usize): Course? {
+  static fn fromOrdinal(_ value: usize): Course? {
     return switch value {
       case 0: .some(.nebulaBroth)
       case 1: .some(.photonSouffle)
@@ -19,7 +19,7 @@ enum Course {
   }
 }
 
-fn selectCourse(value: usize): Course? {
+fn selectCourse(_ value: usize): Course? {
   guard value < Course.count else return .none
   return Course.fromOrdinal(value)
 }

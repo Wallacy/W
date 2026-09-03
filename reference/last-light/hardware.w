@@ -13,8 +13,8 @@ foreign c from "last_light_probe.h" {
     status: c.int
   }
 
-  fn ll_probe_read(probe: c.ptr<ll_probe>, sample: c.ptr<ll_sample>): c.int
-  fn ll_probe_close(probe: c.ptr<ll_probe>)
+  fn ll_probe_read(_ probe: c.ptr<ll_probe>, _ sample: c.ptr<ll_sample>): c.int
+  fn ll_probe_close(_ probe: c.ptr<ll_probe>)
 }
 
 // Binding metadata classifies ll_probe_read as blocking. The device adapter

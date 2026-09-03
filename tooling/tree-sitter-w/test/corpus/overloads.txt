@@ -49,12 +49,12 @@ fn quote(): Money {
           (parameter
             (identifier)
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier))))
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block
@@ -75,12 +75,12 @@ fn quote(): Money {
           (parameter
             (identifier)
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier))))
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (block
@@ -107,13 +107,13 @@ fn quote(): Money {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -141,18 +141,18 @@ fn quote(): Money {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

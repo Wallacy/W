@@ -620,25 +620,29 @@ do {
 
             <div class="ownership-strip" aria-label="Operadores de passagem e ownership">
               <div><code>ref T</code><span>empréstimo somente leitura</span></div>
-              <div><code>inout T</code><span>empréstimo mutável exclusivo</span></div>
+              <div><code>mut ref T</code><span>empréstimo exclusivo direto</span></div>
+              <div><code>mut view T</code><span>visão lógica exclusiva</span></div>
+              <div><code>inout T</code><span>valor de entrada/saída com writeback</span></div>
               <div><code>take value</code><span>transfere ownership</span></div>
               <div><code>copy value</code><span>duplica intencionalmente</span></div>
             </div>
 
             <div class="card-grid">
-              <article class="cheat-card featured" data-topics="systems memória ownership ref inout take copy empréstimo movimento">
+              <article class="cheat-card featured" data-topics="systems memória ownership ref mut-ref mut-view inout take copy empréstimo movimento">
                 <div class="card-topline">
                   <div>
                     <span class="badge proposal">Candidato</span>
                     <h3>Custo excepcional fica visível</h3>
                   </div>
-                  <span class="card-token">ref · inout · take · copy</span>
+                  <span class="card-token">ref · mut ref · mut view · inout · take · copy</span>
                 </div>
                 <p class="card-summary">Anotações aparecem nas fronteiras relevantes, não em cada uso cotidiano de um valor.</p>
                 <div class="split-code">
                   <div class="code-shell">
                     <pre><code>fn checksum(bytes: ref [u8]): u64
-mut fn normalize(buffer: inout Buffer): Void
+mut fn normalize(buffer: mut ref Buffer): Void
+fn window(buffer: mut view Buffer): View
+fn replace(buffer: inout Buffer): Void
 fn enqueue(job: take Job): Ticket
 fn snapshot(state: ref State): State {
   return copy state
@@ -646,7 +650,9 @@ fn snapshot(state: ref State): State {
                   </div>
                   <div class="effect-list" aria-label="Efeitos do exemplo">
                     <div><span>ref</span><p>Observa, não retém nem altera.</p></div>
-                    <div><span>inout</span><p>Altera durante uma janela exclusiva.</p></div>
+                    <div><span>mut ref</span><p>Empresta acesso exclusivo direto; o lugar é dependente e verificado por lifetime.</p></div>
+                    <div><span>mut view</span><p>Empresta uma visão lógica exclusiva.</p></div>
+                    <div><span>inout</span><p>Move ou prepara um valor local e escreve de volta no retorno.</p></div>
                     <div><span>take</span><p>Origem deixa de poder usar o valor.</p></div>
                     <div><span>copy</span><p>Custo de duplicação é solicitado.</p></div>
                   </div>

@@ -1,6 +1,6 @@
 // R1 Last Light end-relative access study variant.
 
-fn lastLabel(items: ref Array<String>): ref String? {
+fn lastLabel(_ items: ref Array<String>): ref String? {
   return items.last
 }
 

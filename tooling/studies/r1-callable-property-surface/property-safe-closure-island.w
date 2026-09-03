@@ -14,7 +14,7 @@ unsafe fn<C> legacyProbeStatus(status: c.int): c.int {
   return status;
 }
 
-fn callableSurfaceEntry(arrival: Arrival, gate: usize): Welcome {
+fn callableSurfaceEntry(_ arrival: Arrival, _ gate: usize): Welcome {
   let greet = <[copy gate]> (arrival) => Welcome(orderId: arrival.orderId, gate: gate)
   return greet(arrival)
 }

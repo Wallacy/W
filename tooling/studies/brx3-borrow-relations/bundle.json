@@ -9,18 +9,18 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_relations_brx3.w",
     "symbol": "selectPrimaryRelation",
-    "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+    "digest": "sha256:700d9840a017bfbdf5ef35c41c2aaf20ac7def46469860d813b84b4ae4aeec04"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/borrow_relations_brx3.w",
       "symbol": "MenuSelectionRelation",
-      "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+      "digest": "sha256:700d9840a017bfbdf5ef35c41c2aaf20ac7def46469860d813b84b4ae4aeec04"
     },
     {
       "path": "../../../reference/last-light/borrow_relations_brx3.w",
       "symbol": "selectPairRelation",
-      "digest": "sha256:d81cd2f4e251f6a4a397c9332311ab8ff3d82afacc0597d72f8de82d8deb3dfb"
+      "digest": "sha256:700d9840a017bfbdf5ef35c41c2aaf20ac7def46469860d813b84b4ae4aeec04"
     }
   ],
   "entry": "borrows",
@@ -30,7 +30,7 @@
       "language": "w",
       "path": "clause.w",
       "role": "selected",
-      "digest": "sha256:411adc35d5b6eb8bc15bee910020a84cec4bec6a59c37f6b3be866a69e5efad2",
+      "digest": "sha256:c03c6c3c5f65c6713a2c2896c31889c69b5a19cc5dc27266e4d26d28ecf1fe38",
       "changedConstructs": [
         "contextual borrows clause",
         "ordinal function-type references",

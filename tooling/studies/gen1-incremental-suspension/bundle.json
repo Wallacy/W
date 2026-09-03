@@ -11,43 +11,43 @@
   "sourceBase": {
     "path": "../../../reference/last-light/streams.w",
     "symbol": "serveOneByOne",
-    "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+    "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "executionForms",
-      "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d"
+      "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
     },
     {
       "path": "../../../reference/last-light/state_transitions.w",
       "symbol": "OvenSession",
-      "digest": "sha256:33e42872928481b2db314d8351af53188dfbd3220808bb4f42b635d65924de3f"
+      "digest": "sha256:ec27a3b3670c216d35f4714ad87c7b7c086f5a20b89b13bb47562ed96ada7edf"
     },
     {
       "path": "../../../reference/last-light/ownership_execution_oracle.w",
       "symbol": "fourOwnershipForms",
-      "digest": "sha256:60a1eb4bcc0afb74df4d98d91ff6c6bb6a954df86ab59c162bac1dd32c7f8b36"
+      "digest": "sha256:fc4000f42c5cbf1916fe6d0350728c59bef544cb40aa0a94fe05d835a08faa63"
     },
     {
       "path": "../../../reference/last-light/lifecycle_oracle.w",
       "symbol": "TaskLifecycle",
-      "digest": "sha256:ed4dda39d5e833509d276c67d83a4681c6e5d9b0fbda44ff6a84479f497443de"
+      "digest": "sha256:ad5c617bba05590e66b211095899d9fe394677166608fb4e4c1fa9f4bf6f7884"
     },
     {
       "path": "../../../reference/last-light/scheduler_oracle.w",
       "symbol": "ReplayComparison",
-      "digest": "sha256:d2f2732b896553128b1e1826aaa0a833ed1e5fa9bb211dda611801ebc5f795ef"
+      "digest": "sha256:b82f4bd98c762fa197f6083e065a34bb8a383b9948ac48901294183bae8e0e50"
     },
     {
       "path": "../../../reference/last-light/liveness_oracle.w",
       "symbol": "FrameReclaimGate",
-      "digest": "sha256:447a3fc9252312c7403450a861a75324bb34e1a91df9a7a7981d0bc0b38b4119"
+      "digest": "sha256:7204a9fe49de311781c43eba4d08f0d41d151a8fc065e29242fcd84e1f8214a9"
     },
     {
       "path": "../../../reference/last-light/restaurant.w",
       "symbol": "prepareDish",
-      "digest": "sha256:939042393a77883ec00c92f30952315e96319c1a5b23c870b3940d4a29b7be0e"
+      "digest": "sha256:9d771184098c5b8e9a93e5f3676193dcbe2791ddae99896a5b4c15041a681f18"
     }
   ],
   "helpers": [
@@ -55,7 +55,7 @@
       "id": "bounded-dialogue-builder",
       "path": "builder-helper.w",
       "symbol": "makeDialogue",
-      "digest": "sha256:da7fc606174e3c595556b7eee134cc79fd985f86a55c0a8798fde714edc892fb",
+      "digest": "sha256:efd1a047d0673cc730b0b57963232065e037353d4fc898592191afaba251ee5e",
       "claim": "library helper keeps channel capacity explicit before any syntax candidate"
     }
   ],
@@ -66,7 +66,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "stream-structured.w",
-      "digest": "sha256:f8828c783b2da0c5cefb46093c9c85dfbdd76f21bdbca8084c5aa924b9bbc098",
+      "digest": "sha256:a21bb79ba01bc8dfd042e11000c80f014c26e5ee76c4234ec7a1001ec9a22a44",
       "changedConstructs": [
         "Stream pull",
         "for try await",
@@ -84,7 +84,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "nominal-state-machine.w",
-      "digest": "sha256:bc08f55356b2dd00634aae918fdbb321ecd94f0853e46148fb8bfcf29747330b",
+      "digest": "sha256:1fb9ce538fb137b2821cc47c3e94f257f2eefaa0e1859799d8b83bde58179fa5",
       "changedConstructs": [
         "nominal state enum",
         "owned session record",
@@ -102,7 +102,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "dual-bounded-channels.w",
-      "digest": "sha256:e0c7cb31e050580370604dc9f373b2a23953c5ef8db19586ebfd8899310574a1",
+      "digest": "sha256:d442646c91896fe44b5784e700dd23db4829a8e77908ae8737c61f21b1f54961",
       "changedConstructs": [
         "request channel",
         "response channel",
@@ -161,7 +161,7 @@
         {
           "variant": "stream-structured",
           "symbol": "observeSuspension",
-          "digest": "sha256:960e3f002aa8503b978b39e9d1f9dc897e84f5d58bd3b9258b1677e8c30d68ea",
+          "digest": "sha256:c7e44569eadc519d0213c9b7a5448b29dd9d01e1124bdece825ee72abed7c786",
           "applicability": "Stream pull source"
         }
       ]
@@ -172,13 +172,13 @@
         {
           "variant": "stream-structured",
           "symbol": "observeTraversal",
-          "digest": "sha256:a7e10c8f4ec37a6507d2cdc6bb74540bd5eb1157b7eb1e969541694bd3a25e3d",
+          "digest": "sha256:3f5937986a3bc3c993b592d63abfbf40df1e801c671aa0096238907e238bf1d5",
           "applicability": "Stream borrowed traversal"
         },
         {
           "variant": "nominal-state-machine",
           "symbol": "observeTraversal",
-          "digest": "sha256:cf1b3e9d79a69703fd3382e23fbb717740a45e9a88da1313f4e77bea15ca4452",
+          "digest": "sha256:3efb88f90b4413330bafebb0d3e922761f2356e22c660cafd14b77fab5ff9ff9",
           "applicability": "nominal cursor traversal"
         }
       ]
@@ -189,13 +189,13 @@
         {
           "variant": "nominal-state-machine",
           "symbol": "observeSuspension",
-          "digest": "sha256:cc6b7a8bb2bb6c6c0cf7bddd2eaafb1e8b493e321c6d7a0c146b17b9253c6160",
+          "digest": "sha256:9e36d818eaf71a7db1fb74956e1ef5add13a7e1bd9f7019e867caecc5d7b7522",
           "applicability": "nominal dialogue state"
         },
         {
           "variant": "dual-bounded-channels",
           "symbol": "observeDialogue",
-          "digest": "sha256:16a92b495db456d6785fcdb585c01367101198abb0d8df0c969d3dee9214070f",
+          "digest": "sha256:ab367494c37e5f1bc29596687f076b775d1161bbac43ba77507b412401b2f17b",
           "applicability": "dual bounded channels"
         },
         {
@@ -212,13 +212,13 @@
         {
           "variant": "stream-structured",
           "symbol": "observeDelegation",
-          "digest": "sha256:24d5334b8558ccd28d79f86712726655f82166a6c238aed6d8ccf2a55faf6fb2",
+          "digest": "sha256:a2ef1b92ca9d12f5e946eb1ccbbe2b8f29bbc7ebc644cc9e57529ad0bf0949e7",
           "applicability": "structured Stream child"
         },
         {
           "variant": "nominal-state-machine",
           "symbol": "observeDelegation",
-          "digest": "sha256:2a60ff7b8e971dc205a52cac5c07207544e8341687baedff517ebca3ddf03f6c",
+          "digest": "sha256:3dea29e20a7373147369762446fbea5b567a6af34cc6009a2e183a555e012d21",
           "applicability": "nominal child state"
         }
       ]

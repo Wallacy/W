@@ -135,9 +135,10 @@ fn reserve(for guest: GuestId, seats: GuestCount): Reservation throws BookingErr
           <p class="chapter-number">Capítulo 4</p>
           <h2>Memória, layout e property behaviors</h2>
           <p>O caminho comum usa owner único, move, borrows locais inferidos e destruição determinística.
-            <code>ref</code> empresta leitura, <code>inout</code> empresta mutação, <code>take</code> transfere
-            ownership e <code>copy</code> pede uma cópia deliberada. <code>shared T</code> torna
-            compartilhamento explícito.</p>
+            <code>ref</code> empresta leitura, <code>mut ref</code> empresta acesso exclusivo direto,
+            <code>mut view</code> empresta uma visão lógica exclusiva e <code>inout</code> usa valor de
+            entrada/saída com writeback. <code>take</code> transfere ownership e <code>copy</code> pede uma
+            cópia deliberada. <code>shared T</code> torna compartilhamento explícito.</p>
           <div class="code-shell"><pre><code>export service Kitchen as KitchenApi {
   var Lazy calibration = loadCalibration()
   var atomic completed: u64 = 0

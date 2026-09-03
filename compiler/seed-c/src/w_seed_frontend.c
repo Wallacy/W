@@ -1210,6 +1210,48 @@ typedef struct {
   uint32_t parameter_index;
 } frontend_generic_schema_item;
 
+static bool generic_schema_slot_is_anchor(
+    const frontend_generic_schema_item *schema, size_t slot) {
+  if (schema == NULL) return false;
+  return schema[slot].parameter.kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE ||
+         schema[slot].parameter.label_kind ==
+             W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+}
+
+static size_t generic_schema_slot_segment(
+    const frontend_generic_schema_item *schema, size_t schema_count,
+    size_t slot) {
+  if (schema == NULL || slot > schema_count) return SIZE_MAX;
+  size_t segment = 0u;
+  for (size_t index = 0u; index < slot; index += 1u) {
+    if (generic_schema_slot_is_anchor(schema, index)) segment += 1u;
+  }
+  return segment;
+}
+
+/* Generic applications advance through positional anchors in declaration
+ * order. Named value slots are free to move only inside the segment bounded by
+ * those anchors. Keep this state derived from bound[] so recovery paths and
+ * reordered named arguments use the same frontier. */
+static void advance_generic_application_anchor_state(
+    const frontend_generic_schema_item *schema, size_t schema_count,
+    const bool *bound, size_t *next_anchor, size_t *segment) {
+  if (schema == NULL || bound == NULL || next_anchor == NULL ||
+      segment == NULL)
+    return;
+  while (*next_anchor < schema_count &&
+         (!generic_schema_slot_is_anchor(schema, *next_anchor) ||
+          bound[*next_anchor])) {
+    *next_anchor += 1u;
+  }
+  *segment = 0u;
+  for (size_t index = 0u; index < schema_count; index += 1u) {
+    if (generic_schema_slot_is_anchor(schema, index) && bound[index]) {
+      *segment += 1u;
+    }
+  }
+}
+
 static bool find_type_node_for_span(const w_seed_frontend_document *doc,
                                     w_seed_span span, uint32_t *type_node) {
   if (type_node != NULL) *type_node = W_SEED_CST_NONE;
@@ -1554,9 +1596,7 @@ static bool build_generic_schema(
     item->parameter.ordinal = (uint32_t)ordinal;
     item->parameter.external_label = generic_parameter_external_label(doc, child);
     item->parameter.internal_name = generic_parameter_name(doc, child);
-    item->parameter.label_kind = generic_parameter_label_omitted(doc, child)
-                                     ? W_SEED_FRONTEND_LABEL_OPTIONAL
-                                     : W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+    item->parameter.label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
     item->parameter.kind = W_SEED_FRONTEND_GENERIC_KIND_TYPE;
     item->parameter.span = doc->nodes[child].raw_span;
     item->parameter.domain_type = W_SEED_FRONTEND_NONE;
@@ -1601,11 +1641,8 @@ static bool build_generic_schema(
       item->parameter.domain_kind = W_SEED_FRONTEND_GENERIC_DOMAIN_INVALID;
     } else if (item->type_node != W_SEED_CST_NONE) {
       item->parameter.label_kind = generic_parameter_label_omitted(doc, child)
-                                       ? W_SEED_FRONTEND_LABEL_OPTIONAL
-                                       : generic_parameter_word_at(doc, child, 1u)
-                                                     .length != 0u
-                                             ? W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED
-                                             : W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
+                                       ? W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY
+                                       : W_SEED_FRONTEND_LABEL_REQUIRED;
       uint32_t dependent_ordinal = W_SEED_FRONTEND_NONE;
       const bool dependent = generic_domain_refers_to_previous_type(
           doc, child, NULL, &dependent_ordinal, prior_names, prior_is_type,
@@ -2199,8 +2236,16 @@ static bool resolve_one_pending_generic_application(
   (void)memset(built, 0, sizeof(built));
   bool bound[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
   (void)memset(bound, 0, sizeof(bound));
-  size_t next_slot = 0u;
-  bool named_seen = false;
+  size_t argument_for_slot[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
+  for (size_t index = 0u;
+       index < sizeof(argument_for_slot) / sizeof(argument_for_slot[0]);
+       index += 1u) {
+    argument_for_slot[index] = SIZE_MAX;
+  }
+  size_t next_anchor = 0u;
+  size_t current_segment = 0u;
+  advance_generic_application_anchor_state(
+      schema, schema_count, bound, &next_anchor, &current_segment);
   bool valid = shapes_ok && !schema_invalid;
   bool semantic_error = schema_invalid || (!shapes_ok && !shape_limit_hit);
   bool unsupported_seen = has_later_envelope || schema_limit_hit;
@@ -2252,9 +2297,10 @@ static bool resolve_one_pending_generic_application(
     bool label_matches_type = false;
     size_t type_label_slot = SIZE_MAX;
     if (shape->has_label) {
-      /* Named syntax is sticky even when its label is malformed.  A later
-       * positional argument must not recover the binding after this point. */
-      named_seen = true;
+      /* Named values select a slot by label. The selected slot must remain in
+       * the segment bounded by anchors already consumed; this permits
+       * reordering inside a segment without allowing a label to cross a type
+       * or positional value parameter. */
       for (size_t candidate = 0u; candidate < schema_count; candidate += 1u) {
         if (schema[candidate].parameter.kind ==
                 W_SEED_FRONTEND_GENERIC_KIND_TYPE &&
@@ -2265,12 +2311,8 @@ static bool resolve_one_pending_generic_application(
         }
         if (schema[candidate].parameter.kind !=
                 W_SEED_FRONTEND_GENERIC_KIND_TYPE &&
-            (text_equal_text(schema[candidate].parameter.external_label,
-                             shape->label) ||
-             (schema[candidate].parameter.label_kind ==
-                  W_SEED_FRONTEND_LABEL_OPTIONAL &&
-              text_equal_text(schema[candidate].parameter.internal_name,
-                              shape->label)))) {
+            text_equal_text(schema[candidate].parameter.external_label,
+                            shape->label)) {
           slot = candidate;
           break;
         }
@@ -2295,7 +2337,7 @@ static bool resolve_one_pending_generic_application(
               shape->label);
         }
         slot = SIZE_MAX;
-      } else if (slot < next_slot || bound[slot]) {
+      } else if (bound[slot]) {
         valid = false;
         w_seed_frontend_text slot_order[W_SEED_FRONTEND_MAX_GENERIC_SLOTS];
         const size_t slot_order_count = diagnostic_generic_slot_order(
@@ -2310,81 +2352,74 @@ static bool resolve_one_pending_generic_application(
             slot_order_count,
             (w_seed_frontend_text){"duplicate", sizeof("duplicate") - 1u});
         slot = SIZE_MAX;
-      } else if (slot != next_slot) {
+      } else if (generic_schema_slot_is_anchor(schema, slot) ||
+                 generic_schema_slot_segment(schema, schema_count, slot) !=
+                     current_segment) {
         valid = false;
-        const w_seed_frontend_text expected_slot =
-            next_slot < schema_count
-                ? schema[next_slot].parameter.internal_name
-                : (w_seed_frontend_text){"extra", sizeof("extra") - 1u};
         const w_seed_frontend_text expected_kind =
-            next_slot < schema_count &&
-                    schema[next_slot].parameter.kind ==
-                        W_SEED_FRONTEND_GENERIC_KIND_TYPE
+            schema[slot].parameter.kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE
                 ? (w_seed_frontend_text){"type", sizeof("type") - 1u}
                 : (w_seed_frontend_text){"value", sizeof("value") - 1u};
-        if (expected_slot.length == 0u) return false;
-        const size_t expected_slot_index =
-            next_slot < schema_count ? next_slot : SIZE_MAX;
         (void)append_generic0003_diagnostic(
             context, shape->span, shape->label,
             expected_kind,
-            expected_slot, (int64_t)ordinal,
-            (w_seed_frontend_text){"named-argument-out-of-order",
-                                   sizeof("named-argument-out-of-order") - 1u},
+            schema[slot].parameter.internal_name, (int64_t)ordinal,
+            (w_seed_frontend_text){"named-argument-crosses-anchor",
+                                   sizeof("named-argument-crosses-anchor") -
+                                       1u},
             pending->module_index,
-            expected_slot_index == SIZE_MAX
-                ? shape->span
-                : schema[expected_slot_index].parameter.span);
+            schema[slot].parameter.span);
         slot = SIZE_MAX;
       } else {
         /* The slot is still eligible after the order/label checks above. */
       }
     } else {
-      if (named_seen && next_slot < schema_count) {
-        valid = false;
-        const bool has_expected_slot = next_slot < schema_count;
-        const w_seed_frontend_text parameter =
-            has_expected_slot
-                ? schema[next_slot].parameter.internal_name
-                : (w_seed_frontend_text){"extra", sizeof("extra") - 1u};
-        const w_seed_frontend_text kind =
-            has_expected_slot &&
-                    schema[next_slot].parameter.kind ==
-                        W_SEED_FRONTEND_GENERIC_KIND_TYPE
-                ? (w_seed_frontend_text){"type", sizeof("type") - 1u}
-                : (w_seed_frontend_text){"value", sizeof("value") - 1u};
-        const w_seed_span label_span =
-            has_expected_slot ? schema[next_slot].parameter.span : shape->span;
-        (void)append_generic0003_diagnostic(
-            context, shape->span, (w_seed_frontend_text){"_", 1u}, kind,
-            parameter, (int64_t)ordinal,
-            (w_seed_frontend_text){"positional-after-named",
-                                   sizeof("positional-after-named") - 1u},
-            pending->module_index, label_span);
-      } else if (next_slot >= schema_count) {
+      if (next_anchor >= schema_count) {
+        size_t required_slot = SIZE_MAX;
+        for (size_t candidate = 0u; candidate < schema_count;
+             candidate += 1u) {
+          if (!bound[candidate] &&
+              schema[candidate].parameter.kind ==
+                  W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
+              schema[candidate].parameter.label_kind ==
+                  W_SEED_FRONTEND_LABEL_REQUIRED) {
+            required_slot = candidate;
+            break;
+          }
+        }
+        if (required_slot != SIZE_MAX) {
+          valid = false;
+          (void)append_generic0003_diagnostic(
+              context, shape->span, (w_seed_frontend_text){"_", 1u},
+              (w_seed_frontend_text){"value", sizeof("value") - 1u},
+              schema[required_slot].parameter.internal_name, (int64_t)ordinal,
+              (w_seed_frontend_text){"required-label-omitted",
+                                     sizeof("required-label-omitted") - 1u},
+              pending->module_index, schema[required_slot].parameter.span);
+        } else {
+          valid = false;
+          (void)append_generic0003_diagnostic(
+              context, shape->span, (w_seed_frontend_text){"_", 1u},
+              (w_seed_frontend_text){"value", sizeof("value") - 1u},
+              (w_seed_frontend_text){"extra", sizeof("extra") - 1u},
+              (int64_t)ordinal,
+              (w_seed_frontend_text){"extra-argument",
+                                     sizeof("extra-argument") - 1u},
+              pending->module_index, shape->span);
+        }
+      } else {
+        slot = next_anchor;
+      }
+      if (slot != SIZE_MAX && !generic_schema_slot_is_anchor(schema, slot)) {
         valid = false;
         (void)append_generic0003_diagnostic(
             context, shape->span, (w_seed_frontend_text){"_", 1u},
             (w_seed_frontend_text){"value", sizeof("value") - 1u},
-            (w_seed_frontend_text){"extra", sizeof("extra") - 1u},
-            (int64_t)ordinal,
-            (w_seed_frontend_text){"extra-argument",
-                                   sizeof("extra-argument") - 1u},
-            pending->module_index, shape->span);
-      } else if (schema[next_slot].parameter.kind ==
-                     W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
-                 schema[next_slot].parameter.label_kind !=
-                     W_SEED_FRONTEND_LABEL_OPTIONAL) {
-        valid = false;
-        (void)append_generic0003_diagnostic(
-            context, shape->span, (w_seed_frontend_text){"_", 1u},
-            (w_seed_frontend_text){"value", sizeof("value") - 1u},
-            schema[next_slot].parameter.internal_name, (int64_t)ordinal,
+            schema[slot].parameter.internal_name, (int64_t)ordinal,
             (w_seed_frontend_text){"required-label-omitted",
                                    sizeof("required-label-omitted") - 1u},
-            pending->module_index, schema[next_slot].parameter.span);
-      } else {
-        slot = next_slot;
+            pending->module_index, schema[slot].parameter.span);
+        slot = SIZE_MAX;
       }
     }
     if (slot == SIZE_MAX || slot >= schema_count) continue;
@@ -2394,6 +2429,7 @@ static bool resolve_one_pending_generic_application(
                                    W_SEED_FRONTEND_GENERIC_KIND_VALUE
                                ? W_SEED_FRONTEND_GENERIC_ARGUMENT_VALUE
                                : W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE;
+    argument_for_slot[slot] = ordinal;
     if (schema[slot].parameter.kind == W_SEED_FRONTEND_GENERIC_KIND_TYPE) {
       if (shape->has_label) {
         valid = false;
@@ -2446,10 +2482,12 @@ static bool resolve_one_pending_generic_application(
           W_SEED_FRONTEND_GENERIC_DOMAIN_DEPENDENT) {
         const uint32_t dependent =
             schema[slot].parameter.dependent_type_parameter_ordinal;
-        if (dependent >= ordinal ||
-            built[dependent].value.binding_status !=
+        const size_t dependent_argument =
+            dependent < schema_count ? argument_for_slot[dependent] : SIZE_MAX;
+        if (dependent_argument == SIZE_MAX ||
+            built[dependent_argument].value.binding_status !=
                 W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE ||
-            built[dependent].value.kind !=
+            built[dependent_argument].value.kind !=
                 W_SEED_FRONTEND_GENERIC_ARGUMENT_TYPE) {
           valid = false;
           w_seed_frontend_text actual_kind;
@@ -2469,11 +2507,12 @@ static bool resolve_one_pending_generic_application(
                                            W_SEED_FRONTEND_NONE,
                                            &argument->value.const_value_index);
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
-        expected_type_index = built[dependent].value.type_index;
-        expected = built[dependent].type_simple;
+        expected_type_index = built[dependent_argument].value.type_index;
+        expected = built[dependent_argument].type_simple;
         const frontend_static_argument_support dependent_support =
             static_argument_representable(context, expected);
         if (dependent_support != FRONTEND_STATIC_ARGUMENT_IMMEDIATE) {
@@ -2505,7 +2544,8 @@ static bool resolve_one_pending_generic_application(
                 schema[slot].parameter.span);
           }
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
       }
@@ -2548,7 +2588,8 @@ static bool resolve_one_pending_generic_application(
           unsupported_seen = true;
           valid = false;
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
         const uint32_t saved_function_index = context->function_index;
@@ -2601,7 +2642,8 @@ static bool resolve_one_pending_generic_application(
           argument->value.binding_status =
               W_SEED_FRONTEND_GENERIC_BINDING_INVALID;
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
         if (!normalized || !root.supported ||
@@ -2614,7 +2656,8 @@ static bool resolve_one_pending_generic_application(
           unsupported_seen = true;
           valid = false;
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
         /* A typed record is executable only when this application has no
@@ -2624,7 +2667,8 @@ static bool resolve_one_pending_generic_application(
         if (!valid || unsupported_seen ||
             context->count.diagnostics > diagnostics_before) {
           bound[slot] = true;
-          if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
           continue;
         }
         w_seed_frontend_typed_const_expression typed;
@@ -2654,7 +2698,8 @@ static bool resolve_one_pending_generic_application(
             W_SEED_FRONTEND_GENERIC_BINDING_TYPED_PENDING_CONST;
         typed_const_expr_seen = true;
         bound[slot] = true;
-        if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
         continue;
       }
       if (expected.kind == W_SEED_FRONTEND_TYPE_BYTES ||
@@ -2676,7 +2721,8 @@ static bool resolve_one_pending_generic_application(
         unsupported_seen = true;
         valid = false;
         bound[slot] = true;
-        if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
         continue;
       }
       const size_t facts_before_const = context->count.facts;
@@ -2753,7 +2799,8 @@ static bool resolve_one_pending_generic_application(
       }
     }
     bound[slot] = true;
-    if (slot == next_slot) next_slot += 1u;
+          advance_generic_application_anchor_state(
+              schema, schema_count, bound, &next_anchor, &current_segment);
   }
   for (size_t slot = 0u; slot < schema_count; slot += 1u) {
     if (bound[slot]) continue;
@@ -3740,7 +3787,7 @@ static bool external_input_ready(const w_seed_frontend_input *input) {
             &symbol->parameters[parameter_index];
         if (!external_text_valid(parameter->name) ||
             parameter->name.length == 0 ||
-            parameter->label_kind > W_SEED_FRONTEND_LABEL_OPTIONAL ||
+            parameter->label_kind > W_SEED_FRONTEND_LABEL_REQUIRED ||
             !external_text_valid(parameter->type) ||
             parameter->type.length == 0) {
           return false;
@@ -3833,7 +3880,7 @@ static bool host_prelude_input_ready(const w_seed_frontend_input *input) {
           &symbol->parameters[parameter_index];
       if (!external_text_valid(parameter->name) ||
           parameter->name.length == 0u ||
-          parameter->label_kind > W_SEED_FRONTEND_LABEL_OPTIONAL ||
+          parameter->label_kind > W_SEED_FRONTEND_LABEL_REQUIRED ||
           !external_text_valid(parameter->type) ||
           parameter->type.length == 0u) {
         return false;
@@ -6180,12 +6227,7 @@ static size_t diagnostic_call_accepted_forms(
               signature_doc, signature_doc->nodes[child].raw_span);
           const w_seed_frontend_text label = parameter_external_label_from_span(
               signature_doc, signature_doc->nodes[child].raw_span);
-          if (policy == W_SEED_FRONTEND_LABEL_OPTIONAL) {
-            (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                       positional);
-            (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                       label);
-          } else if (policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+          if (policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
             (void)diagnostic_form_push(forms, form_capacity, &form_count,
                                        positional);
           } else {
@@ -6203,13 +6245,7 @@ static size_t diagnostic_call_accepted_forms(
   if (external_signature != NULL && ordinal < external_signature->parameter_count) {
     const w_seed_frontend_external_parameter *parameter =
         &external_signature->parameters[ordinal];
-    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
-      (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                 positional);
-      (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                 parameter->name);
-    } else if (parameter->label_kind ==
-               W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
       (void)diagnostic_form_push(forms, form_capacity, &form_count,
                                  positional);
     } else {
@@ -6222,13 +6258,7 @@ static size_t diagnostic_call_accepted_forms(
   if (host_signature != NULL && ordinal < host_signature->parameter_count) {
     const w_seed_frontend_external_parameter *parameter =
         &host_signature->parameters[ordinal];
-    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
-      (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                 positional);
-      (void)diagnostic_form_push(forms, form_capacity, &form_count,
-                                 parameter->name);
-    } else if (parameter->label_kind ==
-               W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
+    if (parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
       (void)diagnostic_form_push(forms, form_capacity, &form_count,
                                  positional);
     } else {
@@ -7918,13 +7948,25 @@ static w_seed_frontend_text generic_predicate_call_name(
                   (token_count - 2u) * sizeof(tokens[0]));
     token_count -= 2u;
   }
-  if (token_count != 5u || tokens[0].kind != W_SEED_CST_WORD ||
+  if (token_count < 2u || tokens[0].kind != W_SEED_CST_WORD ||
       !token_text(doc, &tokens[1], "(") ||
-      !token_text(doc, &tokens[2], ".") || tokens[3].kind != W_SEED_CST_WORD ||
-      !token_text(doc, &tokens[3], "member") ||
-      !token_text(doc, &tokens[4], ")")) {
+      !token_text(doc, &tokens[token_count - 1u], ")")) {
     return (w_seed_frontend_text){NULL, 0};
   }
+  /* W-1514 makes predicate applications label-first too.  Keep the
+   * positional spelling accepted for the seed's historical negative corpus,
+   * while recognizing the current `name: .member` form used by Last Light. */
+  const bool positional_member =
+      token_count == 5u && token_text(doc, &tokens[2], ".") &&
+      tokens[3].kind == W_SEED_CST_WORD &&
+      token_text(doc, &tokens[3], "member");
+  const bool named_member =
+      token_count == 7u && tokens[2].kind == W_SEED_CST_WORD &&
+      token_text(doc, &tokens[3], ":") && token_text(doc, &tokens[4], ".") &&
+      tokens[5].kind == W_SEED_CST_WORD &&
+      token_text(doc, &tokens[5], "member");
+  if (!positional_member && !named_member)
+    return (w_seed_frontend_text){NULL, 0};
   return text_from_span(doc, tokens[0].span);
 }
 
@@ -8140,9 +8182,7 @@ static bool normalize_struct_generic_parameters(
     value.ordinal = ordinal;
     value.external_label = generic_parameter_external_label(doc, child);
     value.internal_name = generic_parameter_name(doc, child);
-    value.label_kind = generic_parameter_label_omitted(doc, child)
-                           ? W_SEED_FRONTEND_LABEL_OPTIONAL
-                           : W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+    value.label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
     value.kind = W_SEED_FRONTEND_GENERIC_KIND_TYPE;
     value.span = doc->nodes[child].raw_span;
     value.domain_type = W_SEED_FRONTEND_NONE;
@@ -8193,11 +8233,8 @@ static bool normalize_struct_generic_parameters(
     const uint32_t type_node = generic_parameter_type_node(doc, child);
     if (type_node != W_SEED_CST_NONE && !duplicate_schema_name) {
       value.label_kind = generic_parameter_label_omitted(doc, child)
-                             ? W_SEED_FRONTEND_LABEL_OPTIONAL
-                             : generic_parameter_word_at(doc, child, 1u)
-                                           .length != 0u
-                                   ? W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED
-                                   : W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
+                             ? W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY
+                             : W_SEED_FRONTEND_LABEL_REQUIRED;
       w_seed_frontend_text dependent_name = {NULL, 0};
       uint32_t dependent_ordinal = W_SEED_FRONTEND_NONE;
       const bool dependent = generic_domain_refers_to_previous_type(
@@ -9270,16 +9307,12 @@ static w_seed_frontend_label_kind parameter_label_kind(
       second = text_from_span(doc, token.span);
     }
   }
-  if (second.length != 0 && text_equal(first, "named")) {
-    return W_SEED_FRONTEND_LABEL_NAMED_REQUIRED;
-  }
   if (second.length != 0 && text_equal(first, "_")) {
-    return W_SEED_FRONTEND_LABEL_OPTIONAL;
+    return W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
   }
   /* Any two-name form is external/internal.  `from` and `to` are common
    * spellings, but they are not keywords. */
-  if (second.length != 0) return W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED;
-  return W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+  return W_SEED_FRONTEND_LABEL_REQUIRED;
 }
 
 static w_seed_frontend_text parameter_name_from_span(
@@ -9318,8 +9351,8 @@ static w_seed_frontend_text parameter_external_label_from_span(
       second = value;
     }
   }
-  if (second.length == 0) return (w_seed_frontend_text){NULL, 0};
-  if (text_equal(first, "named") || text_equal(first, "_")) return second;
+  if (text_equal(first, "_")) return (w_seed_frontend_text){NULL, 0};
+  if (second.length == 0) return first;
   return first;
 }
 
@@ -9606,8 +9639,7 @@ static bool local_argument_expected(
                    text_equal_text(label_from_span, label);
       } else {
         selected = index == ordinal &&
-                   policy != W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
-                   policy != W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED;
+                   policy != W_SEED_FRONTEND_LABEL_REQUIRED;
       }
       if (selected) {
         const uint32_t type_node = direct_type_index(doc, child);
@@ -9669,8 +9701,7 @@ static bool external_argument_expected(
   if (ordinal >= symbol->parameter_count) return false;
   const w_seed_frontend_external_parameter *parameter =
       &symbol->parameters[ordinal];
-  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_NAMED_REQUIRED ||
-      parameter->label_kind == W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED) {
+  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED) {
     return false;
   }
   *expected = external_contextual_type(context, parameter->type);
@@ -9696,8 +9727,7 @@ static bool host_argument_expected(
   if (ordinal >= symbol->parameter_count) return false;
   const w_seed_frontend_external_parameter *parameter =
       &symbol->parameters[ordinal];
-  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_NAMED_REQUIRED ||
-      parameter->label_kind == W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED) {
+  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED) {
     return false;
   }
   *expected = external_contextual_type(context, parameter->type);
@@ -9713,8 +9743,7 @@ static uint32_t external_argument_ordinal(
     if (offset >= parameter_count) return W_SEED_FRONTEND_NONE;
     const w_seed_frontend_external_parameter *parameter =
         &parameters[offset];
-    return parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
-                   parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL
+    return parameter->label_kind == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY
                ? (offset >= (size_t)UINT32_MAX ? W_SEED_FRONTEND_NONE
                                                : (uint32_t)offset)
                : W_SEED_FRONTEND_NONE;
@@ -10731,8 +10760,7 @@ static bool call_label_known(const frontend_context *context,
           parameter_external_label_from_span(owner_doc,
                                              owner_doc->nodes[child].raw_span);
       if (label.length == 0) {
-        return policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
-               policy == W_SEED_FRONTEND_LABEL_OPTIONAL;
+        return policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
       }
       if (policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
         guard += 1;
@@ -13228,8 +13256,7 @@ static bool resolve_frontend_links(frontend_context *context) {
           const w_seed_frontend_parameter *parameter =
               &context->output->parameters[parameter_index];
           if (parameter->label_kind ==
-                  W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY ||
-              parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL) {
+              W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY) {
             ordinal = offset;
           }
         }

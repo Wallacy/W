@@ -17,7 +17,7 @@
   "source": {
     "path": "reference/last-light/formatting.w",
     "symbol": "oneLine",
-    "digest": "sha256:bd71e5e93863f389cfa5212549e081affe42934eebec2aeec9620297f6076f64"
+    "digest": "sha256:65584c9c0a1e4886864eb261dfbab4f935ccf53a45cfbe3fd9a4b4dff40567e3"
   },
   "logicalValue": {
     "type": "String",
@@ -30,7 +30,15 @@
     "maxStringBytes": 64,
     "maxDepth": 1,
     "maxFields": 0,
-    "validationOrder": ["schema", "version", "encoded-length", "string-length", "depth", "field-count", "payload"]
+    "validationOrder": [
+      "schema",
+      "version",
+      "encoded-length",
+      "string-length",
+      "depth",
+      "field-count",
+      "payload"
+    ]
   },
   "targetProjections": [
     {
@@ -78,10 +86,35 @@
       "role": "deterministic-cbor"
     }
   ],
-  "forbidden": ["pointer", "owner", "capability", "drop", "editor-tree-authority"],
+  "forbidden": [
+    "pointer",
+    "owner",
+    "capability",
+    "drop",
+    "editor-tree-authority"
+  ],
   "evidence": {
-    "current": ["source-ref", "official-primary", "deterministic-cbor", "host-oracle", "negative-mutations", "snapshot", "target-receipts"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "oom-fault-receipt", "abi-execution", "package-execution", "human-study", "model-study"]
+    "current": [
+      "source-ref",
+      "official-primary",
+      "deterministic-cbor",
+      "host-oracle",
+      "negative-mutations",
+      "snapshot",
+      "target-receipts"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "oom-fault-receipt",
+      "abi-execution",
+      "package-execution",
+      "human-study",
+      "model-study"
+    ]
   },
   "stopCondition": "Stop on a byte, schema, limit, target-parity, authority, ABI, package, security, or typed-error divergence. Reopen only with an independent reducer and reviewed decision."
 }

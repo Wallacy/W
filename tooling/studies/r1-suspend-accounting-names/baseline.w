@@ -3,8 +3,8 @@ import time from std
 // Current baseline. The enum and provider fact remain HOST/SO-only.
 export fn observeSuspend(
   using clock: ref time.Clock,
-  started: time.Instant,
-  deadline: time.Deadline,
+  _ started: time.Instant,
+  _ deadline: time.Deadline,
 ): time.SuspendAccounting {
   let policy = clock.suspendAccounting()
   let finished = clock.now()

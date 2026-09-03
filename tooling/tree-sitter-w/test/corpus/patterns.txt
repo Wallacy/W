@@ -24,7 +24,7 @@ fn bind(source: ref Source) {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -166,12 +166,12 @@ fn isSafe(temperature: Temperature): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -242,7 +242,7 @@ fn isSafe(temperature: Temperature): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -293,7 +293,7 @@ fn isSafe(temperature: Temperature): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -337,7 +337,7 @@ fn inspect(ticket: ref Ticket): State {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -409,7 +409,7 @@ fn unwrap(value: (Int,)): Int {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (tuple_type
             (type
               (type_name

@@ -15,8 +15,8 @@ enum HirAllocatorMobility { local crossDomain }
 enum HirAllocatorSlotKind { contextual }
 
 // ASC0 keeps the contextual allocator slot visible to HIR, resource/interface
-// facts, and ABI. An effect row records it only when the declaration has one;
-// it is not a hidden parameter on ordinary functions.
+// facts, and ABI at its declared position. An effect row records it only when
+// the declaration has one; it is not a hidden parameter on ordinary functions.
 struct HirAllocatorSlot {
   index: usize
   name: String
@@ -29,7 +29,7 @@ const fn validAllocatorSlots(slots: Array<HirAllocatorSlot>): Bool {
   if slots.count > 1 { return false }
   if slots.count == 0 { return true }
   let slot = slots[0]
-  return slot.index == 0 && slot.abiVisible && slot.resourceVisible
+  return slot.index >= 0 && slot.abiVisible && slot.resourceVisible
 }
 
 struct HirProjection {
@@ -187,7 +187,7 @@ const fn acceptsRepresentation(boundary: HirBoundary, representation: HirReprese
 }
 
 const fn acceptsBoundary(value: HirBoundaryValue): Bool {
-  if !acceptsRepresentation(value.boundary, value.representation) { return false }
+  if !acceptsRepresentation(boundary: value.boundary, representation: value.representation) { return false }
   return value.ownership == .borrowed || value.allocatorKnown
 }
 
@@ -339,42 +339,42 @@ fn releaseWeak(counts: HirSharedCounts): HirSharedCounts? {
 }
 
 test "M1 owner moves and drops once" {
-  let first = newOwner(.unstable)
-  let moved = moveOwner(first)
+  let first = newOwner(address: .unstable)
+  let moved = moveOwner(owner: first)
   guard let moved = moved else { panic("move was rejected") }
   expect moved.source.state == .moved
   expect moved.destination.state == .owned
 
-  let dropped = dropOwner(moved.destination)
+  let dropped = dropOwner(owner: moved.destination)
   guard let dropped = dropped else { panic("drop was rejected") }
   expect dropped.state == .dropped
-  expect dropOwner(dropped) == .none
+  expect dropOwner(owner: dropped) == .none
 }
 
 test "M1 owner borrow blocks payload movement" {
-  let borrowed = beginOwnerBorrow(newOwner(.published))
+  let borrowed = beginOwnerBorrow(owner: newOwner(address: .published))
   guard let borrowed = borrowed else { panic("borrow was rejected") }
-  expect moveOwner(borrowed) == .none
-  expect dropOwner(borrowed) == .none
+  expect moveOwner(owner: borrowed) == .none
+  expect dropOwner(owner: borrowed) == .none
 
-  let released = endOwnerBorrow(borrowed)
+  let released = endOwnerBorrow(owner: borrowed)
   guard let released = released else { panic("borrow end was rejected") }
-  expect moveOwner(released) != .none
+  expect moveOwner(owner: released) != .none
 }
 
 test "M1 representation and ABI are checked before lowering" {
-  expect acceptsRepresentation(.internal, .lowBit)
-  expect acceptsRepresentation(.wExact, .provenNiche)
-  expect !acceptsRepresentation(.foreignC, .provenNiche)
-  expect acceptsRepresentation(.foreignC, .nativeCarrier)
-  expect !acceptsRepresentation(.internal, .highBit)
-  expect acceptsBoundary(HirBoundaryValue(
+  expect acceptsRepresentation(boundary: .internal, representation: .lowBit)
+  expect acceptsRepresentation(boundary: .wExact, representation: .provenNiche)
+  expect !acceptsRepresentation(boundary: .foreignC, representation: .provenNiche)
+  expect acceptsRepresentation(boundary: .foreignC, representation: .nativeCarrier)
+  expect !acceptsRepresentation(boundary: .internal, representation: .highBit)
+  expect acceptsBoundary(value: HirBoundaryValue(
     boundary: .wExact,
     representation: .provenNiche,
     ownership: .owned,
     allocatorKnown: true,
   ))
-  expect !acceptsBoundary(HirBoundaryValue(
+  expect !acceptsBoundary(value: HirBoundaryValue(
     boundary: .wire,
     representation: .explicitTag,
     ownership: .owned,
@@ -387,8 +387,8 @@ test "M1 representation and ABI are checked before lowering" {
     representationPolicy: 1,
     runtimeAbi: 1,
   )
-  expect sameAbi(key, key)
-  expect !sameAbi(key, HirAbiKey(
+  expect sameAbi(left: key, right: key)
+  expect !sameAbi(left: key, right: HirAbiKey(
     target: 2,
     callingConvention: 1,
     representationPolicy: 1,
@@ -413,9 +413,9 @@ test "M1 place IDs require a child reborrow to be a subplace" {
     start: 0,
     endExclusive: 0,
   )])
-  expect placeIsSubplace(child, parent)
-  expect !placeIsSubplace(sibling, parent)
-  expect !placeIsSubplace(HirPlaceId(root: "kitchen", projections: []), parent)
+  expect placeIsSubplace(child: child, parent: parent)
+  expect !placeIsSubplace(child: sibling, parent: parent)
+  expect !placeIsSubplace(child: HirPlaceId(root: "kitchen", projections: []), parent: parent)
 }
 
 test "M1 dependency edges project lifetime independence" {
@@ -453,23 +453,23 @@ test "M1 dependency edges project lifetime independence" {
   )
   let value = HirDependentPayload(edges: [dynamic, immortal], lifetimeIndependent: false)
   let surviving = joinDependencies(
-    value,
-    HirDependentPayload(edges: [dynamicCopy], lifetimeIndependent: false),
+    left: value,
+    right: HirDependentPayload(edges: [dynamicCopy], lifetimeIndependent: false),
   )
-  let origins = projectOrigins(ref surviving)
+  let origins = projectOrigins(value: ref surviving)
   expect !surviving.lifetimeIndependent
   expect surviving.edges.count == 3
   expect origins.count == 2
-  expect dependentMayReturn(surviving, ["menu"])
-  expect !dependentMayReturn(surviving, [])
-  expect dependencyPermits(dynamic, .read)
-  expect !dependencyPermits(dynamic, .write)
-  expect dependencyPermits(exclusive, .write)
+  expect dependentMayReturn(value: surviving, surviving: ["menu"])
+  expect !dependentMayReturn(value: surviving, surviving: [])
+  expect dependencyPermits(edge: dynamic, access: .read)
+  expect !dependencyPermits(edge: dynamic, access: .write)
+  expect dependencyPermits(edge: exclusive, access: .write)
 }
 
 test "M1 pinned handle moves while payload root stays stable" {
   let payload = HirPlaceId(root: "pin:state", projections: [])
-  let handle = pinHandle(payload, "handle")
+  let handle = pinHandle(payloadRoot: payload, handleRoot: "handle")
   expect handle.payloadRoot.root == "pin:state"
   expect handle.handleRoot == "handle"
   let loan = HirLoanRecord(
@@ -482,40 +482,40 @@ test "M1 pinned handle moves while payload root stays stable" {
     parent: .none,
     childCount: 0,
   )
-  let moved = movePinnedHandle(handle, "movedHandle")
+  let moved = movePinnedHandle(handle: handle, destination: "movedHandle")
   expect moved.handleRoot == "movedHandle"
   expect moved.payloadRoot.root == handle.payloadRoot.root
-  expect loanCanSuspend(loan, true)
+  expect loanCanSuspend(loan: loan, referentStable: true)
 }
 
 test "M1 bodyless interface mapping requires one unique source" {
   let mapping = deriveBodylessMapping(
-    .free,
-    false,
-    ["parameter:0"],
-    ["result.title", "result.body"],
+    kind: .free,
+    receiverCompatible: false,
+    inputSlots: ["parameter:0"],
+    resultSlots: ["result.title", "result.body"],
   )
   guard let mapping = mapping else { panic("mapping was rejected") }
   expect mapping.count == 2
   expect mapping[0].sources == ["parameter:0"]
 
   let ambiguous = deriveBodylessMapping(
-    .free,
-    false,
-    ["parameter:0", "parameter:1"],
-    ["result"],
+    kind: .free,
+    receiverCompatible: false,
+    inputSlots: ["parameter:0", "parameter:1"],
+    resultSlots: ["result"],
   )
   expect ambiguous == .none
 
   let initializer = deriveBodylessMapping(
-    .initializer,
-    false,
-    ["parameter:0"],
-    ["result"],
+    kind: .initializer,
+    receiverCompatible: false,
+    inputSlots: ["parameter:0"],
+    resultSlots: ["result"],
   )
   expect initializer == .none
 
-  let receiver = deriveBodylessMapping(.instance, true, ["parameter:0"], ["result"])
+  let receiver = deriveBodylessMapping(kind: .instance, receiverCompatible: true, inputSlots: ["parameter:0"], resultSlots: ["result"])
   guard let receiver = receiver else { panic("receiver mapping was rejected") }
   expect receiver[0].sources == ["receiver"]
 }
@@ -531,8 +531,8 @@ test "M1 await requires stable referent" {
     parent: .none,
     childCount: 0,
   )
-  expect loanCanSuspend(loan, true)
-  expect !loanCanSuspend(loan, false)
+  expect loanCanSuspend(loan: loan, referentStable: true)
+  expect !loanCanSuspend(loan: loan, referentStable: false)
 }
 
 test "M1 borrow and storage origins remain independent" {
@@ -556,9 +556,9 @@ test "M1 borrow and storage origins remain independent" {
     mobility: .crossDomain,
   )])
 
-  expect !canCreateShared(ref borrowed)
-  expect !storageCanCrossDomain(ref localStorage)
-  expect storageCanCrossDomain(ref processStorage)
+  expect !canCreateShared(payload: ref borrowed)
+  expect !storageCanCrossDomain(storage: ref localStorage)
+  expect storageCanCrossDomain(storage: ref processStorage)
 }
 
 test "M1 weak handle keeps only the control block alive" {
@@ -569,38 +569,38 @@ test "M1 weak handle keeps only the control block alive" {
     blockAlive: true,
     deinitCount: 0,
   )
-  let releasedStrong = releaseStrong(initial)
+  let releasedStrong = releaseStrong(counts: initial)
   guard let releasedStrong = releasedStrong else { panic("strong release was rejected") }
   expect !releasedStrong.payloadAlive
   expect releasedStrong.blockAlive
   expect releasedStrong.deinitCount == 1
 
-  let releasedWeak = releaseWeak(releasedStrong)
+  let releasedWeak = releaseWeak(counts: releasedStrong)
   guard let releasedWeak = releasedWeak else { panic("weak release was rejected") }
   expect !releasedWeak.blockAlive
   expect releasedWeak.deinitCount == 1
 }
 
-test "ASC0 allocator slot is first, unique, and ABI-visible" {
+test "ASC0 allocator slot is unique, ABI-visible, and position-preserving" {
   let valid = [HirAllocatorSlot(
-    index: 0,
+    index: 2,
     name: "memory",
     kind: .contextual,
     abiVisible: true,
     resourceVisible: true,
   )]
   let duplicate = [
-    HirAllocatorSlot(index: 0, name: "memory", kind: .contextual, abiVisible: true, resourceVisible: true),
-    HirAllocatorSlot(index: 1, name: "other", kind: .contextual, abiVisible: true, resourceVisible: true),
+    HirAllocatorSlot(index: 2, name: "memory", kind: .contextual, abiVisible: true, resourceVisible: true),
+    HirAllocatorSlot(index: 3, name: "other", kind: .contextual, abiVisible: true, resourceVisible: true),
   ]
   let hidden = [HirAllocatorSlot(
-    index: 0,
+    index: 2,
     name: "memory",
     kind: .contextual,
     abiVisible: false,
     resourceVisible: true,
   )]
-  expect validAllocatorSlots(valid)
-  expect !validAllocatorSlots(duplicate)
-  expect !validAllocatorSlots(hidden)
+  expect validAllocatorSlots(slots: valid)
+  expect !validAllocatorSlots(slots: duplicate)
+  expect !validAllocatorSlots(slots: hidden)
 }

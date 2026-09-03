@@ -19,9 +19,9 @@ export behavior WrappedDegrees for u16 {
     current = newValue % 360_u16
   }
 
-  mut modify {
+  get mut ref {
     defer { current %= 360_u16 }
-    return inout current
+    return mut ref current
   }
 
   export mut fn reset() {
@@ -31,30 +31,46 @@ export behavior WrappedDegrees for u16 {
 
 export behavior Versioned<Value> for Value {
   var epoch: u64
+  var replacements: u64
+  var reads: u64
 
   init() {
     epoch = 0
+    replacements = 0
+    reads = 0
   }
 
   export mutationEpoch: u64 {
     get => epoch
   }
 
+  export replacementCount: u64 {
+    get => replacements
+  }
+
+  export readCount: u64 {
+    get => reads
+  }
+
   export mut fn resetMutationEpoch() {
     epoch = 0
   }
 
-  willSet(current: ref Value, proposed: ref Value) { }
+  mut willGet(kind: PropertyAccessKind) { reads += 1 }
+  didGet(kind: PropertyAccessKind) { }
+
+  mut willSet(current: ref Value, proposed: ref Value) { replacements += 1 }
 
   mut didSet(current: ref Value) {
     epoch += 1
   }
 
-  willModify(current: ref Value) { }
+}
 
-  mut didModify(current: ref Value) {
-    epoch += 1
-  }
+export enum PropertyAccessKind {
+  value
+  borrowed
+  mutableBorrowed
 }
 
 // An observer is reachable through a named composition only. A direct
@@ -62,6 +78,8 @@ export behavior Versioned<Value> for Value {
 // composition would synthesize plain storage and still pass the RHS to it.
 export behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
+
+fn nudge(value: mut ref u16) { value += 5 }
 
 export struct Attitude {
   var VersionedDegrees yaw: u16 = 0
@@ -80,13 +98,17 @@ test "attitude rotation wraps degrees" for Attitude {
 
   let beforeReset = attitude.yaw#version.mutationEpoch
   expect beforeReset == 2
-
-  attitude.yaw#version.resetMutationEpoch()
-  expect attitude.yaw#version.mutationEpoch == 0
+  expect attitude.yaw#version.replacementCount == 2
 
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
-  expect attitude.yaw#version.mutationEpoch == 1
+  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.replacementCount == 2
+
+  nudge(value: mut ref attitude.yaw)
+  expect attitude.yaw == 5
+  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.replacementCount == 2
 }
 
 export type SatelliteId = u32
@@ -142,7 +164,7 @@ export struct PairTelemetry {
 
 export async fn observePair(
   left: ServiceRef<SatelliteApi>,
-  named right: ServiceRef<SatelliteApi>,
+  right: ServiceRef<SatelliteApi>,
   after sequence: u64,
 ): PairTelemetry throws SatelliteError {
   let leftSample = async left.telemetry(after: sequence)
@@ -191,8 +213,8 @@ export fn closestApproach(
 
   for index in 0..<samples {
     let elapsed = index * step
-    let leftState = propagate(left, during: elapsed)
-    let rightState = propagate(right, during: elapsed)
+    let leftState = propagate(state: left, during: elapsed)
+    let rightState = propagate(state: right, during: elapsed)
     let distance = (leftState.position - rightState.position).norm()
 
     if distance < bestDistance {
@@ -215,6 +237,6 @@ test "constant velocity propagation preserves shape" for propagate {
     velocity: [1<si.m/si.s>, 2<si.m/si.s>, 3<si.m/si.s>],
     epoch: 0<si.s>,
   )
-  let next = propagate(state, during: 2<si.s>)
+  let next = propagate(state: state, during: 2<si.s>)
   expect next.position == [2<si.m>, 4<si.m>, 6<si.m>]
 }

@@ -5,6 +5,6 @@ unsafe fn<lang: .c> legacyProbeStatus(status: c.int): c.int {
   return status;
 }
 
-fn callableSurfaceEntry(arrival: Arrival, gate: usize): Welcome {
+fn callableSurfaceEntry(_ arrival: Arrival, _ gate: usize): Welcome {
   return Welcome(orderId: arrival.orderId, gate: gate)
 }

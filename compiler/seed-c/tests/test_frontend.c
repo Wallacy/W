@@ -827,8 +827,8 @@ static bool test_enums_and_payloads(void) {
   fixture *callback = &fixture_callback;
   CHECK(fixture_run(
       callback,
-      "enum Callbacks { positional(fn(named value: u32): Bool) "
-      "labeled(handler: fn(named value: u32): Bool) }\n"));
+      "enum Callbacks { positional(fn(u32): Bool) "
+      "labeled(handler: fn(u32): Bool) }\n"));
   CHECK(callback->parse.status == W_SEED_PARSE_COMPLETE);
   CHECK(callback->result.status == W_SEED_FRONTEND_UNSUPPORTED);
   CHECK(callback->result.written.enums == 1 &&
@@ -900,27 +900,27 @@ static bool test_semantic_diagnostics(void) {
   CHECK(saw_label);
   const w_seed_frontend_diagnostic *unknown_label =
       diagnostic_for_code(label, "W-LABEL-0005");
-  static const char *const positional_form[] = {"positional"};
+  static const char *const value_form[] = {"value"};
   CHECK(unknown_label != NULL && unknown_label->fact_count == 3u &&
         unknown_label->label_count == 0u &&
         diagnostic_record_ranges_are_valid(label, unknown_label));
   CHECK(diagnostic_fact_array_is(label, unknown_label, 0u, "acceptedForms",
-                                 positional_form, 1u));
+                                 value_form, 1u));
   CHECK(diagnostic_fact_string_is(label, unknown_label, 1u, "declaration",
                                   "callee"));
   CHECK(diagnostic_fact_string_is(label, unknown_label, 2u, "label", "other"));
   fixture *call_type = &fixture_label;
   CHECK(fixture_run(call_type,
                     "fn callee(value: u32): u32 { return value }\n"
-                    "fn f(): u32 { return callee(true) }\nentry(f)\n"));
+                    "fn f(): u32 { return callee(value: true) }\nentry(f)\n"));
   CHECK(call_type->result.status == W_SEED_FRONTEND_UNSUPPORTED);
   CHECK(has_fact(call_type, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
   CHECK(fixture_run(call_type,
                     "fn inspect(named: Bool): Bool { return named }\n"
-                    "fn f(): Bool { return inspect(true) }\nentry(f)\n"));
+                    "fn f(): Bool { return inspect(named: true) }\nentry(f)\n"));
   CHECK(call_type->result.status == W_SEED_FRONTEND_OK);
   CHECK(fixture_run(call_type,
-                    "fn inspect(named value: Bool): Bool { return value }\n"
+                    "fn inspect(value: Bool): Bool { return value }\n"
                     "fn f(): Bool { return inspect(value: true) }\nentry(f)\n"));
   CHECK(call_type->result.status == W_SEED_FRONTEND_OK);
 
@@ -1016,11 +1016,11 @@ static bool test_enum_subsets(void) {
       "enum Stage { accepted reserving preparing serving }\n"
       "alias FullStage = Stage<[.serving, .accepted, .preparing, .reserving]>\n"
       "alias WorkStage = Stage<[Stage.serving, .preparing]>\n"
-      "fn asBase(stage: WorkStage): Stage { return stage }\n"
-      "fn asSuperset(stage: WorkStage): FullStage { return stage }\n"
-      "fn call(stage: WorkStage): FullStage { return asSuperset(stage) }\n"
+      "fn asBase(_ stage: WorkStage): Stage { return stage }\n"
+      "fn asSuperset(_ stage: WorkStage): FullStage { return stage }\n"
+      "fn call(_ stage: WorkStage): FullStage { return asSuperset(stage) }\n"
       "fn caseValue(): WorkStage { return .preparing }\n"
-      "fn label(stage: WorkStage): String { return switch stage { "
+      "fn label(_ stage: WorkStage): String { return switch stage { "
       "case .preparing: \"P\" case .serving: \"S\" } }\n";
   fixture *value = &fixture_a;
   CHECK(fixture_run(value, source));
@@ -1174,7 +1174,7 @@ static bool test_enum_values_constructors_and_switches(void) {
   static const char values_source[] =
       "enum Stage { accepted reserving preparing serving completed cancelled }\n"
       "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
-      "fn acceptStage(value: Stage): Stage { return value }\n"
+      "fn acceptStage(_ value: Stage): Stage { return value }\n"
       "fn shortValue(): Stage { return .preparing }\n"
       "fn qualifiedValue(): Stage { return Stage.preparing }\n"
       "fn localCall(): Stage { return acceptStage(.preparing) }\n"
@@ -1492,12 +1492,12 @@ static bool test_const_and_membership(void) {
   static const char source[] =
       "enum Stage { accepted reserving preparing serving }\n"
       "alias WorkStage = Stage<[.preparing, .serving]>\n"
-      "const fn isWork(stage: Stage): Bool { return stage in "
+      "const fn isWork(_ stage: Stage): Bool { return stage in "
       "(Stage.serving, .preparing) }\n"
-      "const fn subset(stage: WorkStage): Bool { return stage in "
+      "const fn subset(_ stage: WorkStage): Bool { return stage in "
       "(.accepted, .preparing) }\n"
-      "const fn calls(stage: Stage): Bool { return isWork(stage) }\n"
-      "fn ordinary(stage: Stage): Bool { return stage in (.accepted) }\n";
+      "const fn calls(_ stage: Stage): Bool { return isWork(stage) }\n"
+      "fn ordinary(_ stage: Stage): Bool { return stage in (.accepted) }\n";
   fixture *value = &fixture_const;
   CHECK(fixture_run(value, source));
   CHECK(value->parse.status == W_SEED_PARSE_COMPLETE);
@@ -1839,7 +1839,7 @@ static bool test_host_scope_and_callee_identity(void) {
         callee->resolved_external_symbol_index == 0u);
 
   CHECK(fixture_parse(value,
-                      "fn print(message: String): () {}\n"
+                      "fn print(_ message: String): () {}\n"
                       "fn main(): () { print(\"Hello, world!\") }\n"
                       "entry(main)\n"));
   value->input.host_scope = &value->host_scope;
@@ -2643,7 +2643,8 @@ static bool test_generic_schema(void) {
         stage_parameter->internal_name.length == 6u &&
         memcmp(stage_parameter->internal_name.data, "stages", 6u) == 0);
   CHECK(stage_parameter->kind == W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
-        stage_parameter->label_kind == W_SEED_FRONTEND_LABEL_OPTIONAL &&
+        stage_parameter->label_kind ==
+            W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
         stage_parameter->domain_type != W_SEED_FRONTEND_NONE);
   CHECK(stage->types[stage_parameter->domain_type].kind ==
         W_SEED_FRONTEND_TYPE_STATIC_LIST);
@@ -2675,23 +2676,23 @@ static bool test_generic_schema(void) {
   CHECK(matrix->generic_parameters[1].kind ==
             W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
         matrix->generic_parameters[1].label_kind ==
-            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED);
+            W_SEED_FRONTEND_LABEL_REQUIRED);
   CHECK(matrix->generic_parameters[2].kind ==
             W_SEED_FRONTEND_GENERIC_KIND_VALUE &&
         matrix->generic_parameters[2].label_kind ==
-            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
+            W_SEED_FRONTEND_LABEL_REQUIRED &&
         matrix->generic_parameters[1].external_label.length == 4u &&
         memcmp(matrix->generic_parameters[1].external_label.data, "rows",
                4u) == 0);
 
   fixture *labels = &fixture_label;
   CHECK(fixture_run(labels,
-                    "struct Labels<required: usize, _ optional: usize> {}\n"));
+                    "struct Labels<required: usize, _ anchor: usize> {}\n"));
   CHECK(labels->result.status == W_SEED_FRONTEND_OK &&
         labels->generic_parameters[0].label_kind ==
-            W_SEED_FRONTEND_LABEL_NAMED_REQUIRED &&
+            W_SEED_FRONTEND_LABEL_REQUIRED &&
         labels->generic_parameters[1].label_kind ==
-            W_SEED_FRONTEND_LABEL_OPTIONAL &&
+            W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
         labels->generic_parameters[0].external_label.length == 8u &&
         memcmp(labels->generic_parameters[0].external_label.data, "required",
                8u) == 0 &&
@@ -2702,7 +2703,7 @@ static bool test_generic_schema(void) {
   CHECK(labels->result.status == W_SEED_FRONTEND_OK &&
         labels->result.written.generic_parameters == 1u &&
         labels->generic_parameters[0].label_kind ==
-            W_SEED_FRONTEND_LABEL_EXTERNAL_REQUIRED &&
+            W_SEED_FRONTEND_LABEL_REQUIRED &&
         labels->generic_parameters[0].external_label.length == 8u &&
         memcmp(labels->generic_parameters[0].external_label.data, "external",
                8u) == 0 &&
@@ -3063,7 +3064,7 @@ static bool test_generic_applications(void) {
       "enum ServiceStage { accepted completed }\n"
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n"
       "struct Use { a: StagePath<[.accepted, .accepted]> "
-      "b: StagePath<[]> c: StagePath<stages: [.accepted]> }\n"));
+      "b: StagePath<[]> c: StagePath<[.accepted]> }\n"));
   CHECK(stage->result.status == W_SEED_FRONTEND_OK &&
         stage->result.written.generic_applications == 3u &&
         stage->result.written.generic_arguments == 3u &&
@@ -3084,7 +3085,7 @@ static bool test_generic_applications(void) {
         stage->generic_arguments[1].const_value_index == 3u &&
         stage->generic_arguments[2].const_value_index == 4u);
   CHECK(stage->generic_arguments[0].label.length == 0u &&
-        stage->generic_arguments[2].label.length == 6u &&
+        stage->generic_arguments[2].label.length == 0u &&
         stage->generic_applications[0].binding_status ==
             W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
         stage->generic_applications[1].binding_status ==
@@ -3109,8 +3110,6 @@ static bool test_generic_applications(void) {
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
       "struct Use { x: Matrix<f32, 3, columns: 4> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
-      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n",
-      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
       "struct Use { x: Matrix<f32, rows: 3, 3> }\n",
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
       "struct Use { x: Matrix<f32, bogus: 3, columns: 4> }\n",
@@ -3127,7 +3126,7 @@ static bool test_generic_applications(void) {
       "18446744073709551616> }\n",
   };
   static const char *const invalid_codes[] = {
-      "W-GENERIC-0003", "W-GENERIC-0003", "W-GENERIC-0003",
+      "W-GENERIC-0003", "W-GENERIC-0003",
       "W-CONTRACT-0001", "W-CONTRACT-0004", "W-GENERIC-0002",
       "W-GENERIC-0003", "W-GENERIC-0003", "W-TYPE-0122",
   };
@@ -3141,6 +3140,18 @@ static bool test_generic_applications(void) {
           fixture_collision.generic_applications[0].binding_status ==
               W_SEED_FRONTEND_GENERIC_BINDING_INVALID);
   }
+
+  CHECK(fixture_run(
+      &fixture_collision,
+      "struct Matrix<Element, rows: usize, columns: usize> {}\n"
+      "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n"));
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
+        fixture_collision.result.written.generic_applications == 1u &&
+        fixture_collision.generic_applications[0].binding_status ==
+            W_SEED_FRONTEND_GENERIC_BINDING_BOUND_IMMEDIATE &&
+        fixture_collision.generic_arguments[0].parameter_ordinal == 0u &&
+        fixture_collision.generic_arguments[1].parameter_ordinal == 2u &&
+        fixture_collision.generic_arguments[2].parameter_ordinal == 1u);
 
   CHECK(fixture_run(
       &fixture_collision,
@@ -3213,36 +3224,10 @@ static bool test_generic_applications(void) {
       &fixture_collision,
       "struct Matrix<Element, rows: usize, columns: usize> {}\n"
       "struct Use { x: Matrix<f32, columns: 4, rows: 3> }\n"));
-  {
-    const w_seed_frontend_diagnostic *named_order =
-        diagnostic_for_code_occurrence(&fixture_collision, "W-GENERIC-0003",
-                                       0u);
-    CHECK(named_order != NULL && named_order->fact_count == 5u &&
-          named_order->label_count == 1u &&
-          diagnostic_record_ranges_are_valid(&fixture_collision, named_order));
-    CHECK(diagnostic_fact_string_is(&fixture_collision, named_order, 0u,
-                                    "externalLabel", "columns") &&
-          diagnostic_fact_string_is(&fixture_collision, named_order, 1u,
-                                    "kind", "value") &&
-          diagnostic_fact_string_is(&fixture_collision, named_order, 2u,
-                                    "parameter", "rows") &&
-          diagnostic_fact_integer_is(&fixture_collision, named_order, 3u,
-                                     "position", 1) &&
-          diagnostic_fact_string_is(&fixture_collision, named_order, 4u,
-                                    "reason", "named-argument-out-of-order"));
-    CHECK(fixture_span_text_is(&fixture_collision, 0u,
-                               named_order->primary, "columns: 4") &&
-          diagnostic_label_role_is(&fixture_collision, named_order, 0u,
-                                   "generic-parameter") &&
-          fixture_collision.diagnostic_labels[named_order->first_label]
-                  .document_index == 0u &&
-          fixture_collision.diagnostic_labels[named_order->first_label]
-                  .span.start_byte == fixture_collision.generic_parameters[1]
-                                             .span.start_byte &&
-          fixture_collision.diagnostic_labels[named_order->first_label]
-                  .span.end_byte == fixture_collision.generic_parameters[1]
-                                            .span.end_byte);
-  }
+  CHECK(fixture_collision.result.status == W_SEED_FRONTEND_OK &&
+        fixture_collision.generic_arguments[0].parameter_ordinal == 0u &&
+        fixture_collision.generic_arguments[1].parameter_ordinal == 2u &&
+        fixture_collision.generic_arguments[2].parameter_ordinal == 1u);
 
   CHECK(fixture_run(
       &fixture_collision,
@@ -3266,7 +3251,7 @@ static bool test_generic_applications(void) {
           diagnostic_fact_integer_is(&fixture_collision, positional_after_named,
                                      3u, "position", 2) &&
           diagnostic_fact_string_is(&fixture_collision, positional_after_named,
-                                    4u, "reason", "positional-after-named"));
+                                    4u, "reason", "required-label-omitted"));
     CHECK(fixture_span_text_is(&fixture_collision, 0u,
                                positional_after_named->primary, "3") &&
           diagnostic_label_role_is(&fixture_collision, positional_after_named,
@@ -3398,7 +3383,7 @@ static bool test_generic_applications(void) {
   CHECK(fixture_run(
       &fixture_unresolved,
       "struct StaticValue<T, _ value: T> {}\n"
-      "struct Use { bad: StaticValue<f32, value: 0> }\n"));
+      "struct Use { bad: StaticValue<f32, 0> }\n"));
   CHECK(fixture_unresolved.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(&fixture_unresolved, "W-CONTRACT-0002") &&
         fixture_unresolved.generic_applications[0].binding_status ==
@@ -3519,7 +3504,7 @@ static bool test_generic_applications(void) {
 
   CHECK(fixture_run(
       &fixture_label,
-      "struct Holder<_ value: u64> {}\n"
+      "struct Holder<value: u64> {}\n"
       "struct Use { a: Holder<value: 1> b: Holder<value: 1_u8> }\n"));
   CHECK(fixture_label.result.status == W_SEED_FRONTEND_OK &&
         fixture_label.result.written.const_values == 2u &&
@@ -3583,7 +3568,7 @@ static bool test_generic_applications(void) {
 
   CHECK(fixture_run(
       &fixture_collision,
-      "struct S<_ value: String> {}\n"
+      "struct S<value: String> {}\n"
       "struct Use { value: S<value: \"a\\\\n\"> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_UNSUPPORTED &&
         fixture_collision.generic_applications[0].binding_status ==
@@ -3592,7 +3577,7 @@ static bool test_generic_applications(void) {
 
   CHECK(fixture_run(
       &fixture_collision,
-      "struct S<_ value: String> {}\n"
+      "struct S<value: String> {}\n"
       "struct Use { value: S<bad: \"a\\\\n\"> }\n"));
   CHECK(fixture_collision.result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
         has_diagnostic(&fixture_collision, "W-CONTRACT-0001") &&
@@ -3776,8 +3761,8 @@ static bool test_generic_capacity_target_run(
     fixture *value, test_generic_capacity_target target) {
   static const char source[] =
       "enum Stage { accepted }\n"
-      "struct Text<_ value: String> {}\n"
-      "struct Path<_ stages: StaticList<Stage>> {}\n"
+      "struct Text<value: String> {}\n"
+      "struct Path<stages: StaticList<Stage>> {}\n"
       "struct Use { text: Text<value: \"x\"> path: Path<stages: [.accepted]> }\n";
   const uint8_t sentinel = 0xa5u;
   CHECK(fixture_parse(value, source));

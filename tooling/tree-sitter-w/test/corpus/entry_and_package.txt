@@ -59,12 +59,12 @@ entry Diagnostics {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -79,12 +79,12 @@ entry Diagnostics {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -99,12 +99,12 @@ entry Diagnostics {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block))
@@ -113,12 +113,12 @@ entry Diagnostics {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -310,7 +310,7 @@ workspace {
                 (string_literal)))))
         (manifest_field
           (identifier)
-        (manifest_value
+          (manifest_value
             (manifest_list)))))))
 
 ==================

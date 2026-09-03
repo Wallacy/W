@@ -32,19 +32,19 @@ const fn baselineAllows(
 }
 
 test "representation follows the boundary" for baselineAllows {
-  expect baselineAllows(.internal, .explicitTag)
-  expect baselineAllows(.internal, .provenNiche)
-  expect baselineAllows(.internal, .lowBit)
-  expect !baselineAllows(.internal, .highBit)
+  expect baselineAllows(boundary: .internal, choice: .explicitTag)
+  expect baselineAllows(boundary: .internal, choice: .provenNiche)
+  expect baselineAllows(boundary: .internal, choice: .lowBit)
+  expect !baselineAllows(boundary: .internal, choice: .highBit)
 
-  expect baselineAllows(.wExact, .provenNiche)
-  expect !baselineAllows(.wExact, .lowBit)
-  expect !baselineAllows(.foreignC, .provenNiche)
-  expect !baselineAllows(.foreignC, .lowBit)
-  expect !baselineAllows(.wire, .provenNiche)
-  expect !baselineAllows(.persisted, .lowBit)
-  expect baselineAllows(.capability, .explicitTag)
-  expect baselineAllows(.capability, .nativeCarrier)
-  expect baselineAllows(.foreignC, .nativeCarrier)
-  expect !baselineAllows(.wire, .nativeCarrier)
+  expect baselineAllows(boundary: .wExact, choice: .provenNiche)
+  expect !baselineAllows(boundary: .wExact, choice: .lowBit)
+  expect !baselineAllows(boundary: .foreignC, choice: .provenNiche)
+  expect !baselineAllows(boundary: .foreignC, choice: .lowBit)
+  expect !baselineAllows(boundary: .wire, choice: .provenNiche)
+  expect !baselineAllows(boundary: .persisted, choice: .lowBit)
+  expect baselineAllows(boundary: .capability, choice: .explicitTag)
+  expect baselineAllows(boundary: .capability, choice: .nativeCarrier)
+  expect baselineAllows(boundary: .foreignC, choice: .nativeCarrier)
+  expect !baselineAllows(boundary: .wire, choice: .nativeCarrier)
 }

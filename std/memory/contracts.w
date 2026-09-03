@@ -8,7 +8,7 @@
 foreign intrinsic from "std.memory@1" {
   type AllocatorHandle
 
-  fn stdMemoryDropAllocator(handle: inout AllocatorHandle)
+  fn stdMemoryDropAllocator(_ handle: inout AllocatorHandle)
 }
 
 export struct BudgetExceeded: Copy & Equatable {

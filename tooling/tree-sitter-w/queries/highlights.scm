@@ -7,7 +7,6 @@
   (string_literal)
   (raw_string_literal)
   (multiline_string_literal)
-  (scalar_literal)
   (byte_literal)
 ] @string
 
@@ -39,10 +38,10 @@
 ] @keyword.type
 
 (behavior_hook kind: [
+  "willGet"
+  "didGet"
   "willSet"
   "didSet"
-  "willModify"
-  "didModify"
 ] @keyword)
 
 [
@@ -97,11 +96,6 @@
   "workspace"
 ] @keyword.modifier
 
-((parameter
-  label: (identifier) @keyword.modifier
-  name: (identifier))
- (#eq? @keyword.modifier "named"))
-
 [
   "as"
   "any"
@@ -114,7 +108,6 @@
   "package"
   "in"
   "init"
-  "modify"
   "set"
   "some"
   "true"

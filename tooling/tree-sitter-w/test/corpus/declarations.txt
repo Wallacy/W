@@ -120,7 +120,8 @@ export {
           (parameter
             label: (identifier)
             name: (identifier)
-            type: (type
+            ownership: (parameter_call_ownership)
+            type: (parameter_type
               base: (type_name
                 name: (type_identifier))))))))
   (function_declaration
@@ -176,7 +177,7 @@ foreign c from "sqlite3.h" {
       parameters: (parameter_list
         (parameter
           name: (identifier)
-          type: (type
+          type: (parameter_type
             base: (type_name
               name: (type_identifier)
               member: (type_identifier))
@@ -212,7 +213,7 @@ fn inspect(service: ServiceRef): Bool {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -252,7 +253,7 @@ Initializers and computed properties
 
 protocol CompletionMetric {
   completionCount: u64 { get }
-  var limit: usize { get set modify }
+  var limit: usize { get set get mut ref }
 }
 
 export struct Counter: CompletionMetric {
@@ -270,8 +271,8 @@ export struct Counter: CompletionMetric {
     get => storedValue
     set(next) => storedValue = next
 
-    modify {
-      return inout storedValue
+    get mut ref {
+      return mut ref storedValue
     }
   }
 }
@@ -286,12 +287,16 @@ export struct Counter: CompletionMetric {
         (identifier)
         (type
           (type_name
-            (type_identifier))))
+            (type_identifier)))
+        (property_requirement_accessor))
       (property_requirement
         (identifier)
         (type
           (type_name
-            (type_identifier))))))
+            (type_identifier)))
+        (property_requirement_accessor)
+        (property_requirement_accessor)
+        (property_requirement_accessor))))
   (struct_declaration
     (declaration_prefix)
     (type_identifier)
@@ -310,7 +315,7 @@ export struct Counter: CompletionMetric {
         (parameter_list
           (parameter
             (identifier)
-            (type
+            (parameter_type
               (type_name
                 (type_identifier)))))
         (type
@@ -348,11 +353,12 @@ export struct Counter: CompletionMetric {
               (assignment_expression
                 (identifier)
                 (identifier))))
-          (modify_accessor
-            (block
-              (return_statement
-                (unary_expression
-                  (identifier))))))))))
+          (get_mut_ref_accessor
+            (accessor_implementation
+              (block
+                (return_statement
+                  (unary_expression
+                    (identifier)))))))))))
 
 ==================
 Nominal struct patterns
@@ -367,7 +373,7 @@ fn decompose(
   let ref Order(guests, course, ...) = order
   let Order(id: orderId, guest: Guest(name, ...), ...) = take owned
   let Guest(id, name, ...) = take guest
-  let inout Table(state, ...) = inout table
+  let mut ref Table(state, ...) = mut ref table
 }
 
 ---
@@ -378,22 +384,25 @@ fn decompose(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (block
@@ -527,7 +536,8 @@ async fn closeStream(cursor: take Stream) throws CloseError {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -547,7 +557,8 @@ async fn closeStream(cursor: take Stream) throws CloseError {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -633,12 +644,12 @@ fn readTypes(blob: Blob, response: Response): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))))
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

@@ -6,7 +6,7 @@ enum Stage {
 }
 
 // Parseable syntax. An ordinary function body does not yield this tail.
-fn nextStage(ready: Bool, trace: inout Array<u8>): Stage {
+fn nextStage(_ ready: Bool, _ trace: inout Array<u8>): Stage {
   if ready {
     trace.append(1);
     .serving
@@ -16,7 +16,7 @@ fn nextStage(ready: Bool, trace: inout Array<u8>): Stage {
   }
 }
 
-fn recordReady(ready: Bool): () {
+fn recordReady(_ ready: Bool): () {
   if ready {
     let marker = 1
     marker;

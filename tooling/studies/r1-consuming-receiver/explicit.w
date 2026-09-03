@@ -25,7 +25,7 @@ enum FinishObservation {
   failed(error: CommandError, ownerAvailable: Bool)
 }
 
-fn observeFinish(tail: take String): FinishObservation {
+fn observeFinish(_ tail: take String): FinishObservation {
   let cursor = CommandStream(tail: take tail)
 
   do {

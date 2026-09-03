@@ -308,7 +308,7 @@
           "name": "named-domain-label",
           "language": "w",
           "source": ["let plan = spawn<domain: .compute> optimize(take snapshot)"],
-          "expectedDifference": "This is the same optional-label slot in named source spelling; it normalizes to the same domain HIR while the formatter preserves the source spelling."
+          "expectedDifference": "This is the same dedicated domain slot in named source spelling; it normalizes to the same domain HIR while the formatter preserves the source spelling."
         },
         {
           "name": "sentence-modifier",
@@ -812,7 +812,7 @@
           "name": "named-primary-language-slot",
           "language": "w",
           "source": ["unsafe fn<lang: .c> legacyProbeStatus(status: c.int): c.int { ... }"],
-          "expectedDifference": "This is the same optional-label slot in named source spelling; it normalizes to the same frontend HIR while the formatter preserves the source spelling."
+          "expectedDifference": "This is the same dedicated frontend slot in named source spelling; it normalizes to the same frontend HIR while the formatter preserves the source spelling."
         }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -1265,19 +1265,19 @@
     },
     {
       "id": "R0-call-label-order",
-      "reviewItem": "labels em ordem fixa contra labels reordenados com default e overload",
-      "decisions": ["W-978", "W-985"],
-      "task": "Construct Money with the same values and report a collision only for an unordered policy after a default and reverse-label overload.",
+      "reviewItem": "labels reordenáveis por segmento contra uma âncora positional-only",
+      "decisions": ["W-978", "W-1514"],
+      "task": "Construct Money with the same values in either label order and report a collision for a duplicate label set.",
       "selected": {
         "language": "w",
-        "source": ["let value = Money(majorUnits: 42, currency: .ww)"]
+        "source": ["let value = Money(currency: .ww, majorUnits: 42)"]
       },
       "alternatives": [
         {
           "name": "reordered-labels",
           "language": "w-research",
-          "source": ["let value = Money(currency: .ww, majorUnits: 42)"],
-          "expectedDifference": "Reordering is a research alternative because call shape is an ordered sequence before type ranking."
+          "source": ["let value = Money(majorUnits: 42, currency: .ww)"],
+          "expectedDifference": "The same labels in another source order normalize to the same call shape; source evaluation order remains observable."
         },
         {
           "name": "python-keyword-reorder",
@@ -2022,9 +2022,9 @@
           "  mut set(newValue) {",
           "    current = newValue % 360_u16",
           "  }",
-          "  mut modify {",
+          "  get mut ref {",
           "    defer { current %= 360_u16 }",
-          "    return inout current",
+          "    return mut ref current",
           "  }",
           "}"
         ]
@@ -2049,7 +2049,7 @@
         }
       ],
       "sourceRefs": [
-        { "path": "reference/last-light/orbit.w", "symbol": "export behavior WrappedDegrees", "claim": "Canonical behavior backing, thunk, get/set/modify, defer normalization and observed Attitude rotation witness." },
+        { "path": "reference/last-light/orbit.w", "symbol": "export behavior WrappedDegrees", "claim": "Canonical behavior backing, thunk, get/get mut ref/set, defer normalization and observed Attitude rotation witness." },
         { "path": "tooling/tree-sitter-w/test/corpus/module_run.txt", "symbol": "Behavior supports the zero-slot initializer form", "claim": "Zero-slot behavior initializer witness." }
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
@@ -2417,7 +2417,7 @@
           "name": "ufcs-or-value-receiver-pipe",
           "language": "w-rejected",
           "source": ["value |> receiver.method()", "value |> f(_)"],
-          "expectedDifference": "Pipe-forward resolves a free or static callable path with one positional first slot; it does not use a receiver value, UFCS fallback, or placeholder."
+          "expectedDifference": "Pipe-forward resolves a free or static callable path with exactly one required unbound slot; a named hole may occur in any declaration segment, while anchors preserve their boundaries. It does not use a receiver value, UFCS fallback, or placeholder."
         },
         {
           "name": "implicit-task-group-or-transaction",

@@ -30,7 +30,7 @@ fn script(script: String): String {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type

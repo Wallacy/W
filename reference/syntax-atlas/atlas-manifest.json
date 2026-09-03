@@ -4,8 +4,8 @@
   "sourceOfTruth": "atlas-manifest.json metadata plus terse source markers and snippets in the atlas .w files. SYNTAX-COVERAGE.md is generated.",
   "grammar": {
     "path": "tooling/tree-sitter-w/grammar.js",
-    "digest": "sha256:e7f29013be3ccb15b9ac528957c7fe0a595f47c7866f319a587094eab1b5f760",
-    "publicRuleSetDigest": "sha256:fcddb2cb450a3c693f4156700110b6d75bea15c0c166ccda534ebce842737265"
+    "digest": "sha256:3cba70e4fd02a01adaa1c66dd6a754be6c4d49f25d5620a30327a596bd21cce3",
+    "publicRuleSetDigest": "sha256:ed1c71d9f5ad6031d91f3cbbb92b78492711e366320c8c12a5bffd09d980188b"
   },
   "sourceFiles": [
     "build.w",
@@ -148,6 +148,14 @@
     },
     {
       "name": "behavior_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "behavior_accessor_kind",
       "surface": "composed",
       "reason": "Composed by the data-declarations atlas block.",
       "markers": [
@@ -761,6 +769,22 @@
       ]
     },
     {
+      "name": "get_mut_ref_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "get_ref_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
       "name": "guard_statement",
       "surface": "direct",
       "reason": "Direct source construction shown in the control-flow atlas block.",
@@ -812,6 +836,14 @@
       "reason": "Direct source construction shown in the execution-forms atlas block.",
       "markers": [
         "execution-forms"
+      ]
+    },
+    {
+      "name": "inferred_struct_pattern",
+      "surface": "direct",
+      "reason": "Direct source construction shown in the patterns atlas block.",
+      "markers": [
+        "patterns"
       ]
     },
     {
@@ -951,14 +983,6 @@
       ]
     },
     {
-      "name": "modify_accessor",
-      "surface": "composed",
-      "reason": "Composed by the data-declarations atlas block.",
-      "markers": [
-        "data-declarations"
-      ]
-    },
-    {
       "name": "module_contract",
       "surface": "root",
       "reason": "Document root or root-owned data grammar.",
@@ -1091,7 +1115,23 @@
       ]
     },
     {
+      "name": "parameter_call_ownership",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
       "name": "parameter_list",
+      "surface": "composed",
+      "reason": "Composed by the callables-and-foreign atlas block.",
+      "markers": [
+        "callables-and-foreign"
+      ]
+    },
+    {
+      "name": "parameter_type",
       "surface": "composed",
       "reason": "Composed by the callables-and-foreign atlas block.",
       "markers": [
@@ -1150,6 +1190,14 @@
       "name": "pipe_forward_expression",
       "surface": "direct",
       "reason": "Direct source construction shown in the operators atlas block.",
+      "markers": [
+        "operators"
+      ]
+    },
+    {
+      "name": "pipe_member_call_template",
+      "surface": "composed",
+      "reason": "Composed by the operators atlas block.",
       "markers": [
         "operators"
       ]
@@ -1230,6 +1278,14 @@
       "name": "property_requirement",
       "surface": "direct",
       "reason": "Direct source construction shown in the data-declarations atlas block.",
+      "markers": [
+        "data-declarations"
+      ]
+    },
+    {
+      "name": "property_requirement_accessor",
+      "surface": "composed",
+      "reason": "Composed by the data-declarations atlas block.",
       "markers": [
         "data-declarations"
       ]
@@ -1325,12 +1381,6 @@
       "markers": [
         "control-flow"
       ]
-    },
-    {
-      "name": "scalar_literal",
-      "surface": "lexical",
-      "reason": "Lexical token or trivia. The atlas covers it in the values block.",
-      "markers": []
     },
     {
       "name": "service_declaration",
@@ -1885,7 +1935,7 @@
       "construction": "inout ownership",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "let inout writableName"
+      "witness": "value: inout String"
     },
     {
       "id": "ownership-take",
@@ -1981,7 +2031,7 @@
       "construction": "positional callable parameter",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "order: String"
+      "witness": "_ order: String"
     },
     {
       "id": "callable-required-homonym",
@@ -1989,15 +2039,7 @@
       "construction": "required homonym label",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "named audit: String"
-    },
-    {
-      "id": "callable-optional-label",
-      "block": "callables-and-foreign",
-      "construction": "optional external label",
-      "designStatus": "current",
-      "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "_ note: String"
+      "witness": "audit: String"
     },
     {
       "id": "callable-required-external",
@@ -2112,12 +2154,20 @@
       "witness": "set(value)"
     },
     {
-      "id": "property-modify",
+      "id": "property-get-ref",
       "block": "data-declarations",
-      "construction": "property modify accessor",
+      "construction": "property borrowed get accessor",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "modify { label }"
+      "witness": "get ref => label"
+    },
+    {
+      "id": "property-get-mut-ref",
+      "block": "data-declarations",
+      "construction": "property mutable borrowed get accessor",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "get mut ref { return mut ref label }"
     },
     {
       "id": "pattern-enum",
@@ -2134,6 +2184,14 @@
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
       "witness": "Place(id, ...)"
+    },
+    {
+      "id": "pattern-inferred-struct",
+      "block": "patterns",
+      "construction": "inferred struct binding pattern",
+      "designStatus": "current",
+      "evidenceStatus": "tree-sitter-parse-only",
+      "witness": "let { id: inferredId, ... } = place"
     },
     {
       "id": "pattern-tuple",
@@ -2181,7 +2239,7 @@
       "construction": "send channel direction",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "Channel<String><.send>"
+      "witness": "Channel<send: String>"
     },
     {
       "id": "channel-receive",
@@ -2189,7 +2247,7 @@
       "construction": "receive channel direction",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "Channel<String><.receive>"
+      "witness": "Channel<receive: String>"
     },
     {
       "id": "root-module-run",
@@ -2253,7 +2311,7 @@
         {
           "path": "reference/last-light/app.w",
           "symbol": "async fn runNative(",
-          "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+          "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
       "snippetDigest": "sha256:dd82ab13d8392f9cfcf2c1360c9f2494779cdee8478f7b4a02ff6f00cce14f54",
@@ -2275,6 +2333,7 @@
         "associated_const_requirement",
         "associated_type_requirement",
         "behavior_accessor",
+        "behavior_accessor_kind",
         "behavior_body",
         "behavior_component",
         "behavior_composition",
@@ -2303,12 +2362,14 @@
         "extension_declaration",
         "field_declaration",
         "get_accessor",
+        "get_mut_ref_accessor",
+        "get_ref_accessor",
         "initializer_declaration",
-        "modify_accessor",
         "object_declaration",
         "primary_associated_types",
         "property_accessor_body",
         "property_requirement",
+        "property_requirement_accessor",
         "protocol_body",
         "protocol_declaration",
         "service_declaration",
@@ -2326,11 +2387,11 @@
         {
           "path": "reference/last-light/domain.w",
           "symbol": "export enum Course",
-          "digest": "sha256:4bd095c8972f909326d4f6cdf4eb2b10b8b91b737e8623bbe1a8a90dfa0c82c5"
+          "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
         }
       ],
-      "snippetDigest": "sha256:e61dbd78101e3846c321f83668484c39223d89c497f471e527a47422c1b97aa8",
-      "snippetBytes": 2156
+      "snippetDigest": "sha256:fe8b8daec1c1a7f1770f27902d9bacb29938b9d3df59a96b2be3cfe963d9d735",
+      "snippetBytes": 2154
     },
     {
       "id": "types-and-contracts",
@@ -2366,7 +2427,7 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export struct Matrix",
-          "digest": "sha256:6e0b5742c53fb2a0a0bf94fa56d7fe83268d09a076f941acc4125d1aa388c053"
+          "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
         }
       ],
       "snippetDigest": "sha256:f584bf29c517ed997e4281cf6546a88c663e5889d69ad85ffe4867c0ac25eeb5",
@@ -2399,7 +2460,9 @@
         "generic_parameters",
         "language_tag",
         "parameter",
+        "parameter_call_ownership",
         "parameter_list",
+        "parameter_type",
         "rest_marker",
         "slot_ref"
       ],
@@ -2411,17 +2474,17 @@
         {
           "path": "reference/last-light/generics.w",
           "symbol": "export protocol Source<Item>",
-          "digest": "sha256:6e0b5742c53fb2a0a0bf94fa56d7fe83268d09a076f941acc4125d1aa388c053"
+          "digest": "sha256:2108876ced26fbb16493d4a75576cec7779798fb214f3a0b86b0991229255356"
         }
       ],
-      "snippetDigest": "sha256:3eae8820e575e4bd093a234837354689faebd86247a168bf32ee9c17d781782f",
-      "snippetBytes": 710
+      "snippetDigest": "sha256:08f66de8817c89eb677aae5a8f1e7eb4196882aae000e9d5aa4e1f971c1f9c5b",
+      "snippetBytes": 729
     },
     {
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 214,
+      "line": 215,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2444,7 +2507,7 @@
         {
           "path": "reference/last-light/numerics.w",
           "symbol": "SeatNumber",
-          "digest": "sha256:9ae24ffbed1ef3cee289fa7ea3b014ce4d66a176be209065e586403561bf15ad"
+          "digest": "sha256:4af3f95f8895ed5a69b231ffd01ae4d58c89ce5e37bd9e49654a6849c9d7af3e"
         }
       ],
       "snippetDigest": "sha256:2e452c9dd308d05601f8a525b9ef79cf564cd94b95cb9ca6231fff40edc735ac",
@@ -2463,6 +2526,7 @@
       "grammarRefs": [
         "enum_pattern",
         "enum_payload_pattern",
+        "inferred_struct_pattern",
         "labeled_pattern_field",
         "labeled_struct_pattern_field",
         "pattern",
@@ -2483,11 +2547,11 @@
         {
           "path": "reference/last-light/enum_contracts.w",
           "symbol": "export enum KitchenOutcome<T>",
-          "digest": "sha256:e536e463809b69db9761747bc6773096a5d03fe4faa26379c85a40c7c8707ad8"
+          "digest": "sha256:e2879fc415cba071c97b88f0e09db24f559e578a47d29335b88d4d8286f29b8e"
         }
       ],
-      "snippetDigest": "sha256:fa6e3485ce0fbd1cc877aa540bc3aaeb3ccfea33092111d1f6bdb877d23ff1fa",
-      "snippetBytes": 487
+      "snippetDigest": "sha256:4d12b56cc1dbaa7cbe594e975f1e0d66ade220254cf2ed758a2ff7c5d0eaba56",
+      "snippetBytes": 539
     },
     {
       "id": "allocator-and-bindings",
@@ -2513,17 +2577,17 @@
         {
           "path": "reference/last-light/memory.w",
           "symbol": "export fn makeMenuRoot",
-          "digest": "sha256:9b0b9beb70f9c06727c1b285a163b10b66f524b5490db2cd6545854cced1e586"
+          "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
         }
       ],
-      "snippetDigest": "sha256:c70f7d9a427bcc6c0c3e14486174dc9a1cdd9972d8648612d760230a3fb0b13f",
-      "snippetBytes": 595
+      "snippetDigest": "sha256:b623a9b023aa1ed974bf7282f449ec04807c38b7bb5a7c24e3c01f834bf52da3",
+      "snippetBytes": 784
     },
     {
       "id": "control-flow",
       "file": "execution.w",
       "order": 8,
-      "line": 38,
+      "line": 45,
       "title": "Control flow and cleanup",
       "family": "control",
       "designStatus": "current",
@@ -2554,17 +2618,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "executionForms",
-          "digest": "sha256:e6d2e4738e20b6a46920b3a2b5d8273d027e35a99b6e072cb8b34d0337a6de73"
+          "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
         }
       ],
-      "snippetDigest": "sha256:4c0d8082c00deec360a100b094a3f1c119756719403e9ac24ef02dfccc794547",
-      "snippetBytes": 634
+      "snippetDigest": "sha256:219bcaad6ebf9a800ae055ca7b3d6fce567e1c4f30965d9d7ed29061a3bf9e00",
+      "snippetBytes": 638
     },
     {
       "id": "execution-forms",
       "file": "execution.w",
       "order": 9,
-      "line": 76,
+      "line": 83,
       "title": "Direct sync entry, await, async and spawn initializers, and calls",
       "family": "execution",
       "designStatus": "current",
@@ -2596,17 +2660,17 @@
         {
           "path": "reference/last-light/execution.w",
           "symbol": "async fn mixCooperatively(",
-          "digest": "sha256:e6d2e4738e20b6a46920b3a2b5d8273d027e35a99b6e072cb8b34d0337a6de73"
+          "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9"
         }
       ],
-      "snippetDigest": "sha256:047b627b087d783727e2418043ffa5c88e606d345b0520df22b821175bb24c25",
-      "snippetBytes": 1420
+      "snippetDigest": "sha256:fddcfd7d31d89d2fb59bc3de294442a4183c1beeb6ec60cf9ffdfeac31dc64cf",
+      "snippetBytes": 1432
     },
     {
       "id": "restricted-expressions",
       "file": "execution.w",
       "order": 10,
-      "line": 126,
+      "line": 133,
       "title": "Pipelines, locks, transactions, unsafe, and closures",
       "family": "effects",
       "designStatus": "current",
@@ -2642,11 +2706,11 @@
         {
           "path": "reference/last-light/transaction_oracle.w",
           "symbol": "reserveTableAtomically",
-          "digest": "sha256:150d2b1d51f9bd467ff7c948deee0475bd70f825681a45df276c6bb437e719ab"
+          "digest": "sha256:2886034803e0efacab5135c6a2ae814abf0be7c3a49d42ef861b15b32b08bfb9"
         }
       ],
-      "snippetDigest": "sha256:6fa9b67d8b2847490cb671ec53ce9d0527340098a8aa5137d1bbc854b1a6ae85",
-      "snippetBytes": 1446
+      "snippetDigest": "sha256:8b17c7cc784a086fcbc0d48d7663f4c3f395555a5fb3e10129e0cfa671613f32",
+      "snippetBytes": 1454
     },
     {
       "id": "operators",
@@ -2662,7 +2726,8 @@
         "pipe_call_modifier",
         "pipe_call_template",
         "pipe_callable_path",
-        "pipe_forward_expression"
+        "pipe_forward_expression",
+        "pipe_member_call_template"
       ],
       "designRefs": [
         "3.5.6",
@@ -2672,14 +2737,14 @@
         "18"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:1204558d7680d9add75e8c22ee91d2319462fbe337b16ea9bcd07c2114bfaa5b",
-      "snippetBytes": 6095
+      "snippetDigest": "sha256:ba25d23ea263b44324dbb4af50f3fb6295e6361733aeab347ff87bdf66e8d721",
+      "snippetBytes": 6097
     },
     {
       "id": "stream-and-channel",
       "file": "execution.w",
       "order": 12,
-      "line": 192,
+      "line": 199,
       "title": "Streams, channels, and directional contracts",
       "family": "streams",
       "designStatus": "current",
@@ -2697,17 +2762,17 @@
         {
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn serveOneByOne",
-          "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b"
+          "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
         }
       ],
-      "snippetDigest": "sha256:94b8ff8c4b6845006b79d326fb66ceb9f35f87e61ef6e7f6f2a278fb0afeceb7",
-      "snippetBytes": 610
+      "snippetDigest": "sha256:4f225b7776b8e54a997a889ad4e2916199d38771f46091866a9692fda2d88103",
+      "snippetBytes": 618
     },
     {
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 252,
+      "line": 253,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2723,7 +2788,7 @@
         {
           "path": "reference/last-light/app.w",
           "symbol": "entry(runNative)",
-          "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29"
+          "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f"
         }
       ],
       "snippetDigest": "sha256:942c5c36a57b4600e1dbbc3727284f6b358b81090dce7d37861da948e4f59caa",
@@ -2733,7 +2798,7 @@
       "id": "module-run-entry",
       "file": "execution.w",
       "order": 14,
-      "line": 221,
+      "line": 228,
       "title": "Explicit module-run entry",
       "family": "entry",
       "designStatus": "current",
@@ -2827,6 +2892,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:534c70aa469d7efc937ba3521e04c30df604ed044d88f5610dfb3eea08ae50a3"
+    "coverageDigest": "sha256:53f8d31d304c81295a1ae6ab36111328f75bb36971b7a05e88dfda6ded8611b2"
   }
 }

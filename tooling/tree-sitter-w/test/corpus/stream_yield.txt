@@ -18,7 +18,8 @@ fn orderFeed(source: take some Stream<Order, Never>): some Stream<Order, Never> 
     parameters: (parameter_list
       (parameter
         name: (identifier)
-        type: (type
+        ownership: (parameter_call_ownership)
+        type: (parameter_type
           base: (type_name
             name: (type_identifier))
           (type_arguments
@@ -122,7 +123,8 @@ fn copyFeed(source: take some Stream<String, Never>): some Stream<String, Never>
     parameters: (parameter_list
       (parameter
         name: (identifier)
-        type: (type
+        ownership: (parameter_call_ownership)
+        type: (parameter_type
           base: (type_name
             name: (type_identifier))
           (type_arguments

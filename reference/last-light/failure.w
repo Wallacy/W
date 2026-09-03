@@ -51,7 +51,7 @@ export fn captureLookup(
   guests: ref Map<GuestId, Guest>,
   id guestId: GuestId,
 ): Result<ref Guest, ServiceLookupError> {
-  return Result.capture(() => try requireGuest(guests, id: guestId))
+  return Result.capture(() => try requireGuest(guests: guests, id: guestId))
 }
 
 export fn recoverGuest(
@@ -59,7 +59,7 @@ export fn recoverGuest(
   id guestId: GuestId,
 ): ref Guest throws ServiceLookupError {
   do {
-    return try requireGuest(guests, id: guestId)
+    return try requireGuest(guests: guests, id: guestId)
   } catch .corruptRecord(let recordId) if recordId == guestId {
     throw .missingGuest(guestId)
   } catch error {
@@ -86,12 +86,12 @@ export fn invariantCourse(courses: ref Array<Course>, index: usize): Course {
 
 test "Option propagation returns none before later work" for firstOrder {
   let orders = Array<Order>()
-  expect firstOrder(orders) == .none
+  expect firstOrder(orders: orders) == .none
 }
 
 test "Result can cross a storage boundary without hidden control flow" for captureLookup {
   let guests = Map<GuestId, Guest>()
-  let result = captureLookup(guests, id: 42)
+  let result = captureLookup(guests: guests, id: 42)
   expect result.isError
 }
 
@@ -99,7 +99,7 @@ test "structured failure executes cleanup once" for decodeWithCleanup {
   var trace = Array<CleanupStep>()
 
   do {
-    let _ = try decodeWithCleanup(b"", trace: inout trace)
+    let _ = try decodeWithCleanup(source: b"", trace: inout trace)
     panic("empty record was accepted")
   } catch .corruptRecord(_) {
     expect trace == [.opened, .closed]

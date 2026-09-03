@@ -100,25 +100,25 @@ export struct Limits: Copy & Equatable {
 // every Tensor depend on the provider. These adapters keep device operations
 // explicit at the std boundary while the core owns Tensor<Element, shape>.
 export async fn deviceOf<Element, shape: StaticList<usize>>(
-  named source: ref Tensor<Element, shape>,
+  source: ref Tensor<Element, shape>,
 ): Device throws TensorError {
   return Device(validatedHandle: unsafe {
-    try await stdTensorDevice(source: ref source)
+    try await stdTensorDevice(ref source)
   })
 }
 
 export async fn transfer<Element, shape: StaticList<usize>>(
-  named source: take Tensor<Element, shape>,
-  named target: ref Device,
+  source: take Tensor<Element, shape>,
+  target: ref Device,
   on queue: ref Queue?,
-  named limits: ref Limits,
+  limits: ref Limits,
 ): Tensor<Element, shape> throws TensorError {
   return unsafe {
     try await stdTensorTransfer(
-      source: take source,
-      target: target,
-      queue: queue,
-      limits: limits,
+      take source,
+      target,
+      queue,
+      limits,
     )
   }
 }
@@ -127,19 +127,19 @@ foreign intrinsic from "std.tensor@1" {
   type DeviceHandle
   type QueueHandle
 
-  fn stdTensorDeviceKind(handle: ref DeviceHandle): DeviceKind
+  fn stdTensorDeviceKind(_ handle: ref DeviceHandle): DeviceKind
   fn stdTensorDeviceSame(
-    left: ref DeviceHandle,
-    right: ref DeviceHandle,
+    _ left: ref DeviceHandle,
+    _ right: ref DeviceHandle,
   ): Bool
-  fn stdTensorQueueDevice(handle: ref QueueHandle): DeviceHandle
+  fn stdTensorQueueDevice(_ handle: ref QueueHandle): DeviceHandle
   async fn stdTensorDevice<Element, shape: StaticList<usize>>(
-    named source: ref Tensor<Element, shape>,
+    _ source: ref Tensor<Element, shape>,
   ): DeviceHandle throws TensorError
   async fn stdTensorTransfer<Element, shape: StaticList<usize>>(
-    named source: take Tensor<Element, shape>,
-    named target: ref Device,
-    named queue: ref Queue?,
-    named limits: ref Limits,
+    _ source: take Tensor<Element, shape>,
+    _ target: ref Device,
+    _ queue: ref Queue?,
+    _ limits: ref Limits,
   ): Tensor<Element, shape> throws TensorError
 }

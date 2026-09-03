@@ -20,29 +20,32 @@ vigente é plana por módulo, capability, target facts, provider e reachability.
 que o head já consegue resolver. A forma corrente usa `rows: usize` e
 `_ state: Type` para manter o envelope uniforme. A interpretação histórica de `_` como
 um único primary-only slot fica registrada somente como alternativa substituída.
-Ela não limita a forma vigente, que dá ao label o papel `optional(name)`. O
+Esta leitura histórica não limita a forma vigente: W-1514 define type/value
+anchors, labels required e reordenação somente dentro de cada segmento. O
 parser rejeita binding modifiers no envelope antes do W 1.0. Não existe alias ou
 compatibilidade implícita. Esta nota registra a migração. O contrato normativo
 permanece em [`DESIGN.md`](DESIGN.md).
 
 O label externo pertence ao papel da call ou do initializer. O nome interno
 continua disponível para o body e, em um type head, para a associated contract
-value. A omissão de label em um parâmetro generic segue a mesma separação usada
-nos parâmetros runtime: ela evita exigir no call site um label que o caller não
-precisa escrever, sem remover a exposição estática do type head.
+value. A policy histórica de omitir um label em um parâmetro generic foi
+substituída por W-1514: somente type parameters e `_ name: Type` são âncoras
+posicionais; value labels são required dentro de cada segmento.
 
 Um type head expõe cada value parameter como associated contract value porque o
 valor faz parte da especialização e não de cada instance. Transformá-lo em field
 criaria storage, custo de allocation e uma identidade runtime que o contrato não
 solicita. Transformá-lo em um único primary slot limitaria `Matrix` e shapes com
-mais de um valor. Reordenar labels reduziria a ordem source e complicaria
-lookup, formatter e diagnostics.
+mais de um valor. Uma alternativa histórica sem reordenação reduziria a
+flexibilidade de lookup, formatter e diagnostics; W-1514 mantém a ordem
+declarada para ABI e permite reordenar labels somente dentro do segmento
+correspondente.
 
 Estas alternativas permanecem preservadas para comparação:
 
 - `_` como único primary-only slot;
 - fields de instance automáticos para todos os values;
-- labels que permitem reorder;
+- labels opcionais no mesmo slot, sem reordenação;
 - value parameters callable como associated members.
 
 Para scripts, W-1412 rejeitou as alternativas históricas de executar statements
@@ -156,7 +159,7 @@ O corpus compara, no mínimo:
 - pipeline lazy contra loop explícito para transformação sem side effect;
 - broadcast explícito contra broadcast implícito checked e Julia dotted broadcast;
 - `.last` contra arithmetic `count - 1`, Python `[-1]` e C# `^1`;
-- labels em ordem fixa contra labels reordenados com default e overload;
+- labels reordenáveis por segmento contra uma âncora positional-only;
 - tuple binding fixo contra projections `.0`/`.1` e unpacking starred;
 - `data.Batch<Row>` columnar contra `Array<Row>` universal e DataFrame completo;
 - `data.Row` synthesis fechada contra `Any`, duck typing e schema implícito;
@@ -521,7 +524,7 @@ let starboard = spawn<domain: .compute> mix(right)
 
 [`tooling/studies/r1-spawn-domain/bundle.json`](tooling/studies/r1-spawn-domain/bundle.json)
 deriva de `mixPair` no módulo `execution` do Última Luz. `positional.w` e
-`named.w` escrevem as duas formas do mesmo slot opcional. O estudo compara a
+`named.w` escrevem as duas formas do mesmo slot dedicado de domain. O estudo compara a
 intenção de domínio e a preservação de source spelling; ele não introduz alias
 no schema corrente.
 
@@ -1046,27 +1049,29 @@ authority ambiental por import.
 
 **Exemplo:** `ServiceProfile<enabled: true, tables: 8, courses: 4>` e
 `start<enabled: true, tables: 8, courses: 4>()` preservam a identidade dos
-mesmos slots. Um head que declara `_ tables: usize` também aceita a aplicação
-posicional, sem remover `tables` do body ou da associated contract value.
+mesmos slots. Um head que declara `_ tables: usize` expõe uma âncora
+positional-only, sem remover `tables` do body ou da associated contract value.
 
 O bundle
 [`r1-static-contract-slots`](tooling/studies/r1-static-contract-slots) deriva de
-`Matrix<Element, rows: usize, columns: usize>` no módulo `generics` do Última
+`Matrix<rows: usize, Element, columns: usize>` no módulo `generics` do Última
 Luz. As três variantes mantêm dois inputs assimétricos e o mesmo resultado:
 
 - `named.w` usa labels obrigatórios no type head e na generic call;
-- `positional.w` torna todos os labels opcionais com `_` e usa ordinals;
+- `positional.w` usa anchors `_` e ordinals, sem labels opcionais;
 - `split-call.w` mantém o type contract completo, mas move `String` e quantity
   para argumentos runtime da call.
 
 O caso adversarial troca `tables` e `courses`, que possuem o mesmo tipo. A forma
-nomeada rejeita a ordem de labels antes da publicação. As formas posicionais
-continuam bem tipadas e publicam o significado trocado. O segundo eixo verifica
+nomeada reordena os labels no mesmo segmento antes da publicação; uma tentativa
+de cruzar uma âncora falha. As formas posicionais preservam a ordem das âncoras
+e publicam o significado declarado. O segundo eixo verifica
 que Bool, String, quantity e size usam as mesmas categorias estáticas em type
 application e generic call; a variante split perde essa paridade.
 
-O estudo não torna labels reordenáveis. A forma da call continua ordenada e o
-label identifica cada slot nessa ordem. O oracle host deriva outcome, erro antes
+O estudo torna labels reordenáveis somente dentro de seu segmento. O label
+identifica o slot, não sua posição textual; a forma source continua preservada e
+o oracle host deriva outcome, erro antes
 da publicação e paridade de categorias. Ele não executa W. `w-compile`, `w-run`,
 estudo humano e estudo de modelos permanecem missing.
 
@@ -1523,7 +1528,7 @@ modelos permanecem missing.
 
 #### 1.3.23 Members associados diretos
 
-**Exemplo:** `Course.count` e `Course.fromOrdinal(3)` pertencem ao namespace
+**Exemplo:** `Course.count` e `Course.fromOrdinal(value: 3)` pertencem ao namespace
 compile-time de `Course`. Eles não criam uma instance singleton do tipo.
 
 O bundle
@@ -1571,28 +1576,36 @@ lançar sem contaminar os dois caminhos inteiros. O oracle host não executa W.
 
 #### 1.3.25 Labels uniformes em callables
 
-**Exemplo:** `fn reserve(order: Order, audit: Audit, id: ReservationId)` aceita
-`reserve(order, audit, id)`. A posição de `audit` e `id` não cria labels. Uma
-API que deseja comunicar papéis declara-os: `fn move(from source: Point, to
-destination: Point)` exige `move(from: current, to: next)`.
+**Exemplo histórico (superseded by W-1514):** `fn reserve(order: Order, audit: Audit, id: ReservationId)` exige
+`reserve(order: order, audit: audit, id: id)`. Cada nome de binding publica seu
+label homônimo por default. Uma API pode separar vocabulário externo e interno:
+`fn move(from source: Point, to destination: Point)` exige
+`move(from: current, to: next)`. `_ order: Order` remove o label e aceita o
+argumento somente por posição.
 
 A regra anterior tornava o primeiro parâmetro posicional e os seguintes
 nomeados. Ela economizava tokens na declaration, mas exigia memorizar uma
 exceção por índice e fazia uma simples inserção de parâmetro alterar a forma das
-calls seguintes. W-1290 usa quatro formas ortogonais:
+calls seguintes. W-1290 usa três formas ortogonais:
 
-- `name: T` é posicional em qualquer índice;
-- `named name: T` exige o label `name:` e mantém o mesmo binding;
+- `name: T` exige `name:` em qualquer índice;
+- `named audit: T` segue a mesma regra: exige `named:` e usa `audit` no body;
 - `external internal: T` exige `external:`;
-- `_ name: T` aceita a forma posicional ou `name:` no mesmo slot.
+- `_ name: T` é positional-only.
 
-Initializers e payloads labeled permanecem record-like. Nesses contratos,
-`name: T` exige label em qualquer índice porque os argumentos descrevem fields
-ou cases, não uma sequência callable comum. Assim, a regra não enfraquece
-`Type(field: value)` nem a evolução de schemas.
+Como o label default já faz parte da forma nominal, ele amplia o vocabulário de
+overload sem depender de ranking de tipos. `_ audit: String` e
+`audit: String` podem coexistir como `route(String)` e `route(audit: String)`;
+`_audit: String` não é uma terceira spelling positional: é um binding comum e
+exige `_audit:` na call.
 
-A máquina de execution ergonomics deriva formas completas antes de type
-ranking, detecta colisões por owner e ignora payload declarations de enum. O
+Initializers explícitos e payloads de enum usam a mesma regra. Initializers
+sintetizados publicam os labels homônimos dos fields, preservando
+`Type(field: value)` sem criar uma segunda policy de parâmetros.
+
+A máquina de execution ergonomics deriva formas nominais completas antes de
+type ranking, permite overload por labels, detecta colisões por owner e ignora
+payload declarations de enum. O
 gate `check-source-call-shapes.mjs` aplica a mesma derivação ao produto Última
 Luz e à std. Ele valida calls diretas resolvíveis no arquivo. Para calls
 importadas ou de member, o gate só acusa a migração quando toda declaration
@@ -1619,7 +1632,7 @@ evidence negativa. Eles não executam o checker W.
 
 #### 1.3.27 Operação de ownership no call site
 
-W-1292 exige `ref`, `inout`, `take`, `copy` ou `pin` quando a call cria a
+W-1292 (histórico, superseded quanto à separação de ownership por W-1515) exige `ref`, `inout`, `take`, `copy` ou `pin` quando a call cria a
 operação sobre um place existente. Exigir um marker em todo argumento de
 `ref T` ou `take T` tornaria `inspect(makeValue())` e `store(Value())`
 redundantes e permitiria `ref` sobre rvalue, embora `ref` exija place. O outro
@@ -4922,8 +4935,9 @@ catalogado com os `requiredFacts` do catálogo; ela cobre parâmetros de valor
 genéricos, captures `<[...]>`, quatro formas de execução e o slot contextual de
 allocator. O waiver de source só aparece para a seleção de entry de módulo:
 RU0 fornece a rejeição de descriptor ausente, com motivo registrado porque não
-há uma inversão S0 genuína para esse contrato de workflow. Labels opcionais e
-as formas named/anonymous do allocator ficam nos pares F0, e os markers exigem
+há uma inversão S0 genuína para esse contrato de workflow. Labels reordenáveis
+por segmento e as formas named/anonymous do allocator ficam nos pares F0, e os
+markers exigem
 que a mesma construção apareça na fonte Última Luz e na evidência positiva.
 Esse D0 é um registro de waiver: sua phase, `failureField`, `waiver` flag e
 lista de outcomes ligam cada rejeição RU0 ao código e à razão correspondentes;
@@ -5829,10 +5843,11 @@ side-channel residuals, FFI tests e evidência local/split para os seis perfis.
 ### 1.36 FRC0 — encerramento final das gates de pesquisa
 
 FRC0 fecha o snapshot de processo que existia em W-707, W-731 e W-1408 até
-W-1450 e valida W-1451, W-1452 e W-1453 como decisões
-`oracle-backed-current` depois do PFU0. Ele reutiliza FZ0, a classificação do
-ledger e HUM0. Ele não copia payload e não produz compiler, runtime, provider,
-resultado humano ou resultado de modelo.
+W-1450 e valida a classificação corrente das decisões PFU0. W-1451 permanece
+`oracle-backed-current`; W-1452 foi superseded por W-1480; W-1453 foi
+superseded por W-1516. Ele reutiliza FZ0, a classificação do ledger e HUM0. Ele
+não copia payload e não produz compiler, runtime, provider, resultado humano
+ou resultado de modelo.
 
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
@@ -6008,8 +6023,9 @@ o target, o workload, o provider ou o oracle mudar.
 ### 1.38 PFU0 — encerramento de usabilidade pré-freeze
 
 PFU0 fornece a evidência host-only para três decisões depois do snapshot
-histórico FRC0. W-1451, W-1452 e W-1453 são agora
-`oracle-backed-current`; FRC0 verifica `Research=0` nesse limite histórico,
+histórico FRC0. W-1451 e W-1452 são agora `oracle-backed-current`; a fatia
+de property de W-1453 é um snapshot histórico superseded por W-1516.
+FRC0 verifica `Research=0` nesse limite histórico,
 estendido por AEG0/SIMD1 até W-1459. W-1486 e W-1503 são as research gates
 ativas posteriores.
 As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois. W-1484
@@ -6021,7 +6037,7 @@ ou resultado humano.
 |---|---|---|---|
 | W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | nenhuma forma alternativa é promovida | arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim |
 | W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` sempre acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`. Separadamente, o `Failure` terminal permanece no stream e deve admitir `ServiceFailure`. `Channel` é explícito em capacity, endpoints, ownership, backpressure e `close`; mailbox e stream permanecem distintos. | nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos | `stream fn`, client-stream, bidi, Channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso de `ServiceFailure`/`Failure` |
-| W-1453 | `get`/`set`/`modify` continuam vigentes em property stored, computed e behavior. `init` bypassa accessors; assignment simples usa `set`/replacement; mutation compound usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; drops ocorrem uma vez; notificação externa é método/service/channel nomeado. | nenhuma promoção de observer spelling | `willSet`/`didSet`, observers implícitos, cópia oculta de old value, backing type/deinit oculto e notificação externa sem nome |
+| W-1453 | lifecycle de property (snapshot histórico; superseded by W-1516) | `get`/`set`/`modify` continuavam vigentes em property stored, computed e behavior. `init` bypassava accessors; assignment simples usava `set`/replacement; mutation compound usava `modify` uma vez; `return inout` era pre-borrow e `defer` retomava pós-borrow; drops ocorriam uma vez; notificação externa era método/service/channel nomeado. | nenhuma promoção de observer spelling | `willSet`/`didSet`, observers implícitos, cópia oculta de old value, backing type/deinit oculto e notificação externa sem nome |
 
 O estudo host/oracle é determinístico e source-backed. O corpus e a machine não
 aceitam `expected` ou resultado fornecido pelo caller; `bundle.inputs[].expected`
@@ -6031,7 +6047,8 @@ aceitam `expected` ou resultado fornecido pelo caller; `bundle.inputs[].expected
 manifesto build.w, streaming de saída com canais explícitos e lifecycle de
 property. O manifest candidate é aceito como current-control; os candidates de
 `stream fn` e `willSet`/`didSet` são rejected-route. A evidência não afirma
-compiler/runtime/provider e fecha Research somente no escopo W-1451–W-1453.
+compiler/runtime/provider e fechava Research somente no escopo histórico
+W-1451–W-1453.
 
 W-1480 substitui posteriormente somente a rejeição PFU0 de client-stream e
 bidirectional-stream. A rejeição de `stream fn`, Channel implícito, capacity
@@ -6072,7 +6089,7 @@ máquina é host-only. Ela não afirma execução W nem readiness de provider.
 W-1459 fecha a superfície sem importar a semântica de outra linguagem. A
 evidência primária orienta alternativas, mas a decisão normativa permanece em
 `DESIGN.md`. `Simd<Element, lanes: usize>` mantém label required; a declaração
-`SimdMask<_ lanes: usize>` torna o label da mask optional, por isso a aplicação
+`SimdMask<_ lanes: usize>` usa uma âncora positional-only, por isso a aplicação
 `SimdMask<16>` é corrente e não uma segunda identity:
 
 - Rust documenta integer overflow e as APIs `wrapping`, `saturating` e
@@ -6159,7 +6176,7 @@ rastreáveis.
 | value generics | aberto | `name: Type` value parameters e labels declarados |
 | unsafe | decisão sem grammar completa | `unsafe fn` e `unsafe {}` |
 | async cleanup | lacuna | `defer async` |
-| scalar literal | lacuna | `'x'` e `b'x'` |
+| literal de texto/scalar/byte | lacuna | `'x'` infere `String`, satisfaz `UnicodeScalar` por contexto e `b'x'` é byte |
 | modules multi-file | header e builder concordam | mesmo nome explícito dentro do pacote |
 | resolver/digest | ratificada, com docs divergentes | contrato consolidado |
 | pointer tagging | mecanismo de memória candidato | otimização de representação com fallback |
@@ -6188,7 +6205,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-001 | função | `fn name(...): Return` | `func`; retorno `->`; sem keyword |
 | W-002 | bindings | `const`/`let`/`var` | `let mut`; uma única keyword |
 | W-003 | modifiers | ordem fixa antes de `fn` | ordem livre; effects após retorno |
-| W-004 | labels (retired) | regra inicial: primeiro posicional e demais nomeados; W-1290 substitui por parâmetros comuns posicionais em qualquer índice e labels declaradas explicitamente | todos nomeados; inferir label pela posição |
+| W-004 | labels (retired) | regra inicial: primeiro posicional e demais nomeados; W-1290 substitui por label homônimo default em qualquer índice, `external internal:` e `_ internal:` positional-only | inferir label pela posição; parâmetros comuns posicionais |
 | W-005 | closure | `(args) => body` | `fn(args) {}`; `{ args in }` |
 | W-006 | capture | inferência + `<[mode name, ...]>` contextual, com migração pré-1.0 | `capture(...)`; `[capture]`; somente inferência |
 | W-007 | visibility | módulo default; `export` individual ou coletivo; `package` não é access modifier | package visibility; `public/private` |
@@ -6245,7 +6262,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-058 | float | IEEE strict default | fast default; build-mode semantics |
 | W-059 | String | owned UTF-8 contíguo | tree/rope default; COW contract |
 | W-060 | String indexing | access mode `view`, sem `string[i]` | scalar index; grapheme index default |
-| W-061 | raw string | `#"..."#`; `${...}` literal e interpolação opt-in `#${...}` | `r"..."`; backtick; interpolar `${...}` automaticamente |
+| W-061 | string e raw string | aspas simples/duplas formam `String` normal com escapes/interpolação; single-scalar satisfaz `UnicodeScalar` por contexto; `#"..."#`/`#'...'#` e variantes triple são raw verdadeiras | `r"..."`; backtick; `""...""` ambíguo; raw interpolada; inferir `'x'` como scalar sem contexto |
 | W-062 | scalar/byte | `'x'` e `b'x'` | constructor only; char=grapheme |
 | W-063 | arrays/maps | `[]` e `[key: value]` | braces para map/set |
 | W-064 | matrix literal | nested arrays | semicolon/whitespace; constructor only |
@@ -6465,12 +6482,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-278 | static argument | predicate estrutural sem float/dynamic collection; serialização canônica na identidade | qualquer ConstValue; somente integer |
 | W-279 | const e overload | const não distingue call shape; elegibilidade não promete termination/quota | overload por fase; inferir const por call |
 | W-280 | generic kinds | type e value; sem lifetime/effect/HKT/pack no source | kinds extensíveis; template sem kind |
-| W-281 | generic labels (retired) | interpretação anterior: type positional; `_ name: Type` criava slot sem label; W-1160 substitui por label opcional `optional(name)` | todos posicionais; named type args |
+| W-281 | generic labels (retired; superseded-by-W-1514) | interpretação histórica: type positional; `_ name: Type` criava slot sem label; W-1160 substituiu por label opcional `optional(name)`; W-1514 fecha type/value anchors e labels value required por segmento | todos posicionais; named type args sem âncoras; resolver por tipo |
 | W-282 | generic scope | parâmetros entram em scope da esquerda para a direita | lista inteira em scope; forward reference |
 | W-283 | protocol composition | `P & Q`, sem ordem e com normalização | `P, Q`; `T<[P, Q]>`; composite sempre nomeado |
 | W-284 | generic body | verificado uma vez contra constraints; lookup fechado | template com lookup tardio; verificar só após instantiation |
 | W-285 | generic inference | depois da forma de call; argumentos, receiver e expected result; solução única | ranking; busca por tipo conforme; body inference |
-| W-286 | explicit generic args | type prefix e value labels podem compor com inference; sem `_` | placeholders; lista completa obrigatória |
+| W-286 | explicit generic args (refined by W-1514) | type anchors explícitos e value labels required compõem com inference; named values reordenam somente dentro do segmento; sem `_` como placeholder | placeholders; lista completa obrigatória; cruzar type/positional anchor |
 | W-287 | primary associated type | protocol head declara projection de `Self`; aplicação restringe o witness | generic protocol por conformance; somente body |
 | W-288 | associated witness | `alias` explícito; sem inference/default/GAT no design vigente | inferir por method; associated type default |
 | W-289 | coherence | conformance no módulo do type ou protocol; escolha única por par | orphan livre; seleção por import |
@@ -6643,7 +6660,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-456 | iteração assíncrona | `for try await` baixa para `next()`; `for await` quando nonthrowing | `await stream` lê tudo; callback; loop especial por tipo |
 | W-457 | item borrowed de stream | `Stream<view T, E>` registra o stream como origem e impede outro `next` conflitante | família `TView`; view transferable; proibir todo item borrowed |
 | W-458 | topologia de channel | MPSC bounded com endpoints separados | bidirecional copiável; MPMC default; unbounded |
-| W-459 | endpoint de channel | `Channel<T><.send>` shareable move-first e `<.receive>` único move-only | `Sender<T>`/`Receiver<T>` nominais; direção dinâmica |
+| W-459 | endpoint de channel | `Channel<send: T>` shareable move-first e `Channel<receive: T>` único move-only | `Sender<T>`/`Receiver<T>` nominais; `Channel<T><.mode>`; direção dinâmica |
 | W-460 | payload de channel | `T<(.transferable)>` owned; borrow e `view` são rejeitados | cópia implícita; raw pointer; lifetime runtime |
 | W-461 | falha de envio | `ChannelSendError<T>` devolve owner; `send` usa subset `.closed` | panic; Boolean; perder item em erro |
 | W-462 | capacity | obrigatória; zero é rendezvous; positiva limita itens + permits; sem unbounded no design vigente | default zero; hint elástico; fila ilimitada |
@@ -7169,7 +7186,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-982 | transformação Python em W | pipeline lazy é a Forma vigente para transformação sem side effect; loop explícito é a Forma vigente para controle e side effects; comprehension é rejeitada por enquanto e o baseline GEN2 stream é preservado; limit zero e no-match preservam `[]`; oracle sidecar registra inspeção bounded | adicionar comprehension à grammar; usar pipeline para side effect; remover limit; comparar inputs diferentes; usar oracle eager |
 | W-983 | broadcast de shape | scalar expansion e broadcast explícito checked são as formas vigentes; broadcast implícito é rejeitado por enquanto; Julia dotted broadcast é Alternativa documental; NumPy evidencia conveniência, intermediários, memória ineficiente e menor legibilidade em dimensões maiores, mas não é autoridade W; R1 mede a troca | broadcast universal oculto; scalar exige annotation; Julia syntax no parser; ignorar mismatch e axis change |
 | W-984 | acesso relativo ao fim | `.last` é Forma vigente, retorna `ref String?` e absorve empty sem guard; arithmetic explícito é alternativa com guard; sintaxe relativa especial é rejeitada por enquanto, mantendo `last`, suffix e get APIs nominais; C# `^1` é alternativa documental | index negativo sem guard; usar `^1` como syntax W; underflow unsigned; converter empty em panic |
-| W-985 | ordem de labels de call | a call é sequência ordenada de labels; overload e initializer selecionam essa forma antes de tipos; ordem de declaração é Forma vigente; default em `currency` cria `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` cria terceira sequência; labels unordered são rejeitados por enquanto | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
+| W-985 | ordem de labels de call (histórico; superseded by W-1514) | a call era sequência ordenada de labels; overload e initializer selecionavam essa forma antes de tipos; ordem de declaração era a forma vigente; default em `currency` criava `majorUnits:,currency:` e `majorUnits:`; overload `currency:,majorUnits:` criava terceira sequência; labels unordered eram rejeitados por enquanto | ranking por tipos; dizer que fixed-order é ambíguo; colapsar formas por default ou reordering; alterar resolver no estudo |
 | W-986 | tuple destructuring fixo | binding de tuple/struct de shape fixo é Forma vigente; projections `.0`/`.1` preservam uma avaliação e exigem `copy` ou borrow explícito para componente move-only; starred unpacking é Rejeitado por enquanto por ownership, aridade dinâmica e partial moves; `each collection` continua call-rest | reavaliar `word()`; starred na grammar; tratar `each` como destructuring; mover tuple parcial |
 | W-987 | corpus R1, contagens e limites | corpus R1 é derivado por script: base/pre-closure 51/148/204/69/75 e aggregate 52/150/208/69/75; R1E0 5/14/20, R1H0 4/11/16 e R1S1 8/22/32 com denominador global 75; bundles fixam inputs, digests e evidence missing | contar manualmente; promover por referência duplicada; omitir adversarial; declarar participante ou modelo executado |
 | W-988 | carrier Batch mínimo | `data.Batch<Row>` é finito, owned, columnar, imutável após publicação, schema fechado, row count comum e vazio válido; schema sem fields exige row count explícito; payload publica somente depois da validação | `Table<Row>` estável; DataFrame no core; colunas com counts diferentes; batch vazio como erro; mutação depois da publicação |
@@ -7339,12 +7356,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1152 | R1E0 power boundary | bundle cobre `**` right-associative, unary base/exponent, `^` XOR e a separação de unit grammar | trocar `^` por power, associar à esquerda, ou exigir parentheses para exponent prefix |
 | W-1153 | R1E0 fluent self | bundle seleciona `: self` com fallthrough e compara `return self`; validator separa receiver mode, return contract, exit e storage; omitted type é Unit, `Self` é owned e `take fn` rejeita | tornar `: self` `Self` owned, exigir `return self`, copiar/mover/alocar receiver ou aceitar `take fn` |
 | W-1154 | R1E0 corpus metrics and status | R1E0 deriva 5/14/20 com denominador global 75 e status `design-oracle-input`; nenhuma contagem promove host evidence a runtime, e compile/run/provider/human/model claims ficam missing | escrever contagens manuais, promover host evidence a runtime, ou declarar estudo humano/modelo executado |
-| W-1155 | generic value parameters | parâmetros de valor usam `name: Type` ou `_ name: Type` (`optional(name)`), são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
-| W-1156 | generic labels e contract values (retired) | interpretação anterior: `_` removia o label externo; W-1160 substitui por label opcional, com as duas formas no mesmo slot; values mantêm associated exposure estática | primary-only, field de instance automático, reorder de labels, member callable implícito |
+| W-1155 | generic value parameters (superseded-by-W-1514) | registro histórico: parâmetros de valor usam `name: Type` ou `_ name: Type`, são compile-time imutáveis, resolvidos após name resolution e participam de identidade, ConstIR e monomorphization sem storage runtime; a policy de binding foi substituída por W-1514 | `const name: Type` no envelope, classificação por casing, inheritance/base-class constraint, storage implícito |
+| W-1156 | generic labels e contract values (retired; superseded-by-W-1514) | interpretação histórica: `_` removia o label externo; W-1160 substituiu por label opcional, com as duas formas no mesmo slot. W-1514 supersede essa policy: type parameters e `_ name: Type` são âncoras posicionais; value labels são required e reordenam somente dentro de seu segmento | primary-only, field de instance automático, reorder de labels entre âncoras, member callable implícito |
 | W-1157 | implicit script entry (superseded) | Forma histórica removida do checkout e preservada no Git; RU0 não baixa statements finais e exige entry declaration | wrapper `.default` privado, entry+implicit misturados, args/ctx implícitos, script importável |
 | W-1158 | script bootstrap e latency | `w run file.w` usa parser/checker/HIR comuns, mede first-result separado de steady-state e migra tooling para W somente após self-host C | runtime script separado, vitória sem benchmark, remover seed C, Bun como dependência do produto |
 | W-1159 | proof-backed memory recommendations | diagnostics de race e ownership usam proof facts, e alternativas de partition, channel/service, lock ou atomic permanecem condicionais | naming heuristics, shared como mutation/sync, atomic como lifetime/ownership, arquitetura automática |
-| W-1160 | labels opcionais | `_` dá label opcional no mesmo slot; formas positional e `name:` normalizam para uma HIR; colisão torna declaration/overload inválido | `_` elimina label, alias arbitrário, resolver por tipo |
+| W-1160 | labels opcionais (superseded-by-W-1514) | decisão histórica: `_` dava label opcional no mesmo slot e formas positional/name normalizavam para uma HIR. W-1514 substitui-a: `_ name: Type` é positional-only; labels value são required, reordenáveis apenas no segmento entre âncoras; colisão de conjuntos de labels continua inválida | `_` elimina label, alias arbitrário, resolver por tipo, atravessar âncora |
 | W-1161 | suspensão inferida | body/HIR infere `maySuspend`; `async fn` fixa o contrato quando necessário; bare call de `maySuspend` é erro | propagação nominal obrigatória, warning para bare call, call-site `sync` |
 | W-1162 | placement no call site | domain é escolha explícita do caller; network usa await; declaration-side placement existe somente por correctness | spawn como hint de performance, domain silencioso, worker dedicado para I/O |
 | W-1163 | lowering resumable | ordinary ABI para `neverSuspend`; frame somente para values live across suspension; backend pode usar MLIR, LLVM coro ou CPS | stackful obrigatório, stackless obrigatório, libmill/libdill como dependency |
@@ -7352,7 +7369,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1165 | caminho de memória | value/ref/inout/take/copy e scopes estruturados formam o caminho normal; `region` sai da Forma vigente; Arena é API avançada | region syntax vigente, promoção unique→shared, Arena em tutorial normal |
 | W-1166 | contrato atômico | atomics são operations/order/extent; lowering LLVM direto ou fallback declarado; `lockFree: true` rejeita fallback | atomics como interrupt/block, weakening silencioso, atomic para ownership |
 | W-1167 | projections de process (superseded-by-W-1513) | Registrou as projections contextuais antigas do root native-process. W-1513 remove essa superfície antes de 1.0; argumentos e `process.Context` agora entram somente por assinatura explícita. | proveniência preservada; nenhuma compatibilidade de source |
-| W-1168 | exemplos de documentação | `///` e `/** ... */` suportam `@example` com terminal único; runner gera teste hermético e omite release payload | doctest ambient, múltiplos terminals, measurement universal |
+| W-1168 | exemplos de documentação | `///` e `/** ... */` usam pares `call:` + `result:`/`error:`; cada comentário aceita múltiplos casos; runner gera testes herméticos e omite release payload | marcador `@example`; doctest ambient; terminal duplicado; measurement universal |
 | W-1169 | terminologia retirada | labels numéricos são históricos e não aparecem em catálogo, snapshot ou docs atuais | renomear tiers como levels, manter enforcement tier |
 | W-1170 | comparativos de execução | Swift, GCD, Go, Java, P2300, Koka, libdill, LLVM e MLIR formam gates comparativos sem definir W ou virar dependency | backend externo como autoridade, comparação sem diferença observável |
 | W-1171 | evidence de execution ergonomics | máquina, checker e snapshot derivam forms, suspension/SCC/call, placement, effects, FIFO/lifecycle/budgets e frame bytes; a direção é current host protocol, sem alegar compile/run/provider/human/model | checker que ecoa strings do JSON, snapshot manual, host test tautológico, alegar compiler/runtime |
@@ -7474,10 +7491,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1287 | stub e artifact | stub preserva labels/ownership e acrescenta Launch; artifact liga instances, target, numeric mode, features e provider ABI; open só valida/abre | transfer escondida, open compilar, artifact sem target facts ou launch sem failure typed |
 | W-1288 | subject explícito de refinement | `value` é binding contextual imutável do candidate dentro do predicate e baixa para a mesma ConstIR de `.member`; lookup lexical exige qualificação | `value` ambiental, shadow dependente de imports, storage sintético ou HIR diferente para a forma longa |
 | W-1289 | members associados diretos | `const` e `static fn` pertencem ao namespace compile-time do tipo; protocol só é necessário para requisito generic; mutable type storage continua ausente | companion obrigatório, metatype runtime, `static var`, módulo singleton ou witness sem consumidor polimórfico |
-| W-1290 | labels callable uniformes | `name: T` é posicional em qualquer índice; `named name: T` exige label homônimo; `external internal: T` exige label distinto e `_ name: T` torna o label opcional; initializers e enum payloads permanecem record-like | labels inferidas pela posição, todos nomeados, reorder, ranking por tipo |
+| W-1290 | labels callable uniformes (histórico; superseded by W-1514) | `name: T` exigia `name:` em qualquer índice; `external internal: T` exigia `external:`; `named` não era modifier; `_ name: T` era positional-only; labels selecionavam overload antes dos tipos; initializers e enum payloads permaneciam record-like | labels inferidas pela posição, modifier contextual `named`, label opcional no mesmo slot, reorder, ranking por tipo |
 | W-1291 | posição de ownership em parâmetro | labels e binding ficam antes de `:`; `ref`, `inout`, `take` e `const` iniciam o contrato à direita; `copy` fica somente no call site | `take value: T`, modifier como label, `copy` na assinatura ou duas ordens canônicas |
-| W-1292 | operação de ownership no call site | marker aparece quando a call opera sobre place existente; borrow já tipado e rvalue owned novo passam diretamente; receiver read-only permanece implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
-| W-1293 | categorias das formas de memória | `shared T` e `weak T` são tipos de handle; `ref T`, `inout T` e `view T` são tipos dependentes; `take T` e `const T` são contratos; `atomic` modifica storage e baixa para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
+| W-1292 | operação de ownership no call site (histórico; superseded by W-1515) | marker aparecia quando a call operava sobre place existente; borrow já tipado e rvalue owned novo passavam diretamente; receiver read-only permanecia implícito | omitir sempre `ref`, marcar todo rvalue, borrow implícito de owner lvalue ou marker sem type/value category |
+| W-1293 | categorias das formas de memória (histórico; superseded by W-1515) | `shared T` e `weak T` eram tipos de handle; `ref T`, `inout T` e `view T` eram tipos dependentes; `take T` e `const T` eram contratos; `atomic` modificava storage e baixava para `Atomic<T>` | `Shared<T>` público, `atomic T`, allocator no tipo shared ou tratar toda keyword como modifier equivalente |
 | W-1294 | uma abstração de allocator | ASC0 usa um `Allocator` owner/capability com plan lexical; origin preserva instance, lifetime, mobility e deallocator; `Arena` é apenas lowering interno | `Allocator<(.arena)>` source-visible, `Allocator<(.crossDomain)>`, provider enum fechado, API Arena pública |
 | W-1295 | payload de budget de allocation | `BudgetExceeded` publica limit, committed e requested bytes; overflow usa `.sizeOverflow`, e identidade física fica no diagnostic sidecar | erro Boolean, bytes disponíveis globais, provider identity no valor ou payload truncado após overflow |
 | W-1296 | root de processo único (restringido por W-1513) | host cria Arguments e Context somente quando a assinatura do handler pede esses owners; entry curto não recebe argumentos ou process context implicitamente | descartar argv, injetar args/ctx, singleton process ou lookup global |
@@ -7514,7 +7531,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1327 | declaração lexical de allocator (estendido por W-1348) | `allocator name: plan { ... }` e `allocator plan { ... }` criam owner/lease/scope; construction direta usa a stack corrente; nome anônimo não cria binding observável | `Arena.fixed`, scope sem owner/lease, região implícita ambiental, contexto ambiental transitivo, regra especial de shadowing para allocator |
 | W-1328 | plans fixed, bounded e custom | `PRC0-W-1328-current` e `PRC0-W-1328-adversarial` fecham admission, custom lease, typed drops e close ordering no ASC0 oracle; `.fixed`/custom contract continuam design, e `.bounded` permanece Research | autoridade PRC0; provider/lowering gap reutiliza W-1333; não alegar O(1), raw provider ou fallback oculto |
 | W-1329 | lifecycle, escape e rehome | close drena children/waits/loans/dependents, executa drops tipados e só então reclaim; unwind é uniforme; origin local sobrevive a `await` na mesma task com owner/lifetime estáveis, mas exige `rehome` antes de spawn/service/channel | reset comum, detached work, escape unchecked, drop após bulk release |
-| W-1330 | parâmetro contextual de allocator (estendido por W-1349/W-1350) | primeiro e único slot `allocator name: ref Allocator` entra signature/resource facts/ABI/HIR, publica conclusão contextual de call e preserva function type/callable/lifecycle facts | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação sem slot, ABI foreign escondida |
+| W-1330 | parâmetro contextual de allocator (histórico; superseded by W-1514) | primeiro e único slot `allocator name: ref Allocator` entrava signature/resource facts/ABI/HIR, publicava conclusão contextual de call e preservava function type/callable/lifecycle facts | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação sem slot, ABI foreign escondida |
 | W-1331 | aquisição ativa de clock | `execution.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
 | W-1332 | binding explícito de units | `250<ms>` exige import seletivo/flattened de `std.si`; `import si from std` exige `250<si.ms>`; registry ambient não existe | ms global, qualificação inconsistente, source sem binding |
 | W-1333 | evidence ASC0 | Last Light, corpus, parser, HIR, ASC0 e `PRC0-W-1328-current`/`PRC0-W-1328-adversarial` cobrem allocator scope, admission, lease, typed drops e units; nenhum declara compiler/runtime/provider implementado | manter `implementation-evidence-gap`; expected echo, check como execução, compatibility pre-1.0 |
@@ -7637,13 +7654,13 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1450 | SEC0 evidence/admission implementation evidence gap | ASIC0 fecha profile, side-channel, patch e ordered deployment/hardening receipts como evidence/admission contracts, não security conformance; produção ainda exige compiler/runtime/provider, hardware/sandbox, attestation verifier, secret lifecycle, FFI, fault, stress e local-split evidence | **implementation-evidence-gap**; missing compiler, runtime, provider, hardware, sandbox, attestation verifier, secret lifecycle, FFI, fault/stress e local-split |
 | W-1451 | manifest de projeto unificado | `build.w` direto e data-only por diretório contém um ou dois records top-level em qualquer ordem, pelo menos um e no máximo um `package` e um `workspace`, sem wrapper físico `build.w {}`; package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only e package+workspace atribuem esses fields ao workspace e o package os omite; `workspace.members` aponta para diretórios cujo `build.w` contém `package`; schemas `w.package/1` e `w.workspace/1` permanecem; package inline, nested workspace member, glob, scan ambiental, source executável, arquivo vazio/duplicado e owners duplicados são rejeitados; `package.w`/`workspace.w` são removidos sem shim pré-1.0 | oracle-backed-current; PFU0-W-1451-current fornece o controle host-oracle e o candidate de manifest é aceito |
 | W-1452 | streaming de saída de service | APIs de service retornam explicitamente `some Stream<Item, Failure>`; a chamada via `ServiceRef` sempre acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total de `ServiceFailure`; separadamente, o `Failure` terminal permanece no stream e deve admitir `ServiceFailure`; `Channel` exige capacity, endpoints, ownership, backpressure e `close` explícitos; mailbox e `Stream` mantêm lifecycle distinto; `stream fn` é rejeitada por capturas, lifecycle e erro ambíguos; client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem await e closed-turn change ficam fora | oracle-backed-current; PFU0-W-1452-current fecha o retorno explícito e rejeita o candidate `stream fn` |
-| W-1453 | lifecycle de property | `get`/`set`/`modify` permanecem vigentes em property stored, computed e behavior; `init` bypassa accessors; assignment simples usa `set`/replacement e nunca `modify`; mutation compound usa `modify` uma vez, sem get-copy-set; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value e backing storage drop ocorrem uma vez pelas regras explícitas; cleanup customizado fica no backing type sem `deinit` oculto; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal e sobreposição no borrow exclusivo falha. Hooks fechados `will*`/`did*` só são permitidos em behavior observer nominal explicitamente composto por W-1512; `willSet`/`didSet` soltos, observer implícito e aplicação direta do observer continuam rejeitados. | oracle-backed-current; PFU0-W-1453-current fecha o lifecycle e rejeita o candidate observer |
+| W-1453 | lifecycle de property (snapshot histórico; superseded by W-1516) | `get`/`set`/`modify` permanecem vigentes em property stored, computed e behavior; `init` bypassa accessors; assignment simples usa `set`/replacement e nunca `modify`; mutation compound usa `modify` uma vez, sem get-copy-set; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value e backing storage drop ocorrem uma vez pelas regras explícitas; cleanup customizado fica no backing type sem `deinit` oculto; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal e sobreposição no borrow exclusivo falha. Hooks fechados `willSet`/`didSet` só são permitidos em behavior observer nominal explicitamente composto por W-1512; `willSet`/`didSet` soltos, observer implícito e aplicação direta do observer continuam rejeitados. | snapshot `oracle-backed-current` histórico; a classificação corrente é superseded por W-1516 |
 | W-1454 | arquitetura de capability comum | capability nominal não forjável, sem initializer público; provider/profile/digest são explícitos; owner ou lease liga root+generation; cada operação declara effect/error/ownership/bounds/complexity/cancellation; values portáveis são separados de handles locais; child task recebe borrow/move explícito; service/process faz host rebind; test provider é explícito; não há lookup ambiental | oracle-backed-current; AEG0-W-1454-current fecha a fronteira comum e rejeita authority ambiental, handle wire e child implícito |
 | W-1455 | tempo civil explícito | `std.time` operacional não muda. `UtcTimestamp` é `WireValue` portable; `Instant` e `Deadline` continuam locais. Civil date, local datetime, timezone e calendar são values explícitos. Conversão exige provider/database profile com version/digest e zone/calendar/profile explícitos. DST gap/fold rejeita por default ou exige policy. Locale/calendar/timezone não são ambientais. Wall clock não dirige deadline. Leap-second/smear policy fica no profile sem conversão automática e não há conversão implícita | oracle-backed-current; AEG0-W-1455-current fecha package/profile civil separado e rejeita wall clock global, deadline civil e timezone implícito |
 | W-1456 | perfis de random | package/profile geral separa secure provider-backed de deterministic explicit-seed. Secure não aceita seed, fallback ou downgrade e exige bytes bounded, integer uniforme checked e erro tipado. Deterministic é replayable e não satisfaz secure. Draw order é owner-local, sem inheritance entre task/service/process. Context HTTP projeta o mesmo contrato. Somente seed/profile determinístico pode entrar em test receipt; secure seed/draw/bytes não entram em receipt/log/diagnostic. Handles não são WireValue | oracle-backed-current; AEG0-W-1456-current fecha secure/deterministic e rejeita seeded secure, fallback e inheritance implícita |
 | W-1457 | codecs e compression explícitos | packages específicos declaram ByteSource/Sink, profile+digest, streaming e quotas separadas para encoded, logical, allocation, depth e ratio. Offset/progress errors são tipados. Cancellation não desfaz bytes committed. Dictionary/state tem owner explícito. Codec/schema e compression transform têm identity/limits separados | oracle-backed-current; AEG0-W-1457-current fecha requisitos operacionais e rejeita `Codec<T>` universal, reflection, inference ambiental e quota colapsada |
 | W-1458 | crypto e secrets scoped | app crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned, sem string/fallback/downgrade. Secret/key handle é opaque, nonextractable por default, purpose/audience/generation scoped e move-only. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | oracle-backed-current; AEG0-W-1458-current fecha lifecycle e rejeita plaintext/env lookup, secret wire e downgrade |
-| W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e optional em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
+| W-1459 | baseline portátil de `std.simd` | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>`, lanes `1...64`, label required somente em Simd e âncora positional-only em mask com aplicação `SimdMask<16>`, Element escalar fechado com `Bool` em mask, sequence target-independent, layout opaco, scalar fallback obrigatório, mask `splat(Bool) -> SimdMask<N>`/`fromArray([Bool; N]) -> SimdMask<N>`/`toArray() -> [Bool; N]` sem allocation, `all`/`any`/`none` retornam `Bool` e `countTrue` retorna `UInt`, load borrow source e store destination `inout` com partial tail total e preflight, arithmetic lane-wise condicionado ao scalar Element, floats sem bitwise/shift/overflow APIs, integer overflow mask por lane, masks com bitwise operators, reductions nomeadas em ordem/policy (`reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`) e float `ReductionMode` obrigatório (`strict` left fold, `reproducible` árvore balanceada v1, `fast` sem igualdade de bits cross-backend; omission/positional/wrong-label/wrong-arity de mode: usa W-LABEL-0005 e repetição usa W-LABEL-0006), static swizzle com count-first em `1...64`, duplicata e primeiro OOB em source order, e `w explain performance` com lowering facts | oracle-backed-current; SIMD1-W-1459-current fecha o contrato host-only e rejeita width/layout nativo, Bool lane, dynamic shuffle, alignment flag, write antes de bounds failure, short-circuit e performance universal |
 | W-1460 | fingerprint semântico pós-validação de generic D1 | evidence interna versionada `w-seed-generic-fingerprint-1`: preimage canônico independente de spans/indices/source spelling, validação/preflight antes da avaliação, `VERIFIED` + `AVAILABLE` somente após todos os predicates true, `VERIFIED` fora do subconjunto + `UNSUPPORTED`, demais estados + `NOT_AVAILABLE`/bytes zero; witness `restaurant` com standard duplicado, cancelled, vazio, salto e duplicata; C e Bun reconstrutores independentes | oracle-backed-current; `GPF0-W-1460-current` usa fragments reais de Last Light, seed C e oráculo Bun independente; usar spans/indices/source spelling, chamar digest de `TypeId`/cache key/identidade, emitir antes de `VERIFIED` ou confiar somente no C; fingerprint-1 sozinho ainda não contém o preimage completo de declaration/substitution/witness de W-1467 e não é a identidade semântica; target, profile, edition, toolchain, compiler, bundle e ABI pertencem à recipe física; digests diferentes implicam preimages diferentes, mas digest igual isolado sem preimage não prova igualdade nem identidade collision-safe; a proveniência source-backed de W-1460 e seu gate permanecem preservados |
 | W-1461 | evidência D2 String source-backed em generic predicates | D2 source-backed bounded de `String` em predicates genéricos: literal simples até 4.096 bytes, `==`/`!=`, preflight canônico, `VERIFIED`/`REJECTED`/`UNSUPPORTED`/`INVALID` e fingerprint Bun independente | oracle-backed-current; `GPF0-W-1461-current` liga diretamente os markers reais de `generics.w`, `isFinalCallLabel`, positivos duplicados, rejeitados, empty, over-limit, corrupção e digests Bun ao gate independente `tooling/check-seed-generic-validation.mjs`; o caso não afirma String completa, compiler, runtime ou self-host |
 | W-1462 | expressão const tipada escalar em generic value | D3 source-backed bounded de expressão parentetizada com literais, grouping, unary e binary operators escalares, resultado `Bool` ou integer explícito, função ConstIR sintética com origem explícita, receipts `CONST_ARGUMENT`/`PREDICATE` ordenados e fingerprint normalizado | oracle-backed-current; `GPF0-W-1462-current` liga os markers reais de `generics.w`, prova immediate `42`, computed `(6 * 7)`, duplicate, rejected `(6 * 6)`, quota cumulativa, overflow, unsupported call e corrupção com seed C e reconstrução Bun independente; identifiers/named const, graph dependencies/cycles, imported heads/predicates, String computed result, identity final, compiler/runtime e self-host permanecem limites |
@@ -7688,8 +7705,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1498 | MAN0 guarded structural data-only manifest reader | MAN0 lê em batch todos os candidates de um guard OWN0 `LIVE_OBSERVED`. A primeira wave é parseada, medida e preflighted antes da única revalidação OWN0. A segunda wave usa as mesmas identidades; length, bytes, backend digest, core digest e bindings devem coincidir antes de run, verify e commit all-or-nothing. O parser C23 próprio aceita somente records, lists, constructors, members, String normal, number, size, quantity e Bool; preserva fields desconhecidos, ordena roots e fields e mantém list/argument order e source spans. Sete digest domains MAN0 usam frames byte-exact e não usam `w.owner/1`. O reader não seleciona owner/workspace, não valida schema, não executa imports e não integra ACQ0/WSP0/`w check`/`w run`. Linux usa a sessão retida, `openat2` e identidade mount/device/inode; Windows permanece `UNSUPPORTED` sem efeitos. Core C23, units/golden e o gate root depois de OWN0 fornecem somente evidência bounded do parser e da composição Linux real em duas waves; a factory Windows é um stub direto fail-closed. C11 é somente recovery explícito | `implementation-evidence-gap`. A classificação permanece estreita: Windows operacional, vínculo ACQ0, schema decoder, WSP0 e produto público permanecem gaps; não há claim de timing ou benchmark |
 | W-1499 | composição interna BND0 caller-owned ACQ0→OWN0→MAN0 | BND0 compõe resultados completos de ACQ0 e MAN0 por uma link síncrona presa ao guard OWN0. A validação calcula facts, receipts, bindings, link digest e generation antes de uma publicação única no destination caller-owned. O Linux aceita somente `linux-openat2-v2` e reconcilia tokens com `STATX_MNT_ID_UNIQUE`, device major/minor e inode. Alias, copy, stale, mutation, mismatch, boundary, I/O, unsupported e fault falham fechados; adapters ausentes não publicam. `verify` recompõe a relação com os mesmos descriptors e scratch. | `implementation-evidence-gap` no geral, com subevidência Linux bounded em `test_source_binding_linux_gate.c` e `check:source-binding`; Windows operacional, schema/WSP0, produto público, backend/runtime e vínculo ACQ0 geral permanecem gaps. `test_source_binding.c` cobre publicação all-or-nothing, statuses, alias/copy e stub não-Linux. `benchmarkDisposition` é `compiler-lifecycle`, sem stage, timing ou result |
 | W-1500 | política de dialeto C23 controlado | C23 é o padrão explícito do C controlado, do seed CMake, do artefato HLO1 gerado, dos probes/checkers diretos e da baseline BMD byte-scan-view. O seed tem default `W_SEED_C_STANDARD=23` e aceita somente `23|11`; C11 é recovery/compatibilidade explícita, sem fallback silencioso. GCC/Clang usam `-std=c23`; somente `-std=c2x` recebe disclosure correctness-only e não produz resultado/ranking final C23; MSVC sem C23 gera SKIP principal ou roda recovery explícito. O código continua compilável na lane C11 recovery e a ABI C externa permanece separada. C é validation/differential/recovery; MLIR continua backend primário futuro. `benchmarkDisposition` é `compiler-lifecycle` para o seed e a recipe C23 do BMD permanece sem timing/result. `bun run demo:seed-hello` reproduz a rota real e exige stdout exato `Hello, world!` | `DESIGN.md` W-1500, `compiler/seed-c/CMakeLists.txt`, `tooling/c-dialect.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-seed-c11-recovery.mjs`, `tooling/demo-seed-hello.mjs`, `benchmarks/byte-scan-view.manifest.json` e gates focais; categoria `source-backed-current` para a política e `oracle-backed-current` para BMD correctness |
-| W-1501 | behavior convergente sem shim pré-1.0 | Behavior usa plain `var` como backing field oculto de reflection. `init()` é zero-slot e `init(initialValue: fn(): Value)` é a única forma one-slot, recebendo o thunk do RHS; get, set, modify e defer preservam o lifecycle e a inferência de generics. `storage`, `input` e o keyword global `storage` deixam de ser spellings aceitos, sem compatibilidade histórica. | `source-backed-current` no behavior canônico, Last Light e witness `WrappedDegrees` em `orbit.w`; o teste de `Attitude` exercita assignment, `modify` e resultado observável `15`. Compiler/runtime de behavior e provider permanecem gaps |
-| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles imediatos de handle usam facets, algorithms/factories usam members normais e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível, mantém `${...}` literal e aceita somente a interpolação opt-in `#${...}`; `'λ'` continua `UnicodeScalar`. `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
+| W-1501 | behavior convergente sem shim pré-1.0 (histórico; superseded by W-1516) | Behavior usa plain `var` como backing field oculto de reflection. `init()` é zero-slot e `init(initialValue: fn(): Value)` é a única forma one-slot, recebendo o thunk do RHS; get, set, modify e defer preservam o lifecycle e a inferência de generics. `storage`, `input` e o keyword global `storage` deixam de ser spellings aceitos, sem compatibilidade histórica. | `source-backed-current` histórico no behavior canônico, Last Light e witness `WrappedDegrees` em `orbit.w`; o teste de `Attitude` exercita assignment, `modify` e resultado observável `15`. Compiler/runtime de behavior e provider permanecem gaps |
+| W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles imediatos de handle usam facets, algorithms/factories usam members normais e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e nunca interpola; `'λ'` infere `String` sem contexto e satisfaz `UnicodeScalar` quando esse é o tipo esperado. `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
 | W-1503 | pesquisa finita de allocation e placement | `memory.generalAllocator: .none` é policy de build sem allocator geral/root e não escolhe placement; `.fixed<capacity:N>` é lexical current; `.bounded<budget:N>` e `.stack<capacity:N>` permanecem Research. `no-general-allocation`, `no-allocation`, `dynamic-allocation-forbid`, storage classes, escape, frames, returns, ABI e linker precisam de provas separadas. `product` é conceito de seleção de manifest/artifact; `product<...>` não é declaração genérica de source nem candidato | `research-gated`; ledger W-1503 registra tasks, cases, blockers, stop conditions e refs primárias; HIR taxonomy, escape/stack summaries, verified-HIR, MLIR, async frame, target/linker/provider, diagnostics e benchmarks continuam missing; nenhuma syntax nova é ratificada |
 | W-1504 | convergência pipeline/transaction (superseded) | Registrou a antiga pipeline DAG com `return` e a expressão `transaction` separada com `commit`; preservado como proveniência e não como decisão corrente | `superseded-by-W-1511`; o ledger histórico permanece registration-only e não autoriza uma segunda grammar |
 | W-1505 | subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 | W-1505 remove a especialização Hello-only sem abrir HIR geral. HIR0/W-1494 continua a representação intermediária bounded de schema fechado, mais ampla que a seleção final. A forma exata seguinte pertence somente ao seletor HLO0 aplicado a uma HIR0 verificada: exatamente um module, um entry `.default` e uma função alvo zero-parameter/Unit/sync/nonthrows/safe/no-borrow, um block, uma call host-prelude `print`, um argumento positional `String` literal e uma requirement `Console`. HLO0 sobe para `w-seed-hlo0-2`, aceita target/handler como byte strings derivados da HIR0 verificada, não vazios, com canonical zero-tail e igualdade exata, e carrega o literal `String` inteiro (0..`W_SEED_HLO0_MAX_PAYLOAD` bytes, inclusive NUL quando publicado). O profile continua `native-process@1`, slot `.default`, callee `print`, requirement `Console`, policies/effects e shape do seletor permanecem exatos; o verifier isolado do plano comprova somente a representação zero-tail e a igualdade de target/handler, não source provenance nem identifier válido; stdout é payload + LF com tamanho checked e SHA-256 correspondente, tail é zero e exit é success. HLO1 mantém `w-seed-hlo1-1`; HLO1/RUN0 usam o verifier HLO0 compartilhado, sem heap e sem bypass. Hello, o witness Restaurante `Table 42 remains open` e vazio atravessam source → parser → frontend → HIR0 → HLO0 → HLO1/RUN0; trivia preserva o artefato e comentário com `print`, noop, duas calls e formas fora do subset falham sem saída parcial. W-1505 supersede W-1491, W-1493 e W-1495 somente nos milestones Hello-only; W-1494 permanece current. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only agora, sem timing/result; C23 é primary, C11 recovery explícita, toolchain ausente é SKIP e toolchain presente que falha é FAIL | `source-backed-current` para este subset bounded; units e `check:hlo0`, `check:hlo1`, `check:run0` demonstram os produtos e rejeições reais, enquanto HIR geral, backend/MLIR, runtime/provider W, `w run` e performance continuam gaps/deferred. Não há alteração de grammar, portal, registry ou estudos W-1503/W-1504 |
@@ -7698,10 +7715,33 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1507 | catálogo operacional de compiler hosts, emitted targets e cross-compilation | `tooling/platform-support.json` é a fonte operacional única para targets emitted, compiler hosts, cross-compilation, evidence, policy e planos native, com `PLATFORM-SUPPORT.md` como projeção determinística. Targets usam `candidate`, `evidence`, `supported`, `deprecated` e `removed`; candidate/evidence têm verification nulo, supported exige exatamente `experimental`, `level-3`, `level-2`, `level-1` ou `long-term`, e cada row exige os seis eixos `backend`, `runtime`, `hostAdapter`, `sdkProfile`, `linkerSysrootPackaging` e `ciEvidence`. Supported exige todos os eixos `pass` com evidence não vazia; blockers são exatamente os eixos não-pass. Hoje há zero targets supported: `x86_64-unknown-linux-gnu` só tem evidence `w-seed-mlir0-1-print-literal`, backend pass e cinco eixos partial, sem claim geral de target, SDK, packaging ou CI; há exatamente 15 candidates. Hosts são distintos: outer Windows `x86_64-pc-windows-msvc` usa tools Linux `x86_64-unknown-linux-gnu` via WSL2, `nativeForOuterHost: false`, evidence dev-only, `nativeToolchain: partial` e esse eixo em `blockers`; os candidates native cobrem Linux, Windows e macOS em x86_64/AArch64. Cross-compilation é a terceira dimensão: os hosts/targets primários nativos são `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e `aarch64-apple-darwin`, com matriz completa 3×3 de 9 edges host→target, incluindo self edges; hoje 0/9 são supported e todas são candidate. Cada edge tem id determinístico, refs, state, evidence e blockers; supported exige endpoints supported, toolchain/sysroot/linker/packaging pass e evidence separada de build e execução. A edge WSL é development, `nativeHost: false`, publica roles development/toolchain/build/execution com execução local, tem blockers nativeHost/endpoints/toolchainSysrootLinkerPackaging sem `buildExecution`, fica fora dos 9 e não satisfaz Windows→Linux nativo. Linux↔Windows requer SDK/sysroot/object/linker explícitos; Apple exige SDK, licença e provenance, sem pressupor redistribuição; remote execution é distinto de build; este bundle não implementa cross toolchains. MLIR0 `20.1.2` permanece versão factual da evidence/gate atual com `currencyStatus: update-required`, não versão futura. Planos native Linux/Windows/macOS são planned com source exact `llvmorg-23.1.0`, tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; a evidence Linux atual em WSL não satisfaz o plano successor. O blocker real é `native-build-acquisition-provenance` para build ou aquisição, outputs, SHA256, SBOM, provenance, signing, CI e smoke, e o pin não promove suporte nativo. Rejeitam pin histórico, `latest` e `nightly`, e declaram artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. `externalToolchainCandidates` é evaluation-only e não promove claim W, host ou edge. A política fixa `referenceBreadth.goal: at-least-rust-breadth`, fontes oficiais, observed date `2026-08-31` e `importsRustTiers: false`; a meta não herda claims ou tiers do Rust. O checker rejeita matriz incompleta/duplicada/only-self, refs indefinidos, WSL nativo, composite não-nativo com nativeToolchain pass, host/target conflated, gates/blockers divergentes, states/levels desconhecidos, claims em candidates, versões futuras flutuantes e manifest MLIR0 divergente. `benchmarkDisposition` é `not-applicable`: o bundle é metadata, projection e policy gate sem runtime/performance | Fontes primárias: [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html); evidence local em `tooling/platform-support.json`, `tooling/platform-support.mjs`, `PLATFORM-SUPPORT.md`, `tooling/platform-support.test.mjs` e `tooling/mlir0-toolchain.json`. Categoria `source-backed-current` somente para matriz, checker e projeção; não é implementação de backend, runtime, SDK, packaging ou CI |
 | W-1508 | catálogo operacional de dependency currency | `tooling/dependency-currency.json` é a fonte máquina única para currency operacional e `DEPENDENCIES.md` é a projeção humana determinística. Managed ativos usam latest stable exata sem selectors floating; compatibility floors e recipes permanecem separados e não sobem por currency; evidence histórica é preservada, Unicode `17.0.0` permanece intacto e observações de ambiente não alegam pin exato. MLIR `20.1.2` continua evidence histórica, enquanto `23.1.0` é successor selected/not promoted com tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; planos native usam esse pin exato e permanecem bloqueados por `native-build-acquisition-provenance`. O checker cruza package, lock, workflow, README e platform reais, valida URLs/SHAs/tags coerentes e mutações adversariais, e `source-backed-current` fica limitado ao catálogo, checker e projeção | `source-backed-current` somente para metadata operacional, com checker e projection reais; não promove semântica W, suporte de host/target, CMake/Ninja ou toolchain native |
 | W-1509 | facets ligadas a property places | `#` projeta somente facets declaradas em behavior ou controles imediatos de um handle/context core; `export fn`/`export mut fn` e computed facets são property-safe, imediatas e não reificáveis. Algorithms, factories e combinators, inclusive `firstSettled`, `Task.withDeadline` e `Task.spawn`, usam members normais; `spawn<domain>` continua initializer estático, e data/resource APIs mantêm `.` | `source-backed-current` para contrato/documentação/corpus/projeções e o witness bounded do seed parser; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: compiler/lowering/runtime/provider e workload property-safe ainda não fechados; nenhum timing ou resultado foi coletado |
-| W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; sua finalidade primária é compor cadeias funcionais de duas ou mais calls, cada RHS é call template livre com lista de argumentos e o resultado anterior ocupa o primeiro parâmetro posicional uma vez; modifiers/ownership são explícitos e não há UFCS, placeholder, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting e os witnesses bounded de lexer/parser; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletado |
+| W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; cadeias usam call livre, que recebe o lhs no primeiro slot posicional, ou etapa relativa `.member(...)`, que usa o lhs como receiver; demais argumentos e modifiers/ownership permanecem explícitos e não há UFCS, placeholder, assignment chaining, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting e os witnesses bounded de lexer/parser; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers/member-relative e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletado |
 | W-1511 | pipeline unificada | `pipeline` é a única superfície de graph, com modos `dependent`, `tasks` e `transaction`, `pipeline_region`/HIR comum e `commit`; tasks exige quatro campos, transaction substitui keyword independente, e nesting/combinação tasks+transaction são rejeitados | `source-backed-current` para design e superfícies exercidas pelos gates, incluindo parser/formatter bounded e frontend unsupported; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: HIR/provider/runtime, round-trip, contention, fault e cancel/drain; nenhum timing ou resultado foi coletado |
-| W-1512 | composição nominal e observers property-safe | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage, observers têm hooks/facets e ordem lexical/inversa, paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
+| W-1512 | composição nominal e observers property-safe (histórico; superseded by W-1516) | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage; observers têm somente `willSet`/`didSet`, e `modify` conclui com um `didSet` pós-borrow sem proposed artificial; paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` histórico para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
 | W-1513 | raiz contextual de execução target-neutral | `execution` substitui a raiz contextual `process`; `.` projeta somente facts/capabilities já concedidos, `#` expõe controles imediatos, nenhuma forma descobre ou amplia authority ambiental, e `std.process` permanece módulo opcional de host com owners explícitos | `oracle-backed-current` para DESIGN, Last Light, EE e PR0; `benchmarkDisposition: not-applicable`, pois a mudança remove aliases e reloca resolução sem alterar o algoritmo runtime; checker/lowering/provider target-neutral continuam gaps |
+| W-1514 | labels e calls reorderable | `name: T` publica label externo homônimo; `external internal: T` separa label e binding; `_ name: T` é positional-only. Named arguments fazem bind por label e reordenam somente dentro do segmento delimitado por anchors `_`; anchors preservam fronteiras e ordem, defaults não removem fronteiras, e tipos nunca escolhem binding. Call shape usa receiver/nome, conjunto de labels por segmento e aridade/anchors; permutações não criam overloads. O allocator contextual único pode ocupar qualquer posição declarada, e `|>` preenche exatamente um slot obrigatório não contextual ainda sem binding, sem placeholder. | `source-backed-current` para DESIGN, RATIONALE, grammar, corpus e execution-ergonomics; `benchmarkDisposition: not-applicable`; checker/lowering completo e pipe execution permanecem gaps |
+| W-1515 | separação de ownership, copy e object defaults | `ref T` é borrow shared read-only; `mut ref T` é borrow exclusivo direto, dependent e lifetime-checked; `mut view T` é view exclusiva lógica; `inout T` é somente convenção parameter/call value-in/value-out, com source reservado e writeback normal/throw estruturado. `Copy` é implícito, bounded e sem hidden allocation/deep traversal; `Duplicable` é `copy value` explícito e pode alocar; structs/enums não são Copy por default. `object` sem modo em parâmetro normaliza para `ref ObjectType`, e `mut objectPlace` é a forma curta de mut ref. COW só é direção first-party declarada e research-gated, sem keyword nova. | `source-backed-current` para contrato e exemplos; `implementation-evidence-gap` para checker/lowering/runtime/backend. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
+| W-1516 | properties, behaviors e access observers | A surface remove `modify`: `get` produz value lógico, `get ref` borrow read-only, `get mut ref` borrow exclusivo scoped e `set(value)` substitui. Property writable declara `var` e `set`, `get mut ref` ou ambos; `inout` compõe value get+set com sequência de get/set observers e writeback, enquanto `mut ref` exige `get mut ref` e não executa willSet/didSet. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `source-backed-current` para DESIGN, RATIONALE, Last Light, grammar, reflection availability, corpus e CHEATSHEET; `implementation-evidence-gap` para checker/lowering/runtime. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
+
+Amendments desta rodada fecham os detalhes operacionais. W-1514 permite saltar
+somente âncoras default/contextual, mantém required anchors como bloqueio fora
+de pipe e exige exatamente um hole em pipe, inclusive para named holes. Type
+heads usam a mesma segmentação: type parameters e `_ value` são anchors, e
+external labels repetidos em qualquer declaration inteira usam `W-LABEL-0006`.
+O operation do lhs também pertence ao contract do pipe; a prova de provenance do
+lhs ainda é um gap do oracle. W-1515 exige origem/lifetime provados para
+dependent borrows em aggregates/captures, sem ownership ou sobrevivência do
+referent; `Copy` permite apenas traversal fieldwise fixo e não hidden allocation
+ou traversal dependente de dados. W-1516 usa receiver `mut ref self` em set,
+compound value get/set chama get e set observers, e storage facets mut chamam
+`didSet` após cleanup sem `proposed`/`willSet`.
+
+O ledger preserva W-1290, W-1292, W-1293, W-1330, W-1453 e W-1512 como
+proveniência, mas suas regras conflitantes não são vigentes: W-1514 os
+supersede quanto a labels/anchors/allocator; W-1515 os supersede quanto a
+ownership e `inout`; e W-1516 os supersede quanto a property accessors e
+observers. Essa marcação também impede que a projeção do ledger trate a ordem
+antiga, o `inout` borrowed ou `modify` como contrato atual.
 
 W-1412–W-1416 substituem W-1046–W-1049, W-1051–W-1053, W-1057–W-1058,
 W-1060, W-1062–W-1070, W-1157 e W-1245. W-973, W-1050, W-1054–W-1056,
@@ -8307,9 +8347,8 @@ module e um entry, com o entry normalizado para `.default` e nomes de função
 partições densas; gap, overlap e record órfão falham. `symbols` é somente um
 índice redundante validado na ordem module → parâmetros → function → entry, e
 nunca é fonte de identidade ou tipo para o lowering. Famílias frontend sem
-record HIR0 falham como `UNSUPPORTED`. Labels host named/external copiam o
-nome público; positional usa label vazio; `OPTIONAL` é aceito somente quando a
-call publica o label canônico, ficando a forma omitida fora do subset.
+record HIR0 falham como `UNSUPPORTED`. Labels host required copiam o nome
+público; positional usa label vazio; qualquer outra policy fica fora do subset.
 
 Essa fronteira HIR0/W-1494 é uma representação bounded mais ampla que a seleção
 HLO0: ela pode carregar múltiplas funções e os records correspondentes de
@@ -8878,7 +8917,7 @@ continuam: não há backend W geral, `w run`, runtime, runner de language,
 ranking ou medição de performance. Toolchain ausente é SKIP explícito e
 toolchain presente que falha é FAIL.
 
-#### W-1501 — behavior convergente sem shim pré-1.0
+#### W-1501 — behavior convergente sem shim pré-1.0 (histórico; superseded by W-1516)
 
 W-1501 reduz behavior a uma forma única. Um `behavior` declara fields plain
 `var`, que funcionam como backing fields ocultos de reflection. `init()` cobre
@@ -9076,7 +9115,7 @@ entre os namespaces e uma
 facet não é uma API de terceiros que possa ser adicionada a um tipo existente.
 O desenho escolhe `export fn`/`export mut fn` e computed facet properties dentro
 do behavior, mantendo backing fields invisíveis e os accessors `init`/`get`/
-`set`/`modify` no lifecycle da property.
+`get ref`/`get mut ref`/`set` no lifecycle da property.
 
 O teto property-safe explica por que facets não são um escape para efeitos:
 elas são síncronas, nonthrows, bounded, sem I/O, task, bloqueio, allocation
@@ -9102,7 +9141,7 @@ isolado sem uso não seria evidência suficiente.
 O field `epoch` não contradiz a regra de um único storage: ele é metadata
 auxiliar do observer e não armazena, substitui ou participa do acesso ao valor
 lógico da property. Contar somente o componente que declara
-`get`/`set`/`modify` evita impedir observers úteis sem introduzir duas fontes de
+`get`/`get ref`/`get mut ref`/`set` evita impedir observers úteis sem introduzir duas fontes de
 verdade para o valor.
 
 Task é a primeira família core. Controls de handle como `task#cancel` e
@@ -9126,13 +9165,15 @@ compilador; isso não substitui o benchmark `required` desta feature.
 #### W-1510 — pipe-forward explícito
 
 W-1510 escolhe uma pipe fixa e pequena para fluxo local/sequencial. A expansão
-`lhs |> f(args)` é `f(lhs, args)` com o lhs uma única vez no primeiro parâmetro
-posicional. Exigir uma lista de argumentos no RHS elimina bare function,
-placeholder e fallback UFCS/member; manter modifiers call-side (`try`, `await`,
-`async`, `spawn<domain>`) deixa suspensão, ownership e erro visíveis. Optional e
-Result não são mapeados implicitamente. A precedência abaixo de `??`/logical OR
-e acima de assignment, com associatividade à esquerda, fecha a interpretação
-sem criar promise, allocation, graph ou concorrência.
+livre `lhs |> f(args)` é `f(lhs, args)` com o lhs uma única vez no primeiro
+parâmetro posicional. A expansão relativa `lhs |> .member(args)` é
+`lhs.member(args)` e torna a escolha de member lookup explícita. Exigir uma
+lista de argumentos no RHS elimina bare function e placeholder; manter
+modifiers call-side (`try`, `await`, `async`, `spawn<domain>`) deixa suspensão,
+ownership e erro visíveis. Optional e Result não são mapeados implicitamente.
+A precedência abaixo de `??`/logical OR e acima de assignment, com
+associatividade à esquerda, fecha a interpretação sem criar promise,
+allocation, graph ou concorrência.
 
 O caso representativo é `value |> normalize() |> validate() |> render()`, não
 uma call isolada com decoração. A associação à esquerda passa o resultado de
@@ -9144,8 +9185,11 @@ O lexer/parser C bounded emite `|>` como um token e cobre precedência abaixo de
 de recovery. O corpus de formatter mantém pares CST e snapshot D0; nenhuma
 dessas evidências mede execução ou equivalência de fluxo.
 
-A rejeição de UFCS é uma escolha de estabilidade: adicionar um member ou
-extension não pode alterar a resolução de uma cadeia escrita como pipe. O
+A rejeição de UFCS implícita é uma escolha de estabilidade: adicionar um member
+ou extension não altera uma etapa livre; o autor escolhe `.member(...)` quando
+quer lookup normal de receiver. Assignment não entra na pipe porque produz
+`()` e exige um place; operações funcionais devolvem o value e uma assignment
+única pode publicar o resultado ao fim. O
 formatter e o syntax atlas mostram a quebra antes de `|>`; `:` e `#` conservam
 seus significados de labels e facets. A evidência atual é source-backed para
 grammar/corpus/formatter/highlighting e não afirma execução W. O
@@ -9196,7 +9240,7 @@ parser/formatter é `compiler-lifecycle` somente para essa execução do compila
 o benchmark da feature permanece `required`. W-1511 é a única decisão corrente para
 pipeline/transaction; W-1504 permanece somente como proveniência histórica.
 
-#### W-1512 — composição nominal e observers property-safe
+#### W-1512 — composição nominal e observers property-safe (histórico; superseded by W-1516)
 
 W-1512 fecha a composição de behaviors como uma extensão da decisão W-1509,
 sem abrir uma lista ad hoc na aplicação nem sobrecarregar `|>`. A definição usa
@@ -9210,7 +9254,7 @@ um componente pode ocupá-lo. Uma composição nominal sem storage usa storage
 plain sintetizado; aplicação direta de um observer, como `var Versioned value =
 rhs`, é rejeitada porque o RHS seleciona o initializer one-slot da aplicação.
 Os demais componentes são observers: têm backing próprio, `init()` zero-slot,
-facets e hooks opcionais `willSet`/`didSet`/`willModify`/`didModify`. Hooks
+facets e hooks opcionais `willSet`/`didSet`. Hooks
 recebem somente `ref`, são sync, nonthrows e property-safe; os que alteram
 backing exigem `mut` explícito, e sem `mut` não alteram backing. Não substituem,
 vetam ou reentram na property, e não adquirem authority. Dois storage behaviors,
@@ -9218,11 +9262,16 @@ alias duplicado, ciclo ou path ausente são diagnostics, não uma prioridade
 implícita. Clamp+Normalize cuja ordem altera o valor exige um behavior novo
 nomeado.
 
-Storage/plain inicializa antes dos observers. `will*` segue ordem lexical, o
-storage executa uma vez e `did*` segue ordem inversa; drop faz observers inversos
-e depois storage. `didModify` observa admission, não delta. A facet mutating do
-componente storage percorre esses hooks; uma facet de observer altera somente o
-metadata próprio. Facets herdadas permanecem qualificadas (`#degrees.reset`,
+Storage/plain inicializa antes dos observers. Assignment simples executa
+`willSet` em ordem lexical, storage uma vez e `didSet` em ordem inversa. Uma
+mutation por `modify` não possui proposed value antes do loan; ela executa o
+accessor/defer e depois um `didSet` inverso. Esse hook observa admission
+concluída, não delta. `willModify`/`didModify` duplicavam observação, enquanto
+`willGet`/`didGet` adicionariam custo a toda leitura sem observar uma mutation;
+as quatro formas ficam fora de v1. A facet mutating do componente storage
+executa `didSet` depois do cleanup; uma facet de observer altera somente o
+metadata próprio. Drop faz observers inversos e depois storage. Facets herdadas
+permanecem qualificadas (`#degrees.reset`,
 `#version.mutationEpoch`) e o prefixo não pode ser guardado. Nested composites
 só são aceitos com path completo e cycle rejection.
 
@@ -9291,3 +9340,134 @@ Availability é estática. Um target sem scheduler cooperativo rejeita
 implementação de checker, lowering e providers target-neutral permanece um gap.
 O `benchmarkDisposition` é `not-applicable`: o bundle muda resolução e remove
 aliases, mas não escolhe algoritmo runtime nem publica claim de performance.
+
+#### W-1514 — labels, anchors e calls reorderable
+
+W-1514 substitui a exceção histórica que tornava o primeiro parâmetro
+posicional. O label homônimo continua obrigatório para `name: T`; somente
+`_ name: T` escolhe positional-only, enquanto `external internal: T` separa o
+vocabulário da API do binding local. A escolha preserva nomes úteis em APIs
+humanas e deixa a intenção posicional explícita em operators, intrinsics,
+callbacks fixados por uma ABI externa e operações matemáticas genuinamente
+posicionais.
+
+Um `_` é uma âncora de posição, não um label removido. External labels são únicos
+na declaration inteira, mesmo quando há âncoras entre eles; uma repetição usa
+`W-LABEL-0006`. A assinatura é dividida em segmentos por essas âncoras. Labels podem ser permutados dentro do segmento
+em que foram declarados; nenhuma permutação atravessa uma âncora, e âncoras
+omitidas continuam fronteiras lógicas:
+
+```w
+fn window(leftStart start: Index, leftEnd end: Index, _ center: Index,
+          rightStart start2: Index, rightEnd end2: Index) {}
+window(leftEnd: end, leftStart: start, center,
+       rightEnd: end2, rightStart: start2)
+// error: rightStart cannot cross the required `center` anchor
+```
+
+A forma `_name: T` permanece o label literal `_name:` e não é uma grafia
+positional.
+
+A call shape normaliza cada segmento para um conjunto de labels e mantém a
+aridade/ordem das âncoras. Duas declarations que só trocam a ordem textual dos
+mesmos labels colidem; duas calls com a mesma label-set não formam overloads
+distintos. O resolver escolhe nome/receiver, segmentos e anchors antes de
+consultar tipos. Tipos não selecionam binding, não reordenam positional-only e
+não desempatam um hole de pipe.
+
+O receiver, ou o lhs de `|>`, é avaliado primeiro. Expressions explícitas são
+avaliadas uma vez, em ordem escrita, da esquerda para a direita. O lowering
+reorganiza os values na ordem de declaração/ABI; defaults são preenchidos na
+ordem de declaração depois dos explícitos. O allocator contextual continua um
+slot nominal único, mas não exige a primeira posição: sua posição declarada
+permanece na interface/HIR/ABI e a resolução contextual preenche esse slot.
+
+`|>` não ganhou um token placeholder. Depois do bind explícito, há exatamente
+um slot obrigatório não contextual sem binding disponível para o lhs; zero ou
+dois ou mais slots faltantes são erros mesmo quando tipos parecem distinguir a
+call. Defaults não são holes. Um hole nomeado pode estar em qualquer posição ou
+segmento; um anchor positional só pode ser o hole quando é o único slot
+obrigatório faltante e as fronteiras explícitas continuam preservadas. Âncoras
+default/contextual podem ser omitidas sem remover sua fronteira; uma label
+posterior só pode saltá-las, e uma âncora required bloqueia o salto fora de
+pipe. O operation do lhs também deve satisfazer o contract do slot; o oracle
+atual não recebe provenance do lhs e registra essa validação completa como gap.
+
+Applications de type head e generic usam a mesma regra: type parameters e
+`_ name: Type` são anchors; named value arguments reordenam somente dentro dos
+segmentos, e types/predicates não escolhem binding. Por exemplo,
+`Matrix<rows: 3, f32, columns: 4>` mantém `Element` como type anchor entre os
+dois segmentos; `_ count: usize` é um value anchor na mesma regra.
+
+#### W-1515 — ownership, copy e object defaults
+
+W-1515 separa a operação de ownership do tipo lógico e da convenção de call.
+`ref T` conserva um borrow shared read-only. `mut ref T` introduz um borrow
+exclusive direto, dependente e verificado por lifetime. `mut view T` é uma
+projeção exclusive lógica. `inout T` não é um quarto borrow: é uma convenção
+parameter/call value-in/value-out. O callee recebe um local mutável, o source
+place fica reservado, e o writeback ocorre no retorno normal e no `throw`
+estruturado; panic/fault não inventa cleanup ou writeback. A implementação pode
+baixar essa convenção para um borrow direto somente quando a equivalência
+observacional for provada.
+
+`Copy` e `Duplicable` não são nomes para a mesma profundidade. `Copy` permite
+uma cópia implícita bounded, sem allocation escondida ou traversal dependente de
+dados; uma travessia fieldwise fixa de fields `Copy` é permitida, preservando as
+semantics dos fields. `Duplicable` autoriza `copy value` explícito, que pode
+percorrer e alocar e promete independência lógica conforme o contrato do tipo.
+Nenhuma delas é universalmente shallow ou deep. Structs e enums são values, mas
+não recebem `Copy` automaticamente. Borrows em aggregates/captures só existem
+quando origem e lifetime são provados; não possuem nem sobrevivem ao referent.
+String/Array não têm COW universal: um tipo que declara COW pode implementar
+`Duplicable` com backing físico compartilhado e detach na mutation, desde que
+publique allocator, budget, failure, cleanup e custos cross-domain e preserve a
+independência lógica. Essa é uma direção first-party explícita e
+research-gated, não uma keyword nova.
+
+Parâmetro nominal `object` sem modo explícito normaliza para `ref ObjectType`;
+uma leitura pode omitir `ref` no call, e `mut objectPlace` é a forma curta de
+`mut ref ObjectType` quando o place é mutable. `mut ref objectPlace` continua
+válido. A forma curta não generaliza para struct ou enum: `mut structPlace` não
+é um modo de value. `take`, `copy` e `inout` permanecem explícitos. Um `object`
+é uma identidade/owner singular e não atende a `Copy`; sharing usa `shared`, e
+uma nova identidade exige `Duplicable`.
+
+#### W-1516 — modalities de property e observers de acesso
+
+W-1516 remove `modify` da superfície vigente. O mecanismo interno de
+yield/resume depois do borrow continua permitido no lowering, mas a grammar e a
+reflection availability expõem somente `get`, `get ref`, `get mut ref` e
+`set(value)`. `get` produz o value lógico; os outros getters produzem o borrow
+declarado. Uma property writable declara `var` e oferece `set`, `get mut ref`
+ou ambos. Stored `let` não concede set/mut-ref/inout sem uma abstração explícita
+de interior mutation; `const` não recebe observer runtime. O receiver interno
+de `set` é `mut ref self`.
+
+Passar uma property para `inout` compõe owned/value get e set: `willGet`,
+produção, `didGet`, mutation local, `willSet`, set/writeback e `didSet`. Uma
+mutação composta usa a mesma composição value-in/value-out quando value get +
+set existem, portanto dispara ambos os pares de observers. Se só
+`get mut ref` existe, a mutação composta pode operar diretamente e não chama
+observers de set. Passar uma property como `mut ref` exige `get mut ref`, não
+executa willSet/didSet e pode executar observers de acesso. `PropertyAccessKind`
+é um enum core com `value`, `borrowed` e `mutableBorrowed`. `willGet`/`didGet`
+são opt-in; will hooks são lexicais e did hooks são reversos, e o compiler não
+os apaga ou reordena. Sem hooks não há custo de observer.
+
+Composição possui no máximo um storage behavior. Observer behaviors podem
+fornecer hooks/facets e metadata, mas não um segundo storage ou accessor lógico.
+O witness `Versioned` conta leituras em `willGet`/`didGet` e incrementa o epoch
+nos set observers; portanto, uma mutation por `inout` ou por compound value
+get/set gera epoch no writeback, enquanto um `mut ref` direto é deliberadamente
+não contado por willSet/didSet. Facets `mut` do storage contam como mutation
+lógica e chamam `didSet` depois do cleanup, sem `proposed` ou `willSet`.
+Os hooks tornam a observação lógica parte do contrato e não autorizam
+reentrância, veto ou authority implícita.
+
+Os três decisions têm `benchmarkDisposition: deferred` para o task
+`property-access-ownership-benchmark` quando aplicável. Variants futuras devem
+comparar value-in/value-out, mut-ref direto, lowering optimized equivalent,
+observers e detach COW, preservando correctness e sem publicar timing/result.
+Os blockers são checker/lowering, property access lowering, runtime ownership,
+native backend e language benchmark runner.

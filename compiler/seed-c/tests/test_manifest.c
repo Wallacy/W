@@ -1116,7 +1116,7 @@ static int run_guarded_tests(void) {
   return EXIT_SUCCESS;
 }
 
-int main(void) {
+static int run_manifest_tests(void) {
   static const uint8_t small[] = "package { alpha: 1 beta: \"A\" }\n";
   w_seed_manifest_counts counts;
   (void)memset(&counts, 0, sizeof(counts));
@@ -1261,4 +1261,9 @@ int main(void) {
   CHECK(check_manifest_capacity_alias(&run_input, &run_output, result.required));
   CHECK(run_guarded_tests() == EXIT_SUCCESS);
   return EXIT_SUCCESS;
+}
+
+int main(void) {
+  const int status = run_manifest_tests();
+  return status == EXIT_SUCCESS ? EXIT_SUCCESS : EXIT_FAILURE;
 }

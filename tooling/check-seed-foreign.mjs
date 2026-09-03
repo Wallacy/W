@@ -163,7 +163,7 @@ async function checkHardwareWitness(scannerProbe, parserProbe) {
   const close = opening + scan.actual.close
   const next = opening + scan.actual.next
   const bodyDigest = `sha256:${createHash("sha256").update(source.subarray(bodyStart, bodyEnd)).digest("hex")}`
-  if (bodyStart !== 1125 || bodyEnd !== 1328 || close !== 1328 || next !== 1329 ||
+  if (bodyStart !== 1131 || bodyEnd !== 1334 || close !== 1334 || next !== 1335 ||
       bodyDigest !== "sha256:8aede5643732489afcbb39ebfc4080689736825e9d11aca275a271fe678b5567") {
     fail("hardware witness body range or digest drifted")
   }

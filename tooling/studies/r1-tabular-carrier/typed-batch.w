@@ -9,7 +9,7 @@ struct HorizonReading: data.Row {
   warning: String?
 }
 
-fn summarizeHorizon(batch: data.Batch<HorizonReading>): f64? {
+fn summarizeHorizon(_ batch: data.Batch<HorizonReading>): f64? {
   let column = batch.column(.hawkingFlux)
   var maximum: f64? = .none
   for index in 0..<batch.rows {

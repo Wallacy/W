@@ -5,13 +5,13 @@ module ipc1CurrentChannel
 import * from std.io
 
 export struct Ipc1MappedIpcChannel {
-  requests: Channel<Bytes><.send>
-  replies: Channel<Bytes><.receive>
+  requests: Channel<send: Bytes>
+  replies: Channel<receive: Bytes>
 }
 
 export async fn Ipc1MappedIpc(
-  channel: take Ipc1MappedIpcChannel,
-  payload: take Bytes,
+  _ channel: take Ipc1MappedIpcChannel,
+  _ payload: take Bytes,
 ): Bytes throws ChannelSendError<Bytes><[.closed]> {
   try await channel.requests.send(take payload)
   return await channel.replies.receive()

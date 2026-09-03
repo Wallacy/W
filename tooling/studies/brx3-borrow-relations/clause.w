@@ -1,5 +1,5 @@
 export protocol MenuSelectionRelation {
-  static fn select(primary: ref String, fallback: ref String): view String
+  static fn select(_ primary: ref String, _ fallback: ref String): view String
     borrows(0: [primary, fallback])
 }
 

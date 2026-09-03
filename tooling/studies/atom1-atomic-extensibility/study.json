@@ -47,31 +47,31 @@
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "export object HorizonTelemetryEpoch",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
       "claim": "Last Light value-only telemetry epoch source"
     },
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "export object HorizonMenuPublication",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961",
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
       "claim": "Last Light menu publication owner source"
     },
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "export object BellLease",
-      "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
       "claim": "Last Light lease lifetime and retirement source"
     },
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "export fn watchClosingBell",
-      "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f",
+      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
       "claim": "Last Light callback drain source"
     },
     {
       "path": "../../../reference/last-light/abi.w",
       "symbol": "export foreign c",
-      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40",
+      "digest": "sha256:65fc5e2179bac59343f8d3617d7d28a623648a3f773b46d185b462aa75c0daa2",
       "claim": "Last Light ABI boundary source"
     }
   ],

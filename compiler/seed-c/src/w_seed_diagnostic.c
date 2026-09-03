@@ -276,10 +276,6 @@ static bool literal_profile(w_seed_literal_kind literal,
       *construct = "byte-string-literal";
       *delimiter = "byte-quote";
       return true;
-    case W_SEED_LITERAL_SCALAR:
-      *construct = "scalar-literal";
-      *delimiter = "apostrophe";
-      return true;
     case W_SEED_LITERAL_BYTE_SCALAR:
       *construct = "byte-scalar-literal";
       *delimiter = "byte-apostrophe";

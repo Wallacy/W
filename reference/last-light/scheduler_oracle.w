@@ -183,7 +183,7 @@ test "replay compares logical facts, not worker placement" for compareReplay {
     ownersClosed: true,
     packingSame: true,
   )
-  expect compareReplay(samePacking) == .sameLogicalExecution
+  expect compareReplay(comparison: samePacking) == .sameLogicalExecution
 
   let differentPacking = ReplayComparison(
     scheduleIdSame: true,
@@ -193,7 +193,7 @@ test "replay compares logical facts, not worker placement" for compareReplay {
     ownersClosed: true,
     packingSame: false,
   )
-  expect compareReplay(differentPacking) == .physicalPackingOnly
+  expect compareReplay(comparison: differentPacking) == .physicalPackingOnly
 
   let drift = ReplayComparison(
     scheduleIdSame: true,
@@ -203,7 +203,7 @@ test "replay compares logical facts, not worker placement" for compareReplay {
     ownersClosed: true,
     packingSame: true,
   )
-  expect compareReplay(drift) == .reject
+  expect compareReplay(comparison: drift) == .reject
 
   let leak = ReplayComparison(
     scheduleIdSame: true,
@@ -213,7 +213,7 @@ test "replay compares logical facts, not worker placement" for compareReplay {
     ownersClosed: false,
     packingSame: false,
   )
-  expect compareReplay(leak) == .reject
+  expect compareReplay(comparison: leak) == .reject
 }
 
 test "fault injection keeps cancellation, errors, and commit uncertainty distinct" for expectedInjectedOutcome {
@@ -226,46 +226,46 @@ test "fault injection keeps cancellation, errors, and commit uncertainty distinc
 }
 
 test "worker and transport details stay in the physical sidecar" for contributesToLogicalTrace {
-  expect contributesToLogicalTrace(.taskPublished)
-  expect contributesToLogicalTrace(.commitConfirmed)
-  expect contributesToLogicalTrace(.unknownOutcome)
-  expect contributesToLogicalTrace(.ownerClosed)
-  expect !contributesToLogicalTrace(.workerAssigned)
-  expect !contributesToLogicalTrace(.threadMigrated)
-  expect !contributesToLogicalTrace(.queueSlotSelected)
-  expect !contributesToLogicalTrace(.transportHop)
+  expect contributesToLogicalTrace(event: .taskPublished)
+  expect contributesToLogicalTrace(event: .commitConfirmed)
+  expect contributesToLogicalTrace(event: .unknownOutcome)
+  expect contributesToLogicalTrace(event: .ownerClosed)
+  expect !contributesToLogicalTrace(event: .workerAssigned)
+  expect !contributesToLogicalTrace(event: .threadMigrated)
+  expect !contributesToLogicalTrace(event: .queueSlotSelected)
+  expect !contributesToLogicalTrace(event: .transportHop)
 }
 
 test "fault cases are bounded and match their boundary" for validFault {
-  expect validFault(FaultSpec(
+  expect validFault(spec: FaultSpec(
     caseId: 1,
     boundary: .task,
     point: .afterPublish,
     action: .requestCancel,
     occurrence: 0,
   ))
-  expect validFault(FaultSpec(
+  expect validFault(spec: FaultSpec(
     caseId: 2,
     boundary: .storage,
     point: .afterCommitBeforeConfirm,
     action: .loseCommitConfirmation,
     occurrence: 3,
   ))
-  expect !validFault(FaultSpec(
+  expect !validFault(spec: FaultSpec(
     caseId: 3,
     boundary: .task,
     point: .body,
     action: .failCommit,
     occurrence: 0,
   ))
-  expect !validFault(FaultSpec(
+  expect !validFault(spec: FaultSpec(
     caseId: 0,
     boundary: .host,
     point: .beforePublish,
     action: .exhaustQuota,
     occurrence: 0,
   ))
-  expect !validFault(FaultSpec(
+  expect !validFault(spec: FaultSpec(
     caseId: 4,
     boundary: .task,
     point: .beforePublish,

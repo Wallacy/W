@@ -96,11 +96,11 @@ fn writeDashboard(snapshot: ref RestaurantSnapshot, to output: inout String) {
   }
 
   for ref order in snapshot.orders {
-    writeOrderSummary(order, to: inout output)
+    writeOrderSummary(order: order, to: inout output)
   }
 }
 
-export fn renderResponse(response: take AppResponse, named mode: RenderMode): String {
+export fn renderResponse(response: take AppResponse, mode: RenderMode): String {
   var output = String()
 
   if mode == .ansi {
@@ -109,37 +109,37 @@ export fn renderResponse(response: take AppResponse, named mode: RenderMode): St
 
   switch response {
     case .help:
-      writeHeading("Last Light Restaurant", mode: mode, to: inout output)
+      writeHeading(title: "Last Light Restaurant", mode: mode, to: inout output)
       writeHelp(to: inout output)
     case .menu(let items):
-      writeHeading("Observable menu", mode: mode, to: inout output)
-      writeMenu(items, to: inout output)
+      writeHeading(title: "Observable menu", mode: mode, to: inout output)
+      writeMenu(items: items, to: inout output)
     case .placed(let receipt):
-      writeHeading("Order accepted", mode: mode, to: inout output)
+      writeHeading(title: "Order accepted", mode: mode, to: inout output)
       output.append("  #${receipt.orderId} — ${receipt.total.minorUnits}")
       output.append(" ${currencyCode(receipt.total.currency)} minor units\n")
     case .status(let orderId, let stage):
-      writeHeading("Order status", mode: mode, to: inout output)
+      writeHeading(title: "Order status", mode: mode, to: inout output)
       output.append("  #${orderId} — ${serviceStageName(stage)}\n")
     case .cancelled(let orderId, let stage):
-      writeHeading("Order cancelled", mode: mode, to: inout output)
+      writeHeading(title: "Order cancelled", mode: mode, to: inout output)
       output.append("  #${orderId} — ${serviceStageName(stage)}\n")
     case .dashboard(let snapshot):
-      writeHeading("Service dashboard", mode: mode, to: inout output)
-      writeDashboard(snapshot, to: inout output)
+      writeHeading(title: "Service dashboard", mode: mode, to: inout output)
+      writeDashboard(snapshot: snapshot, to: inout output)
     case .simulation(let report):
-      writeHeading("Deterministic shift", mode: mode, to: inout output)
-      writeSimulation(report, to: inout output)
+      writeHeading(title: "Deterministic shift", mode: mode, to: inout output)
+      writeSimulation(report: report, to: inout output)
     case .shuttingDown:
-      writeHeading("Service shutdown requested", mode: mode, to: inout output)
+      writeHeading(title: "Service shutdown requested", mode: mode, to: inout output)
   }
 
   return output
 }
 
 test "plain and ANSI modes preserve the same semantic response" for renderResponse {
-  let plain = renderResponse(.status(42, .preparing), mode: .plain)
-  let ansi = renderResponse(.status(42, .preparing), mode: .ansi)
+  let plain = renderResponse(response: .status(42, .preparing), mode: .plain)
+  let ansi = renderResponse(response: .status(42, .preparing), mode: .ansi)
 
   expect plain.contains("#42")
   expect plain.contains("preparing")

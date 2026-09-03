@@ -24,7 +24,7 @@ export const fn isFinalCallLabel(value: String): Bool {
   return value == "The final seating"
 }
 
-export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {
+export struct FinalCallValue<_ value: String<(isFinalCallLabel(value: .member))>> {
   export const expected = value
 }
 
@@ -39,7 +39,7 @@ export const fn isUltimateAnswer(value: i64): Bool {
   return value == 42
 }
 
-export struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {
+export struct UltimateAnswer<_ value: i64<(isUltimateAnswer(value: .member))>> {
   export const expected = value
 }
 
@@ -51,7 +51,7 @@ export struct StaticWindow<
   export const span = end - start
 }
 
-export struct Matrix<Element, rows: usize, columns: usize> {
+export struct Matrix<rows: usize, Element, columns: usize> {
   export const area = rows * columns
 }
 
@@ -86,7 +86,7 @@ extension<T: Display & Equatable> Shelf<T>: Catalog {
 
 export fn firstEquals<T: Equatable, S: Source<T>>(
   source: ref S,
-  named expected: ref T,
+  expected: ref T,
 ): Bool {
   guard let ref item = source.first() else return false
   return item == expected
@@ -100,8 +100,8 @@ export fn renderFirst<T: Display, S: Source<T>>(source: ref S): String? {
 test "generic inference uses the declared witness" for firstEquals {
   let shelf = Shelf(values: ["Pan-Galactic Broth", "Horizon Cake"])
 
-  expect firstEquals(shelf, expected: "Pan-Galactic Broth")
-  expect renderFirst(shelf) == "Pan-Galactic Broth"
+  expect firstEquals(source: shelf, expected: "Pan-Galactic Broth")
+  expect renderFirst(source: shelf) == "Pan-Galactic Broth"
   expect shelf.count() == 2
 }
 
@@ -116,8 +116,8 @@ test "contract atoms preserve their compile-time kind" {
   expect UltimateAnswerSharedDuplicate.expected == 42
   expect LastCallDeadline.expected == 10<si.s>
   expect HorizonWindow.span == 60
-  expect Matrix<f32, rows: 3, columns: 4>.rows == 3
-  expect Matrix<f32, rows: 3, columns: 4>.area == 12
+  expect Matrix<rows: 3, f32, columns: 4>.rows == 3
+  expect Matrix<rows: 3, f32, columns: 4>.area == 12
 }
 
 test "restaurantGenericContractHolds" {

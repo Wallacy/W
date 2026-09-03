@@ -12,18 +12,18 @@
   "sourceBase": {
     "path": "../../../reference/last-light/packages/menu-compiler/transform.w",
     "symbol": "maximumBytes",
-    "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+    "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/packages/menu-compiler/transform.w",
       "symbol": "transform",
-      "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+      "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff"
     },
     {
       "path": "../../../reference/last-light/repl_session_oracle.w",
       "symbol": "GenerationReceipt",
-      "digest": "sha256:b59c31b42f7db689944497e40a71ddaff6f25241e1c03c09a4a7b299346cc461"
+      "digest": "sha256:1f90c5befe92675832b865c46cfa804159e415b1d4bb5a1a2cc578afa10aa666"
     },
     {
       "path": "../../../reference/last-light/hot_reload_dev_contract.w",
@@ -33,12 +33,12 @@
     {
       "path": "../../../reference/last-light/abi.w",
       "symbol": "export foreign c",
-      "digest": "sha256:bf9fb9f067c1726659c1c855cd52e164a1d002e6b460a4df10e0c05dfe348c40"
+      "digest": "sha256:65fc5e2179bac59343f8d3617d7d28a623648a3f773b46d185b462aa75c0daa2"
     },
     {
       "path": "../../../reference/last-light/memory.w",
       "symbol": "watchClosingBell",
-      "digest": "sha256:62a0d4ca2cf7e02fdccb9835d9dffe16f4aa48480cfdce5eed5ad4124c565c9f"
+      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a"
     },
     {
       "path": "../../../reference/last-light/build.w",

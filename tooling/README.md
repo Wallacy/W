@@ -84,6 +84,26 @@ Outras projeções correntes são:
 | [`DIAGNOSTICS.md`](../DIAGNOSTICS.md) | `bun tooling/diagnostic-catalog.mjs --write` | busca humana por código, fatos, fixes e referência normativa |
 | [`DESIGN-INDEX.md`](../DESIGN-INDEX.md) | `bun tooling/design-index.mjs --write` | navegação por heading, ID e seção |
 | `reference/syntax-atlas/` | `bun tooling/syntax-atlas.mjs --write` | cobertura de snippets e parsing parse-only |
+
+After an intentional change to sources referenced by studies, run
+`bun run study:refresh-digests`. The command updates only well-formed digests
+for existing repository-contained paths. It installs each dependency wave as
+one transaction and repeats until metadata dependencies reach a fixed point.
+Missing paths, invalid JSON, duplicates, and cycles fail before each wave.
+
+After changing normative text or classified evidence, run
+`bun run design:refresh-evidence`. The command updates only mechanical
+identities in the freeze classification: ledger text and hashes, file hashes,
+and exact `DESIGN.md` section hashes. It fails if decision order or reviewed
+classification fields would change.
+
+`bun run hum0:refresh-evidence` applies the same rule to the HUM0 review
+protocol. It updates only file hashes and derived stimuli. Symbols, windows,
+tasks, prompts, and other human decisions remain unchanged.
+
+`bun run capability:refresh-evidence` refreshes only local file hashes in the
+CAP0 capability matrix and regenerates its result snapshot. Capability levels,
+routes, gaps, source symbols, and study questions remain reviewed inputs.
 | `tooling/*-snapshot.*` | checker de cada unidade | bytes e resultados derivados reproduzíveis |
 | `tooling/*-cases.json` | máquina/oracle da unidade | casos de design e barreiras adversariais |
 

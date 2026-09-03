@@ -30,7 +30,7 @@ entry(run)
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments

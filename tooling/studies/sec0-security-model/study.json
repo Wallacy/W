@@ -25,49 +25,214 @@
     "fpga-asic-hardware"
   ],
   "routeMatrix": [
-    {"axis": "safe", "problem": "memory, type, effect, capability, input, and resource invariants", "disposition": "current"},
-    {"axis": "profiles", "problem": "replace or omit runtime protections with explicit evidence", "disposition": "research"},
-    {"axis": "deployment", "problem": "supply chain, patch, attestation, secrets, and hardening receipts", "disposition": "research"},
-    {"axis": "composition", "problem": "feature flags and availability cannot alter security authority", "disposition": "composable"}
+    {
+      "axis": "safe",
+      "problem": "memory, type, effect, capability, input, and resource invariants",
+      "disposition": "current"
+    },
+    {
+      "axis": "profiles",
+      "problem": "replace or omit runtime protections with explicit evidence",
+      "disposition": "research"
+    },
+    {
+      "axis": "deployment",
+      "problem": "supply chain, patch, attestation, secrets, and hardening receipts",
+      "disposition": "research"
+    },
+    {
+      "axis": "composition",
+      "problem": "feature flags and availability cannot alter security authority",
+      "disposition": "composable"
+    }
   ],
   "variants": [
-    {"id": "security-profile", "role": "current", "language": "w", "path": "security-profile.w", "digest": "sha256:3bf7caef5309bfdbe49752360caba90f296450062370a7a943a7ef8bc712afd5"},
-    {"id": "security-boundary", "role": "composable", "language": "w", "path": "security-boundary.w", "digest": "sha256:05935c8470fea47330e1a84732152ab9ed47afb401ef44b77add2e1187f87eca"},
-    {"id": "security-feature", "role": "composable", "language": "w", "path": "security-feature.w", "digest": "sha256:aed6494f31b9461d672c918b9112bd53c28fc8dd159cf2b3320255a93ee72051"},
-    {"id": "rejected-ambient-security", "role": "rejected-witness", "language": "w-reserved", "path": "rejected-ambient-security.txt", "digest": "sha256:f31604babc0d55f7c430107569356d1671ab7a3129f4f0cb3e51c3b176b11e08"},
-    {"id": "security-patch", "role": "research-candidate", "language": "w-reserved", "path": "security-patch.txt", "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b"}
+    {
+      "id": "security-profile",
+      "role": "current",
+      "language": "w",
+      "path": "security-profile.w",
+      "digest": "sha256:3f6d2d024b23d9277346759e248694cc7c14b62a1eb049b0e3000223e1bbff2a"
+    },
+    {
+      "id": "security-boundary",
+      "role": "composable",
+      "language": "w",
+      "path": "security-boundary.w",
+      "digest": "sha256:6b86a01564ea34e39be67377e29e5ecb48f9a077b557c5cc402bf0b4ef1ed94a"
+    },
+    {
+      "id": "security-feature",
+      "role": "composable",
+      "language": "w",
+      "path": "security-feature.w",
+      "digest": "sha256:11dc26adb9327dfd4f5669f8ddd789d290f7cca4a3d74dcced27a90e4521509c"
+    },
+    {
+      "id": "rejected-ambient-security",
+      "role": "rejected-witness",
+      "language": "w-reserved",
+      "path": "rejected-ambient-security.txt",
+      "digest": "sha256:f31604babc0d55f7c430107569356d1671ab7a3129f4f0cb3e51c3b176b11e08"
+    },
+    {
+      "id": "security-patch",
+      "role": "research-candidate",
+      "language": "w-reserved",
+      "path": "security-patch.txt",
+      "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b"
+    }
   ],
   "artifactRefs": [
-    {"id": "readme", "role": "historical-research-note", "path": "tooling/studies/sec0-security-model/README.md", "digest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4"},
-    {"id": "corpus", "role": "design-input", "path": "tooling/sec0-security-model-cases.json", "digest": "sha256:da4d44f261defcbb3df3014f7b32f3930de415433f548db851f819df48fb8316"},
-    {"id": "machine", "role": "host-oracle", "path": "tooling/sec0-security-model-machine.mjs", "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"},
-    {"id": "manifest", "role": "manifest-validator", "path": "tooling/sec0-security-model-manifest.mjs", "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"},
-    {"id": "checker", "role": "snapshot-checker", "path": "tooling/check-sec0-security-model.mjs", "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"},
-    {"id": "reference-test", "role": "mutation-test", "path": "tooling/sec0-security-model-reference.test.mjs", "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"},
-    {"id": "snapshot", "role": "derived-output", "path": "tooling/sec0-security-model-results.snapshot.jsonl", "digest": "sha256:a4db1c447bd17b954b99d92cf33163c7f959c321b3d3e89c08ad7f53dd280b8d"},
-    {"id": "bundle", "role": "study-bundle", "path": "tooling/studies/sec0-security-model/bundle.json", "digest": "sha256:da173b5416ec8e649e60813bac748ec9898c186bb1108dc86c31b22afec0aaff"},
-    {"id": "oracle", "role": "study-test", "path": "tooling/studies/sec0-security-model/oracle.test.mjs", "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"}
+    {
+      "id": "readme",
+      "role": "historical-research-note",
+      "path": "tooling/studies/sec0-security-model/README.md",
+      "digest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4"
+    },
+    {
+      "id": "corpus",
+      "role": "design-input",
+      "path": "tooling/sec0-security-model-cases.json",
+      "digest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6"
+    },
+    {
+      "id": "machine",
+      "role": "host-oracle",
+      "path": "tooling/sec0-security-model-machine.mjs",
+      "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"
+    },
+    {
+      "id": "manifest",
+      "role": "manifest-validator",
+      "path": "tooling/sec0-security-model-manifest.mjs",
+      "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"
+    },
+    {
+      "id": "checker",
+      "role": "snapshot-checker",
+      "path": "tooling/check-sec0-security-model.mjs",
+      "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"
+    },
+    {
+      "id": "reference-test",
+      "role": "mutation-test",
+      "path": "tooling/sec0-security-model-reference.test.mjs",
+      "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"
+    },
+    {
+      "id": "snapshot",
+      "role": "derived-output",
+      "path": "tooling/sec0-security-model-results.snapshot.jsonl",
+      "digest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f"
+    },
+    {
+      "id": "bundle",
+      "role": "study-bundle",
+      "path": "tooling/studies/sec0-security-model/bundle.json",
+      "digest": "sha256:9025842a24ea166ac85e5717870304f0ca3d92da66eae8c39bd6209f3a11bda6"
+    },
+    {
+      "id": "oracle",
+      "role": "study-test",
+      "path": "tooling/studies/sec0-security-model/oracle.test.mjs",
+      "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"
+    }
   ],
   "sourceRefs": [
-    {"path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "explicit capability roots and attenuation"},
-    {"path": "reference/last-light/session_security_oracle.w", "symbol": "enum OracleChannelProfile", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "channel identity and freshness gates"},
-    {"path": "reference/last-light/fs_oracle.w", "symbol": "recipeArchiveRoot", "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393", "claim": "filesystem capability scope and bounds"},
-    {"path": "reference/last-light/app.w", "symbol": "const nativeServerLimits = http.ServerLimits(", "digest": "sha256:ae82a24678155c67fdb8de8179be655de03bab7276164817359b04955e090d29", "claim": "explicit HTTP and process resource limits"},
-    {"path": "reference/last-light/domain_oracle.w", "symbol": "deployment can reduce but cannot increase profile capacity", "digest": "sha256:37b229824ae9aa789a04f107c211f4c7acd5cf1d4eb2ea24accf245aecb94e3f", "claim": "deployment cannot increase product capacity"},
-    {"path": "reference/last-light/hir_memory_oracle.w", "symbol": "struct HirAbiKey", "digest": "sha256:8837f23890bc651e3b7d5f0115457e2f35a2de6c3aeddef80bda37b2a84b3261", "claim": "physical ABI identity is separate from semantic facts"}
+    {
+      "path": "reference/last-light/capability_security_oracle.w",
+      "symbol": "enum CapabilityOrigin",
+      "digest": "sha256:2dc7f514f2af65fc61c1e160a93ac2f4d76a5790077849537c1547307dfd26b3",
+      "claim": "explicit capability roots and attenuation"
+    },
+    {
+      "path": "reference/last-light/session_security_oracle.w",
+      "symbol": "enum OracleChannelProfile",
+      "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573",
+      "claim": "channel identity and freshness gates"
+    },
+    {
+      "path": "reference/last-light/fs_oracle.w",
+      "symbol": "recipeArchiveRoot",
+      "digest": "sha256:11fed22d22c0af56297676c5a8e63c789012676945afc8c192509bd8d99c8393",
+      "claim": "filesystem capability scope and bounds"
+    },
+    {
+      "path": "reference/last-light/app.w",
+      "symbol": "const nativeServerLimits = http.ServerLimits(",
+      "digest": "sha256:d2d9bfb8518947101d1712519c4ef750ca99fe85038a5fa64de26f08d199ec0f",
+      "claim": "explicit HTTP and process resource limits"
+    },
+    {
+      "path": "reference/last-light/domain_oracle.w",
+      "symbol": "deployment can reduce but cannot increase profile capacity",
+      "digest": "sha256:b706a4f28fcb38eb8ef0e30e5ecc69706135015eefea3a97f02a64d8e5bafedb",
+      "claim": "deployment cannot increase product capacity"
+    },
+    {
+      "path": "reference/last-light/hir_memory_oracle.w",
+      "symbol": "struct HirAbiKey",
+      "digest": "sha256:b43e34ec36c747dfc21ad4d25beeb64af19aa89db45dae5bd12e373cba85ab58",
+      "claim": "physical ABI identity is separate from semantic facts"
+    }
   ],
   "officialRefs": [
-    {"url": "https://developers.cloudflare.com/workers/reference/security-model/", "claim": "defense in depth across isolate, process, syscall, proxy, and API layers"},
-    {"url": "https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html", "claim": "seccomp restricts syscalls and does not replace policy"},
-    {"url": "https://webassembly.github.io/spec/core/intro/introduction.html", "claim": "validated WebAssembly abstract machine"},
-    {"url": "https://wasi.dev/", "claim": "explicit host capability interfaces for WebAssembly"},
-    {"url": "https://www.rfc-editor.org/rfc/rfc9334", "claim": "attestation roles and evidence flow"},
-    {"url": "https://www.sigstore.dev/how-it-works", "claim": "artifact provenance and transparency evidence"}
+    {
+      "url": "https://developers.cloudflare.com/workers/reference/security-model/",
+      "claim": "defense in depth across isolate, process, syscall, proxy, and API layers"
+    },
+    {
+      "url": "https://www.kernel.org/doc/html/latest/userspace-api/seccomp_filter.html",
+      "claim": "seccomp restricts syscalls and does not replace policy"
+    },
+    {
+      "url": "https://webassembly.github.io/spec/core/intro/introduction.html",
+      "claim": "validated WebAssembly abstract machine"
+    },
+    {
+      "url": "https://wasi.dev/",
+      "claim": "explicit host capability interfaces for WebAssembly"
+    },
+    {
+      "url": "https://www.rfc-editor.org/rfc/rfc9334",
+      "claim": "attestation roles and evidence flow"
+    },
+    {
+      "url": "https://www.sigstore.dev/how-it-works",
+      "claim": "artifact provenance and transparency evidence"
+    }
   ],
-  "metrics": {"caseCount": 101, "accepted": 24, "rejected": 77, "currentAccepted": 11, "researchAccepted": 13, "profileCount": 6, "authorityRejections": 16, "callerEchoRejections": 4},
+  "metrics": {
+    "caseCount": 101,
+    "accepted": 24,
+    "rejected": 77,
+    "currentAccepted": 11,
+    "researchAccepted": 13,
+    "profileCount": 6,
+    "authorityRejections": 16,
+    "callerEchoRejections": 4
+  },
   "evidence": {
-    "current": ["source-ref", "official-primary", "tree-sitter-parse", "host-oracle", "mutation-checker", "snapshot"],
-    "missing": ["w-compile", "w-run", "provider", "attestation", "hardware", "fault-stress", "local-split", "human-study", "model-study"]
+    "current": [
+      "source-ref",
+      "official-primary",
+      "tree-sitter-parse",
+      "host-oracle",
+      "mutation-checker",
+      "snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "provider",
+      "attestation",
+      "hardware",
+      "fault-stress",
+      "local-split",
+      "human-study",
+      "model-study"
+    ]
   },
   "recommendation": "Keep safe W invariants irreducible. Vary runtime hardening only through static proof, hardware enforcement, external mediation, or an explicit threat-model exception. Keep profile receipts and deployment floors outside runtime flags.",
   "stopCondition": "Do not promote SEC0 until six profiles have compiler facts, provider and hardening receipts, supply-chain and patch attestation, secret lifecycle, side-channel residual risk, FFI fault tests, and local/split evidence without semantic authority amplification."

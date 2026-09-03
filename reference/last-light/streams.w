@@ -15,14 +15,14 @@ export enum QueueError: Error {
 }
 
 export async fn submitOrder(
-  output: Channel<Order><.send>,
+  output: Channel<send: Order>,
   order: take Order,
 ): () throws ChannelSendError<Order><[.closed]> {
   try await output.send(take order)
 }
 
 export fn trySubmitOrder(
-  output: ref Channel<Order><.send>,
+  output: ref Channel<send: Order>,
   order: take Order,
 ): Order? {
   do {
@@ -36,7 +36,7 @@ export fn trySubmitOrder(
 }
 
 export async fn submitAfterAdmission(
-  output: ref Channel<Order><.send>,
+  output: ref Channel<send: Order>,
   order: take Order,
 ): () throws QueueError {
   let permit = try await output.reserve()
@@ -44,7 +44,7 @@ export async fn submitAfterAdmission(
 }
 
 export async fn acceptOrders(
-  input: take Channel<Order><.receive>,
+  input: take Channel<receive: Order>,
 ): Array<Order> {
   var inbox = take input
   var accepted: Array<Order> = []
@@ -89,8 +89,8 @@ export async fn pumpReadableBytes<
   Destination: ByteSink<WriteFailure>,
 >(
   source: take streaming.ReadableStream<Bytes, ReadFailure>,
-  named destination: take Destination,
-  named maximumChunkBytes: usize<(1...)>,
+  destination: take Destination,
+  maximumChunkBytes: usize<(1...)>,
 ): ReadableBytePumpOutcome<ReadFailure, WriteFailure> {
   var input = take source
   var output = take destination
@@ -153,12 +153,12 @@ export async fn mirrorReadableBytes<
   )
 
   let leftPump = async pumpReadableBytes(
-    take left,
+    source: take left,
     destination: take leftDestination,
     maximumChunkBytes: maximumChunkBytes,
   )
   let rightPump = async pumpReadableBytes(
-    take right,
+    source: take right,
     destination: take rightDestination,
     maximumChunkBytes: maximumChunkBytes,
   )
@@ -199,11 +199,11 @@ export async fn runBoundedOrderWindow(
 ): Array<Order> throws ChannelSendError<Order><[.closed]> {
   let (output, input) = Channel<Order>.open(capacity: 1)
 
-  let firstSend = async submitOrder(copy output, take first)
-  let secondSend = async submitOrder(copy output, take second)
+  let firstSend = async submitOrder(output: copy output, order: take first)
+  let secondSend = async submitOrder(output: copy output, order: take second)
   let _ = take output
 
-  let accepted = await acceptOrders(take input)
+  let accepted = await acceptOrders(input: take input)
   let _ = try await firstSend
   let _ = try await secondSend
   return accepted

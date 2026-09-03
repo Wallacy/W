@@ -6,15 +6,15 @@
 foreign intrinsic from "std.runtime.thread-local@1" {
   type ThreadLocalIdentity
 
-  const fn stdThreadLocalKey<Value: Copy>(initial: Value): ThreadLocalIdentity
+  const fn stdThreadLocalKey<Value: Copy>(_ initial: Value): ThreadLocalIdentity
 
   fn stdThreadLocalRead<Value: Copy>(
-    identity: ref ThreadLocalIdentity,
+    _ identity: ref ThreadLocalIdentity,
   ): Value
 
   fn stdThreadLocalWrite<Value: Copy, Result, Failure: Error>(
-    named identity: ref ThreadLocalIdentity,
-    named operation: some fn(inout Value): Result throws Failure,
+    _ identity: ref ThreadLocalIdentity,
+    _ operation: some fn(inout Value): Result throws Failure,
   ): Result throws Failure
 }
 
@@ -35,12 +35,12 @@ export struct ThreadLocal<Value: Copy> {
   }
 
   export fn write<Result, Failure: Error>(
-    _ operation: some fn(inout Value): Result throws Failure,
+    operation: some fn(inout Value): Result throws Failure,
   ): Result throws Failure {
     return unsafe {
       try stdThreadLocalWrite(
-        identity: identity,
-        operation: operation,
+        identity,
+        operation,
       )
     }
   }

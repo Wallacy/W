@@ -181,9 +181,9 @@ export struct KeyResolver {
   ): KeyResolver throws KeyResolverError {
     return KeyResolver(validatedHandle: unsafe {
       try stdParquetKeyResolverFromCapability(
-        capability: take capability,
-        scope: scope,
-        limits: limits,
+        take capability,
+        scope,
+        limits,
       )
     })
   }
@@ -359,89 +359,89 @@ foreign intrinsic from "std.parquet@1" {
 
   // Host/provider boundary: capability creation is explicit and scoped.
   fn stdParquetKeyResolverFromCapability(
-    named capability: take ParquetKeyCapability,
-    named scope: KeyScope,
-    named limits: ref Limits,
+    _ capability: take ParquetKeyCapability,
+    _ scope: KeyScope,
+    _ limits: ref Limits,
   ): ParquetKeyResolverHandle throws KeyResolverError
 
   fn stdParquetDecode<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>
 
   fn stdParquetDecodeDynamic<SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>
 
   async fn stdParquetDecodeAll<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): data.Batch<Row> throws DecodeError<SourceFailure>
 
   async fn stdParquetEncodeBatch<Row: data.Row, SinkFailure: Error,
     Sink: io.ByteSink<SinkFailure>>(
-    named batch: ref data.Batch<Row>,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batch: ref data.Batch<Row>,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeError<SinkFailure>
 
   async fn stdParquetEncodeStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
     Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-    named batches: take Source,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batches: take Source,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>
 }
 
 export fn decode<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>> {
-  return unsafe { stdParquetDecode(source: take source, options: options) }
+  return unsafe { stdParquetDecode(take source, options) }
 }
 
 export fn decodeDynamic<SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>> {
-  return unsafe { stdParquetDecodeDynamic(source: take source, options: options) }
+  return unsafe { stdParquetDecodeDynamic(take source, options) }
 }
 
 export async fn decodeAll<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): data.Batch<Row> throws DecodeError<SourceFailure> {
-  return unsafe { try await stdParquetDecodeAll(source: take source, options: options) }
+  return unsafe { try await stdParquetDecodeAll(take source, options) }
 }
 
 export async fn encode<Row: data.Row, SinkFailure: Error, Sink: io.ByteSink<SinkFailure>>(
-  named batch: ref data.Batch<Row>,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batch: ref data.Batch<Row>,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeError<SinkFailure> {
   return unsafe {
-    try await stdParquetEncodeBatch(batch: batch, sink: inout sink, options: options)
+    try await stdParquetEncodeBatch(batch, inout sink, options)
   }
 }
 
 export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
   Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-  named batches: take Source,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batches: take Source,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure> {
   return unsafe {
     try await stdParquetEncodeStream(
-      batches: take batches,
-      sink: inout sink,
-      options: options,
+      take batches,
+      inout sink,
+      options,
     )
   }
 }

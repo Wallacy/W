@@ -104,18 +104,18 @@ export const fn openModeReads(mode: WMetaOpenMode, critical: Bool): Bool {
 }
 
 test "WMeta profiles close their core chunks" for profileRequires {
-  expect profileRequires(.interface, .interfaceIndex)
-  expect profileRequires(.interface, .semanticInterface)
-  expect !profileRequires(.interface, .documentation)
-  expect profileRequires(.objectAbi, .abiNote)
-  expect profileRequires(.objectAbi, .representationMap)
-  expect profileRequires(.objectAbi, .symbolManifest)
-  expect profileRequires(.objectAbi, .runtimeRequirements)
+  expect profileRequires(profile: .interface, kind: .interfaceIndex)
+  expect profileRequires(profile: .interface, kind: .semanticInterface)
+  expect !profileRequires(profile: .interface, kind: .documentation)
+  expect profileRequires(profile: .objectAbi, kind: .abiNote)
+  expect profileRequires(profile: .objectAbi, kind: .representationMap)
+  expect profileRequires(profile: .objectAbi, kind: .symbolManifest)
+  expect profileRequires(profile: .objectAbi, kind: .runtimeRequirements)
 }
 
 test "WMeta open modes do not publish partial core state" for openModeReads {
-  expect !openModeReads(.directory, true)
-  expect openModeReads(.core, true)
-  expect !openModeReads(.core, false)
-  expect openModeReads(.full, false)
+  expect !openModeReads(mode: .directory, critical: true)
+  expect openModeReads(mode: .core, critical: true)
+  expect !openModeReads(mode: .core, critical: false)
+  expect openModeReads(mode: .full, critical: false)
 }

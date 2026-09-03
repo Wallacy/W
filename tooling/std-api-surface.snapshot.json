@@ -39,13 +39,13 @@
           "wpt-dom-abort"
         ]
       },
-      "catalogedDeclarationsDigest": "f26f005ce15496f722a5f327beca9feb24e15f8acdd005dc29f0b3ec844736b5",
+      "catalogedDeclarationsDigest": "52c98ec41f540b64898f4c025e43b14de2e79180e657d85546d0d4fdf4bdbb05",
       "apis": [
         {
           "symbol": "AbortController",
           "kind": "struct",
           "signature": "export struct AbortController",
-          "declarationDigest": "85020ff77b08e4cd70d41a9468631854568cc9db9d982c77acec8a584d2ee3e0",
+          "declarationDigest": "f5c0f7e3ae7025334021d974c62cb00fd268d621b5bd06184164222e0717fb2c",
           "line": 139,
           "profile": "web-abort-control",
           "members": [
@@ -105,7 +105,7 @@
           "symbol": "AbortSignal",
           "kind": "struct",
           "signature": "export struct AbortSignal: Duplicable",
-          "declarationDigest": "91acce95bc6dce236b2b2d2f6b9367a4665b97160c642516ddb004e960cd4a24",
+          "declarationDigest": "2dbdb136fec38e9c4edaa0a7c97372036a688aeaf9f1d3927142fc3a0ef6b31f",
           "line": 61,
           "profile": "web-abort-carrier",
           "members": [
@@ -133,7 +133,7 @@
               "symbol": "any",
               "overloads": [
                 {
-                  "signature": "export static fn any( maximumSources: AbortSourceLimit, _ sources: ref AbortSignal..., ): AbortSignal throws AbortSignalCombineError",
+                  "signature": "export static fn any( maximumSources: AbortSourceLimit, sources: ref AbortSignal..., ): AbortSignal throws AbortSignalCombineError",
                   "line": 91
                 }
               ],
@@ -231,7 +231,7 @@
           "queue-receipts"
         ]
       },
-      "catalogedDeclarationsDigest": "51833657d336289d972ac73650f8005709d9eb1bf07bc5f9c61b395258d7ba2d",
+      "catalogedDeclarationsDigest": "8c81f9a90659140f0354bf2a7b8474e529b3ad2b03c10e335dc0f763cdd8dfac",
       "apis": [
         {
           "symbol": "KernelModule",
@@ -307,7 +307,7 @@
           "symbol": "ModuleIdentity",
           "kind": "struct",
           "signature": "export struct ModuleIdentity: Copy & Equatable",
-          "declarationDigest": "b82c534712993441a2dc63fc185036c9a2cfbace6a8bdae06e12f0122976cf22",
+          "declarationDigest": "99c912df9981db861b318b64d9a0627a1b5434193775f49d587cb26e0f56ef90",
           "line": 71,
           "profile": "accelerator-module",
           "members": [
@@ -328,7 +328,7 @@
           "symbol": "open",
           "kind": "fn",
           "signature": "export async fn open<Module: KernelModule>( module: ref Module, on queue: ref tensor.Queue, limits: ref Limits, ): Launch<Module> throws LaunchError",
-          "declarationDigest": "7b6896bf4a3e883d017bcb04400ca180ce2d56e068520a6be340628e86530bb3",
+          "declarationDigest": "8bd7eae595a35bfbdaab4fbd1f2897788c58a25659580331070b853f5f55da87",
           "line": 112,
           "profile": "accelerator-launch",
           "status": "draft"
@@ -352,7 +352,7 @@
           "schema-footer-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "756b709ac83ee3651aa17ede5dc260781c3ca2a67b7a76d7b5af7b1f9477b6ed",
+      "catalogedDeclarationsDigest": "b97adb5af4bd16441475a383fc54063928852333c790bde875d1783af730381e",
       "apis": [
         {
           "symbol": "BlockingQuota",
@@ -456,8 +456,8 @@
         {
           "symbol": "decodeIpcFile",
           "kind": "fn",
-          "signature": "export fn decodeIpcFile<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "97c10e8ed4887c457de0758b30e3022852796731950a8a4c05caf2cab7b5208c",
+          "signature": "export fn decodeIpcFile<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "2ace94ad9172e73422fdf1e3105b2a2ee38acfacb7996d424646b1b2c0163686",
           "line": 437,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -465,8 +465,8 @@
         {
           "symbol": "decodeIpcFileAll",
           "kind": "fn",
-          "signature": "export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "50f77f49027039c89bb8d14c36e3baab0c6aa52f6fa10e564a79e737673307be",
+          "signature": "export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "dab61274c156bd08fe65ff1ca9a021e24ebc0471b4784b085a5498eecfd2bfe6",
           "line": 455,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -474,8 +474,8 @@
         {
           "symbol": "decodeIpcFileDynamic",
           "kind": "fn",
-          "signature": "export fn decodeIpcFileDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "7f5ea29ab9ba26d63caf16ec4dfaeaa6df4a89481d9a2792a15cc0fed962b7fc",
+          "signature": "export fn decodeIpcFileDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "9e53193d45041e6ca2c3a32d8436d493e4f31a4e571f4797958a09a87ff81ff2",
           "line": 473,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -483,8 +483,8 @@
         {
           "symbol": "decodeIpcStream",
           "kind": "fn",
-          "signature": "export fn decodeIpcStream<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "4a17c7e553467d5b055726629766eb5988e55630fb6ff943a7189e163078655f",
+          "signature": "export fn decodeIpcStream<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "c177a1ae8979b45e2b85cf10eb8c4f941a800da6fda609a0466c4ecc5ffc1f87",
           "line": 429,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -492,8 +492,8 @@
         {
           "symbol": "decodeIpcStreamAll",
           "kind": "fn",
-          "signature": "export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "6656639f5c9551b8bd673735cf05c2880df6764a35b748a0bfe32b34925cff31",
+          "signature": "export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "7f7eca18899cf361418581b424b830aab86a739abc54e71489884f47ae899451",
           "line": 445,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -501,8 +501,8 @@
         {
           "symbol": "decodeIpcStreamDynamic",
           "kind": "fn",
-          "signature": "export fn decodeIpcStreamDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "fb20a0d744e3c7f8fa26b94c46aa55f06894061daeaebecf9c6b3c7b5aa833d2",
+          "signature": "export fn decodeIpcStreamDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "c08c0cda5a2d1af39270ce5bb45a69512f754734d2db1982f4cf723cdcd583b2",
           "line": 465,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -546,8 +546,8 @@
         {
           "symbol": "encodeIpcFile",
           "kind": "fn",
-          "signature": "export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "f558befa0d96b627899ea3fa4af3c1bcaae8cd422d3032c57c874271b9bfa82a",
+          "signature": "export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "d14a7759758b54a5a2485e68b036feca9c743075802d83b21c60e74dc59dc190",
           "line": 518,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -555,8 +555,8 @@
         {
           "symbol": "encodeIpcStream",
           "kind": "fn",
-          "signature": "export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "bb3ac7058d4e6ec3a73614273f5f35be6ae27683d04f66cd546e67aae970eb8c",
+          "signature": "export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "83d5282c6a104decee8d25def3b08acff4f4238f5567dea06d9fc5ca9c2ef932",
           "line": 492,
           "profile": "arrow-ipc",
           "status": "draft"
@@ -648,13 +648,13 @@
       "id": "std.blob",
       "availability": "bundled-portable",
       "source": "std/blob/contracts.w",
-      "catalogedDeclarationsDigest": "10a68fda93a82cdead2376ea276ebc6bf01339e9c3bff54f92ad85fcf220e833",
+      "catalogedDeclarationsDigest": "abd9903e5588dacdad9a8a78cca4f31ad76310b105f94587737ef34fe3682665",
       "apis": [
         {
           "symbol": "Blob",
           "kind": "struct",
           "signature": "export struct Blob: Duplicable & SnapshotByteSource<BlobError>",
-          "declarationDigest": "f9968084007c0cef6e2a0b46d72da6c8956dbb1498d251ebe70eb68638902483",
+          "declarationDigest": "e14aee5bc06b1372e45b56fe78f34234e7ad0e7c058afaa5c8b31c7808968c9e",
           "line": 57,
           "profile": "blob-carrier",
           "members": [
@@ -662,7 +662,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ bytes: take Bytes, mediaType: String = \"\")",
+                  "signature": "export init(bytes: take Bytes, mediaType: String = \"\")",
                   "line": 63
                 }
               ],
@@ -754,7 +754,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): SnapshotReadStep throws BlobError",
+                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, maximum: usize<(1...)>, ): SnapshotReadStep throws BlobError",
                   "line": 153
                 }
               ],
@@ -800,13 +800,13 @@
           "strict-utf8-and-byte-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "eab8d4da1e9c16161b54ca6febbff5e0b218b147639d35c6c44440a433475e51",
+      "catalogedDeclarationsDigest": "c78bee702074fc4fec416e1a2782db920c1f88c95095b859393b635aee08ffd8",
       "apis": [
         {
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "fc5b354ea1e6048977b7233aa1d6742962200f7128ff4244f55ae8406ea40f39",
+          "declarationDigest": "dee084f62f576281d608c171c6fd1a230f9d846eae22a6fe831de7e6c7960b8c",
           "line": 99,
           "profile": "build-context",
           "members": [
@@ -854,7 +854,7 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input<Value>",
-          "declarationDigest": "b45ecf0c34b64fd88bacd8a8099247a36a2e983356bedc82e392eefd09559956",
+          "declarationDigest": "e047ae1b6783b1f972a16b03cf3529a42e9ff7a624b91864f40f155a888b37ba",
           "line": 22,
           "profile": "const-binding",
           "status": "draft"
@@ -863,7 +863,7 @@
           "symbol": "Output",
           "kind": "struct",
           "signature": "export struct Output<Value>",
-          "declarationDigest": "5b6fb3a47132a947bbad9ed373b4c62ac6c17e8eca7615d9f3ec684c6e7af722",
+          "declarationDigest": "d101cc1622609f1ef992e595a6b085fddbf14f76d09e71602d8e56b811f4a2d3",
           "line": 32,
           "profile": "const-binding",
           "status": "draft"
@@ -940,7 +940,7 @@
           "utf8-errors"
         ]
       },
-      "catalogedDeclarationsDigest": "fa9c5212361764862a0636384fd3012128fc6cfd55691940a9d4c5a2d48856ce",
+      "catalogedDeclarationsDigest": "c0320e99efaa5c9e5330f4593d641b8d808f85459e0a10596bd43dcaf8c6f2eb",
       "apis": [
         {
           "symbol": "BoolTokenPolicy",
@@ -963,8 +963,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "840400c43b64d2a060878fddf8b733b6f1d119c242bd23c2e723a3bc84c9e917",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "3b09ba662bc9050f881c43d33fc049707e5fea783efe3814fd4a52881a76f6a0",
           "line": 353,
           "profile": "csv-decode",
           "status": "draft"
@@ -972,8 +972,8 @@
         {
           "symbol": "decodeAll",
           "kind": "fn",
-          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "47ebf630863c5eca6e331cebbeb2c0a85819e1ca40d92e3a745cc39283f16966",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "0c695a37c8d4a145810e3796d6dd84e3b5f57ea4d2d6d974cff79b3f5f15dd1b",
           "line": 370,
           "profile": "csv-decode",
           "status": "draft"
@@ -982,7 +982,7 @@
           "symbol": "DecodeDialect",
           "kind": "struct",
           "signature": "export struct DecodeDialect",
-          "declarationDigest": "f640a2cf2d964dbf083aa15f8356e68d3fbc39eef6e70b56810d4a05cb383e90",
+          "declarationDigest": "4f6a27a88b52bda657054d21fe85d12e8108e16e35148205b7bd5bb371150289",
           "line": 148,
           "profile": "csv-codec",
           "status": "draft"
@@ -990,8 +990,8 @@
         {
           "symbol": "decodeDynamic",
           "kind": "fn",
-          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( named source: take Source, named schema: take data.Schema, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "61e93d90f1c915fe0ef66beba0f8fe14db175a0455565b7475250e3676b6060c",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.ByteSource<SourceFailure>>( source: take Source, schema: take data.Schema, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "aa33089102afcf04873533c58fe59ab082cd1e1c307bacdc2e917cca46d797f9",
           "line": 360,
           "profile": "csv-decode",
           "status": "draft"
@@ -1017,8 +1017,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "7cccf242fce77aed76e474c0d37acb77ad039d88508366e08857f8de8a7dff2d",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "9a97e901226e96360ef99738bb18a0ee81dee19fe83df6395d0bb8f1ae8017b8",
           "line": 387,
           "profile": "csv-encode",
           "status": "draft"
@@ -1027,7 +1027,7 @@
           "symbol": "EncodeDialect",
           "kind": "struct",
           "signature": "export struct EncodeDialect",
-          "declarationDigest": "cc4b6161ead7818b798c5a0f791e0af67a4fd8e1c1ff462002833110a889d84c",
+          "declarationDigest": "b42acecf85cba0dbbbaa009cda1ef5976099be1bb9958a24e41059422880bcf7",
           "line": 194,
           "profile": "csv-codec",
           "status": "draft"
@@ -1195,13 +1195,13 @@
           "schema-identity"
         ]
       },
-      "catalogedDeclarationsDigest": "8cbf3a068b85e93b2ca4c099dc5b220e3a364e918a4bef55c79649859fc2a933",
+      "catalogedDeclarationsDigest": "d16cd7dc248e572a7c931fb3195a48691e3dd065c4ab0aed74e15406ebe0caea",
       "apis": [
         {
           "symbol": "Batch",
           "kind": "struct",
           "signature": "export struct Batch<Element: Row>",
-          "declarationDigest": "6831cd9863f93466891f92620efd18c47ea2d8c7c0b8608b8887409c41b04374",
+          "declarationDigest": "12df7f03790b9e016dbe62fd4f1701444765db383adde891076a933031184c27",
           "line": 793,
           "profile": "data-carrier",
           "status": "draft"
@@ -1210,7 +1210,7 @@
           "symbol": "bind",
           "kind": "fn",
           "signature": "export fn bind<Element: Row>( batch: take DynamicBatch, to schema: ref Schema, policy: BindingPolicy = .exact, limits: ref Limits, ): Batch<Element> throws BindError",
-          "declarationDigest": "85bddc30c9cf5a2a1f8f48e2079525d2dd6d6ae9484e5c09ca481dde73930990",
+          "declarationDigest": "83943e2423682a79c1bcde555d5386b0224082e30795a939ee772966d685f8df",
           "line": 915,
           "profile": "data-binding",
           "status": "draft"
@@ -1246,7 +1246,7 @@
           "symbol": "Column",
           "kind": "struct",
           "signature": "export struct Column<Owner: Row, Value>",
-          "declarationDigest": "e819ef48cf619729a02bfcf2a523d5b584a15b32d8e1c1bb8f328668899cc445",
+          "declarationDigest": "9290ec95b9053c17ef1b47b06668f824a0108ef6fffff377f311c12034f86b00",
           "line": 715,
           "profile": "data-carrier",
           "status": "draft"
@@ -1282,7 +1282,7 @@
           "symbol": "DynamicBatch",
           "kind": "struct",
           "signature": "export struct DynamicBatch",
-          "declarationDigest": "15aa462f2151a14a5143651bd12832bc81c1192819a63dd7fa8fc5b3991bde0a",
+          "declarationDigest": "599c4958e361e84d4651d0150dd397c216a5ac4863c85ea23df6001585bb4dd9",
           "line": 835,
           "profile": "data-carrier",
           "status": "draft"
@@ -1309,7 +1309,7 @@
           "symbol": "DynamicExtensionValue",
           "kind": "struct",
           "signature": "export struct DynamicExtensionValue",
-          "declarationDigest": "84f2e49da6327a9df8373e5c01754850fb70f309f1c5674033fa44e00091ad10",
+          "declarationDigest": "48f72edcca29a52dd5951e7622b882efc730e5a6079a5e9ff2bbbbc3e11b19f7",
           "line": 596,
           "profile": "data-carrier",
           "status": "draft"
@@ -1354,7 +1354,7 @@
           "symbol": "EncodeProgress",
           "kind": "struct",
           "signature": "export struct EncodeProgress: Copy & Equatable",
-          "declarationDigest": "7b68aacfe27505245fc7a1f9e10ee8409a354779e42dc6036f9a2167c2d58c01",
+          "declarationDigest": "3be632c724cdbda8f1c8d581f5350692c5000f1e3112c6ae7bc5b257b0fc25da",
           "line": 873,
           "profile": "value-contract",
           "status": "draft"
@@ -1507,7 +1507,7 @@
           "symbol": "SchemaField",
           "kind": "struct",
           "signature": "export struct SchemaField",
-          "declarationDigest": "093c5dd46bd7d6d81a8af978c294a8d7f050a40b9a12916717d79db74e7646a2",
+          "declarationDigest": "4a531ac9754f654aa285b115c887114351b05136beb7fc374c2ee4431b1077ab",
           "line": 539,
           "profile": "data-carrier",
           "status": "draft"
@@ -1525,7 +1525,7 @@
           "symbol": "SemanticExtension",
           "kind": "struct",
           "signature": "export struct SemanticExtension",
-          "declarationDigest": "99ac4f82f41f3f95693e2567a03be779025d0867ae2099fd75ce2ee4e2f85053",
+          "declarationDigest": "ced0cf0c5f26738b4ef935de6bf245f7712e017d688711578cd234695fbfbc63",
           "line": 187,
           "profile": "data-carrier",
           "status": "draft"
@@ -1701,7 +1701,7 @@
           "release-exactly-once"
         ]
       },
-      "catalogedDeclarationsDigest": "9c3f9b9503beaf0292cd3752f105c40785b57b9e1dbab01419064237ccaa470d",
+      "catalogedDeclarationsDigest": "9109d9dfcdafdf49b8d2a994c97e8f05de4f1e72a4f6d1f3160b967fcd702914",
       "apis": [
         {
           "symbol": "DLPackError",
@@ -1716,7 +1716,7 @@
           "symbol": "DynamicImportedTensor",
           "kind": "struct",
           "signature": "export struct DynamicImportedTensor",
-          "declarationDigest": "b40278f1a48770f75a6b5a7204d4feeb9fecbe2738f9b5d62bf09cb1bb9a1fab",
+          "declarationDigest": "c02d6cced39572ba3bad600bcc7d0f6ba5efffe7acb688d8e4723c8b8e43ed1d",
           "line": 124,
           "profile": "dlpack-import",
           "members": [
@@ -1746,8 +1746,8 @@
         {
           "symbol": "export",
           "kind": "fn",
-          "signature": "export async fn export<Element, shape: StaticList<usize>>( named value: take Tensor<Element, shape>, on queue: ref tensor.Queue?, named limits: ref Limits, ): ManagedTensor throws DLPackError",
-          "declarationDigest": "4d702db90d88cb937e1702f1ae3fcb82142928f46d1178a090c729506c51e658",
+          "signature": "export async fn export<Element, shape: StaticList<usize>>( value: take Tensor<Element, shape>, on queue: ref tensor.Queue?, limits: ref Limits, ): ManagedTensor throws DLPackError",
+          "declarationDigest": "a4bb9c62fde649cc6bfabb91ca64b8812c39041c54f190e39bca0f91a593977f",
           "line": 211,
           "profile": "dlpack-export",
           "status": "draft"
@@ -1765,7 +1765,7 @@
           "symbol": "ImportedTensor",
           "kind": "struct",
           "signature": "export struct ImportedTensor<Element, shape: StaticList<usize>>",
-          "declarationDigest": "0242390319ff250b032cc79de69a6291280b756349e6380a991ea1d1126ee4e3",
+          "declarationDigest": "1a412467f9302fdd4100a454f68c8ab259151176e0f2c31027598c2fe29adc60",
           "line": 103,
           "profile": "dlpack-import",
           "members": [
@@ -1773,7 +1773,7 @@
               "symbol": "withView",
               "overloads": [
                 {
-                  "signature": "export mut async fn withView<Output, OperationFailure: Error>( _ body: some mut async fn(view Tensor<Element, shape>): Output throws OperationFailure, ): Output throws ViewError<OperationFailure>",
+                  "signature": "export mut async fn withView<Output, OperationFailure: Error>( body: some mut async fn(view Tensor<Element, shape>): Output throws OperationFailure, ): Output throws ViewError<OperationFailure>",
                   "line": 110
                 }
               ],
@@ -1825,8 +1825,8 @@
         {
           "symbol": "materialize",
           "kind": "fn",
-          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( named imported: take ImportedTensor<Element, shape>, named target: ref tensor.Device, on queue: ref tensor.Queue?, named limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
-          "declarationDigest": "b9a824b5b6d2cbbbd80156abef5a6b3f97e56ea8ba13a879bf9c9c0f0f04daf2",
+          "signature": "export async fn materialize<Element, shape: StaticList<usize>>( imported: take ImportedTensor<Element, shape>, target: ref tensor.Device, on queue: ref tensor.Queue?, limits: ref Limits, ): Tensor<Element, shape> throws DLPackError",
+          "declarationDigest": "2bda720f848d824e61467fa1d70c6c954b26e33f0034593122a70f6ab0953e0a",
           "line": 195,
           "profile": "dlpack-materialize",
           "status": "draft"
@@ -1834,8 +1834,8 @@
         {
           "symbol": "open",
           "kind": "fn",
-          "signature": "export async fn open<Element, shape: StaticList<usize>>( named managed: take ManagedTensor, on queue: ref tensor.Queue?, named limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
-          "declarationDigest": "0e9d7b5c31a9042056644b89bdd37877a4e67af8c058387792ddf5f142cec4ca",
+          "signature": "export async fn open<Element, shape: StaticList<usize>>( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): ImportedTensor<Element, shape> throws DLPackError",
+          "declarationDigest": "39f430d098c8007bc603f42081b913c77837b6e0b65340d93b9ead96095cfda1",
           "line": 147,
           "profile": "dlpack-import",
           "status": "draft"
@@ -1843,8 +1843,8 @@
         {
           "symbol": "openDynamic",
           "kind": "fn",
-          "signature": "export async fn openDynamic( named managed: take ManagedTensor, on queue: ref tensor.Queue?, named limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
-          "declarationDigest": "663704e147a83dec826a9098e9002f35b9e27b32587ea5ba1bb16c8142df6a54",
+          "signature": "export async fn openDynamic( managed: take ManagedTensor, on queue: ref tensor.Queue?, limits: ref Limits, ): DynamicImportedTensor throws DLPackError",
+          "declarationDigest": "03a0ff72c7c5f90097560304cf7b22f8fb7d10511d539e455dbac8371b58daa3",
           "line": 163,
           "profile": "dlpack-import",
           "status": "draft"
@@ -1882,7 +1882,7 @@
           "static-rights"
         ]
       },
-      "catalogedDeclarationsDigest": "08aa094794fcea4370f1f44bbc15537c1590df9af3d172d3459569a9289f53fe",
+      "catalogedDeclarationsDigest": "6fd941d59edef3c34d75b6ccc9acc67bd4b3581f438bbe559af47988e4e80724",
       "apis": [
         {
           "symbol": "DirectoryEntry",
@@ -1993,7 +1993,7 @@
           "symbol": "File",
           "kind": "struct",
           "signature": "export struct File<_ rights: StaticList<FileRight>>",
-          "declarationDigest": "d38e95ed6f1f7048876d32fcddf761975c22ee1b7d4abf1223214307eb58c9a5",
+          "declarationDigest": "d800c5870fab1f395ab6f845a30434c8e6d17a55a70a7d6cca27ff40b49b96b1",
           "line": 372,
           "profile": "fs-root",
           "members": [
@@ -2001,7 +2001,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export async fn read( at offset: FileOffset, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
+                  "signature": "export async fn read( at offset: FileOffset, appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws IoError",
                   "line": 380
                 }
               ],
@@ -2011,7 +2011,7 @@
               "symbol": "write",
               "overloads": [
                 {
-                  "signature": "export async fn write( at offset: FileOffset, named source: view Bytes, ): WriteStep throws IoError",
+                  "signature": "export async fn write( at offset: FileOffset, source: view Bytes, ): WriteStep throws IoError",
                   "line": 396
                 }
               ],
@@ -2021,7 +2021,7 @@
               "symbol": "append",
               "overloads": [
                 {
-                  "signature": "export async fn append(named source: view Bytes): WriteStep throws IoError",
+                  "signature": "export async fn append(source: view Bytes): WriteStep throws IoError",
                   "line": 404
                 }
               ],
@@ -2041,7 +2041,7 @@
               "symbol": "snapshot",
               "overloads": [
                 {
-                  "signature": "export async fn snapshot( named maximumBytes: u64, ): FileSnapshot throws SnapshotError",
+                  "signature": "export async fn snapshot( maximumBytes: u64, ): FileSnapshot throws SnapshotError",
                   "line": 415
                 }
               ],
@@ -2051,7 +2051,7 @@
               "symbol": "sync",
               "overloads": [
                 {
-                  "signature": "export async fn sync(_ durability: Durability): () throws IoError",
+                  "signature": "export async fn sync(durability: Durability): () throws IoError",
                   "line": 425
                 }
               ],
@@ -2061,7 +2061,7 @@
               "symbol": "finish",
               "overloads": [
                 {
-                  "signature": "export take async fn finish( named durability: Durability = .none, ): () throws IoError",
+                  "signature": "export take async fn finish( durability: Durability = .none, ): () throws IoError",
                   "line": 431
                 }
               ],
@@ -2143,7 +2143,7 @@
           "symbol": "FileSnapshot",
           "kind": "struct",
           "signature": "export struct FileSnapshot: SnapshotByteSource<IoError>",
-          "declarationDigest": "e58512c2915748a2bf8e4f971baaf8be7a0dc1d84846becddbac2352facec9ef",
+          "declarationDigest": "356262ca00a193b0b9491288f5ad8d2c475a0a2a8c4d2326d6b49da0f9f8a856",
           "line": 296,
           "profile": "fs-snapshot",
           "members": [
@@ -2161,7 +2161,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): SnapshotReadStep throws IoError",
+                  "signature": "export async fn read( at offset: u64, appendTo destination: inout Bytes, maximum: usize<(1...)>, ): SnapshotReadStep throws IoError",
                   "line": 307
                 }
               ],
@@ -2174,7 +2174,7 @@
           "symbol": "FileSystem",
           "kind": "struct",
           "signature": "export struct FileSystem",
-          "declarationDigest": "a302886cbc2876ee5c041de529f3227045186c19e5de72fc11e74bf97887e802",
+          "declarationDigest": "f5eb2c9fa4703674e06dcbfef0080e1c426638b2016d0ef0ac0857ec4df96e75",
           "line": 442,
           "profile": "fs-root",
           "members": [
@@ -2192,7 +2192,7 @@
               "symbol": "open",
               "overloads": [
                 {
-                  "signature": "export async fn open<_ rights: StaticList<FileRight>>( _ path: ref Path, named creation: FileCreation = .openExisting, ): File<rights> throws IoError",
+                  "signature": "export async fn open<_ rights: StaticList<FileRight>>( path: ref Path, creation: FileCreation = .openExisting, ): File<rights> throws IoError",
                   "line": 454
                 }
               ],
@@ -2202,7 +2202,7 @@
               "symbol": "metadata",
               "overloads": [
                 {
-                  "signature": "export async fn metadata(_ path: ref Path): FileMetadata throws IoError",
+                  "signature": "export async fn metadata(path: ref Path): FileMetadata throws IoError",
                   "line": 464
                 }
               ],
@@ -2212,7 +2212,7 @@
               "symbol": "entries",
               "overloads": [
                 {
-                  "signature": "export async fn entries( at path: ref Path, named limits: DirectoryLimits = DirectoryLimits(), ): some Stream<DirectoryEntry, DirectoryError> throws DirectoryError",
+                  "signature": "export async fn entries( at path: ref Path, limits: DirectoryLimits = DirectoryLimits(), ): some Stream<DirectoryEntry, DirectoryError> throws DirectoryError",
                   "line": 468
                 }
               ],
@@ -2222,7 +2222,7 @@
               "symbol": "createDirectory",
               "overloads": [
                 {
-                  "signature": "export async fn createDirectory(_ path: ref Path): () throws NamespaceError",
+                  "signature": "export async fn createDirectory(path: ref Path): () throws NamespaceError",
                   "line": 478
                 }
               ],
@@ -2232,7 +2232,7 @@
               "symbol": "removeFile",
               "overloads": [
                 {
-                  "signature": "export async fn removeFile(_ path: ref Path): () throws NamespaceError",
+                  "signature": "export async fn removeFile(path: ref Path): () throws NamespaceError",
                   "line": 482
                 }
               ],
@@ -2242,7 +2242,7 @@
               "symbol": "removeEmptyDirectory",
               "overloads": [
                 {
-                  "signature": "export async fn removeEmptyDirectory( _ path: ref Path, ): () throws NamespaceError",
+                  "signature": "export async fn removeEmptyDirectory( path: ref Path, ): () throws NamespaceError",
                   "line": 486
                 }
               ],
@@ -2252,7 +2252,7 @@
               "symbol": "rename",
               "overloads": [
                 {
-                  "signature": "export async fn rename( from source: ref Path, to destination: ref Path, named replacement: RenamePolicy = .keepExisting, ): () throws NamespaceError",
+                  "signature": "export async fn rename( from source: ref Path, to destination: ref Path, replacement: RenamePolicy = .keepExisting, ): () throws NamespaceError",
                   "line": 492
                 }
               ],
@@ -2284,7 +2284,7 @@
           "symbol": "Path",
           "kind": "struct",
           "signature": "export struct Path: Duplicable",
-          "declarationDigest": "bb49734c4283fa9d0904d58883de71d83e6b88c7d73189216392834e2063147b",
+          "declarationDigest": "4d23a7dafa8bb535ce4e86aa6c34bf1da3217261e09a17e1c7e480fb235eb835",
           "line": 201,
           "profile": "fs-path",
           "members": [
@@ -2292,7 +2292,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ native: ref OsString) throws PathEncodingError",
+                  "signature": "export init(native: ref OsString) throws PathEncodingError",
                   "line": 204
                 }
               ],
@@ -2302,7 +2302,7 @@
               "symbol": "fromUtf8",
               "overloads": [
                 {
-                  "signature": "export static fn fromUtf8(_ path: ref Utf8Path): Path",
+                  "signature": "export static fn fromUtf8(path: ref Utf8Path): Path",
                   "line": 212
                 }
               ],
@@ -2372,7 +2372,7 @@
           "symbol": "Utf8Path",
           "kind": "struct",
           "signature": "export struct Utf8Path: Duplicable",
-          "declarationDigest": "ac7f9d3e6474bc9a2c12fdf96c911664dfaa8d0bf47b1231f79a78b59c957c29",
+          "declarationDigest": "912d774a97650683813bf04767a2c42ee61c5bda1bc9cbea77c5ff4a2265c722",
           "line": 234,
           "profile": "fs-path",
           "members": [
@@ -2380,11 +2380,11 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ text: String) throws PathEncodingError",
+                  "signature": "export init(text: String) throws PathEncodingError",
                   "line": 237
                 },
                 {
-                  "signature": "export init(_ path: ref Path) throws PathEncodingError",
+                  "signature": "export init(path: ref Path) throws PathEncodingError",
                   "line": 243
                 }
               ],
@@ -2435,7 +2435,7 @@
           "wpt-fetch-headers"
         ]
       },
-      "catalogedDeclarationsDigest": "1b1b7f6224b6a3e785106c4dc5a10a5e58309ee2792da5e5505d27ac7296debb",
+      "catalogedDeclarationsDigest": "34dfecfb51c7d4e0009a25a24639844d3638573b8d585f0a325dd672d80a2e06",
       "apis": [
         {
           "symbol": "BodyCloneError",
@@ -2612,7 +2612,7 @@
           "symbol": "FormData",
           "kind": "struct",
           "signature": "export struct FormData: Duplicable",
-          "declarationDigest": "98f8fc34c184177c1796a49637d5c6d2e0bd1d4140ec8b7b936773653e6023e6",
+          "declarationDigest": "b02a2794782a1d6f2f7b130473d315c95ecc84788631ba195c53f1b2cbd44573",
           "line": 893,
           "profile": "form-data-value",
           "members": [
@@ -2860,7 +2860,7 @@
           "symbol": "HeaderField",
           "kind": "struct",
           "signature": "export struct HeaderField",
-          "declarationDigest": "4c458f69692eb86a987a4fd868af48789c2293e9cc63d9b76a746399a9f897f9",
+          "declarationDigest": "87b7afdb91067a2fb453d4451685dcbdc6253a80b054f46e2d41905bd589e89c",
           "line": 384,
           "profile": "normalized-http-header-component",
           "status": "draft"
@@ -2878,7 +2878,7 @@
           "symbol": "HeaderName",
           "kind": "struct",
           "signature": "export struct HeaderName",
-          "declarationDigest": "168da2a30af2aaf7c2e491e1fbec70d710bad6b8be29a0ef632ee1c71e748725",
+          "declarationDigest": "34d38b430d01863b7ab834b52bb902494b2af3dd6b5ce101b50adaa637d0619e",
           "line": 306,
           "profile": "normalized-http-header-component",
           "status": "draft"
@@ -2887,7 +2887,7 @@
           "symbol": "Headers",
           "kind": "struct",
           "signature": "export struct Headers",
-          "declarationDigest": "0205b96325362846caa847ddf37b732bd8b0ef8b3a23d7d245efb800ed392259",
+          "declarationDigest": "b2155d852874d3a27d0742b9e3f9ff5087308638364fa8dcfe065f8faf85456c",
           "line": 475,
           "profile": "http-headers",
           "members": [
@@ -2895,7 +2895,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ initialFields: take HeaderField...)",
+                  "signature": "export init(initialFields: take HeaderField...)",
                   "line": 479
                 },
                 {
@@ -3053,7 +3053,7 @@
           "symbol": "MethodToken",
           "kind": "struct",
           "signature": "export struct MethodToken",
-          "declarationDigest": "18cf1ace150c8cd4851e99dcfd414c615107ff7bd67d09f8f98d217afc5f05d5",
+          "declarationDigest": "c2c889813c7306ee058624cb521e0b96fb41a98dd2dece91e977a28f20cebdb1",
           "line": 265,
           "profile": "validated-http-token",
           "status": "draft"
@@ -3110,7 +3110,7 @@
           "symbol": "Request",
           "kind": "struct",
           "signature": "export struct Request",
-          "declarationDigest": "eb44373a4ada347728cf5f4579a828a477b82152c0bf99c3192d80e7e5c6db75",
+          "declarationDigest": "92f6826c87f8a95d979d76b248949631ca75c3194fdc5b741298b64d0c9c022f",
           "line": 1525,
           "profile": "http-request",
           "members": [
@@ -3118,11 +3118,11 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ input: take String, init: take RequestInit = RequestInit()) throws RequestError",
+                  "signature": "export init(input: take String, init: take RequestInit = RequestInit()) throws RequestError",
                   "line": 1532
                 },
                 {
-                  "signature": "export init(_ input: take URL, init: take RequestInit = RequestInit()) throws RequestError",
+                  "signature": "export init(input: take URL, init: take RequestInit = RequestInit()) throws RequestError",
                   "line": 1538
                 },
                 {
@@ -3130,7 +3130,7 @@
                   "line": 1546
                 },
                 {
-                  "signature": "export init( _ input: take Request, override: take RequestOverride = RequestOverride(), ) throws RequestError",
+                  "signature": "export init( input: take Request, override: take RequestOverride = RequestOverride(), ) throws RequestError",
                   "line": 1552
                 }
               ],
@@ -3478,7 +3478,7 @@
           "symbol": "Response",
           "kind": "struct",
           "signature": "export struct Response",
-          "declarationDigest": "a12f95d99c7bad8991b6cbd282ad4c607411ca9c609eb538e924567c5e4e1ff7",
+          "declarationDigest": "4f7497a0efa1f25bc905c5a83a2a340e942899f78b20e8c23d3a3c876f432acc",
           "line": 1697,
           "profile": "http-response",
           "members": [
@@ -3490,31 +3490,31 @@
                   "line": 1704
                 },
                 {
-                  "signature": "export init( _ body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take String, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1719
                 },
                 {
-                  "signature": "export init( _ body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take Bytes, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1735
                 },
                 {
-                  "signature": "export init( _ body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take URLSearchParams, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1751
                 },
                 {
-                  "signature": "export init( _ body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take Blob, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1767
                 },
                 {
-                  "signature": "export init( _ body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take FormData, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1783
                 },
                 {
-                  "signature": "export init( _ body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take ReadableStream<Bytes, HttpBodyError>, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1799
                 },
                 {
-                  "signature": "export init( _ body: take BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
+                  "signature": "export init( body: take BodySource, status: StatusCode = StatusCode.ok, statusText: String = \"\", headers: take Headers = Headers(), ) throws ResponseError",
                   "line": 1815
                 }
               ],
@@ -3735,8 +3735,8 @@
         {
           "symbol": "serve",
           "kind": "fn",
-          "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, named limits: ServerLimits, named handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
-          "declarationDigest": "9d9862d70a183298de077f13a3b3813a6648a549a42a5421fd4e8bcc7b665b4a",
+          "signature": "export async fn serve<Failure: Error>( at address: net.ListenAddress, using network: ref net.Network, limits: ServerLimits, handler: some async fn(take Request, Context): Response throws Failure, ): () throws ServerError",
+          "declarationDigest": "4bb9ed0891eaffafe82b684be5e28238e3d67fcb60b31003d3e55cff8de30dc3",
           "line": 2153,
           "profile": "http-server",
           "status": "draft",
@@ -3976,13 +3976,13 @@
           "snapshot-positional-read"
         ]
       },
-      "catalogedDeclarationsDigest": "4c48bc292f00222c4d82712eaeb2179e8a7a29e4c8c81146e34e7961e9481e02",
+      "catalogedDeclarationsDigest": "90b3eef157908c313470312cfb0b0b781675fd7285c3e0eefc73686fa2659c39",
       "apis": [
         {
           "symbol": "ByteSink",
           "kind": "protocol",
           "signature": "export protocol ByteSink<Failure: Error>",
-          "declarationDigest": "0373baab80e7f773cb5f5b2254560c02887028c9c0d96af066205e7ffcec301f",
+          "declarationDigest": "56866cd744212080865ed80fc01b083c3b63e50c575c1a1fd93f33ba11a426d3",
           "line": 301,
           "profile": "byte-sink",
           "status": "draft"
@@ -3991,7 +3991,7 @@
           "symbol": "ByteSource",
           "kind": "protocol",
           "signature": "export protocol ByteSource<Failure: Error>",
-          "declarationDigest": "dd686b24fef81c93a9e404708537440d465b2d3c2f9f39ca13ddc67ddb4e2d26",
+          "declarationDigest": "ca1ad9ae6b8ed908b62adae664342385b559cc1f53ba9f78c184a2f4e0e91fb9",
           "line": 279,
           "profile": "byte-source",
           "status": "draft"
@@ -4093,7 +4093,7 @@
           "symbol": "ReadBatch",
           "kind": "struct",
           "signature": "export struct ReadBatch",
-          "declarationDigest": "e375db7a0be7bcc279e448ec2aa2ba6a6bd8295deebd3e7b55b177b5bb717464",
+          "declarationDigest": "098cd6a91eec586f76f62c34b2b1f46ec28414064a68f733770a71575567e954",
           "line": 205,
           "profile": "scatter-read-owner",
           "members": [
@@ -4101,7 +4101,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ capacities: usize<(1...)>...) throws AllocationError",
+                  "signature": "export init(capacities: usize<(1...)>...) throws AllocationError",
                   "line": 208
                 }
               ],
@@ -4204,7 +4204,7 @@
           "symbol": "SnapshotByteSource",
           "kind": "protocol",
           "signature": "export protocol SnapshotByteSource<Failure: Error>",
-          "declarationDigest": "77741f256e869de0271593f23dbbc42033e6c1d9f5d372fbd8848e5b18487f4d",
+          "declarationDigest": "835cfba298fc24d2e8d3778d18ffebc31aecedf0bd21617ad9185584bef14b31",
           "line": 291,
           "profile": "snapshot-byte-source",
           "status": "draft"
@@ -4357,7 +4357,7 @@
           "web-differential-vectors"
         ]
       },
-      "catalogedDeclarationsDigest": "1c773ffc632ce9cf2b7b2f4e775c22454bf7a528349e5b9f8ea8e03df2e048f7",
+      "catalogedDeclarationsDigest": "7ff0393ede5424375fadb29b32880f1fc6c728ae30f5b8f9c973d7b458144d96",
       "apis": [
         {
           "symbol": "ArrayReader",
@@ -4422,8 +4422,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Decoded: Decodable>( bytes: ref Bytes, named limits: Limits, named profile: Profile = .interoperable, named unknownMembers: UnknownMemberPolicy = .reject, ): Decoded throws DecodeError",
-          "declarationDigest": "9e249b85d386c83261c78ee588ea7b3c76b1148c5a79d61077c00d4bf761da86",
+          "signature": "export fn decode<Decoded: Decodable>( bytes: ref Bytes, limits: Limits, profile: Profile = .interoperable, unknownMembers: UnknownMemberPolicy = .reject, ): Decoded throws DecodeError",
+          "declarationDigest": "6a759f25048e4b91232c84445ed87ebde95af146ece96b04dfa7636fa3042853",
           "line": 715,
           "profile": "json-codec-carrier",
           "status": "draft"
@@ -4449,8 +4449,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export fn encode<Value: Encodable>( value: ref Value, named limits: Limits, named profile: Profile = .interoperable, ): Bytes throws EncodeError",
-          "declarationDigest": "5e9e4365610f83086099a42ab2d1ad9cfb26e9339f13cd5b5da36251c22f01d7",
+          "signature": "export fn encode<Value: Encodable>( value: ref Value, limits: Limits, profile: Profile = .interoperable, ): Bytes throws EncodeError",
+          "declarationDigest": "8566b2736ef7b976a26497b215880979897116a0aecb0cfbf1b6ba27a0978ac5",
           "line": 705,
           "profile": "json-codec-carrier",
           "status": "draft"
@@ -4477,7 +4477,7 @@
           "symbol": "Limits",
           "kind": "struct",
           "signature": "export struct Limits: Copy & Equatable",
-          "declarationDigest": "530e98e3e854397e7dae267cb99c7a2c7f3ad35af7e5f6d1ecc7a73039b07c3c",
+          "declarationDigest": "399bd8c57e09079a7ef99ea3adfec54b39d7dc2fc7d712e750d384998c2b97e1",
           "line": 33,
           "profile": "value-contract",
           "members": [
@@ -4611,7 +4611,7 @@
           "symbol": "Number",
           "kind": "struct",
           "signature": "export struct Number: Duplicable & Equatable",
-          "declarationDigest": "c5863ef179d2a0b14067614cfd8c4c1162d0b430994fbabce6025b3b6b309750",
+          "declarationDigest": "e594ab461e286882de2a76eddead380f92ed81dae6690497f8c0bd51d8192a58",
           "line": 153,
           "profile": "value-contract",
           "members": [
@@ -4619,7 +4619,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ token: String, limits: Limits) throws ValueError",
+                  "signature": "export init(token: String, limits: Limits) throws ValueError",
                   "line": 156
                 }
               ],
@@ -4629,7 +4629,7 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse( _ token: ref String, limits: ref Limits, ): Number throws ValueError",
+                  "signature": "export static fn parse( token: ref String, limits: ref Limits, ): Number throws ValueError",
                   "line": 166
                 }
               ],
@@ -4672,7 +4672,7 @@
           "symbol": "Object",
           "kind": "struct",
           "signature": "export struct Object: Duplicable & Equatable",
-          "declarationDigest": "fa66b946c3e7c0fd9e35b45421385747166bcffcd5d4ee80cf230cc374aef9ad",
+          "declarationDigest": "2021d7736e3755f2163095d1487bb2f98a3b18bc624fe2c3f968b3e244d71581",
           "line": 225,
           "profile": "value-contract",
           "members": [
@@ -4680,7 +4680,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init( _ entries: take Array<ObjectEntry>, limits: Limits, ) throws ValueError",
+                  "signature": "export init( entries: take Array<ObjectEntry>, limits: Limits, ) throws ValueError",
                   "line": 228
                 }
               ],
@@ -4838,7 +4838,7 @@
           "symbol": "ObjectWriter",
           "kind": "struct",
           "signature": "export struct ObjectWriter",
-          "declarationDigest": "29a103848480dfbf9d3d950507745f9d65d1f02813629c063392549f179e0f1b",
+          "declarationDigest": "c177b92c3aaeef57f203c072ab40e3ba819ce30ec73a0ca0a3a611d56be71760",
           "line": 512,
           "profile": "json-codec-carrier",
           "members": [
@@ -4846,7 +4846,7 @@
               "symbol": "field",
               "overloads": [
                 {
-                  "signature": "export mut fn field<Value: Encodable>( name: ref String, named value: ref Value, ): () throws EncodeError",
+                  "signature": "export mut fn field<Value: Encodable>( name: ref String, value: ref Value, ): () throws EncodeError",
                   "line": 519
                 }
               ],
@@ -4868,7 +4868,7 @@
           "symbol": "Reader",
           "kind": "struct",
           "signature": "export struct Reader",
-          "declarationDigest": "16808276333db62a39bd08c2e2eb1b832d20da4f9add1a2d8e0e3b9aa73118d7",
+          "declarationDigest": "6e475699c1702c37a3707e76d6a25a3ce800f8bd56a7577e850d58a7f4af10a6",
           "line": 571,
           "profile": "json-codec-carrier",
           "members": [
@@ -4916,7 +4916,7 @@
               "symbol": "withObject",
               "overloads": [
                 {
-                  "signature": "export mut fn withObject<Output>( _ body: some take fn(inout ObjectReader): Output throws DecodeError, ): Output throws DecodeError",
+                  "signature": "export mut fn withObject<Output>( body: some take fn(inout ObjectReader): Output throws DecodeError, ): Output throws DecodeError",
                   "line": 610
                 }
               ],
@@ -4926,7 +4926,7 @@
               "symbol": "withArray",
               "overloads": [
                 {
-                  "signature": "export mut fn withArray<Output>( _ body: some take fn(inout ArrayReader): Output throws DecodeError, ): Output throws DecodeError",
+                  "signature": "export mut fn withArray<Output>( body: some take fn(inout ArrayReader): Output throws DecodeError, ): Output throws DecodeError",
                   "line": 625
                 }
               ],
@@ -5015,7 +5015,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "0bfb570335e4b67fa202a8e879af24ff817f17cecb6ae2d98ac01fd3fc7c1fc5",
+          "declarationDigest": "7ee0e44d60e43407e48475c033989bdca7502e25c1314a391e83af5d11f1d480",
           "line": 450,
           "profile": "json-codec-carrier",
           "members": [
@@ -5033,7 +5033,7 @@
               "symbol": "writeBool",
               "overloads": [
                 {
-                  "signature": "export mut fn writeBool(_ value: Bool): () throws EncodeError",
+                  "signature": "export mut fn writeBool(value: Bool): () throws EncodeError",
                   "line": 463
                 }
               ],
@@ -5043,7 +5043,7 @@
               "symbol": "writeString",
               "overloads": [
                 {
-                  "signature": "export mut fn writeString(_ value: ref String): () throws EncodeError",
+                  "signature": "export mut fn writeString(value: ref String): () throws EncodeError",
                   "line": 467
                 }
               ],
@@ -5053,7 +5053,7 @@
               "symbol": "writeNumber",
               "overloads": [
                 {
-                  "signature": "export mut fn writeNumber(_ value: ref Number): () throws EncodeError",
+                  "signature": "export mut fn writeNumber(value: ref Number): () throws EncodeError",
                   "line": 471
                 }
               ],
@@ -5063,7 +5063,7 @@
               "symbol": "withObject",
               "overloads": [
                 {
-                  "signature": "export mut fn withObject( _ body: some take fn(inout ObjectWriter): () throws EncodeError, ): () throws EncodeError",
+                  "signature": "export mut fn withObject( body: some take fn(inout ObjectWriter): () throws EncodeError, ): () throws EncodeError",
                   "line": 475
                 }
               ],
@@ -5073,7 +5073,7 @@
               "symbol": "withArray",
               "overloads": [
                 {
-                  "signature": "export mut fn withArray( _ body: some take fn(inout ArrayWriter): () throws EncodeError, ): () throws EncodeError",
+                  "signature": "export mut fn withArray( body: some take fn(inout ArrayWriter): () throws EncodeError, ): () throws EncodeError",
                   "line": 489
                 }
               ],
@@ -5213,7 +5213,7 @@
           "udp-directional-split-lifecycle"
         ]
       },
-      "catalogedDeclarationsDigest": "32f1e6787c1ffa02c774a64edc46214b9bf4400fbc0c770cb27d2382519a2671",
+      "catalogedDeclarationsDigest": "505d378219b2c85aa48b9a8650ccf758afccbe33a7240c084dba6c982b087221",
       "apis": [
         {
           "symbol": "AcceptedTcp",
@@ -5570,7 +5570,7 @@
           "symbol": "HostName",
           "kind": "struct",
           "signature": "export struct HostName: Duplicable & Equatable & Hashable",
-          "declarationDigest": "ec057ca8e8be5ad6e8ed4306f8ebbe366ff2b8a32d3daf48b4dc7047e4ee0124",
+          "declarationDigest": "35e8d12275c6ab79ea8c1f5dd68adf8f3792113eb5445efbf2b71f544f82c4c3",
           "line": 296,
           "profile": "net-address-value",
           "members": [
@@ -5578,7 +5578,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ value: String) throws AddressError",
+                  "signature": "export init(value: String) throws AddressError",
                   "line": 299
                 }
               ],
@@ -5621,7 +5621,7 @@
           "symbol": "IpAddress",
           "kind": "enum",
           "signature": "export enum IpAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "5eba17db96d08fc8763ad7021c92417023a7bf55e1019be48c234d713522d1c5",
+          "declarationDigest": "545ee75450949cc1706d308136e3f456e57038277c7b6c971390268fe878f9dc",
           "line": 177,
           "profile": "net-address-value",
           "members": [
@@ -5629,7 +5629,7 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse(_ text: ref String): IpAddress throws AddressError",
+                  "signature": "export static fn parse(text: ref String): IpAddress throws AddressError",
                   "line": 182
                 }
               ],
@@ -5682,7 +5682,7 @@
           "symbol": "Ipv4Address",
           "kind": "struct",
           "signature": "export struct Ipv4Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "6c549c77c1fd6d8b2e57cf6dcd6d03848910a6d8947da5e72c32ef13c12cdad9",
+          "declarationDigest": "a0eb4f7fd969eacdca9404950576be2db66a4cc599eb6a0fd75cb2fc5d66dc9f",
           "line": 63,
           "profile": "net-address-value",
           "members": [
@@ -5690,7 +5690,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export const init( _ first: u8, _ second: u8, _ third: u8, _ fourth: u8, )",
+                  "signature": "export const init( first: u8, second: u8, third: u8, fourth: u8, )",
                   "line": 67
                 }
               ],
@@ -5700,7 +5700,7 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse(_ text: ref String): Ipv4Address throws AddressError",
+                  "signature": "export static fn parse(text: ref String): Ipv4Address throws AddressError",
                   "line": 80
                 }
               ],
@@ -5773,7 +5773,7 @@
           "symbol": "Ipv6Address",
           "kind": "struct",
           "signature": "export struct Ipv6Address: Duplicable & Equatable & Hashable",
-          "declarationDigest": "2cba71fd25d8bc3cf4b05995be4dbb57245f15b61a1c82126d162cc0006e0003",
+          "declarationDigest": "76c1e4d94169f12a7174c4569e7062df54d7989f06a74ca8b0f7c99bfd079cb5",
           "line": 113,
           "profile": "net-address-value",
           "members": [
@@ -5781,7 +5781,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export const init( _ first: u16, _ second: u16, _ third: u16, _ fourth: u16, _ fifth: u16, _ sixth: u16, _ seventh: u16, _ eighth: u16, )",
+                  "signature": "export const init( first: u16, second: u16, third: u16, fourth: u16, fifth: u16, sixth: u16, seventh: u16, eighth: u16, )",
                   "line": 117
                 }
               ],
@@ -5791,7 +5791,7 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse(_ text: ref String): Ipv6Address throws AddressError",
+                  "signature": "export static fn parse(text: ref String): Ipv6Address throws AddressError",
                   "line": 143
                 }
               ],
@@ -5864,7 +5864,7 @@
           "symbol": "ListenAddress",
           "kind": "struct",
           "signature": "export struct ListenAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "396b0299db4fb30584d6b75050118b0131b4792b1c9d69d7d2e6405eca1800dd",
+          "declarationDigest": "28e899681f99d68c1c7bade745710fc97ee16a87e19950b620212da20d7f7e9f",
           "line": 437,
           "profile": "net-address-value",
           "members": [
@@ -5892,7 +5892,7 @@
               "symbol": "address",
               "overloads": [
                 {
-                  "signature": "export static fn address(_ address: SocketAddress): ListenAddress",
+                  "signature": "export static fn address(address: SocketAddress): ListenAddress",
                   "line": 458
                 }
               ],
@@ -5968,7 +5968,7 @@
           "symbol": "Network",
           "kind": "struct",
           "signature": "export struct Network",
-          "declarationDigest": "dabbda65115e26da8fc100b19298ec721bfe9ffe85bfbd1a4d1be843c22099ba",
+          "declarationDigest": "ea17c7a87deffef0c9a022d7b91ad69ac492c9c6810404a77cf5d333886867d9",
           "line": 701,
           "profile": "net-listener-carrier",
           "members": [
@@ -5976,7 +5976,7 @@
               "symbol": "resolve",
               "overloads": [
                 {
-                  "signature": "export async fn resolve( _ host: ref HostName, named port: u16<(1...65_535)>, named limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
+                  "signature": "export async fn resolve( host: ref HostName, port: u16<(1...65_535)>, limits: ResolveLimits = ResolveLimits(), ): Array<SocketAddress> throws NetworkError",
                   "line": 711
                 }
               ],
@@ -5986,7 +5986,7 @@
               "symbol": "connectTcp",
               "overloads": [
                 {
-                  "signature": "export async fn connectTcp( to endpoint: ref Endpoint, named options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
+                  "signature": "export async fn connectTcp( to endpoint: ref Endpoint, options: ConnectOptions = ConnectOptions(), ): TcpConnection throws NetworkError",
                   "line": 726
                 }
               ],
@@ -5996,7 +5996,7 @@
               "symbol": "listenTcp",
               "overloads": [
                 {
-                  "signature": "export async fn listenTcp( at address: ref ListenAddress, named limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
+                  "signature": "export async fn listenTcp( at address: ref ListenAddress, limits: ListenerLimits = ListenerLimits(), ): TcpListener throws NetworkError",
                   "line": 740
                 }
               ],
@@ -6006,7 +6006,7 @@
               "symbol": "bindUdp",
               "overloads": [
                 {
-                  "signature": "export async fn bindUdp( at address: ref ListenAddress, named limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
+                  "signature": "export async fn bindUdp( at address: ref ListenAddress, limits: DatagramLimits = DatagramLimits(), ): UdpSocket throws NetworkError",
                   "line": 754
                 }
               ],
@@ -6102,7 +6102,7 @@
           "symbol": "SocketAddress",
           "kind": "struct",
           "signature": "export struct SocketAddress: Duplicable & Equatable & Hashable",
-          "declarationDigest": "b63dbf9dc5c1989f2feec7a9bfd685963beacd802484ea258ba15a3556790420",
+          "declarationDigest": "12fa7b841341528719d0293408219c1c304f71778d2d1a58ba611e5c6f2fb04e",
           "line": 227,
           "profile": "net-address-value",
           "members": [
@@ -6153,7 +6153,7 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse(_ text: ref String): SocketAddress throws AddressError",
+                  "signature": "export static fn parse(text: ref String): SocketAddress throws AddressError",
                   "line": 259
                 }
               ],
@@ -6206,7 +6206,7 @@
           "symbol": "TcpConnection",
           "kind": "struct",
           "signature": "export struct TcpConnection: ByteSource<NetworkError> & ByteSink<NetworkError>",
-          "declarationDigest": "7d8bf4261060138dea41a7943d98f35ebb31fabb7720569b7a4461c6c8d05a60",
+          "declarationDigest": "6766c2c94817e9e5909dbe6266f419eea12c76e5a3fe783d12cd90ce03cc948c",
           "line": 776,
           "profile": "net-transport",
           "members": [
@@ -6234,7 +6234,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
                   "line": 795
                 }
               ],
@@ -6308,7 +6308,7 @@
           "symbol": "TcpReadHalf",
           "kind": "struct",
           "signature": "export struct TcpReadHalf: ByteSource<NetworkError>",
-          "declarationDigest": "5f7b7fe168189b82f2593029640f7c0d749a73415a09bfc17354878c6b78c8c3",
+          "declarationDigest": "6fdc4f5726a99ae3604b7da2ee81d1475302cdb3377740fb54f22bc5dc4102d4",
           "line": 841,
           "profile": "net-transport",
           "members": [
@@ -6316,7 +6316,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws NetworkError",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws NetworkError",
                   "line": 851
                 }
               ],
@@ -6360,7 +6360,7 @@
           "symbol": "UdpReceiveHalf",
           "kind": "struct",
           "signature": "export struct UdpReceiveHalf",
-          "declarationDigest": "727ab0044524f2388fbd6ee98f3cada28b99a8e3425caad82af29ca3d931b95d",
+          "declarationDigest": "3c803bcddafd7ab428e16b251fea4f9fee853fb5d02d2ef4e5bdf34c5f001e8e",
           "line": 999,
           "profile": "net-transport",
           "members": [
@@ -6381,7 +6381,7 @@
           "symbol": "UdpSendHalf",
           "kind": "struct",
           "signature": "export struct UdpSendHalf",
-          "declarationDigest": "5bd56319472334c3e0cf03f4beb6ed2d8135e5de6ea92f96463aa022b2de061d",
+          "declarationDigest": "8c2ca3ecf7c3310f443946574b1398a6e5fc2f45a6ffb124cbd6e6a386165745",
           "line": 1022,
           "profile": "net-transport",
           "members": [
@@ -6402,7 +6402,7 @@
           "symbol": "UdpSocket",
           "kind": "struct",
           "signature": "export struct UdpSocket",
-          "declarationDigest": "20a84a60fd2899ff51b3f3aa465a48318b1cceab334991035480a0769b5c1774",
+          "declarationDigest": "e2210c303eee5427ce219a177c5f25fe0215d6220f9befeb428605ca76cd95cf",
           "line": 946,
           "profile": "net-transport",
           "members": [
@@ -6468,7 +6468,7 @@
           "page-checksum"
         ]
       },
-      "catalogedDeclarationsDigest": "6cd00ea17f3c5895488c578c056d79fa4d20b61a4814b56fe7e2622330bb5f4b",
+      "catalogedDeclarationsDigest": "7c1b810579ae60135f1f964e8dc6c7bdda378f222cb42237021e8bbef6fb41d9",
       "apis": [
         {
           "symbol": "ChecksumPolicy",
@@ -6491,8 +6491,8 @@
         {
           "symbol": "decode",
           "kind": "fn",
-          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
-          "declarationDigest": "608308a4bafd771c260df7bb434971c57b6db94b40c324d1e3ceed413406208c",
+          "signature": "export fn decode<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>",
+          "declarationDigest": "b28e6f510ab094b464c9ad660738202638a09a6be53bf372d6cf45a4cb06ecfb",
           "line": 400,
           "profile": "parquet-decode",
           "status": "draft"
@@ -6500,8 +6500,8 @@
         {
           "symbol": "decodeAll",
           "kind": "fn",
-          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
-          "declarationDigest": "0c54470d9a438d0fe37c18f1618d900b46f9a3260b03b02c86250804018164c6",
+          "signature": "export async fn decodeAll<Row: data.Row, SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): data.Batch<Row> throws DecodeError<SourceFailure>",
+          "declarationDigest": "049473520f42e473d590ae3299684bd20db28f4e061f9c5052e84d0ca391c313",
           "line": 416,
           "profile": "parquet-decode",
           "status": "draft"
@@ -6509,8 +6509,8 @@
         {
           "symbol": "decodeDynamic",
           "kind": "fn",
-          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( named source: take Source, named options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
-          "declarationDigest": "ea4d657e38c7bb315ccd891067eb378a12d4a6b5c92224e7036acfb1039feb00",
+          "signature": "export fn decodeDynamic<SourceFailure: Error, Source: io.SnapshotByteSource<SourceFailure>>( source: take Source, options: DecodeOptions = DecodeOptions.standard(), ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>",
+          "declarationDigest": "7dde2f8aa280255a208fc4dc41a6671cc6c2b928166c0342ae8cdf4eb02c0d29",
           "line": 408,
           "profile": "parquet-decode",
           "status": "draft"
@@ -6554,8 +6554,8 @@
         {
           "symbol": "encode",
           "kind": "fn",
-          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( named batches: take Source, named sink: inout Sink, named options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
-          "declarationDigest": "4a17f1c1392dee171f7d07240b9358c34d5b4359b495731e1cf256611e9e7648",
+          "signature": "export async fn encode<Row: data.Row, BatchFailure: Error, SinkFailure: Error, Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>( batches: take Source, sink: inout Sink, options: EncodeOptions = EncodeOptions.standard(), ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>",
+          "declarationDigest": "c63b67a338ccc4aac23aafabb5e4c7e2bc91c7360c4427e806b8acc30eaa5c82",
           "line": 434,
           "profile": "parquet-encode",
           "status": "draft"
@@ -6609,7 +6609,7 @@
           "symbol": "KeyResolver",
           "kind": "struct",
           "signature": "export struct KeyResolver",
-          "declarationDigest": "0c58b229eac578e00fb75391706870504ea8cf5745f5dae7c9e07ee079011e8e",
+          "declarationDigest": "358a2e7feae395cdc4e3766aef1dadb8a78cc0817181a43f25705558f354df0c",
           "line": 170,
           "profile": "parquet-codec",
           "status": "draft"
@@ -6697,7 +6697,7 @@
           "writer-bounds"
         ]
       },
-      "catalogedDeclarationsDigest": "1b5ed129680a3c987e0e007e78bc9055c186727d75280d21373e2132835d005f",
+      "catalogedDeclarationsDigest": "c2615e2d6aff51da329914e2bc863b64a797721dd1eee24120716ebc54993e27",
       "apis": [
         {
           "symbol": "Error",
@@ -6885,7 +6885,7 @@
           "symbol": "MediaType",
           "kind": "struct",
           "signature": "export struct MediaType: Equatable",
-          "declarationDigest": "2d1757759493bf8d931b933034de8e28244a084c6f98b38fe3a0ae9544f57841",
+          "declarationDigest": "ba56dc751924abe36f3029e5c9dd44ca4a8190da8babd977ba1129bacec046a4",
           "line": 119,
           "profile": "presentation-contract",
           "members": [
@@ -6893,7 +6893,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ value: String) throws MediaTypeError",
+                  "signature": "export init(value: String) throws MediaTypeError",
                   "line": 122
                 }
               ],
@@ -6964,7 +6964,7 @@
           "symbol": "Writer",
           "kind": "struct",
           "signature": "export struct Writer",
-          "declarationDigest": "caa2f72f170fd3a899b951373b1ddb8c65977ce262e60cd17670c15cd5789008",
+          "declarationDigest": "d87a65d1676761d9a864cc92fdf200196e649368af992440d62cb8fde356714f",
           "line": 175,
           "profile": "presentation-contract",
           "members": [
@@ -6972,7 +6972,7 @@
               "symbol": "text",
               "overloads": [
                 {
-                  "signature": "export mut fn text(_ value: view String) throws Error",
+                  "signature": "export mut fn text(value: view String) throws Error",
                   "line": 182
                 }
               ],
@@ -6982,7 +6982,7 @@
               "symbol": "png",
               "overloads": [
                 {
-                  "signature": "export mut fn png(_ image: ref Png) throws Error",
+                  "signature": "export mut fn png(image: ref Png) throws Error",
                   "line": 188
                 }
               ],
@@ -6992,7 +6992,7 @@
               "symbol": "jpeg",
               "overloads": [
                 {
-                  "signature": "export mut fn jpeg(_ image: ref Jpeg) throws Error",
+                  "signature": "export mut fn jpeg(image: ref Jpeg) throws Error",
                   "line": 197
                 }
               ],
@@ -7002,7 +7002,7 @@
               "symbol": "json",
               "overloads": [
                 {
-                  "signature": "export mut fn json( _ body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
+                  "signature": "export mut fn json( body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
                   "line": 203
                 }
               ],
@@ -7012,7 +7012,7 @@
               "symbol": "vendorJson",
               "overloads": [
                 {
-                  "signature": "export mut fn vendorJson( media: ref MediaType, _ body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
+                  "signature": "export mut fn vendorJson( media: ref MediaType, body: some take fn(inout json.Writer): () throws json.EncodeError, ) throws Error",
                   "line": 211
                 }
               ],
@@ -7041,14 +7041,14 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "852365d7398e7328982b0b2acca6a9ce0440a4938d9abf06bd14213581538a24",
+      "catalogedDeclarationsDigest": "031a1385219f9de8471d7f842c9e31418d9524c7ef20f7f5e051ef39a959d8ff",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
           "declarationDigest": "4da033f39f274a32ec6eaa0b441fba3ab441141ec31724c18ea68a8717f63fa4",
-          "line": 139,
+          "line": 134,
           "profile": "process-arguments",
           "members": [
             {
@@ -7057,7 +7057,7 @@
               "overloads": [
                 {
                   "signature": "export count: usize",
-                  "line": 146
+                  "line": 141
                 }
               ],
               "profile": "process-arguments"
@@ -7068,7 +7068,7 @@
               "overloads": [
                 {
                   "signature": "export isEmpty: Bool",
-                  "line": 150
+                  "line": 145
                 }
               ],
               "profile": "process-arguments"
@@ -7078,7 +7078,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(index: usize): ref OsString?",
-                  "line": 154
+                  "line": 149
                 }
               ],
               "profile": "process-arguments"
@@ -7088,11 +7088,11 @@
               "overloads": [
                 {
                   "signature": "export fn contains(native value: ref OsString): Bool",
-                  "line": 158
+                  "line": 153
                 },
                 {
                   "signature": "export fn contains(value: ref String): Bool",
-                  "line": 165
+                  "line": 160
                 }
               ],
               "profile": "process-arguments"
@@ -7102,7 +7102,7 @@
               "overloads": [
                 {
                   "signature": "export fn iterator(): some Iterator<ref OsString>",
-                  "line": 193
+                  "line": 188
                 }
               ],
               "profile": "process-arguments"
@@ -7114,8 +7114,8 @@
           "symbol": "Context",
           "kind": "struct",
           "signature": "export struct Context",
-          "declarationDigest": "7dcc30725f87e720ca1d73f19c26e7da5bd5f0254eb9e51a2544e9a8d0b47a30",
-          "line": 340,
+          "declarationDigest": "4fac0266bb1e32329e116c812aec4714405afa2f7b51ec3cb8a5313afd000101",
+          "line": 335,
           "profile": "process-context",
           "members": [
             {
@@ -7124,7 +7124,7 @@
               "overloads": [
                 {
                   "signature": "export stdin: Input",
-                  "line": 347
+                  "line": 342
                 }
               ],
               "profile": "process-input"
@@ -7135,7 +7135,7 @@
               "overloads": [
                 {
                   "signature": "export stdout: Output",
-                  "line": 353
+                  "line": 348
                 }
               ],
               "profile": "process-output"
@@ -7146,7 +7146,7 @@
               "overloads": [
                 {
                   "signature": "export stderr: Output",
-                  "line": 359
+                  "line": 354
                 }
               ],
               "profile": "process-output"
@@ -7157,7 +7157,7 @@
               "overloads": [
                 {
                   "signature": "export filesystem: fs.FileSystem",
-                  "line": 365
+                  "line": 360
                 }
               ],
               "profile": "process-context"
@@ -7168,7 +7168,7 @@
               "overloads": [
                 {
                   "signature": "export network: net.Network",
-                  "line": 369
+                  "line": 364
                 }
               ],
               "profile": "process-context"
@@ -7178,11 +7178,11 @@
               "overloads": [
                 {
                   "signature": "export fn clock(): time.Clock",
-                  "line": 373
+                  "line": 368
                 },
                 {
                   "signature": "export fn clock( hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>, ): time.Clock throws time.ClockSelectionError",
-                  "line": 377
+                  "line": 372
                 }
               ],
               "profile": "time-clock"
@@ -7193,7 +7193,7 @@
               "overloads": [
                 {
                   "signature": "export signals: SignalRegistry",
-                  "line": 385
+                  "line": 380
                 }
               ],
               "profile": "process-signals"
@@ -7204,7 +7204,7 @@
               "overloads": [
                 {
                   "signature": "export services: Services",
-                  "line": 391
+                  "line": 386
                 }
               ],
               "profile": "process-services"
@@ -7215,7 +7215,7 @@
               "overloads": [
                 {
                   "signature": "export deadline: time.Deadline",
-                  "line": 397
+                  "line": 392
                 }
               ],
               "profile": "process-context"
@@ -7228,7 +7228,7 @@
           "kind": "enum",
           "signature": "export enum ExitCode: Copy & Equatable",
           "declarationDigest": "96392068f3a569b64d4a9b6d57d802cbd3c6487a62c12fbde9ab4965d4d415ae",
-          "line": 21,
+          "line": 16,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7236,16 +7236,16 @@
           "symbol": "Input",
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
-          "declarationDigest": "c1ee16767ce834e940f902ae5d849a9f00fae5c63a7100b843c36f5e7fd537b6",
-          "line": 198,
+          "declarationDigest": "13cf44364409adcf5e52e58498f1273393bc4bf457eda0b55443ed010ac1c8cd",
+          "line": 193,
           "profile": "process-input",
           "members": [
             {
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws IoError",
-                  "line": 205
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws IoError",
+                  "line": 200
                 }
               ],
               "profile": "process-input"
@@ -7254,8 +7254,8 @@
               "symbol": "lines",
               "overloads": [
                 {
-                  "signature": "export fn lines( named maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
-                  "line": 218
+                  "signature": "export fn lines( maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
+                  "line": 213
                 }
               ],
               "profile": "process-input"
@@ -7268,7 +7268,7 @@
           "kind": "enum",
           "signature": "export enum InputError: Error",
           "declarationDigest": "092b2c37911a08c40f89347ce4108bb68d3a8e431b54f11237adc5e0aa48e838",
-          "line": 41,
+          "line": 36,
           "profile": "process-input",
           "status": "draft"
         },
@@ -7277,7 +7277,7 @@
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
           "declarationDigest": "626d5a943bd00bb66f188fcb775dd4818c0e8cc4e58d21ab6a41e1eaa3258591",
-          "line": 252,
+          "line": 247,
           "profile": "process-output",
           "members": [
             {
@@ -7285,7 +7285,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
-                  "line": 259
+                  "line": 254
                 }
               ],
               "profile": "process-output"
@@ -7295,7 +7295,7 @@
               "overloads": [
                 {
                   "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
-                  "line": 267
+                  "line": 262
                 }
               ],
               "profile": "process-output"
@@ -7307,16 +7307,16 @@
           "symbol": "Services",
           "kind": "struct",
           "signature": "export struct Services",
-          "declarationDigest": "0924ec97707c46b4cb097e50d21b2375c40b562e1448807e0d6a7569f88a42d0",
-          "line": 324,
+          "declarationDigest": "bf3ac350a2ec229accf40677e4fcd1acb369ce8965f3c6da82f53522299e14bd",
+          "line": 319,
           "profile": "process-services",
           "members": [
             {
               "symbol": "drain",
               "overloads": [
                 {
-                  "signature": "export async fn drain(named deadline: time.Deadline)",
-                  "line": 331
+                  "signature": "export async fn drain(deadline: time.Deadline)",
+                  "line": 326
                 }
               ],
               "profile": "process-services"
@@ -7329,7 +7329,7 @@
           "kind": "enum",
           "signature": "export enum Signal: Copy & Equatable & Hashable",
           "declarationDigest": "f6170c792a4513c253a94c3a5c534a7b99defe7eb5ae95ecc46a8039a916278f",
-          "line": 26,
+          "line": 21,
           "profile": "value-contract",
           "status": "draft"
         },
@@ -7338,7 +7338,7 @@
           "kind": "enum",
           "signature": "export enum SignalError: Error & Duplicable",
           "declarationDigest": "06fcfc3d9d46ec3760f7c8ae45ea5b40aa15eac02e247e75081ce17511e134d1",
-          "line": 31,
+          "line": 26,
           "profile": "process-signals",
           "status": "draft"
         },
@@ -7346,16 +7346,16 @@
           "symbol": "SignalRegistration",
           "kind": "struct",
           "signature": "export struct SignalRegistration",
-          "declarationDigest": "6e56dc43f2b7eb1ce9c895a2761221772c9be78a57e63f005a900ef16370b1a2",
-          "line": 300,
+          "declarationDigest": "e1a8b938dd29a7f7555668a3957fd1d6c625ee0d501d6fa5108f0a735a8b2f1b",
+          "line": 295,
           "profile": "process-signals",
           "members": [
             {
               "symbol": "replace",
               "overloads": [
                 {
-                  "signature": "export fn replace( named handler: some async fn(Signal, Context): (), ): () throws SignalError",
-                  "line": 307
+                  "signature": "export fn replace( handler: some async fn(Signal, Context): (), ): () throws SignalError",
+                  "line": 302
                 }
               ],
               "profile": "process-signals"
@@ -7365,7 +7365,7 @@
               "overloads": [
                 {
                   "signature": "export fn cancel()",
-                  "line": 313
+                  "line": 308
                 }
               ],
               "profile": "process-signals"
@@ -7377,16 +7377,16 @@
           "symbol": "SignalRegistry",
           "kind": "struct",
           "signature": "export struct SignalRegistry",
-          "declarationDigest": "088c77a2bd592bae01e4ee7cdd1727e0219788aab0b91ae4c5314b7df7c98b03",
-          "line": 278,
+          "declarationDigest": "0514dd18d3a7b8a677c9f96728fbfbe1b2fa9cd1c93a58d0cd1fa8275ac6cc48",
+          "line": 273,
           "profile": "process-signals",
           "members": [
             {
               "symbol": "register",
               "overloads": [
                 {
-                  "signature": "export fn register( signals: view Array<Signal>, named handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
-                  "line": 285
+                  "signature": "export fn register( signals: view Array<Signal>, handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
+                  "line": 280
                 }
               ],
               "profile": "process-signals"
@@ -7414,7 +7414,7 @@
           "shareable-binding"
         ]
       },
-      "catalogedDeclarationsDigest": "65c722a42a6522434b2d57743f641c3163970c9cf27ba0a084f0e03e051d09e8",
+      "catalogedDeclarationsDigest": "6f84dd349d644b5c021e827cad392182acea1747ad55d3239ea2fb2821d65b30",
       "apis": [
         {
           "symbol": "CancellationReason",
@@ -7438,7 +7438,7 @@
           "symbol": "TaskLocal",
           "kind": "struct",
           "signature": "export struct TaskLocal<Value>",
-          "declarationDigest": "3365109c82e8efc0c416464046674d5ab494579945164bd8fdd289d2c3174bf4",
+          "declarationDigest": "29e88f1f95a572ed2d0b14891f294e5e3938bc60c4e000b180374ccb96bbb720",
           "line": 60,
           "profile": "task-local-descriptor",
           "members": [
@@ -7466,7 +7466,7 @@
               "symbol": "withValue",
               "overloads": [
                 {
-                  "signature": "export fn withValue<Result, Failure: Error>( _ value: Value<(.shareable)>, named operation: some fn(): Result throws Failure, ): Result throws Failure",
+                  "signature": "export fn withValue<Result, Failure: Error>( value: Value<(.shareable)>, operation: some fn(): Result throws Failure, ): Result throws Failure",
                   "line": 80
                 }
               ],
@@ -7531,13 +7531,13 @@
           "target-availability"
         ]
       },
-      "catalogedDeclarationsDigest": "017d54cfb3f5ca77982723e1b78c9d5b93648f84cd46f1659022720b77f5cf94",
+      "catalogedDeclarationsDigest": "a2122218bd9daca74a5feadaa09585245823f83e5366c5684963d64f34cafaae",
       "apis": [
         {
           "symbol": "ThreadLocal",
           "kind": "struct",
           "signature": "export struct ThreadLocal<Value: Copy>",
-          "declarationDigest": "59e95c8f0110e09056aaeda7205e92b9aa9f6d11d07938689f1ba9d75a1d6ed0",
+          "declarationDigest": "cba29a4d797c263ac2e7ab830b8e1f9b6cd29d2db1046b80235ae723bc1c74bc",
           "line": 21,
           "profile": "thread-local-descriptor",
           "members": [
@@ -7565,7 +7565,7 @@
               "symbol": "write",
               "overloads": [
                 {
-                  "signature": "export fn write<Result, Failure: Error>( _ operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
+                  "signature": "export fn write<Result, Failure: Error>( operation: some fn(inout Value): Result throws Failure, ): Result throws Failure",
                   "line": 37
                 }
               ],
@@ -8139,13 +8139,13 @@
           "wpt-streams"
         ]
       },
-      "catalogedDeclarationsDigest": "9acf74579344603456fea16d12d20c83b614e7cf111846522fa36f6cf0734089",
+      "catalogedDeclarationsDigest": "03b33f210ffe62e39c6b72057d282473256ca2b28c7af7dd9202333a3e342465",
       "apis": [
         {
           "symbol": "ReadableStream",
           "kind": "struct",
           "signature": "export struct ReadableStream<Item, Failure: Error>: Stream<Item, Failure>",
-          "declarationDigest": "13bc30864b07927d23739904637d355a301feac9e7fc93cef27cf5002bb5b5c3",
+          "declarationDigest": "c4a2d10e2ea0d3802714cb83790b43218cc3d494335058f057564430f71da2c3",
           "line": 89,
           "profile": "web-stream-carrier",
           "members": [
@@ -8153,11 +8153,11 @@
               "symbol": "from",
               "overloads": [
                 {
-                  "signature": "export static fn from<Source: Stream<Item, Failure>>( _ source: take Source, ): ReadableStream<Item, Failure>",
+                  "signature": "export static fn from<Source: Stream<Item, Failure>>( source: take Source, ): ReadableStream<Item, Failure>",
                   "line": 92
                 },
                 {
-                  "signature": "export static fn from<Source: ByteSource<Failure>>( byteSource source: take Source, named chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, Failure>",
+                  "signature": "export static fn from<Source: ByteSource<Failure>>( byteSource source: take Source, chunkBytes: usize<(1...)>, ): ReadableStream<Bytes, Failure>",
                   "line": 145
                 }
               ],
@@ -8201,7 +8201,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export mut async fn read( appendTo destination: inout Bytes, named maximum: usize<(1...)>, ): ReadStep throws Failure",
+                  "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws Failure",
                   "line": 160
                 }
               ],
@@ -8238,13 +8238,13 @@
           "version-linearization"
         ]
       },
-      "catalogedDeclarationsDigest": "188b0824e04044935bfe1bb02c562d491c030b1450cab6e70235eed973c68705",
+      "catalogedDeclarationsDigest": "54aaa2ef53b4d42157dccd0fa1774605c52d8dab666a5c055aec585e6653ed31",
       "apis": [
         {
           "symbol": "SnapshotCell",
           "kind": "struct",
           "signature": "export struct SnapshotCell<Value>",
-          "declarationDigest": "69a98ca9d56c9b43a9f547908261c8adffe5405ec905cc3a56c3a6f3f534715c",
+          "declarationDigest": "6dbbd88d0ac8f8a51f4f2d862ef417cc6aa4fdb6c484128a0264a667a270ca96",
           "line": 35,
           "profile": "snapshot-cell-carrier",
           "members": [
@@ -8252,7 +8252,7 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init( _ initial: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
+                  "signature": "export init( initial: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
                   "line": 38
                 }
               ],
@@ -8262,7 +8262,7 @@
               "symbol": "read",
               "overloads": [
                 {
-                  "signature": "export fn read<Result, Failure: Error>( _ operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
+                  "signature": "export fn read<Result, Failure: Error>( operation: some fn(ref Value): Result throws Failure, ): Result throws Failure",
                   "line": 47
                 }
               ],
@@ -8272,7 +8272,7 @@
               "symbol": "publish",
               "overloads": [
                 {
-                  "signature": "export fn publish( _ next: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
+                  "signature": "export fn publish( next: take Value<( .transferable && .shareable && .lifetimeIndependent )>, )",
                   "line": 58
                 }
               ],
@@ -8309,7 +8309,7 @@
           "transfer-cancellation"
         ]
       },
-      "catalogedDeclarationsDigest": "d4db7dab0bde8bb4cb2bb9a9eb9548cb61705ccef7099bfc8f6768d949b5d11a",
+      "catalogedDeclarationsDigest": "d8bd98e1bb3389e3a686ce71e312f8637ca3b0b9155fdee2b840c8289d77bb83",
       "apis": [
         {
           "symbol": "Device",
@@ -8363,8 +8363,8 @@
         {
           "symbol": "deviceOf",
           "kind": "fn",
-          "signature": "export async fn deviceOf<Element, shape: StaticList<usize>>( named source: ref Tensor<Element, shape>, ): Device throws TensorError",
-          "declarationDigest": "1044112ae0973e3205bd74fe44e29471c757e3afec9eca2d615655c390ded5ca",
+          "signature": "export async fn deviceOf<Element, shape: StaticList<usize>>( source: ref Tensor<Element, shape>, ): Device throws TensorError",
+          "declarationDigest": "accafe96f74ad02ef1102da7d8c7d81d0abac18a7bb8d5716ec0f6c11f68afdb",
           "line": 102,
           "profile": "tensor-carrier",
           "status": "draft"
@@ -8432,8 +8432,8 @@
         {
           "symbol": "transfer",
           "kind": "fn",
-          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( named source: take Tensor<Element, shape>, named target: ref Device, on queue: ref Queue?, named limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
-          "declarationDigest": "eb8e4ea2fda79ba3b32720537656841519636f5167153dcd1bce3aee58049b0d",
+          "signature": "export async fn transfer<Element, shape: StaticList<usize>>( source: take Tensor<Element, shape>, target: ref Device, on queue: ref Queue?, limits: ref Limits, ): Tensor<Element, shape> throws TensorError",
+          "declarationDigest": "bd6508a8f8c254da49cd541e5d0e5248db496d025d1a5854209c0142c32ac000",
           "line": 110,
           "profile": "tensor-carrier",
           "status": "draft"
@@ -8458,13 +8458,13 @@
           "virtual-clock-determinism"
         ]
       },
-      "catalogedDeclarationsDigest": "134b32a27f474f43563fa1aafb7850d5ecbd71f7e5dd80fd71e432d59e09062e",
+      "catalogedDeclarationsDigest": "4e2f369bcf2087808e1b0894c9af565a5ee6fcd919e1c3994e03d86b1e237da4",
       "apis": [
         {
           "symbol": "Clock",
           "kind": "struct",
           "signature": "export struct Clock",
-          "declarationDigest": "64e37731d93d2c6453ff01dad7d86e8776cebd1314a0d50d3574c4077d97dae8",
+          "declarationDigest": "e39c6b9666cbd1bb37f0ba2c0aecd354baead054f43a944fdb7f9897d519f322",
           "line": 100,
           "profile": "time-clock",
           "members": [
@@ -8533,7 +8533,7 @@
               "symbol": "hasReached",
               "overloads": [
                 {
-                  "signature": "export fn hasReached(_ deadline: Deadline): Bool",
+                  "signature": "export fn hasReached(deadline: Deadline): Bool",
                   "line": 145
                 }
               ],
@@ -8635,13 +8635,13 @@
           "wpt-url"
         ]
       },
-      "catalogedDeclarationsDigest": "90a837baa8301bab4a7e7bd855f3fa03d33edc811f8ed24f4ac8fd2f9d3c1243",
+      "catalogedDeclarationsDigest": "9e8022b8ec3d553e595b390737dbaac9208b313d72bfc219018078bfa6e09dbe",
       "apis": [
         {
           "symbol": "URL",
           "kind": "struct",
           "signature": "export struct URL: Duplicable",
-          "declarationDigest": "5dffdc1de6825092dcfa80b36caf57d3fca23a6dfeab7007ec7d31618780d326",
+          "declarationDigest": "400ad5dca26b6d7a1fdcfdca4bf60e75f1b77e34e47ca8174f19dc79c949e961",
           "line": 241,
           "profile": "web-url-carrier",
           "members": [
@@ -8649,11 +8649,11 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ input: String) throws UrlParseError",
+                  "signature": "export init(input: String) throws UrlParseError",
                   "line": 244
                 },
                 {
-                  "signature": "export init(_ input: String, base: ref URL) throws UrlParseError",
+                  "signature": "export init(input: String, base: ref URL) throws UrlParseError",
                   "line": 248
                 }
               ],
@@ -8663,11 +8663,11 @@
               "symbol": "parse",
               "overloads": [
                 {
-                  "signature": "export static fn parse(_ input: ref String): URL?",
+                  "signature": "export static fn parse(input: ref String): URL?",
                   "line": 258
                 },
                 {
-                  "signature": "export static fn parse(_ input: ref String, base: ref URL): URL?",
+                  "signature": "export static fn parse(input: ref String, base: ref URL): URL?",
                   "line": 262
                 }
               ],
@@ -8677,11 +8677,11 @@
               "symbol": "canParse",
               "overloads": [
                 {
-                  "signature": "export static fn canParse(_ input: ref String): Bool",
+                  "signature": "export static fn canParse(input: ref String): Bool",
                   "line": 266
                 },
                 {
-                  "signature": "export static fn canParse(_ input: ref String, base: ref URL): Bool",
+                  "signature": "export static fn canParse(input: ref String, base: ref URL): Bool",
                   "line": 270
                 }
               ],
@@ -8852,7 +8852,7 @@
               "symbol": "setHref",
               "overloads": [
                 {
-                  "signature": "export mut fn setHref(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setHref(value: String): () throws UrlMutationError",
                   "line": 334
                 }
               ],
@@ -8862,7 +8862,7 @@
               "symbol": "setProtocol",
               "overloads": [
                 {
-                  "signature": "export mut fn setProtocol(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setProtocol(value: String): () throws UrlMutationError",
                   "line": 340
                 }
               ],
@@ -8872,7 +8872,7 @@
               "symbol": "setUsername",
               "overloads": [
                 {
-                  "signature": "export mut fn setUsername(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setUsername(value: String): () throws UrlMutationError",
                   "line": 346
                 }
               ],
@@ -8882,7 +8882,7 @@
               "symbol": "setPassword",
               "overloads": [
                 {
-                  "signature": "export mut fn setPassword(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setPassword(value: String): () throws UrlMutationError",
                   "line": 352
                 }
               ],
@@ -8892,7 +8892,7 @@
               "symbol": "setHost",
               "overloads": [
                 {
-                  "signature": "export mut fn setHost(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setHost(value: String): () throws UrlMutationError",
                   "line": 358
                 }
               ],
@@ -8902,7 +8902,7 @@
               "symbol": "setHostname",
               "overloads": [
                 {
-                  "signature": "export mut fn setHostname(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setHostname(value: String): () throws UrlMutationError",
                   "line": 364
                 }
               ],
@@ -8912,7 +8912,7 @@
               "symbol": "setPort",
               "overloads": [
                 {
-                  "signature": "export mut fn setPort(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setPort(value: String): () throws UrlMutationError",
                   "line": 370
                 }
               ],
@@ -8922,7 +8922,7 @@
               "symbol": "setPathname",
               "overloads": [
                 {
-                  "signature": "export mut fn setPathname(_ value: String): () throws UrlMutationError",
+                  "signature": "export mut fn setPathname(value: String): () throws UrlMutationError",
                   "line": 376
                 }
               ],
@@ -8932,7 +8932,7 @@
               "symbol": "setSearch",
               "overloads": [
                 {
-                  "signature": "export mut fn setSearch(_ value: String)",
+                  "signature": "export mut fn setSearch(value: String)",
                   "line": 382
                 }
               ],
@@ -8942,7 +8942,7 @@
               "symbol": "setHash",
               "overloads": [
                 {
-                  "signature": "export mut fn setHash(_ value: String)",
+                  "signature": "export mut fn setHash(value: String)",
                   "line": 386
                 }
               ],
@@ -8952,7 +8952,7 @@
               "symbol": "editSearchParams",
               "overloads": [
                 {
-                  "signature": "export mut fn editSearchParams<Failure: Error>( _ edit: fn(inout URLSearchParams): () throws Failure, ): () throws Failure",
+                  "signature": "export mut fn editSearchParams<Failure: Error>( edit: fn(inout URLSearchParams): () throws Failure, ): () throws Failure",
                   "line": 390
                 }
               ],
@@ -9043,7 +9043,7 @@
           "symbol": "URLSearchParams",
           "kind": "struct",
           "signature": "export struct URLSearchParams: Duplicable",
-          "declarationDigest": "b60b46e1ebfde1eff9700ed6523bbb22965a8375b9e4b5c313bb8761ec6400e2",
+          "declarationDigest": "756b1fa90f918fd5e394e1aedc89d7bad809e7ca754e4ec0f4dbb05bf9071196",
           "line": 96,
           "profile": "web-url-search-params-carrier",
           "members": [
@@ -9051,11 +9051,11 @@
               "symbol": "init",
               "overloads": [
                 {
-                  "signature": "export init(_ initialPairs: take URLSearchParam...)",
+                  "signature": "export init(initialPairs: take URLSearchParam...)",
                   "line": 100
                 },
                 {
-                  "signature": "export init(_ encoded: String)",
+                  "signature": "export init(encoded: String)",
                   "line": 105
                 },
                 {

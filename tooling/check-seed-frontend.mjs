@@ -190,7 +190,7 @@ function expectDiagnostic(executable, source, code, label) {
 function expectGenericDeclarationSchema(executable) {
   const stageSource =
     "export enum ServiceStage { accepted completed }\n" +
-    "const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool { " +
+    "const fn isValidStagePath(_ stages: StaticList<ServiceStage>): Bool { " +
     "return true }\n" +
     "struct StagePath<_ stages: StaticList<ServiceStage>" +
     "<(isValidStagePath(.member))>> { orderId: u64 }\n"
@@ -206,7 +206,7 @@ function expectGenericDeclarationSchema(executable) {
   }))
   if (stageFields["owner-kind"] !== "0" || stageFields.owner !== "0" ||
       stageFields.ordinal !== "0" || stageFields["external-label"] !== "0:" ||
-      stageFields.label !== "3" ||
+      stageFields.label !== "0" ||
       stageFields.kind !== "2" || stageFields.domain === "4294967295" ||
       stageFields.refinement !== "1" || stageFields.predicate !== "0" ||
       stageFields.subject !== "1" || stageFields["predicate-span"] === "0:0" ||
@@ -232,15 +232,15 @@ function expectGenericDeclarationSchema(executable) {
   }
   const labels = expectOk(
     executable,
-    "struct Labels<required: usize, _ optional: usize> {}\n",
+    "struct Labels<required: usize, _ anchor: usize> {}\n",
     "generic label policies",
   )
   const labelFields = receiptLines(labels.output, "generic-parameter=")
   if (labelFields.length !== 2 || !labelFields[0].includes("|label=1|") ||
-      !labelFields[1].includes("|label=3|") ||
+      !labelFields[1].includes("|label=0|") ||
       !labelFields[0].includes("|external-label=8:7265717569726564|") ||
       !labelFields[1].includes("|external-label=0:|")) {
-    fail("generic named and optional labels were not normalized")
+    fail("generic required label and positional-only anchor were not normalized")
   }
   const external = expectOk(
     executable,
@@ -250,7 +250,7 @@ function expectGenericDeclarationSchema(executable) {
   const externalFields = receiptLines(external.output, "generic-parameter=")
   if (externalFields.length !== 1 ||
       !externalFields[0].includes("|external-label=8:65787465726e616c|") ||
-      !externalFields[0].includes("|label=2|") ||
+      !externalFields[0].includes("|label=1|") ||
       !externalFields[0].includes("|name=8:696e7465726e616c|")) {
     fail("generic external/internal labels were not retained")
   }
@@ -500,7 +500,7 @@ function expectGenericApplications(executable) {
     "enum ServiceStage { accepted completed }\n" +
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
       "struct Use { a: StagePath<[.accepted, .accepted]> " +
-      "b: StagePath<[]> c: StagePath<stages: [.accepted]> }\n",
+      "b: StagePath<[]> c: StagePath<[.accepted]> }\n",
     "StagePath list applications",
   )
   if (stage.parsed.generic_applications !== 3 ||
@@ -512,7 +512,7 @@ function expectGenericApplications(executable) {
   if (!stageValues[0].includes("|element-count=2") ||
       !stageValues[3].includes("|first-element=4294967295|element-count=0") ||
       stageElements.length !== 3 || !stageElements[1].includes("|ordinal=1|") ||
-      !receiptLines(stage.output, "generic-argument=")[2].includes("|label=6:737461676573|")) {
+      !receiptLines(stage.output, "generic-argument=")[2].includes("|label=0:|")) {
     fail("StagePath order, empty list, duplicate, or label was not retained")
   }
 
@@ -568,7 +568,6 @@ function expectGenericApplications(executable) {
 
   const invalid = [
     ["Matrix<f32, 3, columns: 4>", "W-GENERIC-0003"],
-    ["Matrix<f32, columns: 4, rows: 3>", "W-GENERIC-0003"],
     ["Matrix<f32, rows: 3, 3>", "W-GENERIC-0003"],
     ["Matrix<f32, bogus: 3, columns: 4>", "W-CONTRACT-0001"],
     ["Matrix<f32, rows: 3, rows: 4>", "W-CONTRACT-0004"],
@@ -576,11 +575,14 @@ function expectGenericApplications(executable) {
     ["Matrix<f32, rows: 3, columns: 4, 5>", "W-GENERIC-0003"],
     ["Matrix<rows: f32, columns: 3>", "W-GENERIC-0003"],
     ["Matrix<f32, rows: 3, columns: 18446744073709551616>", "W-TYPE-0122"],
+    ["Anchored<u8, after: 2, 3>", "W-GENERIC-0003"],
   ]
   for (const [application, code] of invalid) {
     const result = expectDiagnostic(
       executable,
-      "struct Matrix<Element, rows: usize, columns: usize> {}\n" +
+      (application.startsWith("Anchored<")
+        ? "struct Anchored<T, _ middle: usize, after: usize> {}\n"
+        : "struct Matrix<Element, rows: usize, columns: usize> {}\n") +
         `struct Use { x: ${application} }\n`,
       code,
       `invalid generic application ${application}`,
@@ -604,29 +606,29 @@ function expectGenericApplications(executable) {
 
   const seedUnsupported = [
     [
-      "const fn helper(value: Bool): Bool { return value }\n" +
-        "struct S<_ value: Bool> {}\n" +
+      "const fn helper(_ value: Bool): Bool { return value }\n" +
+        "struct S<value: Bool> {}\n" +
         "struct Use { x: S<value: (helper(true))> }\n",
       "computed generic value",
     ],
     [
-      "struct S<_ value: String> {}\n" +
+      "struct S<value: String> {}\n" +
         "struct Use { x: S<value: \"a\\\\n\"> }\n",
       "escaped generic string",
     ],
     [
-      "struct S<_ value: Bytes> {}\n" +
+      "struct S<value: Bytes> {}\n" +
         "struct Use { x: S<value: b\"abc\"> }\n",
       "Bytes generic domain",
     ],
     [
-      "struct S<_ value: StaticList<StaticList<Bool>>> {}\n" +
+      "struct S<value: StaticList<StaticList<Bool>>> {}\n" +
         "struct Use { x: S<value: [[true]]> }\n",
       "nested StaticList generic domain",
     ],
     [
       "struct Fixed {}\n" +
-        "struct S<_ value: Fixed> {}\n" +
+        "struct S<value: Fixed> {}\n" +
         "struct Use { x: S<value: Fixed> }\n",
       "fixed aggregate generic domain",
     ],
@@ -649,7 +651,7 @@ function expectGenericApplications(executable) {
   const enumPayload = expectUnsupported(
     executable,
     "enum E { a(value: u8) }\n" +
-      "struct S<_ value: E> {}\n" +
+      "struct S<value: E> {}\n" +
       "struct Use { x: S<value: .a> }\n",
     "enum case payload generic value",
   )
@@ -659,7 +661,7 @@ function expectGenericApplications(executable) {
   const unknownEnum = expectUnsupported(
     executable,
     "enum E { a }\n" +
-      "struct S<_ value: E> {}\n" +
+      "struct S<value: E> {}\n" +
       "struct Use { x: S<value: .missing> }\n",
     "unknown contextual enum case",
   )
@@ -668,7 +670,7 @@ function expectGenericApplications(executable) {
   }
   const mixed = expectDiagnostic(
     executable,
-    "struct S<_ first: String, _ second: Bool> {}\n" +
+    "struct S<first: String, second: Bool> {}\n" +
       "struct Use { x: S<first: \"a\\\\n\", bogus: (true)> }\n",
     "W-CONTRACT-0001",
     "mixed invalid and unsupported generic value",
@@ -921,8 +923,8 @@ try {
 
   expectOk(
     probeExecutable,
-    "const fn add(value: u32): u32 { return value }\n" +
-      "const fn use(value: u32): u32 { return add(value) }\n",
+    "const fn add(_ value: u32): u32 { return value }\n" +
+      "const fn use(_ value: u32): u32 { return add(value) }\n",
     "local const function call",
   )
   expectDiagnostic(
@@ -1176,7 +1178,7 @@ try {
     Buffer.concat([
       stageEnumPrefix,
       Buffer.from(
-        "fn acceptStage(value: ServiceStage): ServiceStage { return value }\n" +
+        "fn acceptStage(_ value: ServiceStage): ServiceStage { return value }\n" +
         "fn localCall(): ServiceStage { return acceptStage(.preparing) }\n",
         "utf8",
       ),
@@ -1353,8 +1355,8 @@ try {
   expectEnumWitness(
     probeExecutable,
     Buffer.from(
-      "enum Callbacks { positional(fn(named value: u32): Bool) " +
-      "labeled(handler: fn(named value: u32): Bool) }\n",
+      "enum Callbacks { positional(fn(u32): Bool) " +
+      "labeled(handler: fn(u32): Bool) }\n",
       "utf8",
     ),
     "enum function-type payload labels",

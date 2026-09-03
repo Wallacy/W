@@ -4,13 +4,18 @@ Text and byte literals
 
 fn literals(): Bytes {
   let normal = "order ${id}\u{2026}"
+  let single = 'order ${id}\u{2026}'
   let raw = #"C:\orders\${id}"#
-  let rawInterpolated = #"{"value":#${id},"unit":"s"}"#
+  let rawSingle = #'C:\orders\${id}'#
   let multiline = """broth
 cake"""
+  let singleMultiline = '''broth
+cake'''
   let rawMultiline = #"""${literal}
 C:\last-light"""#
-  let scalar = 'λ'
+  let rawSingleMultiline = #'''${literal}
+C:\last-light'''#
+  let scalar: UnicodeScalar = 'λ'
   let byte = b'\xFF'
   return b"WPKG\x00\x01"
 }
@@ -32,6 +37,10 @@ C:\last-light"""#
       (binding_declaration
         (pattern
           (identifier))
+        (string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
         (raw_string_literal))
       (binding_declaration
         (pattern
@@ -44,11 +53,22 @@ C:\last-light"""#
       (binding_declaration
         (pattern
           (identifier))
+        (multiline_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
         (raw_string_literal))
       (binding_declaration
         (pattern
           (identifier))
-        (scalar_literal))
+        (raw_string_literal))
+      (binding_declaration
+        (pattern
+          (identifier))
+        (type
+          (type_name
+            (type_identifier)))
+        (string_literal))
       (binding_declaration
         (pattern
           (identifier))

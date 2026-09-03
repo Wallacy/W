@@ -860,12 +860,131 @@ export function writeStudyRegistry({ root = repositoryRoot, file = path.join(pat
   return { ...generated, written: true };
 }
 
+function referenceParentAtPointer(document, pointerValue) {
+  const parts = String(pointerValue).split(".");
+  if (parts.length < 2 || parts.at(-1) !== "path" || parts.some((part) => part === "")) return null;
+  let current = document;
+  for (const part of parts.slice(0, -1)) {
+    const key = Array.isArray(current) && /^(?:0|[1-9][0-9]*)$/u.test(part)
+      ? Number(part)
+      : part;
+    if (current === null || typeof current !== "object" || !Object.hasOwn(current, key)) return null;
+    current = current[key];
+  }
+  return current && typeof current === "object" && !Array.isArray(current) ? current : null;
+}
+
+/** Refresh only well-formed, repository-contained metadata references whose bytes changed. */
+export function refreshStudyDigests({ root = repositoryRoot, fileSystem = fs } = {}) {
+  const resolvedRoot = path.resolve(root);
+  const generated = buildStudyRegistry({ root: resolvedRoot });
+  const blocking = [
+    ...generated.issues.missing,
+    ...generated.issues.duplicates,
+    ...generated.issues.invalidJson,
+    ...generated.issues.cycles,
+    ...generated.issues.stale.filter((issue) => issue.reason !== "digest-mismatch" || !validDigest(issue.actualDigest)),
+  ];
+  if (blocking.length > 0) {
+    return {
+      written: false,
+      updatedFiles: 0,
+      updatedReferences: 0,
+      errors: ["study digest refresh requires valid paths, metadata, dependency graph, and declared digest shapes"],
+    };
+  }
+
+  const documents = new Map();
+  const errors = [];
+  for (const issue of generated.issues.stale) {
+    const sourceFile = path.resolve(resolvedRoot, issue.source);
+    let document = documents.get(sourceFile);
+    if (!document) {
+      try {
+        document = JSON.parse(fileSystem.readFileSync(sourceFile, "utf8"));
+      } catch {
+        errors.push(`${issue.source} could not be read as JSON during digest refresh`);
+        continue;
+      }
+      documents.set(sourceFile, document);
+    }
+    const parent = referenceParentAtPointer(document, issue.pointer);
+    if (!parent || parent.path !== issue.path || parent.digest !== issue.declaredDigest) {
+      errors.push(`${issue.source}.${issue.pointer} no longer identifies the stale reference`);
+      continue;
+    }
+    parent.digest = issue.actualDigest;
+  }
+  if (errors.length > 0) {
+    return { written: false, updatedFiles: 0, updatedReferences: 0, errors };
+  }
+
+  const outputs = [...documents.entries()]
+    .sort(([left], [right]) => comparePath(left, right))
+    .map(([target, document]) => ({ target, content: `${JSON.stringify(document, null, 2)}\n` }));
+  try {
+    writeProjectionPair(outputs, { fileSystem });
+  } catch (error) {
+    return {
+      written: false,
+      updatedFiles: 0,
+      updatedReferences: 0,
+      errors: [`study digests could not be installed transactionally: ${error instanceof Error ? error.message : "unknown error"}`],
+    };
+  }
+  return {
+    written: true,
+    updatedFiles: outputs.length,
+    updatedReferences: generated.issues.stale.length,
+    errors: [],
+  };
+}
+
+export function refreshStudyDigestClosure({ root = repositoryRoot, fileSystem = fs } = {}) {
+  let updatedReferences = 0;
+  let updatedFileWrites = 0;
+  for (let wave = 0; wave < 256; wave += 1) {
+    const result = refreshStudyDigests({ root, fileSystem });
+    if (!result.written) return { ...result, updatedReferences, updatedFileWrites, waves: wave };
+    if (result.updatedReferences === 0) {
+      return { written: true, updatedReferences, updatedFileWrites, waves: wave, errors: [] };
+    }
+    updatedReferences += result.updatedReferences;
+    updatedFileWrites += result.updatedFiles;
+  }
+  return {
+    written: false,
+    updatedReferences,
+    updatedFileWrites,
+    waves: 256,
+    errors: ["study digest refresh did not converge after 256 dependency waves"],
+  };
+}
+
 function main(argv = process.argv.slice(2)) {
   const write = argv.includes("--write");
   const check = argv.includes("--check");
-  if (write === check || argv.some((argument) => !["--write", "--check"].includes(argument))) {
-    process.stderr.write("Usage: bun tooling/study-registry.mjs --write|--check\n");
+  const refresh = argv.includes("--refresh-digests");
+  if ([write, check, refresh].filter(Boolean).length !== 1 ||
+      argv.some((argument) => !["--write", "--check", "--refresh-digests"].includes(argument))) {
+    process.stderr.write("Usage: bun tooling/study-registry.mjs --write|--check|--refresh-digests\n");
     process.exitCode = 2;
+    return;
+  }
+  if (refresh) {
+    const refreshed = refreshStudyDigestClosure();
+    if (!refreshed.written) {
+      process.stderr.write(`${refreshed.errors.join("\n")}\n`);
+      process.exitCode = 1;
+      return;
+    }
+    const projected = writeStudyRegistry();
+    if (!projected.written) {
+      process.stderr.write(`${projected.errors.join("\n")}\n`);
+      process.exitCode = 1;
+      return;
+    }
+    process.stdout.write(`Study digests refreshed: ${refreshed.updatedReferences} reference updates across ${refreshed.waves} dependency waves; projections are current.\n`);
     return;
   }
   if (write) {

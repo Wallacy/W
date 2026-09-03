@@ -9,7 +9,7 @@ struct HorizonReading: data.Row {
   warning: String?
 }
 
-fn summarizeHorizon(batch: data.DynamicBatch): f64? throws data.BindError {
+fn summarizeHorizon(_ batch: data.DynamicBatch): f64? throws data.BindError {
   let typed = try (take batch).bind<HorizonReading>(copyPolicy: .never)
   let column = typed.column(.hawkingFlux)
   var maximum: f64? = .none

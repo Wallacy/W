@@ -120,7 +120,8 @@ let plan = spawn<.compute> optimize(take snapshot)
 |---|---|---|
 | usar value local | call direta | mesma task; sem child ou suspensão oculta |
 | observar sem transferir | `ref` | borrow read-only com scope provado |
-| mutar com exclusividade | `inout` | um loan exclusivo; aliases conflitantes falham |
+| mutar um referent emprestado | `mut ref` | borrow exclusivo direto, dependent e lifetime-checked |
+| mutar por value-in/value-out | `inout` | parâmetro/call convention exclusivo com writeback normal e em `throw` estruturado |
 | transferir ownership | `take` | o source perde o owner uma vez |
 | duplicar deliberadamente | `copy` | somente tipo copiável; custo permanece explicável |
 | criar owners múltiplos reais | `let x: shared T = value`, binding local `shared` com `take` e `copy handle` | a declaração ou o move mostra allocation; cada retain continua explícito |
@@ -344,7 +345,7 @@ unsafe fn<C> checksum(data: c.ptr<c.uchar>): c.uint { ... }
 
 `StaticList<T>` é um tipo compile-time de baseline. Ele é ordenado, imutável e
 apagado depois da especialização. Um head pode publicar esse tipo como slot
-posicional com label opcional:
+positional-only:
 
 ```w
 enum KitchenStage {
@@ -469,8 +470,9 @@ struct StaticContract {
 ```
 
 `associatedExposure` é `contract-value` para qualquer value parameter de um type
-head, com ou sem label externo; para uma callable generic value parameter é
-`none`. Em ambos os casos o binding e o argumento normalizado permanecem na
+head, seja seu label externo required ou o slot positional-only; para uma
+callable generic value parameter é `none`. Em ambos os casos o binding e o
+argumento normalizado permanecem na
 HIR.
 
 `.main` e os domains declarados por módulo ou pacote são fechados. `C` e `Rust`
@@ -494,20 +496,24 @@ Os contratos estáticos seguem estas regras:
 
 1. O head declara um schema fechado.
 2. O evaluator aceita somente valores compile-time herméticos.
-3. O formatter usa a ordem declarada pelo schema.
-4. Type arguments e value arguments sem label precedem value arguments nomeados.
-5. Cada argumento mantém a ordem de declaração. Labels não reordenam argumentos.
-6. A adição de um slot não reinterpreta source anterior.
-7. `w explain` mostra defaults, inferências e a HIR normalizada.
-8. Nenhum slot concede authority, memory safety ou capability.
+3. O formatter preserva a ordem source; a HIR normaliza cada argumento no slot
+   declarado.
+4. Type parameters e value parameters positional-only são âncoras. Eles mantêm
+   a ordem e as fronteiras declaradas.
+5. Value parameters com label obrigatório vinculam por label e podem reordenar
+   somente dentro do segmento entre âncoras. Um label não cruza um type ou
+   positional anchor.
+6. Types, predicates e a ordem textual dos argumentos não escolhem binding.
+7. A adição de um slot não reinterpreta source anterior.
+8. `w explain` mostra defaults, inferências e a HIR normalizada.
+9. Nenhum slot concede authority, memory safety ou capability.
 
 Nomes de argumentos fazem parte da compatibilidade source. A evidência fica em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
-`spawn` publica `domain` como value slot com label opcional.
-`spawn<.compute>` e `spawn<domain: .compute>` são formas vigentes do mesmo slot.
-O formatter preserva a forma source de cada schema e a HIR usa o domain
-normalizado.
+`spawn` publica `domain` como um slot dedicado do contrato de placement.
+`spawn<.compute>` fornece esse slot; o formatter preserva a forma source de cada
+schema e a HIR usa o domain normalizado.
 
 ### 3.3 Refinement, composição e layout
 
@@ -539,7 +545,7 @@ Um head futuro pode publicar um static record como configuração. Nesse caso,
 
 ### 3.4 Funções e listas de contratos
 
-`fn<C>` e `fn<lang: .c>` usam o mesmo slot de language com label opcional.
+`fn<lang: .c>` fornece o slot de language do contrato foreign.
 Um futuro slot `abi` pode compor com o primeiro sem mudar seu significado.
 
 `fn<(...)>`, `fn<{...}>` e `fn<[...]>` não ganham significado por simetria. O
@@ -578,7 +584,7 @@ O corpus precisa verificar:
 5. diagnostics que nomeiam head e slot;
 6. leitura humana e por modelos sem consulta à HIR.
 
-**Forma vigente:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<Language>` e unit
+**Forma vigente:** usar `T<(...)>`, `async/spawn<.domain>`, `fn<lang: Language>` e unit
 literal sem label.
 
 #### 3.5.1 Forma canônica do formatter
@@ -749,25 +755,25 @@ structured_statement = defer_statement
                      | allocator_statement ;
 
 binding_statement = task_prefix? binding_kind storage_modifier?
-                    pattern_ownership? pattern type_annotation? initializer? ;
+                    pattern_ownership? binding_pattern type_annotation? initializer? ;
 task_prefix = ("async" | "spawn") task_contract? ;
 task_contract = "<" static_argument ("," static_argument)* ","? ">" ;
 binding_kind = "let" | "var" ;
 storage_modifier = "atomic" | behavior_identifier ;
-pattern_ownership = "ref" | "inout" ;
+pattern_ownership = "ref" | "mut" "ref" ;
 type_annotation = ":" type ;
 initializer = "=" expression ;
 
 condition = optional_binding | expression ;
-optional_binding = ("let" | "var") ("ref" | "inout" | "copy")?
-                   pattern "=" expression ;
+optional_binding = ("let" | "var") ("ref" | "mut" "ref" | "copy")?
+                   binding_pattern "=" expression ;
 
 if_statement = "if" condition block ("else" (if_statement | block))? ;
 while_statement = "while" condition block ;
 for_statement = "for" async_iteration? iteration_ownership?
-                pattern "in" expression block ;
+                binding_pattern "in" expression block ;
 async_iteration = "await" | "try" "await" ;
-iteration_ownership = "ref" | "inout" | "copy" ;
+iteration_ownership = "ref" | "mut" "ref" | "copy" ;
 repeat_statement = "repeat" block "while" expression ";"? ;
 
 labeled_statement = identifier ":"
@@ -803,10 +809,11 @@ O parser aplica estas decisões antes do type checker:
 | `identifier : {` | block rotulado |
 
 `allocator` é contextual na posição `allocator name: plan { ... }` ou
-`allocator plan { ... }`, e como prefixo do primeiro parâmetro contextual de uma
-função. Um parâmetro `allocator: Allocator` sem nome interno contextual é um
-parâmetro callable comum. Em qualquer outra posição, o checker pode diagnosticar
-um identifier ou label inválido. O plan `.fixed<capacity: N>` usa
+`allocator plan { ... }`, e no único parâmetro contextual de uma função. Esse
+parâmetro pode aparecer em qualquer posição declarada. Um parâmetro
+`allocator: Allocator` sem nome interno contextual é um parâmetro callable comum.
+Em qualquer outra posição, o checker pode diagnosticar um identifier ou label
+inválido. O plan `.fixed<capacity: N>` usa
 `allocator_contract`; um plan customizado usa uma expression de provider. O
 parser preserva os dois como `allocator_plan` e o checker valida provider,
 target, capacity e lifecycle.
@@ -1080,8 +1087,11 @@ function_tail = identifier generic_parameters? parameter_list
 parameter_list = "(" parameter ("," parameter)* ","? ")" ;
 parameter = allocator_parameter | callable_parameter ;
 allocator_parameter = "allocator" identifier ":" parameter_requirement? type ;
-callable_parameter = (identifier | identifier identifier) ":"
-                     parameter_requirement? type default_value? ;
+callable_parameter = positional_anchor_parameter | labeled_parameter ;
+positional_anchor_parameter = "_" identifier ":"
+                              parameter_requirement? type default_value? ;
+labeled_parameter = (identifier | identifier identifier) ":"
+                    parameter_requirement? type default_value? ;
 parameter_requirement = "ref" | "inout" | "take" | "const" ;
 default_value = "=" expression ;
 function_prefix = "export"? "static"? "const"? "unsafe"?
@@ -1133,18 +1143,17 @@ behavior_field_declaration = "var" identifier ":" type
 behavior_facet_property = "export" ("var")? identifier ":" type
                           "{" behavior_property_accessor+ "}" ;
 behavior_property_accessor = "get" ("=>" expression | block)
-                           | "mut"? "set" parameter_list? block
-                           | "mut"? "modify" block ;
+                           | "get" "ref" ("=>" expression | block)
+                           | "get" "mut" "ref" ("=>" expression | block)
+                           | "set" parameter_list? block ;
 behavior_hook = "mut"? "willSet" "(" "current" ":" "ref" type "," "proposed" ":" "ref" type ")" block
               | "mut"? "didSet" "(" "current" ":" "ref" type ")" block
-              | "mut"? "willModify" "(" "current" ":" "ref" type ")" block
-              | "mut"? "didModify" "(" "current" ":" "ref" type ")" block ;
+              | "mut"? ("willGet" | "didGet") "(" "kind" ":" "PropertyAccessKind" ")" block ;
 behavior_accessor = behavior_initializer
-                  | "mut"? behavior_accessor_kind
-                    behavior_parameter_list? block ;
-behavior_accessor_kind = "get"
-                       | "set"
-                       | "modify" ;
+                  | behavior_get_accessor
+                  | behavior_set_accessor ;
+behavior_get_accessor = "get" ("ref" | "mut" "ref")? block ;
+behavior_set_accessor = "mut"? "set" behavior_parameter_list? block ;
 behavior_initializer = "init" behavior_initializer_parameters block ;
 behavior_initializer_parameters = "("
                                 ("initialValue" ":" "fn" "(" ")" ":" type)?
@@ -1307,9 +1316,9 @@ type_qualifier = "any"
                | "shared"
                | "weak"
                | "ref"
-               | "inout"
+               | "mut" "ref"
                | "view"
-               | "inout" "view" ;
+               | "mut" "view" ;
 
 type_term = applied_type
           | tuple_type
@@ -1320,9 +1329,11 @@ applied_type = type_path contract_envelope* ;
 type_path = identifier ("." identifier)* ;
 ```
 
-Um type possui no máximo um qualifier sintático. `inout view` é uma forma
-composta única. Em `parameter: ref any P`, `ref` pertence ao parâmetro e
-`any P` é o type. A seção 7 define essa separação de ownership.
+Um type possui no máximo um qualifier sintático. `mut ref T` é um borrow
+exclusivo direto e `mut view T` é uma view lógica mutável. `inout T` não é type.
+Ele aparece somente no contrato de parâmetro e na operação de call. Em
+`parameter: ref any P`, `ref` pertence ao parâmetro e `any P` é o type. A
+seção 7 define essa separação de ownership.
 
 `&` compõe requirements nominais. O qualifier aplica-se à composição completa:
 
@@ -1351,8 +1362,8 @@ head e `<` é erro. Whitespace dentro do envelope continua livre:
 ```w
 Array<u8>
 Matrix<
-  f32,
   rows: 3,
+  f32,
   columns: 4,
 >
 ```
@@ -1405,8 +1416,8 @@ Um identifier posicional permanece sintaticamente type-shaped. Depois de
 resolver o head, o checker classifica o parâmetro após name resolution. Um
 parâmetro sem `:` é type parameter. `T: P` é type parameter quando `P` resolve
 para um protocol constraint. `name: Type` é value parameter quando `Type`
-resolve para um tipo `StaticArgumentRepresentable`. `_ name: Type` é value parameter com
-label externo opcional. RHS unresolved ou ambiguous falha antes da
+resolve para um tipo `StaticArgumentRepresentable`. `_ name: Type` é value parameter
+positional-only e funciona como uma âncora. RHS unresolved ou ambiguous falha antes da
 classificação.
 W não possui inheritance ou base-class constraint que crie outra classificação.
 Um existential value exige `any P` e não transforma `T: P` em value slot.
@@ -1460,7 +1471,7 @@ canônica, enum case fechado ou `StaticList`; uma expression D3 permanece
 `TYPED_PENDING_CONST` no frontend e é avaliada depois por uma função ConstIR
 sintética. Um parâmetro value dependente pode referenciar somente um type
 parameter anterior do mesmo head:
-`StaticValue<T, _ value: T>`. O slot depende do type argument já resolvido; o
+`StaticValue<T, value: T>`. O slot depende do type argument já resolvido; o
 checker verifica que esse argumento anterior é `StaticArgumentRepresentable`
 antes de aceitar o `ConstValue`. Referência posterior ou cíclica é inválida.
 Parâmetros comuns `const` de call continuam usando `ConstRepresentable`, que é
@@ -1468,9 +1479,10 @@ mais amplo. Nenhum desses slots cria storage runtime.
 
 Binding falha fechado: label desconhecido usa `W-CONTRACT-0001`, kind ou domain
 incompatível usa `W-CONTRACT-0002`, slot duplicado usa `W-CONTRACT-0004`, e
-label-policy, ordem nomeada ou positional-after-named usam `W-GENERIC-0003`.
-Slot ausente ou inferência aberta usa `W-GENERIC-0002`; `_` torna somente o
-label externo opcional e não fornece default. Uma aplicação com falha mantém,
+label-policy, cruzamento de âncora, ordem de âncora ou positional que não ocupa
+uma âncora usam `W-GENERIC-0003`. Slot ausente ou inferência aberta usa
+`W-GENERIC-0002`;
+`_ name` é uma âncora positional-only e não fornece label ou default. Uma aplicação com falha mantém,
 quando útil para diagnostics, um record append-only não consumível como
 especialização válida.
 
@@ -1513,25 +1525,31 @@ O CST chama o envelope de `generic_parameters` e cada item de
 `label_omission` opcional e o `domain` opcional. Ele não expõe `constraint` ou
 `value_type`; o resolver decide se o item é type parameter ou value parameter.
 
-Um type parameter é posicional e não recebe label. Um value parameter sem `_`
-usa seu nome como label externo e interno. A forma `external internal: Type`
-separa explicitamente esses nomes e aceita `external: value` no call.
-`label_omission` (`_`) torna o label externo opcional; ele não remove o
-binding interno. Esta é a policy do schema de um generic head. Calls runtime
-seguem a policy uniforme da seção 7.2.1 e não inferem labels pela posição.
-O marker não indica ordem preferencial ou quantidade:
+Um type parameter é uma âncora posicional e não recebe label. Um value parameter
+sem `_` usa seu nome como label externo e interno, e esse label é obrigatório. A
+forma `external internal: Type` separa explicitamente esses nomes e exige
+`external: value` no call. `label_omission` (`_`) torna o value parameter
+positional-only e cria uma âncora; ele não remove o binding interno nem aceita
+label. Esta é a policy do schema de um generic head. Named values podem reordenar
+somente dentro do segmento entre âncoras; as âncoras conservam a ordem e as
+fronteiras declaradas. Tipos, constraints e predicates não desambiguam binding.
+Type parameters e `_ name: Type` são, portanto, o mesmo tipo de boundary para
+binding; external labels são únicos em todo o head. Calls runtime seguem a
+policy uniforme da seção 7.2.2 e não inferem labels pela posição. O marker não
+indica ordem preferencial ou quantidade:
 
 ```w
-struct Matrix<Element, rows: usize, columns: usize> {}
-type Tile = Matrix<Pixel, rows: 8, columns: 4>
+struct Matrix<rows: usize, Element, columns: usize> {}
+type Tile = Matrix<rows: 8, Pixel, columns: 4>
 
 struct StagePath<_ stages: StaticList<ServiceStage>> {}
 type ServicePath = StagePath<[.accepted, .preparing, .serving]>
 ```
 
 O parser aceita a estrutura antes de resolver o head. O checker rejeita label
-desconhecido, duplicado, fora de ordem ou aplicado a type parameter. O checker
-também rejeita um argumento posicional depois do primeiro value argument nomeado.
+desconhecido, duplicado, cruzamento de segmento, âncora fora de ordem ou label
+aplicado a type parameter. O checker também rejeita omissão do label required e
+um argumento posicional que não preserve as âncoras declaradas.
 Binding modifiers e named type arguments não pertencem a esta grammar.
 
 ##### Tuples e arrays fixos
@@ -1600,9 +1618,9 @@ return type significa `()`. O schema de `fn<abi: .c>` rejeita capture, `async`,
 `throws` e carriers não representáveis em C.
 
 Uma function type que declara `allocator name: ref Allocator` preserva o slot
-contextual como primeiro e único parâmetro. O nome existe na interface e na HIR
-para diagnostics, mas a call usa o label externo `allocator:`. Um function type
-foreign não pode esconder esse slot no ABI.
+contextual na posição declarada. O nome existe na interface e na HIR para
+diagnostics, e a resolução contextual preenche esse slot nominal. Um function
+type foreign não pode esconder esse slot no ABI.
 
 ##### Tokenização e recovery
 
@@ -1692,6 +1710,8 @@ fn archive(order: take Order) {
 ##### Grammar
 
 ```ebnf
+binding_pattern = pattern | inferred_struct_pattern ;
+
 pattern = wildcard_pattern
         | identifier_pattern
         | capture_pattern
@@ -1732,12 +1752,21 @@ struct_pattern_body = struct_pattern_field
                     | "..." ","? ;
 struct_pattern_field = identifier | identifier ":" pattern ;
 
+inferred_struct_pattern = "{" struct_pattern_body "}" ;
+
 tuple_pattern = "(" pattern "," ")"
               | "(" pattern "," pattern ("," pattern)* ","? ")" ;
 ```
 
 Um tuple pattern de um elemento exige a comma. `(value)` não é um pattern de
 tuple. Essa forma permanece reservada para agrupamento de expression.
+
+O inferred struct pattern `{ field, ... }` é um `binding_pattern`. Ele aparece
+somente depois de `let` ou `var`, incluindo optional binding e `for`, onde o
+initializer ou iterator fornece o tipo nominal esperado. `switch` e `catch`
+usam `pattern`; nesses contextos, o código escreve o struct pattern nominal
+`Type(field, ...)`. Essa separação evita confundir um pattern com um block e
+mantém o tipo explícito na seleção adversarial.
 
 `Type.case` qualifica um enum case. `.case` exige um enum esperado. O frontend
 registra o enum completo na HIR nas duas formas.
@@ -1834,7 +1863,7 @@ switch take result {               // consumo; payloads ficam owned
 ```
 
 O qualifier externo controla todo destructuring binding. W não mistura `ref`,
-`inout`, `copy` ou `take` dentro do mesmo aggregate pattern.
+`mut ref`, `copy` ou `take` dentro do mesmo aggregate pattern.
 
 ```w
 let ref Order(guest, items, ...) = order
@@ -1926,7 +1955,9 @@ assignment_operator = "=" | "+=" | "-=" | "*=" | "/=" | "%="
 
 pipe_forward_expression = coalescing_expression
                          | pipe_forward_expression "|>" pipe_call_template ;
-pipe_call_template = pipe_call_modifier* pipe_callable_path generic_call_arguments? argument_list ;
+pipe_call_template = pipe_call_modifier*
+                     (pipe_callable_path generic_call_arguments? argument_list
+                     | "." identifier generic_call_arguments? argument_list) ;
 pipe_callable_path = identifier ("." identifier)* ;
 pipe_call_modifier = "try" | "try?" | "await" | "sync" | "async"
                    | "spawn" task_contract ;
@@ -1954,7 +1985,8 @@ multiplicative_expression = prefix_expression
 
 prefix_expression = prefix_operator prefix_expression | power_expression ;
 prefix_operator = "!" | "~" | "-" | "try" | "try?" | "await"
-                | "copy" | "take" | "pin" | "inout" | "ref" ;
+                | "copy" | "take" | "pin" | "inout" | "ref"
+                | "mut" "ref" | "mut" "view" ;
 power_expression = postfix_expression ("**" prefix_expression)? ;
 
 postfix_expression = primary_expression postfix_suffix* ;
@@ -1989,6 +2021,11 @@ identity, não cria binding e não muda o tipo estático do operand. A recupera�
 borrowed de um tipo concreto usa `as?` conforme §8.8.1. `in`
 aceita Range ou tuple finito intrínseco na baseline. Collections usam
 `contains` e flags usam `hasAny` ou `hasAll`.
+
+Em `argument_list`, `mut place` é uma forma especial de call: ela é a forma
+curta de `mut ref ObjectType` quando o parâmetro selecionado é um `object`.
+Não é um prefixo geral fora de um argumento e não substitui `mut ref` ou
+`mut view` no tipo da assinatura.
 
 ##### Primary expressions
 
@@ -2040,8 +2077,8 @@ Uma construction move-only usa `Array.generate` ou outra API nomeada.
 
 Literals numéricos permanecem exatos até a materialização. String interpolation
 avalia cada expression na ordem source e escreve no mesmo destino String. Raw
-strings mantêm `${...}` literal e aceitam somente o marker opt-in `#${...}`;
-byte strings não possuem interpolation.
+strings mantêm `${...}` literal e não aceitam interpolação; byte strings também
+não possuem interpolation.
 
 ##### Calls e postfix
 
@@ -2060,9 +2097,11 @@ one_sided_range = expression ("..." | ">..")
 Um generic envelope toca o callable head. O head deve ser um identifier ou
 member já resolvível. Um callable runtime não permanece generic.
 
-O receiver é avaliado antes dos argumentos. Os argumentos são avaliados na
-ordem source. Labels selecionam uma call shape, mas não reordenam avaliação ou
-parâmetros.
+O receiver é avaliado antes dos argumentos. Os argumentos explícitos são
+avaliados uma vez, da esquerda para a direita na ordem escrita. Labels
+selecionam uma call shape e o lowering reorganiza os values para a ordem da
+declaration/ABI. Defaults são avaliados depois dos explícitos, na ordem da
+declaration.
 
 `each` aparece somente no último argumento rest. A collection é avaliada uma
 vez. Uma expansão owned usa `each take values`. A seção 8.9.6 define carriers e
@@ -2178,17 +2217,22 @@ define layout do ambiente.
 parse ou de migração conforme o contexto. W não mantém uma camada de
 compatibilidade para essa forma.
 
-`inout` não pode ficar numa closure armazenada. Um borrow pode escapar somente
-quando seu owner cobre o destino. Construir a closure não executa seu body.
+`inout` não pode ficar numa closure armazenada. `mut ref` pode aparecer somente
+quando o lifetime do owner cobre a closure e não pode escapar do place. Um borrow
+pode escapar somente quando seu owner cobre o destino. Construir a closure não
+executa seu body.
 
 ##### Prefixos, effects e ownership
 
-Cada prefix avalia seu operand uma vez. `copy`, `take`, `pin`, `inout` e `ref`
-produzem as operações de ownership definidas nas seções 7 e 9.
+Cada prefix avalia seu operand uma vez. `copy`, `take`, `pin`, `inout`, `ref`,
+`mut ref` e `mut view` produzem as operações de ownership definidas nas seções 7
+e 9. `inout` é válido somente como argumento de call e reserva o source place
+para writeback. `mut ref` e `mut view` são borrows diretos e não armazenam o
+referent.
 
-`inout` e `ref` exigem um place. `take` invalida o place quando transfere o
-owner. `copy` cria um value independente. `pin` produz storage estável e não
-altera a logical value.
+`inout`, `ref`, `mut ref` e `mut view` exigem um place. `take` invalida o place
+quando transfere o owner. `copy` cria um value independente. `pin` produz
+storage estável e não altera a logical value.
 
 Postfix member access possui força maior que prefix. Um consuming receiver usa
 parentheses:
@@ -2731,7 +2775,7 @@ checks somente quando `proofFacts` preserva a mesma semântica.
 | enum case | reduz o case-set no edge selecionado | payload fica provisório até o guard passar |
 | literal ou range | restringe o value no edge selecionado | não move o scrutinee |
 | `let` em match | cria capture no case body | confirma move somente depois do guard |
-| `ref` ou `inout` | preserva origin e lifetime | inicia borrow compartilhado ou exclusivo |
+| `ref` ou `mut ref` | preserva origin e lifetime | inicia borrow compartilhado ou exclusivo |
 | `...` | cobre fields não selecionados | cleanup segue o mode uniforme do aggregate |
 
 O scrutinee é avaliado uma vez. Um guard observa captures provisórias e não
@@ -2799,7 +2843,7 @@ o trabalho começa e evita mover uma árvore de expression por regra implícita.
 | closure | concrete callable anônimo | capture prepara owners em source order; body cria effect scope próprio |
 | `copy` | value owned independente | exige `Copy` ou `Duplicable` e pode alocar |
 | `take` | value owned transferido | invalida o source place depois de staging válido |
-| `ref` e `inout` | borrow compartilhado ou exclusivo | exigem place e registram end-borrow |
+| `ref`, `mut ref` e `mut view` | borrow compartilhado ou exclusivo | exigem place e registram end-borrow |
 | `pin` | owner com storage estável | não muda logical value; adiciona address fact e drop obligation |
 | `try` e `try?` | success type ou Option achatada | roteiam ou convertem somente recoverable error edges |
 | `await` | success type do async operation | cria suspension e cancellation point, não cria child |
@@ -2865,7 +2909,7 @@ As famílias específicas usam estes códigos:
 | `W-OWNERSHIP-0016` | ownership ou requisito de parâmetro aparece no lado dos labels |
 | `W-ALLOCATOR-0003` | origem local alcança boundary async, service ou callback escapante sem storage estável ou `rehome` |
 | `W-ALLOCATOR-0004` | plan customizado não fecha o join de provider profile, recipe e descriptor |
-| `W-OWNERSHIP-0017` | argumento usa operação incompatível ou owner place omite `ref`, `inout` ou `take` |
+| `W-OWNERSHIP-0017` | argumento usa operação incompatível ou owner place omite `ref`, `mut ref`, `mut view`, `inout` ou `take` |
 
 Um enum curto sem expected type falha sem busca global por case name. O
 diagnostic registra member, context e ausência do expected type. Adicionar enum
@@ -2997,7 +3041,7 @@ Um parâmetro de chamada pode exigir um argumento compile-time com `const`:
 ```w
 fn prepare(
   statement: const database.Query<WorldKey, WorldRow>,
-  named parameters: WorldKey,
+  parameters: WorldKey,
 ): PreparedQuery
 
 const worldById = database.Query<WorldKey, WorldRow>(...)
@@ -3140,7 +3184,7 @@ identidade:
 | Aceito | Rejeitado |
 |---|---|
 | unit, Bool, números e UnicodeScalar | raw pointer e address |
-| newtype, tuple, struct e enum | `ref`, `inout` e borrow escapante |
+| newtype, tuple, struct e enum | `ref`, `mut ref` e borrow escapante |
 | Option, Result e fixed array | object com identidade |
 | String, Bytes, Array, Map e Set | shared, weak, Task e ServiceRef |
 | static record e StaticList | closure, existential e capability |
@@ -3266,6 +3310,13 @@ adiciona `#if`, `#include` ou conditional import à linguagem:
 ```w
 import platform.clock
 ```
+
+Applications de type head e generic em contextos compile-time seguem W-1514:
+type parameters e value parameters positional-only (`_ name: Type`) são âncoras
+na ordem declarada; labels de value parameters podem reordenar somente dentro
+do segmento corrente e não atravessam âncoras. Um tipo ou predicate não escolhe
+binding. Essa regra altera somente a aplicação/binding; a especialização finita
+e o ConstIR preservados por W-1286 continuam os mesmos.
 
 O build graph seleciona uma implementação de `platform.clock` para o target. A
 interface importada permanece a mesma. A seção 21.1.4 define os
@@ -3860,20 +3911,25 @@ export fn clamp(...)
 Comentários não são annotations. Debug symbols e documentação compilada são
 artefatos separados e removíveis.
 
-Um bloco `@example` usa esta forma exata:
+Uma linha `call:` inicia um exemplo executável dentro do comentário de
+documentação. Ela não precisa de annotation nem de um marcador `@example`:
 
 ```text
-@example
 call: clamp(2, to: 0...3)
 result: 2
+call: clamp(-1, to: 0...3)
+error: RangeError.outOfRange
 ```
 
-O bloco possui exatamente um terminal `result:` ou `error:`. `result:` exige
+Cada `call:` pertence à declaration documentada, inicia um caso independente e
+exige exatamente um terminal `result:` ou `error:` antes do próximo `call:` ou
+do fim do comentário. Um comentário pode conter vários casos. `result:` exige
 igualdade semântica com a expressão W esperada. `error:` exige um pattern de
-erro tipado. O runner baixa o exemplo para um teste hermético oculto, com source
+erro tipado. O runner baixa cada par para um teste hermético oculto, com source
 map. Faltas, duplicatas, effects ambientais, recursos sem bound e clock, rede,
-filesystem ou environment sem fixture produzem diagnostic. Fenced `w test` e
-`test` co-localizado continuam para casos multi-step.
+filesystem ou environment sem fixture produzem diagnostic. `@example` não é
+syntax W nem abre um caso. Fenced `w test` e `test` co-localizado continuam para
+casos multi-step.
 
 ### 5.3 Statements
 
@@ -4099,7 +4155,7 @@ menor para a maior força é:
 | shift | `<<`, `>>` | esquerda |
 | additive | `+`, `-` | esquerda |
 | multiplicative | `*`, `/`, `%`, `@` | esquerda |
-| prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref` | direita; power fica dentro do operand |
+| prefix | `!`, `~`, `-`, `try`, `try?`, `await`, `copy`, `take`, `pin`, `inout`, `ref`, `mut ref`, `mut view` | direita; power fica dentro do operand |
 | power | `**` | direita; o operand direito aceita prefix |
 | postfix | call, member, facet `#`, index, `?` | esquerda |
 
@@ -4109,12 +4165,17 @@ trocar a associação de power.
 **W-1510 — pipe-forward (Forma vigente):** `|>` é um operador fixo,
 não-customizável, para fluxo local e sequencial de valores. Ele fica acima de
 assignment e abaixo de `??`/logical OR, é left-associative e não cria grafo,
-concorrência, `await`, `map`, `bind`, allocation ou promise. A única forma à
-direita é um call template de função livre com lista de argumentos:
+concorrência, `await`, `map`, `bind`, allocation ou promise. A forma à direita
+é um call template de função livre ou um call template relativo ao resultado
+anterior:
 
 ```w
 let label = input |> trim() |> lowercase() |> slug()
 expect label == "table-42"
+
+let selected = values
+  |> .filter((value) => value.isReady)
+  |> .map((value) => value.id)
 ```
 
 A cadeia com duas ou mais etapas é o uso primário da superfície. Uma única
@@ -4122,14 +4183,23 @@ etapa continua válida, mas demonstra somente a regra de forwarding, não o ganh
 de composição funcional. `pipeline` permanece distinta porque representa um
 graph e pode exigir `commit`; `|>` somente encadeia valores e calls locais.
 
-Cada etapa expande `lhs |> f(args)` para `f(lhs, args)`, colocando o lhs uma
-única vez no primeiro parâmetro posicional `_`. O template não pode ter um
-primeiro parâmetro nomeado, ser uma função sem call, placeholder, member,
-UFCS, `:` ou `#`, nem usar fallback de resolução. Receiver, argumentos e cada
-lhs são avaliados uma vez e da esquerda para a direita. Assim `take source |>
-decode()`, `copy source |> inspect()` e `ref source |> inspect()` conservam a
-ownership escrita no lhs; não há `take` implícito e `inout` inválido segue o
-diagnóstico normal.
+Uma etapa livre expande `lhs |> f(a, named: b)` para
+`f(lhs, a, named: b)`: o lhs ocupa uma única vez o primeiro parâmetro
+posicional `_`; todos os demais argumentos posicionais e nomeados conservam
+posição, label e ordem de avaliação. Uma etapa relativa expande
+`lhs |> .member(a, named: b)` para `lhs.member(a, named: b)`. Ela usa somente
+member lookup normal no tipo do lhs e não procura uma função livre, UFCS ou uma
+facet. Receiver, argumentos e cada lhs são avaliados uma vez e da esquerda para
+a direita. Assim `take source |> decode()`, `copy source |> inspect()` e
+`ref source |> inspect()` conservam a ownership escrita no lhs; não há `take`
+implícito e `inout` inválido segue o diagnóstico normal.
+
+O template sempre contém uma call. Uma função sem call, placeholder, label no
+slot injetado, `:` ou `#` fica rejeitada. Uma etapa relativa começa exatamente
+por `.` e pode usar generic arguments e vários argumentos. Uma assignment
+continua produzindo `()` e exige um place; portanto `value *= 2 |> /= 3` não é
+uma pipe válida. O fluxo equivalente usa operações que devolvem values e uma
+única assignment explícita no fim.
 
 Modificadores já legais do call podem permanecer no template (`try`, `try?`,
 `await`, `sync`, `async` e `spawn<domain>`). Eles não são adicionados pela
@@ -4137,10 +4207,12 @@ pipe: `value |> async f()` produz um `Task`, e a próxima etapa recebe esse
 valor. `Option` e `Result` continuam valores comuns, sem map/bind automático.
 O formatter quebra antes de `|>`. `#` continua reservado para facet projection
 e `:` para labels; nenhum dos dois vira pipe genérico. A pipe não é UFCS: a
- expansão fechada evita que adicionar um member ou uma extension mude a
-resolução de uma API existente. RHS inválido produz `W-PIPE-0001`, primeiro
-parâmetro rotulado `W-PIPE-0002`, placeholder/member/UFCS/label/facet
-`W-PIPE-0003` e ownership ou avaliação incompatível `W-PIPE-0004`.
+expansão livre fechada evita que adicionar um member ou uma extension mude a
+resolução de uma API existente. A forma relativa solicita member lookup
+explicitamente, portanto uma extension participa pelas regras normais dessa
+call. RHS inválido produz `W-PIPE-0001`, primeiro parâmetro rotulado na forma
+livre `W-PIPE-0002`, placeholder/UFCS/label/facet `W-PIPE-0003` e ownership ou
+avaliação incompatível `W-PIPE-0004`.
 
 Uma assignment composta usa a operação correspondente. Ela preserva a policy
 de overflow e avalia o place uma vez. `&&=`, `||=`, `??=` e `@=` ficam
@@ -4693,74 +4765,103 @@ preserva a ordem dos pares, source order, comments e spans. A normalização
 semântica ordena somente o payload HIR resolvido. A cláusula não cria lifetime
 names, GAT, campo WAbi ou metadata de lifetime no runtime.
 
-**W-1290 — policy uniforme de labels callable:** um parâmetro callable
-`name: T` é `positionalOnly` em qualquer posição. A policy não muda porque um
-parâmetro vem primeiro ou depois de outro. O modifier contextual
-`named name: T` é `required(name)`. A forma `external internal: T` é
-`required(external)`; por exemplo, `to range: T` usa `to` como label externo e
-`range` como nome interno. `label` não é uma keyword. `_ name: T` preserva a
-decisão W-1160 e é `optional(name)`: a call aceita a forma posicional e a forma
-`name:`. O nome interno permanece disponível no body.
+#### 7.2.2 Labels, argument order e pipe holes
 
-Esta policy vale para funções, methods, closures nomeadas e requirements.
-Initializers sintetizados ou explícitos e payloads labeled de enum continuam
-record-like conforme a seção 7.4: `name: T` publica label obrigatório em todos
-os slots. A diferença vem do tipo de declaration, nunca do índice do parâmetro.
+**W-1514 — labels e calls reorderable (Forma vigente):** um parâmetro callable
+`name: T` publica o label externo homônimo obrigatório. A forma
+`external internal: T` publica `external:` e mantém `internal` como binding.
+`_ name: T` é positional-only. O marker `_` e o binding são separados por
+whitespace. `_name: T` é um parâmetro labeled comum com label `_name:`.
+External labels precisam ser únicos na declaration inteira; uma âncora não
+torna labels repetidos válidos. Repetição em callable ou generic head produz
+`W-LABEL-0006`, pois âncoras omitíveis não podem tornar lookup ambíguo.
 
-Os argumentos mantêm a ordem da declaração. Labels identificam papéis, mas não
-permitem reordenar argumentos. O checker expande as formas de call antes de
-verificar tipos. Duas formas aceitas que colidem tornam a declaration ou o
-overload inválido. O formatter preserva a forma escrita na call. A interface,
-`w explain call` e a HIR listam as formas aceitas e a forma normalizada.
+Named arguments fazem bind por label, sem depender da ordem textual. A assinatura
+é dividida em segmentos pelos parâmetros `_`. Labels podem reordenar somente
+dentro do próprio segmento. Cada âncora fica na posição declarada e todas as
+âncoras preservam sua ordem. Um default omitido não remove a fronteira lógica.
 
 ```w
-fn reserve(order: Order, audit: Audit, id: ReservationId) {}
-reserve(order, audit, id)
+fn route(_ source: Source, to target: Target, with mode: Mode) {}
+route(source, with: .safe, to: target)
 
-fn auditedReserve(order: Order, named audit: Audit, named id: ReservationId) {}
-auditedReserve(order, audit: audit, id: id)
+fn window(leftStart start: Index, leftEnd end: Index, _ center: Index,
+          rightStart start2: Index, rightEnd end2: Index) {}
+window(leftEnd: end, leftStart: start, center,
+       rightEnd: end2, rightStart: start2)
 
-fn move(from source: Point, to destination: Point) {}
-move(from: current, to: next)
-
-fn note(_ message: String) {}
-note("ready")
-note(message: "ready")
-
-fn inspect(named: Bool) {}
-inspect(flag)
+// error: named argument cannot cross the positional anchor
+window(leftStart: start, rightStart: start2, center,
+       leftEnd: end, rightEnd: end2)
 ```
 
-`order`, `audit` e `id` em `reserve` são positional-only. `named audit` e
-`named id` exigem os labels homônimos sem duplicar bindings. `from` e `to` são
-labels obrigatórios distintos; `source` e `destination` são os nomes internos.
-As duas calls de `note` selecionam um único slot com label opcional. Uma
-declaration que publique `note(_ message: String)` e `note(message: String)` é
-rejeitada por colisão após a normalização. `named` é contextual: em
-`inspect`, ele é somente o nome de um parâmetro posicional porque não precede
-outro nome de parâmetro.
+A call `window` reordena dois labels em cada segmento sem cruzar `center`. A
+segunda call tenta entrar no segmento posterior antes de fornecer a âncora e é
+rejeitada. O checker seleciona a call shape antes de verificar types. A shape
+usa nome e receiver, o conjunto de labels de cada segmento e a aridade/âncoras
+posicionais. Permutações do mesmo conjunto de labels não criam overloads
+distintos. Duas declarações que diferem somente pela ordem desses labels
+colidem. Types nunca escolhem binding, reordenam positional-only ou desempatam
+um pipe hole.
 
-`allocator name: ref Allocator` é o único parâmetro contextual permitido. Ele
-deve ser o primeiro parâmetro explícito e não pode repetir. O label externo é
-`allocator:` e o nome interno é `name`. O parâmetro entra na signature, nos
-resource/interface facts e na ABI. Se uma declaração também publicar um effect
-row, o row conserva esse slot; o allocator não inventa um effect genérico. O
-body usa `name` como referência lexical para
-construction expressions diretas que omitem `allocator:`. Uma call a outra
-função com o slot contextual pode omitir `allocator:`: W-1349 insere
-`ref currentAllocator` na HIR. Um parâmetro comum chamado `allocator` ou apenas
-tipado `Allocator` não participa. O checker rejeita parâmetro contextual não
-primeiro, duplicado ou oculto por overload.
+Receiver ou pipe lhs avalia primeiro. Cada expression explícita avalia uma vez,
+da esquerda para a direita na ordem escrita. O lowering reorganiza os values para
+declaration/ABI order. Defaults seguem declaration order depois dos explícitos.
+
+`allocator name: ref Allocator` continua único e contextual, mas pode aparecer
+em qualquer posição declarada. Sua posição permanece na signature, HIR e ABI.
+Uma resolução contextual preenche o slot nominal sem entrar na call shape. O
+label `allocator:` continua permitido quando o caller fornece o slot
+explicitamente. Um parâmetro comum chamado `allocator` não recebe tratamento
+contextual.
 
 ```w
-fn decode(allocator memory: ref Allocator, frame: ref Bytes): Frame {
-  var fields = Array<Field>()       // usa memory neste body
-  return parse(frame, into: fields) // parse não herda memory
+fn decode(frame: ref Bytes, allocator memory: ref Allocator, format: Format): Frame {
+  var fields = Array<Field>(allocator: memory)
+  return parse(frame, into: fields, format: format)
 }
 
-// error: allocator slot must be first and unique
-fn invalid(frame: ref Bytes, allocator memory: ref Allocator, allocator other: ref Allocator): Frame { ... }
+decode(frame: ref input, format: .binary) // memory vem do contexto
 ```
+
+`|>` aceita um único slot obrigatório não contextual ainda sem binding no
+template. Zero ou dois ou mais slots faltantes é diagnostic, mesmo quando types
+parecem desambiguar. Defaults não são holes. Um named hole pode estar em
+qualquer posição de declaration e segmento:
+
+```w
+fn labelRoute(prefix: Prefix, value: Value, suffix: Suffix = .default) {}
+input |> labelRoute(prefix: .left) // pipe preenche somente `value:`
+
+fn twoLabels(first: First, second: Second, suffix: Suffix = .default) {}
+input |> twoLabels(suffix: .right) // error: dois named holes
+
+fn namedAndAnchor(prefix: Prefix, _ center: Center, suffix: Suffix) {}
+input |> namedAndAnchor(suffix: .right) // error: named hole + anchor hole
+```
+
+Uma âncora com default ou preenchimento contextual pode ser omitida sem remover
+a fronteira lógica. Assim, uma label de segmento posterior pode saltar somente
+âncoras omitíveis; uma âncora required bloqueia o salto fora de pipe e cria o
+único pipe hole quando esse for o único slot obrigatório faltante. Um positional
+anchor só pode ser o hole quando é o único slot obrigatório faltante e os
+argumentos explícitos preservam suas fronteiras. A pipe avalia lhs uma vez e
+não introduz placeholder ou topic token.
+
+Quando o hole é encontrado, a operação do `lhs` também precisa satisfazer o
+contract do parâmetro: `take value |> consume()` e `mut document |> update()` são
+formas explícitas, enquanto um lhs bare não satisfaz um contract de mutation,
+borrow exclusivo ou take (exceto quando o expression já tem o tipo dependent
+correspondente). O oracle de ergonomia valida a shape e os argumentos
+explícitos; ele ainda não recebe provenance do lhs, portanto sua checagem
+completa de `acceptsPipeCallContract` permanece um gap declarado.
+
+Applications de type head e generic seguem exatamente o mesmo modelo: type
+parameters são âncoras posicionais, `_ name: Type` é uma âncora value
+positional-only, e named value arguments podem reordenar somente dentro do
+segmento entre âncoras. Types, constraints e predicates nunca desambiguam
+binding. A regra preserva a especialização e o ConstIR de W-1286; somente a
+forma de binding da application muda.
 
 Dentro de type, protocol, service ou extension, `fn` recebe `self` por borrow.
 `mut fn` recebe `self` com mutation exclusiva. `take fn` recebe ownership.
@@ -4781,7 +4882,7 @@ Os receiver modes são:
 | Forma | Receiver | Efeito no caller |
 |---|---|---|
 | `fn` | `ref self` | preserva o owner |
-| `mut fn` | `inout self` | preserva o owner e permite mutation |
+| `mut fn` | `mut ref self` | preserva o owner e permite mutation |
 | `take fn` | `take self` | transfere e invalida o binding |
 | `static fn` | nenhum | não usa uma instance |
 
@@ -4857,7 +4958,7 @@ Omitir o return type não retorna `self`. O retorno implícito faria uma funçã
 efeito parecer uma transformação. Ele também ocultaria borrow, copy ou move em
 um receiver com owner único.
 
-#### 7.2.2 Overloads por forma de call
+#### 7.2.3 Overloads por forma de call
 
 W permite overloads quando a sintaxe do call site seleciona uma declaração sem
 consultar tipos:
@@ -4882,12 +4983,14 @@ export fn expectedEnergy(
 As formas normalizadas são:
 
 ```text
-expectedEnergy(_, during:)
-expectedEnergy(_, duty:, during:)
+expectedEnergy(telemetry:, during:)
+expectedEnergy(power:, duty:, during:)
 ```
 
-Uma forma de call é a sequência ordenada dos labels externos. `_` identifica um
-argumento posicional. A quantidade de itens identifica a aridade.
+Uma forma de call registra, por segmento, o conjunto de labels externos. `_`
+registra cada argumento posicional e sua âncora. A quantidade de itens em cada
+segmento identifica a aridade daquele segmento. A ordem dos labels dentro de um
+segmento não entra na identidade.
 
 Name lookup primeiro encontra um único owner e seu overload set. Free functions,
 instance methods e static functions pertencem a espaços de lookup distintos.
@@ -4906,10 +5009,11 @@ parâmetros, return type, constraints, receiver mode, `async`, `throws`,
 ownership e conversões não ordenam candidatos. Duas declarações do mesmo owner
 não podem aceitar a mesma forma.
 
-Um parâmetro com default cria formas adicionais. Cada forma deve mapear uma
-única lista de parâmetros. Um argumento labeled com default pode ser omitido.
-Entre os parâmetros `_`, somente um sufixo com default pode ser omitido. O
-compiler rejeita a declaração se duas omissões produzirem a mesma forma.
+Um parâmetro com default cria formas adicionais, sem remover a fronteira de um
+anchor. Cada forma deve mapear uma única lista de parâmetros. Um argumento
+labeled com default pode ser omitido. A omissão de um default não permite que um
+label atravesse um anchor. O compiler rejeita a declaração se duas omissões
+produzirem a mesma forma.
 
 Estas declarações entram em conflito:
 
@@ -4917,19 +5021,20 @@ Estas declarações entram em conflito:
 fn parse(value: String): GuestId
 fn parse(value: Bytes): GuestId
 
-fn serve(order: Order)
-fn serve(order: Order, mode: ServiceMode = .normal)
+fn serve(_ order: Order)
+fn serve(_ order: Order, mode: ServiceMode = .normal)
 ```
 
-A segunda família aceita `serve(_)` duas vezes. Use labels, generics,
+A segunda família aceita a mesma forma `serve(_)` quando o default é omitido.
+Use labels, generics,
 protocols ou nomes diferentes:
 
 ```w
 fn parseText(value: String): GuestId
 fn parseBytes(value: Bytes): GuestId
 
-fn serve(order: Order)
-fn serve(order: Order, with mode: ServiceMode)
+fn serve(_ order: Order)
+fn serve(_ order: Order, with mode: ServiceMode)
 ```
 
 O nome de uma função singular pode ser um valor. Um nome que resolve para um
@@ -4967,93 +5072,152 @@ overlap e lowering. Type packs heterogêneos ficam **Rejeitado por enquanto**.
 ```w
 fn inspect(value: ref Value)
 fn edit(value: inout Value)
+fn inspectDirect(value: mut ref Value)
+fn inspectView(value: mut view Value)
 fn store(value: take Value)
 fn transform(value: Value): Result
 fn prepare(format: const Format): PreparedFormat
 ```
 
-**W-1291 — contrato depois do binding:** labels e nomes ficam à esquerda de
-`:`. O modo do parâmetro fica à direita, junto do type contract. As formas
-canônicas são `value: ref T`, `value: inout T`, `value: take T` e
-`value: const T`. A forma `take value: T` não declara um parâmetro consuming:
-ela ocupa a posição sintática de um label externo e é rejeitada por
-`W-OWNERSHIP-0016`. A mesma regra rejeita `ref value: T`, `inout value: T` e
-outros modificadores de ownership nessa posição.
+**W-1515 — separação de ownership, copy e object defaults (Forma vigente):**
+`ref T` é um borrow compartilhado read-only. `mut ref T` é um borrow exclusivo
+direto, dependent e lifetime-checked. `mut view T` é uma view exclusiva lógica.
+Esses borrows podem aparecer em parâmetros, resultados, bindings, optionals,
+iterações, aggregates, captures e projections somente quando o checker prova a
+origem e o lifetime. O valor dependent não possui o referent e não pode
+sobreviver ao place de origem. O source place permanece sob o checker de
+lifetime e não vira um value armazenável.
 
-`copy` e `pin` não são modos de parâmetro. Um parâmetro comum continua escrito
-`value: T`; o caller escreve `copy value` quando precisa materializar um valor
-independente. `pin` permanece uma operação de ownership. `mut` modifica binding
-ou receiver, não um parâmetro. `shared`, `weak` e `view` são formas de tipo
-definidas na seção 9.1. Elas ficam depois de `:`:
+`inout T` é somente uma convenção de parâmetro e call. O callee recebe um local
+mutável. O source place fica reservado durante a call. O lowering faz writeback
+no retorno normal e em `throw` estruturado. Panic ou fault não fabrica cleanup
+ou writeback. `inout` não é um type armazenável, resultado, pattern mode,
+iteration mode, aggregate field, capture mode ou property accessor. Uma
+implementação pode baixar `inout` para borrow direto somente quando prova
+equivalência observacional. Essa equivalência não muda a superfície.
+
+```w
+fn edit(value: inout Counter) { value += 1 }
+fn direct(value: mut ref Counter) { value += 1 }
+
+var counter = Counter(value: 0)
+edit(value: inout counter)
+direct(value: mut ref counter)
+expect counter.value == 2
+```
+
+`copy` e `pin` não são modos de parâmetro. Um parâmetro value continua escrito
+`value: T`; o caller escreve `copy value` para materializar uma duplicação
+independente. `pin` permanece uma operação de ownership. `shared`, `weak` e
+`view` são formas de tipo definidas na seção 9.1. `mut ref` e `mut view` ficam
+depois de `:` quando qualificam o type:
 
 ```w
 fn cache(menu: shared Menu)
 fn title(menu: ref Menu): view String
 fn consume(menu: take Menu)
+fn change(menu: mut ref Menu)
+fn window(menu: mut view Menu)
 
-consume(take menu)
+consume(menu: take menu)
 ```
 
 Essa ordem separa três contratos sem depender de whitespace: call label e
-binding, depois ownership, depois type. Function types omitem bindings e mantêm
-somente o contrato, como `fn(ref Menu, take Order): Receipt`.
+binding, depois parâmetro/call convention, depois type. Function types omitem
+bindings e mantêm o contrato, como `fn(ref Menu, inout Counter): Receipt`.
 
 Um parâmetro `T` é pass-by-value. Um tipo `Copy` produz uma cópia semântica
-implícita e de custo limitado. Um tipo owned que não atende a `Copy` pode ser
-movido no último uso. `take T` exige transferência e mostra essa exigência na
-assinatura e no call site.
+implícita, bounded e sem hidden allocation ou traversal dependente de dados.
+Uma travessia fieldwise fixa de fields que também são `Copy` é permitida. Um tipo owned que
+não atende a `Copy` pode ser movido em rvalue ou last-use. `take T` exige
+transferência e mostra essa exigência na assinatura e no call site. Structs e
+enums são value-semantic e não são automaticamente `Copy`.
 
 ```w
-inspect(ref value)
-edit(inout value)
-store(take value)
+edit(value: inout value)
+inspectDirect(value: mut ref value)
+store(value: take value)
 let duplicate = copy value
 ```
 
-**W-1292 — operações sobre places ficam visíveis:** `ref`, `inout`, `take`,
-`copy` e `pin` aparecem quando a chamada cria uma operação sobre um place que o
-caller já possui. Portanto, um owner lvalue passado a `ref T` usa `ref value`;
-um owner lvalue passado a `take T` usa `take value`. `inout` sempre exige um
-place exclusivo explícito.
-
-O prefixo não é decoração da call. Um expression que já tem type `ref T` pode
-ser passado diretamente a outro `ref T`: ele faz reborrow do loan existente.
-Um rvalue owned novo também não recebe `ref` ou `take`; o temporary owner fica
-no invocation plan e vive até o fim exigido pelo mapping de lifetime. Assim:
+`ref`, `mut ref`, `mut view`, `inout`, `take`, `copy` e `pin` aparecem quando a
+call cria uma operação sobre um place existente. Um expression que já tem type
+`ref T` ou `mut ref T` faz reborrow direto e não repete o marker. Um rvalue owned
+novo fica no invocation plan até o fim exigido pelo mapping de lifetime. Assim:
 
 ```w
-inspect(ref ownedMenu)        // cria borrow de um owner place
-inspect(existingBorrow)      // reborrow; o expression já é ref Menu
-inspect(loadMenu())           // temporary owner, borrow call-scoped
-store(take ownedOrder)        // transfere um owner place
-store(Order(...))             // owner novo já pertence ao argumento
-edit(inout draft)             // cria loan exclusivo
+inspect(value: ref ownedMenu)
+change(value: mut ref ownedMenu)
+inspect(value: existingBorrow)
+inspect(value: loadMenu())
+store(value: take ownedOrder)        // transfere um owner place
+store(value: Order(...))             // owner novo já pertence ao argumento
+edit(value: inout draft)             // cria loan exclusivo
 ```
 
-O checker rejeita `inspect(ownedMenu)`, `inspect(take ownedMenu)` e
-`store(ref ownedOrder)`. Ele usa o contrato esperado e a value category depois
-de type checking; a grafia isolada não distingue owner place, borrow e rvalue.
+O checker rejeita `inspect(value: ownedMenu)` quando o parâmetro exige `ref`,
+`change(value: ownedMenu)` quando exige `mut ref`,
+`store(value: ref ownedOrder)` e qualquer `inout` fora de parâmetro/call. Ele
+usa o contrato esperado e a value category
+depois do type checking. A grafia isolada não distingue owner place, borrow e
+rvalue.
 O receiver read-only de um método continua implícito em `value.method()` porque
 o member access já identifica o place e o receiver contract. Receivers
-`inout` e `take` seguem as regras explícitas da seção 7.2.
+`mut ref` e `take` seguem as regras explícitas da seção 7.2.
 
-`copy value` usa `Duplicable` quando o valor não é `Copy`. A operação é
-explícita porque pode percorrer storage ou alocar:
+Para um tipo nominal conhecido `object`, um parâmetro sem modo explícito
+normaliza para `ref ObjectType` e uma call read-only omite `ref`. O caller pode
+escrever `mut objectPlace` para o parâmetro `mut ref ObjectType`; o place precisa
+ser mutable. `mut ref objectPlace` continua explícito e válido. A forma curta é
+somente ergonomia para objects, não um modo geral para struct ou enum:
+
+```w
+object Document { var title: String }
+fn update(document: mut ref Document) {}
+
+var document = Document(title: "draft")
+update(document: mut document)
+update(document: mut ref document)
+// error: update(document: document) — o marker de mutation não pode ser omitido
+```
+
+`take`, `copy` e `inout` continuam explícitos. Para struct, enum, scalar e
+generic unconstrained, `T` continua pass-by-value; `mut` não cria um modo geral
+para esses values. Se o expression já é `ref` ou `mut ref`, a call não repete o
+marker.
+
+`Copy` e `Duplicable` são contratos distintos:
+
+- `Copy` é implícito, bounded e sem hidden allocation ou traversal dependente de
+  dados. Uma travessia fieldwise fixa de fields `Copy` é permitida. Ele preserva
+  a semântica dos fields. Copiar um field `ref` copia a borrow edge.
+  Copiar um handle shared copia o handle e sua identity. Em termos de grafo,
+  `Copy` é sempre shallow: ele nunca clona o grafo alcançável. A travessia fixa
+  de fields inline não transforma essa regra em deep copy.
+- `Duplicable` é `copy value` explícito. Ele pode percorrer ou alocar storage e
+  promete independência lógica conforme o type contract.
+
+`copy value` usa `Duplicable` quando o valor não é `Copy`:
 
 ```w
 protocol Duplicable {
   fn duplicate(): Self
 }
 
-let titleCopy = copy title           // String: O(bytes)
-let menuCopy = copy menu             // Array<String>: O(elements + bytes)
-let socketCopy = copy socket         // error: Socket is not Duplicable
+let titleCopy = copy title
+let menuCopy = copy menu
+// error: Socket is not Duplicable
+let socketCopy = copy socket
 ```
 
-`Copy` refina `Duplicable`, mas o compiler pode implementar a duplicação como
-uma operação escalar. String, Bytes, Array, Map e Set atendem a `Duplicable`
-quando seus elementos atendem. Um resource, capability ou owner singular não
-ganha conformance automática.
+`Copy` e `Duplicable` não são sinônimos universais de shallow ou deep copy.
+String, Bytes, Array, Map e Set atendem a `Duplicable` quando seus elementos
+atendem. Um resource, capability ou owner singular não ganha conformance
+automática. `Copy` exige que todos os components permitam cópia bounded e sem
+hidden allocation. Um `object` nominal representa uma identidade/owner singular
+e não pode atender a `Copy`; compartilhamento usa o handle `shared`, e uma
+duplicação lógica só existe quando o próprio contrato `Duplicable` cria uma nova
+identidade válida.
 
 `const` não é um ownership mode. Ele exige um argumento compile-time e não
 adiciona syntax no call site. A seção 3.6.1 define o requisito.
@@ -5067,9 +5231,11 @@ let ownedRecipe: Recipe = copy recipe
 ```
 
 Uma implementação de `Duplicable` é nonthrowing sob a policy normal de OOM. Ela
-cria um valor semanticamente independente. COW só pode otimizar a operação
-quando allocation, budget, deallocator, failure e cleanup não observam a
-mudança. Mutar um resultado nunca altera o outro:
+cria um valor semanticamente independente. COW não é baseline universal de
+String ou Array. Um type que declara uma estratégia COW pode implementar
+`Duplicable` com backing físico compartilhado e detach na mutation. O contrato
+deve expor allocator, budget, failure, cleanup e custos cross-domain. A
+independência lógica deve permanecer observável:
 
 ```w
 let original = "Last Light"
@@ -5081,12 +5247,17 @@ expect original == "Last Light"
 Partial move exige destructuring. O design vigente não permite mover um field e continuar a
 usar o aggregate parcialmente inicializado.
 
-Um aggregate torna-se lifetime-dependent quando contém `ref`, `inout`, `view` ou
-capture borrowed. `copy` só é válido quando a composição normal atende a
-`Copy`. Um field `inout` torna o aggregate move-only. A cópia preserva as
-dependency edges e sua projeção de origins. O move transfere as edges sem criar
-ownership do referent. A regra vale para tuples, structs, objects move-first,
-enums, `Option`, collections, closures e existentials.
+Um aggregate ou capture torna-se lifetime-dependent quando contém `ref`, `mut
+ref`, `mut view` ou outro borrow. Ele só pode existir quando origem e lifetime
+forem provados; não possui o referent e não sobrevive a ele. `inout` não pode
+ser field. `copy` só é válido quando a composição atende a `Copy` ou quando o
+caller usa `Duplicable` explicitamente. A cópia preserva as dependency edges e
+sua projeção de origins. O move transfere as edges sem criar ownership do
+referent. A regra vale para tuples, structs, objects, enums, `Option`,
+collections, closures e existentials.
+Resultados dependent usam `return ref place` ou `return mut ref place`. Um
+resultado `inout` é rejeitado. Captures usam `ref`, `mut ref`, `copy`, `take` ou
+`weak`; `inout` não é capture mode.
 
 O HIR registra a causa por projection. Ele não transforma um stored field
 borrowed numa proibição de composição local. O valor continua sem metadata de
@@ -5094,13 +5265,24 @@ lifetime em runtime.
 
 ### 7.4 Patterns de struct
 
-O pattern de struct usa o nome do tipo e dos fields:
+Quando o scrutinee determina um único tipo struct, a forma curta usa braces e
+infere o nome nominal:
+
+```w
+let { id, guest: { name, ... }, ... } = take order
+let ref { course, ... } = order
+let mut ref { state, ... } = mut ref table
+```
+
+A forma qualificada usa o nome do tipo. Ela permanece necessária quando o tipo
+não é determinado pelo scrutinee, como em um pattern de `switch`, ou quando a
+qualificação torna um match genérico/existential inequívoco:
 
 ```w
 let ref Order(guests, course, ...) = order
 let Guest(id, name, ...) = take guest
 let Order(id: orderId, guest: Guest(name, ...), ...) = take order
-let inout Table(state, ...) = inout table
+let mut ref Table(state, ...) = mut ref table
 ```
 
 Um field sem `:` também cria um binding com o mesmo nome. `field: pattern`
@@ -5111,24 +5293,32 @@ Ele cobre os fields não listados.
 Dentro de `Type(...)`, o token isolado `...` significa rest. Um range sempre
 possui um operando. O parser distingue as duas formas sem consultar tipos.
 
+Dentro de `{...}`, os mesmos fields, renames, nested patterns e rest são
+aceitos. Braces não constroem um valor struct em expression position; a criação
+nominal continua `Type(field: value)`. Portanto `let { id, ... } = place` é um
+binding pattern, não um object literal. Se o RHS não possui um único tipo struct
+estático ou se o tipo fica apagado antes do match, a forma inferida produz
+`W-PATTERN-0008`; o programa usa a forma qualificada ou recupera o tipo antes.
+
 O qualifier após `let` define um modo uniforme:
 
 | Forma | Resultado |
 |---|---|
+| `let { ... } = take value` | infere o struct, consome o aggregate e cria values owned |
 | `let Type(...) = take value` | consome o aggregate e cria values owned |
 | `let Type(...) = copy value` | copia o aggregate e cria values owned |
 | `let ref Type(...) = value` | cria borrows compartilhados dos fields |
-| `let inout Type(...) = inout value` | cria borrows exclusivos dos fields |
+| `let mut ref Type(...) = mut ref value` | cria borrows exclusivos dos fields |
 
 O modo owned consome ou copia o aggregate inteiro. Os fields cobertos por `...`
 são destruídos com o restante do valor quando aplicável. O binding original não
 fica parcialmente inicializado.
 
-Um pattern emprestado aceita somente `let`. A mutation vem do modo `inout`, não
-de `var`. Os borrows de fields distintos podem coexistir. O owner completo não
+Um pattern emprestado aceita somente `let`. A mutation vem do modo `mut ref`,
+não de `var`. Os borrows de fields distintos podem coexistir. O owner completo não
 pode ser movido enquanto um desses borrows estiver vivo.
 
-O design vigente não mistura `copy`, `ref`, `inout` e `take` dentro do mesmo pattern. O
+O design vigente não mistura `copy`, `ref`, `mut ref` e `take` dentro do mesmo pattern. O
 programa usa projeções de field quando precisa de modos diferentes.
 
 Somente stored fields visíveis no ponto de uso participam do pattern. Um struct
@@ -5248,7 +5438,7 @@ let result = estimate(2<si.W>, 3<si.s>)
 ```
 
 Um overload set não converte para callable por expected type. O programa usa uma
-closure explícita, como mostra a seção 7.2.1. Defaults também não acompanham o
+closure explícita, como mostra a seção 7.2.3. Defaults também não acompanham o
 valor callable.
 
 O callable mode descreve como o corpo usa o ambiente capturado:
@@ -5350,7 +5540,7 @@ registra cada place capturado, seu modo, lifetime, owner e drop path. Uma closur
 armazenada não captura `inout`. Um borrow `ref` só escapa quando o lifetime do
 owner cobre todo o destino.
 
-Um child estruturado pode manter um borrow exclusivo passado como `inout`. O
+Um child estruturado pode manter um borrow exclusivo passado como `mut ref`. O
 owner e o task frame precisam ficar estáveis. O parent não acessa o valor antes
 do join. Um runtime owner ou `SharedTask` não recebe esse borrow.
 
@@ -5482,7 +5672,7 @@ export enum Course {
 }
 
 let zero = Money.zeroCredits
-let cake = Course.fromOrdinal(1)
+let cake = Course.fromOrdinal(value: 1)
 ```
 
 `const` dentro do tipo declara um associated compile-time value. `static fn`
@@ -5572,10 +5762,14 @@ A assinatura segue estas regras:
 2. um field sem initializer cria um parâmetro obrigatório;
 3. um field com initializer cria um parâmetro que pode ser omitido;
 4. computed properties não criam parâmetros;
-5. os argumentos seguem a ordem de declaração dos fields;
-6. cada valor é avaliado e instalado nessa mesma ordem;
-7. um struct usa o nível menos visível entre tipo e fields;
-8. um object mantém o initializer no módulo.
+5. argumentos nomeados podem reordenar somente dentro de seu segmento; âncoras
+   posicionais preservam as fronteiras declaradas;
+6. expressions explícitas são avaliadas uma vez, da esquerda para a direita na
+   ordem lexical da call; depois, defaults omitidos são avaliados na ordem de
+   declaração;
+7. temporaries já avaliados são instalados nos fields na ordem de declaração;
+8. um struct usa o nível menos visível entre tipo e fields;
+9. um object mantém o initializer no módulo.
 
 Um `export struct` transparente recebe um initializer `export` no caso comum.
 Adicionar um field obrigatório quebra seus callers. Um field com default
@@ -5612,16 +5806,34 @@ export struct PidController {
 
 `init` é contextual ao corpo de `struct` ou `object`. Ele não recebe `fn`,
 `static`, `mut`, `async` ou return type. Ele pode receber visibilidade,
-`unsafe` e `throws E`. Construção é record-like: em initializer explícito,
-`name: T` publica `required(name)` em qualquer posição. A forma
-`external internal: T` publica `required(external)`, e `_ name: T` publica
-`optional(name)`. A mesma regra vale para payloads labeled de enum. Assim,
-`Type(field: value)` continua alinhado ao initializer sintetizado, enquanto uma
-API posicional escreve essa intenção com `_`. `named` é rejeitado nesses dois
-contexts porque `name: T` já publica exatamente o mesmo contrato record-like.
+`unsafe` e `throws E`. Initializers explícitos e payloads de enum usam a mesma
+policy uniforme da seção 5.6: `name: T` publica `required(name)`,
+`external internal: T` publica `required(external)` e `_ name: T` é
+positional-only. Um initializer sintetizado publica os labels homônimos dos
+fields. Assim, `Type(field: value)` permanece o default; uma chamada positional
+a esse initializer sintetizado é rejeitada. Uma API positional customizada
+escreve essa intenção com `_` na declaração explícita.
+
+O initializer sintetizado conserva essa separação entre evaluation e instalação:
+
+```w
+struct Defaults {
+  first: Int
+  second: Int = fallback()
+  third: Int
+}
+
+Defaults(third: thirdEffect(), first: firstEffect())
+// thirdEffect() e firstEffect() avaliam nessa ordem; fallback() vem depois.
+// A instalação segue `first`, `second`, `third`; uma forma positional é erro.
+```
+
+O oracle de ergonomia verifica a ordem lexical dos arguments explícitos e a
+ordem de declaration dos defaults/fields; reordenar labels não reordena efeitos
+já avaliados.
 
 Um tipo pode declarar vários initializers. Suas formas de call devem ser
-disjuntas conforme a seção 7.2.1:
+disjuntas conforme a seção 7.2.3:
 
 ```w
 export struct Money {
@@ -5731,44 +5943,65 @@ object Cursor {
   var index: usize {
     get => storedIndex
     set(value) => storedIndex = value
-
-    modify {
-      return inout storedIndex
+    get mut ref {
+      return mut ref storedIndex
     }
   }
 }
 ```
 
 Uma propriedade read-only não recebe `var`. Uma propriedade writable recebe
-`var`, sempre declara `get` e declara `set`, `modify` ou ambos. W não possui
-write-only property.
+`var`, sempre declara `get` e declara `set`, `get mut ref` ou ambos. W não
+possui write-only property.
+
+`let` é um place imutável depois da inicialização: ele não oferece `set`,
+`inout` ou `get mut ref`, salvo quando um tipo declara uma abstração explícita
+de interior mutation. `var` é mutável somente pelas modalidades que a property
+publica. `const` é compile-time e não recebe observers runtime nem mutation por
+borrow.
 
 Os accessors usam estes receivers:
 
 | Accessor | Receiver | Resultado |
 |---|---|---|
-| `get` | `ref self` | valor da propriedade |
-| `set(value)` | `inout self` | substitui o valor lógico |
-| `modify` | `inout self` | empresta um place com exclusividade |
+| `get` | `ref self` | produz o value lógico |
+| `get ref` | `ref self` | produz borrow read-only |
+| `get mut ref` | `mut ref self` | produz borrow exclusivo scoped |
+| `set(value)` | `mut ref self` interno | substitui o valor lógico |
 
-`get => expression` e `set(value) => expression` são corpos curtos. Um bloco
-permanece disponível. `modify` usa bloco. `return inout place` abre um borrow
-escopado. O accessor retoma seus `defer` quando esse borrow termina.
+`get => expression`, `get ref`, `get mut ref` e `set(value) => expression` são
+corpos curtos. Um bloco permanece disponível. `return ref place` produz um
+borrow read-only. `return mut ref place` produz um borrow exclusivo. Um
+`get mut ref` pode usar `defer`; o accessor retoma depois que o borrow fecha.
+Em um `behavior` body, o prefixo opcional `mut` em `mut set(value)` declara que
+a implementação muta seu backing; a surface de computed property continua
+`set(value)`.
 
 #### 8.4.1 Lifecycle explícito de property
 
 Uma property armazenada e uma property apoiada por `behavior` possuem
 `storage` e participam de `init` e `drop`. Uma property computada participa
 somente das fases que declara e não recebe `storage` implícito. Quando existe
-storage em construção, sua escrita de inicialização bypassa `get`, `set` e
-`modify`.
+storage em construção, sua escrita de inicialização bypassa `get`, `set` e os
+getters borrowed.
 
 Uma atribuição simples chama `set` quando ele existe (ou substitui o storage
-diretamente); ela nunca passa por `modify`. Uma operação composta ou
-`mutating` usa `modify` exatamente uma vez e não baixa para um get-copy-set
-implícito.
+diretamente). Uma operação composta (`+=` e equivalentes) usa value get + set
+quando a property oferece ambos; essa composição executa `willGet`/`didGet` e
+`willSet`/`didSet`. Se a property expõe `get mut ref` sem value get + set, a
+operação composta pode operar no borrow direto e não chama observers de set.
+Binding ou call explicitamente `mut ref` é sempre direct borrow e bypassa
+observers de set.
 
-`return inout place` é um pre-borrow: o accessor produz o place antes de
+Passar uma property para `inout T` compõe owned/value `get` com `set` e segue a
+sequência observável `willGet`, produção do value, `didGet`, mutation local,
+`willSet`, set/writeback e `didSet`. A composição é rejeitada quando não há
+ambos os accessors necessários. Passar a property como `mut ref T` exige
+`get mut ref`; não chama `willSet` ou `didSet`, embora possa chamar
+`willGet`/`didGet` e outros access observers. Uma property que precisa validar
+cada mutation lógica não deve publicar acesso mut ref direto.
+
+`return ref place` e `return mut ref place` são pre-borrows: o accessor produz o place antes de
 transferir o controle ao chamador. O `defer` declarado no accessor retoma como
 hook local depois que o borrow termina, antes de o accessor devolver o
 resultado. Ele não observa um valor por uma segunda cópia.
@@ -5780,14 +6013,14 @@ substituir o valor e, nesse caso, não cria um `drop` do valor antigo. O storage
 declarado no tipo de backing; um property behavior não cria `deinit` nem tipo
 de backing oculto. A notificação externa é um método, service ou channel
 nomeado. `willSet`, `didSet` e observers implícitos continuam rejeitados como
-accessors ad hoc. Os hooks fechados `willSet`/`didSet`/`willModify`/`didModify`
-de um behavior observer nominal W-1512 são permitidos somente quando esse
-behavior é explicitamente aplicado ou composto.
+accessors ad hoc. Os hooks de behavior W-1516 são permitidos somente quando o
+behavior é explicitamente aplicado ou composto. Um direct `mut ref` não executa
+`willSet`/`didSet` de set.
 
 Não há supressão ou reentrada implícita de observer. Um acesso à mesma property
 dentro de um accessor faz o dispatch normal e pode recursar explicitamente;
 somente o acesso direto ao storage ou ao backing evita esse dispatch. Enquanto
-`modify` mantém o borrow exclusivo, um acesso sobreposto ao mesmo place falha
+`get mut ref` mantém o borrow exclusivo, um acesso sobreposto ao mesmo place falha
 na regra de exclusividade.
 
 Accessors são property-safe. O compiler aplica este teto de efeitos:
@@ -5807,12 +6040,17 @@ Um getter de receiver borrowed não move um valor move-only para fora de
 `self`. Ele pode devolver um valor `Copy`, um novo valor owned ou uma view
 permitida pelo borrow checker.
 
+`get mut ref` projeta um place exclusivo sem copiar o value. `inout property`
+compõe um owned/value `get` com `set` e executa writeback. Essa composição exige
+as duas modalidades. `get` não retorna sempre `ref`: seu resultado é o type
+declarado pelo accessor e obedece às opções Copy/owned/view acima.
+
 Um protocol pode exigir uma propriedade:
 
 ```w
 protocol CompletionMetric {
   completionCount: u64 { get }
-  var limit: usize { get set modify }
+  var limit: usize { get set get mut ref }
 }
 ```
 
@@ -5892,7 +6130,7 @@ Optional binding segue os modos de ownership comuns:
 
 ```w
 if let ref recipe = recipes[course] { inspect(recipe) }
-if let inout count = counts[course] { count += 1 }
+if let mut ref count = counts[course] { count += 1 }
 if let copy title = cachedTitle { send(title) }
 if let payment = gateway.poll() { archive(take payment) }
 ```
@@ -5909,7 +6147,7 @@ expect cachedTitle == .none
 ```
 
 `Option.take()` exige acesso exclusivo. Ele move o payload e grava `.none`.
-`Option<ref T>` e `Option<inout T>` preservam o borrow do payload.
+`Option<ref T>` e `Option<mut ref T>` preservam o borrow do payload.
 
 #### 8.5.3 Chaining, fallback e propagação
 
@@ -5931,11 +6169,11 @@ switch guest {
 }
 ```
 
-Optional chaining não faz mutation. Mutation condicional usa `if let inout`:
+Optional chaining não faz mutation. Mutation condicional usa `if let mut ref`:
 
 ```w
 guest?.visits += 1 // error: optional mutation can be skipped silently
-if let inout value = guest { value.visits += 1 }
+if let mut ref value = guest { value.visits += 1 }
 ```
 
 `??` avalia o lado direito somente quando o lado esquerdo é `.none`. O operador
@@ -6785,9 +7023,12 @@ Um type parameter é posicional. `name: Type` declara um value parameter
 compile-time imutável com label externo `name`:
 
 ```w
-struct Matrix<Element, rows: usize, columns: usize> { ... }
+struct Matrix<rows: usize, Element, columns: usize> { ... }
 
-let weights: Matrix<f32, rows: 3, columns: 4>
+let weights: Matrix<rows: 3, f32, columns: 4>
+
+struct ValueHead<rows: usize, _ count: usize, columns: usize> { ... }
+let values: ValueHead<rows: 3, 4, columns: 5>
 ```
 
 A vírgula separa slots do head; ela não vincula `rows` ou `columns` ao
@@ -6796,9 +7037,9 @@ independentes de `Matrix`. `rows` e `columns` são associated contract values da
 especialização `Matrix<...>`: nunca são propriedades de `Element` nem fields da
 instância.
 
-`_ name: Type` declara um value parameter com label externo opcional. O nome
-interno continua disponível no body. A aplicação pode usar `value` ou
-`name: value`. As duas formas ocupam o mesmo slot:
+`_ name: Type` declara um value parameter positional-only e uma âncora. O nome
+interno continua disponível no body, mas a aplicação não pode usar um label para
+esse slot. As âncoras preservam ordem e fronteiras:
 
 ```w
 struct StagePath<
@@ -6808,7 +7049,6 @@ struct StagePath<
 }
 
 let path: StagePath<[.accepted, .reserving, .preparing, .serving, .completed]>
-let samePath: StagePath<stages: [.accepted, .reserving, .preparing, .serving, .completed]>
 
 struct Window<_ start: usize, _ end: usize, unit: TimeUnit> {
   const span = end - start
@@ -6817,8 +7057,11 @@ struct Window<_ start: usize, _ end: usize, unit: TimeUnit> {
 let window: Window<0, 60, unit: .second>
 ```
 
-Value parameters com label opcional aceitam as duas formas no mesmo slot.
-Depois dos type parameters, os slots seguem a ordem de declaração:
+Type parameters e value anchors `_ name: Type` dividem a aplicação em segmentos
+na ordem declarada. Value labels podem reordenar somente dentro do segmento
+corrente; eles não cruzam uma âncora. Um head que declarar uma âncora omitível
+pode saltá-la sem remover a fronteira, mas uma âncora required bloqueia o salto.
+External labels continuam únicos em todo o head:
 
 ```w
 struct Tensor<Element, shape: StaticList<usize>> { ... }
@@ -6826,18 +7069,24 @@ struct Tensor<Element, shape: StaticList<usize>> { ... }
 let scores: Tensor<f32, shape: [8, 4]>
 ```
 
-Uma aplicação não pode colocar um argumento posicional depois de um argumento
-nomeado. Labels selecionam slots, mas não permitem reorder. Um `_` em type
-parameter é inválido porque type parameters já são posicionais. Um label externo
-explícito diferente do nome interno segue a mesma policy de normalização e
-aparece na HIR como `required(external)`.
+`Matrix<rows: usize, Element, columns: usize>` aceita
+`Matrix<rows: 3, f32, columns: 4>`. A forma
+`Matrix<rows: 3, columns: 4, f32>` cruza o type anchor `Element` e é inválida.
+`ValueHead<rows: 3, 4, columns: 5>` usa `_ count` como value anchor; a forma
+`ValueHead<rows: 3, columns: 5, 4>` cruza essa âncora e é inválida.
+Uma aplicação que cruza uma âncora, omite um label required, aplica label a type
+parameter ou fornece um positional que não ocupa a próxima âncora é inválida.
+Um `_` em type parameter é inválido porque type parameters já são âncoras
+posicionais. Um label externo explícito diferente do nome interno segue a mesma
+policy de normalização e aparece na HIR como `required(external)`.
 
-Cada slot da aplicação é obrigatório; `_` não declara um default. O binding
-consome sempre o próximo slot declarado. Type slots são posicionais e sem
-label; value slots com label required exigem o label externo exato; `_ name`
-aceita ausência do label ou `name:` no mesmo slot. Label desconhecido,
-duplicado, fora da ordem, extra ou aplicado a type slot não salta slots nem
-reordena argumentos e produz as famílias de diagnostics da seção 3.5.4.
+Cada slot da aplicação é obrigatório; `_` não declara um default. Type slots e
+value anchors positional-only consomem o próximo slot declarado, preservando sua
+ordem. Value slots com label required exigem o label externo exato e podem ser
+reordenados somente dentro do segmento atual; um label não salta uma âncora nem
+cruza sua fronteira. Label desconhecido, duplicado, extra ou aplicado a type
+slot, além de positional que não ocupe a próxima âncora, produz as famílias de
+diagnostics da seção 3.5.4.
 
 O value usado na identidade de um type head ou generic specialization deve
 satisfazer o predicate `StaticArgumentRepresentable` de §3.6.3. `const` em uma
@@ -6845,11 +7094,11 @@ call comum pode usar `ConstRepresentable`, que é um domínio diferente. O seed
 normaliza imediatamente somente o subconjunto Bool, integer bounded pelo
 target, String simples canônica, enum case e `StaticList` que sua API publica;
 as demais formas do predicate completo permanecem para o grafo const posterior.
-Um domínio dependente, como `_ value: T`, referencia somente um type parameter
+Um domínio dependente, como `value: T`, referencia somente um type parameter
 anterior do mesmo head; após resolver o slot de `T`, o checker exige que seu
 type seja `StaticArgumentRepresentable` antes de normalizar o value. Referência
-posterior ou ciclo é inválido. O marker `_` muda somente a policy do label e não
-cria storage, inferência ou valor default.
+posterior ou ciclo é inválido. O marker `_` torna o slot uma âncora
+positional-only; ele não cria storage, inferência ou valor default.
 
 Cada argumento possui o kind declarado pelo head resolvido. O checker executa a
 classificação após name resolution, sem heurística de casing:
@@ -6858,22 +7107,23 @@ classificação após name resolution, sem heurística de casing:
 2. `T: P` é type parameter se `P` resolve para protocol constraint;
 3. `name: Type` é value parameter se `Type` resolve para um tipo
    `StaticArgumentRepresentable`;
-4. `_ name: Type` é value parameter com label externo opcional;
+4. `_ name: Type` é value parameter positional-only e âncora;
 5. RHS unresolved ou ambiguous falha antes da classificação do kind.
 
 W não possui inheritance ou base-class constraint. Um existential value exige
-`any P` e não muda o kind de `T: P`. Um label desconhecido, duplicado ou fora
-de ordem é erro. A classificação usa o nome interno e o label externo opcional,
-sem heurística de casing.
+`any P` e não muda o kind de `T: P`. Um label desconhecido, duplicado ou que
+cruza uma âncora é erro. A classificação usa o nome interno e o label externo
+required, sem heurística de casing.
 
 Value parameters declarados no envelope são compile-time e imutáveis por
 definição. O slot não aceita `const`, `let` ou `var`. O parâmetro participa da
 type identity e da monomorphization. Ele não cria storage runtime; a avaliação
 de um `TypedConstExpr`, quando existir, ocorre no grafo const posterior.
-Os argumentos mantêm o kind e a ordem declarados:
+Os argumentos mantêm o kind e as âncoras declaradas; named values são avaliados
+na ordem escrita e normalizados para a ordem declaration/ABI:
 
 ```w
-Matrix<f32, rows: 3, columns: 4>
+Matrix<rows: 3, f32, columns: 4>
 StagePath<[.accepted, .preparing, .serving]>
 ```
 
@@ -6887,9 +7137,9 @@ Exemplos de classificação vigente:
 ```w
 struct Box<T> { value: T }                              // type sem constraint
 struct Encoded<T: Encodable> { value: T }               // type com protocol
-struct Matrix<Element, rows: usize, columns: usize> {}  // value nomeado
-struct StagePath<_ stages: StaticList<ServiceStage>> {} // label opcional: stages
-struct Pair<_ left: usize, _ right: usize> {}           // labels opcionais: left/right
+struct Matrix<rows: usize, Element, columns: usize> {}  // value nomeado
+struct StagePath<_ stages: StaticList<ServiceStage>> {} // âncora positional-only
+struct Pair<_ left: usize, _ right: usize> {}           // duas âncoras
 ```
 
 Estas declarações são rejeitadas:
@@ -6938,17 +7188,18 @@ compõem esses dois kinds sem criar um terceiro.
 
 ##### Labels e valores associados de heads
 
-Em `struct`, `object`, `enum`, `type` e `alias`, cada value parameter, com ou
-sem label externo, é uma associated contract value imutável da especialização.
+Em `struct`, `object`, `enum`, `type` e `alias`, cada value parameter, com
+label externo required ou positional-only, é uma associated contract value
+imutável da especialização.
 O binding existe no body e pode ser consultado por lookup estático:
 
 ```w
-struct Matrix<Element, rows: usize, columns: usize> {
+struct Matrix<rows: usize, Element, columns: usize> {
   const area = rows * columns
 }
 
-let rows = Matrix<f32, rows: 3, columns: 4>.rows
-let area = Matrix<f32, rows: 3, columns: 4>.area
+let rows = Matrix<rows: 3, f32, columns: 4>.rows
+let area = Matrix<rows: 3, f32, columns: 4>.area
 ```
 
 O lookup `Matrix<...>.rows` lê a value normalizada da especialização. Ele não
@@ -6958,19 +7209,18 @@ da instance. A visibilidade da associated contract value acompanha o type head.
 O nome associado fica reservado. Um member com o mesmo nome é erro semântico.
 
 Um value parameter com `_` mantém seu nome interno no body e na associated
-contract value. O marker `_` torna o label opcional. Ele não muda visibility,
-storage, type identity ou exposição estática:
+contract value. O marker `_` torna o slot positional-only e não aceita label.
+Ele não muda visibility, storage, type identity ou exposição estática:
 
 ```w
 struct OvenSession<_ state: OvenSessionState> { }
 let ready = OvenSession<.ready>.state
-let namedReady = OvenSession<state: .ready>.state
 ```
 
-O resolver baixa as duas aplicações para o mesmo `GenericValueSlot(name:
-state, value: .ready)` e para a mesma type identity/HIR. A interface mostra as
-duas spellings aceitas e `.state` resolve nos dois casos; nenhuma forma cria um
-alias ou elimina a associated contract value.
+O resolver baixa a aplicação para `GenericValueSlot(name: state, value: .ready)`
+e para a mesma type identity/HIR. A interface preserva o nome interno para
+`.state`; a ausência de label é parte do contrato positional-only, não uma
+segunda spelling nomeada nem um alias.
 
 Callable generic value parameters são bindings compile-time da call. Eles não
 criam associated members. Type identity, o grafo const posterior,
@@ -7143,7 +7393,7 @@ O compiler não retorna ao overload set quando inference falha.
 Uma call comum omite todos os argumentos inferíveis:
 
 ```w
-let found = contains(values, target: needle)
+let found = contains(values: values, target: needle)
 ```
 
 Um argumento explícito fixa uma parte da solução:
@@ -7156,8 +7406,11 @@ let forecast = try forecast<tables: 2, courses: 4>(
 )
 ```
 
-Type arguments explícitos formam um prefixo posicional. Labels de value podem
-omitir parâmetros inferíveis entre eles. `_` não é placeholder generic:
+Type arguments explícitos ocupam as âncoras de type na ordem declarada. Named
+value arguments ocupam labels required e podem reordenar somente no segmento
+entre âncoras; eles não atravessam type ou value anchors e não fazem inferência
+por tipo ou predicate. Parâmetros que não aparecem podem ser inferidos pelas
+fontes normais de inference, mas `_` não é placeholder generic:
 
 ```w
 decode<_>() // error: omit the argument or name a concrete type
@@ -7389,7 +7642,7 @@ A API aceita `ref any PricingPolicy` quando deseja dispatch dinâmico.
 
 HIR generic contém:
 
-- parâmetros em ordem, kind, nome interno e label externo opcional;
+- parâmetros em ordem, kind, nome interno e label externo quando declarado;
 - constraints normalizadas;
 - domínio const-representável e argumento normalizado;
 - exposição de associated contract value quando o owner é um type head;
@@ -7578,7 +7831,7 @@ Os precedentes de generics e inference ficam em
 |---|---|
 | `W-GENERIC-0001` | domain de parâmetro generic não resolve para constraint de protocol, `StaticArgumentRepresentable` ou type parameter anterior permitido |
 | `W-GENERIC-0002` | slot obrigatório está ausente ou inference não possui solução única para um parâmetro aberto |
-| `W-GENERIC-0003` | label de generic value parameter é inválido, está fora de ordem, ocorre após named, ou usa `_` em type parameter |
+| `W-GENERIC-0003` | binding generic viola o label required, a ordem de uma âncora, uma fronteira de segmento, ou aplica label a type/positional-only slot |
 | `W-GENERIC-0004` | nome de associated contract value duplica um member do type head |
 | `W-GENERIC-0005` | sequência de instantiations cresce sem convergir |
 
@@ -8152,8 +8405,9 @@ nem verificar criptograficamente.
 
 Spans, source spelling, source ordinals, labels, índices do frontend,
 allocation/layout, receipt/capacity, target/profile/edition/compiler versions e
-field bodies são excluídos. Assim, comentários, whitespace, labels opcionais e
-índices de allocation diferentes mantêm o mesmo preimage quando a projeção
+field bodies são excluídos. Assim, comentários, whitespace e a spelling dos
+labels não posicionais não mudam o preimage; índices de allocation diferentes
+mantêm o mesmo preimage quando a projeção
 semântica é a mesma. Mudar module, head, type/value, ordem da lista, subset ou
 `body_digest` muda o preimage. Digests diferentes implicam preimages diferentes;
 um digest igual isolado não prova preimages iguais nem identidade collision-safe.
@@ -8520,7 +8774,7 @@ TypeInfo.Property
   name: view String
   valueType: TypeId
   mutability: immutable | mutable
-  accessorAvailability: get | set | modify | combinations
+  accessorAvailability: get | get ref | get mut ref | set | combinations
 
 TypeInfo.Case
   name: view String
@@ -8662,7 +8916,7 @@ de evidência de implementação registrada em [§24.4.1](#2441-syn2dyn2-fechame
 `T...` declara zero ou mais argumentos do mesmo tipo:
 
 ```w
-fn schedule(table: TableId, named courses: Course...): usize {
+fn schedule(table: TableId, courses: Course...): usize {
   for course in courses {
     queue(table, course: course)
   }
@@ -8778,7 +9032,7 @@ fn archive(_ records: take AuditRecord...) {
 archive(each take pendingRecords)
 ```
 
-Rest exclusivo usa `inout view Array<T>`; `inout T...` não faz parte da
+Rest exclusivo usa `mut view Array<T>`; `inout T...` não faz parte da
 superfície.
 
 Argumentos individuais podem usar storage no call frame. Uma expansão borrowed
@@ -8824,27 +9078,28 @@ As formas de memória também pertencem a categorias diferentes:
 
 | Forma source | Categoria |
 |---|---|
-| `ref T`, `inout T` e `view T` | tipos dependentes; não possuem o referent |
+| `ref T`, `mut ref T`, `view T` e `mut view T` | tipos dependentes; não possuem o referent |
 | `shared T` e `weak T` | tipos de handle; fazem parte da identidade semântica do valor |
 | `take T` e `const T` | contratos de parâmetro ou receiver; não são tipos armazenáveis |
 | `var atomic value: T` | modificador de storage; o binding baixa para `Atomic<T>` |
 | `Pinned<T>` e `SnapshotCell<T>` | tipos nominais para contratos avançados |
 
-**W-1293 — tipo, contrato e storage ficam separados:** `shared T` é o tipo
-source final. O HIR pode usar um carrier parametrizado sem expor `Shared<T>`.
-`atomic` não segue essa regra: `atomic T` não é um tipo source. Essa separação
-impede que allocator, failure policy ou synchronization fragmentem a identidade
-de `shared T`.
+**W-1515 — tipo, contrato e storage ficam separados:** `shared T` é o tipo
+source final. `ref T`, `mut ref T`, `view T` e `mut view T` são tipos dependentes
+e não possuem o referent. `inout T` é uma convenção de parâmetro e não entra no
+type identity. O HIR pode usar carriers internos sem expor wrappers. `atomic`
+continua um modifier de storage. Essa separação impede que allocator, failure
+policy ou synchronization fragmente a identidade de um type.
 
 Gerência automática em W significa que o compiler prova lifetime, insere os
 drop paths e escolhe placement sem pedir stack, heap, GC ou reference counting
-no caminho comum. O source escolhe a semântica com `ref`, `inout`, `take` e
-`copy`. `pin`, `shared` e allocator blocks aparecem somente quando o contrato
+no caminho comum. O source escolhe a semântica com `ref`, `mut ref`, `mut view`,
+`inout`, `take` e `copy`. `pin`, `shared` e allocator blocks aparecem somente quando o contrato
 real exige endereço estável, owners múltiplos ou storage bounded explícito.
 
 Todo valor que exige cleanup possui um owner. O compilador controla
 inicialização, move, borrow, escape e drop. O caminho progride de value `Copy`
-para owner único e `ref`/`inout`. `Pinned<T>` aparece somente para endereço
+para owner único e `ref`/`mut ref`. `Pinned<T>` aparece somente para endereço
 publicado, allocator blocks para storage bounded com lifetime comum, `shared T`
 para owners múltiplos e service owner para estado serializado por instance.
 Pointer manual fica em `unsafe` ou FFI. O compiler nunca sobe essa escada em
@@ -8859,26 +9114,30 @@ quando a assinatura exige transferência:
 ```w
 fn inspect(value: ref Recipe)
 fn replace(value: inout Recipe)
+fn update(value: mut ref Recipe)
 fn enqueue(value: take Recipe)
 ```
 
 As regras são:
 
-- `ref T` permite leitura compartilhada;
-- `inout T` cria acesso exclusivo durante a call;
+- `ref T` permite leitura compartilhada read-only;
+- `mut ref T` cria acesso exclusivo direto e dependent;
+- `mut view T` cria uma view exclusiva lógica;
+- `inout T` cria value-in/value-out somente durante a call;
 - um borrow nunca estende o lifetime do owner;
 - um move invalida o binding em todos os caminhos que o executam;
 - joins de controle exigem o mesmo estado de inicialização;
 - partial move de field não existe no design vigente;
 - destructuring owned move o aggregate inteiro e inicializa novos bindings;
-- destructuring `ref` ou `inout` cria borrows de projections visíveis;
+- destructuring `ref` ou `mut ref` cria borrows de projections visíveis;
 - reatribuição avalia o novo valor antes de destruir o valor anterior.
 
 O frontend calcula lifetimes por uso e controle de fluxo. O source não contém
 annotations de lifetime. Quando a prova falha, o diagnostic mostra o owner, o
 borrow, o uso conflitante e a menor correção conhecida.
 
-`ref` e `inout` também podem qualificar um resultado ou um argumento de tipo.
+`ref`, `mut ref` e `mut view` também podem qualificar um resultado ou um
+argumento de tipo. `inout` não qualifica results ou types.
 Eles continuam borrows; não criam reference counting:
 
 ```w
@@ -8910,16 +9169,20 @@ fn invalid(): ref Recipe { // error: local Recipe ends at return
 }
 ```
 
-Um resultado `inout T` mantém o acesso exclusivo até o último uso do borrow. Ele
+Um parâmetro `inout T` mantém a reserva do source place até o writeback. O
+resultado `mut ref T` mantém o acesso exclusivo até o último uso do borrow. Ele
 não pode ser guardado em um field owned comum nem sobreviver ao owner:
 
 ```w
-guard let inout selected = inventory.getMutable(id) else {
+guard let mut ref selected = inventory.getMutable(id) else {
   throw .missingIngredient(id)
 }
 selected.quantity -= 1
 // inventory volta a aceitar acesso no último uso de selected.
 ```
+
+`inout` não pode aparecer nesse binding. A API retorna `mut ref` quando o
+borrow direto deve sobreviver à expressão que o produz.
 
 Um borrow pode permanecer vivo após `await` somente quando o compiler prova:
 
@@ -8987,14 +9250,14 @@ um parent exclusive podem coexistir. O checker rejeita o encerramento prematuro
 do parent e informa o `LoanId`. Uma ref ou view shared pode ser duplicada. A
 cópia de um child preserva o mesmo parent e adiciona outra obrigação de child.
 O parent só descongela depois do fim de todas as cópias.
-`inout`, `inout-view` e qualquer aggregate que os contém são move-only.
+`mut ref`, `mut view` e qualquer aggregate que os contém são move-only.
 
 Cada payload dependente possui edges individuais. Uma edge aponta para um owner
 payload/place local ou para um owner slot da interface. Ela registra ID, modo
 `shared` ou `exclusive`, origin e classe dinâmica. `OriginSet` é uma projeção
 deduplicada dessas edges. Duplicatas não são removidas da obrigação. Uma edge
 static ou immortal pode não ter owner dinâmico. Um stored `ref` ou `view` cria
-edge shared. Um stored `inout` cria edge exclusive. O value não mantém o
+edge shared. Um stored `mut ref` ou `mut view` cria edge exclusive. O value não mantém o
 referent vivo e não cria ARC.
 
 Uma edge é uma obrigação de lifetime e uma capability de acesso. Edge `shared`
@@ -9005,7 +9268,7 @@ Essa verificação usa somente os `ProofFacts` do ponto CFG atual.
 
 Cada edge ativa possui ID único. A operação interna da HIR `accessDependency`
 seleciona esse ID e verifica o modo antes de acessar o referent. Ela não é sintaxe
-W. O source continua usando o field `ref`, `view` ou `inout`. O verifier aceita
+W. O source continua usando o field `ref`, `mut ref`, `view` ou `mut view`. O verifier aceita
 origin como abreviação somente quando ela identifica uma única edge. Cada
 operação fornece ID ou origin, nunca ambos. Origin ambígua é rejeitada. A
 criação de um conjunto de edges é atômica: ID duplicado,
@@ -9022,7 +9285,7 @@ elimina uma edge provada. A origin só sai de
 `OriginSet` quando nenhuma edge restante a usa. O número de edges não possui
 limite semântico. Um proof budget não altera validade.
 
-Um value que contém direta ou transitivamente `ref`, `inout`, `view` ou capture
+Um value que contém direta ou transitivamente `ref`, `mut ref`, `view`, `mut view` ou capture
 borrowed é lifetime-dependent. A composição cobre tuple, struct, object
 move-first, enum/payload, `Option`, `Array`, collections, closure e existential.
 Erasure não apaga edges. `Array<ref T>` contém descriptor e storage próprios e
@@ -9403,7 +9666,7 @@ inferência. `W-OWNERSHIP-0013` aponta a tentativa sem binding declarativo.
 O diagnostic nunca altera overload ou insere allocation num call.
 
 A declaração `shared` exige payload `.lifetimeIndependent`. Ela não prolonga
-`ref`, `view`, `inout` ou capture borrowed. O `AllocationOriginMap` preserva as
+`ref`, `mut ref`, `view`, `mut view` ou capture borrowed. O `AllocationOriginMap` preserva as
 origens do payload e adiciona a origem do control block. Cada storage interno
 precisa durar pelo menos tanto quanto esse block; caso contrário, o caller usa
 `rehome` antes da promoção.
@@ -9860,16 +10123,17 @@ função sem slot começa seu body no contexto do próprio build profile; ela n�
 recebe o lexical allocator do caller. O nome anônimo não cria identifier ou
 binding sintético observável.
 
-**W-1349 — conclusão contextual de call:** somente um callee com exatamente um
-slot keyword `allocator name: ref Allocator`, primeiro parâmetro explícito e
-identity standard participa da omissão. O compiler materializa `ref
-currentAllocator` antes de ownership/effects. `allocator:` explícito continua
-válido e faz override. Um parâmetro comum chamado `allocator`, ou apenas tipado
-`Allocator`, usa a resolução normal de labels. Cada função intermediária entra
-com o argumento materializado quando declara o slot; sem slot, ela reinicia no
-contexto do próprio build profile e uma call seguinte pode usar o default geral
-ou falhar quando `memory.generalAllocator: .none` não oferece essa capability.
-Um contexto incompatível falha antes do body. `W-ALLOCATOR-0010` cobre somente slot
+**W-1349 — conclusão contextual de call (superseded por W-1514):** somente um
+callee com exatamente um slot keyword `allocator name: ref Allocator` e
+identity standard participa da omissão. O slot pode ocupar qualquer posição
+declarada; o compiler materializa `ref currentAllocator` no slot nominal antes
+de ownership/effects. `allocator:` explícito continua válido e faz override. Um
+parâmetro comum chamado `allocator`, ou apenas tipado `Allocator`, usa a
+resolução normal de labels. Cada função intermediária entra com o argumento
+materializado quando declara o slot; sem slot, ela reinicia no contexto do
+próprio build profile e uma call seguinte pode usar o default geral ou falhar
+quando `memory.generalAllocator: .none` não oferece essa capability. Um contexto
+incompatível falha antes do body. `W-ALLOCATOR-0010` cobre somente slot
 contextual genuíno sem current compatível. As transições de cadeia registram
 cada entrada/saída e `resolutionSource`.
 
@@ -9898,30 +10162,31 @@ universal continuam rejeitados.
 allocating. Somente runtime, FFI e adapters `unsafe` implementam a operação raw
 de allocate, resize e deallocate.
 
-**W-1330 — parâmetro contextual de allocator:** uma função pode declarar no
-máximo um parâmetro contextual `allocator name: ref Allocator`. Ele deve ser o
-primeiro parâmetro explícito e fica na signature semântica, no function type, nos
-resource e interface facts, no `AllocationOriginMap` e na ABI. Só participa de
-um effect row quando a linguagem declarar esse row explicitamente. O slot não
-inventa um effect genérico. Ele fornece o allocator corrente no body e publica o
-slot para a conclusão contextual de calls definida em W-1349. Function values,
-closures, callbacks e HIR preservam o slot e sua origin. Uma foreign ABI deve
-publicar o slot ou rejeitar a função. Um parâmetro não primeiro ou duplicado
-produz diagnostic antes da resolução de overload.
+**W-1330 — parâmetro contextual de allocator (superseded por W-1514):** uma
+função pode declarar no máximo um parâmetro contextual `allocator name: ref
+Allocator`. Ele pode ocupar qualquer posição declarada e fica nessa posição na
+signature semântica, no function type, nos resource e interface facts, no
+`AllocationOriginMap` e na ABI. Só participa de um effect row quando a linguagem
+declarar esse row explicitamente. O slot não inventa um effect genérico. Ele
+fornece o allocator corrente no body e publica o slot para a conclusão
+contextual de calls definida em W-1349. Function values, closures, callbacks e
+HIR preservam o slot e sua origin. Uma foreign ABI deve publicar o slot ou
+rejeitar a função. Um segundo slot contextual ou identidade divergente produz
+diagnostic antes da resolução de overload.
 
 ```w
-fn decode(allocator memory: ref Allocator, payload: ref Bytes): Document throws AllocationError {
+fn decode(payload: ref Bytes, allocator memory: ref Allocator): Document throws AllocationError {
   var nodes = Array<Node>()
   try nodes.tryReserve(minimumCapacity: 128)
   return try parseNodes(payload, into: nodes)
 }
 
-type Decoder = fn(allocator memory: ref Allocator, ref Bytes): Document
+type Decoder = fn(ref Bytes, ref Allocator): Document
 let callback: Decoder = decode
 ```
 
-Function types e callbacks preservam esse primeiro slot. Uma declaração
-`foreign<abi: .c> fn decode(allocator memory: ref Allocator, ...)` precisa
+Function types e callbacks preservam esse slot declarado. Uma declaração
+`foreign<abi: .c> fn decode(payload: ref Bytes, allocator memory: ref Allocator, ...)` precisa
 publicar uma lowering ABI para o slot; se a ABI não o representa, o checker
 rejeita a declaração. O callee recebe a omissão contextual somente quando cada
 função intermediária publica o mesmo slot. Não existe propagação transitiva
@@ -9936,8 +10201,9 @@ mistura phase e instance identity e fica **Rejeitado por enquanto**.
 sempre um label nominal local.
 Callback, network, launch, handler e policy podem usá-lo. Por exemplo,
 `CustomObj(using: recipe)` é uma call válida e não carrega facts de allocation.
-Em construction expressions `T(allocator: ..., ...)`, `allocator:` é reservado
-pela linguagem como control argument, canonicamente antes dos demais argumentos.
+Em construction expressions `T(..., allocator: ..., ...)`, `allocator:` é
+reservado pela linguagem como control argument e pode aparecer entre os demais
+labels sem alterar a ordem declarada dos parâmetros.
 Ele fica fora da overload e da initializer signature. `T(allocator: memory, ...)`
 seleciona a origem somente para os storage ou control-block allocation sites que
 o contrato da construção publica. Ele não propaga a origem para allocations
@@ -10301,7 +10567,7 @@ Os diagnostics mínimos do contrato de allocator são:
 
 | Code | Condição |
 |---|---|
-| `W-ALLOCATOR-0001` | slot contextual não é o único primeiro `allocator name: ref Allocator` standard |
+| `W-ALLOCATOR-0001` | slot contextual não é único ou não possui a identity standard `allocator name: ref Allocator` |
 | `W-ALLOCATOR-0002` | value, borrow, child, wait ou dependent escapa do allocator scope |
 | `W-ALLOCATOR-0003` | origem local alcança spawn, service, channel ou callback escapante sem mobilidade; `await` só falha sem owner/lifetime estáveis |
 | `W-ALLOCATOR-0004` | plan customizado não publica `providerDigest: [u8; 32]` não nulo, version, failure, deallocator, mobility ou `const descriptor`/`take fn open()` |
@@ -10394,7 +10660,7 @@ let location: Address = pointer.address
 
 As regras de W são:
 
-- `ref`, `inout` e `view` preservam provenance;
+- `ref`, `mut ref`, `mut view` e a reserva de `inout` preservam provenance;
 - `c.ptr<T>` só permite dereference, arithmetic ou cast em `unsafe`;
 - um pointer derivado não amplia bounds, lifetime ou mutabilidade;
 - pointer arithmetic válida permanece na mesma allocation ou no one-past;
@@ -10680,7 +10946,7 @@ segundo e o primeiro. Ele não chama `deinit` do aggregate incompleto.
   weak handle;
 - pinned storage executa drop antes de perder estabilidade de endereço.
 
-Um `deinit` que lê um ref, inout, view ou capture borrowed exige que cada origin
+Um `deinit` que lê um ref, mut ref, mut view ou capture borrowed exige que cada origin
 permaneça válida até o cleanup. NLL, isto é, non-lexical lifetime, encerra um
 loan no último uso somente quando não existe deinit observável. O runtime não
 insere metadata de lifetime no value para cumprir essa regra.
@@ -10903,11 +11169,13 @@ a property lógica e não expõe o storage de backing.
 Uma aplicação de `behavior` segue as fases normativas de
 [§8.4.1](#841-lifecycle-explícito-de-property): a inicialização escreve seu
 storage sem chamar accessors, atribuição simples usa `set`/replacement,
-mutação composta usa um único `modify` e `defer` retoma depois do borrow.
+mutação composta usa value get + set quando ambos existem, ou `get mut ref`
+direto quando somente essa modalidade existe,
+e `defer` retoma depois do borrow.
 Nenhum `behavior` adiciona observer implícito, tipo de backing ou `deinit`
-oculto. Hooks `willSet`, `didSet`, `willModify` e `didModify` só existem em um
-behavior observer nominal explicitamente aplicado ou composto conforme
-W-1512; não aparecem por inferência da property.
+oculto. Hooks `willSet` e `didSet` só existem em um behavior observer nominal
+explicitamente aplicado ou composto conforme W-1516; não aparecem por
+inferência da property.
 
 **W-1501 — behavior convergente (forma vigente):** dentro de um `behavior`, uma
 declaração `var name: Type` é, por definição, um backing field lógico. O field
@@ -10940,7 +11208,7 @@ semântico.
 **W-1509 — facet projection `#` (Forma vigente):** um behavior aplicado pode
 publicar facets somente por `export fn`/`export mut fn` e por computed facet
 properties escritas no próprio body. Um `fn` sem `export` continua helper do
-behavior. Backing fields, `init`, `get`, `set` e `modify` pertencem ao lifecycle
+behavior. Backing fields, `init`, `get`, `set` e `get mut ref` pertencem ao lifecycle
 da property e não viram members comuns. Facets de programa são síncronas,
 nonthrows, bounded, sem I/O, task, bloqueio, allocation geral oculta ou
 authority implícita; `mut` exige um place exclusivo. Facet `take` fica rejeitada
@@ -10958,9 +11226,9 @@ export behavior WrappedDegrees for u16 {
   mut set(newValue) {
     current = newValue % 360_u16
   }
-  mut modify {
+  get mut ref {
     defer { current %= 360_u16 }
-    return inout current
+    return mut ref current
   }
 
   export mut fn reset() { current = 0 }
@@ -10975,7 +11243,7 @@ não é um fallback. Copiar o valor lógico perde a facet, e resolver uma facet 
 executa antes o getter lógico. Membro normal e facet homônimos formam namespaces
 distintos. A visibilidade efetiva é o mínimo da facet, do behavior e da
 property; `#` não é um marcador de private. Duplicidade e overload dentro do
-behavior seguem as regras normais. Composição nominal usa as regras de W-1512
+behavior seguem as regras normais. Composição nominal usa as regras de W-1516
 para resolver aliases e colisões; não há prioridade, e uma colisão
 core-facet/behavior de mesma assinatura ou um pedido de facet `take` é
 `W-FACET-0006`.
@@ -11010,7 +11278,7 @@ Um `SharedTask` observador não recebe facet de cancelamento. APIs reais de
 resources e bibliotecas (`lease.close`, stream/channel, atomics, filesystem e
 allocators) continuam members normais.
 
-**W-1512 — composição nominal de behaviors (Forma vigente):** múltiplos
+**W-1516 — properties, behaviors e access observers (Forma vigente):** múltiplos
 behaviors podem compor uma property somente por uma declaração nominal e
 estática. A forma estrutural é uma tuple rotulada na definição; a aplicação da
 property continua única:
@@ -11027,7 +11295,8 @@ export struct Attitude {
 Não há lista ad hoc na property, keywords `storage`/`input` ou uso de `|>` para
 composição. Não há observer implícito: hooks só existem em um behavior observer
 nominal explicitamente aplicado ou composto. A definição infere dois papéis.
-Um behavior de storage declara `get`/`set`/`modify` e possui o storage
+Um behavior de storage declara `get`, `set`, `get ref`, `get mut ref` ou uma
+combinação permitida. Ele possui o storage
 principal da property. Um behavior observer não declara esses accessors. Seus
 fields são metadata auxiliar do componente, não um segundo storage lógico da
 property; eles não podem substituir o valor, participar do getter ou ser
@@ -11037,24 +11306,45 @@ publicar facets e hooks:
 ```w
 export behavior Versioned<Value> for Value {
   var epoch: u64
+  var reads: u64
 
-  init() { epoch = 0 }
+  init() {
+    epoch = 0
+    reads = 0
+  }
 
   export mutationEpoch: u64 { get => epoch }
   export mut fn resetMutationEpoch() { epoch = 0 }
 
-  willSet(current: ref Value, proposed: ref Value) { }
+  mut willGet(kind: PropertyAccessKind) { reads += 1 }
+  didGet(kind: PropertyAccessKind) { }
+  mut willSet(current: ref Value, proposed: ref Value) { }
   mut didSet(current: ref Value) { epoch += 1 }
-  willModify(current: ref Value) { }
-  mut didModify(current: ref Value) { epoch += 1 }
 }
 ```
 
-Hooks que alteram backing exigem `mut` explícito; hooks sem `mut` não podem
-alterar backing. Hooks são sync, nonthrows, property-safe e recebem somente
-`ref`; não substituem, vetam, reentram a property nem adquirem authority.
-Assinatura, modifier, effect ou reentrância inválidos produzem
-`W-BEHAVIOR-0005`.
+O enum core `PropertyAccessKind` possui os cases `value`, `borrowed` e
+`mutableBorrowed`:
+
+```w
+enum PropertyAccessKind {
+  value
+  borrowed
+  mutableBorrowed
+}
+```
+
+`willGet` e `didGet` são hooks opt-in. Eles recebem esse
+kind e contam acessos lógicos observáveis. Para value get, `didGet` roda depois
+de o value ser produzido. Para ref e mut ref, `didGet` roda depois de o borrow
+fechar e o cleanup do accessor terminar. Hooks `will` seguem ordem lexical e
+hooks `did` seguem ordem inversa. O compiler não apaga nem reordena hooks. Sem
+hooks, o acesso não tem custo de observer.
+
+Hooks que alteram backing exigem `mut` explícito. Hooks sem `mut` não alteram
+backing. Hooks são sync, nonthrows e property-safe. Eles não substituem, vetam,
+reentram ou adquirem authority. Assinatura, modifier, effect ou reentrância
+inválidos produzem `W-BEHAVIOR-0005`.
 
 Uma composição possui no máximo um behavior de storage. Zero storage usa o
 storage plain sintetizado; todo componente restante precisa ser observer. Dois
@@ -11066,19 +11356,23 @@ que viola ownership da composição ou uso imediato produz `W-BEHAVIOR-0006`.
 
 Storage/plain inicializa primeiro e observers inicializam depois, em ordem
 lexical. Uma composição nominal sem behavior de storage usa o storage plain
-sintetizado; a aplicação direta de um observer, como `var Versioned value =
+sintetizado. A aplicação direta de um observer, como `var Versioned value =
 rhs`, é rejeitada porque a aplicação de property continua selecionando o
-initializer one-slot. Em `set`/`modify`,
-`willSet`/`willModify` roda em ordem lexical, a operação de storage acontece uma
-vez e `didSet`/`didModify` roda em ordem inversa. `didModify` roda exatamente
-uma vez depois do borrow em toda saída estruturada que executaria o `defer` do
-`modify`, inclusive quando o caller termina com error; panic ou fault não
-fabrica cleanup. No drop, observers são descartados em ordem inversa e depois o
-storage. `didModify` observa uma mutation admission; não prova delta. Não há
-read hooks em v1.
+initializer one-slot. Em uma atribuição simples, `willSet` roda em ordem
+lexical com current e proposed, a operação de storage acontece uma vez e
+`didSet` roda em ordem inversa com o current final. Uma property passada a
+`inout` compõe value get + set e executa os observers de set no writeback.
+Uma mutação composta também usa essa composição quando value get + set existem;
+somente a forma sem esses accessors pode operar por `get mut ref` direto. Um
+direct `mut ref` não executa `willSet`/`didSet`. `willGet`/`didGet` observam cada
+acesso lógico conforme `PropertyAccessKind`, inclusive quando o acesso borrowed
+fecha. Panic ou fault não fabrica cleanup. No drop, observers são descartados em
+ordem inversa e depois o storage. `didSet` observa uma mutation admission
+concluída, e não prova que os bits mudaram.
 
 Uma facet `mut` de um componente storage disparada pelo path qualificado conta
-como logical mutation e percorre `willModify`/`didModify`. Uma facet de observer
+como logical mutation e executa `didSet` depois de seu cleanup, sem `proposed`
+ou `willSet`. Uma facet de observer
 altera somente seu metadata e não reentra os hooks dos demais componentes.
 Facets herdadas são qualificadas pelo alias: `yaw#degrees.reset()` e
 `yaw#version.mutationEpoch` são paths estáticos únicos. O path inteiro depois de
@@ -11129,15 +11423,15 @@ var Lazy heatProfile = deriveHeatProfile(model)
 ```
 
 Um behavior de storage definido pelo programa aceita somente `init`, `get`,
-`set` e `modify` síncronos e sem `throws`. Um behavior observer pode declarar
-somente os hooks explícitos de W-1512, sob o mesmo teto. Nenhum deles suspende,
+`get ref`, `get mut ref` e `set` síncronos e sem `throws`. Um behavior observer
+pode declarar `willGet`, `didGet`, `willSet` e `didSet`, sob o mesmo teto. Nenhum deles suspende,
 bloqueia, faz I/O, cria tasks ou adquire authority. Behavior não concede
 mobilidade ou atomicidade.
 
-`modify` pode usar `defer` como hook local pós-borrow. O hook executa uma vez
-depois que o borrow exclusivo termina, inclusive quando a operação do caller
-termina com error. Ele observa uma mutation admission, não uma comparação de
-valor. Um behavior que precisa detectar mudança real usa storage explícito ou
+`get mut ref` pode usar `defer` como hook local pós-borrow. O accessor retoma
+uma vez depois que o borrow exclusivo termina, inclusive quando a operação do
+caller termina com error. Ele observa uma mutation admission, não uma comparação
+de valor. Um behavior que precisa detectar mudança real usa storage explícito ou
 um método nomeado. Ele não solicita uma cópia oculta do valor anterior.
 
 **W-1193 — estado lógico de `Lazy`:** `Lazy` é um behavior padrão reconhecido
@@ -11199,15 +11493,15 @@ observa o pedido depois da publicação e do cleanup. Panic no initializer falha
 a fault boundary. OOM segue a policy normal de allocation e não publica valor
 parcial. Waiters não recebem um valor parcial.
 
-Atribuição e `modify` exigem autoridade exclusiva sobre o place. Uma atribuição
+Atribuição e `get mut ref` exigem autoridade exclusiva sobre o place. Uma atribuição
 antes do primeiro acesso encerra os capture paths e impede a execução do
 initializer. Uma atribuição posterior executa drop do valor anterior uma vez.
-`modify` inicializa quando necessário e abre o `inout` normal. Não existe setter
-concorrente implícito.
+`get mut ref` inicializa quando necessário e abre o borrow scoped normal. Não
+existe setter concorrente implícito.
 
 Se o valor nunca for lido, drop encerra somente os capture paths do initializer.
 Se o valor for publicado, drop libera o valor uma vez. O owner não termina
-durante initializer, waiters, borrows ou modify ativos. O HIR liga dependencies
+durante initializer, waiters, borrows ou mutable-borrow access ativos. O HIR liga dependencies
 ao owner da propriedade; ele não cria uma closure que possui `self`.
 
 Cada behavior publica custo e efeitos na interface compilada. `w explain
@@ -11802,8 +12096,7 @@ Os diagnostics desta policy são:
 |---|---|
 | `W-LABEL-0004` | formas aceitas colidem após normalização |
 | `W-LABEL-0005` | call usa label desconhecido ou forma posicional/nomeada inválida |
-| `W-LABEL-0006` | call repete label ou fornece o mesmo slot normalizado duas vezes |
-| `W-LABEL-0007` | `named` redundante em initializer ou payload record-like |
+| `W-LABEL-0006` | call repete label, declaration repete external label, ou fornece o mesmo slot normalizado duas vezes |
 | `W-SUSPEND-0001` | call `maySuspend` sem `await`, initializer `async` ou `spawn` |
 | `W-SUSPEND-0002` | `await` removível em callable `neverSuspend` |
 | `W-SUSPEND-0003` | blocking wait geral em execução estruturada |
@@ -12293,10 +12586,9 @@ let receipt = try await update
 O placement não concede isolation. A call ainda precisa respeitar o contrato de
 `renderer`. `spawn<.main>` somente agenda o child no domínio host-affine.
 
-`spawn<.compute>` e `spawn<domain: .compute>` ocupam o mesmo slot de domain
-com label opcional. `fn<C>` e `fn<lang: C>` seguem a mesma policy quando o
-schema declara esse slot. O formatter preserva a forma source. A HIR usa um
-domain normalizado. `spawn` sempre exige esse slot. Um `spawn` sem binding `let`
+`spawn<.compute>` fornece o slot dedicado de domain. O formatter preserva a
+forma source. A HIR usa um domain normalizado. `spawn` sempre exige esse slot.
+Um `spawn` sem binding `let`
 é erro semântico porque esconderia o placement. `spawn` é sempre uma decisão do call
 site. Declarations publicam somente requisitos de correctness, isolation,
 affinity, host ou device; cost pode gerar suggestion, nunca placement oculto.
@@ -12934,9 +13226,9 @@ Um buffer owned mutável pode ser `transferable` e não `shareable`.
 | `copy value` independente | resultado owned `transferable` |
 | `copy value` que mantém alias | storage `shareable` |
 | `ref value` | `shareable(value)` e lifetime dentro do scope |
-| `inout value` | `transferable(value)`; parent fica bloqueado até o join |
+| `mut ref value` | `transferable(value)`; parent fica bloqueado até o join |
 | `view value` | owner `shareable`, descriptor válido e lifetime dentro do scope |
-| `inout view value` | owner e acesso exclusivo transferíveis; parent bloqueado |
+| `mut view value` | owner e acesso exclusivo transferíveis; parent bloqueado |
 | `ServiceRef<P>` | handle `shareable`; state não cruza |
 
 Um child que continua na mesma isolation boundary pode acessar state isolado. Um
@@ -13469,15 +13761,21 @@ let (ordersOut, ordersIn) = Channel<Order>.open(capacity: 64)
 Os tipos inferidos são:
 
 ```w
-ordersOut: Channel<Order><.send>
-ordersIn: Channel<Order><.receive>
+ordersOut: Channel<send: Order>
+ordersIn: Channel<receive: Order>
 ```
+
+`send:` e `receive:` são labels de type argument fechados, não runtime enum
+values. A grafia mantém payload e direction em um único type application e
+evita o envelope duplo de `Channel<send: T>`. A forma contextual `.send(T)`
+fica rejeitada em type position porque não identifica por si só a família
+nominal `Channel`; `Channel.Send<T>` também não é um namespace de tipos.
 
 `Channel<T>` sem o contract de endpoint aparece somente como namespace de
 `open`. Não existe um valor runtime bidirecional.
 
-`Channel<T><.send>` é um handle shareable e move-first. `copy ordersOut` cria
-outro producer e torna o retain visível. `Channel<T><.receive>` é move-only,
+`Channel<send: T>` é um handle shareable e move-first. `copy ordersOut` cria
+outro producer e torna o retain visível. `Channel<receive: T>` é move-only,
 transferable e não shareable. Assim, duas tasks não podem receber o mesmo item.
 
 `T` precisa atender a `T<(.transferable)>`. Um payload borrowed, inclusive
@@ -13520,7 +13818,7 @@ export enum ChannelSendError<T>: Error {
 `send` pode produzir somente `.closed`. `trySend` pode produzir os dois cases:
 
 ```w
-extension<T> Channel<T><.send> {
+extension<T> Channel<send: T> {
   async fn send(
     value: take T,
   ): () throws ChannelSendError<T><[.closed]>
@@ -13530,7 +13828,7 @@ extension<T> Channel<T><.send> {
   ): () throws ChannelSendError<T>
 }
 
-extension<T> Channel<T><.receive> {
+extension<T> Channel<receive: T> {
   async fn receive(): T?
   fn close()
 }
@@ -13552,11 +13850,11 @@ o receiver possui o direito de receber ou descartar o item; o sender não observ
 um falso cancelamento.
 
 `receive()` devolve `.none` somente quando o channel está fechado e todos os
-itens aceitos foram drenados. `Channel<T><.receive>` também atende a
+itens aceitos foram drenados. `Channel<receive: T>` também atende a
 `Stream<T, Never>`, portanto o consumer comum usa `for await`.
 
 ```w
-async fn serveAll(input: take Channel<Order><.receive>) {
+async fn serveAll(input: take Channel<receive: Order>) {
   var orders = take input
 
   for await order in orders {
@@ -13586,7 +13884,7 @@ export enum ChannelClosed: Error {
   closed
 }
 
-extension<T> Channel<T><.send> {
+extension<T> Channel<send: T> {
   async fn reserve(): ChannelPermit<T> throws ChannelClosed
 }
 
@@ -17568,7 +17866,7 @@ Depois de uma reserva suficiente, a call não aloca. `Bytes` mantém initialized
 count e reserva privados; W não publica `ReadBuffer`, `MaybeUninit<u8>` ou uma
 mutable view de bytes não inicializados.
 
-O protocol também não oferece `read(into: inout view Bytes)`. Um backend pode
+O protocol também não oferece `read(into: mut view Bytes)`. Um backend pode
 ter escrito no storage inicializado antes de cancellation vencer. Nesse caso,
 manter o `count` não desfaz os bytes alterados. Uma API especializada só pode
 expor um destino de extent fixo quando seu outcome informa o prefixo que o
@@ -18323,7 +18621,7 @@ descriptors aceito pelo host. O limite do host nunca vira error público.
 `reset()` zera os initialized counts e conserva as reservas. `intoSegments()`
 consome o batch e devolve os `Bytes` inicializados. Uma live view de segment
 impede `reset`, outra read ou consumo. W não publica `IoSliceMut`, memória
-uninitialized, `inout view Bytes...` ou `isReadVectored`.
+uninitialized, `mut view Bytes...` ou `isReadVectored`.
 
 **Transferência posicional:** `io.TransferPlan` mantém offset, limite total,
 progresso committed e um scratch privado reservado na inicialização. O source
@@ -18697,7 +18995,7 @@ take async text(maximumBytes: usize<(1...)>)
 ```
 
 `headers` é uma projeção read-only do owner. Uma leitura empresta `Headers`,
-mas o type checker não projeta `inout` mutável a partir de `ref`; uma chamada
+mas o type checker não projeta `mut ref` a partir de `ref`; uma chamada
 direta a `append`, `set` ou `delete` é rejeitada por borrow checking. Para
 alterar a mensagem, o programa copia `Headers` e usa `RequestOverride`; o
 guard `immutable` do adapter é defesa adicional. Os outros campos de mensagem
@@ -18705,7 +19003,7 @@ também não possuem accessor de mutação.
 
 `body()` é a projeção consuming do owner. A forma `(take request).body()` move
 o stream optional e consome o restante do Request. Uma leitura do stream por
-`inout` o deixa disturbed. W não cria um alias `bodyStream`.
+`mut ref` o deixa disturbed. W não cria um alias `bodyStream`.
 
 `RequestReferrer` possui `client`, `none` e `url(URL)`. A forma tipada substitui
 os sentinels String vazio e `about:client`. Em `RequestInit`, Option none herda
@@ -18825,7 +19123,7 @@ substitui o silent no-op Web, como credential em `file:`, host em opaque path ou
 transição de scheme incompatível. Failure deixa o URL record inteiro intacto.
 `setSearch` e `setHash` aceitam toda W String e são nonthrowing sob a policy
 normal de OOM. Cada mutação invalida views anteriores do URL; o borrow checker
-impede que uma dessas views permaneça viva durante o receiver `inout`.
+impede que uma dessas views permaneça viva durante o receiver `mut ref`.
 
 `URLSearchParams` é uma lista owned de pares String. Ele preserva insertion
 order, nomes repetidos, nomes vazios e valores vazios. Seus constructors são:
@@ -18887,9 +19185,9 @@ url.editSearchParams((params) => {
 })
 ```
 
-O receiver `inout URL` exclui qualquer outro acesso ao URL. O método materializa
+O receiver `mut ref URL` exclui qualquer outro acesso ao URL. O método materializa
 a query uma vez. A closure recebe `inout URLSearchParams`, é síncrona, pode
-falhar com um error genérico e não pode escapar esse borrow. A signature segue o
+falhar com um error genérico e não pode escapar essa reserva. A signature segue o
 effect polymorphism vigente:
 
 ```w
@@ -19832,7 +20130,7 @@ fault do compiler/runtime, não cast dinâmico nem error público.
 
 O `ReadableStream` possui o único cursor. `next()` e `for try await` são as
 operações normais. Não existe `getReader()`, `ReadableStreamDefaultReader` ou
-reader BYOB na API W. Um borrow `inout` do owner exclui outra leitura durante a
+reader BYOB na API W. Um borrow `mut ref` do owner exclui outra leitura durante a
 suspensão. Mover o owner transfere o direito de leitura. `copy` é rejeitado.
 Assim, safe W resolve o estado Web `locked` estaticamente. Um adapter de object
 Web ainda verifica `locked` em runtime antes de criar ou transferir o carrier.
@@ -19984,7 +20282,7 @@ Essa é a forma BYOB W. O provider inicializa diretamente a spare capacity de
 intermediário. `.data(count)` adiciona exatamente `count`, com
 `0 < count <= maximum`. `.end` não adiciona bytes. Um read parcial antes de EOF
 devolve `.data`. A próxima call devolve `.end`. Se a capacity é insuficiente,
-`Bytes` pode crescer pelo allocation budget normal. O borrow `inout` vive pela
+`Bytes` pode crescer pelo allocation budget normal. A reserva `inout` vive pela
 suspensão e impede resize ou outro acesso concorrente.
 
 `maximum` limita somente a quantidade anexada por esta call, não
@@ -21633,7 +21931,32 @@ largura. O operando exponent de `**` é `UInt`.
 
 `saturatingNegate` aplica clamp ao resultado matemático. Em unsigned, `x > 0`
 produz zero. `carryingAdd`, `borrowingSubtract` e `fullMultiply` servem
-multiprecision e crypto sem depender de flags da CPU.
+multiprecision e crypto sem depender de flags da CPU. As assinaturas e a ordem
+dos resultados são fechadas e usam tuples rotuladas:
+
+```w
+static fn carryingAdd(
+  _ left: Self,
+  _ right: Self,
+  carry: Bool = false,
+): (value: Self, carry: Bool)
+
+static fn borrowingSubtract(
+  _ left: Self,
+  _ right: Self,
+  borrow: Bool = false,
+): (value: Self, borrow: Bool)
+
+static fn fullMultiply(
+  _ left: Self,
+  _ right: Self,
+): (high: Self, low: Self)
+```
+
+O input `carry` soma um à soma matemática. O input `borrow` subtrai um do
+resultado matemático. Os Boolean results indicam carry ou borrow para a próxima
+limb. `fullMultiply` devolve exatamente duas limbs, high primeiro e low depois,
+sem truncar o produto completo.
 
 ```w
 export enum ArithmeticError: Error {
@@ -22230,9 +22553,9 @@ let tickJson: String = #"{"value":30,"unit":"s"}"#
 let lambda: UnicodeScalar = 'λ'
 ```
 
-O raw String preserva as aspas JSON sem escapes. `${...}` continua literal;
-somente o marker opt-in `#${...}` interpola, conforme 16.5. `'λ'` continua um
-`UnicodeScalar`, não um `String`.
+O raw String preserva as aspas JSON sem escapes e nunca interpola. `${...}`
+continua literal, conforme 16.5. Sem expected type, `'λ'` é `String`; ele
+satisfaz `UnicodeScalar` quando esse é o tipo esperado.
 
 A forma recomendada é um object redundante para debug e interoperabilidade
 humana. O schema declara os members na ordem `value`, depois `unit`. O encoder
@@ -22393,7 +22716,7 @@ W separa quatro conceitos que outras APIs chamam de “imutável”:
 | `let T` | o binding não recebe outro valor |
 | `ref T` | acesso read-only a um place completo |
 | `view T` | descriptor read-only de uma projeção borrowed |
-| `inout view T` | acesso exclusivo a uma projeção de extent fixo |
+| `mut view T` | acesso exclusivo a uma projeção de extent fixo |
 | tipo sem operação mutating | a interface pública não oferece mutation |
 
 Nenhuma forma promete imutabilidade transitiva de um grafo com atomics,
@@ -22431,12 +22754,12 @@ mudar o owner. `view T` tem a mesma limitação temporal.
 ```w
 fn firstWord(line: ref String): view String?
 fn serve(orders: view Array<Order>)
-fn reprioritize(orders: inout view Array<Order>)
+fn reprioritize(orders: mut view Array<Order>)
 ```
 
 `ref T` empresta o place completo e preserva identity e metadata do owner.
 `view T` empresta uma projeção lógica. Ela não possui capacity, allocator,
-identity ou authority para mudar o extent. `inout view T` permite mutation
+identity ou authority para mudar o extent. `mut view T` permite mutation
 dentro do extent, mas não permite append, resize ou substituição do owner.
 
 **W-1472 — view versus ref e interface projection (Forma vigente):**
@@ -22548,11 +22871,11 @@ borrow nominal próprio. Uma extensão futura para views customizadas precisa de
 um modelo de descriptor verificável; um protocol comum não pode inventar
 provenance.
 
-`inout view` existe para `Array`, fixed array, `Bytes` e `Tensor` quando a
-projeção permite escrita. O design vigente não oferece `inout view String` nem
-`inout view CString`. Escrita arbitrária poderia invalidar UTF-8 ou o
+`mut view` existe para `Array`, fixed array, `Bytes` e `Tensor` quando a
+projeção permite escrita. O design vigente não oferece `mut view String` nem
+`mut view CString`. Escrita arbitrária poderia invalidar UTF-8 ou o
 terminador. Uma mutação de texto usa `inout String`; um buffer C mutável usa
-`inout view Bytes` e valida o contrato sentinela quando volta à fronteira.
+`mut view Bytes` e valida o contrato sentinela quando volta à fronteira.
 
 Views expõem somente a superfície lógica que o tipo define para essa forma.
 Methods que exigem owner, identity, allocator ou capacity não participam.
@@ -23003,25 +23326,46 @@ let invalid = "Last" "Light" // Erro: falta `+` ou interpolação.
 
 ### 16.5 Literais de texto e bytes
 
-Uma string normal aceita escapes e interpolação `${expression}`. Uma raw string
-usa o par `#"` e `"#`. Ela desativa escapes e mantém `${expression}` como
-texto literal. Quando o conteúdo raw precisa de um valor, a forma opt-in
-`#${expression}` interpola sem reativar escapes:
+Strings normais aceitam delimitadores simples ou duplos. As duas formas têm o
+mesmo tipo `String`, os mesmos escapes e a mesma interpolação `${expression}`.
+O autor escolhe o delimitador que reduz escaping:
 
 ```w
 let normal = "line\norder ${order.id}\u{2026}"
-let raw = #"C:\orders\${notInterpolation}"#
-let envelope = #"{"value":#${order.id},"unit":"s"}"#
+let envelope = '{"value":${order.id},"unit":"s"}'
+let quotation = "the guest said 'ready'"
 ```
 
-O `#` faz parte do marker de interpolação raw. Assim, JSON, templates e shell
-text podem conservar `${...}` literalmente; somente `#${...}` avalia uma
-expression. A interpolação raw baixa para a mesma construção única com
-`Display.write` da string normal. Ela não cria escaping JSON, SQL ou shell e
-não torna conteúdo externo confiável.
+Um literal entre aspas simples com exatamente um Unicode scalar também pode
+satisfazer `UnicodeScalar` quando esse é o tipo esperado. Sem contexto, até
+`'W'` infere `String`; o scalar fica explícito na annotation, no parâmetro ou no
+constructor esperado. Um overload que aceita tanto `String` quanto
+`UnicodeScalar` exige desambiguação.
 
-Uma string multiline normal permite interpolação. Uma raw multiline combina
-o delimitador raw com as regras de multiline.
+```w
+let text = 'W'                 // String
+let scalar: UnicodeScalar = 'W'
+appendScalar('λ')              // o parâmetro esperado decide UnicodeScalar
+```
+
+Byte scalar continua distinto por prefixo: `b'W'` é `u8`, e `b"W"` é `Bytes`.
+Uma raw string usa `#"..."#` ou `#'...'#`. Ela desativa escapes e toda
+interpolação: `${expression}` permanece texto literal.
+
+```w
+let raw = #"C:\orders\${notInterpolation}"#
+let rawSingle = #'C:\orders\${notInterpolation}'#
+```
+
+Assim, JSON normalmente usa a string simples interpolada, enquanto templates e
+shell text que precisam preservar `${...}` usam raw. Nenhuma forma cria
+escaping JSON, SQL ou shell ou torna conteúdo externo confiável. A alternativa
+`""...""` fica desnecessária e é rejeitada porque colide com o literal vazio
+`""` e com o delimitador multiline `"""`.
+
+Uma string multiline normal permite interpolação e usa `"""..."""` ou
+`'''...'''`. Uma raw multiline combina `#` com qualquer delimitador e não
+interpola.
 
 ```w
 let card = """
@@ -23029,11 +23373,20 @@ let card = """
   course: ${order.course}
   """
 
+let compactCard = '''
+  guest: ${guest.name}
+  course: ${order.course}
+  '''
+
 let template = #"""
   ${thisStaysLiteral}
-  order: #${order.id}
   C:\last-light
   """#
+
+let literalTemplate = #'''
+  ${thisAlsoStaysLiteral}
+  C:\last-light
+  '''#
 ```
 
 O newline após o delimitador inicial não entra no valor. O newline antes do
@@ -23050,8 +23403,9 @@ let menu = """
 expect menu == "broth\n  horizon-cake"
 ```
 
-Escapes normais de `String` são `\\`, `\"`, `\n`, `\r`, `\t`, `\0` e
-`\u{scalar}`. `\xNN` não entra em `String`, pois ele descreve bytes.
+Escapes normais de `String` são `\\`, `\"`, `\'`, `\n`, `\r`, `\t`, `\0` e
+`\u{scalar}`. A quote que não fecha o delimitador pode aparecer sem escape.
+`\xNN` não entra em `String`, pois ele descreve bytes.
 
 ```w
 let bell = "\u{1F514}"
@@ -23506,11 +23860,11 @@ expect snapshot == courses
 #### 16.10.3 `view` e mutation
 
 Uma faixa de `Array<T>` produz `view Array<T>`. Uma faixa de `Bytes` produz
-`view Bytes`. Um binding `inout` solicita a forma exclusiva:
+`view Bytes`. Um binding `mut view` solicita a forma exclusiva:
 
 ```w
 let middle: view Array<Order> = orders[1..<4]
-let inout tail: view Array<Order> = orders[4...]
+let mut view tail: Array<Order> = orders[4...]
 tail[0].priority += 1
 ```
 
@@ -23523,7 +23877,7 @@ let invalid = bytes[0...bytes.count] // panic: closed upper bound is outside
 ```
 
 O owner não pode mover, desalocar ou alterar a estrutura enquanto uma view está
-viva. Alterar elementos por uma `inout view` continua válido:
+viva. Alterar elementos por uma `mut view` continua válido:
 
 ```w
 let window = orders[0..<2]
@@ -23566,12 +23920,12 @@ vez e faz o lowering para um dos três métodos:
 ```w
 for course in menu { print(course) }             // borrow
 for ref course in menu { inspect(course) }       // borrow explícito
-for inout dish in dishes { dish.plate() }         // acesso exclusivo
+for mut ref dish in dishes { dish.plate() }       // acesso exclusivo
 for copy code in statusCodes { send(code) }       // exige Copy
 for dish in take dishes { serve(take dish) }      // consumo owned
 ```
 
-Array usa `Item = ref T`, `MutableItem = inout T` e `OwnedItem = T`. Map usa
+Array usa `Item = ref T`, `MutableItem = mut ref T` e `OwnedItem = T`. Map usa
 entry types diferentes para borrow, mutation e consumo. Set não atende a
 `MutableIterable`, pois seu elemento também é sua key. O primeiro exemplo é o
 sugar comum de `for ref`. A forma explícita é útil em API, documentação e
@@ -23583,7 +23937,7 @@ for index in 0..<10 { visit(index) }
 ```
 
 O source fica borrowed até o fim do iterator. Mutation estrutural durante o
-loop é erro, mas mutation do elemento por `inout` é válida:
+loop é erro, mas mutation do elemento por `mut ref` é válida:
 
 ```w
 for item in orders {
@@ -23666,7 +24020,7 @@ copy:
 
 ```w
 if let ref price = menu["cake"] { print(price) }
-if let inout price = menu["cake"] { price += 1[cr] }
+if let mut ref price = menu["cake"] { price += 1[cr] }
 if let copy price = menu["cake"] { send(price) }
 menu["tea"] = 9[cr]
 ```
@@ -23676,7 +24030,7 @@ anterior quando o caller precisa dele. `entry` evita dois lookups:
 
 ```w
 let old = menu.insert(10[cr], for: "tea") // Money?
-let inout count = ordersByGuest.entry(take guestId).orInsert(0)
+let mut ref count = ordersByGuest.entry(take guestId).orInsert(0)
 count += 1
 ```
 
@@ -23722,16 +24076,16 @@ let name: view String = request.pathSegment(0)
 let dish: ref Dish? = dishes.get(name) // Map<String, Dish>
 ```
 
-Iteração borrowed produz uma entry com `ref K` e `ref V`. Iteração `inout`
-mantém a key read-only e entrega `inout V`. Iteração consuming entrega key e
+Iteração borrowed produz uma entry com `ref K` e `ref V`. Iteração `mut ref`
+mantém a key read-only e entrega `mut ref V`. Iteração consuming entrega key e
 value owned:
 
 ```w
 for entry in menu { print("${entry.key}: ${entry.value}") }
-for inout entry in menu { entry.value.applyDiscount() }
+for mut ref entry in menu { entry.value.applyDiscount() }
 for entry in take menu { archive(take entry.key, take entry.value) }
 
-for inout entry in menu {
+for mut ref entry in menu {
   entry.key.normalize() // error: a stored key is never mutable
 }
 ```
@@ -23781,11 +24135,11 @@ let removed: Course? = courses.remove(.broth)
 expect Set([.cake, .salad]) == Set([.salad, .cake])
 ```
 
-Um elemento de Set é uma key. Iteração nunca entrega `inout T`; o programa
+Um elemento de Set é uma key. Iteração nunca entrega `mut ref T`; o programa
 remove, altera e reinsere:
 
 ```w
-for inout course in courses { course.rename() } // error
+for mut ref course in courses { course.rename() } // error
 guard let course = courses.remove(.cake) else panic("cake fixture is missing")
 let _ = courses.add(course.withLabel("final cake"))
 ```
@@ -23918,7 +24272,7 @@ concurrent collections não entram em baseline:
 import { Deque, PriorityQueue } from std.collections
 ```
 
-O baseline contém `Array`, arrays fixos, `view Array<T>`, `inout view Array<T>`, `Map`, `Set`,
+O baseline contém `Array`, arrays fixos, `view Array<T>`, `mut view Array<T>`, `Map`, `Set`,
 `Range`, `Iterator`, `Iterable`, `MutableIterable`, `ConsumableIterable`,
 `Hashable` e `Hasher`. Isso fecha lexer, parser, symbol table, worklist e
 diagnostics do compiler W0.
@@ -23942,7 +24296,7 @@ snapshot e iteration order; ela não é um `Map` com atomics escondidos.
 Nested arrays são a forma canônica:
 
 ```w
-let transform: Matrix<f32, rows: 2, columns: 3> = [
+let transform: Matrix<rows: 2, f32, columns: 3> = [
   [1.0, 0.0, 10.0],
   [0.0, 1.0, 20.0],
 ]
@@ -23971,12 +24325,12 @@ fn classify<batch: usize>(
 Um exemplo completo:
 
 ```w
-let visits: Matrix<f32, rows: 2, columns: 3> = [
+let visits: Matrix<rows: 2, f32, columns: 3> = [
   [1.0, 2.0, 3.0],
   [4.0, 5.0, 6.0],
 ]
 
-let weights: Matrix<f32, rows: 3, columns: 2> = [
+let weights: Matrix<rows: 3, f32, columns: 2> = [
   [1.0, 0.0],
   [0.0, 1.0],
   [1.0, 1.0],
@@ -23986,8 +24340,8 @@ let scores = visits @ weights
 expect scores == [[4.0, 5.0], [10.0, 11.0]]
 ```
 
-Uma `Matrix<f32, rows: 2, columns: 3>` não multiplica uma
-`Matrix<f32, rows: 4, columns: 2>`. O diagnostic mostra as dimensões internas
+Uma `Matrix<rows: 2, f32, columns: 3>` não multiplica uma
+`Matrix<rows: 4, f32, columns: 2>`. O diagnostic mostra as dimensões internas
 `3` e `4`. Scalar expansion e broadcast não participam de `@`.
 
 Rank maior usa `tensor.batchMatmul` com batch shape explícito. Contração geral
@@ -24024,9 +24378,9 @@ usa a tabela abaixo, salvo quando `tensor.matmul<R>` declara outro result type.
 ```w
 type Signal = Int<(1...128)>
 
-let samples: Matrix<Signal, rows: 16, columns: 64>
-let weights: Matrix<Signal, rows: 64, columns: 8>
-let scores: Matrix<Int, rows: 16, columns: 8> = samples @ weights
+let samples: Matrix<rows: 16, Signal, columns: 64>
+let weights: Matrix<rows: 64, Signal, columns: 8>
+let scores: Matrix<rows: 16, Int, columns: 8> = samples @ weights
 ```
 
 Integer `@` preserva overflow verificado. Float `@` usa o mode `.strict`.
@@ -24451,9 +24805,9 @@ operando. O produto exige 14 bits. A soma de 64 produtos exige 21 bits.
 ```w
 type FlavorSignal = Int<(1...128)>
 
-let samples: Matrix<FlavorSignal, rows: 16, columns: 64>
-let weights: Matrix<FlavorSignal, rows: 64, columns: 8>
-let score: Matrix<Int, rows: 16, columns: 8> = samples @ weights
+let samples: Matrix<rows: 16, FlavorSignal, columns: 64>
+let weights: Matrix<rows: 64, FlavorSignal, columns: 8>
+let score: Matrix<rows: 16, Int, columns: 8> = samples @ weights
 ```
 
 O lowering pode carregar lanes de oito bits, multiplicar em 16 bits e acumular
@@ -24573,8 +24927,8 @@ let text = report
 `SimdMask<_ lanes: usize>`. `lanes` é
 compile-time, está entre 1 e 64 e não exige potência de dois. O label `lanes:`
 de `Simd` é required porque o tipo combina `Element` e o value parameter
-`lanes`; omiti-lo produz `W-GENERIC-0003`. O label da mask é optional porque
-mask só tem a largura. Assim, a aplicação curta corrente é `SimdMask<16>`, sem
+`lanes`; omiti-lo produz `W-GENERIC-0003`. A âncora `_ lanes` da mask é
+positional-only, portanto a aplicação curta corrente é `SimdMask<16>`, sem
 criar uma segunda identity. Lanes fora de `1...64` produzem `W-CONST-0004`.
 O baseline aceita somente `i8`, `i16`, `i32`, `i64`, `i128`, `u8`, `u16`,
 `u32`, `u64`, `u128`, `Int`, `UInt`, `isize`, `usize`, `f32` e `f64`.
@@ -24687,7 +25041,7 @@ checks por etapa. Uma API explícita escolhe outro tipo lógico de
 redução/resultado:
 
 ```w
-let score: Matrix<i32, rows: 16, columns: 8> =
+let score: Matrix<rows: 16, i32, columns: 8> =
   tensor.matmul<i32>(samples, weights: weights, mode: .strict)
 ```
 
@@ -25412,8 +25766,8 @@ hermética e versionada; package nenhum fornece um shell command livre. Ele não
 precisa usar LLVM ou MLIR, mas precisa entregar artifacts compatíveis com o
 linker, a façade e as políticas do target.
 
-`fn<C>` e `fn<lang: .c>` são formas vigentes do mesmo slot opcional de
-frontend. O body dessa forma é sempre inline. O builder agrupa bodies
+`fn<lang: .c>` fornece o slot de frontend do contrato foreign. O body dessa
+forma é sempre inline. O builder agrupa bodies
 compatíveis em foreign units internas; o source W não nomeia essas units.
 
 Um source externo usa o mesmo adapter, lock, recipe, provenance e façade em um
@@ -28191,8 +28545,7 @@ resolution {
     {
       root: .product("last-light-native")
       use: .product
-      targetRole: .target
-      target: "x86_64-unknown-linux-gnu"
+      targetRole: .target: "x86_64-unknown-linux-gnu"
       features: []
       targetVariants: [
         "last-light/restaurant::native-terminal/posix",
@@ -30278,7 +30631,7 @@ continua sendo uma entrada completa e não cria herança entre meanings.
 
 O profile `parse-syntax` exige três facts: `construct` identifica o owner da
 grammar, `actual` identifica o token ou boundary observado e `expected` contém
-o conjunto byte-sorted de tokens ou categorias aceitos. O label opcional
+o conjunto byte-sorted de tokens ou categorias aceitos. O fact `owner` opcional
 `owner` aponta para o início do owner quando esse span acrescenta informação.
 Ele não repete o primary span. O fact type `string-set` exige strings únicas em
 ordem bytewise. `string[]` continua representando uma sequência em que a ordem
@@ -30863,7 +31216,7 @@ um producer.
 channel deve nomear capacidade, endpoints `send`/`receive`, ownership,
 backpressure e `close`; mailbox e `Stream` permanecem canais distintos com
 open/close/send/receive visíveis. `ServiceRef` preserva `await` e o closed turn.
-Como `Channel<T><.receive>` atende a `Stream<T, Never>`, um caller que precisa
+Como `Channel<receive: T>` atende a `Stream<T, Never>`, um caller que precisa
 de producer push abre o channel com capacity explícita, mantém o endpoint send
 e transfere o endpoint receive como input stream. O adapter alarga o failure
 local para o failure remoto; a service não inventa fila ou capacity.
@@ -33985,8 +34338,10 @@ ownership.
 #### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa
 
 O bundle [`FRC0`](tooling/studies/final-research-closure) fecha o snapshot de
-processo W-707, W-731 e W-1408 até W-1450 e valida as três decisões PFU0
-W-1451–W-1453 como `oracle-backed-current`. Ele é `design-oracle-input` e
+processo W-707, W-731 e W-1408 até W-1450 e valida a classificação corrente
+das três decisões PFU0: W-1451 como `oracle-backed-current`, W-1452 como
+superseded por W-1480 e W-1453 como superseded por W-1516. Ele é
+`design-oracle-input` e
 `reuseOnly`. O corpus possui exatamente seis casos, uma rota `current` e uma
 rota `adversarial` para cada gate. A máquina deriva o outcome de facts em
 cópias do FZ0, da classificação do ledger e do protocolo HUM0. Ela não usa
@@ -34018,8 +34373,9 @@ preferência, score ou métrica manual é criado.
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
 source escape, categoria errada ou qualquer Research residual fora de W-1486 e W-1503. A máquina
-exige W-1451–W-1453 como `oracle-backed-current` após PFU0 e os quatro casos
-DRC0 como fechamento independente. A cadeia
+exige a classificação corrente de W-1451–W-1453 e as supersessões explícitas
+de W-1452 por W-1480 e de W-1453 por W-1516, além dos quatro casos DRC0 como
+fechamento independente. A cadeia
 estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
@@ -34040,13 +34396,13 @@ permanece somente como decisão histórica superseded por W-1484.
 |---|---|---|---|
 | W-1451 | `build.w` direto e data-only com um ou dois records top-level, em qualquer ordem; no máximo um `package` e um `workspace`, pelo menos um. Package-only selecionado em contexto standalone possui `resolution`/`deployments`; package-only membro de workspace omite esses fields e o workspace declarado é o owner; workspace-only ou package+workspace: workspace possui, package omite. `workspace.members` aponta para dirs cujo `build.w` contém package. | Nenhuma forma alternativa é promovida. | Arquivo vazio, records duplicados, wrapper físico `build.w {}`, package inline, nested workspace member, glob, scan ambiental, source executável e owners duplicados; `package.w`/`workspace.w` sem shim. |
 | W-1452 | APIs de service retornam explicitamente `some Stream<Item, Failure>`. A chamada via `ServiceRef` acrescenta `ServiceFailure` na fase de abertura/admission; o erro da função chamadora deve ser `ServiceFailure` ou ter exatamente uma conversão total. Separadamente, `Failure` terminal permanece no stream. `Channel` é sempre explícito (capacity, endpoints, ownership, backpressure e close); mailbox e `Stream` têm lifecycle próprio. | Nenhuma promoção de `stream fn`; a forma geral é rejeitada por capturas, lifecycle e erro ambíguos. | `stream fn`, client-stream, bidi, channel implícito, capacity implícita, `ServiceRef` sem `await`, closed-turn change ou colapso entre `ServiceFailure` e `Failure`. |
-| W-1453 | `get`, `set` e `modify` permanecem vigentes em stored/computed/behavior property. `init` bypassa accessors; assignment simples usa `set`/replacement; compound/mutating usa `modify` uma vez; `return inout` é pre-borrow e `defer` retoma pós-borrow; old value/backing drop ocorre uma vez; notificação externa é método/service/channel nomeado; acesso à mesma property em accessor faz dispatch normal, e sobreposição no borrow exclusivo falha. Hooks fechados de observer nominal W-1512 são permitidos somente em behavior explicitamente aplicado/composto. | Nenhuma promoção de observer spelling ad hoc ou implícita. | `willSet`/`didSet` como accessor solto, observer implícito, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
+| W-1453 | Snapshot histórico superseded por W-1516: `get`, `get ref`, `get mut ref` e `set` definem as modalidades de property; `init` bypassa accessors; assignment simples usa `set`/replacement; mutation direta usa `get mut ref`; `inout` compõe get+set e writeback; hooks de access observer são opt-in em behavior nominal. | Nenhuma promoção de observer spelling ad hoc ou implícita. | accessor de mutation histórico, `willSet`/`didSet` solto, observer implícito, hidden oldValue copy, backing type/deinit oculto e notificação externa sem nome. |
 
-PFU0 cobre init, get, replace, modify-enter, borrow, resume, drop do valor
+PFU0 cobre init, get, replace, get-mut-ref entry, borrow, resume, drop do valor
 antigo, drop do backing, reentry, panic/OOM e fronteiras de concurrency/service.
 O manifest candidate é aceito como current-control; `stream fn` e
 `willSet`/`didSet` ad hoc são rejected-route, enquanto os hooks fechados de
-observer W-1512 são current-control. O oracle host deriva os resultados de
+observer W-1516 são current-control. O oracle host deriva os resultados de
 facts e source refs, não executa W e não afirma compiler/runtime/provider.
 
 W-1480 substitui posteriormente somente a rejeição de client-stream e bidi em
@@ -34089,7 +34445,7 @@ runtime e provider continuam ausentes.
 
 | ID | Forma vigente | Alternativa avaliada | Rejeitado |
 |---|---|---|---|
-| W-1459 | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>` com lanes compile-time `1...64`, sem power-of-two requirement; o label `lanes:` de `Simd` é required e o de `SimdMask` é optional, por isso `SimdMask<16>` é a aplicação corrente. Element baseline: `i8`/`i16`/`i32`/`i64`/`i128`, `u8`/`u16`/`u32`/`u64`/`u128`, `Int`/`UInt`/`isize`/`usize`, `f32`/`f64`; `Bool` usa mask. Label omitido, lane fora de `1...64` e Element fora do domínio usam `W-GENERIC-0003`, `W-CONST-0004` e `W-CONTRACT-0002`. A sequência de lanes é fixed e target-independent. Backend escolhe native, split ou scalarize. Layout é opaco, sem ABI/FFI/wire/persist/transmute implícito. `splat`, `fromArray`, `toArray`, indexing checked e memory partial APIs fecham a boundary; mask publica `splat`, `fromArray` e `toArray` sem allocation, load borrow source e store recebe destination `inout`, com partial tail total e preflight fail-before-write. Arithmetic, bitwise, shifts, compounds e `overflowingX` só existem quando o scalar Element admite a operação; floats não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna `(Simd<T, lanes: N>, SimdMask<N>)` com flag por lane. `SimdMask` usa `&`/`|`/`^`/`~`, `all`/`any`/`none`/`countTrue`, comparações lane-wise e `select` sem short-circuit. Swizzle static valida primeiro count em `1...64`, depois o primeiro índice OOB em source order, aceita duplicatas e usa `W-CONST-0004` para count vazio, 65 ou OOB. Reductions têm `reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`; floats usam `reduceAdd(mode:)`/`reduceMultiply(mode:)` com `ReductionMode` nominal obrigatório; omissão, forma posicional, label desconhecido ou aridade errada usa `W-LABEL-0005`, repetição de `mode:` usa `W-LABEL-0006`. `.strict` é left fold, `.reproducible` é árvore binária balanceada v1 target-independent e `.fast` segue o float contract sem bit equality cross-backend. `w explain performance` separa native/split/scalar, physical width, loads, tails, reduction mode e missed reason. | Um tipo que promete vector width ou layout nativo, uma mask com `&&`/`||`, shuffle dinâmico, alignment flag ou um operator de performance foram avaliados para ergonomia. A forma vigente conserva sequência lógica e delega lowering a facts. | `lanes=0` ou `lanes>64`, Bool como lane Element, native-lane type, ABI/FFI/wire/persistência implícita, `ref`/`inout` de lane, gather/scatter/raw pointer safe, alignment assertion, mask ativa OOB com write parcial, short-circuit de `select`, reassociation float sem mode, performance universal e intrinsics target-specific no core. |
+| W-1459 | `Simd<Element, lanes: usize>` e `SimdMask<_ lanes: usize>` com lanes compile-time `1...64`, sem power-of-two requirement; o label `lanes:` de `Simd` é required e a âncora `lanes` de `SimdMask` é positional-only, por isso `SimdMask<16>` é a aplicação corrente. Element baseline: `i8`/`i16`/`i32`/`i64`/`i128`, `u8`/`u16`/`u32`/`u64`/`u128`, `Int`/`UInt`/`isize`/`usize`, `f32`/`f64`; `Bool` usa mask. Label omitido, lane fora de `1...64` e Element fora do domínio usam `W-GENERIC-0003`, `W-CONST-0004` e `W-CONTRACT-0002`. A sequência de lanes é fixed e target-independent. Backend escolhe native, split ou scalarize. Layout é opaco, sem ABI/FFI/wire/persist/transmute implícito. `splat`, `fromArray`, `toArray`, indexing checked e memory partial APIs fecham a boundary; mask publica `splat`, `fromArray` e `toArray` sem allocation, load borrow source e store recebe destination `inout`, com partial tail total e preflight fail-before-write. Arithmetic, bitwise, shifts, compounds e `overflowingX` só existem quando o scalar Element admite a operação; floats não ganham bitwise, shifts ou overflow APIs. Integer `overflowingX` retorna `(Simd<T, lanes: N>, SimdMask<N>)` com flag por lane. `SimdMask` usa `&`/`|`/`^`/`~`, `all`/`any`/`none`/`countTrue`, comparações lane-wise e `select` sem short-circuit. Swizzle static valida primeiro count em `1...64`, depois o primeiro índice OOB em source order, aceita duplicatas e usa `W-CONST-0004` para count vazio, 65 ou OOB. Reductions têm `reduceAdd`, `wrappingReduceAdd`, `saturatingReduceAdd`, `reduceMultiply`, `wrappingReduceMultiply`, `saturatingReduceMultiply`, `reduceBitAnd`, `reduceBitOr`, `reduceBitXor`; floats usam `reduceAdd(mode:)`/`reduceMultiply(mode:)` com `ReductionMode` nominal obrigatório; omissão, forma posicional, label desconhecido ou aridade errada usa `W-LABEL-0005`, repetição de `mode:` usa `W-LABEL-0006`. `.strict` é left fold, `.reproducible` é árvore binária balanceada v1 target-independent e `.fast` segue o float contract sem bit equality cross-backend. `w explain performance` separa native/split/scalar, physical width, loads, tails, reduction mode e missed reason. | Um tipo que promete vector width ou layout nativo, uma mask com `&&`/`||`, shuffle dinâmico, alignment flag ou um operator de performance foram avaliados para ergonomia. A forma vigente conserva sequência lógica e delega lowering a facts. | `lanes=0` ou `lanes>64`, Bool como lane Element, native-lane type, ABI/FFI/wire/persistência implícita, `ref`/`inout` de lane, gather/scatter/raw pointer safe, alignment assertion, mask ativa OOB com write parcial, short-circuit de `select`, reassociation float sem mode, performance universal e intrinsics target-specific no core. |
 
 O oracle [`tooling/simd-reference.test.mjs`](tooling/simd-reference.test.mjs)
 deriva os resultados de arrays e policies. Ele cobre lanes inválidas e válidas,
@@ -34696,11 +35052,9 @@ isso não é uma promessa de HIR geral.
 As partições publicadas são densas e completas: ranges de functions e entries
 do module, parameters das functions, instructions dos blocks, parameters e
 requirements das host identities e arguments/values das calls não podem ter
-gap, overlap ou record órfão. Para host labels, `NAMED_REQUIRED` e
-`EXTERNAL_REQUIRED` copiam o nome como label; `POSITIONAL_ONLY` usa label
-vazio. O corte HIR0 aceita `OPTIONAL` somente quando a call publica o label
-canônico, embora o frontend possa aceitar a forma sem label; a forma omitida
-permanece fora deste lowering.
+gap, overlap ou record órfão. Para host labels, `REQUIRED` copia o label
+externo e `POSITIONAL_ONLY` usa label vazio. O corte HIR0 rejeita qualquer
+outra policy.
 
 O lowering recebe facts já publicados pelo frontend e não reparseia source,
 CST ou spelling. O output HIR copia para storage caller-owned todos os nomes,
@@ -35310,8 +35664,8 @@ outputs, cases adversariais, evidence missing e stop conditions no ledger.
 
 ### 26.10 Fase 8 — ciência e extração
 
-**Exemplo:** `Matrix<2, 3> @ Matrix<3, 4>` baixa para CPU e mantém shape
-`Matrix<2, 4>`.
+**Exemplo:** `Matrix<rows: 2, Scalar, columns: 3> @ Matrix<rows: 3, Scalar, columns: 4>`
+baixa para CPU e mantém shape `Matrix<rows: 2, Scalar, columns: 4>`.
 
 - units/refinements completos;
 - BigInt, FixedDecimal, Rational, Complex e math accuracy profiles;

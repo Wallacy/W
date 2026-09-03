@@ -33,12 +33,12 @@ export fn borrowsIdentifierContext() {}
         parameters: (parameter_list
           (parameter
             name: (identifier)
-            type: (type
+            type: (parameter_type
               base: (type_name
                 name: (type_identifier))))
           (parameter
             name: (identifier)
-            type: (type
+            type: (parameter_type
               base: (type_name
                 name: (type_identifier)))))
         return_type: (type
@@ -58,12 +58,12 @@ export fn borrowsIdentifierContext() {}
     parameters: (parameter_list
       (parameter
         name: (identifier)
-        type: (type
+        type: (parameter_type
           base: (type_name
             name: (type_identifier))))
       (parameter
         name: (identifier)
-        type: (type
+        type: (parameter_type
           base: (type_name
             name: (type_identifier)))))
     return_type: (type
@@ -98,11 +98,11 @@ export fn borrowsIdentifierContext() {}
     value: (type
       base: (function_type
         (function_type_parameter
-          type: (type
+          type: (parameter_type
             base: (type_name
               name: (type_identifier))))
         (function_type_parameter
-          type: (type
+          type: (parameter_type
             base: (type_name
               name: (type_identifier))))
         return_type: (type

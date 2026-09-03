@@ -65,14 +65,14 @@ export fn forecast<samples: usize>(
   window: ref HorizonWindow<samples>,
   calibration: ref Tensor<f32, shape: [6, 6]>,
 ): HorizonForecast<samples> throws HorizonError {
-  try validate(window)
+  try validate(window: window)
 
   let calibrated = window.features @ calibration
   let means = calibrated.mean(axis: 0, mode: .reproducible)
   let centered = calibrated - means.broadcast(to: [samples, 6])
   let energy = (centered * centered).sum(axis: 1, mode: .reproducible)
   let maximum = energy.max()
-  let status = try classifyHorizon(maximum)
+  let status = try classifyHorizon(score: maximum)
 
   return HorizonForecast(
     status: status,
@@ -95,9 +95,9 @@ export fn classifyHorizon(
 }
 
 test "anomaly thresholds are exhaustive" for classifyHorizon {
-  let safe = try classifyHorizon(0.2)
-  let alert = try classifyHorizon(0.7)
-  let evacuation = try classifyHorizon(0.9)
+  let safe = try classifyHorizon(score: 0.2)
+  let alert = try classifyHorizon(score: 0.7)
+  let evacuation = try classifyHorizon(score: 0.9)
 
   expect safe in (.stable)
   expect alert in (.warning)
@@ -106,7 +106,7 @@ test "anomaly thresholds are exhaustive" for classifyHorizon {
 
 test "a negative score keeps its typed error" for classifyHorizon {
   do {
-    let _ = try classifyHorizon(-0.1)
+    let _ = try classifyHorizon(score: -0.1)
     panic("negative horizon score was accepted")
   } catch .invalidScore(let found) {
     expect found == -0.1

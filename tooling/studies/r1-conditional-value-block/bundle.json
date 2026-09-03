@@ -10,7 +10,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/allocation.w",
     "symbol": "countEmergencyTokens",
-    "digest": "sha256:78b2d746f900772a9b1f1f0716a5ab70f65466d77ea9bfe055fe8acb9859fb59"
+    "digest": "sha256:8fb5d1db0a50fa28c0de66ff2145a29a3c0e3295964dc2b63abc1972bff7a6e7"
   },
   "variants": [
     {
@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "value-block.w",
-      "digest": "sha256:539e5faac054ed373acbe0f93d43c623c8678b6349a632c4dfeab35f8245a117",
+      "digest": "sha256:d599a8eb4d5a66dc090959962fcd3d2c134183a412023d29bcef683c97769e52",
       "changedConstructs": [
         "if expression",
         "named value blocks",
@@ -31,7 +31,7 @@
       "role": "alternative",
       "language": "w",
       "path": "branch-return.w",
-      "digest": "sha256:693d96bac1cd1f20c13c0f5517946db8780b37b4225edcbd981d643863b25a18",
+      "digest": "sha256:7f53fa8c072cf8885930dface7fba66d4e4d7cb86e4bb2c65c280cfc36d3dc20",
       "changedConstructs": [
         "statement if",
         "explicit branch returns",
@@ -43,7 +43,7 @@
       "role": "alternative",
       "language": "w",
       "path": "mutable-temporary.w",
-      "digest": "sha256:1eaae63390381afe47e47f92dc58c6cd5920cd428dc9984d9737e5c7e634b5be",
+      "digest": "sha256:5c6a8bf844e2fbbcd024b9d303cad672b89fb3d71e27e310160346ed11716dcd",
       "changedConstructs": [
         "mutable temporary e",
         "selected-branch trace",
@@ -55,7 +55,7 @@
       "role": "alternative",
       "language": "w",
       "path": "implicit-function-tail.w",
-      "digest": "sha256:0c51decc56f13be763fbc9ce4b8794d2b9d97a341346449e5844a529a2a9e1c1",
+      "digest": "sha256:b7ef639d80d81e27388a94f2a4e609f85298cc5fdf57d4dfee010ec078f4102d",
       "changedConstructs": [
         "parseable implicit tail",
         "ordinary function semantic rejection",

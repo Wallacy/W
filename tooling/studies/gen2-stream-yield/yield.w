@@ -3,7 +3,7 @@
 // remains Stream pull, capacity zero, and one owned cursor.
 
 export fn gen2Fixture(
-  source: take some Stream<Order, Never>,
+  _ source: take some Stream<Order, Never>,
 ): some Stream<Order, Never> {
   return stream <[take source]> {
     var input = take source
@@ -14,7 +14,7 @@ export fn gen2Fixture(
 }
 
 export fn gen2MenuFixture(
-  source: take some Stream<String, MenuError>,
+  _ source: take some Stream<String, MenuError>,
 ): some Stream<String, MenuError> {
   return stream <[take source]> {
     var input = take source
@@ -25,7 +25,7 @@ export fn gen2MenuFixture(
 }
 
 export fn yieldDelegation(
-  source: take some Stream<Order, BrigadeError>,
+  _ source: take some Stream<Order, BrigadeError>,
 ): some Stream<Order, BrigadeError> {
   return stream <[take source]> {
     for try await order in source {

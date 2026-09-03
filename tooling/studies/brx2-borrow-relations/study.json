@@ -7,7 +7,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e"
+    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200"
   },
   "bundle": "bundle.json",
   "corpus": "../../brx2-borrow-relations-cases.json",
@@ -20,20 +20,20 @@
       "id": "sourceBase",
       "path": "../../../reference/last-light/borrow_expressivity.w",
       "symbol": "selectPrimary",
-      "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e",
+      "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
       "identity": "selectPrimary"
     },
     {
       "id": "corpus",
       "path": "../../brx2-borrow-relations-cases.json",
-      "digest": "sha256:67ad23ebeebb7cce88869c3b7f16b9716d1323d73adef68c5736c21bc8597e22",
+      "digest": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
       "schema": "w-brx2-borrow-relations-cases-1",
       "identity": "BRX2-relation-owned-borrow"
     },
     {
       "id": "machine",
       "path": "../../brx2-borrow-relations-machine.mjs",
-      "digest": "sha256:288ff3c30ede40e0d2768771057784bf7c24f3525182e9eaa90cfc54356c34df",
+      "digest": "sha256:9644780bbf2874e56bd7ed78c6ece1883c135340909a9866b8b9c7bfc9726b9d",
       "identity": "evaluateBorrowRelationCase"
     },
     {
@@ -45,14 +45,14 @@
     {
       "id": "snapshot",
       "path": "../../brx2-borrow-relations-results.snapshot.jsonl",
-      "digest": "sha256:b16aa41cc4373c520d0748fae89bfa7f1fc266b8bdd2b47f4f6ab2b0c1bd64cb",
+      "digest": "sha256:f2656c2dd052ccc6d19af3c1c2a3d0abac7c0c7720f10d830cac84f130d9fc17",
       "schema": "w-brx2-borrow-relations-results-1",
       "identity": "w-brx2-borrow-relations-results-1"
     },
     {
       "id": "bundle",
       "path": "bundle.json",
-      "digest": "sha256:2725b3a37498256ac2e1d6544d81c13ca161f35a08c8ec8cc93cc831d7ba028e",
+      "digest": "sha256:ba14a16b1655ac05538580d68ec7b624eb88a60b7d4306a82dff22f043978c7c",
       "schema": "w-substitution-study-bundle-1",
       "identity": "R1-brx2-borrow-relations"
     }
@@ -80,7 +80,20 @@
     }
   ],
   "evidence": {
-    "current": ["source-w", "tree-sitter-parse", "host-oracle", "official-primary-refs"],
-    "missing": ["w-compile", "w-run", "hir-verifier", "provider-linker", "foreign-execution", "human-study", "model-study"]
+    "current": [
+      "source-w",
+      "tree-sitter-parse",
+      "host-oracle",
+      "official-primary-refs"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "hir-verifier",
+      "provider-linker",
+      "foreign-execution",
+      "human-study",
+      "model-study"
+    ]
   }
 }

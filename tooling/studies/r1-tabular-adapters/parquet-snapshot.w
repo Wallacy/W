@@ -12,8 +12,8 @@ struct HorizonReading: data.Row {
 }
 
 async fn summarizeParquet<Failure: Error, Source: io.SnapshotByteSource<Failure>>(
-  source: take Source,
-  options: parquet.DecodeOptions,
+  _ source: take Source,
+  _ options: parquet.DecodeOptions,
 ): f64? throws parquet.DecodeError<Failure> {
   var batches = parquet.decode<HorizonReading, Failure, Source>(
     source: take source,

@@ -35,9 +35,9 @@ fn provenance(score: f64, label: String): String {
 
 fn runHorizon(): () {
   let batch: Batch<HorizonReading> = chart.science.sample()
-  let score = horizonScore(batch)
-  let label = menuFor(score)
-  let result = provenance(score, label)
+  let score = horizonScore(batch: batch)
+  let label = menuFor(score: score)
+  let result = provenance(score: score, label: label)
   print(result)
 }
 

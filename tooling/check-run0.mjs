@@ -268,7 +268,7 @@ try {
 
   for (const [name, expected, label] of [
     ["comment_only.w", hir0Failure, "comment-only source"],
-    ["shadow_print.w", hir0Failure, "shadowed print"],
+    ["shadow_print.w", frontendFailure, "shadowed print"],
     ["noop_payload.w", hlo0Unsupported, "noop payload"],
     ["comment_with_print.w", frontendFailure, "comment with print"],
     ["two_calls.w", hir0Failure, "two calls"],

@@ -90,7 +90,7 @@ export enum PartySize {
 
 export fn classifyParty(
   stage: ServiceStage,
-  named guests: GuestCount,
+  guests: GuestCount,
 ): PartySize {
   return switch (stage, guests) {
     case (.accepted, 1...4): .intimate
@@ -102,7 +102,7 @@ export fn classifyParty(
 }
 
 export struct StagePath<
-  _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
+  _ stages: StaticList<ServiceStage><(isValidStagePath(stages: .member))>,
 > {
   orderId: OrderId
 }
@@ -189,6 +189,6 @@ export fn add(left: Money, to right: Money): Money throws DomainError {
 }
 
 test "tuple patterns classify a party in lexical order" for classifyParty {
-  expect classifyParty(.accepted, guests: try GuestCount(2)) == .intimate
-  expect classifyParty(.serving, guests: try GuestCount(2_000)) == .cosmic
+  expect classifyParty(stage: .accepted, guests: try GuestCount(2)) == .intimate
+  expect classifyParty(stage: .serving, guests: try GuestCount(2_000)) == .cosmic
 }

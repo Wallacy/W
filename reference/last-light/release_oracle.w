@@ -170,16 +170,16 @@ enum ReleaseDecision {
 }
 
 const fn verifyRelease(
-  named policy: ReleasePolicy,
-  named maintainerThresholdMet: Bool,
-  named payloadDigestMatches: Bool,
-  named independentRebuilders: u16,
-  named quorum: QuorumDecision,
-  named provenance: ProvenanceVerdict,
-  named sourcePublic: Bool,
-  named transparencyRecorded: Bool,
-  named revoked: Bool,
-  named yanked: Bool,
+  policy: ReleasePolicy,
+  maintainerThresholdMet: Bool,
+  payloadDigestMatches: Bool,
+  independentRebuilders: u16,
+  quorum: QuorumDecision,
+  provenance: ProvenanceVerdict,
+  sourcePublic: Bool,
+  transparencyRecorded: Bool,
+  revoked: Bool,
+  yanked: Bool,
 ): ReleaseDecision {
   if revoked {
     return .rejectRevoked
@@ -369,10 +369,10 @@ test "a mirror is transport and not trust" for expectedMirrorDecision {
 }
 
 test "signing roles remain separate" for rolesMayShareKey {
-  expect rolesMayShareKey(.maintainer, .maintainer)
-  expect !rolesMayShareKey(.maintainer, .builder)
-  expect !rolesMayShareKey(.builder, .platform)
-  expect !rolesMayShareKey(.registry, .platform)
+  expect rolesMayShareKey(first: .maintainer, second: .maintainer)
+  expect !rolesMayShareKey(first: .maintainer, second: .builder)
+  expect !rolesMayShareKey(first: .builder, second: .platform)
+  expect !rolesMayShareKey(first: .registry, second: .platform)
 }
 
 const fn builderEvidence(builderIdentity identity: EvidenceDigest): BuilderEvidence {
@@ -422,23 +422,23 @@ test "quorum requires distinct builders, operators, credentials, and roots" for 
 
 test "provenance links recipe, toolchain, artifact, and platform envelope" for verifyProvenance {
   let valid = validProvenance()
-  expect verifyProvenance(valid) == .verified
+  expect verifyProvenance(evidence: valid) == .verified
 
   var changedRecipe = valid
   changedRecipe.attestedRecipeDigest = 501
-  expect verifyProvenance(changedRecipe) == .recipeMismatch
+  expect verifyProvenance(evidence: changedRecipe) == .recipeMismatch
 
   var changedToolchain = valid
   changedToolchain.attestedToolchainDigest = 502
-  expect verifyProvenance(changedToolchain) == .toolchainMismatch
+  expect verifyProvenance(evidence: changedToolchain) == .toolchainMismatch
 
   var changedArtifact = valid
   changedArtifact.platformArtifactDigest = 503
-  expect verifyProvenance(changedArtifact) == .artifactMismatch
+  expect verifyProvenance(evidence: changedArtifact) == .artifactMismatch
 
   var reusedRole = valid
   reusedRole.platformSignerIdentity = valid.builderIdentity
-  expect verifyProvenance(reusedRole) == .roleCollision
+  expect verifyProvenance(evidence: reusedRole) == .roleCollision
 }
 
 test "a counted but non-independent quorum cannot claim reproduction" for verifyRelease {

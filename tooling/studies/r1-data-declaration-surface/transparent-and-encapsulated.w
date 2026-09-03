@@ -21,6 +21,6 @@ export object StockReservation {
   }
 }
 
-fn dataSurfaceEntry(item: MenuItem, reservation: StockReservation): Bool {
+fn dataSurfaceEntry(_ item: MenuItem, _ reservation: StockReservation): Bool {
   return item.price.minorUnits >= 0 && reservation.ingredientCount() >= 0
 }

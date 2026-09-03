@@ -25,11 +25,11 @@ não decide ainda se o frontend do compilador consumirá a mesma CST.
 - composition nominal, hooks de behavior e facets `#` com paths qualificados;
 - pipe-forward `|>` e regiões `pipeline` com contracts e `commit`;
 - borrowed result types, optional bindings owned e iteration
-  `ref`/`inout`/`copy`/`take`;
+  `ref`/`mut ref`/`copy`/`take`;
 - array repeat `[value; count]` e literals de Array/Map;
 - `try`/`await`, `for try await`, initializers `async`/`spawn<domain>` e
   `task#cancel()`;
-- `Stream<view T, E>` e contracts direcionais `Channel<T><.send/.receive>`;
+- `Stream<view T, E>` e contracts direcionais `Channel<send: T>` / `Channel<receive: T>`;
 - units/sufixos candidatos, raw hash-delimited e testes co-localizados;
 - `entry { ... }`, descriptors nomeados, service declarations e `import service`;
 - módulo normal com entry explícito e imports antes das declarations;

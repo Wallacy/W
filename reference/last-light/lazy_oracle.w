@@ -50,26 +50,26 @@ export const fn canBlockWhenContended(_ lowering: LazyLowering): Bool {
 }
 
 test "one winner publishes one lazy value" for nextLazyState {
-  let started = nextLazyState(.uninitialized, on: .beginAccess)
-  let waiting = nextLazyState(.initializing, on: .waitForWinner)
-  let published = nextLazyState(.initializing, on: .publish)
+  let started = nextLazyState(state: .uninitialized, on: .beginAccess)
+  let waiting = nextLazyState(state: .initializing, on: .waitForWinner)
+  let published = nextLazyState(state: .initializing, on: .publish)
 
   expect started == .some(.initializing)
   expect waiting == .some(.initializing)
   expect published == .some(.initialized)
-  expect nextLazyState(.initialized, on: .publish) == none
+  expect nextLazyState(state: .initialized, on: .publish) == none
 }
 
 test "exclusive assignment supersedes the initializer" for nextLazyState {
-  expect nextLazyState(.uninitialized, on: .assignExclusive)
+  expect nextLazyState(state: .uninitialized, on: .assignExclusive)
     == .some(.initialized)
-  expect nextLazyState(.initializing, on: .assignExclusive) == none
+  expect nextLazyState(state: .initializing, on: .assignExclusive) == none
 }
 
 test "panic faults instead of publishing a partial value" for nextLazyState {
-  expect nextLazyState(.initializing, on: .panicInitializer)
+  expect nextLazyState(state: .initializing, on: .panicInitializer)
     == .some(.faulted)
-  expect nextLazyState(.faulted, on: .publish) == none
+  expect nextLazyState(state: .faulted, on: .publish) == none
 }
 
 test "only concurrent lowering can wait for another winner" for canBlockWhenContended {

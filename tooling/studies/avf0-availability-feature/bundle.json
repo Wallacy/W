@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/billing.w",
     "symbol": "gatewayUnavailable",
-    "digest": "sha256:fcb914cb59dac5a7541bdee703a53360b2f9c1cec74710188593d38cef402fde"
+    "digest": "sha256:44f36b0a4361fb6cfe33ec425dba2552176e88d10fa5c9c13609eadf727dcf58"
   },
   "sourceRefs": [
     {
@@ -20,7 +20,7 @@
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
     }
   ],
   "variants": [
@@ -47,7 +47,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "typed-runtime-feature.w",
-      "digest": "sha256:6973049f864a12fd4ff836fcccd9148fbabe0ef322c80be70005786e6cb5973e",
+      "digest": "sha256:9375af45227e7da1a4ab29d3a4263429cf386b21b67b6f4b3eb654a8e3562da0",
       "changedConstructs": [
         "typed value",
         "generation and config digest",

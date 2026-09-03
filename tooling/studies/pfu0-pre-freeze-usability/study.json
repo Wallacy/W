@@ -12,11 +12,11 @@
   "question": "Does the bounded host oracle close the three decisions without changing ownership, stream, service, or property contracts?",
   "corpus": {
     "path": "../../pfu0-pre-freeze-usability-cases.json",
-    "digest": "sha256:77755da5a400e0b6920416400bccd6efcccd73c309eda003856f47246936b421"
+    "digest": "sha256:142093704a69efc68eb30b1d683fda79b1fae74d376f5a4086796ce00e9a4960"
   },
   "machine": {
     "path": "../../pfu0-pre-freeze-usability-machine.mjs",
-    "digest": "sha256:7c1a642769851ff5a0e2f3135eadf4df57b6808be0ec3952eee576696df1d1d0"
+    "digest": "sha256:9359a7566b056d308056c75e96e83a3d65c6e8d1026498e110345d6cbfe1ddbe"
   },
   "sourceRefs": [
     {
@@ -34,25 +34,25 @@
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "serveOneByOne",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
       "claim": "Current pull stream."
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "runBoundedOrderWindow",
-      "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
       "claim": "Explicit channel capacity and endpoints."
     },
     {
       "path": "../../../reference/last-light/execution.w",
       "symbol": "completionCount: u64 { get }",
-      "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d",
+      "digest": "sha256:e7358eb82a6af94946b5316e6febbb8142b9e12f2e212a751cec34564f3704b9",
       "claim": "Property-safe getter."
     },
     {
       "path": "../../../reference/last-light/orbit.w",
       "symbol": "mut set(newValue)",
-      "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
+      "digest": "sha256:8f6ebe1c561b7919204ee473de4547803e54e189c022bde3da4d530ecec6dfbb",
       "claim": "Property setter control."
     }
   ],

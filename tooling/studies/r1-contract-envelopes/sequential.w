@@ -20,7 +20,7 @@ const fn canMove(from current: ServiceStage, to next: ServiceStage): Bool {
   }
 }
 
-const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {
+const fn isValidStagePath(_ stages: StaticList<ServiceStage>): Bool {
   guard stages.count > 0 else return false
 
   for index in 1..<stages.count {
@@ -39,7 +39,7 @@ struct StagePath<
 }
 
 fn standardStagePath(
-  orderId: u64,
+  _ orderId: u64,
 ): StagePath<[.accepted, .reserving, .preparing, .serving, .completed]> {
   return StagePath(orderId: orderId)
 }

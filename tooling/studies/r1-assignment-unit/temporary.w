@@ -4,19 +4,19 @@ struct Counter {
   var value: u32
 }
 
-fn assignUnit(counter: inout Counter, next: u32): () {
+fn assignUnit(_ counter: inout Counter, _ next: u32): () {
   let replacement = next
   counter.value = replacement
 }
 
-fn replaceAndRead(counter: inout Counter, next: u32): u32 {
+fn replaceAndRead(_ counter: inout Counter, _ next: u32): u32 {
   let old = counter.value
   let replacement = next
   counter.value = replacement
   return old
 }
 
-fn increment(counter: inout Counter): () {
+fn increment(_ counter: inout Counter): () {
   let delta = 1
   counter.value += delta
 }

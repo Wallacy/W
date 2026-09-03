@@ -3,42 +3,218 @@
   "status": "design-oracle-input",
   "id": "PRC0",
   "artifacts": [
-    { "id": "prc0-corpus", "role": "corpus", "path": "tooling/prc0-provider-runtime-closure-cases.json", "digest": "sha256:1ab30476a5c2fbe69ff14df74e7432c5f03c961d3699c6315375640ce51b1171" },
-    { "id": "prc0-machine", "role": "machine", "path": "tooling/prc0-provider-runtime-closure-machine.mjs", "digest": "sha256:5d125bb46e539cd6dd0cb6825e998a3f15c9406e28e049807d2d8cb6fe42d693" },
-    { "id": "prc0-root-checker", "role": "root-checker", "path": "tooling/check-prc0-provider-runtime-closure.mjs", "digest": "sha256:886fb5e73de44c463ab35350f8b9976491af66bdbc4619dc321003e2e7ef7e50" },
-    { "id": "prc0-nested-checker", "role": "nested-checker", "path": "tooling/tree-sitter-w/check-prc0.mjs", "digest": "sha256:3a98e3fbc8ca0f798b942db7f8da019cba604f0916db3f275990002baab0d8f9" },
-    { "id": "prc0-source-contract-checker", "role": "source-contract-checker", "path": "tooling/check-quantity-source-contract.mjs", "digest": "sha256:3726291476763ecc96a34cbed012a56b68ffbffb0c99d06fc55f14bfd5d41028" },
-    { "id": "prc0-snapshot", "role": "snapshot", "path": "tooling/prc0-provider-runtime-closure-results.snapshot.jsonl", "digest": "sha256:afbfab81e6ca0cda06b72327f8f8ca36c77c4fecc35a7dca225378585dbd6305" },
-    { "id": "prc0-oracle", "role": "oracle", "path": "tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs", "digest": "sha256:326ae0d53603787c6ddd08803ee65190df24e1dcfeb5587a5e555177bf43e29f" },
-    { "id": "prc0-bundle", "role": "bundle", "path": "tooling/studies/prc0-provider-runtime-closure/bundle.json", "digest": "sha256:8b7aee8c4560a1fe87b351d6c755cb7195a27ffffe54e636043abf74d826ff68" },
-    { "id": "prc0-study", "role": "study", "path": "tooling/studies/prc0-provider-runtime-closure/study.json", "digest": "sha256:237fe57269c6a4d2982b4c0356194a326edf5cbafe9a02fedd869219616dd1bf" },
-    { "id": "prc0-source-base", "role": "source-base", "path": "reference/last-light/quantity_oracle.w", "digest": "sha256:f362f5dbd565f61804d1456e40e529879bbbf574b7e73ff4de95456df85d72b3" },
-    { "id": "prc0-source-ref-sr0", "role": "source-ref-sr0", "path": "reference/last-light/supervision.w", "digest": "sha256:3de61e804c04d02472f21738b695473eb61a31a0d93f64a6655ed7f0c5f5efdc" },
-    { "id": "prc0-source-ref-sr0-oracle", "role": "source-ref-sr0-oracle", "path": "reference/last-light/service_recovery_oracle.w", "digest": "sha256:2b3441f0e73039935149f2fbf0c5766798ed482d29be5a9f0c4e16102710e2cc" },
-    { "id": "prc0-source-ref-ru0", "role": "source-ref-ru0", "path": "reference/last-light/horizon_tool.w", "digest": "sha256:5dd0ef36cdae1de19c1888458a82147191f1f06816d5aaa8ece8e99927a72936" },
-    { "id": "prc0-source-ref-pyn3", "role": "source-ref-pyn3", "path": "reference/last-light/pyn3_oracle.w", "digest": "sha256:369bd6f0cbb6fa869da7bbacf809351d064d5684c9f267c9f61f61648eccf5a3" },
-    { "id": "prc0-source-ref-pyn4", "role": "source-ref-pyn4", "path": "reference/last-light/tensor_interop.w", "digest": "sha256:d41656b5fd41d464cdf9091c29f7076b5a23223d78ef66d3c67bc1f86441893b" },
-    { "id": "prc0-source-ref-lz0", "role": "source-ref-lz0", "path": "reference/last-light/lazy_oracle.w", "digest": "sha256:b4d6f8cdce222f42341b51015a0d44470e95ba2bf3cdb4cedecccfd10ca17872" },
-    { "id": "prc0-source-ref-asc0", "role": "source-ref-asc0", "path": "reference/last-light/allocator_oracle.w", "digest": "sha256:c0b7b563ccc87b3b091aa1ef7e02936451cd34b0ea5b4d1ab33f00d8568b976c" },
-    { "id": "prc0-source-ref-si", "role": "source-ref-si", "path": "std/si/contracts.w", "digest": "sha256:73ec21a2ef015d86690d9516c7df0348c9eba663f35a4c4e3e93f84a76566d0f" },
-    { "id": "prc0-reused-sr0-corpus", "role": "reused-sr0-corpus", "path": "tooling/service-recovery-cases.json", "digest": "sha256:eace43c873cb1fc5675187dc7d7eaa85d89e535c98b32561afade74d0846a05e" },
-    { "id": "prc0-reused-sr0-machine", "role": "reused-sr0-machine", "path": "tooling/service-recovery-machine.mjs", "digest": "sha256:2012f2d604457164317c0a382d36f9653a200683a21119a07b63082d5267e581" },
-    { "id": "prc0-reused-ru0-corpus", "role": "reused-ru0-corpus", "path": "tooling/module-run-cases.json", "digest": "sha256:324caa6e9d7aecde2a4ae98d5187b00464d4f6e2db412ae3f691cf3c1d0d8c95" },
-    { "id": "prc0-reused-ru0-machine", "role": "reused-ru0-machine", "path": "tooling/module-run-machine.mjs", "digest": "sha256:0b87105caf7621f67a029101c4f9d3304f8c7ad45027525a8c283352ae2ea89f" },
-    { "id": "prc0-reused-pyn3-corpus", "role": "reused-pyn3-corpus", "path": "tooling/presentation-cases.json", "digest": "sha256:9a7476543b2c5dcb9ea79e155ac4740efbb12ab1036805cda95cf7a8ef020db1" },
-    { "id": "prc0-reused-pyn3-machine", "role": "reused-pyn3-machine", "path": "tooling/presentation-machine.mjs", "digest": "sha256:6ebafa3b9029550b7caf4d65a6b712f1b5c6080cfeeb2843236c1434253ef5a5" },
-    { "id": "prc0-reused-pyn4-corpus", "role": "reused-pyn4-corpus", "path": "tooling/dlpack-cases.json", "digest": "sha256:d19204772fb0cb2cf06b5d638afd56fa792a5f1015116ea20968a0e317e23380" },
-    { "id": "prc0-reused-pyn4-machine", "role": "reused-pyn4-machine", "path": "tooling/dlpack-machine.mjs", "digest": "sha256:54a91ac53fd592087e5b792b4cb7ec399f8d381c035224cc68dcc9dc71773e93" },
-    { "id": "prc0-reused-lz0-corpus", "role": "reused-lz0-corpus", "path": "tooling/lazy-behavior-cases.json", "digest": "sha256:4afd25aac857ba0d1b32b84a93038bd27b45cd14070e1252e9e94034aa144238" },
-    { "id": "prc0-reused-lz0-machine", "role": "reused-lz0-machine", "path": "tooling/lazy-behavior-machine.mjs", "digest": "sha256:a38490e810187ed0c17a4fd4b80e929a4ac250bc7d462a07684acbe6b8ca3e46" },
-    { "id": "prc0-reused-asc0-corpus", "role": "reused-asc0-corpus", "path": "tooling/allocator-scope-cases.json", "digest": "sha256:0c078915acc3c9e074ff617ce2a9daf6d1c0d645c7f576496a1bda1b5bb98367" },
-    { "id": "prc0-reused-asc0-machine", "role": "reused-asc0-machine", "path": "tooling/allocator-scope-machine.mjs", "digest": "sha256:c3ee70d195e7483d94e93545e769f73e63543a2477ed04b78cfef3ae3698240b" },
-    { "id": "prc0-reused-r1-units-bundle", "role": "reused-r1-units-bundle", "path": "tooling/studies/r1-units/bundle.json", "digest": "sha256:f233711d368de488f5ce4ef787a7e5c4e3ef2c2e0896a88f1d47a31ca3d141b8" },
-    { "id": "prc0-reused-r1-units-oracle", "role": "reused-r1-units-oracle", "path": "tooling/studies/r1-units/oracle.test.mjs", "digest": "sha256:19b3b2b7936fcda86fc6b4a4388b46b0b2766255bfe625f53e1af4fef5e4c00b" }
+    {
+      "id": "prc0-corpus",
+      "role": "corpus",
+      "path": "tooling/prc0-provider-runtime-closure-cases.json",
+      "digest": "sha256:1ab30476a5c2fbe69ff14df74e7432c5f03c961d3699c6315375640ce51b1171"
+    },
+    {
+      "id": "prc0-machine",
+      "role": "machine",
+      "path": "tooling/prc0-provider-runtime-closure-machine.mjs",
+      "digest": "sha256:5d125bb46e539cd6dd0cb6825e998a3f15c9406e28e049807d2d8cb6fe42d693"
+    },
+    {
+      "id": "prc0-root-checker",
+      "role": "root-checker",
+      "path": "tooling/check-prc0-provider-runtime-closure.mjs",
+      "digest": "sha256:886fb5e73de44c463ab35350f8b9976491af66bdbc4619dc321003e2e7ef7e50"
+    },
+    {
+      "id": "prc0-nested-checker",
+      "role": "nested-checker",
+      "path": "tooling/tree-sitter-w/check-prc0.mjs",
+      "digest": "sha256:3a98e3fbc8ca0f798b942db7f8da019cba604f0916db3f275990002baab0d8f9"
+    },
+    {
+      "id": "prc0-source-contract-checker",
+      "role": "source-contract-checker",
+      "path": "tooling/check-quantity-source-contract.mjs",
+      "digest": "sha256:3726291476763ecc96a34cbed012a56b68ffbffb0c99d06fc55f14bfd5d41028"
+    },
+    {
+      "id": "prc0-snapshot",
+      "role": "snapshot",
+      "path": "tooling/prc0-provider-runtime-closure-results.snapshot.jsonl",
+      "digest": "sha256:afbfab81e6ca0cda06b72327f8f8ca36c77c4fecc35a7dca225378585dbd6305"
+    },
+    {
+      "id": "prc0-oracle",
+      "role": "oracle",
+      "path": "tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs",
+      "digest": "sha256:326ae0d53603787c6ddd08803ee65190df24e1dcfeb5587a5e555177bf43e29f"
+    },
+    {
+      "id": "prc0-bundle",
+      "role": "bundle",
+      "path": "tooling/studies/prc0-provider-runtime-closure/bundle.json",
+      "digest": "sha256:7c099c872a1af9ac32ec054eaee36dc1c50d712d490a21aec62ff0cf881a1a14"
+    },
+    {
+      "id": "prc0-study",
+      "role": "study",
+      "path": "tooling/studies/prc0-provider-runtime-closure/study.json",
+      "digest": "sha256:237fe57269c6a4d2982b4c0356194a326edf5cbafe9a02fedd869219616dd1bf"
+    },
+    {
+      "id": "prc0-source-base",
+      "role": "source-base",
+      "path": "reference/last-light/quantity_oracle.w",
+      "digest": "sha256:9d61ef536097369fff03143af8a4172bdcd3b9bbc4f826e4509b37519e909b57"
+    },
+    {
+      "id": "prc0-source-ref-sr0",
+      "role": "source-ref-sr0",
+      "path": "reference/last-light/supervision.w",
+      "digest": "sha256:12c594dcb3e75fd8228579434674c006421ce21339178680ad25328b6fe8bb3e"
+    },
+    {
+      "id": "prc0-source-ref-sr0-oracle",
+      "role": "source-ref-sr0-oracle",
+      "path": "reference/last-light/service_recovery_oracle.w",
+      "digest": "sha256:3f9409e7c9f8a806c79184acb3e6a258137fabbc33729e58a096d662aa2c9eae"
+    },
+    {
+      "id": "prc0-source-ref-ru0",
+      "role": "source-ref-ru0",
+      "path": "reference/last-light/horizon_tool.w",
+      "digest": "sha256:da255c1def2f1062bd76a7001710c5b799f09538615e50ec501d8fc689b168ac"
+    },
+    {
+      "id": "prc0-source-ref-pyn3",
+      "role": "source-ref-pyn3",
+      "path": "reference/last-light/pyn3_oracle.w",
+      "digest": "sha256:f8dd197de5b401e4552b929b7ae38351f8d780eb4d14ba7b4c0937ca38ec6a9e"
+    },
+    {
+      "id": "prc0-source-ref-pyn4",
+      "role": "source-ref-pyn4",
+      "path": "reference/last-light/tensor_interop.w",
+      "digest": "sha256:2c624e1a5140b13bd49922a026b5ccd0418bc34dc7235cbb5627c464f58d6ca5"
+    },
+    {
+      "id": "prc0-source-ref-lz0",
+      "role": "source-ref-lz0",
+      "path": "reference/last-light/lazy_oracle.w",
+      "digest": "sha256:f7b2f732bfd2c051e47c466c3bc35e3b387c2e2ac85197e7c41d3cdbea9ab86f"
+    },
+    {
+      "id": "prc0-source-ref-asc0",
+      "role": "source-ref-asc0",
+      "path": "reference/last-light/allocator_oracle.w",
+      "digest": "sha256:0b02181e81dca1e597cde95c8775f0ff1aec7512ce0853d7371497682d05b90a"
+    },
+    {
+      "id": "prc0-source-ref-si",
+      "role": "source-ref-si",
+      "path": "std/si/contracts.w",
+      "digest": "sha256:73ec21a2ef015d86690d9516c7df0348c9eba663f35a4c4e3e93f84a76566d0f"
+    },
+    {
+      "id": "prc0-reused-sr0-corpus",
+      "role": "reused-sr0-corpus",
+      "path": "tooling/service-recovery-cases.json",
+      "digest": "sha256:eace43c873cb1fc5675187dc7d7eaa85d89e535c98b32561afade74d0846a05e"
+    },
+    {
+      "id": "prc0-reused-sr0-machine",
+      "role": "reused-sr0-machine",
+      "path": "tooling/service-recovery-machine.mjs",
+      "digest": "sha256:2012f2d604457164317c0a382d36f9653a200683a21119a07b63082d5267e581"
+    },
+    {
+      "id": "prc0-reused-ru0-corpus",
+      "role": "reused-ru0-corpus",
+      "path": "tooling/module-run-cases.json",
+      "digest": "sha256:324caa6e9d7aecde2a4ae98d5187b00464d4f6e2db412ae3f691cf3c1d0d8c95"
+    },
+    {
+      "id": "prc0-reused-ru0-machine",
+      "role": "reused-ru0-machine",
+      "path": "tooling/module-run-machine.mjs",
+      "digest": "sha256:0b87105caf7621f67a029101c4f9d3304f8c7ad45027525a8c283352ae2ea89f"
+    },
+    {
+      "id": "prc0-reused-pyn3-corpus",
+      "role": "reused-pyn3-corpus",
+      "path": "tooling/presentation-cases.json",
+      "digest": "sha256:9a7476543b2c5dcb9ea79e155ac4740efbb12ab1036805cda95cf7a8ef020db1"
+    },
+    {
+      "id": "prc0-reused-pyn3-machine",
+      "role": "reused-pyn3-machine",
+      "path": "tooling/presentation-machine.mjs",
+      "digest": "sha256:6ebafa3b9029550b7caf4d65a6b712f1b5c6080cfeeb2843236c1434253ef5a5"
+    },
+    {
+      "id": "prc0-reused-pyn4-corpus",
+      "role": "reused-pyn4-corpus",
+      "path": "tooling/dlpack-cases.json",
+      "digest": "sha256:d19204772fb0cb2cf06b5d638afd56fa792a5f1015116ea20968a0e317e23380"
+    },
+    {
+      "id": "prc0-reused-pyn4-machine",
+      "role": "reused-pyn4-machine",
+      "path": "tooling/dlpack-machine.mjs",
+      "digest": "sha256:54a91ac53fd592087e5b792b4cb7ec399f8d381c035224cc68dcc9dc71773e93"
+    },
+    {
+      "id": "prc0-reused-lz0-corpus",
+      "role": "reused-lz0-corpus",
+      "path": "tooling/lazy-behavior-cases.json",
+      "digest": "sha256:f0d476104bace61dfa55a372c917854c24f0d7430c8701426c3e39ad5a9d7951"
+    },
+    {
+      "id": "prc0-reused-lz0-machine",
+      "role": "reused-lz0-machine",
+      "path": "tooling/lazy-behavior-machine.mjs",
+      "digest": "sha256:74666f94bcf56e4348295d14d42e808b8c480fb56a524f9984636a7f7db54925"
+    },
+    {
+      "id": "prc0-reused-asc0-corpus",
+      "role": "reused-asc0-corpus",
+      "path": "tooling/allocator-scope-cases.json",
+      "digest": "sha256:9feec5fb7454eb665057606926e0b4380d4efb7f2e97e657fbce985146376b34"
+    },
+    {
+      "id": "prc0-reused-asc0-machine",
+      "role": "reused-asc0-machine",
+      "path": "tooling/allocator-scope-machine.mjs",
+      "digest": "sha256:cbe4e2270a899fb7b564de26f4d6637f4a1f61b173c495e5a5dc6d42734702e2"
+    },
+    {
+      "id": "prc0-reused-r1-units-bundle",
+      "role": "reused-r1-units-bundle",
+      "path": "tooling/studies/r1-units/bundle.json",
+      "digest": "sha256:fd53d432c870bb58a2ec67dd027b3a0c9dfa96a5f3404113ab65e90705cd3dbf"
+    },
+    {
+      "id": "prc0-reused-r1-units-oracle",
+      "role": "reused-r1-units-oracle",
+      "path": "tooling/studies/r1-units/oracle.test.mjs",
+      "digest": "sha256:19b3b2b7936fcda86fc6b4a4388b46b0b2766255bfe625f53e1af4fef5e4c00b"
+    }
   ],
   "evidence": {
-    "current": ["source-ref", "reused-corpus", "reused-machine", "host-oracle", "adversarial-route", "mutation-checks", "snapshot"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"]
+    "current": [
+      "source-ref",
+      "reused-corpus",
+      "reused-machine",
+      "host-oracle",
+      "adversarial-route",
+      "mutation-checks",
+      "snapshot"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ]
   },
   "stopCondition": "Stop on stale digest, containment, role, source, route, implementation-gap, or evidence-boundary mutation; wait for Sol review before canonical recascade."
 }

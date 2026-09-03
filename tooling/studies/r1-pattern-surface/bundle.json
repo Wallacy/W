@@ -12,7 +12,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "classifyParty",
-    "digest": "sha256:942bc50dbde3433ef2facac4af662a1d27154409ef71894f8fba9c882ea08553"
+    "digest": "sha256:eb4a00e28736bd8ac0e0b480551929edd2501307cf8d8f898b9b679974d3f25f"
   },
   "variants": [
     {
@@ -20,7 +20,7 @@
       "role": "selected",
       "language": "w",
       "path": "nominal-open-patterns.w",
-      "digest": "sha256:fd45fd1b44e51af435ec18b11ee464b02d621bebb24676a00de0bb9a4a66a4ac",
+      "digest": "sha256:6e8f3068d6416ea7d604d5928840eb95d6629abfb775b59be8989d3a4edb7522",
       "changedConstructs": [
         "nominal nested struct pattern",
         "tuple scrutinee",

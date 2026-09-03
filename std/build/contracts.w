@@ -24,7 +24,7 @@ export struct Input<Value> {
   name: String
 
   export const init(name: String) {
-    assert(isBindingName(name), "invalid build input binding")
+    assert(isBindingName(value: name), "invalid build input binding")
     self.name = name
   }
 }
@@ -34,7 +34,7 @@ export struct Output<Value> {
   name: String
 
   export const init(name: String) {
-    assert(isBindingName(name), "invalid build output binding")
+    assert(isBindingName(value: name), "invalid build output binding")
     self.name = name
   }
 }
@@ -64,26 +64,26 @@ foreign intrinsic from "std.build@1" {
   type ContextHandle
 
   async fn stdBuildReadString(
-    named handle: ref ContextHandle,
-    named input: const Input<String>,
-    named maximumBytes: usize<(1...)>,
+    _ handle: ref ContextHandle,
+    _ input: const Input<String>,
+    _ maximumBytes: usize<(1...)>,
   ): String throws Error
   async fn stdBuildReadBytes(
-    named handle: ref ContextHandle,
-    named input: const Input<Bytes>,
-    named maximumBytes: usize<(1...)>,
+    _ handle: ref ContextHandle,
+    _ input: const Input<Bytes>,
+    _ maximumBytes: usize<(1...)>,
   ): Bytes throws Error
   async fn stdBuildWriteString(
-    named handle: ref ContextHandle,
-    named output: const Output<String>,
-    named value: take String,
+    _ handle: ref ContextHandle,
+    _ output: const Output<String>,
+    _ value: take String,
   ): () throws Error
   async fn stdBuildWriteBytes(
-    named handle: ref ContextHandle,
-    named output: const Output<Bytes>,
-    named value: take Bytes,
+    _ handle: ref ContextHandle,
+    _ output: const Output<Bytes>,
+    _ value: take Bytes,
   ): () throws Error
-  fn stdBuildContextDrop(handle: inout ContextHandle)
+  fn stdBuildContextDrop(_ handle: inout ContextHandle)
 }
 
 // Bytes use identity encoding. String uses strict UTF-8. The provider checks
@@ -112,9 +112,9 @@ export struct Context {
   ): String throws Error {
     return unsafe {
       try await stdBuildReadString(
-        handle: ref handle,
-        input: input,
-        maximumBytes: limit,
+        ref handle,
+        input,
+        limit,
       )
     }
   }
@@ -125,9 +125,9 @@ export struct Context {
   ): Bytes throws Error {
     return unsafe {
       try await stdBuildReadBytes(
-        handle: ref handle,
-        input: input,
-        maximumBytes: limit,
+        ref handle,
+        input,
+        limit,
       )
     }
   }
@@ -141,9 +141,9 @@ export struct Context {
   ): () throws Error {
     unsafe {
       try await stdBuildWriteString(
-        handle: ref handle,
-        output: output,
-        value: take content,
+        ref handle,
+        output,
+        take content,
       )
     }
   }
@@ -154,9 +154,9 @@ export struct Context {
   ): () throws Error {
     unsafe {
       try await stdBuildWriteBytes(
-        handle: ref handle,
-        output: output,
-        value: take content,
+        ref handle,
+        output,
+        take content,
       )
     }
   }

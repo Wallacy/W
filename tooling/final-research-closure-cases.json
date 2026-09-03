@@ -25,7 +25,7 @@
     "dispositions": {
       "W-1451": "oracle-backed-current",
       "W-1452": "superseded",
-      "W-1453": "oracle-backed-current"
+      "W-1453": "superseded"
     },
     "gate": "PFU0-pre-freeze-usability"
   },

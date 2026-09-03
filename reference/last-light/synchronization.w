@@ -143,7 +143,7 @@ export object ThreadApologyLedger {
 
 fn recordApology(
   state: inout ApologyLedgerState,
-  named message: take String,
+  message: take String,
 ): u64 {
   state.messages.append(take message)
   state.revision += 1
@@ -152,10 +152,10 @@ fn recordApology(
 
 export async fn recordOnApologyDomain(
   state: inout ApologyLedgerState,
-  named message: take String,
+  message: take String,
 ): u64 {
   let revision = spawn<.apology> recordApology(
-    inout state,
+    state: inout state,
     message: take message,
   )
   return await revision
@@ -244,7 +244,7 @@ test "a scoped synchronous lock returns an owned snapshot" {
 test "a serial domain owns task state without an async mutex" {
   var ledger = ApologyLedgerState(revision: 0, messages: [])
   expect await recordOnApologyDomain(
-    inout ledger,
+    state: inout ledger,
     message: "Sorry for the temporal delay",
   ) == 1
   expect ledger.revision == 1

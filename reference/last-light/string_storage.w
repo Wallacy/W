@@ -16,8 +16,8 @@ export fn appendToHorizonSign(
 }
 
 export fn joinAnnouncements(
-  allocator memory: ref Allocator,
   lines: ref Array<String>,
+  allocator memory: ref Allocator,
 ): String throws AllocationError {
   var required: usize = 0
   var isFirst = true
@@ -90,7 +90,7 @@ export fn joinPair(left: take String, right: view String): String {
 test "reservation makes incremental construction deterministic" for joinAnnouncements {
   let lines = ["Do not panic", "Dessert remains available"]
   allocator memory: .fixed<capacity: 4<iec.KiB>> {
-    let result = try joinAnnouncements(allocator: ref memory, ref lines)
+    let result = try joinAnnouncements(lines: ref lines, allocator: ref memory)
     expect result == "Do not panic\nDessert remains available"
   }
 }
@@ -114,12 +114,12 @@ test "takeAll moves a frame and leaves a reusable String" {
 
 test "a consuming conversion preserves the UTF-8 bytes" for encodeAnnouncement {
   let message = "Violet Horizon"
-  let payload = encodeAnnouncement(take message)
+  let payload = encodeAnnouncement(value: take message)
   expect payload == b"Violet Horizon"
 }
 
 test "static and dynamic carriers keep the same text" for roundTripCarrier {
-  let literal = roundTripCarrier("End of service")
+  let literal = roundTripCarrier(value: "End of service")
   switch literal {
     case .text(let text): expect text == "End of service"
     case .invalid(_, _): panic("a UTF-8 literal became invalid")
@@ -129,7 +129,7 @@ test "static and dynamic carriers keep the same text" for roundTripCarrier {
   dynamic.append("A table at the ")
   dynamic.append("observable edge\0")
 
-  let rebuilt = roundTripCarrier(take dynamic)
+  let rebuilt = roundTripCarrier(value: take dynamic)
   switch rebuilt {
     case .text(let text): expect text == "A table at the observable edge\0"
     case .invalid(_, _): panic("valid dynamic UTF-8 became invalid")
@@ -151,12 +151,12 @@ test "String mutation never creates an implicit alias temporary" {
 test "a byte-bounded sign preserves its refinement during mutation" for appendToHorizonSign {
   var label: HorizonSignLabel = "Last Light"
 
-  expect appendToHorizonSign(inout label, suffix: " remains open")
+  expect appendToHorizonSign(label: inout label, suffix: " remains open")
   expect label == "Last Light remains open"
 
   let before = copy label
   expect !appendToHorizonSign(
-    inout label,
+    label: inout label,
     suffix: " beyond the final observable edge of the universe",
   )
   expect label == before

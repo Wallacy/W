@@ -28,7 +28,7 @@ fn start<
   _ tables: usize,
   _ courses: usize,
   _ buffer: usize,
->(named name: String, named timeout: PhysicalDuration): StartedService {
+>(name: String, timeout: PhysicalDuration): StartedService {
   return StartedService(
     enabled: enabled,
     name: name,
@@ -53,7 +53,7 @@ fn observeStaticContract<
   _ tables: usize,
   _ courses: usize,
   _ buffer: usize,
->(named name: String, named timeout: PhysicalDuration): StartedService {
+>(name: String, timeout: PhysicalDuration): StartedService {
   return start<enabled, tables, courses, buffer>(name: name, timeout: timeout)
 }
 

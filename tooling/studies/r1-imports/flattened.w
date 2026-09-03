@@ -9,7 +9,7 @@ enum ConsoleMode {
   unknown
 }
 
-fn decodeConsoleMode(input: ref String): ConsoleMode {
+fn decodeConsoleMode(_ input: ref String): ConsoleMode {
   let normalized = lowercase(trim(input))
   return switch normalized {
     case "cli": .cli

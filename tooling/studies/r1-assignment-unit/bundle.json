@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/restaurant.w",
     "symbol": "advance",
-    "digest": "sha256:939042393a77883ec00c92f30952315e96319c1a5b23c870b3940d4a29b7be0e"
+    "digest": "sha256:9d771184098c5b8e9a93e5f3676193dcbe2791ddae99896a5b4c15041a681f18"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "separate-read.w",
-      "digest": "sha256:d6de33903186e0e045a7f3cfd99ed9c8baf73bf3ca53eed57afbc237250f0ca0",
+      "digest": "sha256:9677a3568e5d1fc08596db977d5f8bdfa0cc231c0f394532bbdc89fb22e3475d",
       "changedConstructs": [
         "Unit assignment",
         "separate old-value read",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "temporary.w",
-      "digest": "sha256:e59a9428e42e16c792c8ec102698ecaa51890ca4fc0fc8f851951eb67931de0e",
+      "digest": "sha256:ed9f97a536912a71b335f6bb7106ef4fd6a6effb3fc1702448d4ff70584d4c85",
       "changedConstructs": [
         "explicit RHS temporary",
         "separate old-value read",
@@ -41,7 +41,7 @@
       "role": "alternative",
       "language": "w",
       "path": "value-producing.w",
-      "digest": "sha256:c6e80de036de647ac0524830638d3edc41257ee3c063df4482711603cc2e97ab",
+      "digest": "sha256:d07511f63c7013a2638e19c5acc64287629e4c50066e4ee582e62eb0cbad1dc3",
       "changedConstructs": [
         "parseable value-context assignment",
         "Unit-to-value semantic rejection",

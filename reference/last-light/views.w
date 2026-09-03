@@ -4,8 +4,8 @@ import * from std.ffi
 
 foreign c from "last_light_telemetry.h" {
   fn ll_telemetry_write(
-    data: c.ptr<c.uchar>,
-    size: c.size,
+    _ data: c.ptr<c.uchar>,
+    _ size: c.size,
   ): c.int
 }
 
@@ -40,12 +40,12 @@ export fn serviceTemperatures(
 }
 
 export fn correctTemperatures(
-  values: inout Array<f64>,
+  values: mut view Array<f64>,
   offset correction: f64,
-): inout view Array<f64> {
-  let inout corrected: view Array<f64> = values[1..<values.count]
+): mut view Array<f64> {
+  let mut view corrected: Array<f64> = values[1..<values.count]
 
-  for inout temperature in corrected {
+  for mut ref temperature in corrected {
     temperature += correction
   }
 
@@ -72,7 +72,7 @@ export fn writeTelemetry(
 
 test "a read-only view does not expose owner capacity" for serviceTemperatures {
   var readings = [2.70, 42.0, 273.15, 0.0]
-  let service = serviceTemperatures(readings)
+  let service = serviceTemperatures(values: readings)
 
   expect service == [42.0, 273.15, 0.0]
   expect service.count == 3
@@ -91,7 +91,7 @@ test "a nominal borrowed projection omits private course data" for publicCourse 
     allergens: ["celery", "nebula dust"],
     supplierContract: "Megadodo confidential",
   )
-  let card = publicCourse(course)
+  let card = publicCourse(course: course)
 
   expect card.title == "Pan-Galactic broth"
   expect card.allergens == ["celery", "nebula dust"]
@@ -106,18 +106,18 @@ test "a nominal borrowed projection omits private course data" for publicCourse 
 
 test "an exclusive view mutates elements but not its extent" for correctTemperatures {
   var readings = [2.70, 41.5, 272.65]
-  let inout corrected = correctTemperatures(inout readings, offset: 0.5)
+  let mut view corrected = correctTemperatures(values: mut view readings, offset: 0.5)
 
   expect corrected == [42.0, 273.15]
   expect readings == [2.70, 42.0, 273.15]
 
-  // Compile-fail assay: an inout view cannot resize its owner.
+  // Compile-fail assay: a mut view cannot resize its owner.
   // corrected.append(0.0)
 }
 
 test "a string view validates text boundaries and materializes explicitly" for commandVerb {
   let command = "serve horizon-cake"
-  guard let verb = commandVerb(command) else panic("verb is missing")
+  guard let verb = commandVerb(line: command) else panic("verb is missing")
 
   expect verb == "serve"
   let owned = verb.materialize()

@@ -30,7 +30,7 @@ async fn consumeElsewhere<T: Consumable>(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -68,7 +68,8 @@ async fn consumeElsewhere<T: Consumable>(
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_call_ownership)
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments

@@ -81,9 +81,9 @@ test "integer radix parsing and formatting stay explicit" {
 }
 
 test "safe conversion is unique and value preserving" for addPortions {
-  expect addPortions(250, 2) == 252
-  expect try narrowTrayCount(65_535) == 65_535
-  expect try truncateReading(-3.9) == -3
+  expect addPortions(left: 250, right: 2) == 252
+  expect try narrowTrayCount(source: 65_535) == 65_535
+  expect try truncateReading(source: -3.9) == -3
 }
 
 test "integer operators keep one policy in every profile" {
@@ -143,13 +143,13 @@ test "byte order is explicit at a boundary" {
 test "float order is explicit when IEEE equality is partial" for compareReadings {
   expect f64.nan != f64.nan
   expect -0.0 == 0.0
-  expect compareReadings(f64.nan, 1.0) == none
+  expect compareReadings(left: f64.nan, right: 1.0) == none
   expect f64.totalOrder(-0.0, 0.0) == .less
 }
 
 test "ranges are intervals and descending work uses stride" for acceptsSeat {
-  expect acceptsSeat(1)
-  expect acceptsSeat(128)
+  expect acceptsSeat(number: 1)
+  expect acceptsSeat(number: 128)
   expect !(3 in 5...1)
 
   var countdown: Array<Int> = []
@@ -168,7 +168,7 @@ test "decimal and quantized types keep their contracts" {
 }
 
 test "a post-test loop processes zero once" for decimalDigitCount {
-  expect decimalDigitCount(0) == 1
-  expect decimalDigitCount(9) == 1
-  expect decimalDigitCount(42_424) == 5
+  expect decimalDigitCount(value: 0) == 1
+  expect decimalDigitCount(value: 9) == 1
+  expect decimalDigitCount(value: 42_424) == 5
 }

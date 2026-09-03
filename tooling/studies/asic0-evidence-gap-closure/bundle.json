@@ -24,13 +24,13 @@
   "sourceBase": {
     "path": "../../../reference/last-light/data_formats.w",
     "symbol": "export async fn archiveParquet",
-    "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+    "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
   },
   "sourceRefs": [
     {
       "path": "../../../reference/last-light/synchronization.w",
       "symbol": "SnapshotCell<PublishedMenu>",
-      "digest": "sha256:37ebb81f366b713f989e597d7454384311a4cb9462dbea2fade1e93e1f02c961"
+      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8"
     },
     {
       "path": "../../../reference/last-light/build.w",
@@ -40,7 +40,7 @@
     {
       "path": "../../../reference/last-light/capability_security_oracle.w",
       "symbol": "enum CapabilityOrigin",
-      "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b"
+      "digest": "sha256:2dc7f514f2af65fc61c1e160a93ac2f4d76a5790077849537c1547307dfd26b3"
     }
   ],
   "variants": [

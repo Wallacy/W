@@ -34,7 +34,7 @@ export type SelectorRelation = fn(
 
 foreign W from "last-light.menu" {
   fn selectPrimaryImported(
-    primary: ref String,
-    fallback: ref String,
+    _ primary: ref String,
+    _ fallback: ref String,
   ): view String borrows(0: [primary])
 }

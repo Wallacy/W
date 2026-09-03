@@ -41,7 +41,7 @@ const fn isHttpToken(value: ref String): Bool {
   if value.bytes.isEmpty { return false }
 
   for byte in value.bytes {
-    if !isHttpTokenByte(byte) { return false }
+    if !isHttpTokenByte(byte: byte) { return false }
   }
 
   return true
@@ -89,14 +89,14 @@ const fn asciiLowercaseToken(value: take String): String {
   var result = String(reservingBytes: value.bytes.count)
 
   for scalar in value.scalars {
-    result.append(asciiLowercaseScalar(scalar))
+    result.append(asciiLowercaseScalar(value: scalar))
   }
 
   return result
 }
 
 const fn normalizeHttpFieldValue(value: take String): String throws HttpSyntaxError {
-  guard isHttpFieldValue(value) else throw .invalidHeaderValue
+  guard isHttpFieldValue(value: value) else throw .invalidHeaderValue
 
   var normalized = String(reservingBytes: value.bytes.count)
   var pendingWhitespace = String()
@@ -132,7 +132,7 @@ fn asciiCaseInsensitiveRangeEquals(
 
   var offset: usize = 0
   while offset < expected.bytes.count {
-    if asciiLowercaseByte(value.bytes[start + offset]) != expected.bytes[offset] {
+    if asciiLowercaseByte(value: value.bytes[start + offset]) != expected.bytes[offset] {
       return false
     }
     offset += 1
@@ -143,7 +143,7 @@ fn asciiCaseInsensitiveRangeEquals(
 
 fn startsWithAsciiCaseInsensitive(value: ref String, expected: ref String): Bool {
   if value.bytes.count < expected.bytes.count { return false }
-  return asciiCaseInsensitiveRangeEquals(value, 0, expected.bytes.count, expected)
+  return asciiCaseInsensitiveRangeEquals(value: value, start: 0, end: expected.bytes.count, expected: expected)
 }
 
 fn containsForbiddenMethod(value: ref String): Bool {
@@ -163,9 +163,9 @@ fn containsForbiddenMethod(value: ref String): Bool {
       end -= 1
     }
 
-    if asciiCaseInsensitiveRangeEquals(value, start, end, "connect")
-      || asciiCaseInsensitiveRangeEquals(value, start, end, "trace")
-      || asciiCaseInsensitiveRangeEquals(value, start, end, "track") {
+    if asciiCaseInsensitiveRangeEquals(value: value, start: start, end: end, expected: "connect")
+      || asciiCaseInsensitiveRangeEquals(value: value, start: start, end: end, expected: "trace")
+      || asciiCaseInsensitiveRangeEquals(value: value, start: start, end: end, expected: "track") {
       return true
     }
 
@@ -200,7 +200,7 @@ const fn isCorsUnsafeRequestHeaderByte(value: u8): Bool {
 
 fn containsCorsUnsafeRequestHeaderByte(value: ref String): Bool {
   for byte in value.bytes {
-    if isCorsUnsafeRequestHeaderByte(byte) { return true }
+    if isCorsUnsafeRequestHeaderByte(value: byte) { return true }
   }
   return false
 }
@@ -218,13 +218,13 @@ const fn isCorsLanguageByte(value: u8): Bool {
 
 fn isCorsLanguageValue(value: ref String): Bool {
   for byte in value.bytes {
-    if !isCorsLanguageByte(byte) { return false }
+    if !isCorsLanguageByte(value: byte) { return false }
   }
   return true
 }
 
 fn isNoCorsSafelistedMediaType(value: ref String): Bool {
-  if containsCorsUnsafeRequestHeaderByte(value) { return false }
+  if containsCorsUnsafeRequestHeaderByte(value: value) { return false }
 
   var start: usize = 0
   var end = value.bytes.count
@@ -240,23 +240,23 @@ fn isNoCorsSafelistedMediaType(value: ref String): Bool {
   }
 
   return asciiCaseInsensitiveRangeEquals(
-    value,
-    start,
-    essenceEnd,
-    "application/x-www-form-urlencoded",
-  ) || asciiCaseInsensitiveRangeEquals(value, start, essenceEnd, "multipart/form-data")
-    || asciiCaseInsensitiveRangeEquals(value, start, essenceEnd, "text/plain")
+    value: value,
+    start: start,
+    end: essenceEnd,
+    expected: "application/x-www-form-urlencoded",
+  ) || asciiCaseInsensitiveRangeEquals(value: value, start: start, end: essenceEnd, expected: "multipart/form-data")
+    || asciiCaseInsensitiveRangeEquals(value: value, start: start, end: essenceEnd, expected: "text/plain")
 }
 
 object NoCorsSafelist {
-  fn contains(name: ref HeaderName, named value: ref String): Bool {
+  fn contains(name: ref HeaderName, value: ref String): Bool {
     if value.bytes.count > 128 { return false }
 
     return switch name.text() {
-      case "accept": !containsCorsUnsafeRequestHeaderByte(value)
-      case "accept-language": isCorsLanguageValue(value)
-      case "content-language": isCorsLanguageValue(value)
-      case "content-type": isNoCorsSafelistedMediaType(value)
+      case "accept": !containsCorsUnsafeRequestHeaderByte(value: value)
+      case "accept-language": isCorsLanguageValue(value: value)
+      case "content-language": isCorsLanguageValue(value: value)
+      case "content-type": isNoCorsSafelistedMediaType(value: value)
       case _: false
     }
   }
@@ -266,7 +266,7 @@ export struct MethodToken {
   value: String
 
   export const init(value: String) throws HttpSyntaxError {
-    guard isHttpToken(value) else throw .invalidMethod
+    guard isHttpToken(value: value) else throw .invalidMethod
     self.value = value
   }
 
@@ -307,8 +307,8 @@ export struct HeaderName {
   value: String
 
   export const init(value: String) throws HttpSyntaxError {
-    guard isHttpToken(value) else throw .invalidHeaderName
-    self.value = asciiLowercaseToken(take value)
+    guard isHttpToken(value: value) else throw .invalidHeaderName
+    self.value = asciiLowercaseToken(value: take value)
   }
 
   const init(canonicalValue: String) {
@@ -324,8 +324,8 @@ export struct HeaderName {
   }
 
   fn isForbiddenRequest(value: ref String): Bool {
-    if startsWithAsciiCaseInsensitive(self.value, "proxy-")
-      || startsWithAsciiCaseInsensitive(self.value, "sec-") {
+    if startsWithAsciiCaseInsensitive(value: self.value, expected: "proxy-")
+      || startsWithAsciiCaseInsensitive(value: self.value, expected: "sec-") {
       return true
     }
 
@@ -351,9 +351,9 @@ export struct HeaderName {
       case "transfer-encoding": true
       case "upgrade": true
       case "via": true
-      case "x-http-method": containsForbiddenMethod(value)
-      case "x-http-method-override": containsForbiddenMethod(value)
-      case "x-method-override": containsForbiddenMethod(value)
+      case "x-http-method": containsForbiddenMethod(value: value)
+      case "x-http-method-override": containsForbiddenMethod(value: value)
+      case "x-method-override": containsForbiddenMethod(value: value)
       case _: false
     }
   }
@@ -390,7 +390,7 @@ export struct HeaderField {
     value: String,
   ) throws HttpSyntaxError {
     self.storedName = name
-    self.storedValue = try normalizeHttpFieldValue(take value)
+    self.storedValue = try normalizeHttpFieldValue(value: take value)
   }
 
   const init(
@@ -476,7 +476,7 @@ export struct Headers {
   fields: Array<HeaderField>
   guard: HeadersGuard
 
-  export init(_ initialFields: take HeaderField...) {
+  export init(initialFields: take HeaderField...) {
     self.fields = take initialFields
     self.guard = .none
   }
@@ -1134,7 +1134,7 @@ export struct FormData: Duplicable {
   }
 
   export fn has(name: ref String): Bool {
-    return get(name) != .none
+    return get(key: name) != .none
   }
 
   export fn entries(): Array<FormDataEntry> {
@@ -1392,133 +1392,133 @@ foreign intrinsic from "std.http@1" {
   type TemplateHandle
 
   fn stdHttpRequestFromString(
-    input: ref String,
-    init: take RequestInit,
+    _ input: ref String,
+    _ init: take RequestInit,
   ): RequestHandle throws RequestError
   // Owned URL is consumed by the provider; the `Copy`-suffixed entry below
   // materializes from a borrowed URL and is intentionally distinct.
   fn stdHttpRequestFromOwnedURL(
-    input: take URL,
-    init: take RequestInit,
+    _ input: take URL,
+    _ init: take RequestInit,
   ): RequestHandle throws RequestError
   fn stdHttpRequestFromURLCopy(
-    input: ref URL,
-    init: take RequestInit,
+    _ input: ref URL,
+    _ init: take RequestInit,
   ): RequestHandle throws RequestError
   fn stdHttpRequestOverride(
-    handle: inout RequestHandle,
-    override: take RequestOverride,
+    _ handle: inout RequestHandle,
+    _ override: take RequestOverride,
   ): () throws RequestError
-  fn stdHttpRequestMethod(handle: ref RequestHandle): Method
-  fn stdHttpRequestURL(handle: ref RequestHandle): ref URL
-  fn stdHttpRequestHeaders(handle: ref RequestHandle): ref Headers
-  fn stdHttpRequestSignal(handle: ref RequestHandle): ref AbortSignal
-  fn stdHttpRequestBodyUsed(handle: ref RequestHandle): Bool
-  fn stdHttpRequestDestination(handle: ref RequestHandle): RequestDestination
-  fn stdHttpRequestMode(handle: ref RequestHandle): RequestMode
-  fn stdHttpRequestCredentials(handle: ref RequestHandle): CredentialsMode
-  fn stdHttpRequestCache(handle: ref RequestHandle): CacheMode
-  fn stdHttpRequestRedirect(handle: ref RequestHandle): RedirectMode
-  fn stdHttpRequestReferrer(handle: ref RequestHandle): RequestReferrer
-  fn stdHttpRequestReferrerPolicy(handle: ref RequestHandle): ReferrerPolicy
-  fn stdHttpRequestIntegrity(handle: ref RequestHandle): view String
-  fn stdHttpRequestDuplex(handle: ref RequestHandle): Duplex
-  fn stdHttpRequestPriority(handle: ref RequestHandle): Priority
-  fn stdHttpRequestBody(handle: inout RequestHandle): ReadableStream<Bytes, HttpBodyError>?
+  fn stdHttpRequestMethod(_ handle: ref RequestHandle): Method
+  fn stdHttpRequestURL(_ handle: ref RequestHandle): ref URL
+  fn stdHttpRequestHeaders(_ handle: ref RequestHandle): ref Headers
+  fn stdHttpRequestSignal(_ handle: ref RequestHandle): ref AbortSignal
+  fn stdHttpRequestBodyUsed(_ handle: ref RequestHandle): Bool
+  fn stdHttpRequestDestination(_ handle: ref RequestHandle): RequestDestination
+  fn stdHttpRequestMode(_ handle: ref RequestHandle): RequestMode
+  fn stdHttpRequestCredentials(_ handle: ref RequestHandle): CredentialsMode
+  fn stdHttpRequestCache(_ handle: ref RequestHandle): CacheMode
+  fn stdHttpRequestRedirect(_ handle: ref RequestHandle): RedirectMode
+  fn stdHttpRequestReferrer(_ handle: ref RequestHandle): RequestReferrer
+  fn stdHttpRequestReferrerPolicy(_ handle: ref RequestHandle): ReferrerPolicy
+  fn stdHttpRequestIntegrity(_ handle: ref RequestHandle): view String
+  fn stdHttpRequestDuplex(_ handle: ref RequestHandle): Duplex
+  fn stdHttpRequestPriority(_ handle: ref RequestHandle): Priority
+  fn stdHttpRequestBody(_ handle: inout RequestHandle): ReadableStream<Bytes, HttpBodyError>?
   async fn stdHttpRequestBytes(
-    handle: inout RequestHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout RequestHandle,
+    _ maximumBytes: usize<(1...)>,
   ): Bytes throws HttpBodyError
   async fn stdHttpRequestText(
-    handle: inout RequestHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout RequestHandle,
+    _ maximumBytes: usize<(1...)>,
   ): String throws HttpBodyError
   async fn stdHttpRequestBlob(
-    handle: inout RequestHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout RequestHandle,
+    _ maximumBytes: usize<(1...)>,
   ): Blob throws HttpBodyError
   async fn stdHttpRequestFormData(
-    handle: inout RequestHandle,
-    limits: FormDataLimits,
+    _ handle: inout RequestHandle,
+    _ limits: FormDataLimits,
   ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpRequestClone(
-    named handle: inout RequestHandle,
-    named maximumBufferedBytes: usize<(1...)>,
+    _ handle: inout RequestHandle,
+    _ maximumBufferedBytes: usize<(1...)>,
   ): (RequestHandle, RequestHandle) throws BodyCloneError
-  fn stdHttpRequestDrop(handle: inout RequestHandle)
+  fn stdHttpRequestDrop(_ handle: inout RequestHandle)
 
   fn stdHttpResponseCreate(
-    named body: take BodySource?,
-    named status: StatusCode,
-    named statusText: take String,
-    named headers: take Headers,
+    _ body: take BodySource?,
+    _ status: StatusCode,
+    _ statusText: take String,
+    _ headers: take Headers,
   ): ResponseHandle throws ResponseError
   fn stdHttpResponseError(): ResponseHandle
-  fn stdHttpResponseStatus(handle: ref ResponseHandle): u16<(0..<600)>
-  fn stdHttpResponseOk(handle: ref ResponseHandle): Bool
-  fn stdHttpResponseStatusText(handle: ref ResponseHandle): view String
-  fn stdHttpResponseHeaders(handle: ref ResponseHandle): ref Headers
-  fn stdHttpResponseURL(handle: ref ResponseHandle): URL?
-  fn stdHttpResponseRedirected(handle: ref ResponseHandle): Bool
-  fn stdHttpResponseType(handle: ref ResponseHandle): ResponseType
-  fn stdHttpResponseBodyUsed(handle: ref ResponseHandle): Bool
-  fn stdHttpResponseBody(handle: inout ResponseHandle): ReadableStream<Bytes, HttpBodyError>?
+  fn stdHttpResponseStatus(_ handle: ref ResponseHandle): u16<(0..<600)>
+  fn stdHttpResponseOk(_ handle: ref ResponseHandle): Bool
+  fn stdHttpResponseStatusText(_ handle: ref ResponseHandle): view String
+  fn stdHttpResponseHeaders(_ handle: ref ResponseHandle): ref Headers
+  fn stdHttpResponseURL(_ handle: ref ResponseHandle): URL?
+  fn stdHttpResponseRedirected(_ handle: ref ResponseHandle): Bool
+  fn stdHttpResponseType(_ handle: ref ResponseHandle): ResponseType
+  fn stdHttpResponseBodyUsed(_ handle: ref ResponseHandle): Bool
+  fn stdHttpResponseBody(_ handle: inout ResponseHandle): ReadableStream<Bytes, HttpBodyError>?
   async fn stdHttpResponseBytes(
-    handle: inout ResponseHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout ResponseHandle,
+    _ maximumBytes: usize<(1...)>,
   ): Bytes throws HttpBodyError
   async fn stdHttpResponseText(
-    handle: inout ResponseHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout ResponseHandle,
+    _ maximumBytes: usize<(1...)>,
   ): String throws HttpBodyError
   async fn stdHttpResponseBlob(
-    handle: inout ResponseHandle,
-    maximumBytes: usize<(1...)>,
+    _ handle: inout ResponseHandle,
+    _ maximumBytes: usize<(1...)>,
   ): Blob throws HttpBodyError
   async fn stdHttpResponseFormData(
-    handle: inout ResponseHandle,
-    limits: FormDataLimits,
+    _ handle: inout ResponseHandle,
+    _ limits: FormDataLimits,
   ): FormData throws BodyDecodeError<FormDataError>
   fn stdHttpResponseClone(
-    named handle: inout ResponseHandle,
-    named maximumBufferedBytes: usize<(1...)>,
+    _ handle: inout ResponseHandle,
+    _ maximumBufferedBytes: usize<(1...)>,
   ): (ResponseHandle, ResponseHandle) throws BodyCloneError
-  fn stdHttpResponseDrop(handle: inout ResponseHandle)
+  fn stdHttpResponseDrop(_ handle: inout ResponseHandle)
 
-  fn stdHttpContextRandom(handle: ref ContextHandle): RandomHandle
-  fn stdHttpContextDatabases(handle: ref ContextHandle): DatabaseRegistryHandle
-  fn stdHttpContextCaches(handle: ref ContextHandle): CacheRegistryHandle
-  fn stdHttpContextTemplates(handle: ref ContextHandle): TemplateRegistryHandle
-  fn stdHttpContextSignal(handle: ref ContextHandle): AbortSignal
-  fn stdHttpRandomInteger(handle: ref RandomHandle, range: Range<i32>): i32
+  fn stdHttpContextRandom(_ handle: ref ContextHandle): RandomHandle
+  fn stdHttpContextDatabases(_ handle: ref ContextHandle): DatabaseRegistryHandle
+  fn stdHttpContextCaches(_ handle: ref ContextHandle): CacheRegistryHandle
+  fn stdHttpContextTemplates(_ handle: ref ContextHandle): TemplateRegistryHandle
+  fn stdHttpContextSignal(_ handle: ref ContextHandle): AbortSignal
+  fn stdHttpRandomInteger(_ handle: ref RandomHandle, _ range: Range<i32>): i32
   fn stdHttpDatabaseGet(
-    handle: ref DatabaseRegistryHandle,
-    binding: const database.Binding,
+    _ handle: ref DatabaseRegistryHandle,
+    _ binding: const database.Binding,
   ): some database.Database
   fn stdHttpCacheGet<Key: Equatable & Hashable & Duplicable, Value: Duplicable>(
-    handle: ref CacheRegistryHandle,
-    binding: const cache.LocalBinding<Key, Value>,
+    _ handle: ref CacheRegistryHandle,
+    _ binding: const cache.LocalBinding<Key, Value>,
   ): some cache.LocalCache<Key, Value>
   fn stdHttpTemplateGet(
-    handle: ref TemplateRegistryHandle,
-    binding: const TemplateBinding,
+    _ handle: ref TemplateRegistryHandle,
+    _ binding: const TemplateBinding,
   ): TemplateHandle
   fn stdHttpTemplateRender<Value: json.Encodable>(
-    handle: ref TemplateHandle,
-    values: ref Array<Value>,
+    _ handle: ref TemplateHandle,
+    _ values: ref Array<Value>,
   ): String throws TemplateError
-  fn stdHttpContextDrop(handle: inout ContextHandle)
-  fn stdHttpRandomDrop(handle: inout RandomHandle)
-  fn stdHttpDatabaseRegistryDrop(handle: inout DatabaseRegistryHandle)
-  fn stdHttpCacheRegistryDrop(handle: inout CacheRegistryHandle)
-  fn stdHttpTemplateRegistryDrop(handle: inout TemplateRegistryHandle)
-  fn stdHttpTemplateDrop(handle: inout TemplateHandle)
+  fn stdHttpContextDrop(_ handle: inout ContextHandle)
+  fn stdHttpRandomDrop(_ handle: inout RandomHandle)
+  fn stdHttpDatabaseRegistryDrop(_ handle: inout DatabaseRegistryHandle)
+  fn stdHttpCacheRegistryDrop(_ handle: inout CacheRegistryHandle)
+  fn stdHttpTemplateRegistryDrop(_ handle: inout TemplateRegistryHandle)
+  fn stdHttpTemplateDrop(_ handle: inout TemplateHandle)
 
   async fn stdHttpServe<Failure: Error>(
-    at address: net.ListenAddress,
-    using network: ref net.Network,
-    named limits: ServerLimits,
-    named handler: some async fn(take Request, Context): Response throws Failure,
+    _ address: net.ListenAddress,
+    _ network: ref net.Network,
+    _ limits: ServerLimits,
+    _ handler: some async fn(take Request, Context): Response throws Failure,
   ): () throws ServerError
 }
 
@@ -1529,13 +1529,13 @@ export struct Request {
     self.handle = validatedHandle
   }
 
-  export init(_ input: take String, init: take RequestInit = RequestInit()) throws RequestError {
+  export init(input: take String, init: take RequestInit = RequestInit()) throws RequestError {
     self.handle = unsafe {
       try stdHttpRequestFromString(ref input, take init)
     }
   }
 
-  export init(_ input: take URL, init: take RequestInit = RequestInit()) throws RequestError {
+  export init(input: take URL, init: take RequestInit = RequestInit()) throws RequestError {
     // The owned URL entry consumes the URL in the foreign call. Borrowed URL
     // callers use the explicitly copying overload below.
     self.handle = unsafe {
@@ -1550,7 +1550,7 @@ export struct Request {
   }
 
   export init(
-    _ input: take Request,
+    input: take Request,
     override: take RequestOverride = RequestOverride(),
   ) throws RequestError {
     self.handle = take input.handle
@@ -1682,8 +1682,8 @@ export struct Request {
   ): (Request, Request) throws BodyCloneError {
     let (left, right) = unsafe {
       try stdHttpRequestClone(
-        handle: inout handle,
-        maximumBufferedBytes: bufferLimit,
+        inout handle,
+        bufferLimit,
       )
     }
     return (Request(validatedHandle: left), Request(validatedHandle: right))
@@ -1708,122 +1708,122 @@ export struct Response {
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .none,
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .none,
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take String,
+    body: take String,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.string(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.string(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take Bytes,
+    body: take Bytes,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.bytes(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.bytes(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take URLSearchParams,
+    body: take URLSearchParams,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.urlSearchParams(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.urlSearchParams(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take Blob,
+    body: take Blob,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.blob(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.blob(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take FormData,
+    body: take FormData,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.formData(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.formData(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take ReadableStream<Bytes, HttpBodyError>,
+    body: take ReadableStream<Bytes, HttpBodyError>,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(.stream(take body)),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(.stream(take body)),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
 
   export init(
-    _ body: take BodySource,
+    body: take BodySource,
     status: StatusCode = StatusCode.ok,
     statusText: String = "",
     headers: take Headers = Headers(),
   ) throws ResponseError {
     self.handle = unsafe {
       try stdHttpResponseCreate(
-        body: .some(take body),
-        status: status,
-        statusText: take statusText,
-        headers: take headers,
+        .some(take body),
+        status,
+        take statusText,
+        take headers,
       )
     }
   }
@@ -1981,8 +1981,8 @@ export struct Response {
   ): (Response, Response) throws BodyCloneError {
     let (left, right) = unsafe {
       try stdHttpResponseClone(
-        handle: inout handle,
-        maximumBufferedBytes: bufferLimit,
+        inout handle,
+        bufferLimit,
       )
     }
     return (Response(validatedHandle: left), Response(validatedHandle: right))
@@ -2153,15 +2153,15 @@ export struct Context {
 export async fn serve<Failure: Error>(
   at address: net.ListenAddress,
   using network: ref net.Network,
-  named limits: ServerLimits,
-  named handler: some async fn(take Request, Context): Response throws Failure,
+  limits: ServerLimits,
+  handler: some async fn(take Request, Context): Response throws Failure,
 ): () throws ServerError {
   return unsafe {
     try await stdHttpServe(
-      at: address,
-      using: network,
-      limits: limits,
-      handler: handler,
+      address,
+      network,
+      limits,
+      handler,
     )
   }
 }
@@ -2174,11 +2174,11 @@ export protocol HttpHandler<Failure: Error> {
 }
 
 test "HTTP tokens accept only the RFC token alphabet" {
-  expect isHttpToken("GET")
-  expect isHttpToken("x-last-light")
-  expect !isHttpToken("")
-  expect !isHttpToken("bad method")
-  expect !isHttpToken("método")
+  expect isHttpToken(value: "GET")
+  expect isHttpToken(value: "x-last-light")
+  expect !isHttpToken(value: "")
+  expect !isHttpToken(value: "bad method")
+  expect !isHttpToken(value: "método")
 }
 
 test "Headers normalize names and outer HTTP whitespace" {

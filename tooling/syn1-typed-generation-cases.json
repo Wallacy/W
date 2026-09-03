@@ -38,28 +38,28 @@
       "path": "reference/last-light/data_formats.w",
       "symbol": "export struct TabularTelemetryRow:",
       "claim": "closed data.Row schema synthesis",
-      "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab"
+      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971"
     },
     {
       "id": "last-light-kernels",
       "path": "reference/last-light/ai_harness.w",
       "symbol": "export const lastLightKernels",
       "claim": "finite compiler-owned kernel synthesis",
-      "digest": "sha256:5a30e65a8175dbe6434cdfdbcac4c0cc2dbd9c33cf4349676c9be87c77add338"
+      "digest": "sha256:79151f258b93fc1947509e356eb3ef56a25ad357fd8f49d653d136712f04a9c2"
     },
     {
       "id": "last-light-menu-transform",
       "path": "reference/last-light/packages/menu-compiler/transform.w",
       "symbol": "async fn transform(ctx: build.Context)",
       "claim": "hermetic typed transform",
-      "digest": "sha256:39b7adec43cdea832ab12e82c8fd908eea89a8c630c0ae169570bfdbde7d4744"
+      "digest": "sha256:e35955fc6334db0643b108cf62194d9576ae071f5d18a1038703f39834209eff"
     },
     {
       "id": "last-light-menu-compiler",
       "path": "reference/last-light/packages/menu-compiler/compiler.w",
       "symbol": "export fn compileMenu(source: ref String)",
       "claim": "menu parser/compiler source",
-      "digest": "sha256:7d1ddf74f17a526f1dda4f0f97414ff817bec353e6d19b9b22d91980fc670f50"
+      "digest": "sha256:c5d21e0d8a372b3777d0095a31905b3dda5b5c02ab57cfd84bfb715828f0cced"
     },
     {
       "id": "last-light-package",
@@ -1148,15 +1148,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-multiline.w",
               "logicalPath": "generated/routes.w",
-              "digest": "sha256:1548f8f0109adc19f82862d4466e0439ad4a626dd18cde23dd539567330bb795",
-              "byteLength": 155
+              "digest": "sha256:86ecdd4e94611ac6e0cf204e634f7a57d879b017afb51447331a5db87efa29e2",
+              "byteLength": 149
             }
           ],
           "frontendReceipt": {
             "status": "source-shape-receipt-research",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:81c50ef2fbcf676ab8be384836a29f3d2befc4644ae55c23887a5666422aae51",
+          "moduleSetDigest": "sha256:ca9d85b0f34a2adfa617cb03b46e97ba7225730227b4882bc21e263247802e6a",
             "symbols": [
               {
                 "path": "generated/routes.w",
@@ -1195,7 +1195,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:970c3a3271827f5128ad21f66dabd0e6ae65ae6ecf066e38b7eff7acf76d870e"
+          "digest": "sha256:1444d5fc3be9dd616f4136ebf87a5dde35f4bf1bee7c2e9dce7c2bba0f88c3d7"
           },
           "sourceMaps": [
             {
@@ -2815,15 +2815,15 @@
             {
               "fixturePath": "tooling/studies/syn1-typed-generation/generated-menu-private.w",
               "logicalPath": "generated/dish-id.w",
-              "digest": "sha256:afffb31099ed054926981422a2a4b5f461678b55a3d33163a1e948126de68b98",
-              "byteLength": 179
+              "digest": "sha256:7f8e8bdc92587b127f6ff8b4cdfa8d0e8ca5bf7a6591278436f2986db97cbea4",
+              "byteLength": 183
             }
           ],
           "frontendReceipt": {
             "status": "source-shape-receipt-research",
             "parser": "tree-sitter-w",
             "compilerEvidence": "missing",
-            "moduleSetDigest": "sha256:0b22c20784a55e9f72e0855bd45e808ac3a78fef4f191dae1346dd1d9fc0714f",
+          "moduleSetDigest": "sha256:89d9a196a49e0b17685c7beed47a59a16b9ec88be6609a485a789854a310d12e",
             "symbols": [
               {
                 "path": "generated/dish-id.w",
@@ -2881,7 +2881,7 @@
                 "resourceFacts": []
               }
             ],
-            "digest": "sha256:50cc19e005ec22e45062b92918ca7a59aa3372c3284ad6b730e822981229c974"
+          "digest": "sha256:7fcaadfd80f279da6c5082ca3c0068b657571f7103e86882e27260f98704c34a"
           },
           "sourceMaps": [
             {

@@ -5,11 +5,11 @@ struct Counter {
 }
 
 // Parseable syntax. Assignment has Unit type and cannot satisfy this return.
-fn assignUnit(counter: inout Counter, next: u32): u32 {
+fn assignUnit(_ counter: inout Counter, _ next: u32): u32 {
   return counter.value = next
 }
 
-fn increment(counter: inout Counter): () {
+fn increment(_ counter: inout Counter): () {
   counter.value += 1
 }
 

@@ -782,7 +782,7 @@ const lastCallLabelMarker = uniqueMarker(
 const finalCallPredicateMarker = uniqueMarker(
   generics, "export const fn isFinalCallLabel(value: String): Bool {", "FinalCallValue predicate")
 const finalCallValueMarker = uniqueMarker(
-  generics, "export struct FinalCallValue<_ value: String<(isFinalCallLabel(.member))>> {", "FinalCallValue declaration")
+  generics, "export struct FinalCallValue<_ value: String<(isFinalCallLabel(value: .member))>> {", "FinalCallValue declaration")
 const verifiedFinalCallMarker = uniqueMarker(
   generics, "export alias VerifiedFinalCall = FinalCallValue<\"The final seating\">", "VerifiedFinalCall alias")
 const ultimateAnswerConstMarker = uniqueMarker(
@@ -790,7 +790,7 @@ const ultimateAnswerConstMarker = uniqueMarker(
 const ultimateAnswerPredicateMarker = uniqueMarker(
   generics, "export const fn isUltimateAnswer(value: i64): Bool {", "UltimateAnswer predicate")
 const ultimateAnswerValueMarker = uniqueMarker(
-  generics, "export struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {", "UltimateAnswer declaration")
+  generics, "export struct UltimateAnswer<_ value: i64<(isUltimateAnswer(value: .member))>> {", "UltimateAnswer declaration")
 const ultimateAnswerImmediateAliasMarker = uniqueMarker(
   generics, "export alias UltimateAnswerImmediate = UltimateAnswer<42>", "UltimateAnswer immediate alias")
 const ultimateAnswerComputedAliasMarker = uniqueMarker(
@@ -2147,7 +2147,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
       unresolvedCase.record.fingerprintState !== "NOT_AVAILABLE")
     fail("unresolved named-const reference did not stop before evaluation")
   const callCase = await runD4Case(
-    "call", "const fn helper(value: i64): i64 { return value }\n" +
+    "call", "const fn helper(_ value: i64): i64 { return value }\n" +
       "const called: i64 = helper(42)\n" +
       `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(called)> }\n`)
   if (callCase.record.state !== d4Witnesses.call.state ||
@@ -2222,7 +2222,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("overflow witness did not preserve the causal ConstIR receipt")
 
   const unsupportedWitness = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
-    `const fn helper(value: i64): i64 { return value }\n` +
+    `const fn helper(_ value: i64): i64 { return value }\n` +
     `struct Use { unsupported: UltimateAnswer<(helper(42))> }\n`
   const unsupportedPath = join(build, "domain-generic-unsupported.w")
   await Bun.write(unsupportedPath, unsupportedWitness)

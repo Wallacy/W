@@ -145,19 +145,10 @@ function contextualCall(state, operation) {
       acceptedForms: operation.acceptedForms ?? ["positional"],
     }
   }
-  if (slot.first !== undefined && slot.first !== true) {
-    return {
-      accepted: false,
-      reason: "allocatorParameterFirstUnique",
-      code: "W-ALLOCATOR-0001",
-      declaration: operation.declaration ?? slot.declaration ?? "callable",
-      parameter: slot.parameter ?? slot.name ?? "allocator",
-    }
-  }
   if (slot.count !== undefined && slot.count !== 1) {
     return {
       accepted: false,
-      reason: "allocatorParameterFirstUnique",
+      reason: "allocatorParameterUnique",
       code: "W-ALLOCATOR-0001",
       declaration: operation.declaration ?? slot.declaration ?? "callable",
       parameter: slot.parameter ?? slot.name ?? "allocator",
@@ -217,7 +208,7 @@ function enterCallee(state, slot, callResult) {
 function parameterSourceForms(parameter) {
   if (isContextualSlot(parameter)) return [""]
   const label = parameter.label ?? parameter.external ?? parameter.requiredLabel
-  if (parameter.optional === true || parameter.policy === "optional(name)") {
+  if (parameter.optional === true) {
     return ["positional", label ? `${label}:` : "positional"]
   }
   if (label) return [`${label}:`]
@@ -375,8 +366,8 @@ export function runAllocatorScope(input) {
       continue
     }
     if (operation.op === "parameterSlots") {
-      if (operation.first !== true || operation.count !== 1) {
-        return { accepted: false, reason: "allocatorParameterFirstUnique" }
+      if (operation.count !== 1) {
+        return { accepted: false, reason: "allocatorParameterUnique" }
       }
       continue
     }
@@ -460,9 +451,9 @@ export function runAllocatorScope(input) {
         || ["stored", "returned", "spawn", "service", "callback", "channel"].includes(destination)
       const missingCapture = referencedOuter.find((reference) => !capturedNames.includes(reference))
       if (missingCapture !== undefined && escaping) {
-        // Allocator is move-first. `take` is only a capture mode candidate;
-        // W-ALLOCATOR-0002 still governs whether that owner may escape its
-        // lexical scope after capture.
+        // `take` is only a capture mode candidate; W-ALLOCATOR-0002 still
+        // governs whether that owner may escape its lexical scope after
+        // capture.
         const validModes = operation.copyable === true ? ["copy", "take"] : ["take"]
         return {
           accepted: false,

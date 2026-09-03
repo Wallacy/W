@@ -22,8 +22,8 @@ export enum DialogueStep {
 }
 
 export fn observeSuspension(
-  session: inout DialogueSession,
-  answer: take String,
+  _ session: inout DialogueSession,
+  _ answer: take String,
 ): DialogueStep throws DialogueFailure {
   if session.state == .finished {
     throw DialogueFailure.closed
@@ -33,7 +33,7 @@ export fn observeSuspension(
   return .reply
 }
 
-export fn closeDialogue(session: take DialogueSession): DialogueState {
+export fn closeDialogue(_ session: take DialogueSession): DialogueState {
   return session.state
 }
 
@@ -49,8 +49,8 @@ export struct MenuCursor {
 }
 
 export fn observeTraversal(
-  cursor: inout MenuCursor,
-  line: take String,
+  _ cursor: inout MenuCursor,
+  _ line: take String,
 ): DialogueStep throws DialogueFailure {
   if cursor.state == .finished {
     throw DialogueFailure.closed
@@ -62,8 +62,8 @@ export fn observeTraversal(
 }
 
 export fn observeDelegation(
-  parent: inout DialogueSession,
-  child: take DialogueSession,
+  _ parent: inout DialogueSession,
+  _ child: take DialogueSession,
 ): DialogueState throws DialogueFailure {
   if parent.state == .finished {
     throw DialogueFailure.closed

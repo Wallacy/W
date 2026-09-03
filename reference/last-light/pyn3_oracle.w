@@ -205,15 +205,15 @@ export struct RedactedError {
   privateFields: Array<String>
 }
 
-export const fn boundedMenu(named limits: Limits, named rows: usize, named columns: usize): Bool {
+export const fn boundedMenu(limits: Limits, rows: usize, columns: usize): Bool {
   return rows <= limits.rows && columns <= limits.columns
 }
 
 export const fn imagePreviewIsBounded(
-  named limits: Limits,
-  named width: u64,
-  named height: u64,
-  named encodedBytes: usize,
+  limits: Limits,
+  width: u64,
+  height: u64,
+  encodedBytes: usize,
 ): Bool {
   return width > 0_u64 && height > 0_u64 &&
     width <= limits.imageWidth && height <= limits.imageHeight &&
@@ -221,9 +221,9 @@ export const fn imagePreviewIsBounded(
 }
 
 export const fn jsonWorkIsBounded(
-  named limits: Limits,
-  named stringBytes: usize,
-  named workUnits: usize,
+  limits: Limits,
+  stringBytes: usize,
+  workUnits: usize,
 ): Bool {
   return stringBytes <= limits.jsonStringBytes && workUnits <= limits.workUnits
 }
@@ -231,12 +231,12 @@ export const fn jsonWorkIsBounded(
 // The checker derives row evidence from the real preview plan. No case may
 // assert a hidden collect flag as a semantic input.
 export const fn tablePreviewIsBounded(
-  named limits: Limits,
-  named sourceRows: usize,
-  named inspectedRows: usize,
-  named emittedRows: usize,
-  named hasMore: Bool,
-  named columns: usize,
+  limits: Limits,
+  sourceRows: usize,
+  inspectedRows: usize,
+  emittedRows: usize,
+  hasMore: Bool,
+  columns: usize,
 ): Bool {
   return sourceRows >= inspectedRows && inspectedRows >= emittedRows &&
     inspectedRows <= limits.rows && emittedRows <= limits.rows &&
@@ -254,9 +254,9 @@ export const fn fallbackHasPlainText(source compilerSummary: String): Bool {
 }
 
 export const fn ordinalIsNotGeneration(
-  named ordinal: ExecutionOrdinal,
-  named ordinalLabel: String,
-  named generation: GenerationId,
+  ordinal: ExecutionOrdinal,
+  ordinalLabel: String,
+  generation: GenerationId,
 ): Bool {
   return ordinal > 0_u64 && ordinalLabel.count > 0 &&
     generation.token.count > 0 && generation.token != ordinalLabel
@@ -272,14 +272,14 @@ export const fn lifecycleAllowsEmptyOutputs(events lifecycleEvents: Array<Lifecy
   return false
 }
 
-export const fn exportProofIsBounded(named proof: ReceiptProof): Bool {
+export const fn exportProofIsBounded(proof: ReceiptProof): Bool {
   return proof.sourceDigest.count > 0 && proof.session.count > 0 &&
     proof.generationBefore.token.count > 0 &&
     proof.generationAfter.token.count > 0 && proof.binding.count > 0 &&
     proof.lockDigest.count > 0 && proof.effectDigest.count > 0
 }
 
-export const fn redactionRemovesPrivateData(named error: RedactedError): Bool {
+export const fn redactionRemovesPrivateData(error: RedactedError): Bool {
   return error.privateFields.count > 0 && error.message == "presentation failed"
 }
 

@@ -1,10 +1,10 @@
 module gen1BuilderHelper
 
 export struct DialogueSession {
-  requestsOut: Channel<String><.send>
-  requestsIn: Channel<String><.receive>
-  repliesOut: Channel<String><.send>
-  repliesIn: Channel<String><.receive>
+  requestsOut: Channel<send: String>
+  requestsIn: Channel<receive: String>
+  repliesOut: Channel<send: String>
+  repliesIn: Channel<receive: String>
 }
 
 export fn makeDialogue(): DialogueSession {

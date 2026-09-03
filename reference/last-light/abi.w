@@ -59,7 +59,7 @@ export unsafe fn<abi: .c> ll_horizon_classify_v1(
   score: c.float,
 ): ll_horizon_result_v1 {
   do {
-    let status = try classifyHorizon(score)
+    let status = try classifyHorizon(score: score)
     let kind: c.uint = switch status {
       case .stable: LL_HORIZON_STABLE_V1
       case .warning(_): LL_HORIZON_WARNING_V1

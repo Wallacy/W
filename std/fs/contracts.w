@@ -90,118 +90,118 @@ foreign intrinsic from "std.fs@1" {
   type FileSnapshotHandle
   type DirectoryStreamHandle
 
-  fn stdFsPathFromNative(value: ref OsString): PathHandle throws PathEncodingError
-  fn stdFsPathFromUtf8(value: ref String): PathHandle throws PathEncodingError
-  fn stdFsPathFromValidatedUtf8(value: ref String): PathHandle
-  fn stdFsPathToUtf8(handle: ref PathHandle): String throws PathEncodingError
-  fn stdFsPathDisplayLossy(handle: ref PathHandle): String
-  fn stdFsPathDuplicate(handle: ref PathHandle): PathHandle
-  fn stdFsPathDrop(handle: inout PathHandle)
+  fn stdFsPathFromNative(_ value: ref OsString): PathHandle throws PathEncodingError
+  fn stdFsPathFromUtf8(_ value: ref String): PathHandle throws PathEncodingError
+  fn stdFsPathFromValidatedUtf8(_ value: ref String): PathHandle
+  fn stdFsPathToUtf8(_ handle: ref PathHandle): String throws PathEncodingError
+  fn stdFsPathDisplayLossy(_ handle: ref PathHandle): String
+  fn stdFsPathDuplicate(_ handle: ref PathHandle): PathHandle
+  fn stdFsPathDrop(_ handle: inout PathHandle)
 
   async fn stdFsScope(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): FileSystemHandle throws IoError
   async fn stdFsOpen<_ rights: StaticList<FileRight>>(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
-    creation: FileCreation,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
+    _ creation: FileCreation,
   ): FileHandle throws IoError
   async fn stdFsMetadata(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): FileMetadata throws IoError
   async fn stdFsEntries(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
-    limits: DirectoryLimits,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
+    _ limits: DirectoryLimits,
   ): DirectoryStreamHandle throws DirectoryError
   async fn stdFsCreateDirectory(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): () throws NamespaceError
   async fn stdFsRemoveFile(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): () throws NamespaceError
   async fn stdFsRemoveEmptyDirectory(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): () throws NamespaceError
   async fn stdFsRename(
-    filesystem: ref FileSystemHandle,
-    source: ref PathHandle,
-    destination: ref PathHandle,
-    replacement: RenamePolicy,
+    _ filesystem: ref FileSystemHandle,
+    _ source: ref PathHandle,
+    _ destination: ref PathHandle,
+    _ replacement: RenamePolicy,
   ): () throws NamespaceError
   async fn stdFsSyncNamespace(
-    filesystem: ref FileSystemHandle,
-    path: ref PathHandle,
+    _ filesystem: ref FileSystemHandle,
+    _ path: ref PathHandle,
   ): () throws IoError
-  fn stdFsFileSystemDrop(handle: inout FileSystemHandle)
+  fn stdFsFileSystemDrop(_ handle: inout FileSystemHandle)
 
   async fn stdFsFileRead(
-    handle: ref FileHandle,
-    offset: FileOffset,
-    appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    _ handle: ref FileHandle,
+    _ offset: FileOffset,
+    _ destination: inout Bytes,
+    _ maximum: usize<(1...)>,
   ): ReadStep throws IoError
   async fn stdFsFileWrite(
-    handle: ref FileHandle,
-    offset: FileOffset,
-    source: view Bytes,
+    _ handle: ref FileHandle,
+    _ offset: FileOffset,
+    _ source: view Bytes,
   ): WriteStep throws IoError
   async fn stdFsFileAppend(
-    handle: ref FileHandle,
-    source: view Bytes,
+    _ handle: ref FileHandle,
+    _ source: view Bytes,
   ): WriteStep throws IoError
   fn stdFsFileReader(
-    handle: take FileHandle,
-    offset: FileOffset,
+    _ handle: take FileHandle,
+    _ offset: FileOffset,
   ): FileCursorHandle
   async fn stdFsFileSnapshot(
-    handle: ref FileHandle,
-    maximumBytes: u64,
+    _ handle: ref FileHandle,
+    _ maximumBytes: u64,
   ): FileSnapshotHandle throws SnapshotError
   async fn stdFsFileSync(
-    handle: ref FileHandle,
-    durability: Durability,
+    _ handle: ref FileHandle,
+    _ durability: Durability,
   ): () throws IoError
   async fn stdFsFileFinish(
-    handle: take FileHandle,
-    durability: Durability,
+    _ handle: take FileHandle,
+    _ durability: Durability,
   ): () throws IoError
-  fn stdFsFileDrop(handle: inout FileHandle)
+  fn stdFsFileDrop(_ handle: inout FileHandle)
 
   async fn stdFsCursorRead(
-    handle: inout FileCursorHandle,
-    appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    _ handle: inout FileCursorHandle,
+    _ destination: inout Bytes,
+    _ maximum: usize<(1...)>,
   ): ReadStep throws IoError
-  fn stdFsCursorDrop(handle: inout FileCursorHandle)
+  fn stdFsCursorDrop(_ handle: inout FileCursorHandle)
 
-  fn stdFsSnapshotByteCount(handle: ref FileSnapshotHandle): u64
+  fn stdFsSnapshotByteCount(_ handle: ref FileSnapshotHandle): u64
   async fn stdFsSnapshotRead(
-    handle: ref FileSnapshotHandle,
-    offset: u64,
-    appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    _ handle: ref FileSnapshotHandle,
+    _ offset: u64,
+    _ destination: inout Bytes,
+    _ maximum: usize<(1...)>,
   ): SnapshotReadStep throws IoError
-  fn stdFsSnapshotDrop(handle: inout FileSnapshotHandle)
+  fn stdFsSnapshotDrop(_ handle: inout FileSnapshotHandle)
 
   async fn stdFsDirectoryNext(
-    handle: inout DirectoryStreamHandle,
+    _ handle: inout DirectoryStreamHandle,
   ): DirectoryEntry? throws DirectoryError
   async fn stdFsDirectoryCancel(
-    handle: inout DirectoryStreamHandle,
+    _ handle: inout DirectoryStreamHandle,
   ): () throws DirectoryError
-  fn stdFsDirectoryDrop(handle: inout DirectoryStreamHandle)
+  fn stdFsDirectoryDrop(_ handle: inout DirectoryStreamHandle)
 }
 
 export struct Path: Duplicable {
   handle: PathHandle
 
-  export init(_ native: ref OsString) throws PathEncodingError {
+  export init(native: ref OsString) throws PathEncodingError {
     self.handle = unsafe { try stdFsPathFromNative(native) }
   }
 
@@ -209,7 +209,7 @@ export struct Path: Duplicable {
     self.handle = validatedHandle
   }
 
-  export static fn fromUtf8(_ path: ref Utf8Path): Path {
+  export static fn fromUtf8(path: ref Utf8Path): Path {
     return Path(validatedHandle: unsafe { stdFsPathFromValidatedUtf8(path.text()) })
   }
 
@@ -234,13 +234,13 @@ export struct Path: Duplicable {
 export struct Utf8Path: Duplicable {
   value: String
 
-  export init(_ text: String) throws PathEncodingError {
+  export init(text: String) throws PathEncodingError {
     let validated = unsafe { try stdFsPathFromUtf8(ref text) }
     unsafe { stdFsPathDrop(inout validated) }
     self.value = take text
   }
 
-  export init(_ path: ref Path) throws PathEncodingError {
+  export init(path: ref Path) throws PathEncodingError {
     self.value = unsafe { try stdFsPathToUtf8(ref path.handle) }
   }
 
@@ -307,14 +307,14 @@ export struct FileSnapshot: SnapshotByteSource<IoError> {
   export async fn read(
     at offset: u64,
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): SnapshotReadStep throws IoError {
     return unsafe {
       try await stdFsSnapshotRead(
         ref handle,
         offset,
-        appendTo: inout destination,
-        maximum: maximum,
+        inout destination,
+        maximum,
       )
     }
   }
@@ -353,13 +353,13 @@ struct FileCursor: ByteSource<IoError> {
 
   mut async fn read(
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws IoError {
     return unsafe {
       try await stdFsCursorRead(
         inout handle,
-        appendTo: inout destination,
-        maximum: maximum,
+        inout destination,
+        maximum,
       )
     }
   }
@@ -380,14 +380,14 @@ export struct File<_ rights: StaticList<FileRight>> {
   export async fn read(
     at offset: FileOffset,
     appendTo destination: inout Bytes,
-    named maximum: usize<(1...)>,
+    maximum: usize<(1...)>,
   ): ReadStep throws IoError {
     return unsafe {
       try await stdFsFileRead(
         ref handle,
         offset,
-        appendTo: inout destination,
-        maximum: maximum,
+        inout destination,
+        maximum,
       )
     }
   }
@@ -395,13 +395,13 @@ export struct File<_ rights: StaticList<FileRight>> {
   // S0 exposes this member only when rights contains .write.
   export async fn write(
     at offset: FileOffset,
-    named source: view Bytes,
+    source: view Bytes,
   ): WriteStep throws IoError {
     return unsafe { try await stdFsFileWrite(ref handle, offset, source) }
   }
 
   // S0 exposes this member only when rights contains .append.
-  export async fn append(named source: view Bytes): WriteStep throws IoError {
+  export async fn append(source: view Bytes): WriteStep throws IoError {
     return unsafe { try await stdFsFileAppend(ref handle, source) }
   }
 
@@ -413,7 +413,7 @@ export struct File<_ rights: StaticList<FileRight>> {
 
   // S0 exposes this member only when rights contains .read.
   export async fn snapshot(
-    named maximumBytes: u64,
+    maximumBytes: u64,
   ): FileSnapshot throws SnapshotError {
     let snapshot = unsafe {
       try await stdFsFileSnapshot(ref handle, maximumBytes)
@@ -422,14 +422,14 @@ export struct File<_ rights: StaticList<FileRight>> {
   }
 
   // S0 exposes sync only for .write or .append.
-  export async fn sync(_ durability: Durability): () throws IoError {
+  export async fn sync(durability: Durability): () throws IoError {
     if durability == .none { return }
     unsafe { try await stdFsFileSync(ref handle, durability) }
   }
 
   // S0 exposes nontrivial durability only for .write or .append.
   export take async fn finish(
-    named durability: Durability = .none,
+    durability: Durability = .none,
   ): () throws IoError {
     unsafe { try await stdFsFileFinish(take handle, durability) }
   }
@@ -452,8 +452,8 @@ export struct FileSystem {
   }
 
   export async fn open<_ rights: StaticList<FileRight>>(
-    _ path: ref Path,
-    named creation: FileCreation = .openExisting,
+    path: ref Path,
+    creation: FileCreation = .openExisting,
   ): File<rights> throws IoError {
     let file = unsafe {
       try await stdFsOpen<rights>(ref handle, ref path.handle, creation)
@@ -461,13 +461,13 @@ export struct FileSystem {
     return File<rights>(validatedHandle: file)
   }
 
-  export async fn metadata(_ path: ref Path): FileMetadata throws IoError {
+  export async fn metadata(path: ref Path): FileMetadata throws IoError {
     return unsafe { try await stdFsMetadata(ref handle, ref path.handle) }
   }
 
   export async fn entries(
     at path: ref Path,
-    named limits: DirectoryLimits = DirectoryLimits(),
+    limits: DirectoryLimits = DirectoryLimits(),
   ): some Stream<DirectoryEntry, DirectoryError> throws DirectoryError {
     let rawStream = unsafe {
       try await stdFsEntries(ref handle, ref path.handle, limits)
@@ -475,16 +475,16 @@ export struct FileSystem {
     return DirectoryStream(validatedHandle: rawStream)
   }
 
-  export async fn createDirectory(_ path: ref Path): () throws NamespaceError {
+  export async fn createDirectory(path: ref Path): () throws NamespaceError {
     unsafe { try await stdFsCreateDirectory(ref handle, ref path.handle) }
   }
 
-  export async fn removeFile(_ path: ref Path): () throws NamespaceError {
+  export async fn removeFile(path: ref Path): () throws NamespaceError {
     unsafe { try await stdFsRemoveFile(ref handle, ref path.handle) }
   }
 
   export async fn removeEmptyDirectory(
-    _ path: ref Path,
+    path: ref Path,
   ): () throws NamespaceError {
     unsafe { try await stdFsRemoveEmptyDirectory(ref handle, ref path.handle) }
   }
@@ -492,7 +492,7 @@ export struct FileSystem {
   export async fn rename(
     from source: ref Path,
     to destination: ref Path,
-    named replacement: RenamePolicy = .keepExisting,
+    replacement: RenamePolicy = .keepExisting,
   ): () throws NamespaceError {
     unsafe {
       try await stdFsRename(

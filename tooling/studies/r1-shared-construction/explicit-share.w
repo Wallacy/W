@@ -6,7 +6,7 @@ struct MenuSection {
   children: Array<shared MenuSection>
 }
 
-fn makeRoot(title: String): shared MenuSection {
+fn makeRoot(_ title: String): shared MenuSection {
   return share(MenuSection(
     title: take title,
     parent: .none,
@@ -15,7 +15,7 @@ fn makeRoot(title: String): shared MenuSection {
 }
 
 fn makeRoot(
-  title: String,
+  _ title: String,
   using memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   return try share(

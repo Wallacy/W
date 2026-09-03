@@ -110,9 +110,9 @@ export fn compareStrictForecast(
 }
 
 test "device invocation lifecycle closes in order" for nextDeviceInvocationPhase {
-  expect nextDeviceInvocationPhase(.staged) == .submitted
-  expect nextDeviceInvocationPhase(.providerDrained) == .cleanup
-  expect nextDeviceInvocationPhase(.joined) == null
+  expect nextDeviceInvocationPhase(phase: .staged) == .submitted
+  expect nextDeviceInvocationPhase(phase: .providerDrained) == .cleanup
+  expect nextDeviceInvocationPhase(phase: .joined) == null
 }
 
 test "strict comparison requires equal values" for compareStrictForecast {

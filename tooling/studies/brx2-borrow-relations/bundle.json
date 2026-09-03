@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
     "symbol": "selectPrimary",
-    "digest": "sha256:3dff93aaaa1c5213cfbb4b866749537ad4de47e84c8ad270aa7901a88c59843e"
+    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200"
   },
   "entry": "observeBorrowRelation",
   "variants": [
@@ -18,7 +18,7 @@
       "language": "w",
       "path": "baseline.w",
       "role": "selected",
-      "digest": "sha256:e8dd63e7521c9e3f58510fc3cf2323abd774ef2ce71c21f0a41b1371823a7063",
+      "digest": "sha256:0a8ee33b86362852601fedfba96caa64cb9db22c50901dbf522bd74600c69a1b",
       "changedConstructs": [
         "current receiver and body-derived mapping remain unchanged",
         "bodyless requirements accept one compatible input and reject ambiguity with W-BORROW-0011",
@@ -34,7 +34,7 @@
       "language": "w-alternative",
       "path": "nominal-aggregate.w",
       "role": "alternative",
-      "digest": "sha256:6f6b458cd0667e50edcbcb775756fa5e72b0e4ceb0d075ebaae66eaeeaccd594",
+      "digest": "sha256:6d3aa1c67ff5cff3f18a016c0ced33d48652dba6f5d58d57bfb4c9e3f2e806d1",
       "changedConstructs": [
         "owned SelectedLine sum carries the selected input",
         "direct borrowed result changes to an owned API",

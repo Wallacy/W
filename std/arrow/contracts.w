@@ -207,96 +207,96 @@ foreign intrinsic from "std.arrow@1" {
   type RawCArrayHandle
   type RawCStreamHandle
 
-  fn stdArrowReleaseArray(handle: inout RawCArrayHandle)
-  fn stdArrowReleaseStream(handle: inout RawCStreamHandle)
+  fn stdArrowReleaseArray(_ handle: inout RawCArrayHandle)
+  fn stdArrowReleaseStream(_ handle: inout RawCStreamHandle)
 
   fn stdArrowDecodeIpcStream<Row: data.Row, SourceFailure: Error,
     Source: io.ByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>
 
   fn stdArrowDecodeIpcFile<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>>
 
   async fn stdArrowDecodeIpcStreamAll<Row: data.Row, SourceFailure: Error,
     Source: io.ByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): data.Batch<Row> throws DecodeError<SourceFailure>
 
   async fn stdArrowDecodeIpcFileAll<Row: data.Row, SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): data.Batch<Row> throws DecodeError<SourceFailure>
 
   fn stdArrowDecodeIpcStreamDynamic<SourceFailure: Error,
     Source: io.ByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>
 
   fn stdArrowDecodeIpcFileDynamic<SourceFailure: Error,
     Source: io.SnapshotByteSource<SourceFailure>>(
-    named source: take Source,
-    named options: DecodeOptions,
+    _ source: take Source,
+    _ options: DecodeOptions,
   ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>>
 
   async fn stdArrowEncodeIpcStreamBatch<Row: data.Row, SinkFailure: Error,
     Sink: io.ByteSink<SinkFailure>>(
-    named batch: ref data.Batch<Row>,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batch: ref data.Batch<Row>,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeError<SinkFailure>
 
   async fn stdArrowEncodeIpcStreamStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
     Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-    named batches: take Source,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batches: take Source,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>
 
   async fn stdArrowEncodeIpcFileBatch<Row: data.Row, SinkFailure: Error,
     Sink: io.ByteSink<SinkFailure>>(
-    named batch: ref data.Batch<Row>,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batch: ref data.Batch<Row>,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeError<SinkFailure>
 
   async fn stdArrowEncodeIpcFileStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
     Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-    named batches: take Source,
-    named sink: inout Sink,
-    named options: EncodeOptions,
+    _ batches: take Source,
+    _ sink: inout Sink,
+    _ options: EncodeOptions,
   ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure>
 
   fn stdArrowImportCArray<Row: data.Row>(
-    handle: take CArrayHandle,
-    options: CImportOptions,
+    _ handle: take CArrayHandle,
+    _ options: CImportOptions,
   ): data.Batch<Row> throws CImportError
 
   fn stdArrowImportCArrayDynamic(
-    handle: take CArrayHandle,
-    options: CImportOptions,
+    _ handle: take CArrayHandle,
+    _ options: CImportOptions,
   ): data.DynamicBatch throws CImportError
 
   fn stdArrowImportCStream<Row: data.Row>(
-    handle: take CStreamHandle,
-    options: CStreamImportOptions,
+    _ handle: take CStreamHandle,
+    _ options: CStreamImportOptions,
   ): some Stream<data.Batch<Row>, CImportError>
 
   fn stdArrowImportCStreamDynamic(
-    handle: take CStreamHandle,
-    options: CStreamImportOptions,
+    _ handle: take CStreamHandle,
+    _ options: CStreamImportOptions,
   ): some Stream<data.DynamicBatch, CImportError>
 
   fn stdArrowExportCArray<Row: data.Row>(
-    batch: ref data.Batch<Row>,
-    options: CExportOptions,
+    _ batch: ref data.Batch<Row>,
+    _ options: CExportOptions,
   ): CArrayHandle throws CExportError
 }
 
@@ -428,104 +428,104 @@ export enum EncodeStreamError<BatchFailure: Error, SinkFailure: Error>: Error {
 
 export fn decodeIpcStream<Row: data.Row, SourceFailure: Error,
   Source: io.ByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>> {
-  return unsafe { stdArrowDecodeIpcStream(source: take source, options: options) }
+  return unsafe { stdArrowDecodeIpcStream(take source, options) }
 }
 
 export fn decodeIpcFile<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.Batch<Row>, DecodeError<SourceFailure>> {
-  return unsafe { stdArrowDecodeIpcFile(source: take source, options: options) }
+  return unsafe { stdArrowDecodeIpcFile(take source, options) }
 }
 
 export async fn decodeIpcStreamAll<Row: data.Row, SourceFailure: Error,
   Source: io.ByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): data.Batch<Row> throws DecodeError<SourceFailure> {
   return unsafe {
-    try await stdArrowDecodeIpcStreamAll(source: take source, options: options)
+    try await stdArrowDecodeIpcStreamAll(take source, options)
   }
 }
 
 export async fn decodeIpcFileAll<Row: data.Row, SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): data.Batch<Row> throws DecodeError<SourceFailure> {
   return unsafe {
-    try await stdArrowDecodeIpcFileAll(source: take source, options: options)
+    try await stdArrowDecodeIpcFileAll(take source, options)
   }
 }
 
 export fn decodeIpcStreamDynamic<SourceFailure: Error,
   Source: io.ByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>> {
-  return unsafe { stdArrowDecodeIpcStreamDynamic(source: take source, options: options) }
+  return unsafe { stdArrowDecodeIpcStreamDynamic(take source, options) }
 }
 
 export fn decodeIpcFileDynamic<SourceFailure: Error,
   Source: io.SnapshotByteSource<SourceFailure>>(
-  named source: take Source,
-  named options: DecodeOptions = DecodeOptions.standard(),
+  source: take Source,
+  options: DecodeOptions = DecodeOptions.standard(),
 ): some Stream<data.DynamicBatch, DecodeError<SourceFailure>> {
-  return unsafe { stdArrowDecodeIpcFileDynamic(source: take source, options: options) }
+  return unsafe { stdArrowDecodeIpcFileDynamic(take source, options) }
 }
 
 export async fn encodeIpcStream<Row: data.Row, SinkFailure: Error,
   Sink: io.ByteSink<SinkFailure>>(
-  named batch: ref data.Batch<Row>,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batch: ref data.Batch<Row>,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeError<SinkFailure> {
   return unsafe {
-    try await stdArrowEncodeIpcStreamBatch(batch: batch, sink: inout sink, options: options)
+    try await stdArrowEncodeIpcStreamBatch(batch, inout sink, options)
   }
 }
 
 export async fn encodeIpcStream<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
   Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-  named batches: take Source,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batches: take Source,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure> {
   return unsafe {
     try await stdArrowEncodeIpcStreamStream(
-      batches: take batches,
-      sink: inout sink,
-      options: options,
+      take batches,
+      inout sink,
+      options,
     )
   }
 }
 
 export async fn encodeIpcFile<Row: data.Row, SinkFailure: Error,
   Sink: io.ByteSink<SinkFailure>>(
-  named batch: ref data.Batch<Row>,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batch: ref data.Batch<Row>,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeError<SinkFailure> {
   return unsafe {
-    try await stdArrowEncodeIpcFileBatch(batch: batch, sink: inout sink, options: options)
+    try await stdArrowEncodeIpcFileBatch(batch, inout sink, options)
   }
 }
 
 export async fn encodeIpcFile<Row: data.Row, BatchFailure: Error, SinkFailure: Error,
   Source: Stream<data.Batch<Row>, BatchFailure>, Sink: io.ByteSink<SinkFailure>>(
-  named batches: take Source,
-  named sink: inout Sink,
-  named options: EncodeOptions = EncodeOptions.standard(),
+  batches: take Source,
+  sink: inout Sink,
+  options: EncodeOptions = EncodeOptions.standard(),
 ): data.EncodeProgress throws EncodeStreamError<BatchFailure, SinkFailure> {
   return unsafe {
     try await stdArrowEncodeIpcFileStream(
-      batches: take batches,
-      sink: inout sink,
-      options: options,
+      take batches,
+      inout sink,
+      options,
     )
   }
 }

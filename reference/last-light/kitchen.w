@@ -93,7 +93,7 @@ export protocol PantryLeaseApi {
 }
 
 export protocol PantryApi {
-  async fn reserve(course: Course, named guests: GuestCount): StockReservation throws PantryError
+  async fn reserve(course: Course, guests: GuestCount): StockReservation throws PantryError
 }
 
 export protocol OvenObserverApi {
@@ -104,7 +104,7 @@ export protocol OvenLeaseApi: OvenObserverApi {
   async fn preheat(): OvenReady throws OvenError
   async fn bake(
     mixture: take Mixture,
-    named readiness: take OvenReady,
+    readiness: take OvenReady,
   ): Dish throws OvenError
   async fn close()
 }
@@ -113,7 +113,7 @@ export protocol OvenApi {
   async fn telemetry(): OvenTelemetry throws OvenError
   async fn acquire(
     target: Temperature,
-    named duration: PhysicalDuration,
+    duration: PhysicalDuration,
   ): ServiceRef<OvenLeaseApi> throws OvenError
 }
 
@@ -175,7 +175,7 @@ export fn controlDuty(
     + controller.derivativeGain * derivative
   let duty = try DutyCycle((0.0...1.0).clamp(rawDuty))
 
-  if integralMayAdvance(rawDuty, error: error) {
+  if integralMayAdvance(rawDuty: rawDuty, error: error) {
     controller.accumulatedError = candidateIntegral
   }
 
@@ -187,7 +187,7 @@ export fn expectedEnergy(
   telemetry: ref OvenTelemetry,
   during duration: PhysicalDuration,
 ): Energy {
-  return expectedEnergy(telemetry.power, duty: telemetry.duty, during: duration)
+  return expectedEnergy(power: telemetry.power, duty: telemetry.duty, during: duration)
 }
 
 export fn expectedEnergy(
@@ -195,21 +195,21 @@ export fn expectedEnergy(
   duty dutyCycle: DutyCycle,
   during duration: PhysicalDuration,
 ): Energy {
-  return energy(power * dutyCycle, during: duration)
+  return energy(power: power * dutyCycle, during: duration)
 }
 
 export fn mix(
   ingredients: ref Array<Ingredient>,
-  named recipe: ref Recipe,
+  recipe: ref Recipe,
 ): Mixture throws KitchenError {
   guard !ingredients.isEmpty else throw .emptyStock
   return Mixture(course: recipe.course, mass: ingredients.totalMass(), homogeneity: ingredients.homogeneity())
 }
 
 test "anti-windup uses range patterns and guards" for controlDuty {
-  expect integralMayAdvance(0.4, error: 1.0)
-  expect integralMayAdvance(-0.2, error: 1.0)
-  expect !integralMayAdvance(1.2, error: 1.0)
+  expect integralMayAdvance(rawDuty: 0.4, error: 1.0)
+  expect integralMayAdvance(rawDuty: -0.2, error: 1.0)
+  expect !integralMayAdvance(rawDuty: 1.2, error: 1.0)
 }
 
 test "a PID controller starts with no accumulated error" {
@@ -224,7 +224,7 @@ test "a PID controller starts with no accumulated error" {
 
 test "an overloaded function value uses an explicit call shape" for expectedEnergy {
   let estimator: some fn(Power, DutyCycle, PhysicalDuration): Energy =
-    (power, duty, duration) => expectedEnergy(power, duty: duty, during: duration)
+    (power, duty, duration) => expectedEnergy(power: power, duty: duty, during: duration)
 
   expect estimator(2<si.W>, try DutyCycle(0.5), 3<si.s>) == 3<si.J>
 }

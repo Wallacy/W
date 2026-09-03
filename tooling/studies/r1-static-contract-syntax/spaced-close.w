@@ -8,6 +8,6 @@ type Menu = Array<Dish>
 type Menus = Array<Array<Dish> >
 type Scores = Tensor<f32, shape: [8, 4]>
 
-fn staticSyntaxEntry(rows: usize, columns: usize): usize {
+fn staticSyntaxEntry(_ rows: usize, _ columns: usize): usize {
   return rows * columns
 }

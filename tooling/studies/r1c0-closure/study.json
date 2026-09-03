@@ -4,21 +4,67 @@
   "id": "R1C0",
   "title": "Comparative ergonomics closure with bounded WLO1 fallback",
   "question": "Which R1 ergonomics gates can close as current/rejected without inventing human, model, compiler, runtime, or provider results?",
-  "manifest": {"path": "manifest.json"},
-  "corpus": {"path": "../../r1c0-closure-cases.json", "digest": "sha256:3c8ee47ee226e29f2fbc1e4dfe157998577dde42927626029381f3e0ba71f5e4"},
-  "wlo1": {"path": "wlo1-manifest.json", "digest": "sha256:55ef0d6df77a587ac193debaf4c4183b24b68082f2b0230070c6b3b5c0cdced5"},
-  "artifacts": {
-    "bundle": {"path": "bundle.json", "digest": "sha256:f7d90cdd08407810e827d695f95f3db414b0e525dc6ff64b2fc8d9b0f2ed81de"},
-    "oracle": {"path": "oracle.test.mjs", "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"},
-    "checker": {"path": "../../check-r1c0-closure.mjs", "digest": "sha256:f86d02ec543edac376ddcfcc70b0bb3ea89adba9c0e367330e625eea9853c29a"},
-    "snapshot": {"path": "../../r1c0-closure-results.snapshot.jsonl", "digest": "sha256:83a93e37e35728ac3fbf1491ee410907c768d2151ccbe59c1aa0d8c4be4bae8a"},
-    "wloChecker": {"path": "../../check-wlo1-closure.mjs", "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"},
-    "wloSnapshot": {"path": "../../wlo1-closure-results.snapshot.jsonl", "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"}
+  "manifest": {
+    "path": "manifest.json"
   },
-  "scopes": ["R1-broad", "R1E0", "R1H0", "R1S1"],
+  "corpus": {
+    "path": "../../r1c0-closure-cases.json",
+    "digest": "sha256:3c8ee47ee226e29f2fbc1e4dfe157998577dde42927626029381f3e0ba71f5e4"
+  },
+  "wlo1": {
+    "path": "wlo1-manifest.json",
+    "digest": "sha256:35ad0b2db965db09b5941dcf359b8468909b2668bab2d84674eef5488a1e8a11"
+  },
+  "artifacts": {
+    "bundle": {
+      "path": "bundle.json",
+      "digest": "sha256:9b51092d38f5f9b34b8cbef7a77e759063653be6949b0a87ecd95feab80c3e74"
+    },
+    "oracle": {
+      "path": "oracle.test.mjs",
+      "digest": "sha256:ec9e830a4720c198ec9ab7d8e717007b574c47d2f678ab5f07046201758bc383"
+    },
+    "checker": {
+      "path": "../../check-r1c0-closure.mjs",
+      "digest": "sha256:f86d02ec543edac376ddcfcc70b0bb3ea89adba9c0e367330e625eea9853c29a"
+    },
+    "snapshot": {
+      "path": "../../r1c0-closure-results.snapshot.jsonl",
+      "digest": "sha256:361eab1e19622063861436809a4e771fee91a3a606f5b6988a3468d23b7d0f95"
+    },
+    "wloChecker": {
+      "path": "../../check-wlo1-closure.mjs",
+      "digest": "sha256:560b56402dd043d2463065911a667fa4412bcd6645ee3c40b8287085dad2ff60"
+    },
+    "wloSnapshot": {
+      "path": "../../wlo1-closure-results.snapshot.jsonl",
+      "digest": "sha256:034231169c580ad973437683ad278a4f57826fdf6615960e277a92511c2354a7"
+    }
+  },
+  "scopes": [
+    "R1-broad",
+    "R1E0",
+    "R1H0",
+    "R1S1"
+  ],
   "evidence": {
-    "current": ["source-ref", "bundle-digests", "host-oracle", "scope-derived-metrics", "target-receipts", "negative-mutations"],
-    "missing": ["w-compile", "w-run", "compiler", "runtime", "provider", "human-study", "model-study"],
+    "current": [
+      "source-ref",
+      "bundle-digests",
+      "host-oracle",
+      "scope-derived-metrics",
+      "target-receipts",
+      "negative-mutations"
+    ],
+    "missing": [
+      "w-compile",
+      "w-run",
+      "compiler",
+      "runtime",
+      "provider",
+      "human-study",
+      "model-study"
+    ],
     "claims": "Host design-oracle closure only; no implementation or preference result."
   },
   "stopCondition": "Stop at any stale input, digest, scope, case, error, gap, authority, target, or evidence-boundary mutation; wait for Sol review before canonical recascade."

@@ -10,6 +10,49 @@ const corpusPath = path.resolve(process.argv.includes("--corpus") ? process.argv
 const snapshotPath = path.join(toolingDirectory, "capability-matrix-results.snapshot.jsonl");
 const writeSnapshot = process.argv.includes("--write");
 const corpus = loadCapabilityMatrix(corpusPath);
+const refreshEvidence = process.argv.includes("--refresh-evidence");
+
+function walk(value, visit) {
+  if (!value || typeof value !== "object") return;
+  visit(value);
+  for (const child of Object.values(value)) walk(child, visit);
+}
+
+function evidenceShape(value) {
+  const copy = structuredClone(value);
+  walk(copy, (node) => {
+    if (typeof node.path === "string" && Object.hasOwn(node, "digest")) {
+      node.digest = "<mechanical-file-digest>";
+    }
+  });
+  return JSON.stringify(copy);
+}
+
+if (refreshEvidence) {
+  const beforeShape = evidenceShape(corpus);
+  let updates = 0;
+  walk(corpus, (node) => {
+    if (typeof node.path !== "string" || !Object.hasOwn(node, "digest")) return;
+    if (node.path.replaceAll("\\", "/").includes("history/")) {
+      throw new Error(`history cannot be current capability evidence: ${node.path}`);
+    }
+    const resolved = path.resolve(repositoryDirectory, node.path);
+    const relative = path.relative(repositoryDirectory, resolved);
+    if (relative.startsWith("..") || path.isAbsolute(relative) || !fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+      throw new Error(`cannot refresh capability evidence path: ${node.path}`);
+    }
+    const next = `sha256:${crypto.createHash("sha256").update(fs.readFileSync(resolved)).digest("hex")}`;
+    if (node.digest !== next) {
+      node.digest = next;
+      updates++;
+    }
+  });
+  if (evidenceShape(corpus) !== beforeShape) {
+    throw new Error("capability evidence refresh changed reviewed corpus structure");
+  }
+  fs.writeFileSync(corpusPath, `${JSON.stringify(corpus, null, 2)}\n`);
+  process.stdout.write(`CAP0 evidence refreshed: ${updates} file digests; reviewed capability records unchanged.\n`);
+}
 const { errors, results } = validateCapabilityMatrix(corpus, { root: repositoryDirectory, checkSources: true });
 
 function digest(file) {

@@ -5,7 +5,7 @@ object MenuSection {
 }
 
 // Current baseline. The expected target supplies the weak context.
-export fn acquireOwner(root: shared MenuSection): shared MenuSection? {
+export fn acquireOwner(_ root: shared MenuSection): shared MenuSection? {
   let weakRoot: weak MenuSection? = root
   guard let owner = weakRoot else return .none
   return .some(owner)

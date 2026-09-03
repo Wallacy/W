@@ -190,9 +190,9 @@ const fn budgetFits(
 }
 
 const fn directoryLengthIsValid(
-  named directoryBytes: u64,
-  named blockBytes: u64,
-  named recordBytes: u64,
+  directoryBytes: u64,
+  blockBytes: u64,
+  recordBytes: u64,
 ): Bool {
   if directoryBytes > maximumWireMessageBytes ||
     blockBytes > maximumWireMessageBytes {

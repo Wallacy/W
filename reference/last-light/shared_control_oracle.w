@@ -16,8 +16,8 @@ struct OrderEnvelope {
 }
 
 fn makeRequestMenu(
-  allocator memory: ref Allocator,
   title: String,
+  allocator memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   // `memory` is an already-open capability. This construction does not open a
   // plan; `try` covers only the published initializer/control-block sites.
@@ -36,8 +36,8 @@ fn weakParent(root: shared MenuSection): weak MenuSection? {
 }
 
 fn promoteExisting(
-  allocator memory: ref Allocator,
   owner: MenuSection,
+  allocator memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   // The lexical capability is already admitted. The consuming `try (take
   // owner)` chooses its control-block origin without opening a plan here.
@@ -46,8 +46,8 @@ fn promoteExisting(
 }
 
 fn sharedFailure(
-  allocator memory: ref Allocator,
   title: String,
+  allocator memory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   let root: shared MenuSection = try MenuSection(
     allocator: memory,
@@ -59,8 +59,8 @@ fn sharedFailure(
 }
 
 fn crossDomainOrder(
-  allocator processMemory: ref Allocator,
   draft: MenuSection,
+  allocator processMemory: ref Allocator,
 ): shared MenuSection throws AllocationError {
   let portable = try (take draft).rehome(allocator: processMemory)
   // Promotion consumes the complete rehomed value. It does not rebuild a

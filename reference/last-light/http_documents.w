@@ -51,13 +51,13 @@ export struct CommandOrderDocument: json.Decodable {
   timeline: u32
 
   take fn command(): Order throws CommandDocumentError {
-    let id = try canonicalOrderId(id, field: .orderId)
-    let guestId = try canonicalGuestId(guest.id, field: .guestId)
+    let id = try canonicalOrderId(text: id, field: .orderId)
+    let guestId = try canonicalGuestId(text: guest.id, field: .guestId)
     let guestName = try GuestName(guest.name.materialize())
       .mapError((_) => CommandDocumentError.invalidRefinement(.guestName))
     let guestCount = try GuestCount(guests)
       .mapError((_) => CommandDocumentError.invalidRange(.guests))
-    let course = try courseFromToken(course)
+    let course = try courseFromToken(value: course)
 
     return Order(
       id: id,
@@ -107,23 +107,23 @@ export struct CommandDocument: json.Decodable {
         .shutdown
       case "status":
         guard let text = orderId else throw .missingPayload(.orderId)
-        guard isMissing(order) else throw .unexpectedPayload(.order)
-        guard isMissing(profile) else throw .unexpectedPayload(.profile)
-        .status(try canonicalOrderId(text, field: .orderId))
+        guard isMissing(value: order) else throw .unexpectedPayload(.order)
+        guard isMissing(value: profile) else throw .unexpectedPayload(.profile)
+        .status(try canonicalOrderId(text: text, field: .orderId))
       case "cancel":
         guard let text = orderId else throw .missingPayload(.orderId)
-        guard isMissing(order) else throw .unexpectedPayload(.order)
-        guard isMissing(profile) else throw .unexpectedPayload(.profile)
-        .cancel(try canonicalOrderId(text, field: .orderId))
+        guard isMissing(value: order) else throw .unexpectedPayload(.order)
+        guard isMissing(value: profile) else throw .unexpectedPayload(.profile)
+        .cancel(try canonicalOrderId(text: text, field: .orderId))
       case "simulate":
         guard let token = profile else throw .missingPayload(.profile)
-        guard isMissing(order) else throw .unexpectedPayload(.order)
-        guard isMissing(orderId) else throw .unexpectedPayload(.orderId)
-        .simulate(try simulationProfileFromToken(token))
+        guard isMissing(value: order) else throw .unexpectedPayload(.order)
+        guard isMissing(value: orderId) else throw .unexpectedPayload(.orderId)
+        .simulate(try simulationProfileFromToken(value: token))
       case "place":
         guard let order = order else throw .missingPayload(.order)
-        guard isMissing(orderId) else throw .unexpectedPayload(.orderId)
-        guard isMissing(profile) else throw .unexpectedPayload(.profile)
+        guard isMissing(value: orderId) else throw .unexpectedPayload(.orderId)
+        guard isMissing(value: profile) else throw .unexpectedPayload(.profile)
         .place(try (take order).command())
       case _:
         throw .invalidKind(.kind)
@@ -249,8 +249,8 @@ struct MoneyDocument: json.Encodable {
   money: ref Money
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let minorUnits = decimalSigned(money.minorUnits)
-    let currency = currencyCode(money.currency)
+    let minorUnits = decimalSigned(value: money.minorUnits)
+    let currency = currencyCode(currency: money.currency)
     try writer.withObject((object) => {
       try object.field("minorUnits", value: ref minorUnits)
       try object.field("currency", value: ref currency)
@@ -262,7 +262,7 @@ struct MenuItemDocument: json.Encodable {
   item: ref MenuItem
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let course = courseToken(item.course)
+    let course = courseToken(course: item.course)
     let price = MoneyDocument(money: ref item.price)
     try writer.withObject((object) => {
       try object.field("course", value: ref course)
@@ -289,7 +289,7 @@ struct ReceiptDocument: json.Encodable {
   receipt: ref Receipt
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let orderId = decimalOrderId(receipt.orderId)
+    let orderId = decimalOrderId(value: receipt.orderId)
     let total = MoneyDocument(money: ref receipt.total)
     try writer.withObject((object) => {
       try object.field("orderId", value: ref orderId)
@@ -302,8 +302,8 @@ struct OrderSummaryDocument: json.Encodable {
   summary: ref OrderSummary
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let orderId = decimalOrderId(summary.orderId)
-    let stage = stageToken(summary.stage)
+    let orderId = decimalOrderId(value: summary.orderId)
+    let stage = stageToken(stage: summary.stage)
     try writer.withObject((object) => {
       try object.field("orderId", value: ref orderId)
       try object.field("stage", value: ref stage)
@@ -336,7 +336,7 @@ struct SnapshotDocument: json.Encodable {
   snapshot: ref RestaurantSnapshot
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let completedOrders = decimal(snapshot.completedOrders)
+    let completedOrders = decimal(value: snapshot.completedOrders)
     let orders = OrderSummariesDocument(summaries: ref snapshot.orders)
     try writer.withObject((object) => {
       try object.field("orders", value: ref orders)
@@ -350,9 +350,9 @@ struct SimulationOrderDocument: json.Encodable {
   order: ref SimulationOrderSummary
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let orderId = decimalOrderId(order.orderId)
-    let course = courseToken(order.course)
-    let stage = simulationStageToken(order.stage)
+    let orderId = decimalOrderId(value: order.orderId)
+    let course = courseToken(course: order.course)
+    let stage = simulationStageToken(stage: order.stage)
     try writer.withObject((object) => {
       try object.field("orderId", value: ref orderId)
       try object.field("guestName", value: ref order.guestName)
@@ -367,8 +367,8 @@ struct SimulationEventDocument: json.Encodable {
   event: ref SimulationEvent
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let orderId = decimalOrderId(event.orderId)
-    let stage = simulationStageToken(event.stage)
+    let orderId = decimalOrderId(value: event.orderId)
+    let stage = simulationStageToken(stage: event.stage)
     try writer.withObject((object) => {
       try object.field("tick", value: ref event.tick)
       try object.field("orderId", value: ref orderId)
@@ -431,7 +431,7 @@ struct SimulationReportDocument: json.Encodable {
   report: ref SimulationReport
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let profile = profileToken(report.profile)
+    let profile = profileToken(profile: report.profile)
     let tickValue = report.tickDuration.value(in: si.s)
     let energyValue = report.energyUsed.value(in: si.J)
     let tickDuration = SecondsDocument(value: tickValue)
@@ -490,15 +490,15 @@ export struct AppResponseDocument: json.Encodable {
           try object.field("receipt", value: ref encoded)
         case .status(let orderId, let stage):
           let kind = "status"
-          let id = decimalOrderId(orderId)
-          let token = stageToken(stage)
+          let id = decimalOrderId(value: orderId)
+          let token = stageToken(stage: stage)
           try object.field("kind", value: ref kind)
           try object.field("orderId", value: ref id)
           try object.field("stage", value: ref token)
         case .cancelled(let orderId, let stage):
           let kind = "cancelled"
-          let id = decimalOrderId(orderId)
-          let token = stageToken(stage)
+          let id = decimalOrderId(value: orderId)
+          let token = stageToken(stage: stage)
           try object.field("kind", value: ref kind)
           try object.field("orderId", value: ref id)
           try object.field("stage", value: ref token)
@@ -573,15 +573,15 @@ export struct ProblemDocument: json.Encodable {
   code: ProblemCode
 
   export status: http.StatusCode {
-    get => problemStatus(code)
+    get => problemStatus(code: code)
   }
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
-    let problemType = problemTypeUri(code)
-    let title = problemTitle(code)
+    let problemType = problemTypeUri(code: code)
+    let title = problemTitle(code: code)
     let status = self.status
-    let token = problemCodeToken(code)
-    let detail = problemDetail(code)
+    let token = problemCodeToken(code: code)
+    let detail = problemDetail(code: code)
     try writer.withObject((object) => {
       try object.field("type", value: ref problemType)
       try object.field("title", value: ref title)
@@ -660,9 +660,9 @@ test "app response omits trace id and writes kind first" {
 
 test "problem response keeps code, status, body, and media type aligned" {
   let code = ProblemCode.invalidCommand
-  expect problemStatus(.malformedJson) == http.StatusCode.badRequest
-  expect problemStatus(.forbiddenShutdown) == http.StatusCode.forbidden
-  expect problemStatus(.invalidWifiDocument) == http.StatusCode.unprocessableContent
+  expect problemStatus(code: .malformedJson) == http.StatusCode.badRequest
+  expect problemStatus(code: .forbiddenShutdown) == http.StatusCode.forbidden
+  expect problemStatus(code: .invalidWifiDocument) == http.StatusCode.unprocessableContent
   let body = problem(code: code)
   expect body.status == http.StatusCode.unprocessableContent
   let bytes = try json.encode(ref body, limits: json.Limits(maximumBytes: 1<iec.KiB>))

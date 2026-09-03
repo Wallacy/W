@@ -82,7 +82,7 @@ export fn menuItems(table: ref PriceTable): Array<MenuItem> throws BillingError 
   for course in [.nebulaBroth, .photonSouffle, .quietSalad, .horizonCake] {
     items.append(MenuItem(
       course: course,
-      label: courseLabel(course),
+      label: courseLabel(course: course),
       price: try table.price(for: course),
     ))
   }
@@ -154,9 +154,9 @@ export service billing: BillingApi {
 
 test "pricing keeps currency and integer minor units" for quote {
   let table = loadPriceTable()
-  let menu = try menuItems(table)
+  let menu = try menuItems(table: table)
   let policy: any PricingPolicy = table
-  let value = try quote(policy, course: .horizonCake)
+  let value = try quote(policy: policy, course: .horizonCake)
 
   expect value.currency == Currency.ww
   expect value.minorUnits == 4_242

@@ -22,7 +22,7 @@ fn runAiLab(args: Arguments, ctx: Context): ExitCode {
       [1.0],
     ],
   )
-  let metrics = trainLinearKernel(inout weights, batch: batch, learningRate: 0.05)
+  let metrics = trainLinearKernel(weights: inout weights, batch: batch, learningRate: 0.05)
 
   print("Final-horizon training MSE: ${metrics.meanSquaredError}.")
   return .success

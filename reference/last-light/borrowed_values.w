@@ -30,10 +30,10 @@ export struct BorrowedMenu {
   labels: Array<ref String>
 }
 
-// A stored inout field is a move-only exclusive capability. It does not own or
-// keep the referent alive.
+// A stored mut ref field is a move-only exclusive capability. It does not own
+// or keep the referent alive; `inout` remains only a parameter/call convention.
 export struct OvenControl {
-  temperature: inout f64
+  temperature: mut ref f64
 }
 
 export struct OvenReadings {
@@ -71,8 +71,8 @@ fn warmDisjointOvens(west: inout Oven, east: inout Oven) {
 // One call creates two exclusive child loans. The fields are disjoint. The
 // call ends both children and restores the Kitchen parent before the read.
 export fn reborrowDisjointOvens(kitchen: inout Kitchen): OvenReadings {
-  warmDisjointOvens(inout kitchen.westOven, inout kitchen.eastOven)
-  return readDisjointOvens(ref kitchen)
+  warmDisjointOvens(west: inout kitchen.westOven, east: inout kitchen.eastOven)
+  return readDisjointOvens(kitchen: ref kitchen)
 }
 
 fn increaseTemperature(temperature: inout f64) {
@@ -80,7 +80,7 @@ fn increaseTemperature(temperature: inout f64) {
 }
 
 export fn reborrowWestOvenChild(kitchen: inout Kitchen): f64 {
-  increaseTemperature(inout kitchen.westOven.temperature)
+  increaseTemperature(temperature: inout kitchen.westOven.temperature)
   // The child ended at return from increaseTemperature. The parent is usable.
   return kitchen.westOven.temperature
 }
@@ -88,7 +88,7 @@ export fn reborrowWestOvenChild(kitchen: inout Kitchen): f64 {
 // The exclusive edge permits mutation only through the stored capability. It
 // ends when control leaves scope.
 export fn warmThroughStoredControl(kitchen: inout Kitchen): f64 {
-  var control = OvenControl(temperature: inout kitchen.westOven.temperature)
+  var control = OvenControl(temperature: mut ref kitchen.westOven.temperature)
   control.temperature += 1.0
   return control.temperature
 }
@@ -112,16 +112,16 @@ fn countTitle(title: ref String): usize {
 // A copied shared child keeps the same parent origin. The parent remains
 // frozen until both references reach their last use.
 export fn duplicatedTitleLength(menu: ref BorrowedMenu): usize {
-  let title = menuTitle(menu)
+  let title = menuTitle(menu: menu)
   let duplicate = copy title
-  return countTitle(title) + countTitle(duplicate)
+  return countTitle(title: title) + countTitle(title: duplicate)
 }
 
 // The child is structured. The borrow remains valid until the join and the
 // task frame is stable before suspension.
 export async fn stableStructuredMenuUse(menu: ref BorrowedMenu): usize {
-  let title = menuTitle(menu)
-  let count = spawn<.compute> countTitle(title)
+  let title = menuTitle(menu: menu)
+  let count = spawn<.compute> countTitle(title: title)
   return await count
 }
 
@@ -130,15 +130,15 @@ test "M1 borrowed menu keeps disjoint kitchen work useful" {
     westOven: Oven(name: "west", temperature: 180.0),
     eastOven: Oven(name: "east", temperature: 210.0),
   )
-  let readings = reborrowDisjointOvens(inout kitchen)
+  let readings = reborrowDisjointOvens(kitchen: inout kitchen)
   expect readings.west < readings.east
-  expect reborrowWestOvenChild(inout kitchen) == 182.0
-  expect warmThroughStoredControl(inout kitchen) == 183.0
+  expect reborrowWestOvenChild(kitchen: inout kitchen) == 182.0
+  expect warmThroughStoredControl(kitchen: inout kitchen) == 183.0
 
   let menu = Menu(title: "Pan Galactic Breakfast", labels: ["safe"])
-  let borrowed = borrowMenu(ref menu, body: "Served before the universe ends.")
-  expect menuTitle(ref borrowed) == "Pan Galactic Breakfast"
-  expect duplicatedTitleLength(ref borrowed) == 44
-  let labels = collectMenuLabels(ref borrowed)
+  let borrowed = borrowMenu(menu: ref menu, body: "Served before the universe ends.")
+  expect menuTitle(menu: ref borrowed) == "Pan Galactic Breakfast"
+  expect duplicatedTitleLength(menu: ref borrowed) == 44
+  let labels = collectMenuLabels(menu: ref borrowed)
   expect labels.count == 1
 }

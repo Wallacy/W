@@ -45,7 +45,7 @@
       "id": "bundle",
       "role": "bundle",
       "path": "tooling/studies/asic0-evidence-gap-closure/bundle.json",
-      "digest": "sha256:ab99218bafed054dcb015977b71197c1f0f3b16cc379bdd604b5df3ad3b4b44b"
+      "digest": "sha256:611592f3febc0bc433fcc31f88afa16b60030c925daff8491a5d761bdd0e9811"
     },
     {
       "id": "study",
@@ -87,13 +87,13 @@
       "id": "ipc-study",
       "role": "ipc-study",
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-      "digest": "sha256:00e61bd08d45e3893a83179a957f42df896b39372246d766452e7cbfff711ed1"
+      "digest": "sha256:b5f523524fb29577fd436ca26679f5c5b679ebba1c8fe6765ba2e0f5725b51bd"
     },
     {
       "id": "ipc-corpus",
       "role": "ipc-corpus",
       "path": "tooling/ipc1-mapped-ipc-cases.json",
-      "digest": "sha256:c942ee85f4be29c0099b1dcea7e8bd89acd8935b451ff3910750101b1744f8f1"
+      "digest": "sha256:dd64df1e5411065ee92849ace4e9eda378f8d1f595d586af8ce34e519799bd01"
     },
     {
       "id": "ipc-machine",
@@ -105,19 +105,19 @@
       "id": "ipc-snapshot",
       "role": "ipc-snapshot",
       "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-      "digest": "sha256:caaee4ef1c02aaf7305de206b548d1355c7fb8fdb078a9a8bbd8583279f4f0ee"
+      "digest": "sha256:d7ded25a3ed27dfb22646661d6cc79636832c1b2590522d0864ebf6f266fde2c"
     },
     {
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:fbf07c925653ba17b5e39170da7de309fa36b070338fca4bc68ec1e5944b04f7"
+      "digest": "sha256:47f85ed5989c116a3656c34047b3047af9c235115af0b285019ea284879969bc"
     },
     {
       "id": "avf-corpus",
       "role": "avf-corpus",
       "path": "tooling/avf0-availability-feature-cases.json",
-      "digest": "sha256:ba5e6a71afa18a692156617f7df316121b4c0def28bacf133c19b06bc4a6773a"
+      "digest": "sha256:7344a9f141598a0fdca4d49422567e890aa7ad0d4890a6bd4409a79e06891793"
     },
     {
       "id": "avf-machine",
@@ -129,19 +129,19 @@
       "id": "avf-snapshot",
       "role": "avf-snapshot",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "digest": "sha256:a95dc78ad3d6830ab70465b189701c410e9fc33f2bd1c3ea2f2f807825e5a3ef"
+      "digest": "sha256:b02ae5e995cdb881b724b8cf1a4124e486d14313edced65f428efa3762625e9a"
     },
     {
       "id": "sec-study",
       "role": "sec-study",
       "path": "tooling/studies/sec0-security-model/study.json",
-      "digest": "sha256:c9f790882d51997653b1e6588ff31c0dd7e0922812056bbcbe2f2bf4252fbe1a"
+      "digest": "sha256:272fd5e5dc79b92c6f6d69d21c1df150def67a40e5802b5ba2e56d24ea8346e3"
     },
     {
       "id": "sec-corpus",
       "role": "sec-corpus",
       "path": "tooling/sec0-security-model-cases.json",
-      "digest": "sha256:da4d44f261defcbb3df3014f7b32f3930de415433f548db851f819df48fb8316"
+      "digest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6"
     },
     {
       "id": "sec-machine",
@@ -153,7 +153,7 @@
       "id": "sec-snapshot",
       "role": "sec-snapshot",
       "path": "tooling/sec0-security-model-results.snapshot.jsonl",
-      "digest": "sha256:a4db1c447bd17b954b99d92cf33163c7f959c321b3d3e89c08ad7f53dd280b8d"
+      "digest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f"
     }
   ],
   "evidence": {

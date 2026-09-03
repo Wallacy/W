@@ -116,13 +116,13 @@ async fn fetchWifi(
   ctx: http.Context,
 ): http.Response throws WifiAppError {
   do {
-    return try await handleWifi(take request, ctx)
+    return try await handleWifi(request: take request, ctx: ctx)
   } catch error {
     switch error {
       case .decode(_):
-        return try wifiProblemResponse(.malformedJson)
+        return try wifiProblemResponse(code: .malformedJson)
       case .document(_):
-        return try wifiProblemResponse(.invalidWifiDocument)
+        return try wifiProblemResponse(code: .invalidWifiDocument)
       case _:
         throw error
     }
@@ -136,7 +136,7 @@ test "wifi maps only documented boundary failures" {
   let invalid = WifiAppError.document(.invalidDecimal(.id))
   let service = WifiAppError.service(.expired)
 
-  expect wifiProblemCode(ref malformed) == .some(.malformedJson)
-  expect wifiProblemCode(ref invalid) == .some(.invalidWifiDocument)
-  expect wifiProblemCode(ref service) == .none
+  expect wifiProblemCode(error: ref malformed) == .some(.malformedJson)
+  expect wifiProblemCode(error: ref invalid) == .some(.invalidWifiDocument)
+  expect wifiProblemCode(error: ref service) == .none
 }

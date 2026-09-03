@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 
-const BORROW_MODES = new Set(["ref", "view", "inout"]);
-const DEPENDENT_MODES = new Set(["ref", "view", "inout"]);
+const BORROW_MODES = new Set(["ref", "view", "mut ref"]);
+const DEPENDENT_MODES = new Set(["ref", "view", "mut ref"]);
 const AMBIGUOUS_BODYLESS_RESULT = "W-BORROW-0011";
 const DYNAMIC_BOUNDARIES = new Set([
   "channel",
@@ -275,7 +275,7 @@ function deriveEdges(declaration, mapping) {
         id: `edge:${result}:${source}:${index}`,
         result,
         ownerSlot: source,
-        mode: slot.mode === "inout" ? "exclusive" : "shared",
+        mode: slot.mode === "mut ref" ? "exclusive" : "shared",
         dynamic: slot.static !== true && slot.immortal !== true,
         origin: text(slot.origin) || source,
       });

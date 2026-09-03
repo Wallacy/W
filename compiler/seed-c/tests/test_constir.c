@@ -1575,7 +1575,7 @@ static bool test_depth_and_caller_owned_validation(void) {
 static bool test_direct_call_and_external_barrier(void) {
   static const char local_source[] =
       "const fn caller(): u8 { return helper(2_u8) }\n"
-      "const fn helper(value: u8): u8 { return value + 1_u8 }\n";
+      "const fn helper(_ value: u8): u8 { return value + 1_u8 }\n";
   fixture *value = &second_fixture;
   CHECK(fixture_lower(value, local_source));
   CHECK(value->constir_result.written.functions == 2u &&
@@ -1643,21 +1643,21 @@ static bool test_capacity_and_barrier(void) {
 
   static const char complete_source[] =
       "enum Stage { accepted reserving preparing serving completed cancelled }\n"
-      "const fn helper(value: u8): u8 { return value + 1_u8 }\n"
-      "const fn caller(value: u8): u8 { return helper(value) }\n"
+      "const fn helper(_ value: u8): u8 { return value + 1_u8 }\n"
+      "const fn caller(_ value: u8): u8 { return helper(value) }\n"
       "const fn move(from current: Stage, to next: Stage): Bool { return switch current { "
       "case .accepted: next in (.reserving, .cancelled) "
       "case .reserving: next in (.preparing, .cancelled) "
       "case .preparing: next in (.serving, .cancelled) "
       "case .serving: next in (.completed, .cancelled) "
       "case .completed: false case .cancelled: false } }\n"
-      "const fn structured(stages: StaticList<Stage>): Bool {\n"
+      "const fn structured(_ stages: StaticList<Stage>): Bool {\n"
       "for index in 0..<stages.count {\n"
       "return true\n"
       "}\n"
       "return false\n"
       "}\n"
-      "const fn bad(value: u8): u8 { let local = value return local }\n";
+      "const fn bad(_ value: u8): u8 { let local = value return local }\n";
   CHECK(fixture_parse(value, complete_source));
   const w_seed_constir_input complete_input = {
       &value->frontend_input, &value->frontend_output, &value->frontend_result};
@@ -1837,7 +1837,7 @@ static bool test_typed_const_expression_synthetic(void) {
   CHECK(!fixture_constir_valid(&first_fixture));
 
   static const char unsupported_call[] =
-      "const fn helper(value: i64): i64 { return value }\n"
+      "const fn helper(_ value: i64): i64 { return value }\n"
       "struct Box<_ value: i64> {}\n"
       "struct Use { value: Box<(helper(6))> }\n";
   CHECK(fixture_lower(&first_fixture, unsupported_call));
@@ -1941,7 +1941,7 @@ static bool test_module_const_synthetic_d4(void) {
       "const stringValue = \"42\"\n"
       "const listValue = [1, 2]\n"
       "const unresolvedValue = missing\n"
-      "const fn helper(value: i64): i64 { return value }\n"
+      "const fn helper(_ value: i64): i64 { return value }\n"
       "struct Use {}\n";
   CHECK(fixture_lower(&first_fixture, nonlowerable_module_consts));
   CHECK(first_fixture.frontend_result.written.const_declarations == 4u);

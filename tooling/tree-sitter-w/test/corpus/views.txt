@@ -6,8 +6,8 @@ fn visibleOrders(values: ref Array<Order>): view Array<Order> {
   return values[1..<values.count]
 }
 
-fn reprioritize(values: inout Array<Order>): inout view Array<Order> {
-  let inout pending: view Array<Order> = values[1..<values.count]
+fn reprioritize(values: mut view Array<Order>): mut view Array<Order> {
+  let mut view pending: Array<Order> = values[1..<values.count]
   return pending
 }
 
@@ -27,7 +27,7 @@ fn remainingOrders(values: ref Array<Order>): view Array<Order> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -57,7 +57,7 @@ fn remainingOrders(values: ref Array<Order>): view Array<Order> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments
@@ -99,7 +99,7 @@ fn remainingOrders(values: ref Array<Order>): view Array<Order> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier)))))
     (type
@@ -126,7 +126,7 @@ fn remainingOrders(values: ref Array<Order>): view Array<Order> {
     (parameter_list
       (parameter
         (identifier)
-        (type
+        (parameter_type
           (type_name
             (type_identifier))
           (type_arguments

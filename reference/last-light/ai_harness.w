@@ -46,8 +46,8 @@ export fn trainLinearKernel<
   outputs: usize,
 >(
   weights: inout WeightMatrix<inputs: inputs, outputs: outputs>,
-  named batch: ref TrainingBatch<rows: rows, inputs: inputs, outputs: outputs>,
-  named learningRate: f32<(0.0>..<1.0)>,
+  batch: ref TrainingBatch<rows: rows, inputs: inputs, outputs: outputs>,
+  learningRate: f32<(0.0>..<1.0)>,
 ): TrainingMetrics {
   let prediction = batch.features @ weights
   let error = prediction - batch.labels
@@ -77,6 +77,6 @@ test "matrix contraction fixes the output shape" for forecastKernel {
     [0.5],
     [0.25],
   ]
-  let result = forecastKernel(features, weights: weights)
+  let result = forecastKernel(features: features, weights: weights)
   expect result.shape == [2, 1]
 }
