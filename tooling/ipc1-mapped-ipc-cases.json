@@ -1341,21 +1341,21 @@
       "id": "archive-parquet",
       "path": "reference/last-light/data_formats.w",
       "symbol": "export async fn archiveParquet",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038",
       "claim": "Last Light bounded snapshot archive."
     },
     {
       "id": "handoff-arrow",
       "path": "reference/last-light/data_formats.w",
       "symbol": "export async fn handoffArrow",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038",
       "claim": "Last Light typed Arrow handoff."
     },
     {
       "id": "trusted-c-array",
       "path": "reference/last-light/data_formats.w",
       "symbol": "export fn importTrustedCArray",
-      "digest": "sha256:6c378f1b29ec1e8c57c71cc642d2dd3048c1b775baaac7548b2d80e5c9e44971",
+      "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038",
       "claim": "Last Light trusted C data import boundary."
     },
     {
@@ -1376,21 +1376,21 @@
       "id": "telemetry-object",
       "path": "reference/last-light/synchronization.w",
       "symbol": "export object HorizonTelemetryEpoch",
-      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
+      "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5",
       "claim": "Last Light telemetry generation source."
     },
     {
       "id": "release-fence",
       "path": "reference/last-light/synchronization.w",
       "symbol": "export unsafe fn releaseTelemetryFence",
-      "digest": "sha256:5e4af4e4e03a47a9a4c79f729ddf37c4f7ca1154ca7c0bdbae177305a97dc7e8",
+      "digest": "sha256:a3de5fdb348cc2723c5b4f9058581b5df36d7d2b73df40a32f5fd3d285e297d5",
       "claim": "Last Light explicit release fence source."
     },
     {
       "id": "observer-install",
       "path": "reference/last-light/memory.w",
       "symbol": "export fn installMenuObserver",
-      "digest": "sha256:f8f24589cc0b280f15990ab5b8323451b285ce84d2488eebf85abe9ed6e2208a",
+      "digest": "sha256:7ccc60ee263b947d7f08d62a7b89342f334b12a53df84b1f9c50aa310da16cb6",
       "claim": "Last Light explicit callback lease source."
     }
   ],

@@ -15,9 +15,9 @@ carregar módulo, habilitar dependência, conceder capability ou effect, alterar
 interface/ABI nem tornar disponível uma declaração que o compiler rejeitou.
 Todos os ramos alcançáveis permanecem compilados e auditados.
 
-O corpus source marca o binding de availability como Research na proveniência
-pré-ASIC0. ASIC0 fecha como design current o contrato de facts autenticados e
-binding typed fail-closed, sem keyword ou nova runtime authority; W-1449 mantém
+O corpus source preserva o binding de availability como historical-research
+provenance pré-ASIC0. ASIC0 fecha como design current o contrato de facts
+autenticados e binding typed fail-closed, sem keyword ou nova runtime authority; W-1449 mantém
 as lacunas de compiler, diagnostics e provider. Esta nota não afirma
 implementação.
 

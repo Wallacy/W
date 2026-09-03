@@ -63,7 +63,7 @@ const output = {
     routeCounts: count("route"),
     statusCounts: count("status"),
     packageCurrent: results.filter((result) => result.axis === "package" && result.route === "current").length,
-    availabilityResearch: results.filter((result) => result.axis === "availability" && result.route === "research").length,
+    availabilityEvidenceGap: results.filter((result) => result.axis === "availability" && result.route === "current-design-evidence-gap").length,
     runtimeComposable: results.filter((result) => result.axis === "runtime" && result.route === "composable").length,
     authorityRejections: results.filter((result) => ["availabilityCannotGrantCapability", "availabilityCannotGrantEffect", "runtimeFeatureAuthorityRejected", "featureCannotNarrowAvailability"].includes(result.code)).length,
   },

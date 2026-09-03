@@ -29,7 +29,7 @@ describe("AVF0 availability and feature host oracle", () => {
   });
 
   test("availability can bind a symbol but cannot create authority", () => {
-    expect(result("AVF0-availability-provider-bind")).toMatchObject({ status: "accepted", route: "research", boundSymbol: "CameraFrame.acquire" });
+    expect(result("AVF0-availability-provider-bind")).toMatchObject({ status: "accepted", route: "current-design-evidence-gap", boundSymbol: "CameraFrame.acquire" });
     expect(result("AVF0-availability-provider-fallback").boundSymbol).toBeNull();
     expect(result("AVF0-availability-capability-missing").code).toBe("availabilityCannotGrantCapability");
     expect(result("AVF0-availability-raw-version").code).toBe("availabilityEvidenceNotAuthoritative");

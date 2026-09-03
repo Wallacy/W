@@ -16,16 +16,22 @@
       "digest": "sha256:07629120e2af063e6714cd7f4dcfc10f00057a3c11f960d7b7e1b52e7df88e7f"
     },
     {
+      "id": "FRC0-research-state-inventory",
+      "role": "research-state-inventory",
+      "path": "tooling/research-state-inventory.json",
+      "digest": "sha256:7ce64a16a01f38d0e0a16b62ffc5afa188f361567d434b6f3a2bfdd6b8512c83"
+    },
+    {
       "id": "FRC0-machine",
       "role": "machine",
       "path": "tooling/final-research-closure-machine.mjs",
-      "digest": "sha256:27c91a8c57d9c858a21b8ccf7c19b3034c2b45fb2ef7bda7e02be721762625f1"
+      "digest": "sha256:877432f5dad656bfdfa1c3d79d613c5de865cb47a4f0cd00aa83ebe633fa4566"
     },
     {
       "id": "FRC0-root-checker",
       "role": "root-checker",
       "path": "tooling/check-final-research-closure.mjs",
-      "digest": "sha256:231a96a7e7d990d556eddb494de1b251449d33d70db5def48e1367d40f06a36a"
+      "digest": "sha256:d41f2befd3de5414f6ab233d3666f24cb1deaa39772b33b5a4cef9c47d17c030"
     },
     {
       "id": "FRC0-nested-checker",
@@ -37,19 +43,19 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:f6b76acd0cf6c9795dd6c8ac9313e1a0cde5cd30a00ae711274907e7afd720a3"
+      "digest": "sha256:489f0d1997663136e6e2d4ef90c238c57bf4481ce467c502818f0eeed736fc5c"
     },
     {
       "id": "FRC0-oracle",
       "role": "oracle",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "digest": "sha256:d583e1527a3e5ff5efc0fd55b4862ba8866809e7b1c8b9f8bef968cb5f31e275"
+      "digest": "sha256:c0f8b271f37f41535933befb7b98ed3c8536c6f76f40a5e1913039fd9d9ad0e3"
     },
     {
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:fce38881f84caf47853e8e5a84f232866cf54f91a21d7f9550f74f38ef43c1d0"
+      "digest": "sha256:96f8d3820e2b4c2fe10ffad007992880b5d0bc6262caeae65eb39d03e0005e8f"
     },
     {
       "id": "FRC0-study",
@@ -61,7 +67,7 @@
       "id": "FRC0-readme",
       "role": "readme",
       "path": "tooling/studies/final-research-closure/README.md",
-      "digest": "sha256:c01772b131e5c06648604d42cf67d9649b419c01798f11c1fdb38aa531e02008"
+      "digest": "sha256:127b7cddb6d12bdcf857f16510d06b6d29af7a08abff8a1d3e78c6adb319f249"
     },
     {
       "id": "FRC0-study-index",
@@ -169,7 +175,7 @@
       "id": "FRC0-study-checker",
       "role": "study-checker",
       "path": "tooling/check-study-bundles.mjs",
-      "digest": "sha256:1df415d8e9d4b921b4cc7bcc7b38d5d83ad94a7dbddc1dfa32690bbae6a3e01a"
+      "digest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d"
     },
     {
       "id": "FRC0-classification",

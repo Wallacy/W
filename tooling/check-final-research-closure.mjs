@@ -60,7 +60,8 @@ export function main(argv = process.argv.slice(2)) {
 
   const accepted = corpusResult.results.filter((result) => result.status === "accepted").length;
   const rejected = corpusResult.results.filter((result) => result.status === "rejected").length;
-  process.stdout.write(`FRC0 final-research-closure: ${corpusResult.results.length} cases, ${accepted} current accepted, ${rejected} adversarial rejected; mutation guards green.\n`);
+  const inventoryFacts = corpusResult.results.find((result) => result.decision === "W-731" && result.status === "accepted")?.facts?.researchStateInventory;
+  process.stdout.write(`FRC0 final-research-closure: ${corpusResult.results.length} cases, ${accepted} current accepted, ${rejected} adversarial rejected; research-state inventory normalized=${inventoryFacts?.normalized ?? false}, pending=${inventoryFacts?.normalizationPendingCount ?? "unknown"}; mutation guards green.\n`);
   return true;
 }
 

@@ -56,6 +56,13 @@ describe("FRC0 final research closure host oracle", () => {
     expect(current.facts.globalResearchExact).toBe(true);
     expect(current.facts.activeResearchGates).toEqual([]);
     expect(current.facts.historicalPostSnapshotResearchGates).toEqual(["W-1486", "W-1503"]);
+    expect(current.facts.researchStateInventory).toMatchObject({
+      active: [],
+      status: "normalization-in-progress",
+      normalized: false,
+      familyCount: 13,
+      normalizationPendingCount: 8,
+    });
     expect(current.facts.designOnlyClosures).toEqual({
       "W-1517": "oracle-backed-current",
       "W-1518": "oracle-backed-current",

@@ -8,7 +8,8 @@ import { loadData as loadLlm0, validate as validateLlm0 } from "./studies/llm0-t
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 export const decisions = Object.freeze(["W-1484", "W-1473", "W-1474", "W-1475"]);
-export const activeResearchGates = Object.freeze(["W-1486", "W-1503"]);
+export const historicalPostSnapshotResearchGates = Object.freeze(["W-1486", "W-1503"]);
+export const activeResearchGates = Object.freeze([]);
 export const historicalResearchZeroThrough = "W-1459";
 
 export function loadCorpus() {
@@ -123,6 +124,7 @@ export function deriveClosure(corpus = loadCorpus()) {
   const errors = [];
   if (corpus.$schema !== "w-design-research-closure-cases-1" || corpus.id !== "DRC0" || corpus.status !== "design-oracle-input") errors.push("DRC0 identity is invalid");
   if (JSON.stringify(corpus.decisions) !== JSON.stringify(decisions)) errors.push("DRC0 decision set is invalid");
+  if (JSON.stringify(corpus.historicalPostSnapshotResearchGates) !== JSON.stringify(historicalPostSnapshotResearchGates)) errors.push("DRC0 historical post-snapshot research gate set is invalid");
   if (JSON.stringify(corpus.activeResearchGates) !== JSON.stringify(activeResearchGates)) errors.push("DRC0 active research gate set is invalid");
   if (corpus.historicalResearchZeroThrough !== historicalResearchZeroThrough) errors.push("DRC0 historical Research=0 boundary is invalid");
   if (!Array.isArray(corpus.cases) || corpus.cases.length !== decisions.length) errors.push("DRC0 requires exactly four current cases");
@@ -143,6 +145,7 @@ export function deriveClosure(corpus = loadCorpus()) {
     errors,
     studyFacts,
     researchGates: errors.length === 0 ? [] : decisions,
+    historicalPostSnapshotResearchGates,
     activeResearchGates,
     historicalResearchZeroThrough,
   };

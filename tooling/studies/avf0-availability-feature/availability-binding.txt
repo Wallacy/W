@@ -1,4 +1,4 @@
-Research candidate, not accepted W syntax:
+Current design-gap witness, not accepted W syntax:
 
 if let acquire = available(CameraFrame.acquire) {
   let frame = acquire()

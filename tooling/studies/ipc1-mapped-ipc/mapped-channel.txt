@@ -1,4 +1,4 @@
-IPC1 Research witness: Ipc1MappedIpc bounded mapped channel.
+IPC1 current-design-evidence-gap witness: Ipc1MappedIpc bounded mapped channel.
 
 Capacity is mandatory, including an explicit cap0 rendezvous. The carrier is
 wire/bytes, not generic Channel<T> storage. Slots use relative offsets and

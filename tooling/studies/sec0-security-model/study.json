@@ -10,9 +10,9 @@
   "providerEvidence": "missing",
   "exactGap": {
     "id": "SEC0-profile-receipts",
-    "route": "research",
+    "route": "current-design-evidence-gap",
     "scope": "compiler, provider, hardware, and deployment receipts for profile-specific protection substitution",
-    "languageSurface": "unresolved",
+    "languageSurface": "current-design-contract",
     "providerGap": true,
     "gate": "SEC0-R1"
   },
@@ -33,12 +33,12 @@
     {
       "axis": "profiles",
       "problem": "replace or omit runtime protections with explicit evidence",
-      "disposition": "research"
+      "disposition": "current-design-evidence-gap"
     },
     {
       "axis": "deployment",
       "problem": "supply chain, patch, attestation, secrets, and hardening receipts",
-      "disposition": "research"
+      "disposition": "current-design-evidence-gap"
     },
     {
       "axis": "composition",
@@ -77,7 +77,7 @@
     },
     {
       "id": "security-patch",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "security-patch.txt",
       "digest": "sha256:f71ab546de17f1a7831933afa7df392955754b7918dd06c6159c7eaf5801a21b"
@@ -88,55 +88,55 @@
       "id": "readme",
       "role": "historical-research-note",
       "path": "tooling/studies/sec0-security-model/README.md",
-      "digest": "sha256:7fcfbe1b199cf68c38e016442a3cf0eb787934e028e258d8a9ff28abdafe0fc4"
+      "digest": "sha256:49d6d44df1b4240c69e6ecf3629ec97beabd7c0c05e089be00fbbbc7bfa24202"
     },
     {
       "id": "corpus",
       "role": "design-input",
       "path": "tooling/sec0-security-model-cases.json",
-      "digest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6"
+      "digest": "sha256:4bd7b1526203db094bc9bce455715c409fa1a0a8b337677d0576e839f1d04783"
     },
     {
       "id": "machine",
       "role": "host-oracle",
       "path": "tooling/sec0-security-model-machine.mjs",
-      "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"
+      "digest": "sha256:74e44c0734579ac09e3fcd97b9caba599426fbb3496f8e187b913c684fb7bfc9"
     },
     {
       "id": "manifest",
       "role": "manifest-validator",
       "path": "tooling/sec0-security-model-manifest.mjs",
-      "digest": "sha256:0c64381622ee3ee684d0ff45637b8456cf0eea0dea25d23b7a36181cd1dda9eb"
+      "digest": "sha256:d2f345249a1e1b04f0257da3f708f26655f9db42aa41c3bb2b962f2d8084d368"
     },
     {
       "id": "checker",
       "role": "snapshot-checker",
       "path": "tooling/check-sec0-security-model.mjs",
-      "digest": "sha256:080b9d6baa4ce29394d7d20cfa0c9144ca9146f1c04d302da4590fa244a7080e"
+      "digest": "sha256:cbdc4ad6094be5d921adb0fa3836603cc59646bd41174a5ff62f0fdd3fd20dde"
     },
     {
       "id": "reference-test",
       "role": "mutation-test",
       "path": "tooling/sec0-security-model-reference.test.mjs",
-      "digest": "sha256:b836a28fdcdbb3dbe9cc2262070cdd8ecfb5b2c174799d7954026f598c0b7f7e"
+      "digest": "sha256:28429aaa7c2fb2fa5f042baaa2dc7759bae8e8cc730d2475927555e25cee28b4"
     },
     {
       "id": "snapshot",
       "role": "derived-output",
       "path": "tooling/sec0-security-model-results.snapshot.jsonl",
-      "digest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f"
+      "digest": "sha256:a8d801fcb27a4e1afcda9aff075bd8c96d69f936d8cf8be863c56671deb7605f"
     },
     {
       "id": "bundle",
       "role": "study-bundle",
       "path": "tooling/studies/sec0-security-model/bundle.json",
-      "digest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0"
+      "digest": "sha256:bef7ddef1f22e7710409d8e1740584ad41138e99259b66009f2399c986f2a927"
     },
     {
       "id": "oracle",
       "role": "study-test",
       "path": "tooling/studies/sec0-security-model/oracle.test.mjs",
-      "digest": "sha256:501d19acbac29bf003aeccec859c085b975e2226bd0bc3fb6bd5a35432d8440d"
+      "digest": "sha256:1f19e738865fde8d13383cdebc1367af8ca0ca95d709606fda68a0ee7c78f42e"
     }
   ],
   "sourceRefs": [
@@ -208,7 +208,7 @@
     "accepted": 24,
     "rejected": 77,
     "currentAccepted": 11,
-    "researchAccepted": 13,
+    "currentDesignEvidenceGapAccepted": 13,
     "profileCount": 6,
     "authorityRejections": 16,
     "callerEchoRejections": 4

@@ -15,13 +15,13 @@
       "id": "corpus",
       "role": "corpus",
       "path": "tooling/asic0-evidence-gap-closure-cases.json",
-      "digest": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4"
+      "digest": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3"
     },
     {
       "id": "machine",
       "role": "machine",
       "path": "tooling/asic0-evidence-gap-closure-machine.mjs",
-      "digest": "sha256:bd0a94469b698c2b4a4511c2e3148b043ff92bcb1e1f7f55e48d173b17ac806e"
+      "digest": "sha256:fc498a11ae8bc3a57e6d7267c348cfb333b8516ef6edada2e8b7f71447d32b19"
     },
     {
       "id": "root-checker",
@@ -39,7 +39,7 @@
       "id": "snapshot",
       "role": "snapshot",
       "path": "tooling/asic0-evidence-gap-closure-results.snapshot.jsonl",
-      "digest": "sha256:83f8e0b6579e15cd8cee0c7672b4ffbe95194e1c6500b7978e90581db0febead"
+      "digest": "sha256:709e3490c2d1d53ce567611aaadb17f6bfff31af176b4e5edb96806700bd4d7d"
     },
     {
       "id": "bundle",
@@ -87,13 +87,13 @@
       "id": "ipc-study",
       "role": "ipc-study",
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-      "digest": "sha256:8e936c22cc185d72a3621cfab77a1c62cfdaf7a2bac75f920569cba7c4e85561"
+      "digest": "sha256:f73db8ee94c98140296ac3d4f5379b4ca72c03371500800b12c0ff19e38050d2"
     },
     {
       "id": "ipc-corpus",
       "role": "ipc-corpus",
       "path": "tooling/ipc1-mapped-ipc-cases.json",
-      "digest": "sha256:dd64df1e5411065ee92849ace4e9eda378f8d1f595d586af8ce34e519799bd01"
+      "digest": "sha256:8219acc656c243a92491a9c7645ebaf1abf30b0def569d13ae0a4ef62a0d436d"
     },
     {
       "id": "ipc-machine",
@@ -105,55 +105,55 @@
       "id": "ipc-snapshot",
       "role": "ipc-snapshot",
       "path": "tooling/ipc1-mapped-ipc-results.snapshot.jsonl",
-      "digest": "sha256:d7ded25a3ed27dfb22646661d6cc79636832c1b2590522d0864ebf6f266fde2c"
+      "digest": "sha256:3c5fa7205c15a8949721819e04de85be08200f077b798b6d55e4bf53ad8692fd"
     },
     {
       "id": "avf-study",
       "role": "avf-study",
       "path": "tooling/studies/avf0-availability-feature/study.json",
-      "digest": "sha256:33e93de91e7790d2af0f8ccbcc12800ae447100d25086542be5c490fa6aa2de4"
+      "digest": "sha256:9234620d416374526b67a535343b306fd710b4f455215c5b560b7a6fb8f2631c"
     },
     {
       "id": "avf-corpus",
       "role": "avf-corpus",
       "path": "tooling/avf0-availability-feature-cases.json",
-      "digest": "sha256:7344a9f141598a0fdca4d49422567e890aa7ad0d4890a6bd4409a79e06891793"
+      "digest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013"
     },
     {
       "id": "avf-machine",
       "role": "avf-machine",
       "path": "tooling/avf0-availability-feature-machine.mjs",
-      "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e"
+      "digest": "sha256:857ea1b586f9e64bc1b302dce9c4b137c70c34c9ed385a99af57bac63196264e"
     },
     {
       "id": "avf-snapshot",
       "role": "avf-snapshot",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "digest": "sha256:b02ae5e995cdb881b724b8cf1a4124e486d14313edced65f428efa3762625e9a"
+      "digest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176"
     },
     {
       "id": "sec-study",
       "role": "sec-study",
       "path": "tooling/studies/sec0-security-model/study.json",
-      "digest": "sha256:2a30e910a5555ccf9a27bb97e3d260ec4f32fa8bb201d5afb4873deb638d922d"
+      "digest": "sha256:5ff63e694f1191e82b26f7a3039e28d9ce154aaeb73969c0bf6ae58da9555fc9"
     },
     {
       "id": "sec-corpus",
       "role": "sec-corpus",
       "path": "tooling/sec0-security-model-cases.json",
-      "digest": "sha256:1b364c03a98f2fe0f3ba952447021f61d663f493e1c0544495a8baa6b2e98bb6"
+      "digest": "sha256:4bd7b1526203db094bc9bce455715c409fa1a0a8b337677d0576e839f1d04783"
     },
     {
       "id": "sec-machine",
       "role": "sec-machine",
       "path": "tooling/sec0-security-model-machine.mjs",
-      "digest": "sha256:6abf39d2aaafb09586a4364d7459f9d246dca35bbc022b94f7b448f51b9a0b0b"
+      "digest": "sha256:74e44c0734579ac09e3fcd97b9caba599426fbb3496f8e187b913c684fb7bfc9"
     },
     {
       "id": "sec-snapshot",
       "role": "sec-snapshot",
       "path": "tooling/sec0-security-model-results.snapshot.jsonl",
-      "digest": "sha256:8da845e8c0487380e21b6f3606c02d931d399b7a516eb7b86a346b60b49a5f9f"
+      "digest": "sha256:a8d801fcb27a4e1afcda9aff075bd8c96d69f936d8cf8be863c56671deb7605f"
     }
   ],
   "evidence": {

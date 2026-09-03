@@ -34,6 +34,16 @@ snapshots e oracles host existentes. O stop condition rejeita qualquer Research
 residual current (o residual permitido é `[]`) e exige evidência PFU0 e
 fechamento DRC0 antes de recascade.
 
+## Research-state inventory
+
+`tooling/research-state-inventory.json` is the maintained cross-surface registry
+under normalization. Its `active` list is exactly `[]`; each listed family is
+classified as `historical`, `rejected`, `current-design-evidence-gap`, or
+`future-reopen-candidate`. Historical text and implementation gaps remain
+traceable without becoming active research. `normalizationPending` marks legacy
+nested artifacts that still need a later, family-scoped relabeling pass, so FRC0
+reports the inventory as `normalized: false` until that pass is complete.
+
 Checks scoped:
 
 ```sh

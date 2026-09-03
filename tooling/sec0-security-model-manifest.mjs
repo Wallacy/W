@@ -54,7 +54,7 @@ export function validateSec0StudyManifest(study, { studyDirectory, repositoryRoo
   if (study?.status !== "design-oracle-input") errors.push("study status mismatch.");
   if (study?.id !== "SEC0" || study?.gate !== "SEC0-R1") errors.push("study identity mismatch.");
   const routes = Object.fromEntries((study?.routeMatrix ?? []).map((entry) => [entry.axis, entry.disposition]));
-  for (const [axis, disposition] of Object.entries({ safe: "current", profiles: "research", deployment: "research", composition: "composable" })) {
+  for (const [axis, disposition] of Object.entries({ safe: "current", profiles: "current-design-evidence-gap", deployment: "current-design-evidence-gap", composition: "composable" })) {
     if (routes[axis] !== disposition) errors.push(`route ${axis} must be ${disposition}.`);
   }
   for (const profile of study?.profiles ?? []) if (!PROFILES.has(profile)) errors.push(`unknown profile ${profile}.`);
@@ -73,7 +73,7 @@ export function validateSec0StudyManifest(study, { studyDirectory, repositoryRoo
   }
   if ((study?.officialRefs ?? []).length < 5) errors.push("study must retain at least five SEC0 primary refs.");
   const metrics = study?.metrics ?? {};
-  if (metrics.caseCount !== 101 || metrics.accepted !== 24 || metrics.rejected !== 77 || metrics.currentAccepted !== 11 || metrics.researchAccepted !== 13 || metrics.authorityRejections !== 16 || metrics.profileCount !== 6) errors.push("study metrics are stale.");
+  if (metrics.caseCount !== 101 || metrics.accepted !== 24 || metrics.rejected !== 77 || metrics.currentAccepted !== 11 || metrics.currentDesignEvidenceGapAccepted !== 13 || metrics.authorityRejections !== 16 || metrics.profileCount !== 6) errors.push("study metrics are stale.");
   if (!(study?.evidence?.missing ?? []).includes("w-compile") || !(study?.evidence?.missing ?? []).includes("provider") || !(study?.evidence?.missing ?? []).includes("attestation")) errors.push("compiler, provider, and attestation gaps must remain explicit.");
   return errors;
 }

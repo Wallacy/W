@@ -151,7 +151,7 @@
     {
       "id": "R1-avf0-availability-feature",
       "path": "tooling/studies/avf0-availability-feature/bundle.json",
-      "digest": "sha256:58b18a7436eaacca0f0488a01985925583373c577ebe61229a865528bfb84b71"
+      "digest": "sha256:e5b4852b730fd9f42da110d0cfb7e01dfe3cd2bc8bbe24940ff82f01431a0673"
     },
     {
       "id": "R1-borrow-expressivity",
@@ -306,7 +306,7 @@
     {
       "id": "R1-sec0-security-model",
       "path": "tooling/studies/sec0-security-model/bundle.json",
-      "digest": "sha256:3082f3879d591330185036304b459b184014c496caad65afbb0333c03c5f2ce0"
+      "digest": "sha256:bef7ddef1f22e7710409d8e1740584ad41138e99259b66009f2399c986f2a927"
     },
     {
       "id": "R1-shared-construction",

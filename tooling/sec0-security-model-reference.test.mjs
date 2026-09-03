@@ -12,7 +12,7 @@ describe("SEC0 security model oracle", () => {
     expect(results).toHaveLength(101);
     expect(results.filter((entry) => entry.status === "accepted")).toHaveLength(24);
     expect(results.filter((entry) => entry.status === "rejected")).toHaveLength(77);
-    expect(results.filter((entry) => entry.route === "research" && entry.status === "accepted")).toHaveLength(13);
+    expect(results.filter((entry) => entry.route === "current-design-evidence-gap" && entry.status === "accepted")).toHaveLength(13);
   });
 
   test("keeps static safety and explicit unsafe separate", () => {
@@ -32,7 +32,7 @@ describe("SEC0 security model oracle", () => {
     expect(result("SEC0-side-baseline").code).toBe("sideChannelBudgeted");
     expect(result("SEC0-side-universal").code).toBe("universalSideChannelClaimRejected");
     expect(result("SEC0-patch-baseline").receipt).toMatch(/^sha256:[0-9a-f]{64}$/u);
-    expect(result("SEC0-profile-static-proof").route).toBe("research");
+    expect(result("SEC0-profile-static-proof").route).toBe("current-design-evidence-gap");
     expect(result("SEC0-patch-reordered").code).toBe("patchAttestationOrderInvalid");
     expect(result("SEC0-profile-receipt-issuer").code).toBe("protectionReceiptInvalid");
     expect(result("SEC0-profile-receipt-stage").code).toBe("protectionReceiptInvalid");

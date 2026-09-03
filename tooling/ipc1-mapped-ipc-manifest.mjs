@@ -36,13 +36,13 @@ export function validateIpc1StudyManifest(manifest, { studyDirectory } = {}) {
   if (manifest?.$schema !== "w-ipc1-mapped-ipc-study-1") errors.push("IPC1 study schema is invalid.");
   if (manifest?.status !== "design-oracle-input") errors.push("IPC1 study status must be design-oracle-input.");
   if (manifest?.id !== "IPC1" || manifest?.gate !== "IPC0-R1") errors.push("IPC1 study must identify IPC0-R1.");
-  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 6) errors.push("IPC1 study must contain current, Research, and rejected variants.");
+  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 6) errors.push("IPC1 study must contain current, current-design-evidence-gap, and rejected variants.");
   const variantIds = new Set();
   for (const [index, variant] of (manifest?.variants ?? []).entries()) {
     const location = `IPC1 variants[${index}]`;
     if (typeof variant?.id !== "string" || variant.id.trim() === "" || variantIds.has(variant.id)) errors.push(`${location}.id is missing or duplicated.`);
     variantIds.add(variant?.id);
-    if (!["current", "research", "rejected"].includes(variant?.role)) errors.push(`${location}.role is invalid.`);
+    if (!["current", "current-design-evidence-gap", "rejected"].includes(variant?.role)) errors.push(`${location}.role is invalid.`);
     const file = fileAt(studyDirectory, variant?.path, studyDirectory);
     if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) { errors.push(`${location} is missing.`); continue; }
     if (variant.language === "w" && path.extname(file) !== ".w") errors.push(`${location} W variant must use .w.`);

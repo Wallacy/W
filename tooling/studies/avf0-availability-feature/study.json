@@ -10,9 +10,9 @@
   "providerEvidence": "missing",
   "exactGap": {
     "id": "AVF0-availability-binding",
-    "route": "research",
+    "route": "current-design-evidence-gap",
     "scope": "compiler-checked binding of a declaration proven available by target or provider evidence",
-    "languageSurface": "unresolved",
+    "languageSurface": "current-design-contract",
     "providerGap": true,
     "gate": "AVF0-R1"
   },
@@ -25,7 +25,7 @@
     {
       "axis": "availability",
       "problem": "target/provider lifecycle proof and branch narrowing",
-      "disposition": "research"
+      "disposition": "current-design-evidence-gap"
     },
     {
       "axis": "runtime",
@@ -55,10 +55,10 @@
     },
     {
       "id": "availability-binding",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "language": "w-reserved",
       "path": "availability-binding.txt",
-      "digest": "sha256:da10718732416dbc4c1606d000353fa933cb0017f1fb06f994e91f2943dd3615"
+      "digest": "sha256:78b9dc113c435e07cd0610f1d7819d0b84cf2cce25f3c886cc5c96b882c47159"
     },
     {
       "id": "rejected-runtime-authority",
@@ -73,43 +73,43 @@
       "id": "readme",
       "role": "historical-research-note",
       "path": "tooling/studies/avf0-availability-feature/README.md",
-      "digest": "sha256:341446880d486368095521d75cc911c624cbb4aef16b651dbb16cfcd943676ec"
+      "digest": "sha256:faf68c57cfa2bea40fe47eae3fba9b93446a36d0894d7d437e25f65ebfd7226f"
     },
     {
       "id": "corpus",
       "role": "design-input",
       "path": "tooling/avf0-availability-feature-cases.json",
-      "digest": "sha256:7344a9f141598a0fdca4d49422567e890aa7ad0d4890a6bd4409a79e06891793"
+      "digest": "sha256:95d7117c8abeeaaf2a07785e15a57bf2d2f69e0d6b9350af2d53af5f8e403013"
     },
     {
       "id": "machine",
       "role": "host-oracle",
       "path": "tooling/avf0-availability-feature-machine.mjs",
-      "digest": "sha256:037906cc6c19a01d3b4b5a4421d60a80c26afc4c4da7c910b631410b4f1ef49e"
+      "digest": "sha256:857ea1b586f9e64bc1b302dce9c4b137c70c34c9ed385a99af57bac63196264e"
     },
     {
       "id": "manifest",
       "role": "manifest-validator",
       "path": "tooling/avf0-availability-feature-manifest.mjs",
-      "digest": "sha256:35141e65667ff9cc32340d8271acf42f5f22613ad1f826f8c1695f7a8adb46dd"
+      "digest": "sha256:5b7282dd8177a2a80505f058b2012682a9d982a0f23899358901053ac32d37b4"
     },
     {
       "id": "checker",
       "role": "snapshot-checker",
       "path": "tooling/check-avf0-availability-feature.mjs",
-      "digest": "sha256:3c9012de2383762f3d8bec8128cc19385eada2d9e23cfbcd4d5cda965a41f8f2"
+      "digest": "sha256:a2c2df463a0e7e0cce6f6749f597530d5f251f220293cf73af3014a4f6e032a5"
     },
     {
       "id": "reference-test",
       "role": "mutation-test",
       "path": "tooling/avf0-availability-feature-reference.test.mjs",
-      "digest": "sha256:6068652c76452143275631d93fee1ecfc8ff74734dba977b1841f912cd18519e"
+      "digest": "sha256:9a687fde96aecb93d432aacec97d9977c11a951d5af18cc5514c11560f923c64"
     },
     {
       "id": "snapshot",
       "role": "derived-output",
       "path": "tooling/avf0-availability-feature-results.snapshot.jsonl",
-      "digest": "sha256:b02ae5e995cdb881b724b8cf1a4124e486d14313edced65f428efa3762625e9a"
+      "digest": "sha256:876f946ef264ddef36a909a49c7385bf7c011dd5d9b14823f992281862dfa176"
     }
   ],
   "sourceRefs": [
@@ -172,7 +172,7 @@
       "composable": 5,
       "current": 5,
       "rejected": 24,
-      "research": 4
+      "current-design-evidence-gap": 4
     },
     "statusCounts": {
       "accepted": 14,
@@ -200,6 +200,6 @@
       "model-study"
     ]
   },
-  "recommendation": "Keep package features static and additive; model runtime flags as a typed std/provider composition; keep compiler-narrowed availability binding Research.",
+  "recommendation": "Keep package features static and additive; model runtime flags as a typed std/provider composition; keep compiler-narrowed availability binding as a current design contract with an implementation evidence gap.",
   "stopCondition": "Do not promote availability or a standard flag API until compiler/provider evidence proves lifecycle, authority, typed fallback, schema/config identity, deterministic rollout, atomic publication, exposure audit, and equivalent local/split behavior."
 }

@@ -52,8 +52,8 @@ describe("SEC0 study oracle", () => {
     expect(result("SEC0-profile-deployment-floor").code).toBe("deploymentWeakensProductMinimum");
     expect(result("SEC0-profile-semantic-drift").code).toBe("physicalChangeMutatesSemanticInterface");
     expect(result("SEC0-profile-missing-receipt").code).toBe("profileIdentityInvalid");
-    expect(result("SEC0-profile-static-proof").route).toBe("research");
-    expect(result("SEC0-profile-external-boundary").route).toBe("research");
+    expect(result("SEC0-profile-static-proof").route).toBe("current-design-evidence-gap");
+    expect(result("SEC0-profile-external-boundary").route).toBe("current-design-evidence-gap");
     expect(result("SEC0-profile-na-memory").code).toBe("runtimeProtectionBasisInvalid");
     expect(result("SEC0-profile-na-without-marker").code).toBe("threatModelExceptionInvalid");
     expect(result("SEC0-profile-process-minimum").code).toBe("profileMinimumMissing");
