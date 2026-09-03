@@ -180,6 +180,7 @@ typedef struct {
   bool current_const_root_emitted;
   uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
+  uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
   frontend_pending_application
       pending_applications[FRONTEND_MAX_PENDING_APPLICATIONS];
@@ -4898,6 +4899,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.function_index = W_SEED_FRONTEND_NONE;
   dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
       frontend_const_declared_type_indices_scratch;
@@ -9886,6 +9888,24 @@ static frontend_simple_type binding_type_for_name(
         return contextual_type_from_span(context, doc,
                                          doc->nodes[type_node].raw_span);
       }
+      /* A direct String literal supplies the local's effective type even
+       * when the declaration omits an annotation. This is type inference,
+       * not name resolution: the binding relation is published separately
+       * from the source-order pass below. */
+      const uint32_t expression_node =
+          first_direct_kind(doc, (uint32_t)index, W_SEED_CST_EXPRESSION);
+      if (expression_node != W_SEED_CST_NONE) {
+        frontend_token_cursor cursor =
+            token_cursor_for(doc, doc->nodes[expression_node].raw_span);
+        frontend_token first;
+        if (cursor_peek(&cursor, &first) &&
+            first.kind == W_SEED_CST_LITERAL_EVENT) {
+          const frontend_simple_type inferred =
+              literal_simple_type(doc, first.span, first.kind);
+          if (inferred.kind == W_SEED_FRONTEND_TYPE_STRING)
+            return inferred;
+        }
+      }
     }
   }
   /* A range loop binder is a lexical usize local. The CST owner remains the
@@ -10107,6 +10127,44 @@ static bool output_type_index_for_simple(frontend_context *context,
   return true;
 }
 
+/* A local binding may be inferred from a literal without an explicit source
+ * type node. Keep one canonical String record in both the dry and emit passes
+ * so statement/symbol type indices remain deterministic. */
+static bool binding_effective_type_index(frontend_context *context,
+                                         frontend_simple_type type,
+                                         uint32_t *index) {
+  if (index == NULL) return false;
+  *index = W_SEED_FRONTEND_NONE;
+  if (context == NULL) return true;
+  if (type.kind != W_SEED_FRONTEND_TYPE_STRING)
+    return output_type_index_for_simple(context, type, index);
+  if (context->inferred_string_type_index != W_SEED_FRONTEND_NONE) {
+    *index = context->inferred_string_type_index;
+    return true;
+  }
+  if (!output_type_index_for_simple(context, type, index)) return false;
+  if (*index != W_SEED_FRONTEND_NONE) {
+    context->inferred_string_type_index = *index;
+    return true;
+  }
+  w_seed_frontend_type value;
+  (void)memset(&value, 0, sizeof(value));
+  value.kind = W_SEED_FRONTEND_TYPE_STRING;
+  value.spelling = (w_seed_frontend_text){"String", 6u};
+  value.nominal_name = value.spelling;
+  value.span = empty_span(0u);
+  value.element_type = W_SEED_FRONTEND_NONE;
+  value.return_type = W_SEED_FRONTEND_NONE;
+  value.first_parameter = W_SEED_FRONTEND_NONE;
+  value.enum_base_index = W_SEED_FRONTEND_NONE;
+  value.first_subset_member = W_SEED_FRONTEND_NONE;
+  value.subset_member_count = 0u;
+  value.generic_application_index = W_SEED_FRONTEND_NONE;
+  if (!context_append_type(context, value, index)) return false;
+  context->inferred_string_type_index = *index;
+  return true;
+}
+
 static uint32_t loop_ordinal_for_cst_node(const frontend_context *context,
                                           uint32_t node_index) {
   if (context == NULL || context->function_node == NULL) {
@@ -10224,6 +10282,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
   record.member_name = (w_seed_frontend_text){NULL, 0};
   record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
+  record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     record.resolved_local_ordinal = loop_local_ordinal_for_span(
         parser->context, spelling, span);
@@ -11738,6 +11797,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
+    fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -11780,6 +11840,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_function_index = W_SEED_FRONTEND_NONE;
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
+    fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -11995,6 +12056,7 @@ static bool normalize_switch_expression(
   switch_record.membership_case_count = 0;
   switch_record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   switch_record.resolved_function_index = W_SEED_FRONTEND_NONE;
+  switch_record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -12324,6 +12386,7 @@ static bool normalize_statement_depth(frontend_context *context,
   value.range_lower_expression = W_SEED_FRONTEND_NONE;
   value.range_upper_expression = W_SEED_FRONTEND_NONE;
   value.loop_local_ordinal = W_SEED_FRONTEND_NONE;
+  value.effective_type = W_SEED_FRONTEND_NONE;
   switch (node->kind) {
     case W_SEED_CST_LET_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_LET;
@@ -12393,6 +12456,26 @@ static bool normalize_statement_depth(frontend_context *context,
       normalized_actual.kind == W_SEED_FRONTEND_TYPE_UNKNOWN) {
     normalized_actual = infer_expression_span(
         context, doc->nodes[expression_node].raw_span);
+  }
+  if ((node->kind == W_SEED_CST_LET_STATEMENT ||
+       node->kind == W_SEED_CST_VAR_STATEMENT) &&
+      expression_node != W_SEED_CST_NONE) {
+    frontend_simple_type effective = normalized_actual;
+    if (effective.kind == W_SEED_FRONTEND_TYPE_UNKNOWN &&
+        expected_outer.kind != W_SEED_FRONTEND_TYPE_UNKNOWN) {
+      effective = expected_outer;
+    }
+    if (effective.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+        !binding_effective_type_index(context, effective,
+                                      &value.effective_type)) {
+      return false;
+    }
+    if (context->emit && context->output != NULL &&
+        value.expression_index != W_SEED_FRONTEND_NONE &&
+        (size_t)value.expression_index < context->output->expression_capacity) {
+      context->output->expressions[value.expression_index].inferred_type =
+          value.effective_type;
+    }
   }
   if ((node->kind == W_SEED_CST_LET_STATEMENT ||
        node->kind == W_SEED_CST_VAR_STATEMENT) &&
@@ -12500,7 +12583,7 @@ static bool normalize_statement_depth(frontend_context *context,
     uint32_t symbol_index = W_SEED_FRONTEND_NONE;
     if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_BINDING,
                           *statement_index, value.binding_name, false,
-                          value.span, value.declared_type, &symbol_index)) {
+                          value.span, value.effective_type, &symbol_index)) {
       return false;
     }
   }
@@ -13084,6 +13167,150 @@ static bool normalize_document(frontend_context *context) {
   return true;
 }
 
+static bool function_statements_are_linear(const frontend_context *context,
+                                           uint32_t function_index) {
+  if (context == NULL || context->output == NULL ||
+      function_index >= context->count.functions ||
+      context->output->functions == NULL || context->output->statements == NULL)
+    return false;
+  const w_seed_frontend_function *function =
+      &context->output->functions[function_index];
+  const size_t first = function->first_statement;
+  const size_t count = function->statement_count;
+  if (first > context->count.statements ||
+      count > context->count.statements - first)
+    return false;
+  for (size_t offset = 0u; offset < count; offset += 1u) {
+    const size_t index = first + offset;
+    const w_seed_frontend_statement *statement =
+        &context->output->statements[index];
+    if (statement->owner_function != function_index ||
+        statement->first_child != W_SEED_FRONTEND_NONE ||
+        statement->child_count != 0u ||
+        statement->else_child != W_SEED_FRONTEND_NONE ||
+        statement->condition_expression != W_SEED_FRONTEND_NONE ||
+        statement->next_sibling !=
+            (offset + 1u < count ? (uint32_t)(index + 1u)
+                                  : W_SEED_FRONTEND_NONE))
+      return false;
+  }
+  return true;
+}
+
+static bool statement_for_expression(const frontend_context *context,
+                                     uint32_t function_index,
+                                     uint32_t expression_index,
+                                     uint32_t *statement_index) {
+  if (statement_index != NULL) *statement_index = W_SEED_FRONTEND_NONE;
+  if (context == NULL || context->output == NULL || statement_index == NULL ||
+      function_index >= context->count.functions ||
+      context->output->functions == NULL || context->output->statements == NULL ||
+      context->output->expressions == NULL)
+    return false;
+  const w_seed_frontend_function *function =
+      &context->output->functions[function_index];
+  const size_t first = function->first_statement;
+  const size_t count = function->statement_count;
+  if (first > context->count.statements ||
+      count > context->count.statements - first)
+    return false;
+  for (size_t offset = 0u; offset < count; offset += 1u) {
+    const uint32_t index = (uint32_t)(first + offset);
+    const w_seed_frontend_statement *statement =
+        &context->output->statements[index];
+    if (statement->expression_index == expression_index) {
+      *statement_index = index;
+      return true;
+    }
+    if (statement->expression_index == W_SEED_FRONTEND_NONE ||
+        (size_t)statement->expression_index >= context->count.expressions)
+      continue;
+    const w_seed_frontend_expression *root =
+        &context->output->expressions[statement->expression_index];
+    if (root->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        root->first_argument == W_SEED_FRONTEND_NONE ||
+        (size_t)root->first_argument > context->count.arguments ||
+        root->argument_count >
+            context->count.arguments - root->first_argument)
+      continue;
+    for (size_t argument = 0u; argument < root->argument_count;
+         argument += 1u) {
+      const w_seed_frontend_argument *item =
+          &context->output->arguments[(size_t)root->first_argument + argument];
+      if (item->expression_index == expression_index) {
+        *statement_index = index;
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static bool expression_is_call_callee(const frontend_context *context,
+                                      uint32_t expression_index) {
+  if (context == NULL || context->output == NULL ||
+      expression_index >= context->count.expressions ||
+      context->output->expressions == NULL)
+    return false;
+  for (size_t index = 0u; index < context->count.expressions; index += 1u) {
+    const w_seed_frontend_expression *candidate =
+        &context->output->expressions[index];
+    if (candidate->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        candidate->left == expression_index)
+      return true;
+  }
+  return false;
+}
+
+static uint32_t linear_binding_statement_for_expression(
+    const frontend_context *context, uint32_t function_index,
+    uint32_t expression_index) {
+  if (context == NULL || context->output == NULL ||
+      expression_index >= context->count.expressions ||
+      context->output->expressions == NULL ||
+      !function_statements_are_linear(context, function_index))
+    return W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_expression *expression =
+      &context->output->expressions[expression_index];
+  if (expression->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+      expression->resolved_local_ordinal != W_SEED_FRONTEND_NONE)
+    return W_SEED_FRONTEND_NONE;
+  if (expression_is_call_callee(context, expression_index))
+    return W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_function *function =
+      &context->output->functions[function_index];
+  if (function->first_parameter != W_SEED_FRONTEND_NONE &&
+      (size_t)function->first_parameter <= context->count.parameters &&
+      function->parameter_count <=
+          context->count.parameters - function->first_parameter) {
+    for (size_t parameter = 0u; parameter < function->parameter_count;
+         parameter += 1u) {
+      const w_seed_frontend_parameter *item =
+          &context->output->parameters[(size_t)function->first_parameter + parameter];
+      if (text_equal_text(item->name, expression->spelling))
+        return W_SEED_FRONTEND_NONE;
+    }
+  }
+  uint32_t use_statement = W_SEED_FRONTEND_NONE;
+  if (!statement_for_expression(context, function_index, expression_index,
+                                &use_statement) ||
+      use_statement == W_SEED_FRONTEND_NONE)
+    return W_SEED_FRONTEND_NONE;
+  const size_t first = context->output->functions[function_index].first_statement;
+  uint32_t binding = W_SEED_FRONTEND_NONE;
+  for (size_t index = first; index < use_statement; index += 1u) {
+    const w_seed_frontend_statement *statement =
+        &context->output->statements[index];
+    if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
+         statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+        text_equal_text(statement->binding_name, expression->spelling)) {
+      if (binding != W_SEED_FRONTEND_NONE) return W_SEED_FRONTEND_NONE;
+      binding = (uint32_t)index;
+    }
+  }
+  return binding;
+}
+
 /* Resolve append-only frontend facts after every declaration is present in the
  * output. Downstream consumers must not repeat this name-based resolution. */
 static bool resolve_frontend_links(frontend_context *context) {
@@ -13093,12 +13320,15 @@ static bool resolve_frontend_links(frontend_context *context) {
       (context->count.functions != 0u && context->output->functions == NULL) ||
       (context->count.parameters != 0u &&
        context->output->parameters == NULL) ||
+      (context->count.statements != 0u &&
+       context->output->statements == NULL) ||
       (context->count.arguments != 0u && context->output->arguments == NULL))
     return false;
   for (size_t expression_index = 0;
        expression_index < context->count.expressions; expression_index += 1u) {
     w_seed_frontend_expression *expression =
         &context->output->expressions[expression_index];
+    expression->resolved_binding_statement = W_SEED_FRONTEND_NONE;
     if ((size_t)expression->module_index >= context->input.document_count)
       return false;
     context->module_index = expression->module_index;
@@ -13118,6 +13348,38 @@ static bool resolve_frontend_links(frontend_context *context) {
         if (text_equal_text(parameter->name, expression->spelling)) {
           expression->resolved_parameter_ordinal = ordinal;
           break;
+        }
+      }
+      if (expression->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) {
+        expression->resolved_binding_statement =
+            linear_binding_statement_for_expression(
+                context, expression->owner_function,
+                (uint32_t)expression_index);
+        if (expression->resolved_binding_statement != W_SEED_FRONTEND_NONE) {
+          const uint32_t binding_index =
+              expression->resolved_binding_statement;
+          if ((size_t)binding_index >= context->count.statements) {
+            return false;
+          }
+          const w_seed_frontend_statement *binding =
+              &context->output->statements[binding_index];
+          if (binding->effective_type == W_SEED_FRONTEND_NONE ||
+              (size_t)binding->effective_type >= context->count.types ||
+              expression->inferred_type != binding->effective_type) {
+            expression->supported = false;
+          }
+        } else if (expression->supported &&
+                   expression->inferred_type != W_SEED_FRONTEND_NONE &&
+                   expression->resolved_local_ordinal ==
+                       W_SEED_FRONTEND_NONE &&
+                   expression->resolved_const_declaration ==
+                       W_SEED_FRONTEND_NONE &&
+                   !expression_is_call_callee(context,
+                                              (uint32_t)expression_index)) {
+          /* A typed identifier with no unambiguous lexical target is not a
+           * supported local read.  This closes duplicate and nested scopes
+           * without changing function, parameter, loop, or const links. */
+          expression->supported = false;
         }
       }
     }
@@ -14367,6 +14629,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.result = result;
   dry.emit = false;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
       frontend_const_declared_type_indices_scratch;
@@ -14435,6 +14698,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.function_index = W_SEED_FRONTEND_NONE;
   emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;
   emit.const_declared_type_indices =
       frontend_const_declared_type_indices_scratch;

@@ -48,6 +48,7 @@ add_library(w_seed_source STATIC
   src/w_seed_frontend.c
   src/w_seed_constir.c
   src/w_seed_generic_validation.c
+  src/w_seed_native_subset0.c
   src/w_seed_hlo0.c
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c

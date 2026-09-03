@@ -172,7 +172,7 @@ O corpus compara, no mínimo:
 - HIR0 verificada e independente do lifetime do frontend contra acesso direto do HLO0 a records frontend e template C23.
 - execução RUN0 por plano HLO0 verificado e sink fiel contra stdout direto, template, plano forjado e bypass do pipeline.
 - subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 contra hardcode Hello-only, stdout direto e bypass sem source provenance.
-- primeira rota nativa MLIR0 source → HIR0 → HLO0 → LLVM dialect → native contra emissão C HLO1, LLVM/source bypass e futuro W/MLIR geral.
+- verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.
 - catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
@@ -2630,8 +2630,10 @@ multiplica a reserva, e overflow, placement unsupported ou admission falha antes
 do body, sem fallback oculto. A forma sem `try` exige prova de reservation
 estática e admission infallible, incluindo recursion fechada. Uma admission
 dinâmica exige `try allocator` e não cria binding nem entra no body em falha.
-`.bounded<budget: N>` limita commit sobre um provider e permanece Research;
-ASC0 não o aceita como plan ativo. Um
+`.bounded<budget: N>` é agora o plan lexical de W-1517: envolve o allocator
+current do scope, seja do profile, parâmetro contextual ou allocator lexical
+outer explícito, e limita commit sobre seu backing. Sem current compatível, a
+admission produz diagnostic antes do body. Um
 plan customizado aceita um descriptor lógico `AllocatorPlan` versionado com
 `providerDigest: [u8; 32]`, failure, deallocator e mobility. Esse descriptor é
 o contrato lógico `std.memory.AllocatorPlan` com `AllocatorPlanDescriptor` e
@@ -4427,12 +4429,20 @@ API, syntax, compiler, runtime ou provider. O ledger
 [`task-ledger.json`](tooling/studies/rdx0-binary-registry-execution/task-ledger.json)
 mantém as tasks, outputs, cases adversariais, lacunas e stop conditions.
 
-W-1486 é a decisão única que torna esse programa visível na classificação
-current. Ela aprova somente a direção candidate já descrita em RDX0. O ledger
-e o checker do bundle registram os outputs e negative cases das oito tasks; a
-evidence de protocol, security e provider, a escolha do canonical signing
-payload e cada stop condition continuam research-gated. W-1486 não promove
-registry, compiler, runner, sandbox ou provider.
+W-1486 foi a decisão histórica que tornou esse programa visível na
+classificação current. Ela aprovou somente a direção candidate então descrita
+em RDX0 e foi superseded por W-1518. O ledger atual e o checker do bundle
+fecham o design contract por oracle host-only; evidence de crypto, registry,
+security, provider e runner continua missing. W-1518 não promove registry,
+compiler, runner, sandbox ou provider.
+
+W-081 e W-633 já fechavam CBOR determinístico para bytes canônicos de W. W-1518
+aplica essa regra ao metadata W-owned e usa envelope DSSE role-specific. O
+digest do object cobre os bytes exatos armazenados, inclusive o envelope; DSSE
+assina os bytes exatos do payload. Attestations externas seguem `in-toto
+Statement v1` e `SLSA provenance v1.2`: os Statements JSON permanecem JSON
+dentro de objects DSSE e não são forçados para CBOR. JSON de discovery, search,
+channel e update é projection de conveniência, nunca authority ou lock.
 
 O updater do
 [Tauri](https://v2.tauri.app/plugin/updater/) fornece um precedente pequeno.
@@ -4498,7 +4508,13 @@ Esses precedentes sustentam as seguintes inferências para W:
   com um contador fornecido pelo servidor;
 - release records e objects devem ser imutáveis por digest;
 - catalogs append-only podem alimentar mirror e search sem virar authority;
-- JSON deve ser UTF-8 estrito e rejeitar duplicate keys;
+- JSON de discovery, search, channel e update deve ser UTF-8 estrito e rejeitar
+  duplicate keys; ele não é authority nem lock;
+- metadata W-owned usa CBOR determinístico dentro de DSSE role-specific; root
+  genesis é trusted out-of-band e root updates usam threshold old+new;
+- Statements externos in-toto v1 e SLSA v1.2 permanecem JSON dentro de DSSE;
+- digest cobre os bytes exatos do object armazenado, enquanto DSSE cobre os
+  bytes exatos do payload;
 - read capability ou signed URL privada concede acesso scoped, mas não troca a
   identity do digest;
 - channel JSON pode ser convenience, mas não substitui lock e verification;
@@ -5852,7 +5868,7 @@ ou resultado de modelo.
 | Decisão | Current | Adversarial | Fact derivado |
 |---|---|---|---|
 | W-707 | completude G0–G5, source refs e snapshot | família FZ0 ausente | `FZ0-freeze-completeness` falha closed |
-| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed; o fechamento histórico foi estendido até W-1459 e W-1486 e W-1503 são as research gates ativas posteriores |
+| W-731 | uma disposition por decisão, `Research=0` no snapshot até W-1453 e lista exata das gates posteriores | decisão W-1408 removida | `freeze-research-close` falha closed; o fechamento histórico foi estendido até W-1459 e o snapshot preserva W-1486/W-1503 como gates históricas; W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486, deixando residual current `[]` |
 | W-1408 | HUM0 com 8 slices, 32 tasks, 0 human, 0 model e stop-on-first | registros human/model e preference/score forjados | `HUM0-promotion` falha closed |
 
 O corpus `tooling/final-research-closure-cases.json` contém exatamente uma
@@ -5868,13 +5884,16 @@ O manifest fixa a cadeia de artefatos, digests, containment e roles. O bundle
 R1 fixa duas variantes W finas e parseáveis, ordem de apresentação, blinding e
 oracle host. O stop condition cobre stale digest, caller echo, manual count,
 registro human/model, preference/score, decisão/caso ausente ou duplicado,
-source escape, categoria errada e qualquer `Research` residual fora de W-1486 e W-1503.
+source escape, categoria errada ou qualquer `Research` residual current; W-1503
+está superseded por W-1517 e W-1486 está superseded por W-1518. O residual
+current é `[]`.
 W-1471,
 W-1473, W-1474 e W-1475 reabriram gates depois do snapshot; W-1484 substituiu
 depois a semântica blocking de W-1471, e DRC0 fecha W-1484, W-1473, W-1474 e
 W-1475. FRC0 preserva os gaps de implementação, registra o fechamento histórico
-até W-1459 e não promove compiler, runtime ou provider; W-1486 e W-1503
-permanecem as research gates ativas.
+até W-1459 e não promove compiler, runtime ou provider; o snapshot registrava
+W-1486/W-1503, mas W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486;
+o residual current de research é `[]`.
 
 ### 1.37 Gate SOTA de performance e matriz de responsabilidade
 
@@ -5997,8 +6016,9 @@ registra alternativas observáveis. O owner recebe a decisão operacional. O
 workload e o oracle fixam a medição. A stop condition encerra a busca sem
 promover um resultado local a claim geral. O seed pode crescer quando um novo
 hotspot exigir outra alternativa, mas não muda a semântica nem reabre o
-fechamento histórico `Research=0`; W-1486 e W-1503 são as research gates ativas
-posteriores.
+fechamento histórico `Research=0`; o snapshot original preserva W-1486 e W-1503
+como gates históricas, mas W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486.
+O residual current de research é `[]`.
 
 | Domínio | Problema, alternativas e fonte primária | Owner | Workload e oracle | Stop condition |
 |---|---|---|---|---|
@@ -6026,8 +6046,9 @@ PFU0 fornece a evidência host-only para três decisões depois do snapshot
 histórico FRC0. W-1451 e W-1452 são agora `oracle-backed-current`; a fatia
 de property de W-1453 é um snapshot histórico superseded por W-1516.
 FRC0 verifica `Research=0` nesse limite histórico,
-estendido por AEG0/SIMD1 até W-1459. W-1486 e W-1503 são as research gates
-ativas posteriores.
+estendido por AEG0/SIMD1 até W-1459. O snapshot original listava W-1486 e
+W-1503 como gates históricas; W-1517 fecha W-1503 e W-1518 fecha/supersede
+W-1486. O residual current de research é `[]`.
 As gates W-1471, W-1473, W-1474 e W-1475 foram abertas depois. W-1484
 substituiu a interpretação blocking de W-1471; DRC0 fecha W-1484, W-1473,
 W-1474 e W-1475. PFU0 não trata a máquina host como compiler, runtime, provider
@@ -6061,7 +6082,9 @@ Artefatos canônicos: `tooling/pfu0-pre-freeze-usability-cases.json`,
 `tooling/studies/pfu0-pre-freeze-usability/`. As fontes reutilizadas são os
 contratos de build.w, stream/Channel/mailbox e property no atlas de Last Light;
 os digests são verificados pelo checker. O stop condition rejeita qualquer
-Research residual fora de W-1486 e W-1503, stale digest ou caller echo. A decisão de freeze usa
+Research residual current depois de W-1503 ser superseded por W-1517 e W-1486
+ser superseded por W-1518, stale digest ou caller echo. O residual permitido é
+`[]`; a decisão de freeze usa
 o resultado PFU0 e não afirma compiler, runtime ou provider.
 
 ### 1.39 AEG0 — App Essentials Gate
@@ -6079,7 +6102,9 @@ testemunhos finos. Ele não cria syntax, keyword, manifest field ou provider.
 | W-1458 | Crypto passa por package/provider capability ligada pelo deployment. Algorithm/profile são typed e pinned. Secret/key handle é opaque, move-only e nonextractable por default, com purpose/audience/generation scope. Lifecycle tem dois caminhos: acquire→active→revoking→revoked→released para revoke/rotation, ou acquire→active→expired→released para expiry. Revoke fecha nova admission e drena operações admitidas. Host controla rotation/expiry/zeroization. Secret não entra em wire/storage/log/diagnostic/receipt | `std.crypto` universal, vault/global lookup, plaintext/env lookup, secret no wire, algorithm string, fallback ou downgrade | provider, compiler, runtime, HSM/keystore, rotation, zeroization, FFI e estudos continuam missing |
 
 AEG0 manteve o fechamento histórico `Research=0` no snapshot até W-1459;
-W-1486 e W-1503 são as research gates ativas posteriores. O oracle aceita os seis casos
+o snapshot original preserva W-1486 e W-1503 como gates históricas. W-1517
+fecha W-1503 e W-1518 fecha/supersede W-1486; o residual current de research é
+`[]`. O oracle aceita os seis casos
 correntes (dois paths de crypto) e rejeita oito rotas contrafactuais. Mutation guards cobrem authority ambiental,
 fallback, plaintext/serialization, codec inference e source/digest stale. A
 máquina é host-only. Ela não afirma execução W nem readiness de provider.
@@ -6157,7 +6182,9 @@ SIMD1 é `oracle-backed-current` e não é implementação. Compiler, runtime,
 provider, native acceleration, ABI, FFI, measurements e estudos humanos/modelos
 continuam missing. No limite W-1459, o fechamento histórico `Research=0`
 permaneceu; as gates posteriores W-1471, sua sucessora W-1484, W-1473, W-1474
-e W-1475 não pertencem a SIMD1, e W-1486 e W-1503 são as research gates ativas.
+e W-1475 não pertencem a SIMD1. O snapshot original listava W-1486 e W-1503;
+W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486; o residual current de
+research é `[]`.
 
 ## 2. Proveniência
 
@@ -7529,7 +7556,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1325 | ASC0 memory transition evidence | M1 covers contextual weak transitions; four R1 host oracles cover weak acquisition, Arena problem matrix, allocator control-label reservation/mobility and suspend deadline outcomes; none executes compiler, runtime or provider | expected echo, provider execution, inferred label semantics, weak payload access |
 | W-1326 | allocator control argument | `allocator:` is reserved only in construction expressions, appears before ordinary arguments, stays outside overload/initializer signature, and governs published allocation sites only; `using:` remains free elsewhere | global reservation of `allocator:`, propagation to arbitrary initializer allocations, user-defined allocator meaning, inference by label text |
 | W-1327 | declaração lexical de allocator (estendido por W-1348) | `allocator name: plan { ... }` e `allocator plan { ... }` criam owner/lease/scope; construction direta usa a stack corrente; nome anônimo não cria binding observável | `Arena.fixed`, scope sem owner/lease, região implícita ambiental, contexto ambiental transitivo, regra especial de shadowing para allocator |
-| W-1328 | plans fixed, bounded e custom | `PRC0-W-1328-current` e `PRC0-W-1328-adversarial` fecham admission, custom lease, typed drops e close ordering no ASC0 oracle; `.fixed`/custom contract continuam design, e `.bounded` permanece Research | autoridade PRC0; provider/lowering gap reutiliza W-1333; não alegar O(1), raw provider ou fallback oculto |
+| W-1328 | plans fixed, bounded e custom | `PRC0-W-1328-current` e `PRC0-W-1328-adversarial` fecham admission, custom lease, typed drops e close ordering no ASC0 oracle; `.fixed`/custom contract continuam design e `.bounded` segue o contrato lexical de W-1517 sobre o allocator current, sem placement implícito | autoridade PRC0 e W-1517; provider/lowering gap reutiliza W-1333; não alegar O(1), raw provider ou fallback oculto |
 | W-1329 | lifecycle, escape e rehome | close drena children/waits/loans/dependents, executa drops tipados e só então reclaim; unwind é uniforme; origin local sobrevive a `await` na mesma task com owner/lifetime estáveis, mas exige `rehome` antes de spawn/service/channel | reset comum, detached work, escape unchecked, drop após bulk release |
 | W-1330 | parâmetro contextual de allocator (histórico; superseded by W-1514) | primeiro e único slot `allocator name: ref Allocator` entrava signature/resource facts/ABI/HIR, publicava conclusão contextual de call e preservava function type/callable/lifecycle facts | parâmetro oculto em toda função, slot não primeiro/duplicado, propagação sem slot, ABI foreign escondida |
 | W-1331 | aquisição ativa de clock | `execution.clock()`/`ctx.clock()` selecionam default nonthrowing quando capability está disponível; `hostSuspend:` seleciona policy com `HostSuspendPolicy<[.included, .excluded]>`; `Clock.hostSuspendPolicy` é passive fact e `.unspecified` é diagnostic | `SuspendAccounting`, `suspendAccounting()`, `time.clock()` ambiental, inferência provider |
@@ -7688,7 +7715,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1483 | domain placement sem priority/QoS portável | W 1.0 usa domain placement e não possui `priority`/`qos` em initializer `async`, `spawn`, pipeline tasks, função, `Task`, service call, entry, service ou descriptor. A std não possui `.background`, `.userInteractive`, `Task.currentPriority` ou `Task.withPriority`, nem inheritance, escalation ou donation. Política física escolhe somente latência e interleavings sem ordem no source; ela não viola a ordem ou arbitration que o contrato aplicável de domain, barrier, channel, service ou pipeline tasks garante, não fabrica/substitui outcome, não ignora cancellation/deadline e não burla admission/budget/drain. Ordem deixada unspecified pode variar entre traces permitidos. Para o mesmo trace lógico de schedule, timer/deadline e eventos externos, outcome, ledger owner/drop e decisões derivadas são iguais; traces permitidos diferentes podem mudar observação de deadline, resultado de admission, winner de first-settled ou outro outcome permitido sem criar semântica QoS. `w explain execution` e provider receipt mostram política, suporte e `sourcePriority: absent` como evidência não branchable. No pedido com alergia, service/instance isola state, admission/reserva/budget protegem overload e deadline produz cancellation; domain é somente placement e pode ser atual, compartilhado ou dedicado | current design contract em DESIGN §12.6.2, estudo host QOS0 e narrativa do Restaurante; semantic checker, lowering, runtime/provider, receipts cross-target, testes de fault/liveness, performance e estudos humano/modelo continuam implementation-evidence gaps. Reabrir exige workload bounded do Última Luz, perda material não expressável pelos mecanismos vigentes e contrato cross-target completo de inversion/donation/starvation/cancel/deadline/admission/fault/liveness. Fontes primárias de Swift structured concurrency, Swift executor preference, Tokio fairness e Java SE 25 Thread foram verificadas em 2026-08-26 |
 | W-1484 | direct entry `sync` com prova `neverSuspend` | `sync f()` é uma call direta na mesma task/context/domain, sem Task, suspensão, thread blocking, event-loop reentry, authority, quota, provider, fallback ou `blocksThread`; exige spelling explícito `async fn` e `directEntry: available`, derivado sobre todo o body antes de specialization. A async entry continua publicando `suspension: may`, enquanto `sync` seleciona a direct entry `neverSuspend`. A prova aceita `sync` para outro facet available e compõe essas dependências por ponto fixo, inclusive SCCs sem provar termination; await/bare maySuspend, sync para facet absent e sync inválido para ordinary tornam o caller absent. Function type/HIR/WInterface preservam o facet; export concrete que o remove quebra source/API e muda `SemanticInterfaceKey`; protocol/foreign/interface bodyless e erasure sem facet não aceitam sync; overload resolve antes do facet; ordinary e async entries podem coexistir pela ABI W-1163 | oracle-backed-current por `DRC0-W-1484-current` e SYNC1; W-1484 substitui somente a semântica blocking de W-1471. Semantic checker, type/HIR/interface, dual-entry lowering/ABI, cross-module/erasure, diagnostics e estudos humano/modelo continuam missing. Swift SE-0296, Kotlin coroutines basics e Rust `Future` foram verificados em 2026-08-26; são precedentes de potential suspension e da separação entre suspension, polling e thread blocking, não execução W |
 | W-1485 | inventário de módulos locais no contexto efêmero | Fora de package ou workspace, o parent lógico do source root explícito forma uma root efêmera por invocation. O provider abre e confirma a root e cada source alcançado. Um import não-std parser-validado normaliza sua spelling completa para NFC e mapeia, a partir da root e nunca do importer, `a.b` para `a/b.w`; `std` e `std.*` pertencem somente ao provider std, e um source local nunca os sombreia. Um import não-std ausente falha como dependency externa indisponível e orienta package ou workspace, sem fallback, scan ou fetch. A root usa module path do header ou stem lógico, aceita header diferente do stem e resolve um import desse path para a própria root. Source descoberto usa o import como module path, recebe o último componente sem header e exige esse componente com header; outro nome e multi-file exigem package ou workspace. `SourceId` é `PackagePath` root-relative e module path é separado; canonical token e physical display são provenance. Cada source exige facts do mesmo provider, root e source/provider owner token (não package/workspace owner), containment `inside`, canonical token único e snapshot estável de bytes e digest. Escape, symlink escape, fact ausente, alias, colisão NFC e mutation falham. Somente imports, reexports e service-import origins explícitos expandem. O grafo é acíclico. Inventory tem root ordinal 0 e depois ordena `SourceId` por bytes UTF-8 NFC. Edges ordenam source ordinal, origin e target ordinal. Limits são do profile/provider. A recipe usa apenas `{SourceId,modulePath,digest}` e edges lógicos ordenados. | oracle-backed-current por RU0 host-only em `tooling/ephemeral-module-graph-machine.mjs`, com casos positivos e adversariais em `tooling/module-run-cases.json` e `tooling/module-run-reference.test.mjs`; CHK3 acrescenta scanner C caller-owned de origins, frontend seed de identities separadas e edges resolvidos explícitos, além do adapter D0 com índice de documento; CHK4 acrescenta o graph builder caller-owned; CHK5 acrescenta o core bounded de aquisição/revalidação e o adapter Linux real com `openat2`, enquanto o stub não-Linux permanece fail-closed; CHK6 acrescenta o driver C interno, compilado em modo C23 na lane primária, caller-owned de discovery local iterativo bounded; uma toolchain c2x-preview é correctness-only, e C11 permanece recovery explícita, compondo aquisição/revalidação CHK5, parser/module scan e graph CHK4 e entregando documentos em ordem lógica e imports resolvidos para um caller futuro; não chama frontend nem abre `w check` público multi-file; waves não são transação única de snapshot e candidates antigos podem ser readquiridos, enquanto CHK4 publica somente reachable; capacity provenance do parser é evidência interna, sem novo mapping D0; CHK7 acrescenta composição interna caller-owned CHK6→frontend→D0 JSON-only, com preflight integral; todo o trabalho falível termina antes do commit, o JSONL é copiado uma vez para o buffer final e `jsonl_length` é atualizado sem novo ramo falível; em qualquer falha, o JSONL final e `jsonl_length` permanecem inalterados; a fixture prova import/call de root para child e `W-SEM-0001` em `child.w`; CHK8 acrescenta o adapter Windows real com `NtCreateFile`, identidade por `FILE_ID_INFO`, revalidação e gate nativo Windows mais Linux real via WSL; limita-se a esse diagnostic e não abre CLI pública, filesystem novo, provider std, package/workspace ou frontend completo; CHK9 acrescenta `check_host`, storage adaptativo, retry bounded e a rota pública `w check` para root explícita efêmera e imports locais alcançáveis; o gate prova Last Light, Restaurant multifile com child nested e diagnóstico determinístico, barriers de missing/std/cycle, identidade/UTF-8/parse/frontend, limites e escape por symlink/junction; o perfil usa SourceId lógico e caminho físico somente para display. NFC completo, std provider, owner detection, package/workspace, diagnostics completos, compiler, runtime e conformance multiplataforma continuam implementation-evidence gaps |
-| W-1486 | programa bounded de pesquisa binary-first registry/execution | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada está aprovada como baseline do estudo. Canonical signing payload, protocol/security/provider evidence e as stop conditions das oito tasks RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated; não há claim de implementação de registry, compiler, runner, sandbox, provider ou attestation verifier | O bundle RDX0 registra a direção, as dependencies, os outputs observáveis, os cases negativos e as stop conditions; a classificação research-gated usa a seção RDX0 como authority e exige evidence nova antes de promoção |
+| W-1486 | programa bounded de pesquisa binary-first registry/execution (histórico; superseded por W-1518) | A direção candidate para distribuição binary-first, registry HTTP static-first e execução assinada fica preservada como proveniência; o contrato corrente está em W-1518 | `superseded`; o bundle RDX0 continua registrando dependencies, outputs, cases e gaps sem claim de implementação |
 | W-1487 | política e infraestrutura de benchmark-driven development | BMD0 define WBench/1, as tracks separadas de language e compiler lifecycle, os perfis learner/idiomatic/frontier, as lanes equivalent/open, as quatro dispositions e correctness/oracle antes de samples. O lifecycle usa um source, graph e input identity; C/Clang e Rust são contextuais e não-ranking, e o baseline primário é W histórico com recipe equivalente. O seed `w check`/frontend está disponível, mas native backend/runtime não; não há result, timing ou claim de runtime | `benchmarks/` contém schema, programa, manifesto source-backed, descriptors, máquina e corpus adversarial; `benchmark-driven-development-reference.test.mjs` e `check-benchmark-driven-development.mjs` provam o protocolo host-side. A categoria é `oracle-backed-current` por protocolo verificável, não research gate nem claim de performance |
 | W-1488 | matriz e runner BMD1 de compiler lifecycle | BMD1 acrescenta 27 células clean/no-op/edit × check-end-to-end/source/lex/parse/semantic/hir/lowering/codegen/link. Somente clean × check-end-to-end está ready. O runner constrói `compiler/seed-c` em Release fora da medição, executa o oracle source-backed antes de warmup e raw e mede processos novos com monotonic wall ns. O output exige path explícito e publicação atômica fail-if-exists. O result atual é exploratory/measurement-only/single-series com comparison nula. Provenance e environment registram digests e noise unknown honestos. `no-op` e `edit` permanecem bloqueados por `incremental-cache`; `source`, `lex`, `parse` e `semantic` permanecem bloqueados por `stage-instrumentation`; `hir`, `lowering`, `codegen` e `link` permanecem bloqueados pelos componentes correspondentes; language e product-runtime permanecem bloqueados por `native backend`, `runtime` e `provider` conforme aplicável; somente comparison e regression permanecem bloqueados por `interleaved-comparison-runner` | `BMD1-W-1488-current-matrix`, o runner host e o smoke real validam a matriz, o source `checker_bootstrap.w`, o oracle antes das samples, os digests, as métricas derivadas, a publicação atômica e o cleanup. A categoria é `oracle-backed-current` e não promove performance |
 | W-1489 | comparação BMD2 source-backed de compiler lifecycle | BMD2 compara dois commits locais completos por `git archive` isolado de `compiler/seed-c`, builds Release independentes, oracles vazios antes de samples e schedule `balanced-paired-interleaved-sha256-v1` com pares fixos, ímpares e balanceados. A máquina recompõe schedule e labels, recalcula estatísticas BigInt, deltas, ppm, counts e calibration, valida o workload corrente e verifica a consistência entre as identidades de papel duplicadas em `comparison` e `provenance`. O runner deriva a proveniência de archive, build, artifact, recipe e toolchain e executa o oracle de cada papel; um result isolado não permite à máquina recomputar essa proveniência nem reexecutar o oracle. O result é exploratory/comparison-only/equivalent/clean/check-end-to-end/not-evaluated; não é claim de performance e regression permanece bloqueada por `managed-regression-runner` | casos BMD2 aceitos e adversariais, testes host do runner e smoke HEAD×HEAD cobrem SHAs, archives, builds independentes, oracle-before-samples, divergência de recipe-class/toolchain/workload, schedule forjado, métricas forjadas, publicação atômica e cleanup; a categoria é `oracle-backed-current` |
@@ -7707,12 +7734,12 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1500 | política de dialeto C23 controlado | C23 é o padrão explícito do C controlado, do seed CMake, do artefato HLO1 gerado, dos probes/checkers diretos e da baseline BMD byte-scan-view. O seed tem default `W_SEED_C_STANDARD=23` e aceita somente `23|11`; C11 é recovery/compatibilidade explícita, sem fallback silencioso. GCC/Clang usam `-std=c23`; somente `-std=c2x` recebe disclosure correctness-only e não produz resultado/ranking final C23; MSVC sem C23 gera SKIP principal ou roda recovery explícito. O código continua compilável na lane C11 recovery e a ABI C externa permanece separada. C é validation/differential/recovery; MLIR continua backend primário futuro. `benchmarkDisposition` é `compiler-lifecycle` para o seed e a recipe C23 do BMD permanece sem timing/result. `bun run demo:seed-hello` reproduz a rota real e exige stdout exato `Hello, world!` | `DESIGN.md` W-1500, `compiler/seed-c/CMakeLists.txt`, `tooling/c-dialect.mjs`, `tooling/check-hlo1.mjs`, `tooling/check-seed-c11-recovery.mjs`, `tooling/demo-seed-hello.mjs`, `benchmarks/byte-scan-view.manifest.json` e gates focais; categoria `source-backed-current` para a política e `oracle-backed-current` para BMD correctness |
 | W-1501 | behavior convergente sem shim pré-1.0 (histórico; superseded by W-1516) | Behavior usa plain `var` como backing field oculto de reflection. `init()` é zero-slot e `init(initialValue: fn(): Value)` é a única forma one-slot, recebendo o thunk do RHS; get, set, modify e defer preservam o lifecycle e a inferência de generics. `storage`, `input` e o keyword global `storage` deixam de ser spellings aceitos, sem compatibilidade histórica. | `source-backed-current` histórico no behavior canônico, Last Light e witness `WrappedDegrees` em `orbit.w`; o teste de `Attitude` exercita assignment, `modify` e resultado observável `15`. Compiler/runtime de behavior e provider permanecem gaps |
 | W-1502 | contratos core opacos e superfícies observáveis | `TypeId` é uma identidade opaque local ao build com `Copy`, `Equatable` e `Hashable`, sem serialização. `Reflectable`, `TypeKind`, `TypeInfo`, `Property` e `Case` são views lógicas estáveis da runtime instance, sem layout ou offsets. `Task` é um handle linear/opaque produzido por launchers; controles imediatos de handle usam facets, algorithms/factories usam members normais e controles da execução corrente usam `execution#checkCancellation`/`execution#yield`; `await task` continua join. `TaskOutcome`/`TaskSettlement` e contratos de `Allocator`/`AllocatorLease` seguem dados/API pública normal. Raw String preserva JSON visível e nunca interpola; `'λ'` infere `String` sem contexto e satisfaz `UnicodeScalar` quando esse é o tipo esperado. `do` mantém o owner de handling separado do marker expression `try`. Exemplos de lock, pipeline transaction e unsafe mostram resultado ou effect observável em fontes Last Light. `async` sobre callee async ou ordinary usa o mesmo child lexical, e pipeline é a única superfície de graph com modos explícitos; não há namespace TaskGroup corrente | `source-backed-current` para DESIGN, `std/runtime/task.w`, `std/memory/contracts.w`, `reference/last-light/quantity_oracle.w`, `synchronization.w`, `transaction_oracle.w` e `hardware.w`; frontend/runtime/provider de reflection e tasks continuam gaps e os contratos não alegam construção executável |
-| W-1503 | pesquisa finita de allocation e placement | `memory.generalAllocator: .none` é policy de build sem allocator geral/root e não escolhe placement; `.fixed<capacity:N>` é lexical current; `.bounded<budget:N>` e `.stack<capacity:N>` permanecem Research. `no-general-allocation`, `no-allocation`, `dynamic-allocation-forbid`, storage classes, escape, frames, returns, ABI e linker precisam de provas separadas. `product` é conceito de seleção de manifest/artifact; `product<...>` não é declaração genérica de source nem candidato | `research-gated`; ledger W-1503 registra tasks, cases, blockers, stop conditions e refs primárias; HIR taxonomy, escape/stack summaries, verified-HIR, MLIR, async frame, target/linker/provider, diagnostics e benchmarks continuam missing; nenhuma syntax nova é ratificada |
+| W-1503 | pesquisa finita de allocation e placement (histórico; superseded by W-1517) | W-1503 registrou a separação entre allocator, allocation effect e placement físico. A decisão corrente não é a antiga candidata `allocation: .forbid` nem a antiga fronteira research de `.bounded`/`.stack`; veja W-1517. | `superseded`; o ledger histórico preserva tasks, blockers, stop conditions e refs, sem definir a surface corrente |
 | W-1504 | convergência pipeline/transaction (superseded) | Registrou a antiga pipeline DAG com `return` e a expressão `transaction` separada com `commit`; preservado como proveniência e não como decisão corrente | `superseded-by-W-1511`; o ledger histórico permanece registration-only e não autoriza uma segunda grammar |
 | W-1505 | subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 | W-1505 remove a especialização Hello-only sem abrir HIR geral. HIR0/W-1494 continua a representação intermediária bounded de schema fechado, mais ampla que a seleção final. A forma exata seguinte pertence somente ao seletor HLO0 aplicado a uma HIR0 verificada: exatamente um module, um entry `.default` e uma função alvo zero-parameter/Unit/sync/nonthrows/safe/no-borrow, um block, uma call host-prelude `print`, um argumento positional `String` literal e uma requirement `Console`. HLO0 sobe para `w-seed-hlo0-2`, aceita target/handler como byte strings derivados da HIR0 verificada, não vazios, com canonical zero-tail e igualdade exata, e carrega o literal `String` inteiro (0..`W_SEED_HLO0_MAX_PAYLOAD` bytes, inclusive NUL quando publicado). O profile continua `native-process@1`, slot `.default`, callee `print`, requirement `Console`, policies/effects e shape do seletor permanecem exatos; o verifier isolado do plano comprova somente a representação zero-tail e a igualdade de target/handler, não source provenance nem identifier válido; stdout é payload + LF com tamanho checked e SHA-256 correspondente, tail é zero e exit é success. HLO1 mantém `w-seed-hlo1-1`; HLO1/RUN0 usam o verifier HLO0 compartilhado, sem heap e sem bypass. Hello, o witness Restaurante `Table 42 remains open` e vazio atravessam source → parser → frontend → HIR0 → HLO0 → HLO1/RUN0; trivia preserva o artefato e comentário com `print`, noop, duas calls e formas fora do subset falham sem saída parcial. W-1505 supersede W-1491, W-1493 e W-1495 somente nos milestones Hello-only; W-1494 permanece current. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only agora, sem timing/result; C23 é primary, C11 recovery explícita, toolchain ausente é SKIP e toolchain presente que falha é FAIL | `source-backed-current` para este subset bounded; units e `check:hlo0`, `check:hlo1`, `check:run0` demonstram os produtos e rejeições reais, enquanto HIR geral, backend/MLIR, runtime/provider W, `w run` e performance continuam gaps/deferred. Não há alteração de grammar, portal, registry ou estudos W-1503/W-1504 |
 
-| W-1506 | primeira rota nativa MLIR0 seed-only para LLVM | `w_seed_mlir0` consome somente plano HLO0 verificado e acrescenta a rota source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → native link, sem passar por C source. O schema é `w-seed-mlir0-1`; measure/emit são caller-owned, bounded, determinísticos, sem heap e all-or-nothing, com status, required, written e digest. O limite é 4096 bytes, comprovado em compile time pela soma de cada literal fixo, quatro campos decimais bounded e três bytes para cada um dos no máximo 257 bytes de payload+LF escapados. O único target emitido é `x86_64-unknown-linux-gnu`, fixado no `llvm.target_triple`; outros targets são `UNSUPPORTED`. A linha tem somente evidence no catálogo W-1507 e não é target supported. O texto usa somente builtin e LLVM dialect, LF, nenhum NUL terminal implícito, global privado de tamanho exato, payload+LF em `\XX`, uma call POSIX `write` com fd 1, comparação do retorno e `main` físico. HLO1 C23 continua bootstrap/auditoria/recovery e MLIR0 é primário somente para este subset. O gate real verifica MLIR, traduz LLVM IR, compila com clang `-x ir --target=...`, executa Hello, Restaurante e vazio com stdout byte a byte, stderr vazio e exit zero; trivia é idêntica e formas adversariais não emitem artifact. `hostEvidence` é `wsl-linux` e `windowsNative` é false: a prova é Linux x86_64 em WSL, não Windows nativo. A matriz de compiler hosts é separada da matriz de emitted targets; Linux, Windows e macOS são hosts futuros, Windows nativo requer bundle MLIR/LLVM próprio pinado/assinado/reproduzível e macOS requer equivalente por arquitetura. A meta futura de targets não herda claims/tier do Rust; promoção exige backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging e CI evidence. W dialect, lowering HIR geral, targets adicionais, provider ABI, linker/runtime, distribuição/packaging MLIR, `w run` e performance permanecem gaps/tasks. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only, sem timing/result | Fontes primárias: [MLIR C API](https://mlir.llvm.org/docs/CAPI/), [LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/), [LLVM IR target](https://mlir.llvm.org/docs/TargetLLVMIR/) e [LLVM target triple](https://llvm.org/docs/LangRef.html#target-triple); evidência local em `compiler/seed-c/include/w_seed_mlir0.h`, `compiler/seed-c/src/w_seed_mlir0.c`, `compiler/seed-c/tests/test_mlir0.c`, `compiler/seed-c/tests/hlo1_gate.c`, `tooling/mlir0-toolchain.json` e `tooling/check-mlir0.mjs`. Categoria `source-backed-current` somente para a ponte bounded; C API, custom W dialect, matriz/hosts/packaging e backend geral não são implementados |
-| W-1507 | catálogo operacional de compiler hosts, emitted targets e cross-compilation | `tooling/platform-support.json` é a fonte operacional única para targets emitted, compiler hosts, cross-compilation, evidence, policy e planos native, com `PLATFORM-SUPPORT.md` como projeção determinística. Targets usam `candidate`, `evidence`, `supported`, `deprecated` e `removed`; candidate/evidence têm verification nulo, supported exige exatamente `experimental`, `level-3`, `level-2`, `level-1` ou `long-term`, e cada row exige os seis eixos `backend`, `runtime`, `hostAdapter`, `sdkProfile`, `linkerSysrootPackaging` e `ciEvidence`. Supported exige todos os eixos `pass` com evidence não vazia; blockers são exatamente os eixos não-pass. Hoje há zero targets supported: `x86_64-unknown-linux-gnu` só tem evidence `w-seed-mlir0-1-print-literal`, backend pass e cinco eixos partial, sem claim geral de target, SDK, packaging ou CI; há exatamente 15 candidates. Hosts são distintos: outer Windows `x86_64-pc-windows-msvc` usa tools Linux `x86_64-unknown-linux-gnu` via WSL2, `nativeForOuterHost: false`, evidence dev-only, `nativeToolchain: partial` e esse eixo em `blockers`; os candidates native cobrem Linux, Windows e macOS em x86_64/AArch64. Cross-compilation é a terceira dimensão: os hosts/targets primários nativos são `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e `aarch64-apple-darwin`, com matriz completa 3×3 de 9 edges host→target, incluindo self edges; hoje 0/9 são supported e todas são candidate. Cada edge tem id determinístico, refs, state, evidence e blockers; supported exige endpoints supported, toolchain/sysroot/linker/packaging pass e evidence separada de build e execução. A edge WSL é development, `nativeHost: false`, publica roles development/toolchain/build/execution com execução local, tem blockers nativeHost/endpoints/toolchainSysrootLinkerPackaging sem `buildExecution`, fica fora dos 9 e não satisfaz Windows→Linux nativo. Linux↔Windows requer SDK/sysroot/object/linker explícitos; Apple exige SDK, licença e provenance, sem pressupor redistribuição; remote execution é distinto de build; este bundle não implementa cross toolchains. MLIR0 `20.1.2` permanece versão factual da evidence/gate atual com `currencyStatus: update-required`, não versão futura. Planos native Linux/Windows/macOS são planned com source exact `llvmorg-23.1.0`, tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; a evidence Linux atual em WSL não satisfaz o plano successor. O blocker real é `native-build-acquisition-provenance` para build ou aquisição, outputs, SHA256, SBOM, provenance, signing, CI e smoke, e o pin não promove suporte nativo. Rejeitam pin histórico, `latest` e `nightly`, e declaram artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. `externalToolchainCandidates` é evaluation-only e não promove claim W, host ou edge. A política fixa `referenceBreadth.goal: at-least-rust-breadth`, fontes oficiais, observed date `2026-08-31` e `importsRustTiers: false`; a meta não herda claims ou tiers do Rust. O checker rejeita matriz incompleta/duplicada/only-self, refs indefinidos, WSL nativo, composite não-nativo com nativeToolchain pass, host/target conflated, gates/blockers divergentes, states/levels desconhecidos, claims em candidates, versões futuras flutuantes e manifest MLIR0 divergente. `benchmarkDisposition` é `not-applicable`: o bundle é metadata, projection e policy gate sem runtime/performance | Fontes primárias: [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html); evidence local em `tooling/platform-support.json`, `tooling/platform-support.mjs`, `PLATFORM-SUPPORT.md`, `tooling/platform-support.test.mjs` e `tooling/mlir0-toolchain.json`. Categoria `source-backed-current` somente para matriz, checker e projeção; não é implementação de backend, runtime, SDK, packaging ou CI |
+| W-1506 | primeira rota nativa MLIR0 seed-only para LLVM (histórico; superseded by W-1520) | W-1506 registrou um adapter histórico: `w_seed_mlir0` consome somente plano HLO0 verificado e acrescenta a rota source → parser/frontend → HIR0 → HLO0 → MLIR LLVM dialect → LLVM IR → native link, sem passar por C source. O schema é `w-seed-mlir0-1`; measure/emit são caller-owned, bounded, determinísticos, sem heap e all-or-nothing, com status, required, written e digest. O limite é 4096 bytes, comprovado em compile time pela soma de cada literal fixo, quatro campos decimais bounded e três bytes para cada um dos no máximo 257 bytes de payload+LF escapados. O único target emitido é `x86_64-unknown-linux-gnu`, fixado no `llvm.target_triple`; outros targets são `UNSUPPORTED`. A linha tem somente evidence no catálogo W-1507 e não é target supported. O texto usa somente builtin e LLVM dialect, LF, nenhum NUL terminal implícito, global privado de tamanho exato, payload+LF em `\XX`, uma call POSIX `write` com fd 1, comparação do retorno e `main` físico. HLO1 C23 continua bootstrap/auditoria/recovery e MLIR0 é primário somente para este subset. O gate real verifica MLIR, traduz LLVM IR, compila com clang `-x ir --target=...`, executa Hello, Restaurante e vazio com stdout byte a byte, stderr vazio e exit zero; trivia é idêntica e formas adversariais não emitem artifact. `hostEvidence` é `wsl-linux` e `windowsNative` é false: a prova é Linux x86_64 em WSL, não Windows nativo. A matriz de compiler hosts é separada da matriz de emitted targets; Linux, Windows e macOS são hosts futuros, Windows nativo requer bundle MLIR/LLVM próprio pinado/assinado/reproduzível e macOS requer equivalente por arquitetura. A meta futura de targets não herda claims/tier do Rust; promoção exige backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging e CI evidence. W dialect, lowering HIR geral, targets adicionais, provider ABI, linker/runtime, distribuição/packaging MLIR, `w run` e performance permanecem gaps/tasks. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only, sem timing/result | Fontes primárias: [MLIR C API](https://mlir.llvm.org/docs/CAPI/), [LLVM dialect](https://mlir.llvm.org/docs/Dialects/LLVM/), [LLVM IR target](https://mlir.llvm.org/docs/TargetLLVMIR/) e [LLVM target triple](https://llvm.org/docs/LangRef.html#target-triple); evidência local em `compiler/seed-c/include/w_seed_mlir0.h`, `compiler/seed-c/src/w_seed_mlir0.c`, `compiler/seed-c/tests/test_mlir0.c`, `compiler/seed-c/tests/hlo1_gate.c`, `tooling/mlir0-toolchain.json` e `tooling/check-mlir0.mjs`. Categoria `source-backed-historical`, superseded by W-1520, somente para a ponte bounded; C API, custom W dialect, matriz/hosts/packaging e backend geral não são implementados |
+| W-1507 | catálogo operacional de compiler hosts, emitted targets e cross-compilation | `tooling/platform-support.json` é a fonte operacional única para targets emitted, compiler hosts, cross-compilation, evidence, policy e planos native, com `PLATFORM-SUPPORT.md` como projeção determinística. Targets usam `candidate`, `evidence`, `supported`, `deprecated` e `removed`; candidate/evidence têm verification nulo, supported exige exatamente `experimental`, `level-3`, `level-2`, `level-1` ou `long-term`, e cada row exige os seis eixos `backend`, `runtime`, `hostAdapter`, `sdkProfile`, `linkerSysrootPackaging` e `ciEvidence`. Supported exige todos os eixos `pass` com evidence não vazia; blockers são exatamente os eixos não-pass. Hoje há zero targets supported: `x86_64-unknown-linux-gnu` só tem evidence do schema `w-seed-mlir0-2`, com scope `w-seed-mlir0-2-verified-hir-print`, backend pass e cinco eixos partial, sem claim geral de target, SDK, packaging ou CI; há exatamente 15 candidates. A evidência MLIR0 usa a rota direta source → parser/frontend → HIR0 verificada → MLIR0; HLO0 não é prerequisite. Hosts são distintos: outer Windows `x86_64-pc-windows-msvc` usa tools Linux `x86_64-unknown-linux-gnu` via WSL2, `nativeForOuterHost: false`, evidence dev-only, `nativeToolchain: partial` e esse eixo em `blockers`; os candidates native cobrem Linux, Windows e macOS em x86_64/AArch64. Cross-compilation é a terceira dimensão: os hosts/targets primários nativos são `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc` e `aarch64-apple-darwin`, com matriz completa 3×3 de 9 edges host→target, incluindo self edges; hoje 0/9 são supported e todas são candidate. Cada edge tem id determinístico, refs, state, evidence e blockers; supported exige endpoints supported, toolchain/sysroot/linker/packaging pass e evidence separada de build e execução. A edge WSL é development, `nativeHost: false`, publica roles development/toolchain/build/execution com execução local, tem blockers nativeHost/endpoints/toolchainSysrootLinkerPackaging sem `buildExecution`, fica fora dos 9 e não satisfaz Windows→Linux nativo. Linux↔Windows requer SDK/sysroot/object/linker explícitos; Apple exige SDK, licença e provenance, sem pressupor redistribuição; remote execution é distinto de build; este bundle não implementa cross toolchains. MLIR0 `20.1.2` permanece versão factual da evidence/gate atual com `currencyStatus: update-required`, não versão futura. Planos native Linux/Windows/macOS são planned com source exact `llvmorg-23.1.0`, tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; a evidence Linux atual em WSL não satisfaz o plano successor. O blocker real é `native-build-acquisition-provenance` para build ou aquisição, outputs, SHA256, SBOM, provenance, signing, CI e smoke, e o pin não promove suporte nativo. Rejeitam pin histórico, `latest` e `nightly`, e declaram artifacts `mlir-opt`, `mlir-translate`, `clang`, `lld`, `llvm-config` e drivers `lld-link`, `ld.lld`, `ld64.lld`. `externalToolchainCandidates` é evaluation-only e não promove claim W, host ou edge. A política fixa `referenceBreadth.goal: at-least-rust-breadth`, fontes oficiais, observed date `2026-08-31` e `importsRustTiers: false`; a meta não herda claims ou tiers do Rust. O checker rejeita matriz incompleta/duplicada/only-self, refs indefinidos, WSL nativo, composite não-nativo com nativeToolchain pass, host/target conflated, gates/blockers divergentes, states/levels desconhecidos, claims em candidates, versões futuras flutuantes e manifest MLIR0 divergente. `benchmarkDisposition` é `not-applicable`: o bundle é metadata, projection e policy gate sem runtime/performance | Fontes primárias: [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html); evidence local em `tooling/platform-support.json`, `tooling/platform-support.mjs`, `PLATFORM-SUPPORT.md`, `tooling/platform-support.test.mjs` e `tooling/mlir0-toolchain.json`. Categoria `source-backed-current` somente para matriz, checker e projeção; não é implementação de backend, runtime, SDK, packaging ou CI |
 | W-1508 | catálogo operacional de dependency currency | `tooling/dependency-currency.json` é a fonte máquina única para currency operacional e `DEPENDENCIES.md` é a projeção humana determinística. Managed ativos usam latest stable exata sem selectors floating; compatibility floors e recipes permanecem separados e não sobem por currency; evidence histórica é preservada, Unicode `17.0.0` permanece intacto e observações de ambiente não alegam pin exato. MLIR `20.1.2` continua evidence histórica, enquanto `23.1.0` é successor selected/not promoted com tag object assinado `9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e commit peeled `ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`; planos native usam esse pin exato e permanecem bloqueados por `native-build-acquisition-provenance`. O checker cruza package, lock, workflow, README e platform reais, valida URLs/SHAs/tags coerentes e mutações adversariais, e `source-backed-current` fica limitado ao catálogo, checker e projeção | `source-backed-current` somente para metadata operacional, com checker e projection reais; não promove semântica W, suporte de host/target, CMake/Ninja ou toolchain native |
 | W-1509 | facets ligadas a property places | `#` projeta somente facets declaradas em behavior ou controles imediatos de um handle/context core; `export fn`/`export mut fn` e computed facets são property-safe, imediatas e não reificáveis. Algorithms, factories e combinators, inclusive `firstSettled`, `Task.withDeadline` e `Task.spawn`, usam members normais; `spawn<domain>` continua initializer estático, e data/resource APIs mantêm `.` | `source-backed-current` para contrato/documentação/corpus/projeções e o witness bounded do seed parser; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: compiler/lowering/runtime/provider e workload property-safe ainda não fechados; nenhum timing ou resultado foi coletado |
 | W-1510 | pipe-forward explícito | `|>` é fixo, left-associative e local; cadeias usam call livre, que recebe o lhs no primeiro slot posicional, ou etapa relativa `.member(...)`, que usa o lhs como receiver; demais argumentos e modifiers/ownership permanecem explícitos e não há UFCS, placeholder, assignment chaining, map/bind, graph ou promise | `source-backed-current` para grammar/corpus/formatter/highlighting e os witnesses bounded de lexer/parser; `benchmarkDisposition: required`, status `deferred`; blockers: compiler/checker, execução de modifiers/member-relative e comparação de fluxo equivalente; nenhuma medição, timing ou resultado foi coletado |
@@ -7722,6 +7749,10 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1514 | labels e calls reorderable | `name: T` publica label externo homônimo; `external internal: T` separa label e binding; `_ name: T` é positional-only. Named arguments fazem bind por label em qualquer posição da call e não consomem slots positional-only; argumentos sem label preservam a ordem da sua subsequência, e tipos nunca escolhem binding. Call shape usa receiver/nome, conjunto global de labels e aridade positional-only; permutações não criam overloads. O allocator contextual único pode ocupar qualquer posição declarada, e `|>` preenche exatamente um slot obrigatório não contextual ainda sem binding, sem placeholder. | `source-backed-current` para DESIGN, RATIONALE, grammar, corpus e execution-ergonomics; `benchmarkDisposition: not-applicable`; checker/lowering completo e pipe execution permanecem gaps |
 | W-1515 | separação de ownership, copy e object defaults | `ref T` é borrow shared read-only; `mut ref T` é borrow exclusivo direto, dependent e lifetime-checked; `mut view T` é view exclusiva lógica; `inout T` é somente convenção parameter/call value-in/value-out, com source reservado e writeback normal/throw estruturado. `Copy` é implícito, bounded e sem hidden allocation/deep traversal; `Duplicable` é `copy value` explícito e pode alocar; structs/enums não são Copy por default. `object` sem modo em parâmetro normaliza para `ref ObjectType`, e `mut objectPlace` é a forma curta de mut ref. COW só é direção first-party declarada e research-gated, sem keyword nova. | `source-backed-current` para contrato e exemplos; `implementation-evidence-gap` para checker/lowering/runtime/backend. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
 | W-1516 | properties, behaviors e access observers | A surface remove `modify` e variantes do getter. Toda property usa `let`, `var` ou `const`; a forma bare é rejeitada. O mode fica no tipo (`T`, `ref T`, `mut ref T`, `inout T`) e o accessor é sempre `get`, com `set(value)` para replacement/writeback. `let` admite somente value ou ref; `var inout` exige get+set; `var mut ref` projeta borrow exclusivo sem fingir set. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `source-backed-current` para DESIGN, RATIONALE, Last Light, grammar, reflection availability, corpus e CHEATSHEET; `implementation-evidence-gap` para checker/lowering/runtime. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
+| W-1517 | contrato design-only de allocation, placement e memory profiles | `.none` significa somente ausência de allocator geral/root; `.bounded<budget:N>` mede receipts físicos vivos sobre o backing corrente e devolve cobrança na desalocação; `.stack<capacity:N>` é native-stack estrito, sem fallback. O módulo pode declarar `allocation: .forbidDynamic` e `storage: .stack(maximumFrame:N)`; functions publicam summaries inferidos. Profiles `memory` exigem `dynamicAllocation: .allow ou .forbid` e `automaticStorage: .infer ou .stack(maximumFrame:N, maximumCallPath:N)`. A taxonomia separa logical allocation effect de physical storage (`ssa/elided`, `inline`, `nativeStack`, `taskFrame`, `static`, `threadLocal`, `fixedLease`, `providerLease`, `foreign`); `w explain memory` separa fact/decision/estimate/measurement/unknown. | `oracle-backed-current` para o contrato e o oracle de design; `design-only` com blockers compiler/HIR-general/escape/linker/target/provider/runtime/MLIR/explain/benchmark. `benchmarkDisposition: deferred`, correctness-first, sem timing/result; W-1503 é superseded |
+| W-1518 | contrato design-only de registry, publicação e execução | W-owned metadata usa CBOR determinístico e DSSE role-specific sobre bytes exatos; objects usam SHA-256 tagged e digest dos bytes armazenados; root genesis é trusted out-of-band e roots N+1 exigem threshold old+new; Statements in-toto v1/SLSA v1.2 permanecem JSON externo dentro de DSSE. Paths `/v1/root/<version>.dsse`, `/v1/timestamp.dsse` e `/v1/o/sha256/<hex>` separam root, freshness e objects; discovery/search/channel/update são convenience. Package index aponta version→release digest; estados são append-only; capability privada não é authority. PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 têm contratos de design fechados, com implementation evidence missing. | `oracle-backed-current` para o contrato e reducer estrutural host-only; `design-only` com blockers crypto/verifier, registry/server, compiler, runner, provider, sandbox, target/OS, attestation, freshness/clock, fault, reproduction e benchmarks. `benchmarkDisposition: deferred`, correctness-first, sem timing/result; W-1486 é superseded |
+| W-1519 | verified immutable local String binding through the native seed pipeline | Frontend schema `w-seed-frontend-11` separates `statement.effective_type` from source `declared_type` and publishes `expression.resolved_binding_statement` as an indexed lexical relation. Resolution accepts only one unambiguous prior binding in source order. HIR0 schema `w-seed-hir0-2` adds caller-owned `w_seed_hir0_binding` with `owner_instruction`, `owner_block`, `ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`, and `is_mutable=false`. `BINDING` carries the binding index. `CALL` carries none. `BINDING_READ` carries a valid prior binding index, zero byte count, and canonical offset zero. Bindings occur in program, output, counts, capacities, alias tables, `program_from_output`, receipt, semantic digest, and provenance digest. Verification requires owners, order, types, spans, dense ranges, contiguous bytes without gap or overlap, and alias barriers. Lowering accepts only one immutable prior `let` String literal and a later `print` read. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING` or exactly one immutable binding with `BINDING → CALL` in one block and a binding-index read. Equivalent literal and binding forms produce byte-identical HLO0 plans and receipts. HLO0 independently proves its binding plan; MLIR0 consumes the same verified HIR directly. The Restaurant witness traverses parser, frontend, verified HIR, direct MLIR0, verification, translation, native link, and execution with exact stdout `Table 42 remains open\n`. Hello and empty remain direct literals. General locals, `var`, assignment, nested or shadowing scopes, multiple HLO bindings or values, CFG, general SSA, ownership, borrows, DCE, optimization, W dialect, additional hosts or targets, public `w run`, and performance remain out of scope. | `source-backed-current`, strictly bounded. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. W-1505 and W-1520 remain current; W-1519 remains current for binding semantics; W-1506 is superseded by W-1520 |
+| W-1520 | verified-HIR direct MLIR0 native route | W-1520 replaces MLIR0 schema v1 in place before W 1.0 with `w-seed-mlir0-2`, without a parallel legacy adapter. The internal API accepts only `w_seed_mlir0_input { program, hir_result }` and re-verifies HIR through private `native_subset0`, shared independently by HLO0 and MLIR0. The selector accepts direct `CONST_STRING` or one immutable prior String `BINDING → CALL` with `BINDING_READ`, exposes structured borrowed slices, and performs no textual lookup. The primary route is source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → clang/native. MLIR0 remains caller-owned, bounded, no-heap, transactional, all-or-nothing, and limited to textual builtin plus LLVM dialect for `x86_64-unknown-linux-gnu`, with payload+LF and digest. Restaurant literal and binding artifacts are byte-identical, Hello and empty remain products, and the gate requires exact stdout, empty stderr, and exit zero. HLO0, HLO1, and RUN0 are bootstrap, audit, and recovery paths, not native prerequisites. General HIR, multiple values or bindings, CFG/general SSA, W MLIR dialect, MLIR C API builder, ownership/effects/tasks lowering, optimizer/pass pipeline, provider/runtime/linker/SDK/packaging, other hosts/targets, public `w run`, and performance remain gaps. Toolchain 20.1.2 is factual and `update-required`. | `source-backed-current`, strictly bounded. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. Evidence: MLIR0 header/source/helper, unit, direct gate, check, platform authority, and pinned manifest |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -8328,7 +8359,8 @@ identidades e bytes de constantes usados pelo subset. O schema fechado inclui
 módulos, identities, `Unit`, `String`, funções, qualifiers, parâmetros e
 labels HIR, blocks, ordem de instruções, calls host-prelude, argumentos,
 requirements nominais, terminators e entry. O host identity publica o profile
-explícito `native-process@1`; não há inferência por enumeração incidental ou
+explícito `native-process@1`; W-1519 adds binding records and binding reads to
+this verified HIR0 surface. Não há inferência por enumeração incidental ou
 por índice.
 
 O verifier não confia em um booleano produzido pelo caller. HLO0 chama
@@ -8345,7 +8377,8 @@ fechada.
 O limite estrutural deste corte é deliberado: há exatamente um document, um
 module e um entry, com o entry normalizado para `.default` e nomes de função
 únicos por module. Ranges de module, function, block, host identity e call são
-partições densas; gap, overlap e record órfão falham. `symbols` é somente um
+partições densas; gap, overlap e record órfão falham. W-1519 applies the same
+rule for bindings. `symbols` é somente um
 índice redundante validado na ordem module → parâmetros → function → entry, e
 nunca é fonte de identidade ou tipo para o lowering. Famílias frontend sem
 record HIR0 falham como `UNSUPPORTED`. Labels host required copiam o nome
@@ -8431,7 +8464,9 @@ de blocks, calls, arguments e values. Sobre uma HIR0 já verificada, o seletor
 HLO0 W-1505 exige exatamente um module, um entry `.default`, função sem
 parâmetros com retorno Unit e qualifiers sync/nonthrows/safe/no-borrow, um
 block linear, uma call host-prelude `print`, um argumento posicional `String`
-literal, uma requirement `Console` e terminator Unit.
+literal na forma direta, uma requirement `Console` e terminator Unit. W-1519
+adds the verified shape with one immutable String binding and one binding-index
+read.
 
 O schema do plano HLO0 sobe para `w-seed-hlo0-2`, pois a superfície de dados
 agora é input-driven. `entry_target` e `handler` são byte strings derivados
@@ -8466,7 +8501,13 @@ quanto aos milestones Hello-only e preserva W-1494 current; C23 permanece
 primary e C11 recovery explícita. Toolchain ausente dá SKIP explícito, mas
 falha de toolchain presente dá FAIL.
 
-#### W-1506 — ponte terminal MLIR0 para LLVM
+#### W-1506 — ponte terminal MLIR0 para LLVM (historical; superseded by W-1520)
+
+W-1506 is historical. It recorded the first MLIR0 native route with schema
+`w-seed-mlir0-1` and an HLO0-plan input. W-1520 replaces that incompatible
+pre-1.0 contract with the direct verified-HIR route; no parallel legacy adapter
+is retained. The details below preserve the decision's provenance and are not
+the current MLIR0 API.
 
 W-1506 fecha uma primeira rota nativa real sem gerar source C. A decisão é
 deliberadamente estreita: o adapter recebe somente o plano HLO0 completo e
@@ -8525,6 +8566,116 @@ W-1506. O `benchmarkDisposition` é `compiler-lifecycle`, correctness-only, sem
 timing ou ranking. HLO1 permanece bootstrap, auditoria e recovery; MLIR0 é
 primário somente nesta fatia.
 
+#### W-1519 — verified immutable local String binding through the native seed pipeline
+
+W-1519 is `source-backed-current`. It is a strictly bounded extension of the
+native seed path. It remains current for binding semantics; W-1520 supersedes
+W-1506 for the native route, while W-1505 remains current for HLO0.
+
+The product witness is:
+
+```w
+fn serve() {
+  let message = "Table 42 remains open"
+  print(message)
+}
+entry(serve)
+```
+
+Frontend schema `w-seed-frontend-11` separates
+`statement.effective_type` from the source `declared_type`. It publishes
+`expression.resolved_binding_statement` as an explicit statement index.
+Resolution is lexical and linear in source order. Only one unambiguous prior
+binding is accepted. Downstream stages do not perform name lookup.
+
+HIR0 schema `w-seed-hir0-2` adds the caller-owned
+`w_seed_hir0_binding` record. It contains `owner_instruction`, `owner_block`,
+`ordinal`, `type_index`, `name`, initializer `byte_offset/count`,
+`source_span`, and `is_mutable=false`. The binding ordinal equals its
+instruction ordinal. A `BINDING` instruction carries its binding index. A
+`CALL` carries no binding index. A `BINDING_READ` value carries a valid binding
+index, `byte_count=0`, and canonical offset zero.
+
+The HIR0 program, output, counts, capacities, alias tables,
+`program_from_output`, receipt, semantic digest, and provenance digest include
+bindings. Verification requires owner, order, type, span, and dense ranges.
+It requires the binding before its read. It requires contiguous initializer
+bytes without gaps or overlap. Alias barriers remain fail-closed.
+
+Lowering accepts only a linear function with one immutable `let` String
+literal and a later `print` call whose identifier has the frontend relation.
+It emits `BINDING` before `CALL`. It copies the binding name and initializer
+bytes. It never performs downstream textual lookup. `var`, forward references,
+duplicates, shadowing, nested shapes, non-String values, and other shapes are
+unsupported.
+
+HLO0 keeps schema `w-seed-hlo0-2`. Its direct shape has zero bindings, one
+`CALL` instruction, and a `CONST_STRING` argument. Its binding shape has one
+immutable String binding and exactly two instructions in one block:
+`BINDING → CALL`. The call argument is one `BINDING_READ` by binding index.
+Unused bindings, multiple bindings, cross-read, forward-read, forged records,
+and extra instructions are rejected. The payload uses only verified byte
+slices. Equivalent literal and binding sources produce byte-identical plans
+and receipts.
+
+HLO0 independently proves its binding plan. MLIR0 consumes the same verified
+HIR directly through the private native-subset selector; it does not consume,
+include, call, or create HLO0. The current product evidence follows the
+Restaurant witness through parser, frontend, HIR0, MLIR0, verification,
+translation, native link, and execution. It requires exact stdout
+`Table 42 remains open\n`. Hello and empty remain direct literal cases.
+
+The focused units are `test_frontend`, `test_hir0`, and `test_hlo0`. The root
+gates `check:hir0`, `check:hlo0`, `check:hlo1`, `check:run0`, and `check:mlir0`
+exercise the integrated route and its barriers. The available c2x-preview
+toolchain is correctness-only. No timing or benchmark result is published.
+
+This decision does not claim general locals, `var`, assignment,
+nested or shadowing scopes, multiple bindings or values in the HLO selector,
+CFG, general SSA, ownership or borrows, DCE or optimization, the W dialect,
+additional hosts or targets, public `w run`, or performance.
+
+Its `benchmarkDisposition` is `compiler-lifecycle`. Its evidence is
+correctness-only. It publishes no timing or result.
+
+#### W-1520 — verified-HIR direct MLIR0 native route
+
+W-1520 is the current decision for the bounded native seed route. Before W 1.0,
+the incompatible MLIR0 schema v1 is replaced in place by
+`w-seed-mlir0-2`; no parallel legacy adapter is maintained. This preserves the
+historical W-1506 evidence in the record without treating compatibility inertia
+as a design constraint. W-1505 remains current for the HLO0 direct subset, and
+W-1519 remains current for immutable local binding semantics.
+
+The primary route is `source → parser/frontend → verified HIR0 → MLIR0 →
+mlir-opt → mlir-translate → clang/native`. HLO0, HLO1, and RUN0 remain
+bootstrap, audit, and recovery paths, not prerequisites for native emission.
+HLO0 independently proves its binding plan; MLIR0 consumes the same HIR
+directly. The internal MLIR0 API accepts only
+`w_seed_mlir0_input { program, hir_result }`. The HIR is re-verified at this
+boundary by private `native_subset0`, the single exact selector shared
+independently by HLO0 and MLIR0. It accepts direct `CONST_STRING` or one
+immutable prior String `BINDING → CALL` with `BINDING_READ`, publishes only
+borrowed structured records and payload slices, and performs no textual lookup.
+
+The choice is intentionally narrow. MLIR0 preserves caller-owned storage,
+bounded no-heap operation, transactional preflight, and all-or-nothing output.
+It keeps the x86_64 Linux target, textual builtin plus LLVM dialect artifact,
+payload+LF bytes, and artifact digest. Invalid HIR, unsupported subset or
+target, capacity, and descriptor/result/HIR-range aliases are rejected before
+publication. Hello, empty, and the Restaurant binding/literal forms are
+products; the two Restaurant artifacts are byte-identical and native stdout is
+exact. No timing or result is reported.
+
+The evidence is the real source→parser/frontend→HIR0→MLIR0→MLIR verification→
+LLVM IR→native link→execution gate, with the pinned factual toolchain 20.1.2
+marked `update-required`. The finite gaps are general HIR, multiple bindings or
+values, CFG/general SSA, a W MLIR dialect, an MLIR C API builder,
+ownership/effects/tasks lowering, an optimizer/pass pipeline,
+provider/runtime/linker/SDK/packaging, other hosts or targets, public `w run`,
+and performance. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only, with no timing or result.
+
 #### W-1507 — catálogo operacional de hosts e targets
 
 W-1507 transforma a matriz de suporte de §20.8.3 em uma fonte operacional
@@ -8545,7 +8696,7 @@ em `pass`.
 
 O estado corrente é deliberadamente menor que uma claim de suporte. Existem
 zero targets `supported` e uma linha `evidence` para
-`x86_64-unknown-linux-gnu`, no scope `w-seed-mlir0-1-print-literal`. O backend
+`x86_64-unknown-linux-gnu`, no scope `w-seed-mlir0-2-verified-hir-print`. O backend
 é `pass`. Runtime, host adapter, SDK profile, linker/sysroot/packaging e CI
 evidence são `partial`. As referências incluem fonte, unidade, gate e
 manifest MLIR0. Essa linha não alega target geral, SDK, packaging ou CI
@@ -8903,8 +9054,9 @@ compatibilidade de headers. O código do seed continua compilável nela, mas o
 default e as referências comparativas não retornam a C11. A política de
 dialeto também não altera a ABI C externa: não há requisito C23 implícito para
 consumidores externos. C permanece backend de validation, differential e
-recovery; a ponte MLIR0 W-1506 é primária somente para o subset bounded, enquanto
-W/MLIR geral continua futuro e não sofre displacement.
+recovery. W-1520 é a ponte MLIR0 primária somente para o subset bounded e usa a
+rota HIR0 verificada → MLIR0. HLO0, HLO1 e RUN0 continuam bootstrap, auditoria e
+recovery. W/MLIR geral continua futuro e não sofre displacement.
 
 O seed é classificado em `compiler-lifecycle`. A receita C23 do BMD e seus
 smokes ficam em correctness/estrutura, sem timing ou result novo. O demo
@@ -8984,7 +9136,12 @@ A evidência é documental e source-backed. Os gates de parser, snippets e
 contratos std verificam forma e provenance. Não há afirmação de compiler,
 runtime ou provider executável para reflection, Task ou allocator.
 
-#### W-1503 — pesquisa finita de allocation e placement
+#### W-1503 — pesquisa finita de allocation e placement (histórico; superseded por W-1517)
+
+Este bloco é proveniência histórica de W-1503. Ele não é normativo e não define
+grammar, profiles ou plans correntes; quando disser “current” abaixo, leia como
+“current na fotografia de pesquisa de W-1503”. O contrato que substitui esta
+pesquisa está em W-1517, imediatamente abaixo.
 
 W-1503 corrige uma ambiguidade entre capability de allocator, policy de build,
 efeito de allocation e placement físico. `allocator .root {}` e
@@ -8995,8 +9152,9 @@ native task frame ou fixed scope, nem transforma `.none` em `.stack` ou em
 no-allocation.
 
 `.fixed<capacity: N>` permanece a forma lexical corrente; o target escolhe
-stack, task frame ou storage local/fixed. `.bounded<budget: N>` limita bytes
-committed sobre um provider e continua Research, sem promessa de placement.
+stack, task frame ou storage local/fixed. Na fotografia histórica de W-1503,
+`.bounded<budget: N>` era Research e limitava bytes committed sobre um
+provider, sem promessa de placement; esse status foi superseded por W-1517.
 As candidatas separadas são policy/default de workspace, contratos estáticos
 de module/function em `<...>` e allocator lexical `.stack<capacity: N>`.
 O workspace corrente é data-only, logo qualquer novo field de policy é apenas
@@ -9047,6 +9205,150 @@ e [LLVM coroutines/HALO](https://llvm.org/docs/Coroutines.html). O ledger
 [`W-1503`](tooling/studies/w1503-allocation-placement/task-ledger.json) mantém
 tasks, cases, blockers, stop conditions e a fronteira de evidência sem criar
 uma nova grammar ou contaminar o estudo R1 de capability.
+
+#### W-1517 — contrato de allocation e placement (design-only, oracle-backed-current)
+
+W-1517 fecha a semântica de design e mantém explícita a lacuna de implementação.
+`memory.generalAllocator: .none` quer dizer apenas que não existe allocator
+geral/root. Não significa stack, register, static storage, task frame ou
+no-allocation. `.bounded<budget:N>` é um `AllocatorPlan` lexical que envolve o
+allocator explícito/contextual corrente, conta bytes físicos committed ainda
+vivos a partir dos receipts do backing, falha antes de exceder o budget, devolve
+essa cobrança em deallocation e fecha/draina normalmente. Não promete placement,
+bulk reclaim ou ausência de chamadas ao OS; backing incompatível é diagnosticado.
+
+`.stack<capacity:N>` é um `AllocatorPlan` lexical estrito para native stack.
+Não há fallback para heap, task frame, static storage ou fixed provider. A prova
+deve fechar capacity, alignment, target, guard probing e call-path admission.
+Storage não pode escapar, atravessar suspension ou detached work, nem cruzar
+ABI/FFI sem summary. `try` trata apenas admission dinâmica permitida pelo
+contract; não habilita fallback. `.fixed` continua portátil, com placement
+escolhido pelo target.
+
+A única annotation source deste contrato é o envelope de module já existente:
+
+```w
+import iec from std
+
+module codec<
+  allocation: .forbidDynamic,
+  storage: .stack(maximumFrame: 8<iec.KiB>),
+>
+```
+
+`.forbidDynamic` proíbe commits transitivos de provider, runtime, heap, arena e
+resize. A candidata genérica `.forbid` é rejeitada como ambígua. Functions
+publicam summaries inferidos e podem ser alvo de `w check memory` e
+`w explain memory`; `fn<...>` continua reservado para language/ABI. Module só
+preserva ou restringe owner/workspace/profile e nunca relaxa uma policy.
+
+O profile `memory` exige, sem defaults implícitos, os fields
+`dynamicAllocation: .allow|.forbid` e
+`automaticStorage: .infer|.stack(maximumFrame:N, maximumCallPath:N)`.
+Profiles `.stack` rejeitam task frames suspensos. Não existe `product<...>` e
+não existe uma surface genérica `no-allocation`: os contracts separados são
+`no-general-allocation`, `allocation: .forbidDynamic` e
+`storage: .stack(...)`.
+`dynamicAllocation: .forbid` nomeia a policy dinâmica do profile, enquanto
+`allocation: .forbidDynamic` é o envelope transitivo do module; são formas
+distintas e não aliases.
+
+Allocation effect e storage fact são eixos distintos. O primeiro registra
+commits de provider, runtime allocation, resize e efeitos lógicos. O segundo
+usa as classes `ssa/elided`, `inline`, `nativeStack`, `taskFrame`, `static`,
+`threadLocal`, `fixedLease`, `providerLease` e `foreign`. Spill conta no receipt
+físico de stack, mas não vira allocation effect. Um retorno só pode ser inline,
+ir para destination do caller ou fazer rehome explícito; nunca pode escapar de
+callee frame. Recursion, indirect calls, generics e concurrency desconhecidos
+fazem um profile estrito falhar.
+
+O lowering plan associa native stack a `memref.alloca`/`llvm.alloca` dentro de
+automatic allocation scope, provider a `memref.alloc`/runtime, static a global
+e task frame a coroutine/runtime storage. Isso é contrato de lowering, não
+afirmação de implementação. `w explain memory` distingue `fact`, `decision`,
+`estimate`, `measurement` e `unknown`; strict gates falham em `unknown`.
+`benchmarkDisposition` é `deferred`, correctness-first, sem timing ou result.
+
+O oracle [`tooling/w1517-memory-contract-cases.json`](tooling/w1517-memory-contract-cases.json)
+fecha policy relaxation, stack/task-frame, escape, recursion/indirect,
+concurrency multiplier, backing/budget, no fallback, explain unknown e classes
+MLIR. Ele prova somente este design contract; os blockers de compiler,
+HIR-general, escape, linker, target, provider, runtime, MLIR, explain e
+benchmark permanecem implementation-evidence gaps. As referências primárias
+de lowering são [MLIR MemRef](https://mlir.llvm.org/docs/Dialects/MemRef/) e
+[MLIR LLVM](https://mlir.llvm.org/docs/Dialects/LLVM/), acessadas em
+2026-09-03.
+
+#### W-1518 — contrato RDX0 de registry, publicação e execução (design-only, oracle-backed-current)
+
+W-1518 substitui W-1486 como decisão corrente. O contrato escolhe CBOR
+determinístico para metadata owned por W e DSSE role-specific para assinar os
+bytes exatos do payload. O digest de um object é calculado sobre os bytes
+exatos armazenados, inclusive o envelope DSSE. Isso não impõe CBOR às
+attestations externas: `in-toto Statement v1` e `SLSA provenance v1.2` usam
+seus Statements JSON dentro de objects DSSE imutáveis.
+
+As referências primárias consultadas em 2026-09-03 são [TUF latest specification](https://theupdateframework.github.io/specification/latest/),
+[DSSE protocol](https://github.com/secure-systems-lab/dsse/blob/master/protocol.md),
+[in-toto Statement v1](https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md),
+[SLSA provenance v1.2](https://slsa.dev/spec/v1.2/provenance),
+[GitHub reusable-workflow OIDC](https://docs.github.com/en/actions/how-tos/secure-your-work/security-harden-deployments/oidc-with-reusable-workflows)
+e [OCI Distribution](https://github.com/opencontainers/distribution-spec/blob/main/spec.md).
+Elas são precedentes externos; as regras W abaixo são uma inferência bounded e
+não alegam conformance a qualquer um desses protocolos.
+
+`trustedGenesis` continua sendo o payload público completo da gênese,
+fornecido out-of-band e sem assinatura DSSE obrigatória. Root updates em
+`/v1/root/<version>.dsse` exigem `N+1` e threshold da root antiga e da nova.
+Roles `root`, `targets`, `snapshot` e `timestamp` tratam rollback, freeze,
+mix-match, gap e expiry. `/v1/timestamp.dsse` é o único object mutável;
+freshness exige clock/provider explícito e persistência monotônica. Fetch,
+install e run remoto falham fechados sem prova de tempo/expiry. Offline só
+reutiliza artifact já verificado sob policy explicitamente pinada e registra
+`stale`/`unknown`; não baixa nem atualiza.
+
+Os paths mínimos são discovery não confiável em
+`/.well-known/w-registry.json`, root update, timestamp e
+`/v1/o/sha256/<hex>` para todos os demais objects imutáveis. Channel, search e
+update JSON são convenience; não entram na authority ou no lock. SHA-256 é o
+único digest tagged da v1. O package index aponta version para release digest;
+deprecation, yank e revocation são estados append-only. Read capability ou
+signed URL é scoped por object/package, audience e expiry, e não é authority;
+401/403/404 são opções de privacy. Auth não atravessa origem ou mirror não
+configurado.
+
+PCB0 exige release intent assinado, OIDC GitHub com `iss`, `aud`, `sub`,
+`repository`, `ref`, `sha` e `job_workflow_ref` pinado, capability W curta,
+one-use e scoped, e authorities separadas para builder, registry admission e
+maintainer. `publicSource`, `authorizedReproduction` e
+`independentPublicReproduction` são claims distintos; observação do provider
+ou remoção declarada não prova descarte físico.
+
+WEC0 mantém cápsulas bounded por target/profile/toolchain com chunks
+content-addressed, `WInterface`/`WMeta`/`WAbi`, native objects, symbols,
+runtime requirements e IR privado somente sob exact toolchain key. Não há
+claim de hash de memória relocada. TEV0/SEV0 mantêm evidence keys e lanes
+separadas; SBOM, RuntimeClosure, reachability, advisory e snapshots não viram
+badge agregado `safe`.
+
+RSX0 exige
+`w run registry:last-light/restaurant@0.1.0 --product last-light-native
+[--entry default] -- ...`, versão exata e a sequência root→freshness/snapshot
+→package/release/artifact digest→evidence/policy→sandbox→entrypoint. Native
+remote usa child process ou compartment e enforcement antes do loader/entry;
+receipt do provider é obrigatório ou `unsupported`, sem fallback. Seccomp-only,
+denylist, `LD_PRELOAD`, ptrace/`CAP_SYS_ADMIN`, same-process plugin e learn-mode
+receipt são rejeitados. ENT0 mantém entitlement opaco, sem raw token no app e
+sem claim de DRM inviolável.
+
+O oracle [`tooling/studies/rdx0-binary-registry-execution/machine.mjs`](tooling/studies/rdx0-binary-registry-execution/machine.mjs)
+é um reducer estrutural de estado; ele não faz crypto, HTTP, server, provider,
+runner ou execução. Seu corpus cobre positives, negative cases, transições de
+root/catalog, freshness, publication, capsule, evidence, sandbox, runner e
+entitlement. O status `complete-design-study`/`design-oracle` fecha somente o
+design. Permanecem blockers de crypto/verifier, registry/server, compiler,
+runner, provider, sandbox, target/OS, attestation, clock/fault,
+reproduction e benchmark; nenhum timing ou result é publicado.
 
 #### W-1504 — convergência pipeline/transaction research-gated (superseded por W-1511)
 

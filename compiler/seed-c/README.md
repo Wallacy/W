@@ -134,14 +134,16 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-9`. Os campos D2/D3
+`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-11`. Os campos D2/D3
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
 inferência scalar D7; a versão 8 separa `logical_source_id`, `module_id` e
 `local_module_name` e acrescenta edges de import resolvidos caller-owned; a
 versão 9 acrescenta o carrier de diagnostics frontend com facts, items e
-labels tipados, counts exatos e ranges caller-owned append-only.
+labels tipados, counts exatos e ranges caller-owned append-only. Version 11
+publishes `resolved_binding_statement` as an explicit indexed relation. It
+keeps `effective_type` separate from `declared_type`.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -854,6 +856,20 @@ autoridade para o lowering. Famílias frontend sem record HIR0 falham fechadas.
 Labels host required copiam o nome público, positional usa label vazio e
 qualquer outra policy permanece fora deste subset.
 
+W-1519 extends HIR0 to schema `w-seed-hir0-2`. The caller-owned
+`w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
+`ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`,
+and `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries
+none. `BINDING_READ` carries a valid binding index, zero byte count, and
+canonical offset zero.
+
+Bindings are present in program, output, counts, capacities, alias tables,
+`program_from_output`, receipt, semantic digest, and provenance digest. The
+verifier requires owner, order, type, span, dense ranges, prior binding order,
+and contiguous initializer bytes without gap or overlap. Alias barriers remain
+fail-closed. Lowering copies binding names and bytes. It never performs
+downstream textual lookup.
+
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,
 calls, arguments e values dentro do schema validado. O seletor HLO0 W-1505
@@ -880,7 +896,7 @@ fn main() { print("Hello, world!") }
 entry(main)
 ```
 
-O frontend v10 recebe um `host_scope` explícito, e a etapa anterior faz lower e
+O frontend v11 recebe um `host_scope` explícito, e a etapa anterior faz lower e
 verify de HIR0. O profile
 `native-process@1` oferece `print(String): ()` como símbolo normal do host
 prelude, com requirement nominal `Console`. A resolução preserva identidades
@@ -906,6 +922,22 @@ em NUL, com zero-tail e igualdade byte a byte, e nunca fixa o nome da função n
 o payload. O verifier de plano isolado comprova somente essa representação e
 igualdade; ele não prova source provenance nem que o conteúdo é um identifier
 válido.
+
+W-1519 adds one verified immutable local String shape. Frontend v11 resolves
+only one unambiguous prior binding by source order and publishes its statement
+index. HIR0 emits `BINDING` before `CALL`, then the call reads that binding with
+`BINDING_READ`. HLO0 accepts exactly this two-instruction chain in one block.
+The HLO0 selector rejects unused, duplicate, forward, nested, shadowed,
+cross-read, forged, and mutable binding chains. `var` remains unsupported.
+
+The Restaurant witness `let message = "Table 42 remains open"` followed by
+`print(message)` reaches MLIR0, translation, native link, and execution. Its
+stdout is exactly `Table 42 remains open\n`. The direct literal shape remains
+unchanged, and equivalent binding and literal plans and receipts are
+byte-identical at HLO0. HLO0 proves its binding plan independently; MLIR0
+consumes the same verified HIR directly under W-1520.
+W-1519 has `benchmarkDisposition: compiler-lifecycle`. Its evidence is
+correctness-only, with no timing or result.
 
 O payload aceita de zero a 256 bytes e preserva cada byte publicado pela HIR0,
 inclusive NUL. O tail não usado é zero. O stdout esperado é payload seguido de
@@ -963,36 +995,42 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 ## MLIR0 ponte nativa terminal para LLVM
 
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
-consome somente `const w_seed_hlo0_plan *` depois de
-`w_seed_hlo0_verify_plan`. Ele não acessa source, CST, frontend ou HIR, não usa
-heap e não chama a MLIR C API. `measure` e `emit` são caller-owned, bounded,
-determinísticos e all-or-nothing; status, required, written e digest pertencem
-ao result. Capacity curta, alias, plano forjado e target não suportado falham
-sem alterar result ou output. O texto não tem NUL implícito.
+consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
+HIR0 e a implementação não inclui, chama ou cria HLO0. A API incompatível
+`w-seed-mlir0-2` re-verifica HIR na fronteira por meio do helper privado
+`native_subset0`, que é o seletor exato compartilhado independentemente por
+HLO0 e MLIR0. Ele aceita somente uma `CONST_STRING` direta ou uma binding
+String imutável anterior em `BINDING → CALL` com `BINDING_READ`; publica slices
+e records estruturados emprestados e não faz lookup textual.
 
-O schema privado é `w-seed-mlir0-1`, com limite explícito de 4096 bytes. Um
-`_Static_assert` deriva esse limite da soma dos literais fixos, quatro campos
-decimais bounded e até 257 bytes de payload mais LF, cada um escapado em três
-bytes. O único target é
-`x86_64-unknown-linux-gnu`; o módulo fixa `llvm.target_triple`, contém somente
-builtin e LLVM dialect, escapa cada byte de payload+LF como `\XX`, declara
-POSIX `write`, faz uma call com fd 1, compara o tamanho retornado e retorna
-`main` físico com i32 0/1. `entry_target` permanece nome lógico HLO0; não há
-puts/printf/fwrite, geração C, custom W dialect, TableGen ou object-cache.
+`measure` e `emit` são caller-owned, bounded, sem heap, determinísticos e
+all-or-nothing; status, required, written e digest pertencem ao result.
+Preflight verifica HIR antes de capacidades e ranges. HIR inválida, forma ou
+target não suportado, capacity curta e alias entre descriptors, result, output
+ou ranges HIR falham sem alterar result ou output. O texto não tem NUL
+implícito. O único target é `x86_64-unknown-linux-gnu`; o módulo fixa
+`llvm.target_triple`, contém somente builtin e LLVM dialect, escapa cada byte
+de payload+LF como `\XX`, declara POSIX `write`, compara o tamanho retornado e
+retorna `main` físico com i32 0/1. Não há puts/printf/fwrite, geração C, custom
+W dialect, TableGen ou object-cache.
 
-O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → HLO0 →
-MLIR0 → `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native
-link → executable para Hello, `Table 42 remains open` e vazio. Ele exige
-stdout exato (payload + LF), stderr vazio e exit zero, preserva MLIR em trivia
-e rejeita comentário com `print`, noop, duas calls e formas fora do subset sem
-artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa MLIR/LLVM/
-Clang/LLVM-config 20.1.2 e a recipe. Linux usa ferramentas diretas; no
-checkout Windows `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo
-a prova não é suporte Windows nativo. Windows native, macOS, packaging da
-toolchain e a matriz ampla de targets são gaps; qualquer target adicional
-precisa de backend, runtime/provider/host adapter, SDK/sysroot/linker/packaging
-e CI evidence. MLIR0 é ponte terminal da seed, não o futuro W/MLIR de ownership,
-effects/tasks nem backend W geral. HLO1 continua bootstrap, auditoria e recovery.
+O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
+`mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
+executable para Hello, Restaurant binding (`let message`), Restaurant literal
+equivalente e vazio. Ele exige artifact MLIR byte-idêntico para as duas formas
+Restaurant, stdout exato (payload + LF), stderr vazio e exit zero, preserva
+MLIR em trivia e rejeita comentário com `print`, noop, duas calls e formas fora
+do subset sem artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa
+MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
+`update-required`. Linux usa ferramentas diretas; no checkout Windows
+`hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo a prova não é
+suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
+geral, múltiplas bindings/values, CFG/general SSA, W MLIR dialect, MLIR C API
+builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
+provider/runtime/linker/SDK, `w run` público e performance são gaps. HLO0,
+HLO1 e RUN0 continuam bootstrap, auditoria e recovery. O bundle tem
+`benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
+result.
 
 ```text
 bun run check:mlir0

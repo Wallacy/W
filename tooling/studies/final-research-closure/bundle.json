@@ -9,13 +9,13 @@
   "sourceBase": {
     "path": "current.w",
     "symbol": "finalResearchClosure",
-    "digest": "sha256:bd5826d1f769deebd3453f3d3367c232eb07a8c00b58709d4b4443ec8bcdd59d"
+    "digest": "sha256:d0bfb9a06190275b83aa2febb8a0f18b7a3e6129922a681283623c611c2b5ba9"
   },
   "sourceRefs": [
     {
       "path": "../../../tooling/final-research-closure-cases.json",
       "symbol": "w-final-research-closure-cases-1",
-      "digest": "sha256:d97e489f9bb3b59fa758165b0ffdcd05a98f6e395780d8bf467f634004f3c870"
+      "digest": "sha256:07629120e2af063e6714cd7f4dcfc10f00057a3c11f960d7b7e1b52e7df88e7f"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -25,22 +25,22 @@
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:db291595e80a597d052016df6429d75752d2c83e7d500349bf074b4a317af03d"
+      "digest": "sha256:2e46f018ceb8236484c8476c162c1e8553b9ee12eba4e711c909c722702895f1"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
       "symbol": "w-design-freeze-classification-1",
-      "digest": "sha256:0d1f5daf09184fc1498580646158303a6255b192b684ca6d4693b5453a6e0245"
+      "digest": "sha256:851508a02374ca44dfbb9b3ddd727d4078c59838011e0ffd5d5c91e1eae42637"
     },
     {
       "path": "../../../RATIONALE.md",
       "symbol": "| W-707 | gate de design freeze",
-      "digest": "sha256:fd179339bcfb30886565c46c9ec81dd5cf124d98bfed46d4dd41c4af840a1172"
+      "digest": "sha256:d9b1365f7059c73dd809f9d9d19e5c7d96516e127a7353e3f89792efa7c074f9"
     },
     {
       "path": "../../../DESIGN.md",
       "symbol": "#### 24.4.2 FRC0 — snapshot histórico das gates de pesquisa",
-      "digest": "sha256:a88fec3a25023d3d388108ee6116b2f8edea2331e048d98e5300a84fbaed4d81"
+      "digest": "sha256:7251796df82aa295c10e91d4b1c7bbe4edbb3b70c0a63f916c323473d58415b8"
     }
   ],
   "variants": [
@@ -49,7 +49,7 @@
       "role": "selected",
       "language": "w",
       "path": "current.w",
-      "digest": "sha256:bd5826d1f769deebd3453f3d3367c232eb07a8c00b58709d4b4443ec8bcdd59d",
+      "digest": "sha256:d0bfb9a06190275b83aa2febb8a0f18b7a3e6129922a681283623c611c2b5ba9",
       "changedConstructs": [
         "current gate contract",
         "reuse-only host evidence"
@@ -64,7 +64,7 @@
       "role": "rejected-witness",
       "language": "w",
       "path": "adversarial.w",
-      "digest": "sha256:2a310e77431b6e9cae5957a351950853042bb5015312ceed8fb6636708348bea",
+      "digest": "sha256:c3ec3ca4ae33dcdc553d0a68da4b5aa2d054ee7b80fba9e71439fcb3a9ef3c98",
       "changedConstructs": [
         "missing family/disposition/record mutation",
         "rejected gate route"
@@ -112,7 +112,7 @@
     },
     {
       "kind": "change",
-      "instruction": "Add one independent host case while preserving historical Research=0 through W-1459, the active W-1486 and W-1503 gates, and all implementation gaps."
+      "instruction": "Add one independent host case while preserving historical Research=0 through W-1459, the historical W-1486/W-1503 gate snapshot, the empty current research residual after W-1517 closes W-1503 and W-1518 closes/supersedes W-1486, and all implementation gaps."
     }
   ],
   "presentationOrders": [
@@ -139,7 +139,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:23d10c2e6c535e1babe029a4e6af0631eeb22853494e48c15214ee8e20503f27"
+    "digest": "sha256:d583e1527a3e5ff5efc0fd55b4862ba8866809e7b1c8b9f8bef968cb5f31e275"
   },
   "evidence": {
     "current": [

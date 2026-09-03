@@ -93,6 +93,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
+  w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
   w_seed_hir0_host_parameter hir_host_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
@@ -263,6 +264,8 @@ static void setup_hir_output(void) {
       .block_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
+      .bindings = fixture.hir_bindings,
+      .binding_capacity = TEST_HIR_RECORDS,
       .calls = fixture.hir_calls,
       .call_capacity = TEST_HIR_RECORDS,
       .host_parameters = fixture.hir_host_parameters,
@@ -315,6 +318,7 @@ static bool test_canonical_and_copy_boundary(void) {
   CHECK(fixture.hir_counts.parameters == 0u);
   CHECK(fixture.hir_counts.blocks == 1u);
   CHECK(fixture.hir_counts.instructions == 1u);
+  CHECK(fixture.hir_counts.bindings == 0u);
   CHECK(fixture.hir_counts.calls == 1u);
   CHECK(fixture.hir_counts.host_parameters == 2u);
   CHECK(fixture.hir_counts.arguments == 2u);
@@ -416,6 +420,87 @@ static bool test_lowering_is_not_hello_hardcoded(void) {
   return true;
 }
 
+static bool test_local_binding_lowering(void) {
+  static const char SOURCE[] =
+      "fn main() { let message = \"Table 42 remains open\" "
+      "print(message: message, suffix: \"!\") }\nentry(main)\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_counts.bindings == 1u);
+  CHECK(fixture.hir_counts.instructions == 2u);
+  CHECK(fixture.hir_counts.calls == 1u);
+  CHECK(fixture.hir_counts.arguments == 2u && fixture.hir_counts.values == 2u);
+  CHECK(fixture.hir_program.instructions[0].kind ==
+            W_SEED_HIR0_INSTRUCTION_BINDING &&
+        fixture.hir_program.instructions[0].call_index == W_SEED_HIR0_NONE &&
+        fixture.hir_program.instructions[0].binding_index == 0u &&
+        fixture.hir_program.instructions[1].kind ==
+            W_SEED_HIR0_INSTRUCTION_CALL &&
+        fixture.hir_program.instructions[1].call_index == 0u &&
+        fixture.hir_program.instructions[1].binding_index == W_SEED_HIR0_NONE);
+  const w_seed_hir0_binding *binding = &fixture.hir_program.bindings[0];
+  CHECK(binding->owner_instruction == 0u && binding->owner_block == 0u &&
+        binding->ordinal == 0u && binding->type_index == W_SEED_HIR0_TYPE_STRING &&
+        !binding->is_mutable && binding->name.count == 7u &&
+        memcmp(fixture.hir_text + binding->name.offset, "message", 7u) == 0 &&
+        binding->byte_offset == 0u &&
+        binding->byte_count == strlen("Table 42 remains open"));
+  CHECK(memcmp(fixture.hir_value_bytes + binding->byte_offset,
+               "Table 42 remains open", binding->byte_count) == 0);
+  CHECK(fixture.hir_program.calls[0].owner_instruction == 1u &&
+        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[0].binding_index == 0u &&
+        fixture.hir_program.values[0].byte_offset == 0u &&
+        fixture.hir_program.values[0].byte_count == 0u &&
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        fixture.hir_program.values[1].binding_index == W_SEED_HIR0_NONE &&
+        fixture.hir_program.values[1].byte_offset == binding->byte_count &&
+        fixture.hir_program.values[1].byte_count == 1u);
+  (void)memset(&fixture.document, 0, sizeof(fixture.document));
+  (void)memset(&fixture.input, 0, sizeof(fixture.input));
+  (void)memset(&fixture.output, 0, sizeof(fixture.output));
+  (void)memset(&fixture.result, 0, sizeof(fixture.result));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_local_binding_verify_mutations(void) {
+  static const char SOURCE[] =
+      "fn main() { let message = \"Table 42 remains open\" "
+      "print(message: message, suffix: \"!\") }\nentry(main)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
+  w_seed_hir0_instruction saved_instruction0 = fixture.hir_instructions[0];
+  w_seed_hir0_instruction saved_instruction1 = fixture.hir_instructions[1];
+  w_seed_hir0_value saved_value0 = fixture.hir_values[0];
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0].owner_instruction = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+  fixture.hir_bindings[0].type_index = W_SEED_HIR0_TYPE_UNIT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+  fixture.hir_bindings[0].is_mutable = true;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+  fixture.hir_instructions[1].binding_index = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_instructions[1] = saved_instruction1;
+  fixture.hir_values[0].binding_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_value0;
+  fixture.hir_bindings[0].byte_offset = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+  fixture.hir_program.bindings =
+      (const w_seed_hir0_binding *)(const void *)fixture.hir_instructions;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_program.bindings = fixture.hir_bindings;
+  fixture.hir_instructions[0] = saved_instruction0;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static w_seed_hir0_input hir_input(void) {
   return (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
 }
@@ -429,6 +514,7 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
   (void)memset(fixture.hir_instructions, value,
                sizeof(fixture.hir_instructions));
+  (void)memset(fixture.hir_bindings, value, sizeof(fixture.hir_bindings));
   (void)memset(fixture.hir_calls, value, sizeof(fixture.hir_calls));
   (void)memset(fixture.hir_host_parameters, value,
                sizeof(fixture.hir_host_parameters));
@@ -459,6 +545,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
       (const uint8_t *)fixture.hir_instructions,
+      (const uint8_t *)fixture.hir_bindings,
       (const uint8_t *)fixture.hir_calls,
       (const uint8_t *)fixture.hir_host_parameters,
       (const uint8_t *)fixture.hir_arguments,
@@ -473,7 +560,8 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_modules), sizeof(fixture.hir_identities),
       sizeof(fixture.hir_types), sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
-      sizeof(fixture.hir_instructions), sizeof(fixture.hir_calls),
+      sizeof(fixture.hir_instructions), sizeof(fixture.hir_bindings),
+      sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
       sizeof(fixture.hir_requirements), sizeof(fixture.hir_values),
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
@@ -971,6 +1059,8 @@ int main(void) {
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
+  if (!test_local_binding_lowering()) return 1;
+  if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;
   if (!test_verify_mutations()) return 1;
   if (!test_closed_frontend_barriers()) return 1;

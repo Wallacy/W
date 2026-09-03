@@ -2177,9 +2177,9 @@
     },
     {
       "id": "R0-mlir0-native-terminal",
-      "reviewItem": "primeira rota nativa MLIR0 source → HIR0 → HLO0 → LLVM dialect → native contra emissão C HLO1, LLVM/source bypass e futuro W/MLIR geral.",
-      "decisions": ["W-1506"],
-      "task": "Carry the verified HLO0 payload through the bounded MLIR0 LLVM-dialect recipe to a native executable without generating C or claiming a general W backend.",
+      "reviewItem": "verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.",
+      "decisions": ["W-1520"],
+      "task": "Carry the verified HIR0 input through the bounded MLIR0 LLVM-dialect recipe to a native executable without generating C or claiming a general W backend.",
       "selected": {
         "language": "w",
         "source": [
@@ -2192,13 +2192,19 @@
           "name": "hlo1-c-bootstrap",
           "language": "c",
           "source": ["verified HLO0 → HLO1 → C23 → native"],
-          "expectedDifference": "HLO1 remains bootstrap, audit and recovery; it is not the native MLIR0 route and its C artifact cannot prove a no-C source path."
+          "expectedDifference": "HLO0/HLO1 remains bootstrap, audit and recovery; it is not a prerequisite for the direct MLIR0 route and its C artifact cannot prove a no-C source path."
+        },
+        {
+          "name": "historical-hlo0-adapter",
+          "language": "historical-mlir0",
+          "source": ["verified HIR0 → HLO0 → MLIR0 → native"],
+          "expectedDifference": "The W-1506 adapter is historical and superseded; current MLIR0 consumes verified HIR0 directly while HLO0 independently retains its audit/bootstrap product."
         },
         {
           "name": "direct-llvm-or-source-bypass",
           "language": "llvm-internal-rejected",
           "source": ["source or fixed payload → LLVM IR → native"],
-          "expectedDifference": "A direct or precomputed LLVM path skips the verified HIR0/HLO0 boundary and cannot establish the input-driven source provenance."
+          "expectedDifference": "A direct or precomputed LLVM path skips the verified HIR0 boundary and cannot establish the input-driven source provenance."
         },
         {
           "name": "future-w-mlir-dialect",
@@ -2210,23 +2216,28 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
-          "symbol": "w_seed_mlir0_emit",
-          "claim": "MLIR0 exposes a bounded caller-owned measure/emit API for one explicit target and publishes status, counts and digest."
+          "symbol": "w_seed_mlir0_input",
+          "claim": "MLIR0 consumes a bounded caller-owned input containing only the HIR0 program and verified HIR0 result."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select",
+          "claim": "The private shared selector re-verifies HIR0, accepts only the direct literal or one immutable binding/read shape, and exposes structured borrowed slices without textual lookup."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_artifact",
-          "claim": "The emitter consumes only a verified HLO0 plan and renders deterministic builtin plus LLVM dialect text with byte-faithful payload escapes."
+          "claim": "The emitter consumes the direct verified-HIR selection and renders deterministic builtin plus LLVM dialect text with byte-faithful payload escapes."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "symbol": "test_exact_and_deterministic",
-          "claim": "The unit covers deterministic output, exact capacity, NUL payload bytes, unsupported targets, aliases and forged plans."
+          "symbol": "test_restaurant_and_nul",
+          "claim": "The unit covers direct and binding Restaurant products, byte-identical artifacts, NUL payload bytes, capacity, aliases and forged HIR boundaries."
         },
         {
           "path": "compiler/seed-c/tests/hlo1_gate.c",
           "symbol": "W_SEED_MLIR0_GATE",
-          "claim": "The MLIR0 gate reuses the existing source → parser/frontend → HIR0 → HLO0 fixture route and emits no artifact for rejected shapes."
+          "claim": "The MLIR0 gate uses the direct source → parser/frontend → verified HIR0 → MLIR0 route and emits no artifact for rejected shapes."
         },
         {
           "path": "tooling/mlir0-toolchain.json",
@@ -2240,8 +2251,8 @@
         }
       ],
       "checks": [
-        "bun run check:mlir0 — pinned LLVM dialect verification, translation, clang -x ir link and byte-exact Hello/Restaurant/empty execution",
-        "bun test compiler/seed-c/tests/test_mlir0.c — deterministic, capacity, alias, NUL and plan-forgery unit coverage",
+        "bun run check:mlir0 — source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → clang/native with byte-exact Hello/Restaurant/empty execution",
+        "bun test compiler/seed-c/tests/test_mlir0.c — direct/binding Restaurant equality, capacity, alias, NUL and HIR-forgery unit coverage",
         "bun run check:seed-c11-recovery — shared seed remains available in explicit C11 recovery"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

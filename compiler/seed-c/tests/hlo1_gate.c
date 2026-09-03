@@ -96,6 +96,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[GATE_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[GATE_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[GATE_HIR_RECORDS];
+  w_seed_hir0_binding hir_bindings[GATE_HIR_RECORDS];
   w_seed_hir0_call hir_calls[GATE_HIR_RECORDS];
   w_seed_hir0_host_parameter hir_host_parameters[GATE_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[GATE_HIR_RECORDS];
@@ -128,6 +129,8 @@ static bool lower_hir(gate_fixture *fixture) {
       .block_capacity = GATE_HIR_RECORDS,
       .instructions = fixture->hir_instructions,
       .instruction_capacity = GATE_HIR_RECORDS,
+      .bindings = fixture->hir_bindings,
+      .binding_capacity = GATE_HIR_RECORDS,
       .calls = fixture->hir_calls,
       .call_capacity = GATE_HIR_RECORDS,
       .host_parameters = fixture->hir_host_parameters,
@@ -295,6 +298,23 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr, GATE_LABEL " gate: fixture/frontend/HIR0 failed\n");
     return 1;
   }
+#if defined(W_SEED_MLIR0_GATE)
+  const w_seed_mlir0_input input = {
+      .program = &fixture.hir_program, .hir_result = &fixture.hir_result};
+  const w_seed_mlir0_target target = {
+      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  const w_seed_mlir0_output output = {artifact, sizeof(artifact)};
+  if (w_seed_mlir0_emit(&input, &target, &output, &result) !=
+          W_SEED_MLIR0_OK ||
+      result.written.mlir_bytes != result.required.mlir_bytes ||
+      fwrite(artifact, 1u, result.written.mlir_bytes, stdout) !=
+          result.written.mlir_bytes ||
+      fflush(stdout) != 0)
+    return 1;
+  return 0;
+#else
   const w_seed_hlo0_input input = {
       .program = &fixture.hir_program, .hir_result = &fixture.hir_result};
   w_seed_hlo0_plan plan;
@@ -309,21 +329,6 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr, GATE_LABEL " gate: HLO0 plan failed\n");
     return 1;
   }
-#if defined(W_SEED_MLIR0_GATE)
-  const w_seed_mlir0_target target = {
-      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
-  w_seed_mlir0_result result;
-  const w_seed_mlir0_output output = {artifact, sizeof(artifact)};
-  if (w_seed_mlir0_emit(&plan, &target, &output, &result) !=
-          W_SEED_MLIR0_OK ||
-      result.written.mlir_bytes != result.required.mlir_bytes ||
-      fwrite(artifact, 1u, result.written.mlir_bytes, stdout) !=
-          result.written.mlir_bytes ||
-      fflush(stdout) != 0)
-    return 1;
-  return 0;
-#else
   uint8_t artifact[W_SEED_HLO1_MAX_C_BYTES];
   w_seed_hlo1_result result;
   const w_seed_hlo1_output output = {artifact, sizeof(artifact)};

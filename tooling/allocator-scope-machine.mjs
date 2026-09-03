@@ -1,6 +1,6 @@
-// `.bounded` remains Research. ASC0 accepts only plans with a closed lexical
-// admission contract; a future provider study gets its own oracle.
-const activePlans = new Set(["fixed", "custom"])
+// W-1517 makes `.bounded` a lexical design plan. ASC0 still models only the
+// fixed/custom lifecycle; budget and backing receipts use the W-1517 oracle.
+const activePlans = new Set(["fixed", "bounded", "custom"])
 
 function isNoneAllocator(value) {
   return value === undefined || value === null || value === ".none" || value === "none"

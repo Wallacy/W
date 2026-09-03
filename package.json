@@ -40,6 +40,7 @@
     "check:compiler": "bun tooling/check-suite.mjs --suite root-compiler",
     "check:abi": "bun tooling/check-layout-abi-cases.mjs",
     "check:allocation": "bun test tooling/allocation-reference.test.mjs && bun tooling/check-allocation-cases.mjs",
+    "check:w1517": "bun test tooling/w1517-memory-contract-reference.test.mjs && bun tooling/check-w1517-memory-contract.mjs",
     "check:allocator-scope": "bun test tooling/allocator-scope-reference.test.mjs && bun tooling/check-allocator-scope-cases.mjs",
     "check:boundary": "bun tooling/check-boundary-effect-cases.mjs",
     "check:syntax-atlas": "bun run check:generated-policy && bun test tooling/syntax-atlas.test.mjs && bun tooling/syntax-atlas.mjs --check",

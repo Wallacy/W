@@ -10016,9 +10016,10 @@ fechada, a forma exige `try allocator`. Falha de admission ou resource
 exhaustion ocorre antes do body e não cria binding. Não existe panic fallback
 oculto.
 
-`.bounded<budget: N>` é um plan de Pesquisa até existir um provider closeable.
-ASC0 não o admite como plan ativo; ele limita bytes committed sobre um backing
-provider, mas não promete storage fixo, ausência de OS ou bulk reclaim.
+`.bounded<budget: N>` é o `AllocatorPlan` lexical de W-1517. Ele envolve o
+allocator current do scope, limita bytes committed sobre seu backing e não
+promete storage fixo, ausência de OS ou bulk reclaim; sem current compatível,
+o diagnostic ocorre antes do body.
 
 ```w
 import iec from std
@@ -10031,61 +10032,99 @@ try allocator request: RestaurantPool(
 }
 ```
 
-**W-1503 — allocation e placement (Pesquisa research-gated; não é Forma
-vigente):** `allocator .root { ... }` e `allocator .none { ... }` não são plans
-da linguagem. O valor `.none` que aparece em um build profile é somente a
-policy `memory.generalAllocator: .none`: ela deixa o build sem allocator
-geral/root e rejeita qualquer request de allocation geral no grafo alcançável.
-Ela não escolhe register, stack, static storage, task frame ou fixed scope e
-não é sinônimo de stack ou de no-allocation.
+**W-1503 — allocation e placement (superseded by W-1517; histórico):** W-1503
+registrou a pesquisa sobre a separação entre allocator, allocation effect e
+placement físico. A decisão corrente e a forma ratificada estão em W-1517.
+Os detalhes da alternativa research-gated permanecem somente em
+[`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
-`.fixed<capacity: N>` continua uma forma lexical corrente. A capacity limita a
-reserva do scope, mas o target/profile escolhe entre native stack, task frame e
-memória local/fixed conforme os facts. `.bounded<budget: N>` continua Research:
-limita bytes committed sobre um provider e não escolhe placement. Um objeto ou
-tipo pode publicar que seu storage é inline/fixed ou não possui allocation
-interna; ele não publica uma promessa de “stack”.
+**W-1517 — contrato de allocation e placement (Forma vigente; design-only):**
+W-1517 fecha o contrato lógico sem afirmar compiler, HIR geral, runtime,
+provider, backend ou linker implementados. `memory.generalAllocator: .none`
+significa somente ausência de allocator geral/root. Ele nunca significa stack,
+register, static storage ou no-allocation.
 
-As alternativas ainda em pesquisa são um default/policy de workspace, um
-contrato estático de module ou function escrito em um envelope `<...>` e um
-allocator lexical `.stack<capacity: N>`. Essas alternativas não adicionam
-grammar neste corte. O workspace atual é data-only; qualquer novo field de
-policy nesse record é candidate, não Forma vigente. Um module pode manter ou
-restringir a policy do workspace, nunca relaxá-la. `product` é um conceito de
-seleção de manifest/artifact; `product<...>` não é declaração genérica de source
-nem candidato.
+`.bounded<budget: N>` é um `AllocatorPlan` lexical que envolve o allocator
+explícito ou contextual corrente. O plan contabiliza bytes físicos committed e
+ainda vivos a partir dos receipts do backing. Ele falha antes de ultrapassar o
+budget, devolve a cobrança em cada deallocation, fecha e drena normalmente.
+Ele não promete placement, bulk reclaim ou ausência de OS. Sem backing current
+compatível, a admission produz diagnostic.
 
-`allocation: .forbid` é uma candidate effect verificável em scope, function ou
-module; uma policy equivalente de artifact/build permanece na seleção de
-manifest/artifact e não ganha generic source syntax. `.stack<capacity: N>` é uma candidate de
-placement garantido sem fallback, sujeita a budgets separados para stack,
-static storage e task frame. Um programa heapless ou stack-bounded precisa
-combinar policy com bound provado; renomear `.none` não fornece essa prova.
+`.stack<capacity: N>` é um `AllocatorPlan` lexical estrito. Ele reserva native
+stack bounded e não usa fallback para heap, task frame, static storage ou fixed
+provider. Capacity, alignment, target, guard probing e call-path admission
+precisam de prova. O storage não pode escapar, atravessar suspension, detached
+work ou ABI/FFI sem summary compatível. `try` trata somente admission dinâmica
+permitida pelo contrato. Ele não habilita fallback. `.fixed<capacity: N>` segue
+portátil, com placement escolhido pelo target.
 
-| Contrato | O que ele proíbe ou permite | O que ele não prova |
-|---|---|---|
-| `no-general-allocation` (gate atual) | request ao allocator geral no grafo alcançável | ausência de stack spill, static/TLS, task frame ou outra storage class |
-| `no-allocation` (candidate; hipótese separada) | nenhum evento de allocation no escopo; permite somente register/elided, static/TLS preexistente e storage fixed fornecido pelo caller; nega provider/heap/arena, resize e nova reserva de stack/task frame salvo classificação | taxonomy de eventos, disponibilidade da storage preexistente e placement físico |
-| `dynamic-allocation-forbid` (candidate; hipótese separada) | nenhum commit de allocation dinâmica/provider/runtime após admission; pode permitir register/elided, static/TLS, native stack, task frame e fixed/local se bounded separadamente; nega general/provider/heap/arena e resize dinâmico | ausência de todo evento de allocation, placement físico, escape safety ou multiplicação por concurrency |
-| allowed storage classes (candidate) | conjunto fechado, por exemplo register/elided, static/TLS, native stack, task frame e fixed/local | que uma classe escolhida cabe no target, não escapa ou não multiplica com concurrency |
-| `.fixed<capacity: N>` (current) | lease lexical com capacity e admission verificáveis | placement único ou ausência de allocations transitivas fora do contrato |
+Os envelopes compiler-owned opcionais de module usam os fields abaixo. O module
+pode preservar ou restringir o owner, workspace e profile. Ele nunca relaxa uma
+policy superior:
 
-O estudo precisa fechar, em separado, register/elision/free choice; native
-stack versus async task frame; recursion, indirect calls e generics; closures e
-escape; multiplicação por task/thread em concurrency; static/TLS; FFI e
-`alloca`; unwind/drop; target guard/probing; summaries de linker/interface; e
-retornos públicos (fixed inline, destination do caller ou `rehome` explícito,
-nunca escape de callee frame). ABI separado e inlining não são prova semântica.
+```w
+import iec from std
 
-Os gates de pesquisa são: taxonomy de allocation/storage na HIR; escape
-analysis; stack-usage summary; generalização em verified-HIR; lowering MLIR;
-evidence de target/linker/provider; modelo de async frame; diagnostics de
-`w explain memory`; corpus adversarial; e benchmarks sem claims prematuros.
-Até todos esses gates produzirem receipts e diagnostics reproduzíveis, nenhuma
-syntax de policy, effect ou placement é ratificada. O estudo para em qualquer
-gap de provider/target/linker/ABI, escape ou frame, output que escaparia do
-callee, multiplicação não bounded, summary não verificável, divergence do
-corpus ou benchmark que não preserve os mesmos resultados e errors.
+module codec<
+  allocation: .forbidDynamic,
+  storage: .stack(maximumFrame: 8<iec.KiB>),
+>
+```
+
+`allocation: .forbidDynamic` proíbe transitivamente commits dinâmicos do
+provider, runtime, heap, arena ou resize. A candidata genérica
+`allocation: .forbid` é rejeitada por ser ambígua. Functions publicam summaries
+inferidos e podem ser alvos de `w check memory` e `w explain memory`. O grammar
+atual reserva `fn<...>` para language e ABI, portanto W-1517 não inventa uma
+annotation de function.
+
+O record `memory` de cada build profile possui os fields obrigatórios abaixo:
+
+```w
+memory: {
+  generalAllocator: .system
+  representation: .portable
+  dynamicAllocation: .allow
+  automaticStorage: .infer
+}
+```
+
+`dynamicAllocation` é `.allow` ou `.forbid`. `automaticStorage` é `.infer` ou
+`.stack(maximumFrame: N, maximumCallPath: N)`. A forma `.stack` rejeita
+suspended task frames. Um profile estrito precisa declarar os dois fields. Não
+há default implícito neste schema. `product<...>` continua inexistente.
+O profile nomeia a policy dinâmica inteira; por isso `dynamicAllocation: .forbid`
+e o contract de module `allocation: .forbidDynamic` são formas distintas, não
+aliases: o segundo é o envelope transitivo de allocation do module.
+
+`no-general-allocation` continua sendo o gate corrente para requests ao
+allocator geral. Ele não prova placement. W-1517 não ratifica uma surface
+genérica `no-allocation`. Os contracts correntes separados são
+`no-general-allocation`, `allocation: .forbidDynamic` e
+`storage: .stack(...)`.
+
+W-1517 separa dois eixos de evidência. O logical allocation effect descreve
+commit de provider, runtime allocation, resize e outros eventos semânticos. O
+physical storage fact usa as classes `ssa/elided`, `inline`, `nativeStack`,
+`taskFrame`, `static`, `threadLocal`, `fixedLease`, `providerLease` e `foreign`.
+Um spill conta no stack receipt físico e não vira allocation effect. Um retorno
+usa somente `inline`, destination do caller ou `rehome`. Um callee frame nunca
+escapa. Recursion, indirect call, generic unknown e concurrency unknown falham
+um strict profile. Multipliers de task e thread entram no budget comprovado.
+
+O lowering MLIR planejado preserva essas classes. `nativeStack` usa
+`memref.alloca` ou `llvm.alloca` dentro de um automatic allocation scope.
+`providerLease` usa `memref.alloc` ou runtime allocation. `static` usa global.
+`taskFrame` usa coroutine/runtime storage e nunca recebe o label stack sem
+prova. `ssa/elided` e `inline` não criam operation de storage. Esse parágrafo é
+um lowering contract e não uma claim de implementação.
+
+`w explain memory` distingue `fact`, `decision`, `estimate`, `measurement` e
+`unknown`. Um strict gate falha em `unknown`. O benchmarkDisposition de W-1517
+é `deferred`, correctness-first, sem timing ou result. Os blockers restantes
+são compiler, HIR-general, escape, linker, target, provider, runtime, MLIR,
+`w explain memory` e benchmark runner.
 
 Um plan customizado aceita uma expression que conforma ao contrato lógico
 [`std.memory.AllocatorPlan`](std/memory/contracts.w) e publica
@@ -10270,6 +10309,8 @@ que recebem `allocator:`. Um label `using:` fora dessa surface permanece nominal
 memory: {
   generalAllocator: .system
   representation: .portable
+  dynamicAllocation: .allow
+  automaticStorage: .infer
 }
 ```
 
@@ -25127,6 +25168,8 @@ profiles: [
     memory: {
       generalAllocator: .system
       representation: .optimized
+      dynamicAllocation: .allow
+      automaticStorage: .infer
     }
   },
 ]
@@ -25509,7 +25552,10 @@ O gate registra problema, alternativas, fonte primária, owner, workload,
 oracle e stop condition. Ele não cria sintaxe, API ou W-ID. No snapshot em que
 foi criado, ele não reabriu o fechamento histórico `Research=0`; as gates
 posteriores W-1471, depois substituída por W-1484, W-1473, W-1474 e W-1475 são
-independentes, e W-1486 e W-1503 são as research gates ativas posteriores.
+independentes. O snapshot histórico listava W-1486 e W-1503 como gates
+posteriores. W-1517 fechou o contrato de W-1503 e W-1518 fechou e supersedeu
+W-1486; o residual current de research é `[]`. Os blockers de implementação e
+evidence permanecem separados e não são uma research gate de design.
 
 A matriz é um seed mínimo extensível, não um catálogo exaustivo. Ao abrir um
 bundle para um hotspot, a equipe atualiza as fontes primárias e as alternativas
@@ -27019,11 +27065,12 @@ ABI, service schema ou source rebuild. Uma futura ABI W resiliente só entra ap�
 um protótipo que meça accessors, witnesses, nonexhaustive enums, metadata e o
 custo de manter um runtime permanente.
 
-**WEC0 — cápsula binary-first (Pesquisa):** o estudo pode agrupar um artifact
-W em uma cápsula com digest raiz e índice bounded de chunks internos. A cápsula
-não altera a regra de reuse desta seção. O verifier exige `WAbiKey` exata e
-rejeita binary-only com key incompatível. O source continua fallback somente
-quando o source existe.
+**WEC0 — cápsula binary-first (W-1518 design contract; implementation evidence missing):**
+`w.capsule/1` pode agrupar um artifact W em uma cápsula por target, profile e
+toolchain, com digest raiz e índice bounded de chunks internos. A cápsula não
+altera a regra de reuse desta seção. O verifier exige `WAbiKey` exata e
+rejeita binary-only com key incompatível. Exact capsule reuse/link é a rota de
+design; dylib/exe é futuro e o source não vira fallback implícito.
 
 #### 20.4.10 C façade escrita em W
 
@@ -27206,12 +27253,13 @@ Ele não pode:
 
 Module continua uma unidade semântica; LTO é estratégia da recipe.
 
-**WEC0 — intermediários e escopo (Pesquisa):** HIR, MLIR e LLVM bitcode
-continuam privados da recipe. Um índice de cápsula pode apontar para objects
-nativos, symbol manifest, runtime requirements e optimization summaries. Um
-chunk de IR privado exige a exact toolchain key. Static library pode participar
-de WPO. A cápsula não promete universal binary e não torna uma dynamic recipe
-equivalente a uma recipe estática.
+**WEC0 — intermediários e escopo (W-1518 design contract; implementation evidence missing):**
+HIR, MLIR e LLVM bitcode continuam privados da recipe. Um índice de cápsula
+pode apontar para objects nativos, static archive, symbol manifest, runtime
+requirements e optimization summaries. Um chunk de IR privado exige a exact
+toolchain key. Static library pode participar de WPO. A cápsula não promete
+universal binary e não torna uma dynamic recipe equivalente a uma recipe
+estática.
 
 Tooling oferece:
 
@@ -27649,7 +27697,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-1-print-literal`. Seu backend tem status `pass`. Runtime,
+`w-seed-mlir0-2-verified-hir-print`. Seu backend tem status `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
 Ela não declara target geral, SDK, packaging ou CI oficial. O manifest
@@ -27957,6 +28005,8 @@ package {
         memory: {
           generalAllocator: .system
           representation: .optimized
+          dynamicAllocation: .allow
+          automaticStorage: .infer
         }
       },
     ]
@@ -27978,10 +28028,12 @@ geral do build. Quando seu valor é `.none`, o profile não fornece allocator
 geral/root e o grafo alcançável não pode solicitar allocation geral; essa policy
 não escolhe register, stack, static storage ou task frame. `representation`
 escolhe o fallback portátil ou permite a seleção otimizada descrita na seção 9.
-A ausência desses fields é erro; a distribuição não consulta environment nem
-instala um allocator implícito. O workspace corrente permanece data-only;
-qualquer novo field de policy de allocator no workspace é candidato de W-1503,
-não Forma vigente.
+`dynamicAllocation` é obrigatório e aceita `.allow` ou `.forbid`.
+`automaticStorage` é obrigatório e aceita `.infer` ou
+`.stack(maximumFrame:N, maximumCallPath:N)`; a variante `.stack` rejeita task
+frames suspensos. A distribuição não consulta environment nem instala um
+allocator implícito. O workspace corrente permanece data-only; module pode
+somente preservar ou restringir essa policy, nunca relaxá-la.
 
 - `build.w` é um formato data-only com um ou dois records top-level;
 - `resolution` aninhada no owner package/workspace é obrigatória para build
@@ -29760,15 +29812,25 @@ O bundle [`RDX0`](tooling/studies/rdx0-binary-registry-execution/) registra
 tasks finitas para distribuição e execução. Ele não anuncia compiler, runtime,
 registry, provider ou sandbox disponíveis.
 
-**PCB0 — publicação closed-source (Pesquisa):** o maintainer cria um release
+**PCB0 — publicação closed-source (W-1518 design contract; implementation evidence missing):** o maintainer cria um release
 intent assinado. A CI apresenta uma assertion OIDC curta. Essa assertion é uma
 prova de identity do workflow, não uma credencial W de uso único. O serviço W
-valida issuer, audience, subject, workflow e ref e emite uma capability W de
-publicação one-use, curta e scoped. A CI
+valida `iss`, `aud`, `sub`, `repository`, `ref`, `sha` e
+`job_workflow_ref` pinado e emite uma capability W de publicação one-use,
+curta e scoped. A CI
 busca o source diretamente da authority escolhida no intent. Ela executa build,
 tests, fuzz e analyzers. Depois publica artifact, builder attestation, test
 attestation e security attestation. O maintainer ou uma automação separada
 autoriza os digests finais.
+
+Metadata owned por W usa payload em CBOR determinístico e um envelope DSSE
+role-specific que assina os bytes exatos desse payload. Attestations externas
+usam o `in-toto Statement v1` e o `SLSA provenance v1.2` no formato definido
+por esses contratos: seus Statements JSON ficam em objects imutáveis por
+digest dentro de um envelope DSSE, sem uma conversão forçada para CBOR. O
+digest de um object cobre os bytes exatos armazenados, incluindo o envelope;
+a assinatura DSSE cobre os bytes exatos do payload. Serialização de transporte
+ou de display nunca vira authority.
 
 O registry não precisa receber source. Provider e tools podem observar o source
 durante a execução. Um claim de descarte do provider não é prova de descarte
@@ -29788,11 +29850,13 @@ one-use da capability emitida pelo serviço W.
 Builder signing, registry admission e maintainer authorization usam
 authorities distintas. Builder não usa private key do maintainer. Reprodução
 fechada pode existir entre builders autorizados. A UI separa `publicSource`,
-`authorizedReproduction` e `independentPublicReproduction`.
+`authorizedReproduction` e `independentPublicReproduction`. O provider pode
+observar o source; uma declaração de remoção não prova descarte físico.
 
-**WEC0 — cápsula binary-first (Pesquisa):** uma cápsula possui um digest raiz e
-um índice bounded que referencia chunks por digest. Seu `ExecutionDescriptor`
-registra entrypoints, requirements, sandbox profile e payload refs. Ela pode
+**WEC0 — cápsula binary-first (W-1518 design contract; implementation evidence missing):** `w.capsule/1` possui um digest raiz e
+um índice bounded que referencia chunks por digest por target, profile e
+toolchain. Seu `ExecutionDescriptor` registra entrypoints, requirements,
+sandbox profile e payload refs. Ela pode
 conter:
 
 - `WInterface` e facts de `WMeta` e `WAbi`;
@@ -29806,14 +29870,15 @@ relocation e ASLR sem alegar raw in-memory hash. A família de artifacts é
 definida por target, profile e toolchain-plan row. W não promete universal
 binary. Dynamic artifact é uma recipe separada.
 
-WEC0 exige benchmark de source rebuild contra exact capsule reuse/link, com
-cache granularity, storage e network medidos. O objetivo é evidenciar redução
-de compile time. O formato da cápsula sozinho não prova esse ganho.
+WEC0 define exact capsule reuse/link como rota de design e deixa dylib/exe para
+o futuro. A comparação source rebuild versus exact capsule reuse/link é
+deferred; o formato da cápsula sozinho não prova ganho de compile time nem
+publica timing ou result.
 Modified executable page e self-modifying code ou JIT sem policy explícita são
 adversarial cases da pesquisa. Um fingerprint de section ou chunk não é um
 receipt de integridade raw da memória em execução.
 
-**TEV0 — Test/evidence (Pesquisa):** `@example`, fence `w test`, teste
+**TEV0 — Test/evidence (W-1518 design contract; implementation evidence missing):** `@example`, fence `w test`, teste
 co-localizado e `*.test.w` baixam para o mesmo `TestDescriptor` e `TestPlan`.
 Esta direção não cria syntax nova. O `TestDescriptor` e o `TestPlan` exigem
 stable ID, owner declaration, origin carrier, source map, kind, fixtures e
@@ -29851,24 +29916,35 @@ O portal mostra eixos separados:
 “Verificado” sempre informa qual eixo e qual policy. Uma estrela agregada não é
 evidência técnica.
 
-O transporte de registry usa um modelo W-specific TUF-like bounded. A fatia
-current verifica somente continuidade de roots e admission da evidence:
+O transporte de registry usa `w.registry-http/1`, com semântica equivalente
+em HTTP/1.1, HTTP/2 e HTTP/3. HTTPS é obrigatório, salvo transporte local
+explicitamente selecionado. A autoridade W usa payloads em CBOR determinístico
+com envelopes DSSE por role; JSON é somente projection de conveniência.
 
-- `trustedGenesis` é o payload público completo fornecido out-of-band e ancora
-  a origem inicial;
+A fatia current verifica somente continuidade de roots, freshness e admission
+da evidence:
+
+- `trustedGenesis` é o payload público completo fornecido out-of-band, sem
+  assinatura DSSE obrigatória, e ancora a origem inicial;
 - `trustedCheckpoint` é o checkpoint resolver-owned persistido entre chamadas e
   ancora a root corrente; ele não é um novo trust input out-of-band;
-- cada update exige versão exata `N+1` e satisfaz separadamente o threshold da
-  root anterior e o threshold da root nova; os valores numéricos podem ser
-  iguais;
+- cada root update servido em `/v1/root/<version>.dsse` exige versão exata `N+1`
+  e satisfaz separadamente o threshold da root anterior e o threshold da root
+  nova; os valores numéricos podem ser iguais;
+- roles `root`, `targets`, `snapshot` e `timestamp` impedem rollback, freeze,
+  mix-match, gap e expiry; `/v1/timestamp.dsse` é o único object mutável e
+  exige clock/provider explícito e persistência monotônica;
 - `mirrors`, alias, locator e display ficam fora da origem;
 - o resultado retorna o próximo checkpoint completo.
 
-Essa fatia não implementa `targets`, `snapshot`, `timestamp`, expiry,
-freshness, freeze, download, archive ou o registry completo. Um mirror não é
-uma authority. O client deve rejeitar bytes errados, rollback, gap, lineage
-errada e lock-origin mismatch. O client não troca para um mirror não listado
-para tentar novamente.
+Todos os outros objects são imutáveis e content-addressed por SHA-256 tagged.
+Essa fatia não implementa registry, crypto verifier, provider ou runner. Um
+mirror não é uma authority. O client deve rejeitar bytes errados, rollback,
+gap, lineage errada, lock-origin mismatch, freshness não provada e expiry.
+Fetch, install e remote run falham fechados quando clock ou expiry não podem
+ser provados. Uma policy offline explicitamente pinada pode apenas reutilizar
+artifact já verificado e registra `stale`/`unknown`; ela não baixa, atualiza ou
+vira default.
 
 Sigstore pode fornecer uma attestation de identidade efêmera e uma entrada de
 transparency log. A entrada comprova que um digest e sua assinatura foram
@@ -29884,89 +29960,86 @@ antes de extrair, compilar ou executar.
 As fontes de supply-chain e transparência ficam em
 [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
-#### 21.4.1 RDX0 — registry HTTP candidate protocol
+#### 21.4.1 RDX0 — registry HTTP protocol (design-only)
 
-**RDX0 — registry HTTP candidate protocol (Direção):** o baseline tem o
-identificador `w.registry-http/1`. Esse identificador é independente da
-versão do transporte. HTTP/1.1, HTTP/2 e HTTP/3 são transportes equivalentes.
-HTTPS é obrigatório, exceto em transportes locais explicitamente selecionados.
+**RDX0 — registry HTTP protocol (Contrato W-1518 design-only):** o identificador corrente
+é `w.registry-http/1`. HTTP/1.1, HTTP/2 e HTTP/3 são semanticamente
+equivalentes. HTTPS é obrigatório, exceto em transporte local explicitamente
+selecionado. A spelling física destes paths não é syntax de W:
 
-O estudo fecha estes recursos lógicos como candidate protocol. A spelling
-física não é syntax de W:
-
-| Recurso | Candidate path | Invariante mínimo |
+| Recurso | Path corrente | Invariante mínimo |
 |---|---|---|
-| discovery | `/.well-known/w-registry.json` | identifica schema, origins e profiles sem conceder package authority |
-| package projection | `/v1/packages/<encoded-package-id>/index.json` | signed, bounded e monotonic; lista versions, channels e release-record digests |
-| release record | `/v1/releases/<algorithm>/<digest>.json` | record imutável por digest |
-| object | `/v1/objects/<algorithm>/<digest>` | bytes imutáveis; GET e HEAD; Range é opcional |
-| catalog checkpoint | `/v1/catalog/checkpoint.json` | checkpoint assinado que ancora páginas append-only imutáveis |
-| catalog pages | `/v1/catalog/pages/<first>-<last>.jsonl` | páginas imutáveis, append-only e bounded para mirror e search |
-| evidence projection | `/v1/evidence/<algorithm>/<subject-digest>/index.json` | aponta para attestation objects imutáveis |
-| channel document | `/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json` | JSON signed de convenience, sem authority |
+| discovery | `/.well-known/w-registry.json` | discovery não confiável; não concede package authority |
+| root update | `/v1/root/<version>.dsse` | object imutável; versão exata `N+1`, threshold old+new |
+| timestamp | `/v1/timestamp.dsse` | único object mutável; freshness, expiry e persistência monotônica |
+| todos os demais objects | `/v1/o/sha256/<hex>` | bytes imutáveis, SHA-256 tagged e digest do envelope armazenado |
+| channel | `/v1/channels/<encoded-package-id>/<encoded-channel>/<encoded-target-profile>.json` | projection JSON opcional, sem authority ou lock |
+| search | `/v1/search` | projection opcional, derivada, sem authority ou lock |
 
-Os records JSON usam UTF-8 estrito. Duplicate keys são rejeitadas. O estudo
-deve produzir um output de pesquisa para o canonical signing payload e comparar
-alternativas com evidence. Nenhuma canonicalização é escolhida por esta
-Direção.
+`targets`, `snapshot`, package index, release/state, catalog, evidence e
+`w.capsule/1` são objects em `/v1/o/sha256/<hex>`, com GET e HEAD obrigatórios
+e Range opcional. Root version e timestamp são as únicas exceções de fetch
+fora desse object store.
 
-Known-identity resolution nunca depende de search. Search é uma projection
-derivada do catálogo. Um endpoint dinâmico opcional `/v1/search` pode existir,
-mas não concede authority e não entra no lock. Um registry pequeno pode servir
-somente arquivos estáticos. A conformance suite reconstrói o search index
-somente de `catalog/checkpoint.json` e das `catalog/pages/*.jsonl`.
+`trustedGenesis` é o payload público completo da gênese, fornecido out-of-band
+e sem assinatura DSSE obrigatória. Roots seguintes usam `/v1/root/...` e cada
+transição exige threshold da root anterior e da nova. Roles `root`, `targets`,
+`snapshot` e `timestamp` impedem rollback, freeze, mix-match, gap e expiry.
+`trustedCheckpoint` é resolver-owned e persistido monotonicamente; não é um
+novo trust input. O client rejeita freshness sem clock/provider explícito.
 
-O `trustedCheckpoint` ancora o catálogo e a package index. A monotonicidade do
-package index é relativa a esse checkpoint confiável. Um contador fornecido pelo
-servidor, isolado, não impede rollback.
+Metadata owned por W usa payload CBOR determinístico e envelope DSSE
+role-specific sobre os bytes exatos do payload. O digest do object cobre os
+bytes exatos armazenados, incluindo o envelope. Attestations externas usam
+`in-toto Statement v1` e `SLSA provenance v1.2`: Statements JSON são payloads
+DSSE em objects imutáveis e não são convertidos para CBOR. JSON é permitido
+somente para discovery, search, channel e update convenience; nunca é
+authority, lock ou payload canônico W.
 
-Update ou channel usa um JSON pequeno assinado. O record inclui schema,
-monotonic sequence, package identity, channel, target/profile selector, version,
-release digest, artifact digest, state e signatures. `204` pode indicar que um
-profile dinâmico não tem mudança. O resolver normal usa o package index. Um
-channel document é convenience e nunca substitui lock ou release verification.
+Known-identity resolution e update nunca dependem de search. O package index
+associa cada version a um release digest. A projection JSON pequena de
+channel/update pode conter `schema`, `snapshotDigest`, `package`, `channel`,
+`targetProfile`, `version`, `releaseDigest`, `artifactDigest` e `state`; `204`
+indica “sem mudança” em update dinâmico. O resolver revalida a cadeia
+autoritativa; a projection não substitui lock ou release verification.
+Deprecation, yank e revocation são estados append-only e não reescrevem release
+ou attestation. Um mirror só serve bytes com digest igual e não ganha
+authority. A conformance futura deve reconstruir projections a partir de
+objects e checkpoint, não de um contador isolado do servidor.
 
-Release e objects são imutáveis. Deprecation é metadata append-only que
-recomenda replacement e preserva resolution. Yank exclui nova resolution por
-default, mas lock existente segue sua policy. Revocation bloqueia install ou
-execution no scope publicado. Metadata nova não reescreve release ou
-attestation.
+Read capability privada ou signed URL é curta e scoped por object/package,
+audience e expiry; privacy policy pode escolher 401, 403 ou 404. Auth não é
+encaminhada para origem ou mirror não configurado. Uma policy offline
+explicitamente pinada pode reutilizar somente artifact já verificado e registra
+freshness `stale`/`unknown`; não baixa, atualiza ou vira default.
 
-Download privado pode usar uma read capability curta ou uma signed URL scoped
-por object, package, audience e expiry. Essa credencial somente concede acesso.
-Digest continua sendo a identity dos bytes e não da credencial. O estudo fixa
-privacy mode com decisões 401, 403 ou 404 e verifica que mirror não ganha
-authority nem amplia o scope.
+**W-1486 — programa RDX0 (histórico; superseded by W-1518):** a decisão
+anterior registrou a direção candidate de distribuição binary-first,
+registry static-first e execução assinada. Sua escolha de signing payload e
+paths foi substituída pelo contrato W-1518; a proveniência permanece somente
+em [`RATIONALE.md` §1.17](RATIONALE.md#117-fontes-e-perfis-operacionais-retirados-do-design-normativo).
 
-Registry, object host, mirror, portal e builder são papéis distintos. Mirror
-não é authority. Protocol, schemas, conformance e reference implementation
-devem ser abertos e self-hostable. Cloudflare R2 ou Workers é deployment
-candidate, não semântica.
-
-RDX0 preserva a continuidade bounded de roots já descrita nesta seção. Targets,
-snapshot, timestamp, download, archive e o registry completo continuam outputs
-de pesquisa. A pesquisa não promove esses outputs a implementação.
-
-**W-1486 — programa RDX0 de distribuição e execução (Direção):** a direção
-candidate para distribuição binary-first, registry HTTP static-first e execução
-assinada está aprovada como baseline do estudo. Canonical signing payload,
-protocol/security/provider evidence e as stop conditions das oito tasks RDX0,
-PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 permanecem research-gated. Esta
-decisão registra uma direção e suas dependências; não afirma implementação de
-registry, compiler, runner, sandbox, provider ou attestation verifier.
+**W-1518 — contrato RDX0 de registry e execução (Forma vigente;
+oracle-backed-current, design-only):** W-1518 fecha o contrato de bytes,
+roles, paths, publication, capsule, evidence, sandbox e admission. O oracle
+host-only valida estrutura e transições de estado; não implementa nem prova
+crypto, server, registry, provider, runner, compiler ou runtime. Os blockers
+de implementação, plataforma e benchmark permanecem explícitos no ledger.
 
 #### 21.4.2 SEV0, SBX0, RSX0 e ENT0 — evidence, execução e capability provider
 
 **Exemplo:** um `w run package@version` resolve um artifact assinado e inicia
 o native code em child process depois do enforcement do provider.
 
-**SEV0 — security/advisory evidence contínua (Pesquisa):** uma security
+**SEV0 — security/advisory evidence contínua (W-1518 design contract; implementation evidence missing):** uma security
 attestation imutável é keyed por artifact, analyzer identity e version, policy,
 corpus ou database digest, target e profile. O estudo também registra SBOM,
 `RuntimeClosure` e reachability map. Uma advisory match identifica package,
 version, target, profile e artifact. Cada reevaluation produz um snapshot
 append-only. O portal projeta axis e freshness, e registra analyzer conflicts
-como facts distintos.
+como facts distintos. Lanes de unit, fuzz, simulation, provider, fault e
+performance são separadas; simulation nunca prova provider. Não existe badge
+agregado `safe`.
 
 Hash-valid malicious bytes, analyzer stale, database update, nova regra ou
 assinatura de zero-day sem claim de conhecê-lo antes da divulgação, vulnerability
@@ -29976,38 +30049,35 @@ adversariais mínimos. SEV0 para quando schema, closure, matches, snapshots,
 projection e conflitos tiverem resultados observáveis. Ele não produz safe badge
 nem alegação de conhecimento prévio de zero-days.
 
-**SBX0 — sandbox provider/profile (Pesquisa):** o provider traduz o capability
-ou effect plan para Linux seccomp allowlist com namespaces, credentials,
-filesystem, network e resource controls. Providers Windows, macOS e WASI
-precisam de equivalentes explícitos. O provider instala enforcement antes do
-user code. Audit ou learn mode somente sugere policy. Ele não é enforcement
-receipt.
+**SBX0 — sandbox provider/profile (W-1518 design contract; implementation evidence missing):** o provider traduz o capability
+ou effect plan para controls de processo/compartment, filesystem, network,
+credentials e resources, e entrega receipt antes do loader e do user code.
+Providers Windows, macOS e WASI precisam de equivalentes explícitos. Audit ou
+learn mode somente sugere policy e não é receipt. Seccomp sozinho, denylist,
+`LD_PRELOAD`, wrapper com ptrace ou `CAP_SYS_ADMIN` e native plugin no mesmo
+processo são rejeitados como baseline adversarial.
 
-Seccomp sozinho, denylist, `LD_PRELOAD`, wrapper com ptrace ou `CAP_SYS_ADMIN` e
-native plugin no mesmo processo são rejeitados como baseline adversarial.
+**RSX0 — signed runner (W-1518 design contract; implementation evidence missing):** a forma remota é
+`w run registry:last-light/restaurant@0.1.0 --product last-light-native
+[--entry default] -- ...`. A versão é exata; range ou channel implícito falha.
+Admission segue `trusted root → freshness/snapshot → package/release/artifact
+digest → evidence/policy → sandbox → entrypoint`. Native code remoto inicia em
+child process ou compartment depois do enforcement, nunca por `dlopen` no host.
+Capabilities, requirements e budgets são explícitos; receipt do provider é
+obrigatório ou o resultado é `unsupported`, sem fallback. Signature nunca
+concede capability e OS signing/notarization/entitlements permanecem separados.
 
-**RSX0 — signed runner (Pesquisa):** `w run package@version` remoto exige
-resolution, release e artifact exatos. Também exige maintainer authorization,
-registry admission trusted, digest, freshness, revocation e consumer policy.
-Official root pode ser default. Ela nunca é a única root hard-coded. Source
-local unsigned só é permitido por local debug policy explícita.
-
-Remote ad-hoc execution é sandboxed por default. Native code remoto não é
-`dlopen` no processo principal. A baseline usa child process ou compartment.
-Signature não concede capability. Admission exige entry requirements e budgets
-explícitos para filesystem, network, environment, secrets, process, device e
-resources. W signature não substitui OS signing, notarization ou entitlements.
-
-**ENT0 — entitlement/DRM (Pesquisa):** um provider pode estudar entitlement ou
+**ENT0 — entitlement/DRM (W-1518 design contract; implementation evidence missing):** um provider pode estudar entitlement ou
 lease opaco com product, feature, audience e expiry. A policy precisa declarar
-online ou offline. A API W não expõe raw token. W não promete DRM inviolável.
+online ou offline. A API W não expõe raw token; token bruto não entra no app.
+W não promete DRM inviolável e registra o risco residual.
 
 Consumer install e run policy é local ou owned pelo deployment. Ela pode exigir
 reproduction quorum, evidence lanes, budget, freshness, advisory severity e
 capability restrictions. O package não escolhe a policy que o considera
 seguro.
 
-**Witness adversarial Última Luz/Restaurante (fixture de design, Pesquisa):** o
+**Witness adversarial Última Luz/Restaurante (W-1518 design contract; implementation evidence missing):** o
 fixture parte do fluxo `compile-final-menu / menu-compiler` descrito no
 [`reference/last-light/README.md`](reference/last-light/README.md) e usa o
 manifest e o transform reais em
@@ -30019,9 +30089,10 @@ dois builders autorizados; WEC0 para uma cápsula por target; TEV0 para doctests
 fuzz e snapshots; SEV0 para SBOM, security scans, advisory update e analyzer
 conflict; e deprecation, update, yank e revocation.
 
-Por fim, RSX0 tenta `w run` com resolution e digest exatos, SBX0 aplica sandbox
-sem network por default antes do child process e ENT0 oferece entitlement
-opcional. Mutar digest, repetir capability, trocar target, esconder um
+Por fim, RSX0 tenta `w run registry:last-light/restaurant@0.1.0 --product
+last-light-native --entry default --` com resolution e digest exatos. SBX0
+aplica sandbox sem network por default antes do child process e ENT0 oferece
+entitlement opcional. Mutar digest, repetir capability, trocar target, esconder um
 dependency dead-stripped, reconstruir search com page faltante ou revogar o
 artifact deve produzir um resultado negativo. Este witness é uma fixture/case
 de design. Ele não é execução concluída nem evidence de implementação.
@@ -30247,11 +30318,22 @@ w publish last-light/restaurant \
 w verify registry:last-light/restaurant@0.1.0
 w reproduce registry:last-light/restaurant@0.1.0 \
   --target x86_64-unknown-linux-gnu
+w run registry:last-light/restaurant@0.1.0 \
+  --product last-light-native \
+  --entry default -- --help
 ```
 
-`publish` envia metadata autorizada e objetos por digest. Ele não executa um
+`publish` envia metadata W em CBOR determinístico dentro de envelopes DSSE
+role-specific e objects por digest. Attestations in-toto Statement v1 e SLSA
+provenance v1.2 permanecem Statements JSON dentro de objects DSSE; JSON de
+discovery/search/channel/update é apenas convenience. `publish` não executa um
 build oculto. A CI de reprodução baixa source e recipe, usa um builder
 independente e publica uma attestation separada.
+
+`w run` remoto exige versão exata, root trusted, freshness comprovada,
+package/release/artifact digests, evidence/policy, sandbox receipt e entrypoint.
+Sem clock/expiry provados falha fechado; offline pinado somente reutiliza
+artifact já verificado e registra `stale`/`unknown`.
 
 ### 21.7 Evolução e governança
 
@@ -30400,7 +30482,7 @@ payload. O lens de recursos pode registrar measurements por input, source,
 target, profile e recipe. Uma measurement de exemplo não vira fato universal de
 memória ou tempo. Proof estático e budget permanecem a autoridade.
 
-**TEV0 — Test/evidence (Pesquisa):** o runner deriva `TestDescriptor` e
+**TEV0 — Test/evidence (W-1518 design contract; implementation evidence missing):** o runner deriva `TestDescriptor` e
 `TestPlan` dos quatro carriers já descritos. Cada descriptor exige stable ID,
 owner declaration, origin carrier, source map, kind, fixtures/effects, oracle
 ou expected diagnostic/outcome, target/profile, seed/limits e body/plan digest.
@@ -32634,11 +32716,12 @@ preserva a proveniência do antigo fluxo standalone. A forma vigente é este
 module-run uniforme; operações de dependency são `w add`, `w remove`,
 `w resolve` e `w update` no contexto package/workspace.
 
-O estudo **RSX0 (Pesquisa)** usa `w run package@version` como fluxo remoto
-adicional. A resolução precisa ser exata e passar pela verificação de release,
-artifact, authorization, admission, freshness, revocation e consumer policy.
-Execution remoto é sandboxed por default e usa child process ou compartment
-para native code. Esta direção não anuncia uma CLI disponível.
+O contrato **RSX0 de W-1518 (design contract; implementation evidence missing)**
+usa `w run registry:package@version` como fluxo remoto adicional. A resolução
+precisa ser exata e passar pela verificação de release, artifact, authorization,
+admission, freshness, revocation e consumer policy. Execution remoto é
+sandboxed por default e usa child process ou compartment para native code. Esta
+forma permanece design-only e não anuncia uma CLI disponível.
 
 #### 24.1.3 Sessão e REPL transacionais
 
@@ -34371,7 +34454,7 @@ provider.
 | Gate | Current | Adversarial | Contrato fechado |
 |---|---|---|---|
 | W-707 / `FZ0-freeze-completeness` | `FRC0-W-707-current` | `FRC0-W-707-adversarial` | completude G0–G5, refs e snapshot coerentes; não é `count=implementation` |
-| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e o fechamento histórico mantém `Research=0` até W-1459; W-1486 e W-1503 são as research gates ativas |
+| W-731 / `freeze-research-close` | `FRC0-W-731-current` | `FRC0-W-731-adversarial` | toda decisão do ledger tem disposition; DRC0 fecha W-1484/W-1473/W-1474/W-1475, preserva W-1471 como superseded e o fechamento histórico mantém `Research=0` até W-1459; o snapshot histórico registrava W-1486/W-1503, W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486; o residual current é `[]` |
 | W-1408 / `HUM0-promotion` | `FRC0-W-1408-current` | `FRC0-W-1408-adversarial` | stop-on-first-violation, no-automatic-promotion e 0 human/0 model preservados |
 
 O resultado de cada rota é `oracle-backed-current` para os contratos fechados.
@@ -34383,7 +34466,7 @@ preferência, score ou métrica manual é criado.
 
 O stop condition é stale digest, caller echo, métrica manual, registro humano
 ou de modelo forjado, preference/score, decisão ou caso ausente/duplicado,
-source escape, categoria errada ou qualquer Research residual fora de W-1486 e W-1503. A máquina
+source escape, categoria errada ou qualquer Research residual current. A máquina
 exige a classificação corrente de W-1451–W-1453 e as supersessões explícitas
 de W-1452 por W-1480 e de W-1453 por W-1516, além dos quatro casos DRC0 como
 fechamento independente. A cadeia
@@ -34391,9 +34474,10 @@ estrita é manifest → artefatos → bundle/study
 → fixtures thin parseáveis → oracle e snapshot. O checker root e o checker
 aninhado devem permanecer verdes antes de qualquer recascade adicional. FRC0
 preserva o fechamento histórico até W-1450, AEG0/SIMD1 preservam `Research=0`
-até W-1459 e DRC0 fecha somente as quatro gates anteriores às gates ativas W-1486
-e W-1503. Elas permanecem research gates ativas. Isso não autoriza alegação de
-implementação.
+até W-1459 e DRC0 fecha somente as quatro gates anteriores ao snapshot histórico
+que listava W-1486 e W-1503. W-1517 e W-1518 fecham esses contratos como
+design-only; a classificação corrente não possui research residual (`[]`). Isso
+não autoriza alegação de implementação.
 
 #### 24.4.3 PFU0 — fechamento de usabilidade pré-freeze
 
@@ -34441,7 +34525,9 @@ deriva as rotas de facts. Ele rejeita `expected`, `result`, status caller-owned,
 ID-derived outcome e provider/runtime claims. Mutation guards cobrem ambient
 authority, fallback, plaintext/serialization, codec inference e stale
 source/digest. O fechamento histórico `Research=0` permanece obrigatório para
-todo W-001–W-1459; as research gates ativas posteriores são W-1486 e W-1503.
+todo W-001–W-1459; o snapshot posterior preserva W-1486 e W-1503 como gates
+históricas. W-1517 fecha W-1503 e W-1518 fecha/supersede W-1486; o residual
+current de research é `[]`.
 
 AEG0 não promove provider. Continuam missing compiler, runtime, provider,
 target, FFI, stress, fault, rotation, zeroization e estudos humano/modelo.
@@ -34466,7 +34552,9 @@ snippets e claims proibidos em `DESIGN.md`, `CHEATSHEET.md` e Last Light. Ele
 não compila, executa ou mede W.
 
 O fechamento histórico `Research=0` permanece obrigatório para W-001–W-1459;
-as research gates ativas posteriores são W-1486 e W-1503. A classificação de W-1459 é
+o snapshot posterior preserva W-1486 e W-1503 como gates históricas. W-1517
+fecha W-1503 e W-1518 fecha/supersede W-1486; o residual current de research é
+`[]`. A classificação de W-1459 é
 `oracle-backed-current` por evidence do oracle host e design contract.
 Compiler, runtime, provider, native acceleration, ABI e measurements continuam
 missing. Nenhuma evidência de parse ou oracle promove implementação.
@@ -34504,11 +34592,11 @@ o compiler/runtime/provider ainda precisa substituir o oracle:
    `$storage` e `$controlBlock`. `share`/`try share` não retornam como caminho
    corrente e não há container público.
 
-W-1503 adiciona uma research gate transversal: nenhum nome de policy, effect ou
-placement deve ser promovido a syntax a partir de `.none`, `.fixed`, `.bounded`
-ou de uma candidate `.stack`. O ledger separado mantém os casos de HIR,
-escape, frames, targets, linker/provider, ABI, async, diagnostics e benchmark;
-o estudo permanece registration-only até essas evidências existirem.
+W-1503 foi a research gate transversal do snapshot histórico: nenhum nome de
+policy, effect ou placement foi promovido a syntax a partir de `.none`, `.fixed`,
+`.bounded` ou da candidate `.stack`. W-1517 supersede essa fronteira com um
+contrato design-only; os casos de HIR, escape, frames, targets, linker/provider,
+ABI, async, diagnostics e benchmark continuam implementation gaps.
 
 A ordem recomendada de fechamento é:
 
@@ -35046,7 +35134,9 @@ qualifiers, parâmetros com labels HIR, blocks e ordem, valores constantes
 `String` como byte slices copiados, instruções `CALL` com identidade
 discriminada do callee host-prelude, argumentos tipados e ordinais,
 requirements nominais, terminators de retorno `Unit` e o entry com target e
-slot normalizado. O registro de host inclui o profile explícito
+slot normalizado. W-1519 extends version 2 with an immutable binding record,
+the `BINDING` instruction, and the `BINDING_READ` value. It copies the name,
+initializer bytes, owner, order, type, and span. O registro de host inclui o profile explícito
 `native-process@1`; a identidade não é inferida pelo consumidor.
 
 Este schema inicial aceita exatamente um document, um module e um entry. O
@@ -35061,9 +35151,9 @@ enums, generics, diagnostics, const families e similares) falham fechadas;
 isso não é uma promessa de HIR geral.
 
 As partições publicadas são densas e completas: ranges de functions e entries
-do module, parameters das functions, instructions dos blocks, parameters e
-requirements das host identities e arguments/values das calls não podem ter
-gap, overlap ou record órfão. Para host labels, `REQUIRED` copia o label
+do module, parameters das functions, instructions dos blocks, binding records,
+parameters e requirements das host identities e arguments/values das
+calls não podem ter gap, overlap ou record órfão. Para host labels, `REQUIRED` copia o label
 externo e `POSITIONAL_ONLY` usa label vazio. O corte HIR0 rejeita qualquer
 outra policy.
 
@@ -35110,7 +35200,8 @@ mais ampla que a seleção final; ela não impõe uma única função, block ou 
 Sobre uma HIR0 já verificada, o seletor HLO0 W-1505 exige exatamente um module,
 um entry `.default`, uma função alvo zero-parameter/Unit/sync/nonthrows/safe/
 no-borrow, um block linear, uma call host-prelude `print`, um argumento
-posicional `String` literal, uma requirement nominal `Console` e retorno Unit.
+positional `String` literal for the direct shape or the verified W-1519 binding
+shape, a nominal `Console` requirement and Unit return.
 No HLO0, o schema sobe para `w-seed-hlo0-2`; `entry_target` e `handler` são
 byte strings derivados dos textos da HIR0 verificada, não vazios, terminados em
 NUL, com zero-tail e exatamente iguais. O verifier isolado do plano comprova
@@ -35125,9 +35216,9 @@ define stdout como payload seguido por LF com `payload_bytes + 1` checked e
 recompõe o SHA-256 sobre exatamente esses bytes. Exit success é o único exit
 publicado. `measure`/`run` e o verifier continuam caller-owned, bounded,
 fail-closed e all-or-nothing; HLO1 e RUN0 consomem o mesmo verifier sem bypass.
-Não há heap, HIR geral, novo construct de linguagem ou backend MLIR neste
-bundle. HLO1 conserva o schema `w-seed-hlo1-1` porque o formato do artefato
-não muda.
+Não há heap, HIR geral ou novo construct de linguagem nesta decisão. W-1520
+define a ponte MLIR0 bounded separadamente, sem alterar o contrato HLO0. HLO1
+conserva o schema `w-seed-hlo1-1` porque o formato do artefato não muda.
 
 A evidência executável atravessa source → parser → frontend → HIR0 → HLO0 →
 HLO1/RUN0 e compara byte a byte o caso canônico Hello, o payload Restaurante
@@ -35143,7 +35234,13 @@ somente quanto aos milestones Hello-only; W-1494 permanece current. C23 é a
 lane primária, C11 é recovery explícita, e falha de toolchain presente é FAIL
 (ausência é SKIP).
 
-#### 26.4.1.2 W-1506 — ponte terminal MLIR0 para LLVM (Forma vigente)
+#### 26.4.1.2 W-1506 — ponte terminal MLIR0 para LLVM (Forma histórica; W-1520 supersede)
+
+W-1506 é uma decisão histórica. Ela registrou a primeira forma do adapter
+MLIR0, com schema `w-seed-mlir0-1` e dependência de um plano HLO0 verificado.
+W-1520 substitui esse contrato antes do W 1.0: não existe adapter de
+compatibilidade para preservar a forma antiga por inércia. Os detalhes abaixo
+preservam a evidência histórica, mas não definem a rota nativa corrente.
 
 **Exemplo:** Hello, Restaurante e vazio atravessam MLIR0 e produzem stdout exato com LF, stderr vazio e exit zero.
 
@@ -35213,6 +35310,121 @@ W dialect, lowering HIR geral, matriz de targets, ABI de provider, linker/
 runtime, distribuição MLIR nativa Windows, `w run` e performance permanecem
 gaps explícitos. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only,
 sem timing ou ranking. Não há mudança de linguagem, grammar, portal ou registry.
+
+#### 26.4.1.3 W-1519 — verified immutable local String binding through the native seed pipeline (Forma vigente)
+
+W-1519 is `source-backed-current` for a strictly bounded extension of the
+native seed path. W-1519 remains current for binding semantics; W-1520
+supersedes W-1506 for the native route and W-1505 remains current for HLO0.
+
+**Example:** the Restaurant witness declares one prior immutable binding:
+
+```w
+fn serve() {
+  let message = "Table 42 remains open"
+  print(message)
+}
+entry(serve)
+```
+
+The frontend uses schema `w-seed-frontend-11`. It separates
+`statement.effective_type` from source `declared_type`. It publishes
+`expression.resolved_binding_statement` as an explicit statement index.
+Resolution is lexical and linear in source order. It accepts only one
+unambiguous prior binding. Downstream consumers do not perform name lookup.
+
+HIR0 uses schema `w-seed-hir0-2`. It adds the caller-owned
+`w_seed_hir0_binding` record with `owner_instruction`, `owner_block`,
+`ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`,
+and `is_mutable=false`. The binding ordinal equals the instruction ordinal.
+`BINDING` carries the binding index. `CALL` carries none. `BINDING_READ` carries
+the same index, `byte_count=0`, and canonical offset zero.
+
+Bindings are present in counts, program, output, capacities, alias tables,
+`program_from_output`, receipt, semantic digest, and provenance digest. The
+verifier requires owner, order, type, span, and dense ranges. It requires the
+binding before its read and contiguous initializer bytes without gaps or
+overlap. Alias barriers remain fail-closed.
+
+HLO0 keeps schema `w-seed-hlo0-2`. Its direct shape has zero bindings, one
+`CALL` instruction, and a `CONST_STRING` argument. Its binding shape has one
+immutable String binding and exactly two instructions in one block:
+`BINDING → CALL`. The call argument is one `BINDING_READ` by binding index.
+The payload uses only verified literal or binding bytes. Equivalent sources
+produce byte-identical plans and receipts.
+
+HLO0 independently proves its binding plan. MLIR0 consumes the same verified
+HIR directly through the private native-subset selector; it does not consume,
+include, call, or create HLO0. Product evidence covers parser, frontend, HIR0,
+MLIR0, verification, translation, native link, and execution. The Restaurant
+requires exact stdout `Table 42 remains open\n`. Hello and empty remain direct
+literal cases.
+
+This decision does not add general locals, `var`, assignment, nested or
+shadowing scopes, multiple bindings or values in the HLO selector, CFG, general
+SSA, ownership or borrows, DCE or optimization, the W dialect, additional hosts
+or targets, public `w run`, or performance.
+
+`benchmarkDisposition` is `compiler-lifecycle`. The evidence is correctness-only,
+with no timing or result.
+
+#### 26.4.1.4 W-1520 — verified-HIR direct MLIR0 native route (Forma vigente)
+
+W-1520 is the current `source-backed-current` decision for the bounded native
+seed route. Before W 1.0, it replaces the incompatible MLIR0 schema v1 with
+`w-seed-mlir0-2`; there is no parallel legacy adapter. W-1506 is historical,
+and W-1505 remains current for the HLO0 direct subset contract. W-1519 remains
+current for immutable local binding semantics.
+
+The primary product pipeline is:
+`source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
+clang/native`. HLO0, HLO1, and RUN0 remain bootstrap, audit, and recovery
+paths. They are not prerequisites for the primary native route. HLO0 proves
+its binding plan independently; MLIR0 consumes the same HIR directly.
+
+**Example:** the accepted Restaurant source reaches MLIR0 as verified HIR0:
+
+```w
+fn serve() {
+  let message = "Table 42 remains open"
+  print(message)
+}
+entry(serve)
+```
+
+The internal caller passes `w_seed_mlir0_input { program, hir_result }`.
+MLIR0 verifies that HIR0 and emits the bounded artifact. This example uses
+only the existing seed syntax; it does not claim general lowering.
+
+The internal MLIR0 API consumes only
+`w_seed_mlir0_input { program, hir_result }`. The header includes HIR0 and
+neither the header nor source includes, calls, or creates HLO0. MLIR0
+re-verifies HIR at its boundary through the private `native_subset0` selector.
+That selector is the one exact selector shared independently by HLO0 and
+MLIR0. It accepts only a direct `CONST_STRING` or one immutable prior String
+`BINDING → CALL` with a `BINDING_READ`. It exposes structured borrowed records
+and HIR payload slices; it performs no textual name lookup.
+
+MLIR0 remains caller-owned, bounded, no-heap, transactional, and all-or-nothing.
+Preflight validates HIR before capacities or ranges are used. Invalid HIR,
+unsupported subset or target, short capacity, and any descriptor/result/HIR
+range alias leave caller output and result records unchanged. The artifact is
+LF-only textual builtin plus LLVM dialect, with payload+LF and its digest. The
+only emitted target is `x86_64-unknown-linux-gnu`; no general target support,
+W dialect, custom dialect, or general SSA is claimed.
+
+The gate proves source, parser/frontend, verified HIR0, MLIR0, MLIR verification,
+LLVM IR translation, native link, and execution. Direct Hello, empty, and the
+Restaurant binding and literal forms remain products. Restaurant binding and
+literal artifacts are byte-identical and both produce exact stdout
+`Table 42 remains open\n`; there are no timing or performance results. The
+current factual toolchain is 20.1.2 with `update-required` currency status.
+
+The finite gaps are general HIR, multiple bindings or values, CFG/general SSA,
+the W MLIR dialect, an MLIR C API builder, ownership/effects/tasks lowering,
+optimizer/pass pipeline, provider/runtime/linker/SDK/packaging, other hosts or
+targets, public `w run`, and performance. `benchmarkDisposition` is
+`compiler-lifecycle`, correctness-only, with no timing or result.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
@@ -35468,9 +35680,10 @@ O código do seed continua compilável na lane C11 recovery. O artefato
 conservador permanece source-compatible entre as duas lanes. Headers de
 compatibilidade podem manter requisitos C11 quando isso for explícito. Essa
 política não cria requisito C23 implícito para uma ABI C externa. C é backend de
-validation, differential e recovery; a ponte MLIR0 W-1506 é primária somente para
-o subset bounded, enquanto W/MLIR geral continua futuro e esta decisão não o
-substitui.
+validation, differential e recovery. W-1520 é a ponte MLIR0 primária somente
+para o subset bounded e usa a rota HIR0 verificada → MLIR0. HLO0, HLO1 e RUN0
+continuam bootstrap, auditoria e recovery. W/MLIR geral continua futuro e esta
+decisão não o substitui.
 
 `benchmarkDisposition` do seed é `compiler-lifecycle`. A receita C23 do BMD é
 somente correctness/estrutura nesta fase; não há novo timing ou result. O
@@ -35660,7 +35873,7 @@ de marcar a versão como reproduced.
 - cache local com limite, replacement, expiration e loader compartilhado;
 - provenance, SBOM e reprodução local;
 - registro finito dos estudos RDX0, PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0;
-- candidate protocol static-first, release records, objects, catalog pages e evidence projections;
+- registry HTTP static-first contract, release records, objects, catalog pages e evidence projections;
 - publication closed-source com assertion OIDC curta, capability W de publicação one-use, authorities separadas e autorização final de digest;
 - cápsula binary-first bounded e seleção por target, profile e toolchain-plan row;
 - security/advisory evidence contínua, runner remoto assinado, provider sandbox e entitlement capability como research gaps;

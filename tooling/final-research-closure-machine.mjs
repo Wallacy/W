@@ -28,7 +28,15 @@ export const PFU0_SUPERSESSIONS = Object.freeze({
   "W-1452": "W-1480",
   "W-1453": "W-1516",
 });
-export const ACTIVE_RESEARCH_GATES = Object.freeze(["W-1486", "W-1503"]);
+// W-1486 and W-1503 were active post-snapshot gates when FRC0 was authored.
+// W-1517 and W-1518 close those design contracts; FRC0 preserves the old
+// names as history while the current classification has no research residual.
+export const HISTORICAL_POST_SNAPSHOT_RESEARCH_GATES = Object.freeze(["W-1486", "W-1503"]);
+export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
+export const DESIGN_ONLY_CLOSURES = Object.freeze({
+  "W-1517": "oracle-backed-current",
+  "W-1518": "oracle-backed-current",
+});
 export const DISPOSITIONS = Object.freeze({
   "W-707": "oracle-backed-current",
   "W-731": "oracle-backed-current",
@@ -138,8 +146,10 @@ const TOP_LEVEL_KEYS = Object.freeze([
   "evidence",
   "reuse",
   "historicalSnapshot",
+  "historicalPostSnapshotResearchGates",
   "reopenedResearch",
   "activeResearchGates",
+  "designOnlyClosures",
   "cases",
 ]);
 const CASE_KEYS = Object.freeze(["id", "kind", "decisions", "gate", "mutation"]);
@@ -299,13 +309,20 @@ function classificationFacts(state) {
   });
   const globalResearch = entries.filter((entry) => entry?.category === "research-gated").map((entry) => entry.decisionId);
   const globalResearchExact = same([...globalResearch].sort(), [...ACTIVE_RESEARCH_GATES].sort());
+  const designOnlyClosures = Object.fromEntries(Object.keys(DESIGN_ONLY_CLOSURES).map((decisionId) => [
+    decisionId,
+    entries.find((entry) => entry?.decisionId === decisionId)?.category ?? null,
+  ]));
+  const designOnlyClosuresValid = Object.entries(DESIGN_ONLY_CLOSURES).every(([decisionId, category]) =>
+    designOnlyClosures[decisionId] === category,
+  );
   const targetCategories = Object.fromEntries(DECISIONS.map((decision) => [decision, entries.find((entry) => entry?.decisionId === decision)?.category ?? null]));
   const ledgerDigestValid = classification.ledger?.path === "RATIONALE.md" &&
     classification.ledger?.count === ledgerIds.length &&
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
     classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
-  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && ledgerDigestValid &&
+  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
@@ -327,6 +344,9 @@ function classificationFacts(state) {
     globalResearch,
     globalResearchExact,
     activeResearchGates: ACTIVE_RESEARCH_GATES,
+    historicalPostSnapshotResearchGates: HISTORICAL_POST_SNAPSHOT_RESEARCH_GATES,
+    designOnlyClosures,
+    designOnlyClosuresValid,
     targetCategories,
     ledgerDigestValid,
   };
@@ -481,8 +501,14 @@ export function validateCorpus(input = readJson("tooling/final-research-closure-
       input.historicalSnapshot.researchZero !== true) {
     errors.push("FRC0 historical snapshot must close only W-001 through W-1450 with Research=0.");
   }
+  if (!same(input.historicalPostSnapshotResearchGates, HISTORICAL_POST_SNAPSHOT_RESEARCH_GATES)) {
+    errors.push("FRC0 must preserve W-1486/W-1503 as historical post-snapshot gates.");
+  }
   if (!same(input.activeResearchGates, ACTIVE_RESEARCH_GATES)) {
-    errors.push("FRC0 activeResearchGates must list exactly W-1486 and W-1503 in numeric order as post-snapshot research gates.");
+    errors.push("FRC0 activeResearchGates must be an empty current residual after W-1517/W-1518.");
+  }
+  if (!same(input.designOnlyClosures, DESIGN_ONLY_CLOSURES)) {
+    errors.push("FRC0 designOnlyClosures must list W-1517 and W-1518 without implementation claims.");
   }
   if (!exactKeys(input.reopenedResearch, ["decisions", "dispositions", "gate"]) ||
       !same(input.reopenedResearch.decisions, PFU0_DECISIONS) ||
@@ -674,12 +700,12 @@ export function mutationChecks() {
   });
   checks.extraResearchGateRejected = classificationFacts(extraResearch).valid === false;
 
-  checks.activeResearchGateOmissionRejected = ACTIVE_RESEARCH_GATES.every((decisionId) => {
-    const omittedActiveResearchGate = clone(state);
-    omittedActiveResearchGate.classification.entries = omittedActiveResearchGate.classification.entries
-      .filter((entry) => entry.decisionId !== decisionId);
-    return classificationFacts(omittedActiveResearchGate).valid === false;
-  });
+  const reopenedClosedGate = clone(state);
+  reopenedClosedGate.classification.entries.find((entry) => entry.decisionId === "W-1486").category = "research-gated";
+  checks.closedPostSnapshotGateReopenedRejected = classificationFacts(reopenedClosedGate).valid === false;
+
+  checks.activeResearchResidualExact = classificationFacts(state).globalResearchExact &&
+    classificationFacts(state).globalResearch.length === 0;
 
   const missingCase = clone(corpus);
   missingCase.cases.pop();

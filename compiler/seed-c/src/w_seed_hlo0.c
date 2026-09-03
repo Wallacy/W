@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "w_seed_sha256.h"
+#include "w_seed_native_subset0.h"
 
 _Static_assert(CHAR_BIT == 8, "w-seed HLO0 requires 8-bit bytes");
 
@@ -24,17 +25,7 @@ typedef struct {
   size_t receipt_bytes;
 } hlo0_candidate;
 
-typedef struct {
-  const w_seed_hir0_entry *entry;
-  const w_seed_hir0_function *function;
-  const w_seed_hir0_block *block;
-  const w_seed_hir0_instruction *instruction;
-  const w_seed_hir0_call *call;
-  const w_seed_hir0_identity *callee;
-  const w_seed_hir0_requirement *requirement;
-  const w_seed_hir0_argument *argument;
-  const w_seed_hir0_value *value;
-} hlo0_selection;
+typedef w_seed_native_subset0_selection hlo0_selection;
 
 static bool add_size(size_t left, size_t right, size_t *result) {
   if (result == NULL || right > SIZE_MAX - left) return false;
@@ -61,25 +52,6 @@ static bool hir_text_valid(const w_seed_hir0_program *program,
   return program != NULL && text.offset <= program->text_byte_count &&
          text.count <= program->text_byte_count - text.offset &&
          (text.count == 0u || program->text_bytes != NULL);
-}
-
-static bool hir_text_is(const w_seed_hir0_program *program,
-                        w_seed_hir0_text text, const char *literal) {
-  if (!hir_text_valid(program, text) || literal == NULL) return false;
-  const size_t length = strlen(literal);
-  return text.count == length &&
-         (length == 0u ||
-          memcmp(program->text_bytes + text.offset, literal, length) == 0);
-}
-
-static bool hir_texts_equal(const w_seed_hir0_program *program,
-                            w_seed_hir0_text left, w_seed_hir0_text right) {
-  if (!hir_text_valid(program, left) || !hir_text_valid(program, right) ||
-      left.count != right.count)
-    return false;
-  return left.count == 0u ||
-         memcmp(program->text_bytes + left.offset,
-                program->text_bytes + right.offset, left.count) == 0;
 }
 
 static bool copy_literal(char *destination, size_t capacity,
@@ -194,92 +166,6 @@ bool w_seed_hlo0_verify_plan(const w_seed_hlo0_plan *plan) {
   return digest_equal(plan->stdout_sha256, expected_digest, HLO0_DIGEST_BYTES);
 }
 
-static bool select_print_literal(const w_seed_hir0_program *program,
-                                 hlo0_selection *selection) {
-  if (program == NULL || selection == NULL || program->module_count != 1u ||
-      program->function_count != 1u || program->parameter_count != 0u ||
-      program->block_count != 1u || program->instruction_count != 1u ||
-      program->call_count != 1u || program->argument_count != 1u ||
-      program->requirement_count != 1u || program->value_count != 1u ||
-      program->terminator_count != 1u || program->entry_count != 1u)
-    return false;
-  (void)memset(selection, 0, sizeof(*selection));
-  size_t matching_entries = 0u;
-  for (size_t index = 0u; index < program->entry_count; index += 1u) {
-    const w_seed_hir0_entry *entry = &program->entries[index];
-    if (!hir_text_valid(program, entry->target_name) ||
-        entry->target_name.count == 0u ||
-        !hir_text_is(program, entry->slot, HLO0_SLOT))
-      continue;
-    matching_entries += 1u;
-    selection->entry = entry;
-  }
-  if (matching_entries != 1u || selection->entry == NULL ||
-      selection->entry->target_function >= program->function_count)
-    return false;
-  selection->function = &program->functions[selection->entry->target_function];
-  if (!hir_text_valid(program, selection->function->name) ||
-      selection->function->name.count == 0u ||
-      !hir_texts_equal(program, selection->function->name,
-                       selection->entry->target_name) ||
-      selection->function->parameter_count != 0u ||
-      selection->function->return_type >= program->type_count ||
-      program->types[selection->function->return_type].kind !=
-          W_SEED_HIR0_TYPE_UNIT ||
-      selection->function->is_async || selection->function->is_throws ||
-      selection->function->is_unsafe || selection->function->has_borrow_clause ||
-      selection->function->block_count != 1u ||
-      selection->function->first_block >= program->block_count)
-    return false;
-  selection->block = &program->blocks[selection->function->first_block];
-  if (selection->block->instruction_count != 1u ||
-      selection->block->first_instruction >= program->instruction_count)
-    return false;
-  selection->instruction =
-      &program->instructions[selection->block->first_instruction];
-  if (selection->instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-      selection->instruction->call_index >= program->call_count ||
-      selection->instruction->result_type >= program->type_count ||
-      program->types[selection->instruction->result_type].kind !=
-          W_SEED_HIR0_TYPE_UNIT)
-    return false;
-  selection->call = &program->calls[selection->instruction->call_index];
-  if (selection->call->argument_count != 1u ||
-      selection->call->requirement_count != 1u ||
-      selection->call->callee_identity >= program->identity_count ||
-      selection->call->first_argument >= program->argument_count ||
-      selection->call->first_requirement >= program->requirement_count ||
-      selection->call->result_type >= program->type_count ||
-      program->types[selection->call->result_type].kind !=
-          W_SEED_HIR0_TYPE_UNIT)
-    return false;
-  selection->callee = &program->identities[selection->call->callee_identity];
-  selection->requirement =
-      &program->requirements[selection->call->first_requirement];
-  if (selection->callee->kind != W_SEED_HIR0_IDENTITY_HOST_PRELUDE ||
-      !hir_text_is(program, selection->callee->name, HLO0_CALLEE) ||
-      !hir_text_is(program, selection->callee->profile, HLO0_PROFILE) ||
-      !hir_text_is(program, selection->requirement->name, HLO0_REQUIREMENT))
-    return false;
-  selection->argument = &program->arguments[selection->call->first_argument];
-  if (selection->argument->type_index >= program->type_count ||
-      program->types[selection->argument->type_index].kind !=
-          W_SEED_HIR0_TYPE_STRING ||
-      selection->argument->label_kind != W_SEED_HIR0_LABEL_POSITIONAL_ONLY ||
-      selection->argument->label.count != 0u ||
-      selection->argument->value_index >= program->value_count)
-    return false;
-  selection->value = &program->values[selection->argument->value_index];
-  return selection->value->kind == W_SEED_HIR0_VALUE_CONST_STRING &&
-         selection->value->type_index < program->type_count &&
-         program->types[selection->value->type_index].kind ==
-             W_SEED_HIR0_TYPE_STRING &&
-         selection->value->byte_count <= W_SEED_HLO0_MAX_PAYLOAD &&
-         selection->value->byte_offset <= program->value_byte_count &&
-         selection->value->byte_count <=
-             program->value_byte_count - selection->value->byte_offset;
-}
-
 static bool append_bytes(uint8_t *buffer, size_t capacity, size_t *offset,
                          const void *bytes, size_t length) {
   if (buffer == NULL || offset == NULL ||
@@ -382,12 +268,16 @@ typedef enum {
 static hlo0_prepare_status prepare_candidate(const w_seed_hlo0_input *input,
                                              hlo0_candidate *candidate) {
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
-      candidate == NULL ||
-      !w_seed_hir0_verify(input->program, input->hir_result))
+      candidate == NULL)
     return HLO0_PREPARE_INVALID;
   hlo0_selection selection;
-  if (!select_print_literal(input->program, &selection))
-    return HLO0_PREPARE_UNSUPPORTED;
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select(input->program, input->hir_result,
+                                   &selection);
+  if (selected != W_SEED_NATIVE_SUBSET0_OK)
+    return selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED
+               ? HLO0_PREPARE_UNSUPPORTED
+               : HLO0_PREPARE_INVALID;
   (void)memset(candidate, 0, sizeof(*candidate));
   w_seed_hlo0_plan *plan = &candidate->plan;
   if (!copy_literal(plan->schema, sizeof(plan->schema),
@@ -410,13 +300,13 @@ static hlo0_prepare_status prepare_candidate(const w_seed_hlo0_input *input,
   plan->is_unsafe = selection.function->is_unsafe;
   plan->has_borrow_clause = selection.function->has_borrow_clause;
   plan->zero_parameters = selection.function->parameter_count == 0u;
-  plan->unit_return = selection.function->return_type == W_SEED_HIR0_TYPE_UNIT;
-  plan->payload_bytes = selection.value->byte_count;
-  if (plan->payload_bytes != 0u && input->program->value_bytes == NULL)
+  plan->unit_return = true;
+  plan->payload_bytes = selection.payload_bytes;
+  if (plan->payload_bytes != 0u && selection.payload == NULL)
     return HLO0_PREPARE_INVALID;
   if (plan->payload_bytes != 0u)
     (void)memcpy(plan->payload,
-                 input->program->value_bytes + selection.value->byte_offset,
+                 selection.payload,
                  plan->payload_bytes);
   plan->newline_policy = W_SEED_HLO0_NEWLINE_ADD_LF;
   if (!add_size(plan->payload_bytes, HLO0_NEWLINE_BYTES, &plan->stdout_bytes))
@@ -526,6 +416,8 @@ static bool input_aliases_outputs(const w_seed_hlo0_input *input,
        sizeof(*input->program->blocks)},
       {input->program->instructions, input->program->instruction_capacity,
        sizeof(*input->program->instructions)},
+      {input->program->bindings, input->program->binding_capacity,
+       sizeof(*input->program->bindings)},
       {input->program->calls, input->program->call_capacity,
        sizeof(*input->program->calls)},
       {input->program->host_parameters,

@@ -2273,12 +2273,12 @@ Aceite:
 - `allocator:` explícito continua válido para override e rehome;
 - `tryReserve` falha antes de consumir os elementos;
 - cada string duplicada mantém a origem do allocator;
-- `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` permanece
-  Research e não é um plan ativo do oracle ASC0;
-- `.fixed<capacity:N>` é lexical; o target escolhe stack, task frame ou storage
-  local/fixed. `.bounded<budget:N>` limita bytes committed sobre seu provider e
-  não escolhe placement; `.stack<capacity:N>` permanece uma alternativa de
-  Pesquisa, sem fallback físico implícito;
+- `.fixed` fornece uma capability scoped de `Allocator`; `.bounded` é o plan
+  lexical de W-1517 e envolve o allocator current do scope;
+- `.fixed<capacity:N>` é lexical; o target escolhe placement portátil.
+  `.bounded<budget:N>` limita bytes committed sobre o backing current e não
+  escolhe placement; `.stack<capacity:N>` é strict native-stack e não usa
+  fallback físico implícito;
 - reuso/reset não é a surface comum; o bloco exige que nenhum child, wait, loan
   ou dependent permaneça aberto;
 - a origem registra instance lifetime, deallocator, mobility e adoption family;

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-10"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-11"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -565,6 +565,9 @@ typedef struct {
   uint32_t range_lower_expression;
   uint32_t range_upper_expression;
   uint32_t loop_local_ordinal;
+  /* Append-only effective type of a local binding initializer.  This is
+   * distinct from declared_type, which records only a source annotation. */
+  uint32_t effective_type;
 } w_seed_frontend_statement;
 
 typedef enum {
@@ -755,6 +758,9 @@ typedef struct {
    * uses a valid offset and a zero count. */
   uint32_t const_byte_offset;
   uint32_t const_byte_count;
+  /* Append-only lexical relation for a local binding read.  The value is a
+   * normalized statement index, never a source-text identity. */
+  uint32_t resolved_binding_statement;
 } w_seed_frontend_expression;
 
 typedef enum {

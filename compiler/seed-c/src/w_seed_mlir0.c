@@ -3,6 +3,7 @@
 #include <limits.h>
 #include <string.h>
 
+#include "w_seed_native_subset0.h"
 #include "w_seed_sha256.h"
 
 enum {
@@ -11,7 +12,8 @@ enum {
   MLIR0_ESCAPE_BYTES_PER_INPUT = 3,
   MLIR0_DECIMAL_FIELDS = 4,
   MLIR0_DECIMAL_MAX_BYTES = 3,
-  MLIR0_MAX_STDOUT_BYTES = W_SEED_HLO0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES,
+  MLIR0_MAX_STDOUT_BYTES =
+      W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES,
 };
 
 static const char MLIR0_SCHEMA_COMMENT[] =
@@ -54,7 +56,7 @@ static const char MLIR0_HEX[] = "0123456789abcdef";
    (sizeof(MLIR0_LENGTH_MIDDLE) - 1u) + (sizeof(MLIR0_GEP_SUFFIX) - 1u) +    \
    (sizeof(MLIR0_RETURN_SUFFIX) - 1u))
 #define MLIR0_VARIABLE_ESCAPED_BYTES                                         \
-  (((size_t)W_SEED_HLO0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES) *                 \
+  (((size_t)W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES) *       \
    MLIR0_ESCAPE_BYTES_PER_INPUT)
 #define MLIR0_DECIMAL_BYTES                                                   \
   ((size_t)MLIR0_DECIMAL_FIELDS * MLIR0_DECIMAL_MAX_BYTES)
@@ -148,29 +150,32 @@ bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target) {
   return target_is_supported(target);
 }
 
-static bool build_artifact(const w_seed_hlo0_plan *plan,
-                           const w_seed_mlir0_target *target, uint8_t *artifact,
-                           size_t capacity, size_t *written,
-                           uint8_t digest[MLIR0_DIGEST_BYTES]) {
-  if (plan == NULL || !target_is_supported(target) || artifact == NULL ||
-      written == NULL || digest == NULL || !w_seed_hlo0_verify_plan(plan) ||
-      plan->stdout_bytes < MLIR0_NEWLINE_BYTES ||
-      plan->stdout_bytes > (size_t)UINT32_MAX)
+static bool build_artifact(
+    const w_seed_native_subset0_selection *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (selection == NULL || !target_is_supported(target) || artifact == NULL ||
+      written == NULL || digest == NULL ||
+      selection->payload_bytes > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD ||
+      selection->payload_bytes > SIZE_MAX - MLIR0_NEWLINE_BYTES ||
+      (selection->payload_bytes != 0u && selection->payload == NULL))
     return false;
+  const size_t stdout_bytes =
+      selection->payload_bytes + MLIR0_NEWLINE_BYTES;
   size_t offset = 0u;
   if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
       !append_literal(artifact, capacity, &offset, MLIR0_PREFIX) ||
-      !append_escaped_bytes(artifact, capacity, &offset, plan->payload,
-                             plan->payload_bytes) ||
+      !append_escaped_bytes(artifact, capacity, &offset, selection->payload,
+                             selection->payload_bytes) ||
       !append_hex_byte(artifact, capacity, &offset, 0x0au) ||
       !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_MIDDLE) ||
-      !append_size(artifact, capacity, &offset, plan->stdout_bytes) ||
+      !append_size(artifact, capacity, &offset, stdout_bytes) ||
       !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_SUFFIX) ||
-      !append_size(artifact, capacity, &offset, plan->stdout_bytes) ||
+      !append_size(artifact, capacity, &offset, stdout_bytes) ||
       !append_literal(artifact, capacity, &offset, MLIR0_LENGTH_MIDDLE) ||
-      !append_size(artifact, capacity, &offset, plan->stdout_bytes) ||
+      !append_size(artifact, capacity, &offset, stdout_bytes) ||
       !append_literal(artifact, capacity, &offset, MLIR0_GEP_SUFFIX) ||
-      !append_size(artifact, capacity, &offset, plan->stdout_bytes) ||
+      !append_size(artifact, capacity, &offset, stdout_bytes) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RETURN_SUFFIX))
     return false;
   *written = offset;
@@ -181,59 +186,146 @@ static bool build_artifact(const w_seed_hlo0_plan *plan,
   return true;
 }
 
-static bool measure_aliases(const w_seed_hlo0_plan *plan,
-                            const w_seed_mlir0_target *target,
-                            const w_seed_mlir0_counts *counts,
-                            const w_seed_mlir0_result *result) {
-  return ranges_overlap(plan, sizeof(*plan), counts, sizeof(*counts)) ||
-         ranges_overlap(plan, sizeof(*plan), result, sizeof(*result)) ||
-         ranges_overlap(target, sizeof(*target), counts, sizeof(*counts)) ||
-         ranges_overlap(target, sizeof(*target), result, sizeof(*result)) ||
-         ranges_overlap(counts, sizeof(*counts), result, sizeof(*result));
+typedef struct {
+  const void *address;
+  size_t count;
+  size_t element_size;
+} mlir0_range;
+
+static bool range_add(mlir0_range *ranges, size_t capacity,
+                      size_t *range_count, const void *address, size_t count,
+                      size_t element_size) {
+  if (ranges == NULL || range_count == NULL || *range_count >= capacity ||
+      element_size == 0u || count > SIZE_MAX / element_size)
+    return false;
+  ranges[*range_count] = (mlir0_range){address, count, element_size};
+  *range_count += 1u;
+  return true;
 }
 
-static bool emit_descriptor_aliases(const w_seed_hlo0_plan *plan,
-                                    const w_seed_mlir0_target *target,
-                                    const w_seed_mlir0_output *output,
-                                    const w_seed_mlir0_result *result) {
-  if (ranges_overlap(plan, sizeof(*plan), result, sizeof(*result)) ||
-      ranges_overlap(target, sizeof(*target), result, sizeof(*result)))
+static bool range_pair_overlaps(const mlir0_range *left,
+                                const mlir0_range *right) {
+  if (left == NULL || right == NULL || left->element_size == 0u ||
+      right->element_size == 0u ||
+      left->count > SIZE_MAX / left->element_size ||
+      right->count > SIZE_MAX / right->element_size)
     return true;
-  if (output == NULL) return false;
-  if (ranges_overlap(plan, sizeof(*plan), output, sizeof(*output)) ||
-      ranges_overlap(target, sizeof(*target), output, sizeof(*output)) ||
-      ranges_overlap(result, sizeof(*result), output, sizeof(*output)))
+  return ranges_overlap(left->address, left->count * left->element_size,
+                        right->address, right->count * right->element_size);
+}
+
+static bool range_add_or_alias(mlir0_range *ranges, size_t capacity,
+                               size_t *range_count, const void *address,
+                               size_t count, size_t element_size) {
+  return !range_add(ranges, capacity, range_count, address, count,
+                    element_size);
+}
+
+static bool input_aliases_outputs(const w_seed_mlir0_input *input,
+                                  const w_seed_mlir0_target *target,
+                                  const w_seed_mlir0_output *output,
+                                  const w_seed_mlir0_counts *counts,
+                                  const w_seed_mlir0_result *result) {
+  if (input == NULL || input->program == NULL || input->hir_result == NULL)
     return true;
+  mlir0_range ranges[32];
+  size_t range_count = 0u;
+  const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
+  if (range_add_or_alias(ranges, range_capacity, &range_count, input, 1u,
+                         sizeof(*input)) ||
+      range_add_or_alias(ranges, range_capacity, &range_count, target, 1u,
+                         sizeof(*target)) ||
+      range_add_or_alias(ranges, range_capacity, &range_count, counts, 1u,
+                         sizeof(*counts)) ||
+      range_add_or_alias(ranges, range_capacity, &range_count, result, 1u,
+                         sizeof(*result)))
+    return true;
+  if (output != NULL &&
+      (range_add_or_alias(ranges, range_capacity, &range_count, output, 1u,
+                          sizeof(*output)) ||
+       range_add_or_alias(ranges, range_capacity, &range_count, output->bytes,
+                          output->capacity, sizeof(uint8_t))))
+    return true;
+  const w_seed_hir0_program *program = input->program;
+  const mlir0_range input_ranges[] = {
+      {program, 1u, sizeof(*program)},
+      {input->hir_result, 1u, sizeof(*input->hir_result)},
+      {program->modules, program->module_capacity,
+       sizeof(*program->modules)},
+      {program->identities, program->identity_capacity,
+       sizeof(*program->identities)},
+      {program->types, program->type_capacity, sizeof(*program->types)},
+      {program->functions, program->function_capacity,
+       sizeof(*program->functions)},
+      {program->parameters, program->parameter_capacity,
+       sizeof(*program->parameters)},
+      {program->blocks, program->block_capacity, sizeof(*program->blocks)},
+      {program->instructions, program->instruction_capacity,
+       sizeof(*program->instructions)},
+      {program->bindings, program->binding_capacity,
+       sizeof(*program->bindings)},
+      {program->calls, program->call_capacity, sizeof(*program->calls)},
+      {program->host_parameters, program->host_parameter_capacity,
+       sizeof(*program->host_parameters)},
+      {program->arguments, program->argument_capacity,
+       sizeof(*program->arguments)},
+      {program->requirements, program->requirement_capacity,
+       sizeof(*program->requirements)},
+      {program->values, program->value_capacity, sizeof(*program->values)},
+      {program->terminators, program->terminator_capacity,
+       sizeof(*program->terminators)},
+      {program->entries, program->entry_capacity, sizeof(*program->entries)},
+      {program->text_bytes, program->text_byte_capacity, sizeof(uint8_t)},
+      {program->value_bytes, program->value_byte_capacity, sizeof(uint8_t)},
+      {program->receipt, program->receipt_capacity, sizeof(uint8_t)},
+  };
+  for (size_t index = 0u;
+       index < sizeof(input_ranges) / sizeof(input_ranges[0]); index += 1u)
+    if (!range_add(ranges, range_capacity, &range_count,
+                   input_ranges[index].address, input_ranges[index].count,
+                   input_ranges[index].element_size))
+      return true;
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
   return false;
 }
 
-static bool emit_buffer_aliases(const w_seed_hlo0_plan *plan,
-                                const w_seed_mlir0_target *target,
-                                const w_seed_mlir0_output *output,
-                                const w_seed_mlir0_result *result,
-                                size_t bytes) {
+static bool output_buffer_aliases(const w_seed_mlir0_input *input,
+                                  const w_seed_mlir0_target *target,
+                                  const w_seed_mlir0_output *output,
+                                  const w_seed_mlir0_result *result,
+                                  size_t bytes) {
   if (output == NULL) return false;
-  return ranges_overlap(plan, sizeof(*plan), output->bytes, bytes) ||
+  return ranges_overlap(input, sizeof(*input), output->bytes, bytes) ||
          ranges_overlap(target, sizeof(*target), output->bytes, bytes) ||
          ranges_overlap(result, sizeof(*result), output->bytes, bytes) ||
          ranges_overlap(output, sizeof(*output), output->bytes, bytes);
 }
 
 w_seed_mlir0_status w_seed_mlir0_measure(
-    const w_seed_hlo0_plan *plan, const w_seed_mlir0_target *target,
+    const w_seed_mlir0_input *input, const w_seed_mlir0_target *target,
     w_seed_mlir0_counts *counts, w_seed_mlir0_result *result) {
-  if (counts == NULL || result == NULL) return W_SEED_MLIR0_INVALID_PLAN;
-  if (measure_aliases(plan, target, counts, result))
+  if (input == NULL || input->program == NULL || input->hir_result == NULL ||
+      counts == NULL || result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_selection selection;
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select(input->program, input->hir_result,
+                                   &selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (input_aliases_outputs(input, target, NULL, counts, result))
     return W_SEED_MLIR0_ALIAS;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
-  if (plan == NULL || !w_seed_hlo0_verify_plan(plan))
-    return W_SEED_MLIR0_INVALID_PLAN;
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(plan, target, artifact, sizeof(artifact), &written,
+  if (!build_artifact(&selection, target, artifact, sizeof(artifact), &written,
                       digest))
-    return W_SEED_MLIR0_INVALID_PLAN;
+    return W_SEED_MLIR0_INVALID_HIR;
   const w_seed_mlir0_counts candidate_counts = {written};
   w_seed_mlir0_result candidate_result;
   (void)memset(&candidate_result, 0, sizeof(candidate_result));
@@ -247,20 +339,29 @@ w_seed_mlir0_status w_seed_mlir0_measure(
 }
 
 w_seed_mlir0_status w_seed_mlir0_emit(
-    const w_seed_hlo0_plan *plan, const w_seed_mlir0_target *target,
+    const w_seed_mlir0_input *input, const w_seed_mlir0_target *target,
     const w_seed_mlir0_output *output, w_seed_mlir0_result *result) {
-  if (result == NULL || plan == NULL || target == NULL)
-    return W_SEED_MLIR0_INVALID_PLAN;
-  if (emit_descriptor_aliases(plan, target, output, result))
+  if (input == NULL || input->program == NULL || input->hir_result == NULL ||
+      result == NULL)
+    return W_SEED_MLIR0_INVALID_HIR;
+  w_seed_native_subset0_selection selection;
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select(input->program, input->hir_result,
+                                   &selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (input_aliases_outputs(input, target, output, NULL, result))
     return W_SEED_MLIR0_ALIAS;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(plan, target, artifact, sizeof(artifact), &written,
+  if (!build_artifact(&selection, target, artifact, sizeof(artifact), &written,
                       digest))
-    return W_SEED_MLIR0_INVALID_PLAN;
-  if (emit_buffer_aliases(plan, target, output, result, written))
+    return W_SEED_MLIR0_INVALID_HIR;
+  if (output_buffer_aliases(input, target, output, result, written))
     return W_SEED_MLIR0_ALIAS;
   if (output == NULL || output->bytes == NULL || output->capacity < written)
     return W_SEED_MLIR0_CAPACITY;

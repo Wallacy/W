@@ -94,7 +94,7 @@ try {
   const restaurantFixture = resolve(artifactDirectory, "restaurant.w")
   const emptyFixture = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantFixture,
-    `fn serve() { print("Table 42 remains open") }\nentry(serve)\n`)
+    `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
   await writeFile(emptyFixture, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     {
@@ -188,6 +188,8 @@ endif()
       `fn main() { print("a")\nprint("b") }\nentry(main)\n`],
     ["outside-subset.w",
       `fn main(value: String) { print(value) }\nentry(main)\n`],
+    ["var-binding.w",
+      `fn main() { var message = "Hello, world!" print(message) }\nentry(main)\n`],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(artifactDirectory, name)

@@ -84,6 +84,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[GATE_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[GATE_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[GATE_HIR_RECORDS];
+  w_seed_hir0_binding hir_bindings[GATE_HIR_RECORDS];
   w_seed_hir0_call hir_calls[GATE_HIR_RECORDS];
   w_seed_hir0_host_parameter hir_host_parameters[GATE_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[GATE_HIR_RECORDS];
@@ -116,6 +117,8 @@ static bool lower_hir(gate_fixture *fixture) {
       .block_capacity = GATE_HIR_RECORDS,
       .instructions = fixture->hir_instructions,
       .instruction_capacity = GATE_HIR_RECORDS,
+      .bindings = fixture->hir_bindings,
+      .binding_capacity = GATE_HIR_RECORDS,
       .calls = fixture->hir_calls,
       .call_capacity = GATE_HIR_RECORDS,
       .host_parameters = fixture->hir_host_parameters,

@@ -2,5 +2,5 @@
 module frc0_adversarial
 
 fn finalResearchClosure(): String {
-  return "FRC0 rejects residual Research outside W-1486 and W-1503 or hidden PFU0 reclassification"
+  return "FRC0 rejects any current Research residual or hidden PFU0 reclassification; W-1486 and W-1503 remain historical and W-1517/W-1518 are design-only closures"
 }

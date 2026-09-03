@@ -365,7 +365,7 @@
         {
           "id": "allocator-scope-cases",
           "path": "tooling/allocator-scope-cases.json",
-          "digest": "sha256:9feec5fb7454eb665057606926e0b4380d4efb7f2e97e657fbce985146376b34",
+          "digest": "sha256:f94d0aed0a77a40c42e953aca27f67e90e398ffe01e9530cde34248d80073240",
           "claim": "Allocator scope, stack, rehome, and fixed admission cases"
         },
         {
@@ -992,14 +992,14 @@
           "id": "package-manifest",
           "path": "reference/last-light/build.w",
           "symbol": "package {",
-          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
           "claim": "Typed package manifest, roots, and declared actions"
         },
         {
           "id": "package-action",
           "path": "reference/last-light/build.w",
           "symbol": "name: \"compile-final-menu\"",
-          "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+          "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
           "claim": "Menu build action and artifact closure"
         },
         {
