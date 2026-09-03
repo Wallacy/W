@@ -1,6 +1,6 @@
 # SYN1 — generated module artifacts
 
-Status: design-only Research. This study does not define a W contract. It does
+Status: historical SYN1 provenance. This study does not define a W contract. It does
 not provide a compiler, runtime, provider, build service, or LSP feature.
 
 SYN1 narrows `SYN0-R1` with a problem-first matrix:
@@ -9,7 +9,7 @@ SYN1 narrows `SYN0-R1` with a problem-first matrix:
 | --- | --- | --- |
 | A | Closed compiler synthesis, generic/protocol composition, and manual declarations | Current composition |
 | B | The hermetic `final.menu` transform emits a typed data artifact | Current build transform; no declarations |
-| C | A W0 build transform emits a separate generated W module set | Preferred Research candidate |
+| C | A W0 build transform emits a separate generated W module set | Historical candidate; implementation evidence gap |
 | C2 | A closed declaration recipe or IR bypasses W source | Rejected because it duplicates frontend rules |
 | D | Macro, decorator, metaclass, eval, or AST/current-module mutation | Intentionally rejected |
 
@@ -38,7 +38,7 @@ declarations, accepts normal multiline signatures, and inventories only the
 closed declaration-module profile. Entry points, manifests, foreign/service/
 provider/test forms, extensions/behaviors, and top-level executable statements
 are outside this candidate profile. A `frontendReceipt` binds source-shape
-symbols to Research-only type, effect, ownership, constant, and conformance
+symbols to implementation-evidence-gap type, effect, ownership, constant, and conformance
 facts. No W name resolver, type checker, ownership checker, effect checker, or
 ConstIR normalizer validates those facts.
 
@@ -70,7 +70,7 @@ logical module, output binding, action recipe/result identities, tool, typed
 inputs, generated source artifacts, provenance and diagnostic-map keys, and
 the explicit missing compiler evidence. Generated source is inspectable as a
 read-only artifact. Navigation to generated output and an exact editable
-origin is a Research requirement; no LSP implementation is claimed.
+origin remains an implementation evidence gap; no LSP implementation is claimed.
 
 ## Evidence boundary
 
@@ -79,7 +79,7 @@ exercise single-file, multi-file, relocation, multiline, Unicode, ordering,
 imports, collision, and interface-shape cases. Tree-sitter parsing and the host
 oracle are current evidence. W compilation, semantic frontend phases, ConstIR,
 execution, target provider behavior, and human/model studies remain missing.
-Route and status are separate: malformed C cases remain `research-candidate`,
+Route and status are separate: malformed C cases remain `historical-candidate`,
 while only C2/D mechanisms use `intentionally-rejected`.
 
 Primary comparisons use C23 translation/preprocessing, Rust macros,

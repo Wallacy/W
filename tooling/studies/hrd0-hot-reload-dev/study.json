@@ -50,7 +50,7 @@
     {
       "id": "SYN1",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:12ecb0aba181ea162b111d74e3030537bd4e499d4cb9ad2d4360b8aaa928f0ca",
+      "digest": "sha256:16dd1258dddcbe93bdd85461e2afe267a81e8a52369dd464de9164e7c5aedcdf",
       "claim": "content-addressed generated module set and normal-unit reopen"
     },
     {

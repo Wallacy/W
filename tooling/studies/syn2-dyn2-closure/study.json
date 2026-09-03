@@ -16,7 +16,7 @@
       "id": "SYN1",
       "role": "evidence-input",
       "path": "../syn1-typed-generation/study.json",
-      "digest": "sha256:12ecb0aba181ea162b111d74e3030537bd4e499d4cb9ad2d4360b8aaa928f0ca",
+      "digest": "sha256:16dd1258dddcbe93bdd85461e2afe267a81e8a52369dd464de9164e7c5aedcdf",
       "claim": "typed generation, content-addressed module sets, normal-unit reopen, target/source-map evidence"
     },
     {
@@ -30,7 +30,7 @@
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:8ec8d2eab0f090c92af9efd98bb8e60153e1ea432a40b5f258c8aead262da1f1",
+      "digest": "sha256:aca0950b45db5246f21364d5b2c963869a2854ccbfcdac4ab3d7bf0742919ff6",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -53,7 +53,7 @@
     },
     "snapshot": {
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
-      "digest": "sha256:26c5dd24fab1cdf160ddc4a6189b819e7f8288d5745558fdbe8e6a11c00dc9c7"
+      "digest": "sha256:7fa3f22f4905a84065cc4e0dad2f9f0dbf20713d7335b621452c32a701090006"
     },
     "studyOracle": {
       "path": "oracle.test.mjs",

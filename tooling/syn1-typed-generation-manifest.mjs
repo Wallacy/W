@@ -5,7 +5,7 @@ import { digestFile, parseWFile } from "./syn1-typed-generation-machine.mjs";
 const DIGEST = /^sha256:[0-9a-f]{64}$/;
 const CURRENT_EVIDENCE = new Set(["source-fixtures", "host-oracle", "official-primary-refs", "tree-sitter-generated-w-parse", "two-target-projections", "target-registry-host"]);
 const MISSING_EVIDENCE = new Set(["w-compile", "w-name-type-ownership-effect", "w-constir", "w-run", "provider", "target-compiler-provider", "human-study", "model-study"]);
-const ALLOWED_ROLES = new Set(["fixture-current", "research-candidate", "rejected-witness"]);
+const ALLOWED_ROLES = new Set(["fixture-current", "historical-candidate", "rejected-witness"]);
 
 function required(value, location, errors) {
   if (typeof value !== "string" || value.trim() === "") errors.push(`${location} must be a non-empty string.`);
@@ -57,7 +57,7 @@ export function validateSyn1StudyManifest(manifest, { studyDirectory }) {
     ["current-row-synthesis", "fixture-current"],
     ["current-menu-transform", "fixture-current"],
     ["current-kernel-module", "fixture-current"],
-    ["candidate-generated-module", "research-candidate"],
+    ["candidate-generated-module", "historical-candidate"],
     ["rejected-declaration-recipe", "rejected-witness"],
     ["rejected-dynamic-mutation", "rejected-witness"],
   ]);
@@ -79,7 +79,7 @@ export function validateSyn1StudyManifest(manifest, { studyDirectory }) {
       if (variant.role === "fixture-current" && !variant.fixture) errors.push(`${location} must mark synthetic W source as fixture.`);
       if (variant.role !== "fixture-current" && variant.fixture !== false) errors.push(`${location} reserved witness must not be a current fixture.`);
       if (variant.role === "fixture-current" && variant.disposition !== "fixture") errors.push(`${location} fixture disposition must be fixture.`);
-      if (variant.role === "research-candidate" && variant.disposition !== "research-candidate") errors.push(`${location} candidate disposition must remain Research.`);
+      if (variant.role === "historical-candidate" && variant.disposition !== "historical-candidate") errors.push(`${location} historical candidate disposition must remain historical-candidate.`);
       if (variant.role === "rejected-witness" && variant.disposition !== "intentionally-rejected") errors.push(`${location} rejected disposition must be intentionally-rejected.`);
     }
   }
@@ -90,7 +90,7 @@ export function validateSyn1StudyManifest(manifest, { studyDirectory }) {
   for (const [index, artifact] of (manifest?.generatedArtifacts ?? []).entries()) {
     const location = `study.generatedArtifacts[${index}]`; const file = contained(studyDirectory, artifact?.path, root, `${location}.path`, errors);
     if (!expectedArtifacts.has(artifact?.path) || artifactPaths.has(artifact?.path)) errors.push(`${location}.path must be a unique expected generated W witness.`); artifactPaths.add(artifact?.path);
-    if (artifact?.disposition !== "research-candidate" || artifact?.frontendReceipt !== "Research" || artifact?.compilerEvidence !== "missing") errors.push(`${location} must separate Research receipts from missing compiler evidence.`);
+    if (artifact?.disposition !== "historical-candidate" || artifact?.frontendReceipt !== "implementation-evidence-gap" || artifact?.compilerEvidence !== "missing") errors.push(`${location} must identify historical provenance and an implementation evidence gap.`);
     if (file) { digest(file, artifact.digest, `${location}.digest`, errors); const relative = path.relative(root, file).split(path.sep).join("/"); if (!parseWFile(root, relative).ok) errors.push(`${location}.path must parse with the current Tree-sitter W grammar without recovery.`); }
   }
   if (artifactPaths.size !== expectedArtifacts.size || [...expectedArtifacts].some((item) => !artifactPaths.has(item))) errors.push("study.generatedArtifacts must equal the closed generated W fixture inventory.");
