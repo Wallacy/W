@@ -1279,6 +1279,65 @@ static bool test_typed_immutable_binding_values(void) {
   return true;
 }
 
+static bool test_local_unit_call_and_parameter_reads(void) {
+  static const char SOURCE[] =
+      "fn announce(table: i64, isOpen: Bool) { "
+      "print(message: \"Table ${table}; open: ${isOpen}\", suffix: \"\") }\n"
+      "fn main() { announce(isOpen: true, table: 6 * 7) }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->parameter_count == 2u &&
+        program->call_count == 2u && program->argument_count == 4u &&
+        program->value_count == 8u && program->entry_count == 1u);
+  CHECK(program->functions[0].first_parameter == 0u &&
+        program->functions[0].parameter_count == 2u &&
+        program->parameters[0].owner_function == 0u &&
+        program->parameters[0].ordinal == 0u &&
+        program->parameters[0].type_index == 2u &&
+        program->parameters[1].owner_function == 0u &&
+        program->parameters[1].ordinal == 1u &&
+        program->parameters[1].type_index == 3u);
+  CHECK(program->identities[1].kind == W_SEED_HIR0_IDENTITY_FUNCTION &&
+        program->identities[1].first_parameter == 0u &&
+        program->identities[1].parameter_count == 2u &&
+        program->identities[1].return_type == 0u);
+  CHECK(program->calls[0].callee_identity >=
+            program->module_count + program->function_count +
+                program->entry_count &&
+        program->calls[1].callee_identity == 1u &&
+        program->calls[1].first_requirement == W_SEED_HIR0_NONE &&
+        program->calls[1].requirement_count == 0u);
+  CHECK(program->values[0].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[0].parameter_index == 0u &&
+        program->values[0].type_index == 2u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[1].parameter_index == 1u &&
+        program->values[1].type_index == 3u);
+  CHECK(program->arguments[2].ordinal == 0u &&
+        program->arguments[2].parameter_ordinal == 1u &&
+        program->arguments[2].type_index == 3u &&
+        program->values[program->arguments[2].value_index].kind ==
+            W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->arguments[3].ordinal == 1u &&
+        program->arguments[3].parameter_ordinal == 0u &&
+        program->arguments[3].type_index == 2u &&
+        program->values[program->arguments[3].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_argument saved_argument = fixture.hir_arguments[2];
+  fixture.hir_arguments[2].parameter_ordinal = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_arguments[2] = saved_argument;
+  const w_seed_hir0_value saved_parameter = fixture.hir_values[0];
+  fixture.hir_values[0].parameter_index = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_parameter;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1292,6 +1351,7 @@ int main(void) {
   if (!test_typed_interpolation_value_tree()) return 1;
   if (!test_builtin_display_value_tree()) return 1;
   if (!test_typed_immutable_binding_values()) return 1;
+  if (!test_local_unit_call_and_parameter_reads()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }
