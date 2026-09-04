@@ -55,9 +55,9 @@ The WSL edge is outside the 3x3 native baseline and does not count as a native W
 
 | Triple | State | Verification | Scope | Host profile | Artifact | Compiler/runtime | Axes | Blockers |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | evidence | null | w-seed-mlir0-2-verified-hir-print | native-process@1 | native-executable | tooling/mlir0-toolchain.json / w-seed-mlir0-2 | backend: pass; runtime: partial; hostAdapter: partial; sdkProfile: partial; linkerSysrootPackaging: partial; ciEvidence: partial | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-unknown-linux-gnu` | evidence | null | w-seed-mlir0-3-linear-print-sequence | native-process@1 | native-executable | tooling/mlir0-toolchain.json / w-seed-mlir0-3 | backend: pass; runtime: partial; hostAdapter: partial; sdkProfile: partial; linkerSysrootPackaging: partial; ciEvidence: partial | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 
-The current evidence target is `x86_64-unknown-linux-gnu`. Its scope is `w-seed-mlir0-2-verified-hir-print`.
+The current evidence target is `x86_64-unknown-linux-gnu`. Its scope is `w-seed-mlir0-3-linear-print-sequence`.
 The evidence covers the MLIR0 source, unit, focal check, and pinned manifest.
 It does not claim a general W target, SDK, packaging, or official CI.
 

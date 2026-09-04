@@ -41,6 +41,12 @@ static bool test_valid_requests(void) {
   CHECK(strcmp(request.arguments[0], "a") == 0 &&
         strcmp(request.arguments[1], "--entry") == 0 &&
         strcmp(request.arguments[2], "") == 0);
+
+  char hyphen_path[] = "restaurant-linear.w";
+  char *hyphen_argv[] = {"w", "run", hyphen_path, NULL};
+  CHECK(w_seed_run_parse(3, hyphen_argv, &request));
+  CHECK(request.path == hyphen_argv[2] && request.argument_count == 0u &&
+        request.arguments == NULL);
   return true;
 }
 
@@ -51,6 +57,8 @@ static bool test_invalid_requests(void) {
   CHECK(rejects(3, option_path));
   char *non_w_path[] = {"w", "run", "main.txt", NULL};
   CHECK(rejects(3, non_w_path));
+  char *hyphen_non_w_path[] = {"w", "run", "restaurant-linear.txt", NULL};
+  CHECK(rejects(3, hyphen_non_w_path));
   char *extra_without_separator[] = {"w", "run", "main.w", "arg", NULL};
   CHECK(rejects(4, extra_without_separator));
   char *wrong_separator[] = {"w", "run", "main.w", "--entry", "main", NULL};

@@ -7,6 +7,7 @@ const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
+const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "20.1.2"
 const expectedHelp =
@@ -62,6 +63,9 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
+  assert(manifest.artifact?.schema === "w-seed-mlir0-3" &&
+    manifest.artifact?.scope === "linear-print-sequence",
+  "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
   "toolchain target is not the closed Linux GNU target")
@@ -101,7 +105,7 @@ function validateManifest(manifest) {
     manifest.hostModes?.windows === "wsl:Ubuntu" &&
     manifest.windowsNative === false,
   "toolchain host mode is not the pinned Linux/WSL mode")
-  assert(manifest.execution?.stdout === "payload + LF" &&
+  assert(manifest.execution?.stdout === "ordered payloads + LF per print" &&
     manifest.execution?.stderr === "empty" && manifest.execution?.exit === 0,
   "toolchain execution contract changed")
   return expectedCommands
@@ -281,7 +285,6 @@ try {
     ])
   }
   const binary = isWindows ? `${buildPath}/w` : join(buildDirectory, "w")
-  const helloPath = join(fixtureDirectory, "hello.w")
   const restaurantBinding = join(fixtureDirectory, "restaurant_binding.w")
   const restaurantLiteral = join(fixtureDirectory, "restaurant_literal.w")
   const empty = join(fixtureDirectory, "empty.w")
@@ -291,7 +294,9 @@ try {
   const incomplete = join(fixtureDirectory, "incomplete.w")
   const noop = join(fixtureDirectory, "noop.w")
   const twoCalls = join(fixtureDirectory, "two_calls.w")
-  await writeFile(helloPath, await readFile(helloFixture))
+  const unusedBinding = join(fixtureDirectory, "unused_binding.w")
+  const tooManyInstructions = join(fixtureDirectory, "too_many_instructions.w")
+  const totalOutputOverflow = join(fixtureDirectory, "total_output_overflow.w")
   await writeFile(restaurantBinding,
     "fn serve() { let message = \"Table 42 remains open\" print(message) }\n" +
     "entry(serve)\n")
@@ -305,21 +310,35 @@ try {
   await writeFile(noop, "fn main() { noop(\"Other\") }\nentry(main)\n")
   await writeFile(twoCalls,
     "fn main() { print(\"a\")\nprint(\"b\") }\nentry(main)\n")
+  await writeFile(unusedBinding,
+    "fn main() { let message = \"unused\"\nprint(\"kept\") }\nentry(main)\n")
+  await writeFile(tooManyInstructions,
+    `fn main() {\n${Array.from({ length: 33 }, () => "print(\"x\")").join("\n")}\n` +
+    `}\nentry(main)\n`)
+  await writeFile(totalOutputOverflow,
+    `fn main() {\nlet message = "${"x".repeat(256)}"\n` +
+    `${Array.from({ length: 17 }, () => "print(message)").join("\n")}\n` +
+    `}\nentry(main)\n`)
   const toWsl = (path) => isWindows ? wslPath(path) : path
   residueBefore = await snapshotRunResidue()
 
   expectSuccess(binary, ["--help"], Buffer.from(expectedHelp), "w --help")
   expectSuccess(binary, ["run", "--help"], Buffer.from(expectedHelp),
     "w run --help")
-  expectSuccess(binary, ["run", toWsl(helloPath)], expectedHello,
+  expectSuccess(binary, ["run", toWsl(helloFixture)], expectedHello,
     "Hello fixture")
   expectSuccess(binary, ["run", toWsl(restaurantBinding)],
     Buffer.from("Table 42 remains open\n"), "Restaurant binding")
   expectSuccess(binary, ["run", toWsl(restaurantLiteral)],
     Buffer.from("Table 42 remains open\n"), "Restaurant literal")
+  expectSuccess(binary, ["run", toWsl(restaurantLinearFixture)],
+    Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
+    "Restaurant linear sequence")
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
-  expectSuccess(binary, ["run", toWsl(helloPath), "--", "arbitrary", "--entry", ""],
+  expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),
+    "two-call sequence")
+  expectSuccess(binary, ["run", toWsl(helloFixture), "--", "arbitrary", "--entry", ""],
     expectedHello, "forwarded program arguments")
 
   expectSourceFailure(binary, toWsl(join(fixtureDirectory, "missing.w")),
@@ -329,10 +348,14 @@ try {
   expectSourceFailure(binary, toWsl(invalidUtf8), "invalid UTF-8 source")
   expectSourceFailure(binary, toWsl(incomplete), "incomplete source")
   expectSourceFailure(binary, toWsl(noop), "unsupported noop source")
-  expectSourceFailure(binary, toWsl(twoCalls), "unsupported two-call source")
-  expectUnsupportedOption(binary, ["run", "--entry", toWsl(helloPath)],
+  expectSourceFailure(binary, toWsl(unusedBinding), "unused binding source")
+  expectSourceFailure(binary, toWsl(tooManyInstructions),
+    "too-many-instructions source")
+  expectSourceFailure(binary, toWsl(totalOutputOverflow),
+    "total-output-overflow source")
+  expectUnsupportedOption(binary, ["run", "--entry", toWsl(helloFixture)],
     "unsupported --entry option")
-  expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloPath)],
+  expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloFixture)],
     "unsupported --offline option")
 
   const residueAfter = await snapshotRunResidue()

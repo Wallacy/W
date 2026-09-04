@@ -44,7 +44,19 @@ static w_seed_native0_status run_source(
   return w_seed_native0_run(&input, &storage, &output, result);
 }
 
+static bool contains_bytes(const uint8_t *bytes, size_t length,
+                           const char *needle) {
+  if (bytes == NULL || needle == NULL) return false;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length) return false;
+  for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
+    if (memcmp(bytes + offset, needle, needle_length) == 0) return true;
+  return false;
+}
+
 static bool test_products(void) {
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-2") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-3") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -92,6 +104,29 @@ static bool test_products(void) {
                sizeof(literal_result.mlir.mlir_sha256)) == 0);
   CHECK(memcmp(literal_result.mlir.mlir_sha256, trivia_result.mlir.mlir_sha256,
                sizeof(literal_result.mlir.mlir_sha256)) == 0);
+
+  static const uint8_t linear[] =
+      "fn serve() {\n"
+      "  let message = \"Table 42 remains open\"\n"
+      "  print(message)\n"
+      "  print(\"Kitchen is ready\")\n"
+      "}\nentry(serve)\n";
+  uint8_t linear_bytes[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result linear_result;
+  CHECK(run_source(linear, sizeof(linear) - 1u, "linear-id", 9u,
+                   linear_bytes, sizeof(linear_bytes), &linear_result) ==
+        W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.instruction_count == 3u &&
+        storage.hir_program.binding_count == 1u &&
+        storage.hir_program.call_count == 2u &&
+        linear_result.mlir.written.mlir_bytes ==
+            linear_result.mlir.required.mlir_bytes);
+  CHECK(contains_bytes(
+      linear_bytes, linear_result.mlir.written.mlir_bytes,
+      "\\54\\61\\62\\6c\\65\\20\\34\\32\\20\\72\\65\\6d\\61\\69\\6e\\73\\20\\6f\\70\\65\\6e\\0a"
+      "\\4b\\69\\74\\63\\68\\65\\6e\\20\\69\\73\\20\\72\\65\\61\\64\\79\\0a"));
+  CHECK(contains_bytes(linear_bytes, linear_result.mlir.written.mlir_bytes,
+                       "!llvm.array<39 x i8>"));
   return true;
 }
 

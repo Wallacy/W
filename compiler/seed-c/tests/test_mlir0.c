@@ -1,5 +1,7 @@
 #include "w_seed_mlir0.h"
 
+#include "../src/w_seed_native_subset0.h"
+
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -31,15 +33,15 @@ enum {
   TEST_FUNCTIONS = 8,
   TEST_PARAMETERS = 8,
   TEST_ENTRIES = 4,
-  TEST_STATEMENTS = 32,
-  TEST_EXPRESSIONS = 64,
-  TEST_ARGUMENTS = 32,
-  TEST_SYMBOLS = 32,
+  TEST_STATEMENTS = 64,
+  TEST_EXPRESSIONS = 128,
+  TEST_ARGUMENTS = 64,
+  TEST_SYMBOLS = 64,
   TEST_FACTS = 16,
   TEST_DIAGNOSTICS = 8,
   TEST_RECEIPT = 65536,
   TEST_HIR_IDENTITIES = 32,
-  TEST_HIR_RECORDS = 32,
+  TEST_HIR_RECORDS = 64,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
   TEST_HIR_RECEIPT = 256,
@@ -312,6 +314,48 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static bool append_text(char *buffer, size_t capacity, size_t *offset,
+                        const char *text) {
+  if (buffer == NULL || offset == NULL || text == NULL || *offset > capacity)
+    return false;
+  const size_t length = strlen(text);
+  if (length > capacity - *offset) return false;
+  (void)memcpy(buffer + *offset, text, length);
+  *offset += length;
+  return true;
+}
+
+static bool build_call_source(char *buffer, size_t capacity, size_t calls) {
+  size_t offset = 0u;
+  if (!append_text(buffer, capacity, &offset, "fn main() { ")) return false;
+  for (size_t call = 0u; call < calls; call += 1u)
+    if (!append_text(buffer, capacity, &offset, "print(\"x\")\n"))
+      return false;
+  if (!append_text(buffer, capacity, &offset, "}\nentry(main)\n")) return false;
+  if (offset >= capacity) return false;
+  buffer[offset] = '\0';
+  return true;
+}
+
+static bool build_binding_call_source(char *buffer, size_t capacity,
+                                      size_t payload_bytes, size_t calls) {
+  size_t offset = 0u;
+  if (!append_text(buffer, capacity, &offset,
+                   "fn main() { let message = \""))
+    return false;
+  if (payload_bytes > capacity - offset) return false;
+  (void)memset(buffer + offset, 'x', payload_bytes);
+  offset += payload_bytes;
+  if (!append_text(buffer, capacity, &offset, "\"\n")) return false;
+  for (size_t call = 0u; call < calls; call += 1u)
+    if (!append_text(buffer, capacity, &offset, "print(message)\n"))
+      return false;
+  if (!append_text(buffer, capacity, &offset, "}\nentry(main)\n")) return false;
+  if (offset >= capacity) return false;
+  buffer[offset] = '\0';
+  return true;
+}
+
 static bool test_direct_products(void) {
   static const uint8_t hello[] =
       "fn main() { print(\"Hello, world!\") }\nentry(main)\n";
@@ -389,6 +433,199 @@ static bool test_restaurant_and_nul(void) {
   CHECK(contains_bytes(output, counts.mlir_bytes, "\\41\\00\\42\\0a"));
   CHECK(contains_bytes(output, counts.mlir_bytes, "!llvm.array<4 x i8>"));
   CHECK(output[counts.mlir_bytes] == 0x6du);
+  return true;
+}
+
+static bool expect_sequence_unsupported(void) {
+  const w_seed_mlir0_input input = mlir_input();
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(output, 0x91u, sizeof(output));
+  w_seed_mlir0_counts counts;
+  (void)memset(&counts, 0x72u, sizeof(counts));
+  const w_seed_mlir0_counts counts_snapshot = counts;
+  w_seed_mlir0_result result;
+  (void)memset(&result, 0x82u, sizeof(result));
+  const w_seed_mlir0_result result_snapshot = result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&counts, &counts_snapshot, sizeof(counts)) == 0);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  CHECK(w_seed_mlir0_emit(&input, &TARGET,
+                         &(w_seed_mlir0_output){output, sizeof(output)},
+                         &result) == W_SEED_MLIR0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0x91u);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
+static bool test_linear_sequence(void) {
+  static const uint8_t mixed[] =
+      "fn serve() {\n"
+      "  let message = \"Table 42 remains open\"\n"
+      "  print(message)\n"
+      "  print(\"Kitchen is ready\")\n"
+      "}\nentry(serve)\n";
+  static const uint8_t direct[] =
+      "fn serve() {\n"
+      "  print(\"Table 42 remains open\")\n"
+      "  print(\"Kitchen is ready\")\n"
+      "}\nentry(serve)\n";
+  uint8_t mixed_artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t direct_artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts mixed_counts;
+  w_seed_mlir0_counts direct_counts;
+  w_seed_mlir0_result mixed_result;
+  w_seed_mlir0_result direct_result;
+  CHECK(lower_hir(mixed, sizeof(mixed) - 1u));
+  CHECK(fixture.hir_program.instruction_count == 3u &&
+        fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.call_count == 2u &&
+        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_CONST_STRING);
+  CHECK(measure_current(&mixed_counts, &mixed_result));
+  CHECK(mixed_counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES);
+  CHECK(emit_current(mixed_artifact, sizeof(mixed_artifact), &mixed_result));
+  CHECK(contains_bytes(
+      mixed_artifact, mixed_counts.mlir_bytes,
+      "\\54\\61\\62\\6c\\65\\20\\34\\32\\20\\72\\65\\6d\\61\\69\\6e\\73\\20\\6f\\70\\65\\6e\\0a"
+      "\\4b\\69\\74\\63\\68\\65\\6e\\20\\69\\73\\20\\72\\65\\61\\64\\79\\0a"));
+  CHECK(contains_bytes(mixed_artifact, mixed_counts.mlir_bytes,
+                       "!llvm.array<39 x i8>"));
+
+  uint8_t short_sequence_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(short_sequence_output, 0x6eu, sizeof(short_sequence_output));
+  w_seed_mlir0_result short_sequence_result;
+  (void)memset(&short_sequence_result, 0x7fu,
+               sizeof(short_sequence_result));
+  const w_seed_mlir0_result short_sequence_snapshot = short_sequence_result;
+  CHECK(w_seed_mlir0_emit(
+            &(w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result},
+            &TARGET,
+            &(w_seed_mlir0_output){short_sequence_output,
+                                   mixed_counts.mlir_bytes - 1u},
+            &short_sequence_result) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(short_sequence_output); index += 1u)
+    CHECK(short_sequence_output[index] == 0x6eu);
+  CHECK(memcmp(&short_sequence_result, &short_sequence_snapshot,
+               sizeof(short_sequence_result)) == 0);
+
+  CHECK(lower_hir(direct, sizeof(direct) - 1u));
+  CHECK(fixture.hir_program.instruction_count == 2u &&
+        fixture.hir_program.binding_count == 0u &&
+        fixture.hir_program.call_count == 2u);
+  CHECK(measure_current(&direct_counts, &direct_result));
+  CHECK(emit_current(direct_artifact, sizeof(direct_artifact),
+                     &direct_result));
+  CHECK(mixed_counts.mlir_bytes == direct_counts.mlir_bytes &&
+        memcmp(mixed_artifact, direct_artifact, mixed_counts.mlir_bytes) == 0 &&
+        memcmp(mixed_result.mlir_sha256, direct_result.mlir_sha256,
+               sizeof(mixed_result.mlir_sha256)) == 0);
+
+  static const uint8_t repeated[] =
+      "fn main() {\n"
+      "  let message = \"x\"\n"
+      "  print(message)\n"
+      "  print(message)\n"
+      "}\nentry(main)\n";
+  CHECK(lower_hir(repeated, sizeof(repeated) - 1u));
+  CHECK(fixture.hir_program.instruction_count == 3u &&
+        fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.call_count == 2u);
+  w_seed_mlir0_counts repeated_counts;
+  w_seed_mlir0_result repeated_result;
+  CHECK(measure_current(&repeated_counts, &repeated_result));
+  CHECK(repeated_result.required.mlir_bytes == repeated_counts.mlir_bytes);
+  (void)memset(mixed_artifact, 0x5au, sizeof(mixed_artifact));
+  CHECK(emit_current(mixed_artifact, sizeof(mixed_artifact), &repeated_result));
+  CHECK(contains_bytes(mixed_artifact, repeated_counts.mlir_bytes,
+                       "\\78\\0a\\78\\0a") &&
+        contains_bytes(mixed_artifact, repeated_counts.mlir_bytes,
+                       "!llvm.array<4 x i8>"));
+
+  char source[TEST_SOURCE];
+  CHECK(build_binding_call_source(
+      source, sizeof(source), W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD - 1u, 16u));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(fixture.hir_program.instruction_count == 17u &&
+        fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.call_count == 16u);
+  w_seed_mlir0_counts stdout_limit_counts;
+  w_seed_mlir0_result stdout_limit_measured;
+  CHECK(measure_current(&stdout_limit_counts, &stdout_limit_measured));
+  CHECK(stdout_limit_counts.mlir_bytes == W_SEED_MLIR0_MAX_BYTES);
+  uint8_t stdout_limit_artifact[W_SEED_MLIR0_MAX_BYTES + 1u];
+  (void)memset(stdout_limit_artifact, 0x4cu, sizeof(stdout_limit_artifact));
+  w_seed_mlir0_result stdout_limit_short;
+  (void)memset(&stdout_limit_short, 0x5du, sizeof(stdout_limit_short));
+  const w_seed_mlir0_result stdout_limit_short_snapshot = stdout_limit_short;
+  const w_seed_mlir0_input stdout_limit_input = mlir_input();
+  CHECK(w_seed_mlir0_emit(
+            &stdout_limit_input, &TARGET,
+            &(w_seed_mlir0_output){stdout_limit_artifact,
+                                   stdout_limit_counts.mlir_bytes - 1u},
+            &stdout_limit_short) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(stdout_limit_artifact); index += 1u)
+    CHECK(stdout_limit_artifact[index] == 0x4cu);
+  CHECK(memcmp(&stdout_limit_short, &stdout_limit_short_snapshot,
+               sizeof(stdout_limit_short)) == 0);
+  w_seed_mlir0_result stdout_limit_emitted;
+  (void)memset(stdout_limit_artifact, 0x6eu, sizeof(stdout_limit_artifact));
+  CHECK(w_seed_mlir0_emit(
+            &stdout_limit_input, &TARGET,
+            &(w_seed_mlir0_output){stdout_limit_artifact,
+                                   stdout_limit_counts.mlir_bytes},
+            &stdout_limit_emitted) == W_SEED_MLIR0_OK);
+  CHECK(stdout_limit_emitted.status == W_SEED_MLIR0_OK &&
+        stdout_limit_emitted.required.mlir_bytes ==
+            stdout_limit_counts.mlir_bytes &&
+        stdout_limit_emitted.written.mlir_bytes ==
+            stdout_limit_counts.mlir_bytes &&
+        memcmp(stdout_limit_emitted.mlir_sha256,
+               stdout_limit_measured.mlir_sha256,
+               sizeof(stdout_limit_emitted.mlir_sha256)) == 0 &&
+        stdout_limit_artifact[stdout_limit_counts.mlir_bytes] == 0x6eu);
+  CHECK(contains_bytes(stdout_limit_artifact, stdout_limit_counts.mlir_bytes,
+                       "!llvm.array<4096 x i8>"));
+
+  CHECK(build_call_source(source, sizeof(source),
+                          W_SEED_NATIVE_SUBSET0_MAX_CALLS));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(fixture.hir_program.instruction_count == 32u &&
+        fixture.hir_program.call_count == 32u &&
+        fixture.hir_program.binding_count == 0u);
+  w_seed_mlir0_counts limit_counts;
+  w_seed_mlir0_result limit_result;
+  CHECK(measure_current(&limit_counts, &limit_result));
+  CHECK(limit_result.required.mlir_bytes < W_SEED_MLIR0_MAX_BYTES);
+  CHECK(emit_current(mixed_artifact, sizeof(mixed_artifact), &limit_result));
+  CHECK(contains_bytes(mixed_artifact, limit_counts.mlir_bytes,
+                       "!llvm.array<64 x i8>"));
+
+  CHECK(build_call_source(source, sizeof(source),
+                          W_SEED_NATIVE_SUBSET0_MAX_CALLS + 1u));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(fixture.hir_program.instruction_count == 33u &&
+        fixture.hir_program.call_count == 33u);
+  CHECK(expect_sequence_unsupported());
+
+  CHECK(build_binding_call_source(
+      source, sizeof(source), W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD, 17u));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(fixture.hir_program.instruction_count == 18u &&
+        fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.call_count == 17u);
+  CHECK(expect_sequence_unsupported());
+
+  static const uint8_t unused[] =
+      "fn main() {\n"
+      "  let unused = \"x\"\n"
+      "  print(\"y\")\n"
+      "}\nentry(main)\n";
+  CHECK(lower_hir(unused, sizeof(unused) - 1u));
+  CHECK(fixture.hir_program.binding_count == 1u &&
+        fixture.hir_program.call_count == 1u);
+  CHECK(expect_sequence_unsupported());
   return true;
 }
 
@@ -622,6 +859,7 @@ static bool test_valid_hir_outside_subset(void) {
 int main(void) {
   if (!test_direct_products()) return 1;
   if (!test_restaurant_and_nul()) return 1;
+  if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;
   if (!test_aliases()) return 1;
   if (!test_invalid_hir_and_target()) return 1;

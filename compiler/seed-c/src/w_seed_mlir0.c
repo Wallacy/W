@@ -11,9 +11,8 @@ enum {
   MLIR0_NEWLINE_BYTES = 1,
   MLIR0_ESCAPE_BYTES_PER_INPUT = 3,
   MLIR0_DECIMAL_FIELDS = 4,
-  MLIR0_DECIMAL_MAX_BYTES = 3,
-  MLIR0_MAX_STDOUT_BYTES =
-      W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES,
+  MLIR0_DECIMAL_MAX_BYTES = 4,
+  MLIR0_MAX_STDOUT_BYTES = W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES,
 };
 
 static const char MLIR0_SCHEMA_COMMENT[] =
@@ -56,19 +55,20 @@ static const char MLIR0_HEX[] = "0123456789abcdef";
    (sizeof(MLIR0_LENGTH_MIDDLE) - 1u) + (sizeof(MLIR0_GEP_SUFFIX) - 1u) +    \
    (sizeof(MLIR0_RETURN_SUFFIX) - 1u))
 #define MLIR0_VARIABLE_ESCAPED_BYTES                                         \
-  (((size_t)W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD + MLIR0_NEWLINE_BYTES) *       \
-   MLIR0_ESCAPE_BYTES_PER_INPUT)
+  ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT)
 #define MLIR0_DECIMAL_BYTES                                                   \
   ((size_t)MLIR0_DECIMAL_FIELDS * MLIR0_DECIMAL_MAX_BYTES)
+#define MLIR0_REQUIRED_MAX_BYTES                                              \
+  (MLIR0_FIXED_LITERAL_BYTES + MLIR0_VARIABLE_ESCAPED_BYTES +                \
+   MLIR0_DECIMAL_BYTES)
 
 _Static_assert(CHAR_BIT == 8, "w-seed MLIR0 requires 8-bit bytes");
-_Static_assert(MLIR0_MAX_STDOUT_BYTES <= 999u,
+_Static_assert(MLIR0_MAX_STDOUT_BYTES <= 9999u,
                "w-seed MLIR0 decimal fields must cover the bounded stdout size");
-_Static_assert(
-    MLIR0_FIXED_LITERAL_BYTES + MLIR0_VARIABLE_ESCAPED_BYTES +
-            MLIR0_DECIMAL_BYTES <=
-        W_SEED_MLIR0_MAX_BYTES,
-    "w-seed MLIR0 artifact bound must cover every literal, escape and decimal");
+_Static_assert(MLIR0_FIXED_LITERAL_BYTES == 886u,
+               "w-seed MLIR0 fixed artifact literals changed");
+_Static_assert(MLIR0_REQUIRED_MAX_BYTES == W_SEED_MLIR0_MAX_BYTES,
+               "w-seed MLIR0 artifact bound must be the derived maximum");
 
 static bool range_end(uintptr_t start, size_t length, uintptr_t *end) {
   if (end == NULL || length > UINTPTR_MAX - start) return false;
@@ -151,23 +151,43 @@ bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target) {
 }
 
 static bool build_artifact(
-    const w_seed_native_subset0_selection *selection,
+    const w_seed_native_subset0_sequence *sequence,
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
-  if (selection == NULL || !target_is_supported(target) || artifact == NULL ||
+  if (sequence == NULL || !target_is_supported(target) || artifact == NULL ||
       written == NULL || digest == NULL ||
-      selection->payload_bytes > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD ||
-      selection->payload_bytes > SIZE_MAX - MLIR0_NEWLINE_BYTES ||
-      (selection->payload_bytes != 0u && selection->payload == NULL))
+      sequence->instruction_count == 0u ||
+      sequence->instruction_count > W_SEED_NATIVE_SUBSET0_MAX_INSTRUCTIONS ||
+      sequence->call_count == 0u ||
+      sequence->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS ||
+      sequence->binding_count > W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
+      sequence->binding_count > sequence->instruction_count ||
+      sequence->call_count > sequence->instruction_count ||
+      sequence->instruction_count - sequence->call_count !=
+          sequence->binding_count ||
+      sequence->stdout_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES)
     return false;
-  const size_t stdout_bytes =
-      selection->payload_bytes + MLIR0_NEWLINE_BYTES;
+  size_t stdout_bytes = 0u;
   size_t offset = 0u;
   if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_PREFIX) ||
-      !append_escaped_bytes(artifact, capacity, &offset, selection->payload,
-                             selection->payload_bytes) ||
-      !append_hex_byte(artifact, capacity, &offset, 0x0au) ||
+      !append_literal(artifact, capacity, &offset, MLIR0_PREFIX))
+    return false;
+  for (size_t call = 0u; call < sequence->call_count; call += 1u) {
+    const w_seed_native_subset0_call_selection *item =
+        &sequence->calls[call];
+    if (item->payload_bytes > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD ||
+        (item->payload_bytes != 0u && item->payload == NULL) ||
+        item->payload_bytes > SIZE_MAX - MLIR0_NEWLINE_BYTES)
+      return false;
+    const size_t line_bytes = item->payload_bytes + MLIR0_NEWLINE_BYTES;
+    if (stdout_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - line_bytes ||
+        !append_escaped_bytes(artifact, capacity, &offset, item->payload,
+                               item->payload_bytes) ||
+        !append_hex_byte(artifact, capacity, &offset, 0x0au))
+      return false;
+    stdout_bytes += line_bytes;
+  }
+  if (stdout_bytes != sequence->stdout_bytes ||
       !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_MIDDLE) ||
       !append_size(artifact, capacity, &offset, stdout_bytes) ||
       !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_SUFFIX) ||
@@ -309,10 +329,10 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       counts == NULL || result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
-  w_seed_native_subset0_selection selection;
+  w_seed_native_subset0_sequence sequence;
   const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select(input->program, input->hir_result,
-                                   &selection);
+      w_seed_native_subset0_select_sequence(input->program, input->hir_result,
+                                            &sequence);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -323,7 +343,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(&selection, target, artifact, sizeof(artifact), &written,
+  if (!build_artifact(&sequence, target, artifact, sizeof(artifact), &written,
                       digest))
     return W_SEED_MLIR0_INVALID_HIR;
   const w_seed_mlir0_counts candidate_counts = {written};
@@ -344,10 +364,10 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
-  w_seed_native_subset0_selection selection;
+  w_seed_native_subset0_sequence sequence;
   const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select(input->program, input->hir_result,
-                                   &selection);
+      w_seed_native_subset0_select_sequence(input->program, input->hir_result,
+                                            &sequence);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -358,7 +378,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(&selection, target, artifact, sizeof(artifact), &written,
+  if (!build_artifact(&sequence, target, artifact, sizeof(artifact), &written,
                       digest))
     return W_SEED_MLIR0_INVALID_HIR;
   if (output_buffer_aliases(input, target, output, result, written))

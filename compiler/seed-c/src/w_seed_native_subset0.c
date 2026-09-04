@@ -183,3 +183,211 @@ w_seed_native_subset0_status w_seed_native_subset0_select(
   }
   return W_SEED_NATIVE_SUBSET0_OK;
 }
+
+static bool sequence_stdout_add(size_t current, size_t payload_bytes,
+                                size_t *next) {
+  if (next == NULL || payload_bytes > SIZE_MAX - 1u) return false;
+  const size_t line_bytes = payload_bytes + 1u;
+  if (current > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+      line_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - current)
+    return false;
+  *next = current + line_bytes;
+  return true;
+}
+
+w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_sequence *sequence) {
+  if (program == NULL || hir_result == NULL || sequence == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+
+  if (program->module_count != 1u || program->function_count != 1u ||
+      program->parameter_count != 0u || program->block_count != 1u ||
+      program->instruction_count == 0u ||
+      program->instruction_count > W_SEED_NATIVE_SUBSET0_MAX_INSTRUCTIONS ||
+      program->call_count == 0u ||
+      program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS ||
+      program->binding_count > W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
+      program->binding_count > program->instruction_count ||
+      program->call_count > program->instruction_count ||
+      program->instruction_count - program->call_count !=
+          program->binding_count ||
+      program->argument_count != program->call_count ||
+      program->value_count != program->call_count ||
+      program->requirement_count != 1u || program->terminator_count != 1u ||
+      program->entry_count != 1u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  w_seed_native_subset0_sequence candidate;
+  (void)memset(&candidate, 0, sizeof(candidate));
+  candidate.entry = &program->entries[0];
+  if (candidate.entry->target_function >= program->function_count ||
+      candidate.entry->target_name.count == 0u ||
+      !text_is(program, candidate.entry->slot, NATIVE_SUBSET0_SLOT,
+               sizeof(NATIVE_SUBSET0_SLOT) - 1u))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  candidate.function =
+      &program->functions[candidate.entry->target_function];
+  if (!text_equal(program, candidate.function->name,
+                  candidate.entry->target_name) ||
+      candidate.function->name.count == 0u ||
+      candidate.function->parameter_count != 0u ||
+      candidate.function->return_type >= program->type_count ||
+      program->types[candidate.function->return_type].kind !=
+          W_SEED_HIR0_TYPE_UNIT ||
+      candidate.function->is_async || candidate.function->is_throws ||
+      candidate.function->is_unsafe || candidate.function->has_borrow_clause ||
+      candidate.function->block_count != 1u ||
+      candidate.function->first_block >= program->block_count)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  candidate.block = &program->blocks[candidate.function->first_block];
+  if (candidate.block->instruction_count != program->instruction_count ||
+      candidate.block->first_instruction >
+          program->instruction_count - candidate.block->instruction_count ||
+      candidate.block->terminator_index >= program->terminator_count)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  size_t binding_cursor = 0u;
+  size_t call_cursor = 0u;
+  size_t binding_reads[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {0u};
+  for (size_t ordinal = 0u; ordinal < program->instruction_count;
+       ordinal += 1u) {
+    const size_t instruction_index =
+        (size_t)candidate.block->first_instruction + ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != candidate.function->first_block ||
+        instruction->ordinal != ordinal || instruction->result_type >=
+                                               program->type_count ||
+        program->types[instruction->result_type].kind !=
+            W_SEED_HIR0_TYPE_UNIT)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (binding_cursor >= program->binding_count ||
+          instruction->binding_index != binding_cursor ||
+          instruction->call_index != W_SEED_HIR0_NONE)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      const w_seed_hir0_binding *binding = &program->bindings[binding_cursor];
+      if (binding->owner_instruction != instruction_index ||
+          binding->owner_block != candidate.function->first_block ||
+          binding->ordinal != ordinal || binding->is_mutable ||
+          binding->type_index >= program->type_count ||
+          program->types[binding->type_index].kind !=
+              W_SEED_HIR0_TYPE_STRING ||
+          binding->name.count == 0u ||
+          binding->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      candidate.bindings[binding_cursor] = binding;
+      binding_cursor += 1u;
+      continue;
+    }
+
+    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        call_cursor >= program->call_count ||
+        instruction->call_index != call_cursor ||
+        instruction->binding_index != W_SEED_HIR0_NONE)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    const w_seed_hir0_call *call = &program->calls[call_cursor];
+    if (call->owner_instruction != instruction_index ||
+        call->owner_block != candidate.function->first_block ||
+        call->ordinal != ordinal || call->argument_count != 1u ||
+        call->requirement_count != 1u ||
+        call->callee_identity >= program->identity_count ||
+        call->first_argument >= program->argument_count ||
+        call->first_requirement >= program->requirement_count ||
+        call->result_type >= program->type_count ||
+        program->types[call->result_type].kind != W_SEED_HIR0_TYPE_UNIT)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+    const w_seed_hir0_identity *callee =
+        &program->identities[call->callee_identity];
+    const w_seed_hir0_requirement *requirement =
+        &program->requirements[call->first_requirement];
+    if (callee->kind != W_SEED_HIR0_IDENTITY_HOST_PRELUDE ||
+        !text_is(program, callee->name, NATIVE_SUBSET0_CALLEE,
+                 sizeof(NATIVE_SUBSET0_CALLEE) - 1u) ||
+        !text_is(program, callee->profile, NATIVE_SUBSET0_PROFILE,
+                 sizeof(NATIVE_SUBSET0_PROFILE) - 1u) ||
+        requirement->owner_kind != W_SEED_HIR0_REQUIREMENT_HOST_IDENTITY ||
+        requirement->owner_index != call->callee_identity ||
+        !text_is(program, requirement->name, NATIVE_SUBSET0_REQUIREMENT,
+                 sizeof(NATIVE_SUBSET0_REQUIREMENT) - 1u))
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+    const w_seed_hir0_argument *argument =
+        &program->arguments[call->first_argument];
+    if (argument->owner_call != call_cursor || argument->ordinal != 0u ||
+        argument->type_index >= program->type_count ||
+        program->types[argument->type_index].kind !=
+            W_SEED_HIR0_TYPE_STRING ||
+        argument->label_kind != W_SEED_HIR0_LABEL_POSITIONAL_ONLY ||
+        argument->label.count != 0u ||
+        argument->value_index >= program->value_count)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    const w_seed_hir0_value *value = &program->values[argument->value_index];
+    if (value->owner_argument != call->first_argument ||
+        value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_STRING)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+    const w_seed_hir0_binding *binding = NULL;
+    const uint8_t *payload = NULL;
+    size_t payload_bytes = 0u;
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING) {
+      if (value->binding_index != W_SEED_HIR0_NONE ||
+          value->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      payload_bytes = value->byte_count;
+      payload = payload_bytes == 0u
+                    ? NULL
+                    : program->value_bytes + value->byte_offset;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+      if (value->binding_index == W_SEED_HIR0_NONE ||
+          (size_t)value->binding_index >= binding_cursor ||
+          value->byte_offset != 0u || value->byte_count != 0u)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      binding = candidate.bindings[value->binding_index];
+      if (binding == NULL || binding->owner_instruction >= instruction_index ||
+          binding->owner_block != candidate.function->first_block ||
+          binding_reads[value->binding_index] == SIZE_MAX)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      binding_reads[value->binding_index] += 1u;
+      payload_bytes = binding->byte_count;
+      payload = payload_bytes == 0u
+                    ? NULL
+                    : program->value_bytes + binding->byte_offset;
+    } else {
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    }
+    size_t stdout_bytes = 0u;
+    if (!sequence_stdout_add(candidate.stdout_bytes, payload_bytes,
+                             &stdout_bytes))
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    candidate.calls[call_cursor] = (w_seed_native_subset0_call_selection){
+        .instruction = instruction,
+        .call = call,
+        .callee = callee,
+        .requirement = requirement,
+        .argument = argument,
+        .value = value,
+        .payload = payload,
+        .payload_bytes = payload_bytes};
+    candidate.stdout_bytes = stdout_bytes;
+    call_cursor += 1u;
+  }
+
+  if (binding_cursor != program->binding_count ||
+      call_cursor != program->call_count)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  for (size_t binding = 0u; binding < binding_cursor; binding += 1u)
+    if (binding_reads[binding] == 0u) return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  candidate.instruction_count = program->instruction_count;
+  candidate.binding_count = binding_cursor;
+  candidate.call_count = call_cursor;
+  *sequence = candidate;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}
