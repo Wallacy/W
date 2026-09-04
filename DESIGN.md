@@ -35334,7 +35334,8 @@ The frontend uses schema `w-seed-frontend-11`. It separates
 Resolution is lexical and linear in source order. It accepts only one
 unambiguous prior binding. Downstream consumers do not perform name lookup.
 
-HIR0 uses schema `w-seed-hir0-2`. It adds the caller-owned
+W-1519 introduced schema `w-seed-hir0-2`; current HIR0 schema
+`w-seed-hir0-3` preserves this binding contract. It adds the caller-owned
 `w_seed_hir0_binding` record with `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`,
 and `is_mutable=false`. The binding ordinal equals the instruction ordinal.
@@ -35479,7 +35480,8 @@ W-1522 is the current `source-backed-current` decision for the NAT1 product
 cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
 MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; no legacy
 adapter is retained. W-1523 later advances the frontend schema without
-widening the NAT1 selector; HIR0 schema `w-seed-hir0-2` remains unchanged. The primary route is
+widening the NAT1 selector. W-1524 later advances HIR0 to
+`w-seed-hir0-3` while preserving this NAT1 selection contract. The primary route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
 clang/native`, directly and without HLO0, HLO1, or RUN0.
 
@@ -35535,8 +35537,8 @@ It advances the frontend schema to `w-seed-frontend-12`. It does not widen
 HIR0, MLIR0, Native0, or public `w run`.
 
 **Example:** the frontend preserves the text and arithmetic as two ordered
-segments; HIR0 rejects the represented value until its next schema adds the
-required integer, arithmetic, and interpolation records.
+segments. At the W-1523 boundary, HIR0 rejected the represented value until
+W-1524 added the required integer, arithmetic, and interpolation records.
 
 ```w
 fn answer(): String {
@@ -35576,18 +35578,66 @@ one dedicated record in both passes.
 
 Segment count and capacity are part of frontend measure/run. Short segment
 capacity fails before publication and preserves every caller-owned output
-buffer. HIR0 validates the new frontend array shape and alias range, but still
-rejects interpolated expressions as outside its schema-v2 subset. The next
-finite milestone must add verified integer, arithmetic, and interpolation
-records to HIR and lower Display formatting through MLIR. Until that
-milestone, the Restaurant arithmetic witness is not a native product and no
-precomputed text or special `printInt` path is allowed.
+buffer. At this decision boundary, HIR0 validated the new frontend array shape
+and alias range but rejected interpolated expressions as outside schema v2.
+W-1524 later adds the verified HIR records. Display formatting through MLIR
+remains a separate milestone. Until that milestone, the Restaurant arithmetic
+witness is not a native product and no precomputed text or special `printInt`
+path is allowed.
 
 The focused evidence covers `"The answer is ${6 * 7}"`, nested grouping,
 literal-event identity, dense segment ownership, exact text bytes, canonical
 `i64` typing, empty interpolation rejection, short capacity, and unchanged
-HIR0 rejection. `benchmarkDisposition` is `compiler-lifecycle`,
+HIR0 rejection at the W-1523 boundary. W-1524 later adds the verified HIR
+representation without changing this frontend contract. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only. No timing or performance result is published.
+
+#### 26.4.1.8 W-1524 — typed topological interpolation values in verified HIR0 (Current form)
+
+W-1524 advances HIR0 to schema `w-seed-hir0-3`. The schema has four canonical
+built-in type records in fixed order: Unit, String, signed `i64`, and Bool.
+It represents String constants and binding reads as before, and adds signed
+`i64` constants, Bool constants, signed-`i64` binary arithmetic, interpolated
+String values, and ordered interpolation-segment records.
+
+Values form a bounded postorder graph. Every child precedes its parent. A
+root value is owned by exactly one call argument; binary children are owned
+by the parent value at ordinal zero or one; an embedded interpolation value
+is owned by exactly one value segment. Parentheses do not create HIR values.
+An interpolated String owns one dense segment range. A text segment owns a
+slice in `value_bytes`; a value segment points to one earlier typed HIR value.
+These reverse ownership facts make the graph independently verifiable without
+frontend records or source reparsing.
+
+The current lowering accepts non-negative signed-`i64` literals, Bool and
+String values, the binary operators `+`, `-`, `*`, `/`, and `%`, and the
+frontend String interpolation subset from W-1523. It retains operations; it
+does not evaluate `6 * 7` during HIR construction. Local bindings remain the
+existing immutable String-only cut. Nested interpolation remains outside this
+bounded schema cut.
+
+Counts, capacities, output/input alias checks, `program_from_output`, semantic
+and provenance digests, and the receipt include interpolation segments and all
+new value fields. Verification checks dense value and segment order, exact
+owners and ordinals, type and operator domains, source spans, complete byte
+coverage without gaps or overlaps, and the postorder edges. Measure and run
+remain caller-owned, no-heap, deterministic, and all-or-nothing.
+
+The focused witness lowers:
+
+```w
+fn main() {
+  print(message: "The answer is ${6 * 7}", suffix: "!")
+}
+entry(main)
+```
+
+to typed HIR records for `6`, `7`, multiplication, the interpolated String,
+and the suffix. MLIR0, Native0, and public `w run` do not yet accept the new
+value kinds. Display formatting, arithmetic lowering, native output, general
+expressions, negative integer literals, overflow policy, and performance
+remain later milestones. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only; no timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

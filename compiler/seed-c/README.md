@@ -862,7 +862,8 @@ autoridade para o lowering. Famílias frontend sem record HIR0 falham fechadas.
 Labels host required copiam o nome público, positional usa label vazio e
 qualquer outra policy permanece fora deste subset.
 
-W-1519 extends HIR0 to schema `w-seed-hir0-2`. The caller-owned
+W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
+Current schema `w-seed-hir0-3` preserves that contract. The caller-owned
 `w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`,
 and `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries
@@ -875,6 +876,20 @@ verifier requires owner, order, type, span, dense ranges, prior binding order,
 and contiguous initializer bytes without gap or overlap. Alias barriers remain
 fail-closed. Lowering copies binding names and bytes. It never performs
 downstream textual lookup.
+
+W-1524 advances HIR0 to schema `w-seed-hir0-3`. The canonical type table now
+contains Unit, String, signed `i64`, and Bool. `w_seed_hir0_value` is a typed
+postorder graph with explicit argument, binary-parent, or interpolation-segment
+ownership. `w_seed_hir0_interpolation_segment` discriminates copied text bytes
+from an embedded typed value. Parentheses normalize away; arithmetic remains a
+binary operation and is not evaluated during HIR construction.
+
+The focused HIR unit lowers `"The answer is ${6 * 7}"` to `i64(6)`, `i64(7)`,
+`multiply`, and `interpolated String` values plus two ordered segments. It also
+checks short segment capacity, output aliases, graph-edge mutations, segment
+ownership, exact bytes, digests, and receipts. MLIR0 and Native0 intentionally
+reject these new value kinds until the next lowering milestone implements
+arithmetic and Display formatting.
 
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,

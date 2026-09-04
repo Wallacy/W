@@ -164,6 +164,9 @@ static w_seed_native0_status prepare_frontend(
       .expression_capacity = W_SEED_NATIVE0_EXPRESSIONS,
       .arguments = storage->arguments,
       .argument_capacity = W_SEED_NATIVE0_ARGUMENTS,
+      .interpolation_segments = storage->interpolation_segments,
+      .interpolation_segment_capacity =
+          W_SEED_NATIVE0_INTERPOLATION_SEGMENTS,
       .symbols = storage->symbols,
       .symbol_capacity = W_SEED_NATIVE0_SYMBOLS,
       .facts = storage->facts,
@@ -250,6 +253,8 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
       .requirement_capacity = W_SEED_NATIVE0_HIR_RECORDS,
       .values = storage->hir_values,
       .value_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .interpolation_segments = storage->hir_interpolation_segments,
+      .interpolation_segment_capacity = W_SEED_NATIVE0_HIR_RECORDS,
       .terminators = storage->hir_terminators,
       .terminator_capacity = W_SEED_NATIVE0_HIR_RECORDS,
       .entries = storage->hir_entries,

@@ -2485,7 +2485,7 @@
         "source": [
           "fn answer(): String { return \"The answer is ${6 * 7}\" }",
           "frontend: INTERPOLATED_STRING(TEXT(\"The answer is \"), EXPRESSION(MULTIPLY(i64(6), i64(7))))",
-          "HIR0: unsupported without output publication"
+          "HIR0 v2 boundary: unsupported without output publication; W-1524 later adds schema-v3 lowering"
         ]
       },
       "alternatives": [
@@ -2520,14 +2520,63 @@
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "symbol": "test_interpolation_stops_at_hir0_boundary",
-          "claim": "HIR0 rejects the new frontend shape without mutating measure or output buffers."
+          "symbol": "test_typed_interpolation_value_tree",
+          "claim": "The later HIR test consumes the unchanged W-1523 frontend segment shape without reparsing source text."
         }
       ],
       "checks": [
         "bun run check:seed-parser — structured interpolation CST",
         "bun run check:seed-frontend — schema-v12 interpolation projection",
-        "bun run check:hir0 — explicit unsupported stage boundary"
+        "bun run check:hir0 — schema-v3 consumes the preserved frontend records in the later W-1524 milestone"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-hir0-typed-interpolation",
+      "reviewItem": "typed topological interpolation HIR against precomputed output, source reparsing, and witness-specific print paths.",
+      "decisions": ["W-1524"],
+      "task": "Carry interpolation arithmetic through an independently verified HIR graph before implementing MLIR Display lowering.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "print(message: \"The answer is ${6 * 7}\", suffix: \"!\")",
+          "HIR0: i64(6), i64(7), multiply(0, 1), interpolate(text, value(2)), String(\"!\")"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "source": ["HIR0: String(\"The answer is 42\")"],
+          "expectedDifference": "HIR0 retains typed constants, multiplication, and ordered interpolation segments; it does not fold the witness into output bytes."
+        },
+        {
+          "name": "source-reparse-or-special-host-call",
+          "language": "w-rejected",
+          "source": ["MLIR0 reparses ${...}", "printInt(6 * 7)"],
+          "expectedDifference": "Every downstream consumer receives verified typed records and must not inspect source syntax or select a witness-specific host operation."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_value",
+          "claim": "HIR0 schema v3 defines typed postorder values, discriminated ownership, and interpolation segments."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "emit_value_tree_unchecked",
+          "claim": "Lowering preserves typed operations and ordered segments after a complete transactional preflight."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_typed_interpolation_value_tree",
+          "claim": "The unit proves the exact graph, bytes, capacities, aliases, mutations, digest, and receipt."
+        }
+      ],
+      "checks": [
+        "bun run check:hir0 — frontend-to-HIR typed interpolation and adversarial verifier",
+        "ctest seed compiler — unchanged HLO0/MLIR0/Native0 boundaries remain green"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }

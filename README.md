@@ -41,9 +41,10 @@ sequences; HLO0/HLO1/RUN0 retain their single-print contracts.
 W-1523 advances the seed frontend to schema `w-seed-frontend-12`. The parser
 keeps literal-event identity and parses `${...}` bodies as nested expressions;
 the frontend publishes ordered text/expression segments and canonical `i64`
-typing for the current built-in interpolation subset. HIR0, MLIR0, Native0,
-and public `w run` still reject this new shape, so no native interpolation
-claim is made yet.
+typing for the current built-in interpolation subset. W-1524 advances HIR0 to
+schema `w-seed-hir0-3` and preserves those expressions as typed postorder
+values and ordered text/value segments. MLIR0, Native0, and public `w run`
+still reject the new value kinds, so no native interpolation claim is made.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -55,7 +56,7 @@ frontend normativo completo continuam gaps.
 W-1519 is `source-backed-current` for a strictly bounded immutable local
 String path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-2` copies the binding name and bytes,
+`w-seed-hir0-3` preserves that binding contract and copies the name and bytes,
 then verifies its owners, order, types, spans, dense ranges, alias barriers,
 digests, and receipt. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING`
 or exactly one `BINDING → CALL` chain with `BINDING_READ` by binding index.

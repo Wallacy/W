@@ -41,6 +41,7 @@ enum {
   W_SEED_NATIVE0_STATEMENTS = 64,
   W_SEED_NATIVE0_EXPRESSIONS = 128,
   W_SEED_NATIVE0_ARGUMENTS = 64,
+  W_SEED_NATIVE0_INTERPOLATION_SEGMENTS = 128,
   W_SEED_NATIVE0_SYMBOLS = 64,
   W_SEED_NATIVE0_FACTS = 64,
   W_SEED_NATIVE0_DIAGNOSTICS = 32,
@@ -114,6 +115,8 @@ typedef struct {
   w_seed_frontend_statement statements[W_SEED_NATIVE0_STATEMENTS];
   w_seed_frontend_expression expressions[W_SEED_NATIVE0_EXPRESSIONS];
   w_seed_frontend_argument arguments[W_SEED_NATIVE0_ARGUMENTS];
+  w_seed_frontend_interpolation_segment
+      interpolation_segments[W_SEED_NATIVE0_INTERPOLATION_SEGMENTS];
   w_seed_frontend_symbol symbols[W_SEED_NATIVE0_SYMBOLS];
   w_seed_frontend_fact facts[W_SEED_NATIVE0_FACTS];
   w_seed_frontend_diagnostic diagnostics[W_SEED_NATIVE0_DIAGNOSTICS];
@@ -144,6 +147,8 @@ typedef struct {
   w_seed_hir0_argument hir_arguments[W_SEED_NATIVE0_HIR_RECORDS];
   w_seed_hir0_requirement hir_requirements[W_SEED_NATIVE0_HIR_RECORDS];
   w_seed_hir0_value hir_values[W_SEED_NATIVE0_HIR_RECORDS];
+  w_seed_hir0_interpolation_segment
+      hir_interpolation_segments[W_SEED_NATIVE0_HIR_RECORDS];
   w_seed_hir0_terminator hir_terminators[W_SEED_NATIVE0_HIR_RECORDS];
   w_seed_hir0_entry hir_entries[W_SEED_NATIVE0_HIR_RECORDS];
   uint8_t hir_text[W_SEED_NATIVE0_HIR_TEXT];

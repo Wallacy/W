@@ -153,7 +153,9 @@ w_seed_native_subset0_status w_seed_native_subset0_select(
       selection->argument->value_index >= program->value_count)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   selection->value = &program->values[selection->argument->value_index];
-  if (selection->value->owner_argument != selection->call->first_argument ||
+  if (selection->value->owner_kind != W_SEED_HIR0_VALUE_OWNER_ARGUMENT ||
+      selection->value->owner_index != selection->call->first_argument ||
+      selection->value->owner_ordinal != 0u ||
       selection->value->type_index >= program->type_count ||
       program->types[selection->value->type_index].kind !=
           W_SEED_HIR0_TYPE_STRING)
@@ -329,7 +331,9 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
         argument->value_index >= program->value_count)
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
     const w_seed_hir0_value *value = &program->values[argument->value_index];
-    if (value->owner_argument != call->first_argument ||
+    if (value->owner_kind != W_SEED_HIR0_VALUE_OWNER_ARGUMENT ||
+        value->owner_index != call->first_argument ||
+        value->owner_ordinal != 0u ||
         value->type_index >= program->type_count ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_STRING)
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
