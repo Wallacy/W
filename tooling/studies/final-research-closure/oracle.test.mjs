@@ -3,11 +3,18 @@ import corpus from "../../final-research-closure-cases.json" with { type: "json"
 import {
   loadState,
   runFRC0Case,
+  sortResearchStateArtifacts,
   validateResearchStateInventory,
   validateCorpus,
 } from "../../final-research-closure-machine.mjs";
 
 describe("FRC0 final research closure host oracle", () => {
+  test("orders artifact paths by UTF-8 bytes", () => {
+    const bmp = "tooling/\uE000";
+    const astral = "tooling/\u{10000}";
+    expect(sortResearchStateArtifacts([astral, bmp])).toEqual([bmp, astral]);
+  });
+
   test("derives exactly one current and one rejected route per gate", () => {
     const state = loadState();
     const validation = validateCorpus(corpus);
