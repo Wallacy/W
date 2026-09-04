@@ -5196,8 +5196,8 @@ static bool nominal_test_configure_source_authority(
 
 int main(int argc, char **argv) {
   if (argc == 4 && strcmp(argv[1], "--nominal-origin-matrix") == 0) {
-    uint8_t authority_a[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
-    uint8_t authority_b[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    static uint8_t authority_a[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    static uint8_t authority_b[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
     size_t authority_a_length = 0u;
     size_t authority_b_length = 0u;
     if (!nominal_test_decode_hex(argv[2], authority_a, sizeof(authority_a),
@@ -5214,14 +5214,14 @@ int main(int argc, char **argv) {
                : 1;
   }
   if (argc == 4 && strcmp(argv[1], "--domain-witness") == 0) {
-    uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    static uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
     if (!nominal_test_configure_source_authority(
             argv[3], authority, sizeof(authority)))
       return 1;
     return probe_domain_file(argv[2], "restaurant") ? 0 : 1;
   }
   if (argc == 5 && strcmp(argv[1], "--domain-witness-module") == 0) {
-    uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
+    static uint8_t authority[W_SEED_GENERIC_VALIDATION_NOMINAL_ORIGIN_MAX_PREIMAGE_BYTES];
     if (!nominal_test_configure_source_authority(
             argv[4], authority, sizeof(authority)))
       return 1;

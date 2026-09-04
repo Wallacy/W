@@ -24,13 +24,13 @@ const opaqueClaims = new Map([
     { start: 1703, end: 2361, digest: "sha256:617756ead4a5958f78788fed610fb4ef4af390cc98d1d46af9c131aea8a698f1", profile: "C" },
   ]],
   ["reference/last-light/hardware.w", [
-    { start: 1131, end: 1334, digest: "sha256:8aede5643732489afcbb39ebfc4080689736825e9d11aca275a271fe678b5567", profile: "C" },
+    { start: 1135, end: 1338, digest: "sha256:8aede5643732489afcbb39ebfc4080689736825e9d11aca275a271fe678b5567", profile: "C" },
   ]],
   ["tooling/studies/r1-callable-property-surface/named-language-slot.w", [
     { start: 138, end: 156, digest: "sha256:e7e1fc54e6c1fb4f447c6eb3c3cf9578af05e554f0863f8bc68a242d78fbd1a3", profile: "C" },
   ]],
   ["tooling/studies/r1-callable-property-surface/property-safe-closure-island.w", [
-    { start: 290, end: 308, digest: "sha256:e7e1fc54e6c1fb4f447c6eb3c3cf9578af05e554f0863f8bc68a242d78fbd1a3", profile: "C" },
+    { start: 302, end: 320, digest: "sha256:e7e1fc54e6c1fb4f447c6eb3c3cf9578af05e554f0863f8bc68a242d78fbd1a3", profile: "C" },
   ]],
   ["reference/last-light/system_escapes.w", [
     { start: 987, end: 1025, digest: "sha256:a87ca7e8fd87ae2e7a45891ae3bcee54ac25e7caed5d3ef65b9401b766619aa2", profile: "Asm" },

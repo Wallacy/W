@@ -865,19 +865,19 @@ const standardStagePath = fragment(domain, "export fn standardStagePath", "expor
 const standardPath = /StagePath<(\[[^\]]+\])>/u.exec(standardStagePath)?.[1]
 if (!standardPath) fail("domain.w has no standard StagePath path")
 const stageUseSource = `struct Use {
-  standard: StagePath<${standardPath}>
-  standardAgain: StagePath<${standardPath}>
-  cancelled: StagePath<[.accepted, .cancelled]>
-  empty: StagePath<[]>
-  skipped: StagePath<[.accepted, .completed]>
-  duplicate: StagePath<[.accepted, .reserving, .reserving]>
+  let standard: StagePath<${standardPath}>
+  let standardAgain: StagePath<${standardPath}>
+  let cancelled: StagePath<[.accepted, .cancelled]>
+  let empty: StagePath<[]>
+  let skipped: StagePath<[.accepted, .completed]>
+  let duplicate: StagePath<[.accepted, .reserving, .reserving]>
 }
 `
 const genericUseSource = `struct GenericUse {
-  finalCall: FinalCallValue<"The final seating">
-  finalCallAgain: FinalCallValue<"The final seating">
-  mostlyHarmless: FinalCallValue<"Mostly harmless">
-  emptyCall: FinalCallValue<"">
+  let finalCall: FinalCallValue<"The final seating">
+  let finalCallAgain: FinalCallValue<"The final seating">
+  let mostlyHarmless: FinalCallValue<"Mostly harmless">
+  let emptyCall: FinalCallValue<"">
 }
 `
 /* The real associated-const body is verified above. The seed witness uses an
@@ -902,16 +902,16 @@ const ultimateAnswerValueSignature = ultimateAnswerValueMarker
 if (!ultimateAnswerValue.includes("export const expected = value"))
   fail("UltimateAnswer associated const marker is not present in the extracted source")
 const ultimateAnswerUse = `struct UltimateAnswerUse {
-  immediate: UltimateAnswer<42>
-  computed: UltimateAnswer<(6 * 7)>
-  duplicateComputed: UltimateAnswer<(6 * 7)>
-  rejected: UltimateAnswer<(6 * 6)>
+  let immediate: UltimateAnswer<42>
+  let computed: UltimateAnswer<(6 * 7)>
+  let duplicateComputed: UltimateAnswer<(6 * 7)>
+  let rejected: UltimateAnswer<(6 * 6)>
 }
 `
 const ultimateAnswerNamedUse = `struct UltimateAnswerNamedUse {
-  forward: UltimateAnswer<(forwardAnswer)>
-  duplicate: UltimateAnswer<(ultimateAnswer)>
-  rejected: UltimateAnswer<(rejectedAnswer)>
+  let forward: UltimateAnswer<(forwardAnswer)>
+  let duplicate: UltimateAnswer<(ultimateAnswer)>
+  let rejected: UltimateAnswer<(rejectedAnswer)>
 }
 `
 const domainWitness = `${orderId}\n${serviceStage}\n${canMove}\n${isValidStagePath}\n${stagePath}\n${stageUseSource}`
@@ -931,8 +931,8 @@ const explicitD5Declarations =
   "const secondAnswerHalf: i64 = answerSeed\n" +
   "export const assembledUltimateAnswer: i64 = firstAnswerHalf + secondAnswerHalf\n"
 const d5Use = `struct UltimateAnswerSharedUse {
-  shared: UltimateAnswer<(assembledUltimateAnswer)>
-  sharedAgain: UltimateAnswer<(assembledUltimateAnswer)>
+  let shared: UltimateAnswer<(assembledUltimateAnswer)>
+  let sharedAgain: UltimateAnswer<(assembledUltimateAnswer)>
 }
 `
 const d5Witness = `${d5Declarations}${ultimateAnswerPredicate}\n` +
@@ -943,8 +943,8 @@ const d5Witness = `${d5Declarations}${ultimateAnswerPredicate}\n` +
 const answerPairSeedDeclaration = answerPairMarker.replace(/\s*\{$/u, "{}")
 const answerPairSignature = answerPairSeedDeclaration.replace(/^export /u, "")
 const d6Use = `struct ConsistentUltimateAnswerUse {
-  first: ConsistentUltimateAnswer
-  second: ConsistentUltimateAnswerDuplicate
+  let first: ConsistentUltimateAnswer
+  let second: ConsistentUltimateAnswerDuplicate
 }
 `
 const d6Witness = `${d5Declarations}${answerPairSeedDeclaration}\n` +
@@ -952,8 +952,8 @@ const d6Witness = `${d5Declarations}${answerPairSeedDeclaration}\n` +
   `${consistentUltimateAnswerDuplicateAliasMarker}\n${d6Use}`
 const d9AnswerPairSource = `${answerPairSeedDeclaration}\n` +
   "struct D9AnswerPairUse {\n" +
-  "  first: AnswerPair<42, 42>\n" +
-  "  second: AnswerPair<42, 42>\n" +
+  "  let first: AnswerPair<42, 42>\n" +
+  "  let second: AnswerPair<42, 42>\n" +
   "}\n"
 const genericsSourceWitness = `${genericsWitness}\n${d9AnswerPairSource}`
 
@@ -1848,7 +1848,7 @@ try {
     fail("D5 duplicate application changed fingerprint or predicate digest")
 
   const d5QuotaSource = `${d5Declarations}struct Box<_ value: i64> {}
-struct Use { shared: Box<(assembledUltimateAnswer)> }
+struct Use { let shared: Box<(assembledUltimateAnswer)> }
 `
   const d5QuotaPath = join(build, "domain-generic-d5-quota.w")
   await Bun.write(d5QuotaPath, d5QuotaSource)
@@ -1873,7 +1873,7 @@ struct Use { shared: Box<(assembledUltimateAnswer)> }
 
   const d5FailureSource = `${d5Declarations}const broken: i8 = 127 + 1
 struct Narrow<_ value: i8> {}
-struct Use { broken: Narrow<(broken)> }
+struct Use { let broken: Narrow<(broken)> }
 `
   const d5FailurePath = join(build, "domain-generic-d5-failure.w")
   await Bun.write(d5FailurePath, d5FailureSource)
@@ -1936,7 +1936,7 @@ struct Use { broken: Narrow<(broken)> }
   }
 
   const d6QuotaSource = `${d5Declarations}${answerPairSignature}
-struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }
+struct Use { let pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswer)> }
 `
   const d6QuotaPath = join(build, "domain-generic-d6-quota.w")
   await Bun.write(d6QuotaPath, d6QuotaSource)
@@ -1967,7 +1967,7 @@ struct Use { pair: AnswerPair<(assembledUltimateAnswer), (assembledUltimateAnswe
 
   const d6FailureSource = `${d5Declarations}const broken: i8 = 127 + 1
 struct FailurePair<_ left: i8, _ right: i64> {}
-struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
+struct Use { let pair: FailurePair<(broken), (assembledUltimateAnswer)> }
 `
   const d6FailurePath = join(build, "domain-generic-d6-failure.w")
   await Bun.write(d6FailurePath, d6FailureSource)
@@ -1996,7 +1996,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const d4PredicateAndValue = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n`
   const forwardCase = await runD4Case(
     "forward", "const forwardAnswer: i64 = laterAnswer\nconst laterAnswer: i64 = 42\n" +
-      `${d4PredicateAndValue}struct Use { forward: UltimateAnswer<(forwardAnswer)> }\n`)
+      `${d4PredicateAndValue}struct Use { let forward: UltimateAnswer<(forwardAnswer)> }\n`)
   if (forwardCase.record.state !== d4Witnesses.forward.state ||
       forwardCase.record.receiptKinds !== "CP" || forwardCase.record.receipts !== 2 ||
       forwardCase.record.receiptValues.join(",") !== "i42,b1" ||
@@ -2004,7 +2004,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("forward named-const chain did not verify with causal receipts")
   const selfCase = await runD4Case(
     "self", "const self: i64 = self\n" +
-      `${d4PredicateAndValue}struct Use { self: UltimateAnswer<(self)> }\n`)
+      `${d4PredicateAndValue}struct Use { let self: UltimateAnswer<(self)> }\n`)
   if (selfCase.record.state !== d4Witnesses.selfCycle.state ||
       selfCase.record.failure !== "evaluator-diagnostic" || selfCase.record.diagnostic !== 2 ||
       selfCase.record.steps !== 0 || selfCase.record.receipts !== 1 ||
@@ -2019,7 +2019,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("self-cycle did not fail before evaluation with the closed path")
   const twoCycleCase = await runD4Case(
     "two-cycle", "const left: i64 = right\nconst right: i64 = left\n" +
-      `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(left)> }\n`)
+      `${d4PredicateAndValue}struct Use { let cycle: UltimateAnswer<(left)> }\n`)
   if (twoCycleCase.record.state !== d4Witnesses.twoCycle.state ||
       twoCycleCase.record.diagnostic !== 2 || twoCycleCase.record.steps !== 0 ||
       twoCycleCase.record.receipts !== d5Witnesses.preflight.twoCycle.receipts ||
@@ -2052,7 +2052,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const threeCycleCase = await runD4Case(
     "three-cycle", "const first: i64 = second\nconst second: i64 = third\n" +
       "const third: i64 = first\n" +
-      `${d4PredicateAndValue}struct Use { cycle: UltimateAnswer<(first)> }\n`)
+      `${d4PredicateAndValue}struct Use { let cycle: UltimateAnswer<(first)> }\n`)
   if (threeCycleCase.record.state !== d4Witnesses.threeCycle.state ||
       threeCycleCase.record.diagnostic !== 2 || threeCycleCase.record.steps !== 0 ||
       threeCycleCase.record.receipts !== d5Witnesses.preflight.threeCycle.receipts ||
@@ -2069,7 +2069,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     "incompatible-cycle",
     "const left = right && true\nconst right = left + 1\n" +
       "struct UltimateAnswer<_ value: Bool> {}\n" +
-      "struct Use { cycle: UltimateAnswer<(left)> }\n",
+      "struct Use { let cycle: UltimateAnswer<(left)> }\n",
   )
   assertCycleRecord(
     incompatibleCycleCase.record, d7Witnesses.cycles.incompatible,
@@ -2079,7 +2079,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     "incompatible-multi-slot",
     "const left = right && true\nconst right = left + 1\n" +
       "struct UltimateAnswer<_ first: Bool, _ second: Bool> {}\n" +
-      "struct Use { cycle: UltimateAnswer<(left), (left)> }\n",
+      "struct Use { let cycle: UltimateAnswer<(left), (left)> }\n",
   )
   assertCycleRecord(
     incompatibleMultiSlotCase.record, d7Witnesses.cycles.incompatibleMultiSlot,
@@ -2112,7 +2112,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("incompatible multi-slot zero-capacity cycle published specialization metadata")
   const dependencyLimitSource = Array.from({ length: 257 }, (_, index) =>
     `const c${index}: i64 = ${index + 1 < 257 ? `c${index + 1}` : "42"}\n`).join("") +
-    `${d4PredicateAndValue}struct Use { dependencyLimit: UltimateAnswer<(c0)> }\n`
+    `${d4PredicateAndValue}struct Use { let dependencyLimit: UltimateAnswer<(c0)> }\n`
   const dependencyLimitCase = await runD4Case("dependency-limit", dependencyLimitSource)
   if (dependencyLimitCase.record.state !== d4Witnesses.dependencyLimit.state ||
       dependencyLimitCase.record.failure !== "dependency-limit" ||
@@ -2125,7 +2125,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const unreachableCase = await runD4Case(
     "unreachable", "const deadLeft: i64 = deadRight\nconst deadRight: i64 = deadLeft\n" +
       "const good: i64 = 42\n" +
-      `${d4PredicateAndValue}struct Use { independent: UltimateAnswer<(good)> }\n`)
+      `${d4PredicateAndValue}struct Use { let independent: UltimateAnswer<(good)> }\n`)
   if (unreachableCase.record.state !== d4Witnesses.unreachable.state ||
       unreachableCase.record.fingerprintState !== "AVAILABLE" ||
       unreachableCase.record.receiptValues.join(",") !== "i42,b1" ||
@@ -2133,14 +2133,14 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("unreachable cycle blocked an independent named-const application")
   const typeMismatchCase = await runD4Case(
     "type-mismatch", "const wrong: i64 = true\n" +
-      `${d4PredicateAndValue}struct Use { mismatch: UltimateAnswer<(wrong)> }\n`)
+      `${d4PredicateAndValue}struct Use { let mismatch: UltimateAnswer<(wrong)> }\n`)
   if (typeMismatchCase.record.state !== d4Witnesses.typeMismatch.state ||
       typeMismatchCase.record.failure !== "invalid-input" || typeMismatchCase.record.steps !== 0 ||
       typeMismatchCase.record.receipts !== 0)
     fail("named-const type mismatch was not rejected in frontend preflight")
   const unresolvedCase = await runD4Case(
     "unresolved", "const anchor: i64 = 42\n" +
-      `${d4PredicateAndValue}struct Use { missing: UltimateAnswer<(missing)> }\n`)
+      `${d4PredicateAndValue}struct Use { let missing: UltimateAnswer<(missing)> }\n`)
   if (unresolvedCase.record.state !== d4Witnesses.unresolved.state ||
       unresolvedCase.record.failure !== "invalid-input" ||
       unresolvedCase.record.steps !== 0 || unresolvedCase.record.receipts !== 0 ||
@@ -2149,39 +2149,39 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
   const callCase = await runD4Case(
     "call", "const fn helper(_ value: i64): i64 { return value }\n" +
       "const called: i64 = helper(42)\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(called)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(called)> }\n`)
   if (callCase.record.state !== d4Witnesses.call.state ||
       callCase.record.failure !== "function" || callCase.record.steps !== 0 ||
       callCase.record.receipts !== 0)
     fail("unsupported named-const call was not stopped at the frontend boundary")
   const stringCase = await runD4Case(
     "string", "const textValue: String = \"42\"\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(textValue)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(textValue)> }\n`)
   if (stringCase.record.state !== d4Witnesses.string.state || stringCase.record.steps !== 0 ||
       stringCase.record.receipts !== 0)
     fail("unsupported String named const was not stopped before execution")
   const untypedCase = await runD4Case(
     "untyped", "const untyped = \"42\"\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(untyped)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(untyped)> }\n`)
   if (untypedCase.record.state !== d4Witnesses.untyped.state || untypedCase.record.steps !== 0 ||
       untypedCase.record.receipts !== 0)
     fail("unsupported untyped named const escaped the D4 boundary")
   const importedCase = await runD4Case(
     "imported", "import { answer } from other\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(answer)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(answer)> }\n`)
   if (importedCase.record.state !== d4Witnesses.imported.state ||
       importedCase.record.steps !== 0 || importedCase.record.receipts !== 0)
     fail("imported named const was not rejected as outside D4")
   const quantityCase = await runD4Case(
     "quantity", "const duration: PhysicalDuration = 10<si.s>\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(duration)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(duration)> }\n`)
   if (quantityCase.record.state !== d4Witnesses.quantity.state ||
       quantityCase.record.steps !== 0 || quantityCase.record.receipts !== 0 ||
       quantityCase.record.fingerprintState !== "NOT_AVAILABLE")
     fail("quantity named const escaped the D4 unsupported boundary")
   const sizeCase = await runD4Case(
     "size", "const sizeValue: usize = 1<iec.MiB>\n" +
-      `${d4PredicateAndValue}struct Use { unsupported: UltimateAnswer<(sizeValue)> }\n`)
+      `${d4PredicateAndValue}struct Use { let unsupported: UltimateAnswer<(sizeValue)> }\n`)
   if (sizeCase.record.state !== d4Witnesses.size.state ||
       sizeCase.record.steps !== 0 || sizeCase.record.receipts !== 0 ||
       sizeCase.record.fingerprintState !== "NOT_AVAILABLE")
@@ -2192,7 +2192,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     "const overflowValue: i8 = 127 + 1\n" +
       "const fn isUltimateAnswer8(value: i8): Bool { return value == 42 }\n" +
       "struct UltimateAnswer<_ value: i8<(isUltimateAnswer8(.member))>> {}\n" +
-      "struct Use { arithmeticOverflow: UltimateAnswer<(overflowValue)> }\n",
+      "struct Use { let arithmeticOverflow: UltimateAnswer<(overflowValue)> }\n",
   )
   if (arithmeticOverflowCase.record.state !== d4Witnesses.arithmeticOverflow.state ||
       arithmeticOverflowCase.record.failure !== "evaluator-diagnostic" ||
@@ -2208,7 +2208,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("D4 named-const arithmetic overflow did not preserve only its causal receipt")
 
   const overflowWitness = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
-    `struct Narrow<_ value: i8> {}\nstruct Use { overflow: Narrow<(127 + 1)> }\n`
+    `struct Narrow<_ value: i8> {}\nstruct Use { let overflow: Narrow<(127 + 1)> }\n`
   const overflowPath = join(build, "domain-generic-overflow.w")
   await Bun.write(overflowPath, overflowWitness)
   const overflowParsed = parseProbe(run(executable, ["--domain-witness", overflowPath]))
@@ -2223,7 +2223,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
 
   const unsupportedWitness = `${ultimateAnswerPredicate}\n${ultimateAnswerValueSignature} {}\n` +
     `const fn helper(_ value: i64): i64 { return value }\n` +
-    `struct Use { unsupported: UltimateAnswer<(helper(42))> }\n`
+    `struct Use { let unsupported: UltimateAnswer<(helper(42))> }\n`
   const unsupportedPath = join(build, "domain-generic-unsupported.w")
   await Bun.write(unsupportedPath, unsupportedWitness)
   const unsupportedParsed = parseProbe(run(executable, ["--domain-witness", unsupportedPath]))
@@ -2288,7 +2288,7 @@ struct Use { pair: FailurePair<(broken), (assembledUltimateAnswer)> }
     fail("D4 origin/mapping/dependency/type/application corruption did not fail in zero steps")
 
   const overLimitWitness = `${finalCallPredicate}\n${finalCallValueSignature} {}\n` +
-    `struct Use { over: FinalCallValue<"${"x".repeat(d2Witnesses.overLimit.byteCount)}"> }\n`
+    `struct Use { let over: FinalCallValue<"${"x".repeat(d2Witnesses.overLimit.byteCount)}"> }\n`
   const overLimitPath = join(build, "domain-generic-over-limit.w")
   await Bun.write(overLimitPath, overLimitWitness)
   const overLimitParsed = parseProbe(

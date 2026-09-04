@@ -727,6 +727,544 @@ static bool build_artifact(
 }
 
 typedef struct {
+  uint8_t text[MLIR0_MAX_STDOUT_BYTES];
+  size_t text_bytes;
+  mlir0_dynamic_action actions[MLIR0_DYNAMIC_MAX_ACTIONS];
+  size_t action_count;
+  size_t call_first_action[W_SEED_NATIVE_SUBSET0_MAX_CALLS];
+  size_t call_action_count[W_SEED_NATIVE_SUBSET0_MAX_CALLS];
+  bool has_bool;
+} mlir0_program_plan;
+
+static bool program_plan_append_text(mlir0_program_plan *plan,
+                                     const uint8_t *bytes, size_t length) {
+  if (plan == NULL || (length != 0u && bytes == NULL)) return false;
+  if (length == 0u) return true;
+  if (plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS ||
+      length > sizeof(plan->text) - plan->text_bytes)
+    return false;
+  (void)memcpy(plan->text + plan->text_bytes, bytes, length);
+  plan->actions[plan->action_count] = (mlir0_dynamic_action){
+      MLIR0_DYNAMIC_TEXT, plan->text_bytes, length, 0u};
+  plan->text_bytes += length;
+  plan->action_count += 1u;
+  return true;
+}
+
+static bool program_plan_append_value(mlir0_program_plan *plan,
+                                      const w_seed_hir0_program *program,
+                                      uint32_t value_index) {
+  if (plan == NULL || program == NULL ||
+      value_index >= program->value_count ||
+      plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count) return false;
+  const w_seed_hir0_type_kind type = program->types[value->type_index].kind;
+  if (type == W_SEED_HIR0_TYPE_I64) {
+    plan->actions[plan->action_count] =
+        (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
+  } else if (type == W_SEED_HIR0_TYPE_BOOL) {
+    plan->actions[plan->action_count] =
+        (mlir0_dynamic_action){MLIR0_DYNAMIC_BOOL, 0u, 0u, value_index};
+    plan->has_bool = true;
+  } else if (type == W_SEED_HIR0_TYPE_STRING) {
+    const uint8_t *bytes = NULL;
+    size_t length = 0u;
+    if (!value_string_bytes(program, value, &bytes, &length)) return false;
+    return program_plan_append_text(plan, bytes, length);
+  } else {
+    return false;
+  }
+  plan->action_count += 1u;
+  return true;
+}
+
+static bool program_plan_append_print(mlir0_program_plan *plan,
+                                      const w_seed_hir0_program *program,
+                                      uint32_t value_index) {
+  if (plan == NULL || program == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *root = &program->values[value_index];
+  if (root->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+    const uint8_t *bytes = NULL;
+    size_t length = 0u;
+    if (!value_string_bytes(program, root, &bytes, &length) ||
+        !program_plan_append_text(plan, bytes, length))
+      return false;
+  } else {
+    for (size_t ordinal = 0u; ordinal < root->interpolation_segment_count;
+         ordinal += 1u) {
+      const size_t segment_index =
+          (size_t)root->first_interpolation_segment + ordinal;
+      if (segment_index >= program->interpolation_segment_count) return false;
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[segment_index];
+      if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
+        const uint8_t *bytes = segment->byte_count == 0u
+                                   ? NULL
+                                   : program->value_bytes +
+                                         segment->byte_offset;
+        if (!program_plan_append_text(plan, bytes, segment->byte_count))
+          return false;
+      } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE) {
+        if (!program_plan_append_value(plan, program, segment->value_index))
+          return false;
+      } else {
+        return false;
+      }
+    }
+  }
+  const uint8_t newline = 0x0au;
+  return program_plan_append_text(plan, &newline, 1u);
+}
+
+static bool build_program_plan(const w_seed_hir0_program *program,
+                               mlir0_program_plan *plan) {
+  if (program == NULL || plan == NULL ||
+      program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS)
+    return false;
+  mlir0_program_plan candidate;
+  (void)memset(&candidate, 0, sizeof(candidate));
+  for (size_t call_index = 0u; call_index < program->call_count;
+       call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->callee_identity >= program->identity_count) return false;
+    const w_seed_hir0_identity *callee =
+        &program->identities[call->callee_identity];
+    candidate.call_first_action[call_index] = candidate.action_count;
+    if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
+      if (call->argument_count != 1u ||
+          call->first_argument >= program->argument_count ||
+          !program_plan_append_print(
+              &candidate, program,
+              program->arguments[call->first_argument].value_index))
+        return false;
+    } else if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION) {
+      return false;
+    }
+    candidate.call_action_count[call_index] =
+        candidate.action_count - candidate.call_first_action[call_index];
+  }
+  if (candidate.action_count == 0u || candidate.text_bytes == 0u)
+    return false;
+  *plan = candidate;
+  return true;
+}
+
+static bool append_program_value_operand(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || value_index >= program->value_count ||
+      artifact == NULL || offset == NULL)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    return append_program_value_operand(
+        program, program->bindings[value->binding_index].initializer_value,
+        function_index, artifact, capacity, offset);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->parameter_index >= program->parameter_count) return false;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[value->parameter_index];
+    return parameter->owner_function == function_index &&
+           append_literal(artifact, capacity, offset, "%p") &&
+           append_size(artifact, capacity, offset, parameter->ordinal);
+  }
+  return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
+          value->kind == W_SEED_HIR0_VALUE_BINARY_I64) &&
+         append_literal(artifact, capacity, offset, "%v") &&
+         append_size(artifact, capacity, offset, value_index);
+}
+
+static bool append_program_value_tree(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES],
+    uint8_t *artifact, size_t capacity, size_t *offset, size_t depth) {
+  if (program == NULL || emitted == NULL || artifact == NULL ||
+      offset == NULL || depth > 256u || value_index >= program->value_count ||
+      value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  if (emitted[value_index]) return true;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
+      value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+    for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+         ordinal += 1u) {
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[value->first_interpolation_segment +
+                                           ordinal];
+      if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+          !append_program_value_tree(program, segment->value_index,
+                                     function_index, emitted, artifact,
+                                     capacity, offset, depth + 1u))
+        return false;
+    }
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    const char *operation = binary_operation(value->binary_operator);
+    if (operation == NULL ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   emitted, artifact, capacity, offset,
+                                   depth + 1u) ||
+        !append_program_value_tree(program, value->right_value, function_index,
+                                   emitted, artifact, capacity, offset,
+                                   depth + 1u) ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = ") ||
+        !append_literal(artifact, capacity, offset, operation) ||
+        !append_literal(artifact, capacity, offset, " ") ||
+        !append_program_value_operand(program, value->left_value,
+                                      function_index, artifact, capacity,
+                                      offset) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand(program, value->right_value,
+                                      function_index, artifact, capacity,
+                                      offset) ||
+        !append_literal(artifact, capacity, offset, " : i64\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.mlir.constant(") ||
+        !append_i64(artifact, capacity, offset, value->integer_value) ||
+        !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        value->bool_value
+                            ? " = llvm.mlir.constant(true) : i1\n"
+                            : " = llvm.mlir.constant(false) : i1\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  return false;
+}
+
+static const char *program_type_name(const w_seed_hir0_program *program,
+                                     uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return NULL;
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
+  return NULL;
+}
+
+static bool append_program_print_actions(
+    const w_seed_hir0_program *program, const mlir0_program_plan *plan,
+    size_t call_index, uint32_t function_index, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
+      call_index >= program->call_count ||
+      call_index >= W_SEED_NATIVE_SUBSET0_MAX_CALLS)
+    return false;
+  const size_t first = plan->call_first_action[call_index];
+  const size_t count = plan->call_action_count[call_index];
+  if (count == 0u || first > plan->action_count ||
+      count > plan->action_count - first ||
+      !append_literal(artifact, capacity, offset, "    %cursor") ||
+      !append_size(artifact, capacity, offset, call_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_0 = llvm.load %cursor_address : !llvm.ptr -> i64\n"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < count; ordinal += 1u) {
+    const size_t action_index = first + ordinal;
+    const mlir0_dynamic_action *action = &plan->actions[action_index];
+    if (action->kind == MLIR0_DYNAMIC_TEXT) {
+      if (!append_literal(artifact, capacity, offset, "    %text") ||
+          !append_size(artifact, capacity, offset, action_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.getelementptr %text_base[0, ") ||
+          !append_size(artifact, capacity, offset, action->byte_offset) ||
+          !append_literal(artifact, capacity, offset,
+                          "] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<") ||
+          !append_size(artifact, capacity, offset, plan->text_bytes) ||
+          !append_literal(artifact, capacity, offset, " x i8>\n") ||
+          !append_literal(artifact, capacity, offset, "    %text_length") ||
+          !append_size(artifact, capacity, offset, action_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_size(artifact, capacity, offset, action->byte_count) ||
+          !append_literal(artifact, capacity, offset, " : i64) : i64\n") ||
+          !append_literal(artifact, capacity, offset, "    %cursor") ||
+          !append_size(artifact, capacity, offset, call_index) ||
+          !append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, ordinal + 1u) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.call @w_seed_copy(%buffer, %cursor") ||
+          !append_size(artifact, capacity, offset, call_index) ||
+          !append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, ordinal) ||
+          !append_literal(artifact, capacity, offset, ", %text") ||
+          !append_size(artifact, capacity, offset, action_index) ||
+          !append_literal(artifact, capacity, offset, ", %text_length") ||
+          !append_size(artifact, capacity, offset, action_index) ||
+          !append_literal(
+              artifact, capacity, offset,
+              ") : (!llvm.ptr, i64, !llvm.ptr, i64) -> i64\n"))
+        return false;
+    } else if (action->kind == MLIR0_DYNAMIC_I64 ||
+               action->kind == MLIR0_DYNAMIC_BOOL) {
+      if (!append_literal(artifact, capacity, offset, "    %cursor") ||
+          !append_size(artifact, capacity, offset, call_index) ||
+          !append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, ordinal + 1u) ||
+          !append_literal(artifact, capacity, offset,
+                          action->kind == MLIR0_DYNAMIC_I64
+                              ? " = llvm.call @w_seed_append_i64(%buffer, %cursor"
+                              : " = llvm.call @w_seed_append_bool(%buffer, %cursor") ||
+          !append_size(artifact, capacity, offset, call_index) ||
+          !append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, ordinal) ||
+          !append_literal(artifact, capacity, offset, ", ") ||
+          !append_program_value_operand(program, action->value_index,
+                                        function_index, artifact, capacity,
+                                        offset) ||
+          !append_literal(artifact, capacity, offset,
+                          action->kind == MLIR0_DYNAMIC_I64
+                              ? ") : (!llvm.ptr, i64, i64) -> i64\n"
+                              : ") : (!llvm.ptr, i64, i1) -> i64\n"))
+        return false;
+    } else {
+      return false;
+    }
+  }
+  return append_literal(artifact, capacity, offset, "    llvm.store %cursor") &&
+         append_size(artifact, capacity, offset, call_index) &&
+         append_literal(artifact, capacity, offset, "_") &&
+         append_size(artifact, capacity, offset, count) &&
+         append_literal(artifact, capacity, offset,
+                        ", %cursor_address : i64, !llvm.ptr\n");
+}
+
+static bool append_program_local_call(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || call == NULL || artifact == NULL || offset == NULL ||
+      call->callee_identity >= program->identity_count)
+    return false;
+  const w_seed_hir0_identity *callee =
+      &program->identities[call->callee_identity];
+  if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      callee->target_index >= program->function_count ||
+      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+    return false;
+  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
+  for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
+       index += 1u)
+    values[index] = W_SEED_HIR0_NONE;
+  for (size_t source_ordinal = 0u; source_ordinal < call->argument_count;
+       source_ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + source_ordinal];
+    if (argument->parameter_ordinal >= call->argument_count ||
+        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE)
+      return false;
+    values[argument->parameter_ordinal] = argument->value_index;
+  }
+  if (!append_literal(artifact, capacity, offset, "    llvm.call @w_fn_") ||
+      !append_size(artifact, capacity, offset, callee->target_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%buffer, %cursor_address"))
+    return false;
+  for (size_t parameter = 0u; parameter < call->argument_count;
+       parameter += 1u)
+    if (values[parameter] == W_SEED_HIR0_NONE ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_program_value_operand(program, values[parameter],
+                                      function_index, artifact, capacity,
+                                      offset))
+      return false;
+  if (!append_literal(artifact, capacity, offset,
+                      ") : (!llvm.ptr, !llvm.ptr"))
+    return false;
+  const w_seed_hir0_function *target =
+      &program->functions[callee->target_index];
+  for (size_t parameter = 0u; parameter < target->parameter_count;
+       parameter += 1u) {
+    const w_seed_hir0_parameter *item =
+        &program->parameters[(size_t)target->first_parameter + parameter];
+    const char *type = program_type_name(program, item->type_index);
+    if (type == NULL || !append_literal(artifact, capacity, offset, ", ") ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  return append_literal(artifact, capacity, offset, ") -> ()\n");
+}
+
+static bool append_program_function(
+    const w_seed_hir0_program *program, const mlir0_program_plan *plan,
+    size_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (!append_literal(artifact, capacity, offset,
+                      "  llvm.func internal @w_fn_") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr"))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[(size_t)function->first_parameter + ordinal];
+    const char *type = program_type_name(program, parameter->type_index);
+    if (type == NULL ||
+        !append_literal(artifact, capacity, offset, ", %p") ||
+        !append_size(artifact, capacity, offset, ordinal) ||
+        !append_literal(artifact, capacity, offset, ": ") ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      ") {\n    %text_base = llvm.mlir.addressof "
+                      "@w_seed_mlir0_text : !llvm.ptr\n"))
+    return false;
+  bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  for (size_t ordinal = 0u; ordinal < block->instruction_count;
+       ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)block->first_instruction + ordinal];
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count ||
+          !append_program_value_tree(
+              program,
+              program->bindings[instruction->binding_index].initializer_value,
+              (uint32_t)function_index, emitted, artifact, capacity, offset,
+              0u))
+        return false;
+      continue;
+    }
+    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+        instruction->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+    for (size_t argument = 0u; argument < call->argument_count;
+         argument += 1u)
+      if (!append_program_value_tree(
+              program,
+              program->arguments[(size_t)call->first_argument + argument]
+                  .value_index,
+              (uint32_t)function_index, emitted, artifact, capacity, offset,
+              0u))
+        return false;
+    const w_seed_hir0_identity *callee =
+        &program->identities[call->callee_identity];
+    if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
+      if (!append_program_print_actions(program, plan,
+                                        instruction->call_index,
+                                        (uint32_t)function_index, artifact,
+                                        capacity, offset))
+        return false;
+    } else if (!append_program_local_call(program, call,
+                                          (uint32_t)function_index, artifact,
+                                          capacity, offset)) {
+      return false;
+    }
+  }
+  return append_literal(artifact, capacity, offset,
+                        "    llvm.return\n  }\n");
+}
+
+static bool build_program_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_program *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || selection == NULL || !selection->has_local_calls ||
+      !target_is_supported(target) || artifact == NULL || written == NULL ||
+      digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
+    return false;
+  mlir0_program_plan plan;
+  if (!build_program_plan(program, &plan)) return false;
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+          "\"} {\n"
+          "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
+      !append_escaped_bytes(artifact, capacity, &offset, plan.text,
+                            plan.text_bytes) ||
+      !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
+      !append_size(artifact, capacity, &offset, plan.text_bytes) ||
+      !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      (plan.has_bool &&
+       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"))
+    return false;
+  for (size_t function = 0u; function < program->function_count;
+       function += 1u)
+    if (!append_program_function(program, &plan, function, artifact, capacity,
+                                 &offset))
+      return false;
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "  llvm.func @main() -> i32 {\n"
+          "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+          "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n"
+          "    %cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
+          "    %cursor_address = llvm.alloca %cursor_count x i64 : (i64) -> !llvm.ptr\n"
+          "    %cursor_zero = llvm.mlir.constant(0 : i64) : i64\n"
+          "    llvm.store %cursor_zero, %cursor_address : i64, !llvm.ptr\n"
+          "    llvm.call @w_fn_") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->entry->target_function) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "(%buffer, %cursor_address) : (!llvm.ptr, !llvm.ptr) -> ()\n"
+          "    %length = llvm.load %cursor_address : !llvm.ptr -> i64\n"
+          "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
+          "    %written = llvm.call @write(%fd, %buffer, %length) : (i32, !llvm.ptr, i64) -> i64\n"
+          "    %equal = llvm.icmp \"eq\" %written, %length : i64\n"
+          "    %success = llvm.mlir.constant(0 : i32) : i32\n"
+          "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
+          "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
+          "    llvm.return %status : i32\n"
+          "  }\n"
+          "}\n"))
+    return false;
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
+typedef struct {
   const void *address;
   size_t count;
   size_t element_size;
@@ -852,10 +1390,10 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       counts == NULL || result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
-  w_seed_native_subset0_sequence sequence;
+  w_seed_native_subset0_program program_selection;
   const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select_sequence(input->program, input->hir_result,
-                                            &sequence);
+      w_seed_native_subset0_select_program(input->program, input->hir_result,
+                                           &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -866,9 +1404,22 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(input->program, &sequence, target, artifact,
-                      sizeof(artifact), &written, digest))
-    return W_SEED_MLIR0_INVALID_HIR;
+  if (program_selection.has_local_calls) {
+    if (!build_program_artifact(input->program, &program_selection, target,
+                                artifact, sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else {
+    w_seed_native_subset0_sequence sequence;
+    const w_seed_native_subset0_status sequence_selected =
+        w_seed_native_subset0_select_sequence(input->program,
+                                              input->hir_result, &sequence);
+    if (sequence_selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+      return W_SEED_MLIR0_UNSUPPORTED;
+    if (sequence_selected != W_SEED_NATIVE_SUBSET0_OK ||
+        !build_artifact(input->program, &sequence, target, artifact,
+                        sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  }
   const w_seed_mlir0_counts candidate_counts = {written};
   w_seed_mlir0_result candidate_result;
   (void)memset(&candidate_result, 0, sizeof(candidate_result));
@@ -887,10 +1438,10 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
-  w_seed_native_subset0_sequence sequence;
+  w_seed_native_subset0_program program_selection;
   const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select_sequence(input->program, input->hir_result,
-                                            &sequence);
+      w_seed_native_subset0_select_program(input->program, input->hir_result,
+                                           &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -901,9 +1452,22 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(input->program, &sequence, target, artifact,
-                      sizeof(artifact), &written, digest))
-    return W_SEED_MLIR0_INVALID_HIR;
+  if (program_selection.has_local_calls) {
+    if (!build_program_artifact(input->program, &program_selection, target,
+                                artifact, sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else {
+    w_seed_native_subset0_sequence sequence;
+    const w_seed_native_subset0_status sequence_selected =
+        w_seed_native_subset0_select_sequence(input->program,
+                                              input->hir_result, &sequence);
+    if (sequence_selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+      return W_SEED_MLIR0_UNSUPPORTED;
+    if (sequence_selected != W_SEED_NATIVE_SUBSET0_OK ||
+        !build_artifact(input->program, &sequence, target, artifact,
+                        sizeof(artifact), &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  }
   if (output_buffer_aliases(input, target, output, result, written))
     return W_SEED_MLIR0_ALIAS;
   if (output == NULL || output->bytes == NULL || output->capacity < written)

@@ -64,8 +64,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-7" &&
-    manifest.artifact?.scope === "linear-print-and-typed-immutable-bindings",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-8" &&
+    manifest.artifact?.scope === "direct-unit-calls-and-typed-values",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -292,6 +292,8 @@ try {
     "restaurant_builtin_display.w")
   const restaurantTypedBindings = join(fixtureDirectory,
     "restaurant_typed_bindings.w")
+  const restaurantDirectCall = join(fixtureDirectory,
+    "restaurant_direct_call.w")
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -302,6 +304,9 @@ try {
   const unusedBinding = join(fixtureDirectory, "unused_binding.w")
   const tooManyInstructions = join(fixtureDirectory, "too_many_instructions.w")
   const totalOutputOverflow = join(fixtureDirectory, "total_output_overflow.w")
+  const recursiveCall = join(fixtureDirectory, "recursive_call.w")
+  const runtimeStringParameter = join(fixtureDirectory,
+    "runtime_string_parameter.w")
   await writeFile(restaurantBinding,
     "fn serve() { let message = \"Table 42 remains open\" print(message) }\n" +
     "entry(serve)\n")
@@ -314,6 +319,11 @@ try {
     "fn serve() { let table = 6 * 7 let isOpen = true let state = \"open\" " +
     "print(\"Table ${table}; open: ${isOpen}; state: ${state}\") }\n" +
     "entry(serve)\n")
+  await writeFile(restaurantDirectCall,
+    "fn announce(table: i64, isOpen: Bool) {\n" +
+    "  print(\"Table ${table}; open: ${isOpen}\")\n}\n" +
+    "fn main() { announce(isOpen: true, table: 6 * 7) }\n" +
+    "entry(main)\n")
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -331,6 +341,11 @@ try {
     `fn main() {\nlet message = "${"x".repeat(256)}"\n` +
     `${Array.from({ length: 17 }, () => "print(message)").join("\n")}\n` +
     `}\nentry(main)\n`)
+  await writeFile(recursiveCall,
+    "fn again() { again() }\nfn main() { again() }\nentry(main)\n")
+  await writeFile(runtimeStringParameter,
+    "fn show(value: String) { print(value) }\n" +
+    "fn main() { show(value: \"x\") }\nentry(main)\n")
   const toWsl = (path) => isWindows ? wslPath(path) : path
   residueBefore = await snapshotRunResidue()
 
@@ -355,6 +370,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantTypedBindings)],
     Buffer.from("Table 42; open: true; state: open\n", "utf8"),
     "Restaurant typed immutable bindings")
+  expectSuccess(binary, ["run", toWsl(restaurantDirectCall)],
+    Buffer.from("Table 42; open: true\n", "utf8"),
+    "Restaurant direct W call")
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),
@@ -374,6 +392,9 @@ try {
     "too-many-instructions source")
   expectSourceFailure(binary, toWsl(totalOutputOverflow),
     "total-output-overflow source")
+  expectSourceFailure(binary, toWsl(recursiveCall), "recursive call source")
+  expectSourceFailure(binary, toWsl(runtimeStringParameter),
+    "runtime String parameter source")
   expectUnsupportedOption(binary, ["run", "--entry", toWsl(helloFixture)],
     "unsupported --entry option")
   expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloFixture)],

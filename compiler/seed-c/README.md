@@ -850,7 +850,8 @@ implementação ampla da linguagem.
 intermediária fechada, bounded, caller-owned e sem heap para o subset inicial.
 O lowering copia para a HIR0 os módulos, identidades, tipos `Unit`/`String`,
 funções, qualifiers, parâmetros e labels HIR, blocks, ordem, constantes como
-byte slices, calls host-prelude, argumentos tipados/ordinais, requirements,
+byte slices, calls host-prelude ou Unit locais, argumentos tipados com ordens
+de source e de parâmetro separadas, requirements,
 terminators e entry com target e slot. O programa não retém pointers do
 frontend e permanece válido depois que os buffers de source/CST/frontend são
 descartados.
@@ -865,7 +866,7 @@ Labels host required copiam o nome público, positional usa label vazio e
 qualquer outra policy permanece fora deste subset.
 
 W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
-Current schema `w-seed-hir0-4` generalizes that contract. The caller-owned
+Current schema `w-seed-hir0-5` generalizes that contract. The caller-owned
 `w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, `initializer_value`, `source_span`, and
 `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries none.
@@ -880,7 +881,8 @@ fail-closed. Lowering copies binding names and the initializer graph. It never
 performs downstream textual lookup.
 
 W-1524 introduced the postorder value graph in schema `w-seed-hir0-3`. Current
-schema `w-seed-hir0-4` gives binding initializers explicit roots in that graph.
+schema `w-seed-hir0-5` gives binding initializers explicit roots in that graph
+and adds indexed parameter reads for bounded direct Unit calls.
 The canonical type table contains Unit, String, signed `i64`, and Bool.
 `w_seed_hir0_value` is a typed
 postorder graph with explicit argument, binary-parent, or interpolation-segment
@@ -895,8 +897,10 @@ ownership, exact bytes, digests, and receipts. MLIR0 and Native0 intentionally
 rejected those value kinds at the W-1524 boundary. W-1525 lowers the
 panic-free signed-`i64` subset. W-1527 adds constant Bool and
 compile-time-known String value segments. W-1528 adds later reads of immutable
-`i64`, Bool, and String bindings. Runtime-produced values, runtime panic paths,
-and general Display formatting remain outside MLIR0.
+`i64`, Bool, and String bindings. W-1529 adds direct Unit calls with `i64`/Bool
+parameters, separate source and ABI ordinals, and indexed parameter reads.
+Runtime-produced values, return values, runtime panic paths, and general Display
+formatting remain outside MLIR0.
 
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,
@@ -1024,12 +1028,15 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
-HIR0 e a implementação não inclui, chama ou cria HLO0. W-1528 advances MLIR0
-to `w-seed-mlir0-7` and Native0 to `w-seed-native0-6`. MLIR0 re-verifies HIR
+HIR0 e a implementação não inclui, chama ou cria HLO0. W-1529 advances MLIR0
+to `w-seed-mlir0-8`; Native0 remains `w-seed-native0-6`. MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form. It accepts bounded String interpolation with panic-free
 signed-`i64` arithmetic, constant Bool, compile-time-known String values, and
-later reads of typed immutable binding initializers.
+later reads of typed immutable binding initializers. The multi-function path
+also emits real internal `llvm.call` operations for bounded acyclic Unit calls
+with `i64`/Bool parameters. Source argument evaluation order and declaration
+slot order remain distinct.
 Bool uses exact lowercase ASCII; String values keep their counted bytes,
 including NUL. The single selector still supports HLO0/HLO1/RUN0.
 
@@ -1051,7 +1058,7 @@ O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → ML
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
 empty output, `restaurant-interpolation.w`, and the Bool/String Restaurant
-witness. It also executes all five integer binary operators, a negative
+  witness, and a direct-call Restaurant witness. It also executes all five integer binary operators, a negative
 result, a literal percent sign, NUL in both text and a String value, and
 multiple ordered integer fields. It
 requires byte-identical MLIR for the equivalent static Restaurant forms,

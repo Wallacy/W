@@ -52,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-7" &&
-    manifest.artifact?.scope === "linear-print-and-typed-immutable-bindings",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-8" &&
+    manifest.artifact?.scope === "direct-unit-calls-and-typed-values",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -245,6 +245,7 @@ try {
   const minimumI64Path = resolve(artifactDirectory, "minimum-i64.w")
   const builtinDisplayPath = resolve(artifactDirectory, "builtin-display.w")
   const typedBindingsPath = resolve(artifactDirectory, "typed-bindings.w")
+  const directCallPath = resolve(artifactDirectory, "direct-call.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -271,6 +272,10 @@ try {
   await writeFile(typedBindingsPath,
     'fn serve() { let table = 6 * 7 let isOpen = true let state = "open" ' +
     'print("Table ${table}; open: ${isOpen}; state: ${state}") }\nentry(serve)\n')
+  await writeFile(directCallPath,
+    'fn announce(table: i64, isOpen: Bool) {\n' +
+    '  print("Table ${table}; open: ${isOpen}")\n}\n' +
+    'fn main() { announce(isOpen: true, table: 6 * 7) }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -301,6 +306,8 @@ try {
       expected: Buffer.from("Kitchen true/false; table: open\n", "utf8") },
     { name: "typed-bindings", source: typedBindingsPath,
       expected: Buffer.from("Table 42; open: true; state: open\n", "utf8") },
+    { name: "direct-call", source: directCallPath,
+      expected: Buffer.from("Table 42; open: true\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -362,6 +369,14 @@ try {
   }
   assert(artifacts.get("typed-bindings").includes("llvm.mul %v0, %v1 : i64"),
     "typed binding arithmetic was precomputed before MLIR")
+  assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
+    artifacts.get("direct-call").includes("llvm.mul %v4, %v5 : i64") &&
+    artifacts.get("direct-call").includes("%p0") &&
+    artifacts.get("direct-call").includes("%p1"),
+  "direct W call was flattened, reordered during evaluation, or precomputed")
+  assert(artifacts.get("direct-call").indexOf("llvm.mlir.constant(true)") <
+    artifacts.get("direct-call").indexOf("llvm.mul %v4, %v5 : i64"),
+  "named argument evaluation did not preserve source order")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,
@@ -388,6 +403,11 @@ try {
       `fn main() { var message = "Hello, world!" print(message) }\nentry(main)\n`],
     ["unused-binding.w",
       `fn main() { let message = "unused" print("kept") }\nentry(main)\n`],
+    ["recursive-call.w",
+      `fn again() { again() }\nfn main() { again() }\nentry(main)\n`],
+    ["runtime-string-parameter.w",
+      `fn show(value: String) { print(value) }\n` +
+      `fn main() { show(value: "x") }\nentry(main)\n`],
     ["too-many-instructions.w", tooManyInstructions],
     ["total-output-overflow.w", totalOutputOverflow],
   ]

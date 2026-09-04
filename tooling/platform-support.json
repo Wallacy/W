@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-7",
+      "runtimeVersion": "w-seed-mlir0-8",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-7-linear-print-and-typed-immutable-bindings",
+      "scope": "w-seed-mlir0-8-direct-unit-calls-and-typed-values",
       "claim": null,
       "axes": {
         "backend": {
@@ -106,8 +106,8 @@
             {
               "kind": "source",
               "path": "compiler/seed-c/src/w_seed_mlir0.c",
-              "symbol": "build_artifact",
-              "claim": "The emitter renders deterministic linear print and bounded i64 interpolation as LLVM dialect text from verified HIR."
+              "symbol": "build_program_artifact",
+              "claim": "The emitter renders deterministic direct Unit calls and bounded typed interpolation as LLVM dialect text from verified HIR."
             }
           ]
         },
