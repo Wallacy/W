@@ -184,6 +184,7 @@ O corpus compara, no mínimo:
 - bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.
 - bounded native Windows x86_64 MLIR route against WSL-only execution, PATH discovery, POSIX write, and Clang/CRT coupling.
 - compact cross-target distribution layers against shipping the heavy CLI toolchain, silent downloads, and unmeasured package-budget exceptions.
+- bounded native Windows builder profiles and local receipt against a public W profile option, manifest-only smoke, and non-atomic output replacement.
 - catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.
 - catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
@@ -7780,6 +7781,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The Restaurant witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` only for the bounded Unit diamond route. Conditional values/if expressions, block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch, multiple exits, ownership/effects/tasks, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
 | W-1532 | bounded native Windows x86_64 seed route through MLIR/LLVM/LLD | Native Windows evidence runs `w run <explicit-path.w>` with target `x86_64-pc-windows-msvc` and the direct `mlir-opt.exe` → `mlir-translate.exe` → `llc.exe` → `lld-link.exe` + `kernel32.lib` pipeline. The emitted runtime uses `GetStdHandle`, `WriteFile`, and `ExitProcess`, with `mainCRTStartup`, console subsystem, and `nodefaultlib`; the external development cache is validated and never bundled with W. The gate proves Hello, Restaurant/if, interpolation, linear output, empty forwarded argument, invalid-source silence, and an x64 PE. | Candidate evidence only, not general Windows support. General W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1534 | bounded native Windows builder profiles and local receipt | The tooling-only Windows builder accepts one strict `--profile` value. `development` maps to CMake Debug, `release` maps to Release and is the default, `benchmark` maps to a constrained, probed Release recipe with a clean Git worktree and recorded HEAD, and `size-experimental` maps to MinSizeRel for size comparison only. C23 remains primary and C11 remains explicit recovery. The builder reads fixture bytes before execution, records their SHA-256 identities, runs exact Hello and Restaurant smokes from a staged `w.exe`, writes deterministic `receipt.json`, and atomically swaps a dedicated output directory containing only `w.exe` and the receipt. | `source-backed-current` for the script, focused tests, machine manifests, and one real release C11-recovery build on the current Windows host. The four-profile execution matrix, package/release claims, cross-compilation, Unicode source paths, and performance remain gaps. The receipt is local evidence only and not package, budget, or performance proof. Benchmark recipe evidence is constrained/probed only; no reproducible-binary or double-build claim is made. `benchmarkDisposition: compiler-lifecycle`, correctness and recipe evidence only, no timing or result |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -9169,6 +9171,51 @@ opt-in only. The informal `dev` name is recorded only as a naming opportunity,
 not an alias; the canonical W profile is `debug`, and this policy adds no CLI
 syntax. The Hello PE reduction below 1 KiB is an `opportunity` backlog item,
 not an automatic gate.
+
+#### W-1534 — bounded native Windows builder profiles and local receipt
+
+W-1534 applies the W-1533 toolchain profile boundary to the existing native
+Windows x86_64 seed route. The profile belongs to the tooling builder. It does
+not add a profile option to `w run`, `w check`, or another public W command.
+
+The strict parser accepts one `--profile` value from `development`, `release`,
+`benchmark`, and `size-experimental`. It rejects missing, unknown, and duplicate
+values before toolchain, build, or output mutation. The default is `release`.
+The recipes map to Debug, Release, Release with reproducibility probes, and
+MinSizeRel. The size profile is opt-in and comparison-only.
+
+The benchmark recipe requires a clean Git worktree and records HEAD. It probes
+MSVC `/Brepro` and `/pathmap` plus linker `/Brepro`. A failed probe blocks the
+build. This keeps the selected recipe constrained and probed; it does not claim
+a reproducible binary or a double-build result.
+The primary C standard remains C23. The current MSVC/CMake host rejects C23,
+so the local successful route uses explicit `--c11-recovery`.
+
+The builder validates the pinned external asset, required tool digests, Windows
+SDK, and compiler identity. It builds outside the persistent output directory.
+It stages the binary, reads each fixture before execution, records its SHA-256,
+runs exact Hello and Restaurant smokes from the staged path, and writes
+`receipt.json`. The receipt uses schema
+`w-seed-windows-build-receipt-1`, deterministic key order, and a final newline.
+It includes source HEAD and dirty fact, toolchain, compiler, SDK, artifact, and
+smoke identities including fixture SHA-256 values. A HEAD change during the
+build is rejected for every profile; benchmark additionally requires a clean
+worktree.
+It omits absolute paths, secrets, timing, and performance claims. It states
+that the receipt is not a package, budget, or performance proof.
+
+The final directory contains only `w.exe` and `receipt.json`. The builder
+validates this directory before a recoverable same-volume rename. A failure
+before commit leaves the previous directory unchanged. The focused tests cover
+option parsing, profile mapping, receipt bounds, staged smoke layout, and
+pre-commit output preservation.
+
+The current evidence includes one real `release` C11-recovery build. The
+installed `w.exe` is 10034688 bytes on this host and both required smokes pass.
+This byte count is a local observation. It is not a performance result, package
+budget, or portable minimum. The other profile builds remain unclaimed until
+their recipes execute. The Hello PE target below 1 KiB remains an opportunity
+and this bundle does not act on it.
 
 #### W-1507 — catálogo operacional de hosts e targets
 

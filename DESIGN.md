@@ -36104,8 +36104,9 @@ These names are separate from toolchain build/distribution profiles: toolchain
 default, `benchmark` is reproducible and pinned, and `size-experimental` is
 opt-in only. The informal `dev` name is recorded only as a naming opportunity,
 not an alias or syntax; the canonical W profile is `debug`. This direction adds
-no CLI syntax and does not imply that the current builder implements these
-profiles. A size opportunity is backlog state only and never an automatic gate.
+no W CLI syntax. W-1534 implements these profiles only in the native Windows
+tooling builder. A size opportunity is backlog state only and never an automatic
+gate.
 
 This is a policy direction backed by `tooling/toolchain-distribution.json` and its
 offline checker. The release builder, end-user package, cross-compilation, and
@@ -36114,6 +36115,77 @@ the release direction; a fast native backend is research-only and does not
 replace MLIR. Zig 0.16 is comparison context only, not a W support or performance
 claim. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no
 timing or result claim.
+
+#### 26.4.1.18 W-1534 — bounded Windows builder profiles and receipt (Forma vigente)
+
+W-1534 defines the native Windows tooling builder for the bounded MLIR0 seed
+route. The profile namespace belongs to the toolchain. It does not belong to the
+W program and does not add a profile option to `w run`, `w check`, or another W
+command.
+
+The builder accepts `--profile <value>` at most once. The value must be one of
+`development`, `release`, `benchmark`, or `size-experimental`. A missing,
+unknown, or duplicate value fails before toolchain, build, or persistent-output
+mutation. The default is `release`. `--c11-recovery` remains explicit and may
+appear at most once. Options may appear in either order. `--help` is
+side-effect-free.
+
+The profile recipes are fixed:
+
+- `development` maps to CMake `Debug` for toolchain iteration and diagnostics.
+- `release` maps to CMake `Release` and is the performance-first default.
+- `benchmark` maps to CMake `Release` with a clean Git worktree, recorded HEAD,
+  and a constrained, probed MSVC recipe. This recipe evidence does not claim a
+  reproducible binary or a double-build result.
+- `size-experimental` maps to CMake `MinSizeRel` for size comparison only.
+
+The benchmark recipe probes the current `cl.exe` and linker before configure.
+The probe must accept `/Brepro` and `/pathmap` for the compiler and `/Brepro`
+for the linker. The builder fails closed when it cannot prove these options. It
+does not silently use another recipe. The benchmark disposition is
+`compiler-lifecycle`, correctness and recipe evidence only. It records no
+timing or performance result.
+
+The primary C standard remains C23. This host's MSVC/CMake route rejects C23,
+so a successful local build uses the explicit C11 recovery lane. Recovery is
+never selected silently.
+
+The builder validates the external materialized toolchain, Windows SDK, and
+compiler identity before configure. It stages `w.exe` outside the persistent
+output directory. It reads each smoke fixture and records its SHA-256 before
+running exact-byte Hello and Restaurant smokes from that staged executable.
+The staged directory contains only `w.exe` and
+`receipt.json`. The builder validates the receipt and the directory, then swaps
+the dedicated `build/w-windows` directory with a recoverable directory rename.
+A failure before commit preserves the previous output directory bitwise.
+
+`receipt.json` uses schema `w-seed-windows-build-receipt-1` and deterministic
+JSON key order with a final newline. The receipt status is
+`local-evidence-only`. It records the selected toolchain profile and CMake build
+type, C standard and lane, source HEAD and dirty fact, exact external asset and
+LLVM digest identity, Windows SDK version, compiler identity and version,
+`w.exe` byte size and SHA-256, and smoke identities, fixture SHA-256 values, and
+outcomes. It contains no absolute paths, secrets, or timing claims. It states
+that it is not a package, budget, or performance proof. A change to HEAD
+during the build is rejected for every profile; the dirty fact is recorded,
+and benchmark additionally requires a clean worktree.
+
+The profile recipes and receipt contract are machine-readable in
+`tooling/toolchain-distribution.json` and enforced by the builder script and its
+focused tests. The implementation remains bounded to
+Windows x86_64 and the existing C11 recovery evidence. It does not promote
+general W support, packaging, cross-compilation, or a public W build command.
+The Hello PE below 1 KiB remains an opportunity below the benchmark gate and is
+not acted on by this bundle.
+
+**Example:** the tooling profile and recovery lane are explicit, and the
+installed output is checked by real execution:
+
+```text
+bun run build:w-windows --profile release --c11-recovery
+build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
+build/w-windows/w.exe run compiler/seed-c/fixtures/restaurant-if.w
+```
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

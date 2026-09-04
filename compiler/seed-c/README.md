@@ -1108,13 +1108,23 @@ manifest, `CreateProcessW`, `CREATE_NEW` temporaries, and all-or-nothing cleanup
 To keep the development cache outside the repository:
 
 ```text
-bun run acquire:mlir0-windows          # network is an explicit opt-in
-bun run build:w-windows                # primary C23 attempt; fails closed here
-bun run build:w-windows --c11-recovery # exact current host evidence recipe
+bun run acquire:mlir0-windows                                      # network is an explicit opt-in
+bun run build:w-windows                                           # release, primary C23
+bun run build:w-windows --c11-recovery                            # release, explicit C11 recovery
+bun run build:w-windows --profile development --c11-recovery      # Debug, explicit C11 recovery
+bun run build:w-windows --profile size-experimental --c11-recovery # MinSizeRel
 ```
 
 `build:w-windows` discovers Visual Studio through `vswhere`, probes the Windows
-SDK explicitly, and does not copy the heavy toolchain. The
+SDK explicitly, and does not copy the heavy toolchain. The default `release`
+profile maps to CMake `Release`. The `development` profile maps to `Debug`.
+The `benchmark` profile maps to a recipe-constrained `Release`, requires a
+clean Git worktree, records HEAD, and probes `/Brepro` and `/pathmap` before the
+build. This bounded recipe evidence does not claim a reproducible binary or a
+double-build result. The `size-experimental` profile maps to `MinSizeRel` for
+size comparison only.
+These are toolchain profiles. They do not add a profile option to `w run`,
+`w check`, or another W command. The
 `bun run check:w-run-windows` gate proves Hello, Restaurant/if, interpolation,
 linear output, a forwarded empty argument, invalid source without stdout, and
 an x64 PE. The cache has role `development-and-release-only`,
@@ -1123,7 +1133,12 @@ candidate evidence, not general support. Unicode source paths, the general
 ABI/runtime, packaging, CI, cross-compilation, and other targets remain gaps.
 The builder tries C23 first; this host's MSVC/CMake rejects that dialect, so
 the current local evidence uses the explicit `--c11-recovery` option. There is
-no implicit standard fallback.
+no implicit standard fallback. The builder reads each fixture before execution,
+records its SHA-256, and runs exact Hello and Restaurant smokes from the staged
+executable before it atomically installs `build/w-windows/w.exe` and
+`build/w-windows/receipt.json`. The receipt is local evidence only, and is not
+a package, budget, or performance proof. A HEAD change during the build is
+rejected.
 
 NAT1 accepts exactly one module, function, `.default` entry and block. The
 function is linear, returns Unit, has no parameters or effects, and the block

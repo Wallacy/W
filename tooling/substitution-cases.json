@@ -3202,6 +3202,74 @@
         "bun run check:links — documentation links remain valid"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-windows-builder-profiles",
+      "reviewItem": "bounded native Windows builder profiles and local receipt against a public W profile option, manifest-only smoke, and non-atomic output replacement.",
+      "decisions": ["W-1534"],
+      "task": "Build the existing native Windows seed with an explicit toolchain recipe, prove exact fixture output, and retain one bounded installed result.",
+      "selected": {
+        "language": "tooling-contract",
+        "source": [
+          "bun run build:w-windows --profile release --c11-recovery",
+          "profiles: development=Debug, release=Release, benchmark=pinned Release, size-experimental=MinSizeRel",
+          "staged w.exe: Hello and Restaurant exact stdout",
+          "output: w.exe + receipt.json; atomic dedicated-directory swap"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "public-w-profile-option",
+          "language": "w-rejected",
+          "source": ["Add --profile to w run, w check, or a public w build command"],
+          "expectedDifference": "The profile selects a toolchain recipe only and does not enlarge the W CLI surface."
+        },
+        {
+          "name": "manifest-only-smoke",
+          "language": "tooling-rejected",
+          "source": ["Check only that a manifest names w.exe and call the build complete"],
+          "expectedDifference": "The installed or staged executable must run Hello and Restaurant with exact bytes."
+        },
+        {
+          "name": "direct-output-replacement",
+          "language": "tooling-rejected",
+          "source": ["Delete build/w-windows and copy a new binary before validation"],
+          "expectedDifference": "Build and receipt validation complete outside the persistent directory; a failed pre-commit preserves the previous bytes."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "tooling/build-w-windows.mjs",
+          "symbol": "parseBuildArguments",
+          "claim": "The builder parses one strict toolchain profile and keeps C11 recovery explicit."
+        },
+        {
+          "path": "tooling/build-w-windows.mjs",
+          "symbol": "validateReceipt",
+          "claim": "The bounded receipt records local identities, artifact hashes, exact smoke outcomes, and no absolute paths."
+        },
+        {
+          "path": "tooling/build-w-windows.mjs",
+          "symbol": "atomicInstallOutput",
+          "claim": "The dedicated output is switched only after staged validation and can restore the previous directory on failure."
+        },
+        {
+          "path": "tooling/build-w-windows.test.mjs",
+          "symbol": "rejects an output stage before it can replace the previous directory",
+          "claim": "The focused test proves a rejected stage does not mutate the previous output bytes."
+        },
+        {
+          "path": "tooling/mlir0-windows-toolchain.json",
+          "symbol": "buildBoundary",
+          "claim": "The machine manifest records the four toolchain mappings, receipt contract, and staged smoke boundary."
+        }
+      ],
+      "checks": [
+        "bun test tooling/build-w-windows.test.mjs — strict options, profile mappings, receipt, and adversarial output tests",
+        "bun run build:w-windows --profile release --c11-recovery — real Windows C11 recovery build and staged fixture smokes",
+        "bun run check:mlir0-windows — offline acquisition and builder contract gate"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
