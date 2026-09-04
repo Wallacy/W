@@ -23,12 +23,12 @@ describe("HRD0 development-only hot reload oracle", () => {
     expect(study.evidence.missing).toContain("w-compile");
   });
 
-  test("derives current composition, Research, and rejection routes", () => {
+  test("derives current composition, historical-candidate, and rejection routes", () => {
     const result = (id) => evaluateHotReloadCase(byId.get(id), { corpus });
     expect(result("HRD0-A-normal-unit-reopen")).toMatchObject({ status: "committed", route: "current-composition", generation: "g2" });
     expect(result("HRD0-B-typed-service-generation")).toMatchObject({ status: "committed", route: "current-composition" });
-    expect(result("HRD0-C-generated-module-reopen-research")).toMatchObject({ status: "research", route: "research", generatedReopened: true });
-    expect(result("HRD0-C-invocation-spelling-unresolved")).toMatchObject({ status: "research", code: "invocation-not-selected" });
+    expect(result("HRD0-C-generated-module-reopen-historical-candidate")).toMatchObject({ status: "historical-candidate", route: "historical-candidate", generatedReopened: true });
+    expect(result("HRD0-C-invocation-spelling-unresolved")).toMatchObject({ status: "historical-candidate", route: "historical-candidate", code: "invocation-not-selected" });
     expect(result("HRD0-D-production-reload-rejected")).toMatchObject({ status: "intentionally-rejected", route: "intentionally-rejected" });
     expect(result("HRD0-D-live-state-migration-rejected")).toMatchObject({ status: "intentionally-rejected", generation: "g1" });
   });

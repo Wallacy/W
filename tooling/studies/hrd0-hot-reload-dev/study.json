@@ -14,7 +14,7 @@
     "invocation": "tooling-owned-unselected",
     "release": "rejected",
     "activeFrameMutation": "rejected",
-    "generatedModuleSet": "research-through-SYN1",
+    "generatedModuleSet": "historical-candidate-through-SYN1",
     "typedGeneration": "composes-existing-DYN1",
     "migration": "no-live-state"
   },
@@ -32,7 +32,7 @@
     {
       "axis": "C",
       "problem": "generated module set and CLI invocation ownership",
-      "disposition": "research-candidate"
+      "disposition": "historical-candidate"
     },
     {
       "axis": "D",
@@ -154,29 +154,29 @@
   ],
   "corpus": {
     "path": "../../hot-reload-dev-cases.json",
-    "digest": "sha256:a2da815c5f8e6745a8d35cb597c535a8181708b5458fe58f32a2f9fd9c510f96"
+    "digest": "sha256:2f705e4cffd08deef616eacf42df68be9e0760dc7c0c0c2bd587ca5b87c57ec1"
   },
   "machine": {
     "path": "../../hot-reload-dev-machine.mjs",
-    "digest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841"
+    "digest": "sha256:8676563b94f5cd437a2df736cacb29f51e3ca00ddbe925ed96c62937339fd16a"
   },
   "checker": {
     "path": "../../check-hot-reload-dev.mjs",
-    "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe"
+    "digest": "sha256:834182e4359ea0fd6474f86fcc2df87524c4200e4797247484b67c3df4a4af4b"
   },
   "snapshot": {
     "path": "../../hot-reload-dev-results.snapshot.jsonl",
-    "digest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6"
+    "digest": "sha256:9c99ecceec514065abc7ff87a11071fedeaaec144ec86a3755ce5f8e8a7d48d2"
   },
   "studyOracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085"
+    "digest": "sha256:3d3baed8fe3b82a87692aa69e0cb249ea60905faf2839a27953c6913c2f05f64"
   },
   "metrics": {
     "caseCount": 20,
     "adversarialMutations": 5,
     "pairedProjections": 1,
-    "researchCases": 2,
+    "historicalCandidateCases": 2,
     "rejectedRoutes": 7,
     "languageSurfaceCases": 20
   },
@@ -219,7 +219,7 @@
     {
       "id": "HRD0-REOPEN-0001",
       "when": "generated units do not reopen and semantic-check before freeze",
-      "meaning": "generated module set remains a Research candidate"
+      "meaning": "generated module set is retained as historical SYN1 provenance; current evidence belongs to W-1398/W-1399"
     },
     {
       "id": "HRD0-MIGRATION-0001",
@@ -273,6 +273,6 @@
       "model-study"
     ]
   },
-  "recommendation": "Treat hot reload as a development-only tooling runner. Rebuild and reopen normal W units, then compose existing REPL snapshots and typed service/plugin generations with prepare, validate, preflight, ready, switch, old-generation drain, and stale-event rejection. Keep generated module sets as SYN1 Research and keep CLI spelling tooling-owned until a separate gate justifies it.",
-  "stopCondition": "Do not add language syntax, a source/package dev profile, or production dynamic mode. Stop on stale publication, hidden capability, live-state migration, cleanup/leak/unbounded resource, local/split logical divergence, invalid identity or source map, forged rollback, unknown fault without explicit outcome, post-publication rollback, native sandbox claim, or any missing compiler/provider/isolation evidence. W-1398/W-1399 remain Research until independent case review and implementation evidence close their named gates."
+  "recommendation": "Treat hot reload as a development-only tooling runner. Rebuild and reopen normal W units, then compose existing REPL snapshots and typed service/plugin generations with prepare, validate, preflight, ready, switch, old-generation drain, and stale-event rejection. Keep generated module sets as historical SYN1 provenance and keep CLI spelling tooling-owned. W-1398/W-1399 define the current contracts and their implementation evidence gaps.",
+  "stopCondition": "Do not add language syntax, a source/package dev profile, or production dynamic mode. Stop on stale publication, hidden capability, live-state migration, cleanup/leak/unbounded resource, local/split logical divergence, invalid identity or source map, forged rollback, unknown fault without explicit outcome, post-publication rollback, native sandbox claim, or any missing compiler/provider/isolation evidence. Treat W-1398/W-1399 as the current design contracts until their named implementation evidence gaps close; this historical study exposes no active research route."
 }

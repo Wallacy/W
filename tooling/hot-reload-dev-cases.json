@@ -142,13 +142,13 @@
       "expect": { "status": "intentionally-rejected", "code": "native-not-sandbox" }
     },
     {
-      "id": "HRD0-C-generated-module-reopen-research",
+      "id": "HRD0-C-generated-module-reopen-historical-candidate",
       "axis": "C",
       "family": "generated-module-set",
       "problem": "A content-addressed generated module set must become new normal W units and reopen before freeze.",
       "facts": { "runner": { "sourceKind": "generated-module-set" } },
       "events": ["actionResult", "reopenUnit", "semanticCheck", "prepare", "validate", "preflight", "ready", "switch", "closeAdmission", "drain", { "op": "cleanup", "steps": ["cancelChildren", "drainWaits", "drainLoans", "drainStreams", "drainCallbacks", "drainResources", "unregister", "inFlightDrain", "destroy", "release"] }],
-      "expect": { "status": "research", "route": "research", "generation": "g2", "languageSurface": "none" }
+      "expect": { "status": "historical-candidate", "route": "historical-candidate", "generation": "g2", "languageSurface": "none" }
     },
     {
       "id": "HRD0-C-generated-module-injection-rejected",
@@ -165,7 +165,7 @@
       "family": "tooling-invocation",
       "problem": "The corpus does not justify selecting a CLI spelling such as w dev or w run --watch.",
       "events": ["invocation"],
-      "expect": { "status": "research", "route": "research", "code": "invocation-not-selected" }
+      "expect": { "status": "historical-candidate", "route": "historical-candidate", "code": "invocation-not-selected" }
     },
     {
       "id": "HRD0-D-production-reload-rejected",

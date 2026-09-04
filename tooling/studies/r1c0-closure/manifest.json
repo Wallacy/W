@@ -256,7 +256,7 @@
     {
       "id": "R1-hrd0-hot-reload-dev",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "digest": "sha256:63a10cfd51fbaed5118d95d944edadf524e1904d4364f2d3444869395a76360a"
+      "digest": "sha256:f74a168fb6b8eb382690cf88599effee88503e9025d6b3ed9b38c4acc3a4fddc"
     },
     {
       "id": "R1-imports-last-light",

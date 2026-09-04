@@ -64,8 +64,8 @@ for (const result of mutationResults) {
 }
 
 const byId = new Map(results.map((result) => [result.caseId, result]));
-if (byId.get("HRD0-C-generated-module-reopen-research")?.status !== "research") {
-  process.stderr.write("HRD0 generated module candidate must remain Research.\n");
+if (byId.get("HRD0-C-generated-module-reopen-historical-candidate")?.status !== "historical-candidate") {
+  process.stderr.write("HRD0 generated module provenance must remain a historical candidate.\n");
   process.exit(1);
 }
 if (byId.get("HRD0-C-invocation-spelling-unresolved")?.code !== "invocation-not-selected") {
@@ -91,7 +91,7 @@ const output = {
     pairedProjections: results.filter((result) => result.mode === "paired").length,
     staleGenerationRejections: results.reduce((total, result) => total + (result.staleRejections?.length ?? 0), 0),
     rejectedMechanisms: results.filter((result) => result.route === "intentionally-rejected").length,
-    researchCases: results.filter((result) => result.route === "research").length,
+    historicalCandidateCases: results.filter((result) => result.route === "historical-candidate").length,
     languageSurfaceCases: results.filter((result) => result.languageSurface === "none").length,
     cleanupChecked: results.filter((result) => result.cleanupOrder?.length > 0).length,
     adversarialMutations: mutationResults.length,
@@ -111,6 +111,6 @@ if (writeSnapshot) {
 process.stdout.write(
   `HRD0 hot reload dev oracle: ${output.metrics.caseCount} cases, ` +
     `${output.metrics.pairedProjections} paired projections, ` +
-    `${output.metrics.researchCases} Research cases, ` +
+    `${output.metrics.historicalCandidateCases} historical-candidate cases, ` +
     `${output.metrics.rejectedMechanisms} rejected routes.\n`,
 );

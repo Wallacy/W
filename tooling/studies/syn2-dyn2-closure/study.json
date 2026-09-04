@@ -30,7 +30,7 @@
       "id": "HRD0",
       "role": "evidence-input",
       "path": "../hrd0-hot-reload-dev/study.json",
-      "digest": "sha256:aca0950b45db5246f21364d5b2c963869a2854ccbfcdac4ab3d7bf0742919ff6",
+      "digest": "sha256:2416a5989cf5b4ac89e6bb480bd11a6d5eba590d3a59744ae1fda03875025ffb",
       "claim": "development-only runner, local/split cleanup, and mutation boundary"
     }
   ],
@@ -53,7 +53,7 @@
     },
     "snapshot": {
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
-      "digest": "sha256:7fa3f22f4905a84065cc4e0dad2f9f0dbf20713d7335b621452c32a701090006"
+      "digest": "sha256:b8a6deca16164b011cbdae6f4cd5dfca70915548a90910e8f5531a983f13434c"
     },
     "studyOracle": {
       "path": "oracle.test.mjs",
@@ -162,15 +162,15 @@
       "role": "validated-independent-reducer",
       "machine": {
         "path": "../../hot-reload-dev-machine.mjs",
-        "digest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841"
+        "digest": "sha256:8676563b94f5cd437a2df736cacb29f51e3ca00ddbe925ed96c62937339fd16a"
       },
       "snapshot": {
         "path": "../../hot-reload-dev-results.snapshot.jsonl",
-        "digest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6"
+        "digest": "sha256:9c99ecceec514065abc7ff87a11071fedeaaec144ec86a3755ce5f8e8a7d48d2"
       },
       "checker": {
         "path": "../../check-hot-reload-dev.mjs",
-        "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe"
+        "digest": "sha256:834182e4359ea0fd6474f86fcc2df87524c4200e4797247484b67c3df4a4af4b"
       }
     }
   ],
