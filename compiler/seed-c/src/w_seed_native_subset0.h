@@ -16,6 +16,8 @@ extern "C" {
 #define W_SEED_NATIVE_SUBSET0_MAX_CALLS 32u
 #define W_SEED_NATIVE_SUBSET0_MAX_BINDINGS 32u
 #define W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES 4096u
+#define W_SEED_NATIVE_SUBSET0_MAX_VALUES 64u
+#define W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS 64u
 
 typedef enum {
   W_SEED_NATIVE_SUBSET0_OK = 0,
@@ -50,6 +52,7 @@ typedef struct {
   const w_seed_hir0_value *value;
   const uint8_t *payload;
   size_t payload_bytes;
+  bool is_interpolated;
 } w_seed_native_subset0_call_selection;
 
 typedef struct {
@@ -64,6 +67,8 @@ typedef struct {
   size_t binding_count;
   size_t call_count;
   size_t stdout_bytes;
+  size_t maximum_stdout_bytes;
+  bool has_interpolation;
 } w_seed_native_subset0_sequence;
 
 w_seed_native_subset0_status w_seed_native_subset0_select(

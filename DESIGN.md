@@ -27697,7 +27697,8 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-3-linear-print-sequence`. Seu backend tem status `pass`. Runtime,
+`w-seed-mlir0-4-linear-print-and-i64-interpolation`. Seu backend tem status
+`pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
 Ela não declara target geral, SDK, packaging ou CI oficial. O manifest
@@ -35466,12 +35467,13 @@ return 3. `--entry` and `--offline` are rejected in this cut. Native Windows,
 macOS and the general public runner remain gaps. The evidence covers compiler
 lifecycle correctness only; it makes no performance, timing or result claim.
 
-W-1521 remains current for this CLI contract and now points to W-1522 for the
-NAT1 linear-print-sequence extension. In `w run`, the explicit path basename is
+W-1521 remains current for this CLI contract. W-1522 defines the static NAT1
+sequence, and W-1525 adds bounded signed-`i64` interpolation. In `w run`, the explicit path basename is
 an opaque logical source identity, including a hyphen and the terminal `.w`; it
 is not required to be a W identifier or module name. The `w check` helper and
 `w_seed_check_root_source_id` are unchanged. This makes the versioned
-`hlo0-hello.w` and `restaurant-linear.w` examples executable directly without
+`hlo0-hello.w`, `restaurant-linear.w`, and `restaurant-interpolation.w`
+examples executable directly without
 changing the public argument grammar.
 
 #### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Current form)
@@ -35479,7 +35481,8 @@ changing the public argument grammar.
 W-1522 is the current `source-backed-current` decision for the NAT1 product
 cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
 MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; no legacy
-adapter is retained. W-1523 later advances the frontend schema without
+adapter is retained. W-1525 later advances these schemas to v4 and v3 while
+preserving this static sequence. W-1523 later advances the frontend schema without
 widening the NAT1 selector. W-1524 later advances HIR0 to
 `w-seed-hir0-3` while preserving this NAT1 selection contract. The primary route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
@@ -35499,16 +35502,15 @@ bytes. No other instruction or call is accepted.
 MLIR0 may coalesce the ordered calls into one private global and one `write`
 operation because bindings are pure and the accepted sequence has no other
 effects. This preserves the exact bytes and W order; it does not promise a
-syscall boundary for each source call. The artifact bound
-`W_SEED_MLIR0_MAX_BYTES = 13190` is derived from the fixed skeleton, worst-case
-escaped output, and bounded decimal fields, and is proved by compile-time
-static assertions rather than trial. `measure` and `emit` remain caller-owned,
+syscall boundary for each source call. The static artifact fits its original
+derived 13190-byte bound. W-1525 raises the adapter capacity to 65536 bytes for
+generated value operations and runtime formatting. `measure` and `emit` remain caller-owned,
 no-heap, deterministic, alias-safe, digest-bearing, and all-or-nothing:
 invalid HIR, unsupported shape, short capacity, or any relevant alias leaves
 caller output and result unchanged.
 
 HLO0, HLO1, and RUN0 retain their existing single-print schemas and reject
-multi-call sequences. This decision does not add Int, interpolation, `var`,
+multi-call sequences. This decision does not itself add Int, interpolation, `var`,
 CFG, general SSA, DCE, general locals, general types, a W dialect, a general
 runtime, HLO0 as a requirement, or a performance claim.
 
@@ -35580,10 +35582,8 @@ Segment count and capacity are part of frontend measure/run. Short segment
 capacity fails before publication and preserves every caller-owned output
 buffer. At this decision boundary, HIR0 validated the new frontend array shape
 and alias range but rejected interpolated expressions as outside schema v2.
-W-1524 later adds the verified HIR records. Display formatting through MLIR
-remains a separate milestone. Until that milestone, the Restaurant arithmetic
-witness is not a native product and no precomputed text or special `printInt`
-path is allowed.
+W-1524 later adds the verified HIR records. W-1525 closes a bounded native
+signed-`i64` subset without precomputed text or a `printInt` surface.
 
 The focused evidence covers `"The answer is ${6 * 7}"`, nested grouping,
 literal-event identity, dense segment ownership, exact text bytes, canonical
@@ -35633,11 +35633,61 @@ entry(main)
 ```
 
 to typed HIR records for `6`, `7`, multiplication, the interpolated String,
-and the suffix. MLIR0, Native0, and public `w run` do not yet accept the new
-value kinds. Display formatting, arithmetic lowering, native output, general
+and the suffix. W-1525 later accepts bounded signed-`i64` interpolation through
+MLIR0, Native0, and public `w run`. Other Display domains, general
 expressions, negative integer literals, overflow policy, and performance
 remain later milestones. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
+
+#### 26.4.1.9 W-1525 — bounded signed-i64 interpolation through native MLIR (Current form)
+
+W-1525 advances MLIR0 to `w-seed-mlir0-4` and Native0 to
+`w-seed-native0-3`. The accepted HIR retains the W-1522 linear module,
+function, entry, block, binding, and call shape. A call argument may now be an
+interpolated String. Its values are signed `i64` constants or bounded binary
+trees that use `+`, `-`, `*`, `/`, and `%`.
+
+The selector evaluates each integer tree only to prove that the represented
+operation cannot panic. It rejects overflow, division by zero, and
+`i64.min / -1` before artifact publication. It does not substitute the proof
+result into the artifact. The generated LLVM dialect contains the original
+constants and arithmetic operations. This keeps arithmetic observable at the
+backend boundary.
+
+The bounded seed Display adapter builds one format description from ordered
+text and value segments. It escapes `%` as data. It uses a 4097-byte stack
+buffer, target-ABI `snprintf` for signed decimal `i64`, and one checked POSIX
+`write`. Formatting occurs at runtime. W source still calls `print` with a
+String. W does not expose `printInt` or this adapter as language surface.
+
+This adapter is specific to the evidenced Linux x86_64 GNU target. The
+`%ld` ABI assumption is valid only for that target. It is not the final W
+runtime or a performance baseline. Interpolated text containing NUL, Bool or
+String value segments, nested interpolation, values not proven panic-free,
+and output above 4096 bytes remain unsupported by this implementation cut.
+These limits do not change the language-level String or Display contracts.
+
+The artifact capacity is 65536 bytes. The input remains bounded by 64 HIR
+values, 64 interpolation segments, 32 instructions, 32 calls, and 4096 output
+bytes. Measure and emit remain caller-owned, no-heap, deterministic,
+digest-bearing, alias-safe, and all-or-nothing.
+
+The canonical witness is
+`compiler/seed-c/fixtures/restaurant-interpolation.w`:
+
+```w
+fn serve() {
+  print("Table ${6 * 7} remains open")
+}
+entry(serve)
+```
+
+The source reaches `llvm.mul`, MLIR verification, LLVM translation, native
+link, and execution. Its exact stdout is `Table 42 remains open\n`. The gate
+also executes all five accepted operators, a negative result, and a literal
+percent sign. It confirms that emitted MLIR has no precomputed `Table 42`
+payload. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only.
+No timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

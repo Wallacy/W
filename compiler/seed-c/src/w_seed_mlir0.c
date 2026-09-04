@@ -13,6 +13,7 @@ enum {
   MLIR0_DECIMAL_FIELDS = 4,
   MLIR0_DECIMAL_MAX_BYTES = 4,
   MLIR0_MAX_STDOUT_BYTES = W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES,
+  MLIR0_FORMAT_BYTES = (2 * W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES) + 1,
 };
 
 static const char MLIR0_SCHEMA_COMMENT[] =
@@ -67,8 +68,8 @@ _Static_assert(MLIR0_MAX_STDOUT_BYTES <= 9999u,
                "w-seed MLIR0 decimal fields must cover the bounded stdout size");
 _Static_assert(MLIR0_FIXED_LITERAL_BYTES == 886u,
                "w-seed MLIR0 fixed artifact literals changed");
-_Static_assert(MLIR0_REQUIRED_MAX_BYTES == W_SEED_MLIR0_MAX_BYTES,
-               "w-seed MLIR0 artifact bound must be the derived maximum");
+_Static_assert(MLIR0_REQUIRED_MAX_BYTES <= W_SEED_MLIR0_MAX_BYTES,
+               "w-seed MLIR0 must retain the static artifact bound");
 
 static bool range_end(uintptr_t start, size_t length, uintptr_t *end) {
   if (end == NULL || length > UINTPTR_MAX - start) return false;
@@ -125,6 +126,30 @@ static bool append_size(uint8_t *buffer, size_t capacity, size_t *offset,
   return append_bytes(buffer, capacity, offset, digits, length);
 }
 
+static bool append_i64(uint8_t *buffer, size_t capacity, size_t *offset,
+                       int64_t value) {
+  char digits[32];
+  size_t length = 0u;
+  uint64_t magnitude = 0u;
+  if (value < 0) {
+    if (!append_bytes(buffer, capacity, offset, "-", 1u)) return false;
+    magnitude = (uint64_t)(-(value + 1)) + 1u;
+  } else {
+    magnitude = (uint64_t)value;
+  }
+  do {
+    digits[length] = (char)('0' + magnitude % 10u);
+    magnitude /= 10u;
+    length += 1u;
+  } while (magnitude != 0u);
+  for (size_t index = 0u; index < length / 2u; index += 1u) {
+    const char swap = digits[index];
+    digits[index] = digits[length - index - 1u];
+    digits[length - index - 1u] = swap;
+  }
+  return append_bytes(buffer, capacity, offset, digits, length);
+}
+
 static bool append_hex_byte(uint8_t *buffer, size_t capacity, size_t *offset,
                             uint8_t value) {
   const uint8_t escaped[] = {'\\', (uint8_t)MLIR0_HEX[value >> 4u],
@@ -150,7 +175,7 @@ bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target) {
   return target_is_supported(target);
 }
 
-static bool build_artifact(
+static bool build_static_artifact(
     const w_seed_native_subset0_sequence *sequence,
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
@@ -165,6 +190,7 @@ static bool build_artifact(
       sequence->call_count > sequence->instruction_count ||
       sequence->instruction_count - sequence->call_count !=
           sequence->binding_count ||
+      sequence->has_interpolation ||
       sequence->stdout_bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES)
     return false;
   size_t stdout_bytes = 0u;
@@ -204,6 +230,290 @@ static bool build_artifact(
   w_seed_sha256_update(&state, artifact, offset);
   w_seed_sha256_final(&state, digest);
   return true;
+}
+
+typedef enum {
+  MLIR0_FORMAT_I64 = 0,
+} mlir0_format_argument_kind;
+
+typedef struct {
+  mlir0_format_argument_kind kind;
+  uint32_t value_index;
+} mlir0_format_argument;
+
+static bool append_format_bytes(uint8_t *format, size_t capacity,
+                                size_t *offset, const uint8_t *bytes,
+                                size_t length) {
+  if (format == NULL || offset == NULL || (length != 0u && bytes == NULL))
+    return false;
+  for (size_t index = 0u; index < length; index += 1u) {
+    if (bytes[index] == 0u) return false;
+    if (bytes[index] == (uint8_t)'%' &&
+        !append_bytes(format, capacity, offset, "%", 1u))
+      return false;
+    if (!append_bytes(format, capacity, offset, &bytes[index], 1u))
+      return false;
+  }
+  return true;
+}
+
+static bool value_string_bytes(const w_seed_hir0_program *program,
+                               const w_seed_hir0_value *value,
+                               const uint8_t **bytes, size_t *length) {
+  if (program == NULL || value == NULL || bytes == NULL || length == NULL)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING) {
+    *length = value->byte_count;
+    *bytes = *length == 0u ? NULL : program->value_bytes + value->byte_offset;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+      value->binding_index < program->binding_count) {
+    const w_seed_hir0_binding *binding =
+        &program->bindings[value->binding_index];
+    *length = binding->byte_count;
+    *bytes = *length == 0u ? NULL
+                          : program->value_bytes + binding->byte_offset;
+    return true;
+  }
+  return false;
+}
+
+static bool build_dynamic_format(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_sequence *sequence, uint8_t *format,
+    size_t format_capacity, size_t *format_bytes,
+    mlir0_format_argument *arguments, size_t argument_capacity,
+    size_t *argument_count) {
+  if (program == NULL || sequence == NULL || format == NULL ||
+      format_bytes == NULL || arguments == NULL || argument_count == NULL ||
+      !sequence->has_interpolation)
+    return false;
+  size_t offset = 0u;
+  size_t count = 0u;
+  for (size_t call_index = 0u; call_index < sequence->call_count;
+       call_index += 1u) {
+    const w_seed_hir0_value *root = sequence->calls[call_index].value;
+    if (root == NULL) return false;
+    if (root->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+      const uint8_t *bytes = NULL;
+      size_t length = 0u;
+      if (!value_string_bytes(program, root, &bytes, &length) ||
+          !append_format_bytes(format, format_capacity, &offset, bytes,
+                               length))
+        return false;
+    } else {
+      for (size_t ordinal = 0u; ordinal < root->interpolation_segment_count;
+           ordinal += 1u) {
+        const w_seed_hir0_interpolation_segment *segment =
+            &program->interpolation_segments[root->first_interpolation_segment +
+                                             ordinal];
+        if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
+          const uint8_t *bytes = segment->byte_count == 0u
+                                     ? NULL
+                                     : program->value_bytes +
+                                           segment->byte_offset;
+          if (!append_format_bytes(format, format_capacity, &offset, bytes,
+                                   segment->byte_count))
+            return false;
+          continue;
+        }
+        if (segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE ||
+            segment->value_index >= program->value_count)
+          return false;
+        const w_seed_hir0_value *embedded =
+            &program->values[segment->value_index];
+        if (embedded->type_index >= program->type_count) return false;
+        const w_seed_hir0_type_kind type =
+            program->types[embedded->type_index].kind;
+        if (count >= argument_capacity) return false;
+        if (type == W_SEED_HIR0_TYPE_I64) {
+          if (!append_bytes(format, format_capacity, &offset, "%ld", 3u))
+            return false;
+          arguments[count] =
+              (mlir0_format_argument){MLIR0_FORMAT_I64, segment->value_index};
+        } else {
+          return false;
+        }
+        count += 1u;
+      }
+    }
+    const uint8_t newline = 0x0au;
+    if (!append_bytes(format, format_capacity, &offset, &newline, 1u))
+      return false;
+  }
+  const uint8_t nul = 0u;
+  if (!append_bytes(format, format_capacity, &offset, &nul, 1u)) return false;
+  *format_bytes = offset;
+  *argument_count = count;
+  return true;
+}
+
+static const char *binary_operation(w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "llvm.add";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "llvm.sub";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "llvm.mul";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "llvm.sdiv";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "llvm.srem";
+  }
+  return NULL;
+}
+
+static bool append_value_operations(const w_seed_hir0_program *program,
+                                    uint8_t *artifact, size_t capacity,
+                                    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL) return false;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_i64(artifact, capacity, offset, value->integer_value) ||
+          !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
+        return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          value->bool_value
+                              ? " = llvm.mlir.constant(true) : i1\n"
+                              : " = llvm.mlir.constant(false) : i1\n"))
+        return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+      const char *operation = binary_operation(value->binary_operator);
+      if (operation == NULL ||
+          !append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, " = ") ||
+          !append_literal(artifact, capacity, offset, operation) ||
+          !append_literal(artifact, capacity, offset, " %v") ||
+          !append_size(artifact, capacity, offset, value->left_value) ||
+          !append_literal(artifact, capacity, offset, ", %v") ||
+          !append_size(artifact, capacity, offset, value->right_value) ||
+          !append_literal(artifact, capacity, offset, " : i64\n"))
+        return false;
+    }
+  }
+  return true;
+}
+
+static bool append_snprintf_call(const mlir0_format_argument *arguments,
+                                 size_t argument_count, uint8_t *artifact,
+                                 size_t capacity, size_t *offset) {
+  if (arguments == NULL || artifact == NULL || offset == NULL) return false;
+  if (!append_literal(artifact, capacity, offset,
+                      "    %length32 = llvm.call @snprintf(%buffer, %capacity, %format"))
+    return false;
+  for (size_t index = 0u; index < argument_count; index += 1u) {
+    if (!append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset,
+                     arguments[index].value_index))
+      return false;
+  }
+  if (!append_literal(
+          artifact, capacity, offset,
+          ") vararg(!llvm.func<i32 (ptr, i64, ptr, ...)>) : (!llvm.ptr, i64, !llvm.ptr"))
+    return false;
+  for (size_t index = 0u; index < argument_count; index += 1u)
+    if (!append_literal(artifact, capacity, offset, ", i64"))
+      return false;
+  return append_literal(artifact, capacity, offset, ") -> i32\n");
+}
+
+static bool build_dynamic_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_sequence *sequence,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || sequence == NULL || !sequence->has_interpolation ||
+      !target_is_supported(target) || artifact == NULL || written == NULL ||
+      digest == NULL ||
+      sequence->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
+    return false;
+  uint8_t format[MLIR0_FORMAT_BYTES];
+  mlir0_format_argument arguments[
+      W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS];
+  size_t format_bytes = 0u;
+  size_t argument_count = 0u;
+  if (!build_dynamic_format(
+          program, sequence, format, sizeof(format), &format_bytes, arguments,
+          sizeof(arguments) / sizeof(arguments[0]), &argument_count))
+    return false;
+
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
+      !append_literal(artifact, capacity, &offset,
+                      "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                      "\"} {\n"
+                      "  llvm.mlir.global private constant @w_seed_mlir0_format(\"") ||
+      !append_escaped_bytes(artifact, capacity, &offset, format,
+                            format_bytes) ||
+      !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
+      !append_size(artifact, capacity, &offset, format_bytes) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          " x i8>\n"
+          "  llvm.func @snprintf(!llvm.ptr, i64, !llvm.ptr, ...) -> i32\n"
+          "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"
+          "  llvm.func @main() -> i32 {\n"
+          "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+          "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n"
+          "    %format_base = llvm.mlir.addressof @w_seed_mlir0_format : !llvm.ptr\n"
+          "    %format = llvm.getelementptr %format_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<") ||
+      !append_size(artifact, capacity, &offset, format_bytes) ||
+      !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+      !append_value_operations(program, artifact, capacity, &offset) ||
+      !append_snprintf_call(arguments, argument_count, artifact, capacity,
+                            &offset) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "    %zero32 = llvm.mlir.constant(0 : i32) : i32\n"
+          "    %limit32 = llvm.mlir.constant(4096 : i32) : i32\n"
+          "    %nonnegative = llvm.icmp \"sge\" %length32, %zero32 : i32\n"
+          "    %within = llvm.icmp \"sle\" %length32, %limit32 : i32\n"
+          "    %valid = llvm.and %nonnegative, %within : i1\n"
+          "    llvm.cond_br %valid, ^write, ^failed\n"
+          "  ^write:\n"
+          "    %length = llvm.sext %length32 : i32 to i64\n"
+          "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
+          "    %written = llvm.call @write(%fd, %buffer, %length) : (i32, !llvm.ptr, i64) -> i64\n"
+          "    %equal = llvm.icmp \"eq\" %written, %length : i64\n"
+          "    %success = llvm.mlir.constant(0 : i32) : i32\n"
+          "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
+          "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
+          "    llvm.return %status : i32\n"
+          "  ^failed:\n"
+          "    %failed_status = llvm.mlir.constant(1 : i32) : i32\n"
+          "    llvm.return %failed_status : i32\n"
+          "  }\n"
+          "}\n"))
+    return false;
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
+static bool build_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_sequence *sequence,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  return sequence != NULL && sequence->has_interpolation
+             ? build_dynamic_artifact(program, sequence, target, artifact,
+                                      capacity, written, digest)
+             : build_static_artifact(sequence, target, artifact, capacity,
+                                     written, digest);
 }
 
 typedef struct {
@@ -346,8 +656,8 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(&sequence, target, artifact, sizeof(artifact), &written,
-                      digest))
+  if (!build_artifact(input->program, &sequence, target, artifact,
+                      sizeof(artifact), &written, digest))
     return W_SEED_MLIR0_INVALID_HIR;
   const w_seed_mlir0_counts candidate_counts = {written};
   w_seed_mlir0_result candidate_result;
@@ -381,8 +691,8 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (!build_artifact(&sequence, target, artifact, sizeof(artifact), &written,
-                      digest))
+  if (!build_artifact(input->program, &sequence, target, artifact,
+                      sizeof(artifact), &written, digest))
     return W_SEED_MLIR0_INVALID_HIR;
   if (output_buffer_aliases(input, target, output, result, written))
     return W_SEED_MLIR0_ALIAS;

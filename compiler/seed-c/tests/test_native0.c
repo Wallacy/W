@@ -55,8 +55,8 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-2") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-3") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-3") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-4") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -242,13 +242,16 @@ static bool test_failures_and_capacity(void) {
       "fn main() { print(\"The answer is ${6 * 7}\") }\nentry(main)\n";
   (void)memset(output, 0xd1u, sizeof(output));
   (void)memset(&result, 0xd2u, sizeof(result));
-  const w_seed_native0_result interpolation_snapshot = result;
   CHECK(run_source(interpolation, sizeof(interpolation) - 1u,
                    "interpolation-id", 16u, output, sizeof(output), &result) ==
-        W_SEED_NATIVE0_UNSUPPORTED);
-  for (size_t index = 0u; index < sizeof(output); index += 1u)
-    CHECK(output[index] == 0xd1u);
-  CHECK(memcmp(&result, &interpolation_snapshot, sizeof(result)) == 0);
+        W_SEED_NATIVE0_OK);
+  CHECK(result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes);
+  CHECK(storage.hir_program.value_count == 4u &&
+        storage.hir_program.interpolation_segment_count == 2u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.mul %v0, %v1 : i64"));
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @snprintf"));
 
   return true;
 }

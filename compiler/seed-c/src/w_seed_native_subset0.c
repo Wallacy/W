@@ -1,5 +1,6 @@
 #include "w_seed_native_subset0.h"
 
+#include <limits.h>
 #include <string.h>
 
 static const uint8_t NATIVE_SUBSET0_PROFILE[] = "native-process@1";
@@ -197,6 +198,132 @@ static bool sequence_stdout_add(size_t current, size_t payload_bytes,
   return true;
 }
 
+static bool checked_i64_add(int64_t left, int64_t right, int64_t *result) {
+  if (result == NULL || (right > 0 && left > INT64_MAX - right) ||
+      (right < 0 && left < INT64_MIN - right))
+    return false;
+  *result = left + right;
+  return true;
+}
+
+static bool checked_i64_subtract(int64_t left, int64_t right,
+                                 int64_t *result) {
+  if (result == NULL || (right < 0 && left > INT64_MAX + right) ||
+      (right > 0 && left < INT64_MIN + right))
+    return false;
+  *result = left - right;
+  return true;
+}
+
+static bool checked_i64_multiply(int64_t left, int64_t right,
+                                 int64_t *result) {
+  if (result == NULL) return false;
+  if (left == 0 || right == 0) {
+    *result = 0;
+    return true;
+  }
+  if ((left == -1 && right == INT64_MIN) ||
+      (right == -1 && left == INT64_MIN))
+    return false;
+  if ((left > 0 && right > 0 && left > INT64_MAX / right) ||
+      (left > 0 && right < 0 && right < INT64_MIN / left) ||
+      (left < 0 && right > 0 && left < INT64_MIN / right) ||
+      (left < 0 && right < 0 && left < INT64_MAX / right))
+    return false;
+  *result = left * right;
+  return true;
+}
+
+static bool evaluate_i64(const w_seed_hir0_program *program,
+                         uint32_t value_index, size_t depth,
+                         int64_t *result) {
+  if (program == NULL || result == NULL || depth > 256u ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+    *result = value->integer_value;
+    return true;
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) return false;
+  int64_t left = 0;
+  int64_t right = 0;
+  if (!evaluate_i64(program, value->left_value, depth + 1u, &left) ||
+      !evaluate_i64(program, value->right_value, depth + 1u, &right))
+    return false;
+  switch (value->binary_operator) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return checked_i64_add(left, right, result);
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return checked_i64_subtract(left, right, result);
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return checked_i64_multiply(left, right, result);
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      if (right == 0 || (left == INT64_MIN && right == -1)) return false;
+      *result = left / right;
+      return true;
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      if (right == 0) return false;
+      *result = left == INT64_MIN && right == -1 ? 0 : left % right;
+      return true;
+  }
+  return false;
+}
+
+static bool interpolation_maximum_bytes(const w_seed_hir0_program *program,
+                                        const w_seed_hir0_value *value,
+                                        size_t *maximum_bytes) {
+  if (program == NULL || value == NULL || maximum_bytes == NULL ||
+      value->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
+      value->first_interpolation_segment >
+          program->interpolation_segment_count ||
+      value->interpolation_segment_count >
+          program->interpolation_segment_count -
+              value->first_interpolation_segment)
+    return false;
+  size_t total = 0u;
+  for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+       ordinal += 1u) {
+    const w_seed_hir0_interpolation_segment *segment =
+        &program->interpolation_segments[value->first_interpolation_segment +
+                                         ordinal];
+    size_t bytes = 0u;
+    if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
+      bytes = segment->byte_count;
+      for (size_t index = 0u; index < bytes; index += 1u)
+        if (program->value_bytes[segment->byte_offset + index] == 0u)
+          return false;
+    } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+               segment->value_index < program->value_count) {
+      const w_seed_hir0_value *embedded =
+          &program->values[segment->value_index];
+      if (embedded->type_index >= program->type_count) return false;
+      switch (program->types[embedded->type_index].kind) {
+        case W_SEED_HIR0_TYPE_I64: {
+          int64_t ignored = 0;
+          if (!evaluate_i64(program, segment->value_index, 0u, &ignored))
+            return false;
+          bytes = 20u;
+          break;
+        }
+        default:
+          return false;
+      }
+    } else {
+      return false;
+    }
+    if (total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+        bytes > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - total)
+      return false;
+    total += bytes;
+  }
+  *maximum_bytes = total;
+  return true;
+}
+
 w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -217,7 +344,10 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
       program->instruction_count - program->call_count !=
           program->binding_count ||
       program->argument_count != program->call_count ||
-      program->value_count != program->call_count ||
+      program->value_count == 0u ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      program->interpolation_segment_count >
+          W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS ||
       program->requirement_count != 1u || program->terminator_count != 1u ||
       program->entry_count != 1u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
@@ -364,11 +494,24 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
       payload = payload_bytes == 0u
                     ? NULL
                     : program->value_bytes + binding->byte_offset;
+    } else if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+      size_t maximum_payload_bytes = 0u;
+      if (!interpolation_maximum_bytes(program, value,
+                                       &maximum_payload_bytes))
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      size_t maximum_stdout_bytes = 0u;
+      if (!sequence_stdout_add(candidate.maximum_stdout_bytes,
+                               maximum_payload_bytes,
+                               &maximum_stdout_bytes))
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      candidate.maximum_stdout_bytes = maximum_stdout_bytes;
+      candidate.has_interpolation = true;
     } else {
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
     }
     size_t stdout_bytes = 0u;
-    if (!sequence_stdout_add(candidate.stdout_bytes, payload_bytes,
+    if (!candidate.has_interpolation &&
+        !sequence_stdout_add(candidate.stdout_bytes, payload_bytes,
                              &stdout_bytes))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
     candidate.calls[call_cursor] = (w_seed_native_subset0_call_selection){
@@ -379,8 +522,19 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
         .argument = argument,
         .value = value,
         .payload = payload,
-        .payload_bytes = payload_bytes};
-    candidate.stdout_bytes = stdout_bytes;
+        .payload_bytes = payload_bytes,
+        .is_interpolated =
+            value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING};
+    if (!candidate.has_interpolation) candidate.stdout_bytes = stdout_bytes;
+    if (!candidate.has_interpolation)
+      candidate.maximum_stdout_bytes = candidate.stdout_bytes;
+    else if (value->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+      size_t maximum_stdout_bytes = 0u;
+      if (!sequence_stdout_add(candidate.maximum_stdout_bytes, payload_bytes,
+                               &maximum_stdout_bytes))
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      candidate.maximum_stdout_bytes = maximum_stdout_bytes;
+    }
     call_cursor += 1u;
   }
 
