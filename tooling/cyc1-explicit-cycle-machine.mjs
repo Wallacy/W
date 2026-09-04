@@ -637,22 +637,22 @@ function evaluateConditional(testCase) {
     return output(testCase, "invalid", "conditional-composition-kind");
   }
   if (kind === "transparent-collector") return output(testCase, "intentionally-rejected", "transparent-collector-rejected", { route: "foreign-mechanism" });
-  if (kind === "naive-weak-key") return output(testCase, "candidate-research", "ordinary-weak-insufficient", { route: "conditional-liveness" });
-  if (kind === "ephemeron") return output(testCase, "candidate-research", "ephemeron-value-key-cycle", { route: "conditional-liveness" });
-  if (composition.valueToKeyStrong === true) return output(testCase, "candidate-research", "value-to-key-strong-back-edge", { route: "conditional-liveness" });
+  if (kind === "naive-weak-key") return output(testCase, "future-reopen-candidate", "ordinary-weak-insufficient", { route: "conditional-liveness" });
+  if (kind === "ephemeron") return output(testCase, "future-reopen-candidate", "ephemeron-value-key-cycle", { route: "conditional-liveness" });
+  if (composition.valueToKeyStrong === true) return output(testCase, "future-reopen-candidate", "value-to-key-strong-back-edge", { route: "conditional-liveness" });
   if (kind === "generation-id-cache") {
-    if (!composition.idDetached || !composition.explicitInvalidation) return output(testCase, "candidate-research", "generation-cache-invalidation-missing", { route: "conditional-liveness" });
+    if (!composition.idDetached || !composition.explicitInvalidation) return output(testCase, "future-reopen-candidate", "generation-cache-invalidation-missing", { route: "conditional-liveness" });
     return output(testCase, "composable-alternative", "generation-id-detaches-key", { route: "explicit-owner-composition" });
   }
   if (kind === "owner-scoped-cache") {
-    if (!composition.ownerLease || !composition.explicitClose) return output(testCase, "candidate-research", "owner-cache-close-missing", { route: "conditional-liveness" });
+    if (!composition.ownerLease || !composition.explicitClose) return output(testCase, "future-reopen-candidate", "owner-cache-close-missing", { route: "conditional-liveness" });
     return output(testCase, "composable-alternative", "owner-lease-breaks-edge", { route: "explicit-owner-composition" });
   }
   if (kind === "detached-value") {
-    if (!composition.detached || composition.keyIdentityRequired === true) return output(testCase, "candidate-research", "detached-value-changes-key-identity", { route: "conditional-liveness" });
+    if (!composition.detached || composition.keyIdentityRequired === true) return output(testCase, "future-reopen-candidate", "detached-value-changes-key-identity", { route: "conditional-liveness" });
     return output(testCase, "composable-alternative", "detached-value-no-back-edge", { route: "explicit-owner-composition" });
   }
-  return output(testCase, "candidate-research", "conditional-liveness-unresolved", { route: "conditional-liveness" });
+  return output(testCase, "future-reopen-candidate", "conditional-liveness-unresolved", { route: "conditional-liveness" });
 }
 
 function initialiseState(testCase) {
@@ -947,6 +947,7 @@ export function validateCyc1(corpus, { root } = {}) {
   for (const id of REQUIRED_CASES) if (!ids.has(id)) errors.push(`CYC1 required case missing: ${id}`);
   const results = deriveCyc1(corpus);
   const resultById = new Map(results.map((item) => [item.caseId, item]));
+  if (results.some((item) => ["research", "research-candidate", "candidate-research"].includes(item.status))) errors.push("CYC1 must not retain an active research status.");
   for (const testCase of corpus.cases) errors.push(...validateExpected(resultById.get(testCase.id), testCase.expect, testCase.id));
   const strongRejected = resultById.get("CYC1-NEG-strong-callback-scc");
   if (strongRejected?.code !== "W-OWNERSHIP-0014") errors.push("strong callback SCC must derive W-OWNERSHIP-0014.");

@@ -29,10 +29,10 @@
     },
     {
       "id": "conditional-liveness",
-      "role": "research-candidate",
+      "role": "future-reopen-candidate",
       "language": "w",
       "path": "conditional-liveness.w",
-      "digest": "sha256:00c0bb0e3dfc5a8030730211bee20d1c210f8b79307e4b5d50bcfe4d423bab7c"
+      "digest": "sha256:4d4f5f1f914926f1ecd47fc4ba179523a8154c4cd3fbaf0baf4349b43c882112"
     },
     {
       "id": "transparent-collector",
@@ -143,27 +143,27 @@
   ],
   "corpus": {
     "path": "../../cyc1-explicit-cycle-cases.json",
-    "digest": "sha256:5fc31315a6415b5a50cffb20c8fa18907b9fdc46c7adbafb40c992401a62fb8c"
+    "digest": "sha256:1354ca34501d257809ca8e4bcd02e155f063c5dd4d68d0db8f3b2018edd64576"
   },
   "oracle": {
     "path": "../../cyc1-explicit-cycle-machine.mjs",
-    "digest": "sha256:d795c6b5615142aaeb1ca35b2dc9facbb3a68c3ff070eca96b5512d31416ef72"
+    "digest": "sha256:807c3755c3947556ef7b4e0498eb34dae4b0461900bf24663acaeb087dbe32da"
   },
   "referenceTest": {
     "path": "../../cyc1-explicit-cycle-reference.test.mjs",
-    "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9"
+    "digest": "sha256:2dcabe152879e2631906d2efca9366c7957eca2ee9d2f56e07643147b8bca906"
   },
   "checker": {
     "path": "../../check-cyc1-explicit-cycle.mjs",
-    "digest": "sha256:0c9ce302a2ac6f5fe0450a4e99873a945480987681f809fdc7ed217159a4594b"
+    "digest": "sha256:1ed6f293c0d2f4a89359463a44b566a71b44c5533f46e4fbe9b0f46c52733feb"
   },
   "snapshot": {
     "path": "../../cyc1-explicit-cycle-results.snapshot.jsonl",
-    "digest": "sha256:449c40b13eb15c322fd7aa1245be0dcb1fafecd27e74b7e1559fce1c4529253a"
+    "digest": "sha256:5724cec1b6792bd6265775488a6c3e857bb076d799da1ce83d3f7aaed52eee04"
   },
   "studyOracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:def6b7133c719ff534766f3fb81d25a827369c9f05eb1c273c1f29bbe7844f0c"
+    "digest": "sha256:271b7cece512912a2e983624282089901697c6ec253e04d275def928b37ce8b0"
   },
   "evidence": {
     "current": [
@@ -181,6 +181,6 @@
       "model-study"
     ]
   },
-  "recommendation": "Keep CYC0 composable with explicit weak edges, close/drain/owner composition, and an opt-in diagnostic census. Keep transparent collection and finalizer semantics rejected. Record conditional weak-key/ephemeron liveness as a separate Research subcapability only.",
-  "stopCondition": "Consider a conditional-liveness primitive only if a bounded problem requires observable key identity or ephemeron semantics and the generation/ID, owner-scoped lease, or detached-value compositions change that requirement or fail under a post-drain census, deterministic cleanup, and no hidden foreign boundary. Until then keep the Research subcapability separate and do not add a collector, finalizer, self-weak constructor, or new syntax."
+  "recommendation": "Keep CYC0 composable with explicit weak edges, close/drain/owner composition, and an opt-in diagnostic census. Keep transparent collection and finalizer semantics rejected. Record conditional weak-key/ephemeron liveness as a separate future-reopen candidate only.",
+  "stopCondition": "Consider a conditional-liveness primitive only if a bounded problem requires observable key identity or ephemeron semantics and the generation/ID, owner-scoped lease, or detached-value compositions change that requirement or fail under a post-drain census, deterministic cleanup, and no hidden foreign boundary. Until then keep the future-reopen candidate separate and do not add a collector, finalizer, self-weak constructor, or new syntax."
 }

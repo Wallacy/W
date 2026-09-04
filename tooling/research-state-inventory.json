@@ -1,6 +1,6 @@
 {
   "$schema": "w-research-state-inventory-1",
-  "status": "normalization-in-progress",
+  "status": "authoritative-maintained-surface",
   "id": "research-state-inventory",
   "categories": [
     "historical",
@@ -274,13 +274,25 @@
       "id": "cyc1",
       "category": "future-reopen-candidate",
       "decisionRefs": ["W-1391"],
-      "successorDecisions": [],
-      "implementationGaps": ["W-1391"],
-      "normalizationPending": true,
+      "successorDecisions": ["W-1390", "W-1391"],
+      "implementationGaps": [],
+      "normalizationPending": false,
       "artifacts": [
         "tooling/cyc1-explicit-cycle-cases.json",
         "tooling/cyc1-explicit-cycle-machine.mjs",
+        "tooling/cyc1-explicit-cycle-manifest.mjs",
+        "tooling/cyc1-explicit-cycle-reference.test.mjs",
+        "tooling/check-cyc1-explicit-cycle.mjs",
+        "tooling/cyc1-explicit-cycle-results.snapshot.jsonl",
         "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/oracle.test.mjs",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/README.md",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/current-weak-owner.w",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/explicit-owner-close.w",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/post-init-self-weak.w",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w",
+        "tooling/studies/cyc1-explicit-cycle-lifecycle/transparent-collector.txt",
         "tooling/studies/cyc1-explicit-cycle-lifecycle/public-self-weak-constructor.txt"
       ]
     },

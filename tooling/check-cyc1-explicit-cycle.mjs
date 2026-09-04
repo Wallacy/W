@@ -41,7 +41,7 @@ const output = {
     staticSccRejections: validation.results.filter((result) => result.code === "W-OWNERSHIP-0014").length,
     residualDiagnostics: validation.results.filter((result) => result.code === "W-MEMORY-0001").length,
     unknownBoundaries: validation.results.filter((result) => result.code === "W-MEMORY-UNKNOWN-BOUNDARY").length,
-    conditionalLivenessResearch: validation.results.filter((result) => result.route === "conditional-liveness").length,
+    conditionalLivenessFutureCandidates: validation.results.filter((result) => result.status === "future-reopen-candidate").length,
     collectorSideEffects: validation.results.filter((result) => result.mutation !== undefined && result.mutation !== "none").length,
   },
   results: validation.results,
@@ -64,5 +64,5 @@ process.stdout.write(
   `${output.metrics.staticSccRejections} static SCC rejections, ` +
   `${output.metrics.residualDiagnostics} residual diagnostics, ` +
   `${output.metrics.unknownBoundaries} unknown boundaries, ` +
-  `${output.metrics.conditionalLivenessResearch} conditional-liveness Research cases.\n`,
+  `${output.metrics.conditionalLivenessFutureCandidates} conditional-liveness future-reopen candidates.\n`,
 );

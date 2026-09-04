@@ -77,7 +77,9 @@ describe("CYC1 explicit cycle lifecycle host oracle", () => {
     expect(evaluateCyc1Case(byId(corpus, "CYC1-POS-generation-id-cache")).status).toBe("composable-alternative");
     expect(evaluateCyc1Case(byId(corpus, "CYC1-POS-owner-scoped-cache-lease")).status).toBe("composable-alternative");
     expect(evaluateCyc1Case(byId(corpus, "CYC1-POS-detached-cache-value")).status).toBe("composable-alternative");
+    expect(evaluateCyc1Case(byId(corpus, "CYC1-RESEARCH-naive-weak-key")).status).toBe("future-reopen-candidate");
     expect(evaluateCyc1Case(byId(corpus, "CYC1-RESEARCH-naive-weak-key")).code).toBe("ordinary-weak-insufficient");
+    expect(evaluateCyc1Case(byId(corpus, "CYC1-RESEARCH-ephemeron-value-key-cycle")).status).toBe("future-reopen-candidate");
     expect(evaluateCyc1Case(byId(corpus, "CYC1-RESEARCH-ephemeron-value-key-cycle")).code).toBe("ephemeron-value-key-cycle");
     expect(evaluateCyc1Case(byId(corpus, "CYC1-REJECT-transparent-collector")).status).toBe("intentionally-rejected");
   });

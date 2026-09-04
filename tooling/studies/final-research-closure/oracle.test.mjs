@@ -59,10 +59,10 @@ describe("FRC0 final research closure host oracle", () => {
     expect(current.facts.historicalPostSnapshotResearchGates).toEqual(["W-1486", "W-1503"]);
     expect(current.facts.researchStateInventory).toMatchObject({
       active: [],
-      status: "normalization-in-progress",
-      normalized: false,
+      status: "authoritative-maintained-surface",
+      normalized: true,
       familyCount: 15,
-      normalizationPendingCount: 1,
+      normalizationPendingCount: 0,
     });
     expect(current.facts.researchStateInventory).toMatchObject({
       categoryCounts: {
@@ -84,6 +84,15 @@ describe("FRC0 final research closure host oracle", () => {
     for (const testCase of adversarial) {
       expect(runFRC0Case(testCase, { state }).status).toBe("rejected");
     }
+  });
+
+  test("rejects a reintroduced normalization migration state", () => {
+    const state = loadState();
+    state.researchStateInventory.status = "normalization-in-progress";
+    state.researchStateInventory.families.find((family) => family.id === "cyc1").normalizationPending = true;
+    const current = corpus.cases.find((testCase) =>
+      testCase.kind === "current-contract" && testCase.decisions?.[0] === "W-731" && testCase.gate === "freeze-research-close");
+    expect(runFRC0Case(current, { state }).status).toBe("rejected");
   });
 
   test("rejects a merged or duplicated BRX2/BRX3 inventory family", () => {

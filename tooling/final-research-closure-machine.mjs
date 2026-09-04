@@ -416,7 +416,11 @@ function classificationFacts(state) {
     classification.ledger?.first === ledgerIds[0] &&
     classification.ledger?.last === ledgerIds.at(-1) &&
     classification.ledger?.sha256 === digestFile(path.join(repositoryRoot, "RATIONALE.md"));
-  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid && researchStateInventory.valid &&
+  const researchStateClosed = researchStateInventory.valid &&
+    researchStateInventory.normalized === true &&
+    researchStateInventory.normalizationPendingCount === 0 &&
+    researchStateInventory.status === "authoritative-maintained-surface";
+  const valid = complete && historicalComplete && dispositions && researchResidual.length === 0 && reopenedResearch && pfuSupersessionValid && globalResearchExact && designOnlyClosuresValid && ledgerDigestValid && researchStateClosed &&
     DECISIONS.every((decision) => targetCategories[decision] === DISPOSITIONS[decision]);
   return {
     valid,
@@ -443,6 +447,7 @@ function classificationFacts(state) {
     designOnlyClosuresValid,
     targetCategories,
     ledgerDigestValid,
+    researchStateClosed,
     researchStateInventory,
   };
 }
@@ -825,6 +830,11 @@ export function mutationChecks() {
   successorFamily.successorDecisions = [];
   successorFamily.implementationGaps = [];
   checks.researchInventoryMissingSuccessorRejected = !researchStateInventoryFacts(missingSuccessor).valid;
+
+  const migratedInventory = clone(state.researchStateInventory);
+  migratedInventory.status = "normalization-in-progress";
+  migratedInventory.families.find((family) => family.id === "cyc1").normalizationPending = true;
+  checks.researchInventoryMigrationRejected = classificationFacts({ ...state, researchStateInventory: migratedInventory }).valid === false;
 
   const missingCase = clone(corpus);
   missingCase.cases.pop();

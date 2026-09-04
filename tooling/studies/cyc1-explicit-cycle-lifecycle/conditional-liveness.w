@@ -1,4 +1,4 @@
-// CYC1 Research witness: alternatives are library compositions, not new syntax.
+// CYC1 future-reopen candidate witness: alternatives are library compositions, not new syntax.
 // CycleFixture is represented by the three explicit source-shaped compositions.
 // Each function keeps the key/value relation explicit and avoids a value-to-key
 // strong back edge.  These are syntax-shaped witnesses only; they do not prove
