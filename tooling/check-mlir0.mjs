@@ -52,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-8" &&
-    manifest.artifact?.scope === "direct-unit-calls-and-typed-values",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-9" &&
+    manifest.artifact?.scope === "scalar-function-results",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -246,6 +246,8 @@ try {
   const builtinDisplayPath = resolve(artifactDirectory, "builtin-display.w")
   const typedBindingsPath = resolve(artifactDirectory, "typed-bindings.w")
   const directCallPath = resolve(artifactDirectory, "direct-call.w")
+  const scalarReturnPath = resolve(artifactDirectory, "scalar-return.w")
+  const boolReturnPath = resolve(artifactDirectory, "bool-return.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -276,6 +278,14 @@ try {
     'fn announce(table: i64, isOpen: Bool) {\n' +
     '  print("Table ${table}; open: ${isOpen}")\n}\n' +
     'fn main() { announce(isOpen: true, table: 6 * 7) }\nentry(main)\n')
+  await writeFile(scalarReturnPath,
+    'fn tableNumber(): i64 { return 6 * 7 }\n' +
+    'fn main() { let table = tableNumber() ' +
+    'print("Table ${table}") }\nentry(main)\n')
+  await writeFile(boolReturnPath,
+    'fn kitchenOpen(): Bool { return true }\n' +
+    'fn main() { let open = kitchenOpen() ' +
+    'print("Open ${open}") }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -308,6 +318,10 @@ try {
       expected: Buffer.from("Table 42; open: true; state: open\n", "utf8") },
     { name: "direct-call", source: directCallPath,
       expected: Buffer.from("Table 42; open: true\n", "utf8") },
+    { name: "scalar-return", source: scalarReturnPath,
+      expected: Buffer.from("Table 42\n", "utf8") },
+    { name: "bool-return", source: boolReturnPath,
+      expected: Buffer.from("Open true\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -377,6 +391,19 @@ try {
   assert(artifacts.get("direct-call").indexOf("llvm.mlir.constant(true)") <
     artifacts.get("direct-call").indexOf("llvm.mul %v4, %v5 : i64"),
   "named argument evaluation did not preserve source order")
+  assert(artifacts.get("scalar-return").includes(
+    "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr) -> i64") &&
+    artifacts.get("scalar-return").includes("%call0 = llvm.call @w_fn_0") &&
+    artifacts.get("scalar-return").includes("llvm.return %v") &&
+    artifacts.get("scalar-return").includes("@w_seed_append_i64") &&
+    artifacts.get("scalar-return").includes("llvm.mul"),
+  "scalar return was flattened, precomputed, or disconnected from interpolation")
+  assert(artifacts.get("bool-return").includes(
+    "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr) -> i1") &&
+    artifacts.get("bool-return").includes("%call0 = llvm.call @w_fn_0") &&
+    artifacts.get("bool-return").includes("llvm.return %v") &&
+    artifacts.get("bool-return").includes("@w_seed_append_bool"),
+  "Bool return was flattened or disconnected from interpolation")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,
@@ -408,6 +435,16 @@ try {
     ["runtime-string-parameter.w",
       `fn show(value: String) { print(value) }\n` +
       `fn main() { show(value: "x") }\nentry(main)\n`],
+    ["runtime-string-result.w",
+      `fn state(): String { return "open" }\n` +
+      `fn main() { let value = state() print("\${value}") }\nentry(main)\n`],
+    ["missing-scalar-return.w",
+      `fn value(): i64 { print("no value") }\n` +
+      `fn main() { let result = value() print("\${result}") }\nentry(main)\n`],
+    ["nested-return-call.w",
+      `fn value(): i64 { return 42 }\nfn relay(): i64 { return value() }\n` +
+      `fn main() { let result = relay() print("\${result}") }\nentry(main)\n`],
+    ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],
     ["too-many-instructions.w", tooManyInstructions],
     ["total-output-overflow.w", totalOutputOverflow],
   ]

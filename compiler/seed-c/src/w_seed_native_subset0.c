@@ -375,9 +375,11 @@ static bool interpolation_maximum_bytes(
                                  current_instruction, binding_reads,
                                  &effective))
         return false;
+      const bool runtime_value =
+          parameter_read || effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT;
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
-          if (!parameter_read) {
+          if (!runtime_value) {
             int64_t ignored = 0;
             if (!evaluate_i64(
                     program, (uint32_t)(effective - program->values), 0u,
@@ -388,10 +390,10 @@ static bool interpolation_maximum_bytes(
           break;
         }
         case W_SEED_HIR0_TYPE_BOOL:
-          if (!parameter_read &&
+          if (!runtime_value &&
               effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
             return false;
-          bytes = parameter_read ? 5u : (effective->bool_value ? 4u : 5u);
+          bytes = runtime_value ? 5u : (effective->bool_value ? 4u : 5u);
           break;
         case W_SEED_HIR0_TYPE_STRING:
           if (embedded->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
@@ -684,6 +686,19 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            program->parameters[value->parameter_index].owner_function ==
                owner_function;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
+    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||
+        value->call_index >= program->call_count)
+      return false;
+    const w_seed_hir0_call *call = &program->calls[value->call_index];
+    return call->owner_block < program->block_count &&
+           program->blocks[call->owner_block].owner_function ==
+               owner_function &&
+           call->result_type == value->type_index &&
+           call->callee_identity < program->identity_count &&
+           program->identities[call->callee_identity].kind ==
+               W_SEED_HIR0_IDENTITY_FUNCTION;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
     if (value->binding_index >= program->binding_count) return false;
     const w_seed_hir0_binding *binding =
@@ -766,7 +781,9 @@ static bool program_function_maximum(
   state[function_index] = 1u;
   const w_seed_hir0_function *function = &program->functions[function_index];
   if (function->return_type >= program->type_count ||
-      program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT ||
+      (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
+       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64 &&
+       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL) ||
       function->is_async || function->is_throws || function->is_unsafe ||
       function->has_borrow_clause || function->block_count != 1u ||
       function->first_block >= program->block_count)
@@ -784,6 +801,19 @@ static bool program_function_maximum(
       return false;
   }
   const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (program->types[function->return_type].kind == W_SEED_HIR0_TYPE_UNIT) {
+    if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT)
+      return false;
+  } else if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+             terminator->result_type != function->return_type ||
+             !program_value_lowerable(program, terminator->value_index,
+                                      (uint32_t)function_index, false, 0u)) {
+    return false;
+  }
   size_t total = 0u;
   for (size_t ordinal = 0u; ordinal < block->instruction_count;
        ordinal += 1u) {
@@ -873,6 +903,10 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   const w_seed_hir0_entry *entry = &program->entries[0];
   if (entry->target_function >= program->function_count ||
       program->functions[entry->target_function].parameter_count != 0u ||
+      program->functions[entry->target_function].return_type >=
+          program->type_count ||
+      program->types[program->functions[entry->target_function].return_type]
+              .kind != W_SEED_HIR0_TYPE_UNIT ||
       !text_is(program, entry->slot, NATIVE_SUBSET0_SLOT,
                sizeof(NATIVE_SUBSET0_SLOT) - 1u))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;

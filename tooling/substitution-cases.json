@@ -2928,6 +2928,80 @@
         "bun run check:w-run — public bounded runner executes the direct-call Restaurant witness"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-scalar-function-result",
+      "reviewItem": "scalar function results against precomputed output, erased call results, unchecked return types, and downstream name lookup.",
+      "decisions": ["W-1530"],
+      "task": "Carry an inferred signed-i64 function result through verified HIR, typed LLVM return/call SSA, and exact native output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn tableNumber(): i64 { return 6 * 7 }",
+          "fn main() { let table = tableNumber() print(\"Table ${table}\") }",
+          "entry(main)",
+          "stdout bytes: Table 42 + LF"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-return-output",
+          "language": "w-rejected",
+          "source": ["Replace the call result with literal output bytes before MLIR"],
+          "expectedDifference": "The artifact retains llvm.mul, typed llvm.return, and a result-producing llvm.call."
+        },
+        {
+          "name": "erased-call-result",
+          "language": "w-rejected",
+          "source": ["Emit the callee as Unit and resolve table later by source spelling"],
+          "expectedDifference": "HIR carries an indexed typed CALL_RESULT used by the binding."
+        },
+        {
+          "name": "unchecked-return-type",
+          "language": "w-rejected",
+          "source": ["Allow function, terminator, call, and result types to disagree"],
+          "expectedDifference": "HIR verification requires exact represented type agreement at every edge."
+        },
+        {
+          "name": "premature-general-control-flow",
+          "language": "w-rejected",
+          "source": ["Accept multiple returns and phi values without a CFG contract"],
+          "expectedDifference": "The current source-backed cut accepts one final scalar return in one block."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "HIR verifies indexed same-block call results and terminator-owned scalar values."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_function_maximum",
+          "claim": "The bounded selector admits only represented Unit, signed-i64, or Bool results."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_function",
+          "claim": "MLIR emits typed returns and result-producing calls without precomputing the value."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_scalar_return_and_call_result",
+          "claim": "The unit proves the return terminator and indexed call-result binding."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "scalar-return",
+          "claim": "The product gate verifies, translates, links, and executes exact scalar-return Restaurant output."
+        }
+      ],
+      "checks": [
+        "bun run check:hir0 — scalar return and call-result records",
+        "bun run check:mlir0 — typed return/call SSA and exact native output",
+        "bun run check:w-run — public bounded runner executes the scalar-return witness"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }
