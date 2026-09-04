@@ -150,8 +150,9 @@ W-1522 é independente: `source → parser/frontend → HIR0 verificada → MLIR
 mlir-opt → mlir-translate → clang/native`; HLO0, HLO1 e RUN0 são bootstrap,
 auditoria e recovery, não pré-requisitos dessa rota. MLIR0 v3 aceita somente a
 sequência NAT1 linear bounded como contrato histórico de W-1522. O adapter
-MLIR0 v4 corrente também aceita interpolação signed-`i64` bounded; os
-HLO0/HLO1/RUN0 continuam single-print. ACQ0 executa CHK6 em
+MLIR0 v5 corrente também aceita interpolação signed-`i64` com helpers
+internos de Display e texto counted; os HLO0/HLO1/RUN0 continuam single-print.
+ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,
 rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. OWN0 observa e

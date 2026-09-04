@@ -13,7 +13,9 @@ enum {
   MLIR0_DECIMAL_FIELDS = 4,
   MLIR0_DECIMAL_MAX_BYTES = 4,
   MLIR0_MAX_STDOUT_BYTES = W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES,
-  MLIR0_FORMAT_BYTES = (2 * W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES) + 1,
+  MLIR0_DYNAMIC_MAX_ACTIONS =
+      W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS +
+      (2 * W_SEED_NATIVE_SUBSET0_MAX_CALLS),
 };
 
 static const char MLIR0_SCHEMA_COMMENT[] =
@@ -50,6 +52,61 @@ static const char MLIR0_RETURN_SUFFIX[] =
 
 static const char MLIR0_HEX[] = "0123456789abcdef";
 
+static const char MLIR0_RUNTIME_HELPERS[] =
+    "  llvm.func internal @w_seed_copy(%destination: !llvm.ptr, %offset: i64, %source: !llvm.ptr, %length: i64) -> i64 {\n"
+    "    %copy_zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %copy_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %copy_end = llvm.add %offset, %length : i64\n"
+    "    %copy_empty = llvm.icmp \"eq\" %length, %copy_zero : i64\n"
+    "    llvm.cond_br %copy_empty, ^copy_done, ^copy_loop(%copy_zero : i64)\n"
+    "  ^copy_loop(%copy_index: i64):\n"
+    "    %copy_source = llvm.getelementptr %source[%copy_index] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %copy_byte = llvm.load %copy_source : !llvm.ptr -> i8\n"
+    "    %copy_position = llvm.add %offset, %copy_index : i64\n"
+    "    %copy_destination = llvm.getelementptr %destination[%copy_position] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    llvm.store %copy_byte, %copy_destination : i8, !llvm.ptr\n"
+    "    %copy_next = llvm.add %copy_index, %copy_one : i64\n"
+    "    %copy_more = llvm.icmp \"ult\" %copy_next, %length : i64\n"
+    "    llvm.cond_br %copy_more, ^copy_loop(%copy_next : i64), ^copy_done\n"
+    "  ^copy_done:\n"
+    "    llvm.return %copy_end : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_append_i64(%buffer: !llvm.ptr, %offset: i64, %value: i64) -> i64 {\n"
+    "    %append_zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %append_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %append_ten = llvm.mlir.constant(10 : i64) : i64\n"
+    "    %append_ascii_zero = llvm.mlir.constant(48 : i64) : i64\n"
+    "    %append_minus = llvm.mlir.constant(45 : i8) : i8\n"
+    "    %append_negative = llvm.icmp \"slt\" %value, %append_zero : i64\n"
+    "    llvm.cond_br %append_negative, ^append_sign, ^append_count(%value, %value, %offset, %append_one : i64, i64, i64, i64)\n"
+    "  ^append_sign:\n"
+    "    %append_sign_address = llvm.getelementptr %buffer[%offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    llvm.store %append_minus, %append_sign_address : i8, !llvm.ptr\n"
+    "    %append_magnitude = llvm.sub %append_zero, %value : i64\n"
+    "    %append_start = llvm.add %offset, %append_one : i64\n"
+    "    llvm.br ^append_count(%append_magnitude, %append_magnitude, %append_start, %append_one : i64, i64, i64, i64)\n"
+    "  ^append_count(%append_original: i64, %append_current: i64, %append_digit_start: i64, %append_digits: i64):\n"
+    "    %append_count_quotient = llvm.udiv %append_current, %append_ten : i64\n"
+    "    %append_count_more = llvm.icmp \"ne\" %append_count_quotient, %append_zero : i64\n"
+    "    %append_next_digits = llvm.add %append_digits, %append_one : i64\n"
+    "    llvm.cond_br %append_count_more, ^append_count(%append_original, %append_count_quotient, %append_digit_start, %append_next_digits : i64, i64, i64, i64), ^append_begin(%append_original, %append_digit_start, %append_digits : i64, i64, i64)\n"
+    "  ^append_begin(%append_begin_value: i64, %append_begin_start: i64, %append_begin_digits: i64):\n"
+    "    %append_end = llvm.add %append_begin_start, %append_begin_digits : i64\n"
+    "    llvm.br ^append_write(%append_begin_value, %append_end, %append_end : i64, i64, i64)\n"
+    "  ^append_write(%append_remaining: i64, %append_position: i64, %append_result: i64):\n"
+    "    %append_remainder = llvm.urem %append_remaining, %append_ten : i64\n"
+    "    %append_digit_value = llvm.add %append_remainder, %append_ascii_zero : i64\n"
+    "    %append_digit = llvm.trunc %append_digit_value : i64 to i8\n"
+    "    %append_write_position = llvm.sub %append_position, %append_one : i64\n"
+    "    %append_address = llvm.getelementptr %buffer[%append_write_position] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    llvm.store %append_digit, %append_address : i8, !llvm.ptr\n"
+    "    %append_quotient = llvm.udiv %append_remaining, %append_ten : i64\n"
+    "    %append_more = llvm.icmp \"ne\" %append_quotient, %append_zero : i64\n"
+    "    llvm.cond_br %append_more, ^append_write(%append_quotient, %append_write_position, %append_result : i64, i64, i64), ^append_done(%append_result : i64)\n"
+    "  ^append_done(%append_final: i64):\n"
+    "    llvm.return %append_final : i64\n"
+    "  }\n";
+
 #define MLIR0_FIXED_LITERAL_BYTES                                            \
   ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) + (sizeof(MLIR0_PREFIX) - 1u) +       \
    (sizeof(MLIR0_GLOBAL_MIDDLE) - 1u) + (sizeof(MLIR0_GLOBAL_SUFFIX) - 1u) + \
@@ -62,6 +119,16 @@ static const char MLIR0_HEX[] = "0123456789abcdef";
 #define MLIR0_REQUIRED_MAX_BYTES                                              \
   (MLIR0_FIXED_LITERAL_BYTES + MLIR0_VARIABLE_ESCAPED_BYTES +                \
    MLIR0_DECIMAL_BYTES)
+#define MLIR0_DYNAMIC_SKELETON_MAX_BYTES 8192u
+#define MLIR0_DYNAMIC_ACTION_MAX_BYTES 448u
+#define MLIR0_DYNAMIC_VALUE_MAX_BYTES 160u
+#define MLIR0_DYNAMIC_REQUIRED_MAX_BYTES                                      \
+  ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) +                                     \
+   (sizeof(MLIR0_RUNTIME_HELPERS) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
+   ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
+   ((size_t)MLIR0_DYNAMIC_MAX_ACTIONS * MLIR0_DYNAMIC_ACTION_MAX_BYTES) +    \
+   ((size_t)W_SEED_NATIVE_SUBSET0_MAX_VALUES *                               \
+    MLIR0_DYNAMIC_VALUE_MAX_BYTES))
 
 _Static_assert(CHAR_BIT == 8, "w-seed MLIR0 requires 8-bit bytes");
 _Static_assert(MLIR0_MAX_STDOUT_BYTES <= 9999u,
@@ -70,6 +137,8 @@ _Static_assert(MLIR0_FIXED_LITERAL_BYTES == 886u,
                "w-seed MLIR0 fixed artifact literals changed");
 _Static_assert(MLIR0_REQUIRED_MAX_BYTES <= W_SEED_MLIR0_MAX_BYTES,
                "w-seed MLIR0 must retain the static artifact bound");
+_Static_assert(MLIR0_DYNAMIC_REQUIRED_MAX_BYTES <= W_SEED_MLIR0_MAX_BYTES,
+               "w-seed MLIR0 must retain the dynamic artifact budget");
 
 static bool range_end(uintptr_t start, size_t length, uintptr_t *end) {
   if (end == NULL || length > UINTPTR_MAX - start) return false;
@@ -233,27 +302,47 @@ static bool build_static_artifact(
 }
 
 typedef enum {
-  MLIR0_FORMAT_I64 = 0,
-} mlir0_format_argument_kind;
+  MLIR0_DYNAMIC_TEXT = 0,
+  MLIR0_DYNAMIC_I64,
+} mlir0_dynamic_action_kind;
 
 typedef struct {
-  mlir0_format_argument_kind kind;
+  mlir0_dynamic_action_kind kind;
+  size_t byte_offset;
+  size_t byte_count;
   uint32_t value_index;
-} mlir0_format_argument;
+} mlir0_dynamic_action;
 
-static bool append_format_bytes(uint8_t *format, size_t capacity,
-                                size_t *offset, const uint8_t *bytes,
-                                size_t length) {
-  if (format == NULL || offset == NULL || (length != 0u && bytes == NULL))
+typedef struct {
+  uint8_t text[MLIR0_MAX_STDOUT_BYTES];
+  size_t text_bytes;
+  mlir0_dynamic_action actions[MLIR0_DYNAMIC_MAX_ACTIONS];
+  size_t action_count;
+} mlir0_dynamic_plan;
+
+static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
+                                     const uint8_t *bytes, size_t length) {
+  if (plan == NULL || (length != 0u && bytes == NULL)) return false;
+  if (length == 0u) return true;
+  if (plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS ||
+      plan->text_bytes > sizeof(plan->text) ||
+      length > sizeof(plan->text) - plan->text_bytes)
     return false;
-  for (size_t index = 0u; index < length; index += 1u) {
-    if (bytes[index] == 0u) return false;
-    if (bytes[index] == (uint8_t)'%' &&
-        !append_bytes(format, capacity, offset, "%", 1u))
-      return false;
-    if (!append_bytes(format, capacity, offset, &bytes[index], 1u))
-      return false;
-  }
+  (void)memcpy(plan->text + plan->text_bytes, bytes, length);
+  plan->actions[plan->action_count] = (mlir0_dynamic_action){
+      MLIR0_DYNAMIC_TEXT, plan->text_bytes, length, 0u};
+  plan->text_bytes += length;
+  plan->action_count += 1u;
+  return true;
+}
+
+static bool dynamic_plan_append_i64(mlir0_dynamic_plan *plan,
+                                    uint32_t value_index) {
+  if (plan == NULL || plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS)
+    return false;
+  plan->actions[plan->action_count] =
+      (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
+  plan->action_count += 1u;
   return true;
 }
 
@@ -279,18 +368,15 @@ static bool value_string_bytes(const w_seed_hir0_program *program,
   return false;
 }
 
-static bool build_dynamic_format(
+static bool build_dynamic_plan(
     const w_seed_hir0_program *program,
-    const w_seed_native_subset0_sequence *sequence, uint8_t *format,
-    size_t format_capacity, size_t *format_bytes,
-    mlir0_format_argument *arguments, size_t argument_capacity,
-    size_t *argument_count) {
-  if (program == NULL || sequence == NULL || format == NULL ||
-      format_bytes == NULL || arguments == NULL || argument_count == NULL ||
+    const w_seed_native_subset0_sequence *sequence,
+    mlir0_dynamic_plan *plan) {
+  if (program == NULL || sequence == NULL || plan == NULL ||
       !sequence->has_interpolation)
     return false;
-  size_t offset = 0u;
-  size_t count = 0u;
+  mlir0_dynamic_plan candidate;
+  (void)memset(&candidate, 0, sizeof(candidate));
   for (size_t call_index = 0u; call_index < sequence->call_count;
        call_index += 1u) {
     const w_seed_hir0_value *root = sequence->calls[call_index].value;
@@ -299,8 +385,7 @@ static bool build_dynamic_format(
       const uint8_t *bytes = NULL;
       size_t length = 0u;
       if (!value_string_bytes(program, root, &bytes, &length) ||
-          !append_format_bytes(format, format_capacity, &offset, bytes,
-                               length))
+          !dynamic_plan_append_text(&candidate, bytes, length))
         return false;
     } else {
       for (size_t ordinal = 0u; ordinal < root->interpolation_segment_count;
@@ -313,8 +398,8 @@ static bool build_dynamic_format(
                                      ? NULL
                                      : program->value_bytes +
                                            segment->byte_offset;
-          if (!append_format_bytes(format, format_capacity, &offset, bytes,
-                                   segment->byte_count))
+          if (!dynamic_plan_append_text(&candidate, bytes,
+                                        segment->byte_count))
             return false;
           continue;
         }
@@ -326,26 +411,19 @@ static bool build_dynamic_format(
         if (embedded->type_index >= program->type_count) return false;
         const w_seed_hir0_type_kind type =
             program->types[embedded->type_index].kind;
-        if (count >= argument_capacity) return false;
-        if (type == W_SEED_HIR0_TYPE_I64) {
-          if (!append_bytes(format, format_capacity, &offset, "%ld", 3u))
-            return false;
-          arguments[count] =
-              (mlir0_format_argument){MLIR0_FORMAT_I64, segment->value_index};
-        } else {
+        if (type != W_SEED_HIR0_TYPE_I64 ||
+            !dynamic_plan_append_i64(&candidate, segment->value_index)) {
           return false;
         }
-        count += 1u;
       }
     }
     const uint8_t newline = 0x0au;
-    if (!append_bytes(format, format_capacity, &offset, &newline, 1u))
+    if (!dynamic_plan_append_text(&candidate, &newline, 1u))
       return false;
   }
-  const uint8_t nul = 0u;
-  if (!append_bytes(format, format_capacity, &offset, &nul, 1u)) return false;
-  *format_bytes = offset;
-  *argument_count = count;
+  if (candidate.action_count == 0u || candidate.text_bytes == 0u)
+    return false;
+  *plan = candidate;
   return true;
 }
 
@@ -405,27 +483,60 @@ static bool append_value_operations(const w_seed_hir0_program *program,
   return true;
 }
 
-static bool append_snprintf_call(const mlir0_format_argument *arguments,
-                                 size_t argument_count, uint8_t *artifact,
-                                 size_t capacity, size_t *offset) {
-  if (arguments == NULL || artifact == NULL || offset == NULL) return false;
-  if (!append_literal(artifact, capacity, offset,
-                      "    %length32 = llvm.call @snprintf(%buffer, %capacity, %format"))
+static bool append_dynamic_actions(const mlir0_dynamic_plan *plan,
+                                   uint8_t *artifact, size_t capacity,
+                                   size_t *offset) {
+  if (plan == NULL || artifact == NULL || offset == NULL ||
+      plan->action_count == 0u || plan->text_bytes == 0u)
     return false;
-  for (size_t index = 0u; index < argument_count; index += 1u) {
-    if (!append_literal(artifact, capacity, offset, ", %v") ||
-        !append_size(artifact, capacity, offset,
-                     arguments[index].value_index))
+  for (size_t index = 0u; index < plan->action_count; index += 1u) {
+    const mlir0_dynamic_action *action = &plan->actions[index];
+    if (action->kind == MLIR0_DYNAMIC_TEXT) {
+      if (!append_literal(artifact, capacity, offset, "    %text") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.getelementptr %text_base[0, ") ||
+          !append_size(artifact, capacity, offset, action->byte_offset) ||
+          !append_literal(artifact, capacity, offset,
+                          "] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<") ||
+          !append_size(artifact, capacity, offset, plan->text_bytes) ||
+          !append_literal(artifact, capacity, offset, " x i8>\n") ||
+          !append_literal(artifact, capacity, offset, "    %text_length") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.mlir.constant(") ||
+          !append_size(artifact, capacity, offset, action->byte_count) ||
+          !append_literal(artifact, capacity, offset, " : i64) : i64\n") ||
+          !append_literal(artifact, capacity, offset, "    %cursor") ||
+          !append_size(artifact, capacity, offset, index + 1u) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.call @w_seed_copy(%buffer, %cursor") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, ", %text") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, ", %text_length") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(
+              artifact, capacity, offset,
+              ") : (!llvm.ptr, i64, !llvm.ptr, i64) -> i64\n"))
+        return false;
+    } else if (action->kind == MLIR0_DYNAMIC_I64) {
+      if (!append_literal(artifact, capacity, offset, "    %cursor") ||
+          !append_size(artifact, capacity, offset, index + 1u) ||
+          !append_literal(
+              artifact, capacity, offset,
+              " = llvm.call @w_seed_append_i64(%buffer, %cursor") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, ", %v") ||
+          !append_size(artifact, capacity, offset, action->value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          ") : (!llvm.ptr, i64, i64) -> i64\n"))
+        return false;
+    } else {
       return false;
+    }
   }
-  if (!append_literal(
-          artifact, capacity, offset,
-          ") vararg(!llvm.func<i32 (ptr, i64, ptr, ...)>) : (!llvm.ptr, i64, !llvm.ptr"))
-    return false;
-  for (size_t index = 0u; index < argument_count; index += 1u)
-    if (!append_literal(artifact, capacity, offset, ", i64"))
-      return false;
-  return append_literal(artifact, capacity, offset, ") -> i32\n");
+  return true;
 }
 
 static bool build_dynamic_artifact(
@@ -438,61 +549,53 @@ static bool build_dynamic_artifact(
       digest == NULL ||
       sequence->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
-  uint8_t format[MLIR0_FORMAT_BYTES];
-  mlir0_format_argument arguments[
-      W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS];
-  size_t format_bytes = 0u;
-  size_t argument_count = 0u;
-  if (!build_dynamic_format(
-          program, sequence, format, sizeof(format), &format_bytes, arguments,
-          sizeof(arguments) / sizeof(arguments[0]), &argument_count))
-    return false;
+  mlir0_dynamic_plan plan;
+  if (!build_dynamic_plan(program, sequence, &plan)) return false;
 
   size_t offset = 0u;
   if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
       !append_literal(artifact, capacity, &offset,
                       "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
                       "\"} {\n"
-                      "  llvm.mlir.global private constant @w_seed_mlir0_format(\"") ||
-      !append_escaped_bytes(artifact, capacity, &offset, format,
-                            format_bytes) ||
+                      "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
+      !append_escaped_bytes(artifact, capacity, &offset, plan.text,
+                            plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
-      !append_size(artifact, capacity, &offset, format_bytes) ||
+      !append_size(artifact, capacity, &offset, plan.text_bytes) ||
       !append_literal(
           artifact, capacity, &offset,
           " x i8>\n"
-          "  llvm.func @snprintf(!llvm.ptr, i64, !llvm.ptr, ...) -> i32\n"
+          ) ||
+      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_literal(
+          artifact, capacity, &offset,
           "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"
           "  llvm.func @main() -> i32 {\n"
           "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
           "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n"
-          "    %format_base = llvm.mlir.addressof @w_seed_mlir0_format : !llvm.ptr\n"
-          "    %format = llvm.getelementptr %format_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<") ||
-      !append_size(artifact, capacity, &offset, format_bytes) ||
-      !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+          "    %text_base = llvm.mlir.addressof @w_seed_mlir0_text : !llvm.ptr\n") ||
       !append_value_operations(program, artifact, capacity, &offset) ||
-      !append_snprintf_call(arguments, argument_count, artifact, capacity,
-                            &offset) ||
+      !append_literal(artifact, capacity, &offset,
+                      "    %cursor0 = llvm.mlir.constant(0 : i64) : i64\n") ||
+      !append_dynamic_actions(&plan, artifact, capacity, &offset) ||
       !append_literal(
           artifact, capacity, &offset,
-          "    %zero32 = llvm.mlir.constant(0 : i32) : i32\n"
-          "    %limit32 = llvm.mlir.constant(4096 : i32) : i32\n"
-          "    %nonnegative = llvm.icmp \"sge\" %length32, %zero32 : i32\n"
-          "    %within = llvm.icmp \"sle\" %length32, %limit32 : i32\n"
-          "    %valid = llvm.and %nonnegative, %within : i1\n"
-          "    llvm.cond_br %valid, ^write, ^failed\n"
-          "  ^write:\n"
-          "    %length = llvm.sext %length32 : i32 to i64\n"
-          "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
-          "    %written = llvm.call @write(%fd, %buffer, %length) : (i32, !llvm.ptr, i64) -> i64\n"
-          "    %equal = llvm.icmp \"eq\" %written, %length : i64\n"
+          "    %fd = llvm.mlir.constant(1 : i32) : i32\n") ||
+      !append_literal(artifact, capacity, &offset,
+                      "    %written = llvm.call @write(%fd, %buffer, %cursor") ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ") : (i32, !llvm.ptr, i64) -> i64\n"
+          "    %equal = llvm.icmp \"eq\" %written, %cursor") ||
+      !append_size(artifact, capacity, &offset, plan.action_count) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          " : i64\n"
           "    %success = llvm.mlir.constant(0 : i32) : i32\n"
           "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
           "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
           "    llvm.return %status : i32\n"
-          "  ^failed:\n"
-          "    %failed_status = llvm.mlir.constant(1 : i32) : i32\n"
-          "    llvm.return %failed_status : i32\n"
           "  }\n"
           "}\n"))
     return false;

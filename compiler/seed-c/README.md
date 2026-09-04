@@ -148,8 +148,10 @@ literal-event identity on CST leaves and adds ordered interpolation segment
 records. Text segments own `const_bytes`; expression segments own normalized
 expression indices. The current seed accepts plain ordinary String text and
 built-in integer, Boolean, or String interpolation. It defaults unconstrained
-integer interpolation to canonical signed `i64`. Escape decoding, general
-Display conformance, HIR lowering, and native interpolation remain gaps.
+integer interpolation to canonical signed `i64`. HIR0 and MLIR0 lower only the
+bounded signed-`i64` subset. Escape decoding, Boolean/String value Display,
+general Display conformance, and native lowering outside that subset remain
+gaps.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam
@@ -1018,8 +1020,8 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
-HIR0 e a implementação não inclui, chama ou cria HLO0. W-1525 advances MLIR0
-to `w-seed-mlir0-4` and Native0 to `w-seed-native0-3`. MLIR0 re-verifies HIR
+HIR0 e a implementação não inclui, chama ou cria HLO0. W-1526 advances MLIR0
+to `w-seed-mlir0-5` and Native0 to `w-seed-native0-4`. MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form. It also accepts bounded String interpolation with panic-free
 signed-`i64` arithmetic. It emits the arithmetic as LLVM dialect operations
@@ -1034,7 +1036,9 @@ ou ranges HIR falham sem alterar result ou output. O texto não tem NUL
 implícito. O único target é `x86_64-unknown-linux-gnu`; o módulo fixa
 `llvm.target_triple` and contains only builtin and LLVM dialect. The static
 path escapes each payload byte and uses POSIX `write`. The interpolation path
-uses a bounded stack buffer, target-ABI `snprintf`, and one checked `write`.
+uses a bounded stack buffer, a counted text bank, internal LLVM-dialect copy
+and signed-`i64` decimal helpers, and one checked `write`. Its generated MLIR
+contains no `snprintf`, `%ld`, or variadic call.
 There is no W-level `printInt`, C source generation, custom W dialect,
 TableGen, or object cache.
 
@@ -1042,16 +1046,17 @@ O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → ML
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
 empty output, and `restaurant-interpolation.w`. It also executes all five
-integer binary operators, a negative result, and a literal percent sign. It
+integer binary operators, a negative result, a literal percent sign, counted
+NUL data, and multiple ordered integer fields. It
 requires byte-identical MLIR for the equivalent static Restaurant forms,
 exact stdout, empty stderr, and exit zero. It preserves
-MLIR em trivia e rejeita comentário com `print`, noop, duas calls e formas fora
-do subset sem artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa
+MLIR em trivia e rejeita comentário com `print`, noop, limits excedidos e formas
+fora do subset sem artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa
 MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
 `update-required`. Linux usa ferramentas diretas; no checkout Windows
 `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo a prova não é
 suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
-geral, múltiplas bindings/values, CFG/general SSA, W MLIR dialect, MLIR C API
+geral, locals não String, CFG/general SSA, W MLIR dialect, MLIR C API
 builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
 provider/runtime/linker/SDK, o runner `w run` público geral e performance são
 gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL e aponta
@@ -1070,7 +1075,7 @@ most 256 bytes and ordered stdout (payload plus LF per call) is at most 4096
 bytes. MLIR0 may coalesce the pure calls into one global/write while preserving
 bytes and W order, without promising syscall boundaries. The static artifact
 retains its original 13190-byte derivation. The adapter capacity is now
-`W_SEED_MLIR0_MAX_BYTES = 65536` for bounded value operations and runtime
+`W_SEED_MLIR0_MAX_BYTES = 98304` for bounded value operations and runtime
 formatting. Measure and emit remain
 all-or-nothing with alias and digest invariants. HLO0/HLO1/RUN0 remain
 single-print.
@@ -1078,8 +1083,9 @@ single-print.
 The interpolation extension accepts at most 64 HIR values and 64 segments.
 It proves constant integer trees panic-free without substituting their result.
 The emitted artifact preserves the matching LLVM arithmetic operation.
-Interpolated NUL text and non-`i64` value segments remain outside this
-implementation cut. These are not language restrictions.
+Counted text preserves interpolated NUL and percent bytes. Non-`i64` value
+segments remain outside this implementation cut. This is not a language
+restriction.
 
 ```text
 bun run check:mlir0

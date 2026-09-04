@@ -55,8 +55,8 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-3") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-4") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-4") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-5") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -251,7 +251,9 @@ static bool test_failures_and_capacity(void) {
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.mul %v0, %v1 : i64"));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.call @snprintf"));
+                       "llvm.call @w_seed_append_i64"));
+  CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "snprintf"));
 
   return true;
 }

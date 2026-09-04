@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:5d2f05a573a1f87efe79a4ac08d4559b1b42a605cddf46891162074cbfa4cc89",
+  "corpusDigest": "sha256:762c6b98a42e4ca42fe1e199509eb04d047e23e149e35441bcf09d25274fb075",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4176,6 +4176,78 @@
             "nonWhitespaceCodePoints": 56,
             "lines": 2,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-internal-i64-display",
+      "task": {
+        "utf8Bytes": 127,
+        "codePoints": 127,
+        "nonWhitespaceCodePoints": 114,
+        "lines": 1,
+        "surfaceLexemes": 21
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:bfec7d67d0a4876af5031c6c5704e0c29863b91ec8379b8fdf508f31637fe8d8",
+        "metrics": {
+          "utf8Bytes": 139,
+          "codePoints": 139,
+          "nonWhitespaceCodePoints": 118,
+          "lines": 3,
+          "surfaceLexemes": 24
+        }
+      },
+      "alternatives": [
+        {
+          "name": "target-abi-snprintf",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:f33848edc74f2a4e825c5e7898f9ec109488c4afd2ec67437f5cd0eec19f6a91",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c1301bfc76d9cedef3db85c93db3f198da5593786c660a1fe9495ce0a42a6b57",
+          "metrics": {
+            "utf8Bytes": 35,
+            "codePoints": 35,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "per-segment-write",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c56339f01644a1839735af5c32ba75eb6c2b8ba4fe2e50ebc54b68d16f83f905",
+          "metrics": {
+            "utf8Bytes": 40,
+            "codePoints": 40,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "nul-rejection",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:db4631518ad4b401e8fae45b4393c9fbbc802c5bfea8fb331d3c35277120d5cd",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 8
           }
         }
       ]

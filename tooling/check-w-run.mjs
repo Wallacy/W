@@ -64,8 +64,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-4" &&
-    manifest.artifact?.scope === "linear-print-and-i64-interpolation",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-5" &&
+    manifest.artifact?.scope === "linear-print-and-internal-i64-display",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
