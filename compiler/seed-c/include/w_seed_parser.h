@@ -161,6 +161,11 @@ typedef struct {
   w_seed_span raw_span;
   w_seed_cst_index first_child;
   w_seed_cst_index next_sibling;
+  /* Valid only when kind is W_SEED_CST_LITERAL_EVENT.  Keeping the lexer
+   * event on the lossless leaf lets later phases structure interpolation
+   * without reparsing delimiters or source bytes. */
+  w_seed_literal_kind literal_kind;
+  w_seed_literal_event_kind literal_event;
 } w_seed_cst_node;
 
 /* Caller-owned parser lookahead storage. A view never owns source bytes. */
