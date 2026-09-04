@@ -181,6 +181,7 @@ O corpus compara, no mínimo:
 - typed immutable binding initializers against byte-only binding records, downstream name lookup, precomputed arithmetic, and unchecked forward or cross-block reads.
 - typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.
 - scalar function results against precomputed output, erased call results, unchecked return types, and downstream name lookup.
+- bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.
 - catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.
 - catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
@@ -7774,6 +7775,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1529 | typed direct Unit calls through native MLIR | HIR0 schema `w-seed-hir0-5` distinguishes source-evaluation `ordinal` from declaration/ABI `parameter_ordinal`, retains function signatures, and adds typed `PARAMETER_READ`. MLIR0 schema `w-seed-mlir0-8` emits distinct internal functions and real `llvm.call` operations for an acyclic bounded graph. Named arguments reorder globally while positional-only arguments remain fixed. The Restaurant witness evaluates `isOpen: true` before `table: 6 * 7`, passes ABI operands as `(table, isOpen)`, retains `llvm.mul`, and executes exact `Table 42; open: true\n`. | `source-backed-current` only for bounded direct Unit calls with `i64`/Bool parameters on the Linux x86_64 GNU seed route. Runtime String parameters, recursion, indirect calls, returns, overload dispatch, generic specialization, CFG, stable ABI, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1530 | scalar function results through verified HIR and native MLIR | HIR0 schema `w-seed-hir0-6` adds `RETURN_VALUE`, terminator-owned scalar value trees, and indexed `CALL_RESULT`; MLIR0 schema `w-seed-mlir0-9` emits typed signed-`i64`/Bool returns and result-producing direct calls. The frontend infers an immutable binding type from the local call signature. HIR verification proves dense owner partitions, prior same-block call identity, and exact function/call/terminator/result type agreement. The Restaurant witness retains `llvm.mul`, a typed `llvm.return`, a result-producing `llvm.call`, and executes exact `Table 42\n`. | `source-backed-current` only for bounded final scalar returns and direct binding initializers on the Linux x86_64 GNU seed route. Return-call expressions, nested calls, runtime String results, multiple exits, CFG, recursion, indirect calls, stable ABI, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
+| W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The Restaurant witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` only for the bounded Unit diamond route. Conditional values/if expressions, block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch, multiple exits, ownership/effects/tasks, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
+
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -9044,6 +9047,43 @@ phi values, recursion, indirect calls, exceptions, async, a stable ABI, other
 targets, and performance. Its benchmark disposition is `compiler-lifecycle`,
 correctness-only.
 
+#### W-1531 — bounded top-level `if` diamonds through native MLIR
+
+W-1530 left the native route linear. W-1531 introduces the first bounded CFG:
+each top-level nonnested Unit `if` becomes a real diamond with an entry branch,
+then and else blocks, and one join. The no-else form still has an explicit empty
+else block, so the downstream graph has no implicit fall-through edge. Sequential
+diamonds reuse the join as the next current block.
+
+HIR0 advances to `w-seed-hir0-7`. `BRANCH` owns one Bool condition value and
+publishes explicit true/false block targets; `JUMP` publishes its join target;
+`RETURN` publishes no edge. The frontend relation walker consumes sibling and
+child records exactly once and consumes expression, argument, constant, value,
+and segment ranges monotonically. The verifier checks dense ownership, spans,
+digests, same-function targets, reachability, diamond topology, acyclicity, and
+the Bool condition. Branch bodies retain only the existing linear let/call
+forms. Nested CFG, scalar-return CFG, branch-carried bindings, and phi/block
+arguments remain rejected.
+
+MLIR0 advances to `w-seed-mlir0-10` and renders labeled LLVM-dialect blocks with
+`llvm.cond_br` and `llvm.br`. The cursor and text base dominate both arms, and
+the post-join body is emitted once. Native selection computes the exact bounded
+maximum by path as prefix + `max(then, else)` + join, while retaining the
+acyclic call-graph proof. Native0 remains v6 because no public Native0 bytes or
+record contract changed.
+
+The integrated Restaurant witness calls `serve` once with `true` and once with
+`false`, producing `Kitchen open\nAfter service\nKitchen closed\nAfter service\n`.
+The evidence keeps separate minimal if/else and no-else microproofs. It also
+keeps three equivalent source-style candidates: learner duplicates two
+diamonds inline, idiomatic calls a `serve(Bool)` helper twice, and frontier
+calls distinct service helpers from two sequential diamonds. Each candidate
+must produce the same exact Restaurant stdout. These are compiler-lifecycle
+correctness evidence only; `frontier` is an exploration role, not a ranking,
+timing, or result claim. Explicit gaps are conditional values/if expressions,
+block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch,
+multiple exits, ownership/effects/tasks, other targets, and performance.
+
 #### W-1507 — catálogo operacional de hosts e targets
 
 W-1507 transforma a matriz de suporte de §20.8.3 em uma fonte operacional
@@ -9065,7 +9105,7 @@ em `pass`.
 O estado corrente é deliberadamente menor que uma claim de suporte. Existem
 zero targets `supported` e uma linha `evidence` para
 `x86_64-unknown-linux-gnu`, no scope
-`w-seed-mlir0-9-scalar-function-results`. O backend
+`w-seed-mlir0-10-unit-cfg-diamond`. O backend
 é `pass`. Runtime, host adapter, SDK profile, linker/sysroot/packaging e CI
 evidence são `partial`. As referências incluem fonte, unidade, gate e
 manifest MLIR0. Essa linha não alega target geral, SDK, packaging ou CI

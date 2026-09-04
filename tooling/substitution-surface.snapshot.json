@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:bbade6e7c4b1c5f5143e3d09f9b709f85bccc39832831ec64e7e5076710f3e75",
+  "corpusDigest": "sha256:c67333e0eb6f90501f876ba817cdf399b6e8ac28f3bd03b619958c5c648d326b",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4548,6 +4548,78 @@
             "nonWhitespaceCodePoints": 52,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-if-diamond",
+      "task": {
+        "utf8Bytes": 164,
+        "codePoints": 164,
+        "nonWhitespaceCodePoints": 143,
+        "lines": 1,
+        "surfaceLexemes": 32
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:0cede245aa9000ed35f14bf5bf0dba14895b16a04fc46d5ce7bbb0e4dd6462f4",
+        "metrics": {
+          "utf8Bytes": 266,
+          "codePoints": 266,
+          "nonWhitespaceCodePoints": 225,
+          "lines": 4,
+          "surfaceLexemes": 66
+        }
+      },
+      "alternatives": [
+        {
+          "name": "flattened-conditional-output",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:89ff7a210cdc96ff72ce66bc286b44d608926784c8b76d3c3d3478b201f842bc",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "sum-of-mutually-exclusive-arms",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:8a67bd2db0066b3b3c30bb0973571548e835667f1c1ac731fcfce80252262ae1",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "implicit-fall-through",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:cd6e8560ec60eafc926fcd040f7c675f306363ad75908c893aceaf429a3da039",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 43,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "general-cfg-expansion",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:731e0cadc50c076b92585151bc2430dada03c1735043e6ff2104075f822909be",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 17
           }
         }
       ]

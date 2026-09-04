@@ -3002,6 +3002,85 @@
         "bun run check:w-run — public bounded runner executes the scalar-return witness"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-if-diamond",
+      "reviewItem": "bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.",
+      "decisions": ["W-1531"],
+      "task": "Carry a top-level Unit if through verified HIR BRANCH/JUMP records, exact bounded native selection, real LLVM conditional branches, and both-path Restaurant output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve(isOpen: Bool) { if isOpen { print(\"Kitchen open\") } else { print(\"Kitchen closed\") } print(\"After service\") }",
+          "fn main() { serve(isOpen: true) serve(isOpen: false) }",
+          "entry(main)",
+          "stdout bytes: Kitchen open + After service + Kitchen closed + After service + LF"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "flattened-conditional-output",
+          "language": "w-rejected",
+          "source": ["Precompute one output string or select the arm before MLIR emission"],
+          "expectedDifference": "The artifact retains llvm.cond_br, both arm payloads, and real calls."
+        },
+        {
+          "name": "sum-of-mutually-exclusive-arms",
+          "language": "w-rejected",
+          "source": ["Bound both branch payloads by adding their sizes"],
+          "expectedDifference": "The selector uses prefix + max(then, else) + join for an exact safe path maximum."
+        },
+        {
+          "name": "implicit-fall-through",
+          "language": "w-rejected",
+          "source": ["Omit the empty else block when the source has no else"],
+          "expectedDifference": "Every diamond has explicit then, else, and join blocks with terminator edges."
+        },
+        {
+          "name": "general-cfg-expansion",
+          "language": "w-rejected",
+          "source": ["Allow nested if, loops, phi values, or scalar-return CFG in this schema"],
+          "expectedDifference": "The bounded cut rejects these forms and retains only sequential nonnested Unit diamonds."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_statement_and_expression_cfg_ok",
+          "claim": "HIR walks statement relations and emits explicit dense diamond blocks and terminators."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_function_maximum",
+          "claim": "The selector computes a path maximum across mutually exclusive arms and retains acyclic call bounds."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_program_artifact",
+          "claim": "MLIR emits labeled blocks, llvm.cond_br, llvm.br, and one post-join continuation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_if_diamond_cfg",
+          "claim": "The unit proves diamond topology, target ownership, condition typing, and forged-target rejection."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-if",
+          "claim": "The focal gate verifies typed i1 condition, both branches, one join, native output, and exact Restaurant stdout."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "W-1531 frontier exploration source-style candidate",
+          "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
+        }
+      ],
+      "checks": [
+        "bun run check:hir0 — HIR diamond topology and adversarial target/type/owner mutations",
+        "bun run check:mlir0 — typed llvm.cond_br, both arms, one join, translation, and exact Restaurant output",
+        "bun run check:w-run — public bounded runner executes all W-1531 evidence fixtures"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

@@ -12945,6 +12945,13 @@ static bool normalize_statement_depth(frontend_context *context,
           then_first = nested_first;
           then_count = nested_count;
           saw_then_block = true;
+        } else if (context->emit && context->output != NULL &&
+                   *statement_index < context->output->statement_capacity) {
+          /* The second block is the explicit else sibling chain.  Keep the
+           * relation on the IF record; downstream CFG lowering must not
+           * rediscover it from source text. */
+          context->output->statements[*statement_index].else_child =
+              nested_first;
         }
       } else if (doc->nodes[child].kind == W_SEED_CST_IF_STATEMENT) {
         uint32_t nested_statement = W_SEED_FRONTEND_NONE;
@@ -13496,36 +13503,6 @@ static bool normalize_document(frontend_context *context) {
   return true;
 }
 
-static bool function_statements_are_linear(const frontend_context *context,
-                                           uint32_t function_index) {
-  if (context == NULL || context->output == NULL ||
-      function_index >= context->count.functions ||
-      context->output->functions == NULL || context->output->statements == NULL)
-    return false;
-  const w_seed_frontend_function *function =
-      &context->output->functions[function_index];
-  const size_t first = function->first_statement;
-  const size_t count = function->statement_count;
-  if (first > context->count.statements ||
-      count > context->count.statements - first)
-    return false;
-  for (size_t offset = 0u; offset < count; offset += 1u) {
-    const size_t index = first + offset;
-    const w_seed_frontend_statement *statement =
-        &context->output->statements[index];
-    if (statement->owner_function != function_index ||
-        statement->first_child != W_SEED_FRONTEND_NONE ||
-        statement->child_count != 0u ||
-        statement->else_child != W_SEED_FRONTEND_NONE ||
-        statement->condition_expression != W_SEED_FRONTEND_NONE ||
-        statement->next_sibling !=
-            (offset + 1u < count ? (uint32_t)(index + 1u)
-                                  : W_SEED_FRONTEND_NONE))
-      return false;
-  }
-  return true;
-}
-
 static bool expression_tree_contains(const frontend_context *context,
                                      uint32_t root_index,
                                      uint32_t sought_index, size_t depth) {
@@ -13647,13 +13624,73 @@ static bool expression_is_call_callee(const frontend_context *context,
   return false;
 }
 
-static uint32_t linear_binding_statement_for_expression(
+/* Two statements share a lexical block when they occur in the same direct
+ * sibling chain. Branch statements do not inherit bindings from another
+ * chain, and a binding does not escape its chain. */
+static bool statements_share_direct_block(const frontend_context *context,
+                                          uint32_t function_index,
+                                          uint32_t first_statement,
+                                          uint32_t left_statement,
+                                          uint32_t right_statement,
+                                          size_t depth) {
+  if (context == NULL || context->output == NULL ||
+      context->output->functions == NULL ||
+      context->output->statements == NULL || depth > 256u ||
+      function_index >= context->count.functions)
+    return false;
+  const w_seed_frontend_function *function =
+      &context->output->functions[function_index];
+  if (function->first_statement > context->count.statements ||
+      function->statement_count >
+          context->count.statements - function->first_statement ||
+      first_statement == W_SEED_FRONTEND_NONE ||
+      (size_t)first_statement >= context->count.statements)
+    return false;
+  bool left_here = false;
+  bool right_here = false;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE && guard < context->count.statements) {
+    if (cursor >= context->count.statements) return false;
+    if (cursor == left_statement) left_here = true;
+    if (cursor == right_statement) right_here = true;
+    cursor = context->output->statements[cursor].next_sibling;
+    guard += 1u;
+  }
+  if (cursor != W_SEED_FRONTEND_NONE) return false;
+  if (left_here && right_here) return true;
+  cursor = first_statement;
+  guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE && guard < context->count.statements) {
+    if (cursor >= context->count.statements) return false;
+    const w_seed_frontend_statement *statement =
+        &context->output->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      if (statement->first_child != W_SEED_FRONTEND_NONE &&
+          statements_share_direct_block(context, function_index,
+                                         statement->first_child,
+                                         left_statement, right_statement,
+                                         depth + 1u))
+        return true;
+      if (statement->else_child != W_SEED_FRONTEND_NONE &&
+          statements_share_direct_block(context, function_index,
+                                         statement->else_child,
+                                         left_statement, right_statement,
+                                         depth + 1u))
+        return true;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  return false;
+}
+
+static uint32_t binding_statement_for_expression(
     const frontend_context *context, uint32_t function_index,
     uint32_t expression_index) {
   if (context == NULL || context->output == NULL ||
       expression_index >= context->count.expressions ||
-      context->output->expressions == NULL ||
-      !function_statements_are_linear(context, function_index))
+      context->output->expressions == NULL || function_index >= context->count.functions)
     return W_SEED_FRONTEND_NONE;
   const w_seed_frontend_expression *expression =
       &context->output->expressions[expression_index];
@@ -13688,6 +13725,9 @@ static uint32_t linear_binding_statement_for_expression(
         &context->output->statements[index];
     if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
          statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+        statements_share_direct_block(context, function_index,
+                                       (uint32_t)first, (uint32_t)index,
+                                       use_statement, 0u) &&
         text_equal_text(statement->binding_name, expression->spelling)) {
       if (binding != W_SEED_FRONTEND_NONE) return W_SEED_FRONTEND_NONE;
       binding = (uint32_t)index;
@@ -13737,7 +13777,7 @@ static bool resolve_frontend_links(frontend_context *context) {
       }
       if (expression->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) {
         expression->resolved_binding_statement =
-            linear_binding_statement_for_expression(
+            binding_statement_for_expression(
                 context, expression->owner_function,
                 (uint32_t)expression_index);
         if (expression->resolved_binding_statement != W_SEED_FRONTEND_NONE) {

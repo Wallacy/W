@@ -9,6 +9,12 @@ const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
+const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
+const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
+const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner.w")
+const w1531IdiomaticFixture = resolve(seedDirectory, "fixtures", "w1531-if-idiomatic.w")
+const w1531FrontierFixture = resolve(seedDirectory, "fixtures", "w1531-if-frontier.w")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "20.1.2"
 const expectedHelp =
@@ -64,8 +70,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-9" &&
-    manifest.artifact?.scope === "scalar-function-results",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-10" &&
+    manifest.artifact?.scope === "unit-cfg-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -385,6 +391,23 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantInterpolationFixture)],
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant typed interpolation")
+  const expectedRestaurantIf = Buffer.from(
+    "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8")
+  expectSuccess(binary, ["run", toWsl(restaurantIfFixture)],
+    expectedRestaurantIf,
+    "Restaurant if diamond")
+  expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
+    Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
+  expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],
+    Buffer.from("Kitchen open\nAfter service\n", "utf8"),
+    "W-1531 no-else")
+  const restaurantStyleFixtures = [
+    [w1531LearnerFixture, "W-1531 learner source-style candidate"],
+    [w1531IdiomaticFixture, "W-1531 idiomatic source-style candidate"],
+    [w1531FrontierFixture, "W-1531 frontier exploration source-style candidate"],
+  ]
+  for (const [fixture, label] of restaurantStyleFixtures)
+    expectSuccess(binary, ["run", toWsl(fixture)], expectedRestaurantIf, label)
   expectSuccess(binary, ["run", toWsl(restaurantBuiltinDisplay)],
     Buffer.from("Kitchen true/false; table: open\n", "utf8"),
     "Restaurant built-in Display interpolation")

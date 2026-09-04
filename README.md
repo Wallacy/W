@@ -22,7 +22,11 @@ imutáveis `i64`, Bool e String no mesmo bloco. W-1529 adiciona chamadas diretas
 `Unit` com parâmetros `i64`/Bool e uma `llvm.call` real. W-1530 adiciona
 retornos escalares `i64`/Bool, inferência do binding no caller e SSA real entre
 `llvm.return` e a call. W-1520 registra a forma
-schema-v2 histórica.
+schema-v2 histórica. W-1531 adiciona `if` top-level não aninhado em funções
+`Unit`: HIR0 `w-seed-hir0-7` publica diamonds bounded com `BRANCH`/`JUMP`, e
+MLIR0 `w-seed-mlir0-10` emite `llvm.cond_br`, blocos rotulados e um join real.
+O witness Restaurant executa os dois caminhos e o corpo pós-join. Native0
+permanece v6 porque seu contrato público de bytes/records não mudou.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -54,7 +58,12 @@ compile-time-known String values. W-1528 adds typed immutable binding
 initializers and later reads for `i64`, Bool, and String. W-1529 adds bounded
 direct Unit calls with `i64`/Bool parameters. W-1530 advances HIR0 to
 `w-seed-hir0-6` and MLIR0 to `w-seed-mlir0-9` for final scalar returns and
-direct call-result binding initializers. Other value domains remain gaps.
+direct call-result binding initializers. W-1531 advances HIR0 to
+`w-seed-hir0-7` and MLIR0 to `w-seed-mlir0-10` for bounded top-level Unit
+diamonds. Other value domains and general CFG remain gaps.
+The runner also keeps minimal/no-else microproofs and equivalent learner,
+idiomatic, and frontier source-style candidates for correctness only; frontier
+is exploratory, with no timing, result, or ranking claim.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -66,7 +75,7 @@ frontend normativo completo continuam gaps.
 W-1519 is `source-backed-current` for the first bounded immutable local String
 path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-6` gives each binding one typed initializer root in the common
+`w-seed-hir0-7` gives each binding one typed initializer root in the common
 postorder value graph. It verifies owners, order, types, spans, dense ranges,
 alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
 direct `CONST_STRING` or single `BINDING → CALL` recovery subset.
@@ -85,18 +94,20 @@ and signed-`i64` helpers. W-1527 added constant Bool and compile-time-known
 String value segments. W-1528 advances the current adapter to MLIR0
 `w-seed-mlir0-7` and Native0 `w-seed-native0-6`. W-1529 advances MLIR0 to
 `w-seed-mlir0-8`; W-1530 advances it to `w-seed-mlir0-9`, while Native0
-remains v6. The bounded native route now
+remains v6. W-1531 adds actual LLVM-dialect diamond blocks and a bounded
+top-level Unit CFG route. The bounded native route now
 also accepts typed immutable `i64`, Bool, and String binding reads.
 It also emits real internal calls for an acyclic bounded graph of Unit
 functions with `i64`/Bool parameters, plus final scalar `i64`/Bool returns and
-indexed caller-side results.
+indexed caller-side results. The Restaurant witness produces
+`Kitchen open\nAfter service\nKitchen closed\nAfter service\n`.
 `Bool` writes exact lowercase `true` or `false`; counted String data preserves
 NUL. The frontend supplies canonical Bool identity and resolves prior immutable
 String bindings inside interpolation. These helpers and compile-time String
 selection are seed implementation details, not a stable runtime ABI, general
 Display dispatch, or a performance claim.
 This decision does not claim general locals, `var`, assignment, nested scopes,
-general SSA, ownership, additional targets, the general public `w run` surface,
+general SSA, nested CFG, ownership, additional targets, the general public `w run` surface,
 or performance. W-1521 covers only the bounded public seed CLI, whose NAT1
 sequence extension is defined by W-1522.
 

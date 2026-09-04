@@ -54,9 +54,20 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static size_t count_bytes(const uint8_t *bytes, size_t length,
+                          const char *needle) {
+  if (bytes == NULL || needle == NULL) return 0u;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length) return 0u;
+  size_t count = 0u;
+  for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
+    if (memcmp(bytes + offset, needle, needle_length) == 0) count += 1u;
+  return count;
+}
+
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-9") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-10") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -127,6 +138,33 @@ static bool test_products(void) {
       "\\4b\\69\\74\\63\\68\\65\\6e\\20\\69\\73\\20\\72\\65\\61\\64\\79\\0a"));
   CHECK(contains_bytes(linear_bytes, linear_result.mlir.written.mlir_bytes,
                        "!llvm.array<39 x i8>"));
+
+  static const uint8_t cfg[] =
+      "fn serve(isOpen: Bool) {\n"
+      "  if isOpen { print(\"Kitchen open\") } else { "
+      "print(\"Kitchen closed\") }\n"
+      "  print(\"After service\")\n"
+      "}\n"
+      "fn main() { serve(isOpen: true) serve(isOpen: false) }\n"
+      "entry(main)\n";
+  uint8_t cfg_bytes[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result cfg_result;
+  CHECK(run_source(cfg, sizeof(cfg) - 1u, "cfg-id", 6u, cfg_bytes,
+                   sizeof(cfg_bytes), &cfg_result) == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.functions[0].block_count == 4u &&
+        storage.hir_program.functions[1].block_count == 1u &&
+        storage.hir_program.terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH);
+  CHECK(contains_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
+                    "llvm.br ^w_fn_0_b_3\n") == 2u &&
+        contains_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
+                       "\\4b\\69\\74\\63\\68\\65\\6e\\20\\6f\\70\\65\\6e\\0a") &&
+        contains_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
+                       "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
+        count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
+                    "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
   return true;
 }
 

@@ -322,6 +322,17 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static size_t count_bytes(const uint8_t *bytes, size_t length,
+                          const char *needle) {
+  if (bytes == NULL || needle == NULL) return 0u;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length) return 0u;
+  size_t count = 0u;
+  for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
+    if (memcmp(bytes + offset, needle, needle_length) == 0) count += 1u;
+  return count;
+}
+
 static bool append_text(char *buffer, size_t capacity, size_t *offset,
                         const char *text) {
   if (buffer == NULL || offset == NULL || text == NULL || *offset > capacity)
@@ -650,6 +661,84 @@ static bool test_scalar_return_call_result(void) {
                        "%cursor_address) : (!llvm.ptr, !llvm.ptr) -> i64"));
   CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
                        "@w_seed_append_i64(%buffer, %cursor1_1, %call0)"));
+  return true;
+}
+
+static bool test_if_diamond_cfg(void) {
+  static const uint8_t source[] =
+      "fn serve(isOpen: Bool) {\n"
+      "  if isOpen { print(\"Kitchen open\") } else { "
+      "print(\"Kitchen closed\") }\n"
+      "  print(\"After service\")\n"
+      "}\n"
+      "fn main() { serve(isOpen: true) serve(isOpen: false) }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.functions[0].block_count == 4u &&
+        fixture.hir_program.terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, "
+                       "%cursor_address: !llvm.ptr, %p0: i1)"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2"));
+  CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.br ^w_fn_0_b_3\n") == 2u);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "\\4b\\69\\74\\63\\68\\65\\6e\\20\\6f\\70\\65\\6e\\0a") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
+  CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                     "llvm.call @w_fn_0") == 2u);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.maximum_stdout_bytes == 58u);
+
+  const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].target_block = 4u;
+  uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(rejected_output, 0xa1u, sizeof(rejected_output));
+  const w_seed_mlir0_result rejected_snapshot = emitted;
+  CHECK(w_seed_mlir0_emit(
+            &((w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result}),
+            &TARGET, &(w_seed_mlir0_output){rejected_output,
+                                            sizeof(rejected_output)},
+            &emitted) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(rejected_output); index += 1u)
+    CHECK(rejected_output[index] == 0xa1u);
+  CHECK(memcmp(&emitted, &rejected_snapshot, sizeof(emitted)) == 0);
+  fixture.hir_terminators[0] = saved_branch;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  static const uint8_t no_else[] =
+      "fn main() { if true { print(\"Open\") } print(\"After\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(no_else, sizeof(no_else) - 1u));
+  CHECK(fixture.hir_program.block_count == 4u &&
+        fixture.hir_program.blocks[2].instruction_count == 0u &&
+        fixture.hir_program.terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH);
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %v") &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.br ^w_fn_0_b_3\n") == 2u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "\\4f\\70\\65\\6e\\0a") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "\\41\\66\\74\\65\\72\\0a"));
   return true;
 }
 
@@ -1094,6 +1183,7 @@ int main(void) {
   if (!test_typed_interpolation_artifact()) return 1;
   if (!test_direct_unit_call()) return 1;
   if (!test_scalar_return_call_result()) return 1;
+  if (!test_if_diamond_cfg()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;
