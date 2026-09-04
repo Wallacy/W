@@ -2559,6 +2559,46 @@ static bool test_pratt_nesting(void) {
   return true;
 }
 
+static bool test_interpolation_expression_shapes(void) {
+  static const char source[] =
+      "fn main(){print(message: \"The answer is ${6 * 7}\")}\nentry(main)\n";
+  fixture value;
+  CHECK(fixture_init(&value, source,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  const char *literal = strstr(source, "\"The answer is ${6 * 7}\"");
+  const char *arithmetic = strstr(source, "6 * 7");
+  CHECK(literal != NULL);
+  CHECK(arithmetic != NULL);
+  CHECK(has_direct_expression_span(
+      &value, (size_t)(literal - source),
+      (size_t)(literal - source) + strlen("\"The answer is ${6 * 7}\""),
+      (size_t)(arithmetic - source),
+      (size_t)(arithmetic - source) + strlen("6 * 7")));
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  fixture grouped;
+  CHECK(fixture_init(&grouped, "fn f(){\"${(6 + 1) * 7}\"}\n",
+                     sizeof(grouped.nodes) / sizeof(grouped.nodes[0]),
+                     sizeof(grouped.issues) / sizeof(grouped.issues[0])));
+  CHECK(grouped.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(count_kind(&grouped, W_SEED_CST_PARENTHESES) == 1);
+  CHECK(check_leaf_partition(&grouped));
+  CHECK(check_tree_links(&grouped));
+
+  fixture empty;
+  CHECK(fixture_init(&empty, "fn f(){\"${}\"}\n",
+                     sizeof(empty.nodes) / sizeof(empty.nodes[0]),
+                     sizeof(empty.issues) / sizeof(empty.issues[0])));
+  CHECK(empty.result.status != W_SEED_PARSE_COMPLETE);
+  CHECK(has_issue(&empty, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN));
+  CHECK(check_leaf_partition(&empty));
+  CHECK(check_tree_links(&empty));
+  return true;
+}
+
 static bool test_pratt_operator_table(void) {
   static const char *const operators[] = {
       "=",   "+=",  "-=",  "*=",  "/=",  "%=",  "**=", "<<=",
@@ -3202,6 +3242,7 @@ int main(void) {
       test_positive_core() &&
       test_nested_close_and_shift() &&
       test_pratt_nesting() &&
+      test_interpolation_expression_shapes() &&
       test_pratt_operator_table() &&
       test_repeat_array_shape() &&
       test_repeat_array_recovery() &&

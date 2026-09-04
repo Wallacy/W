@@ -277,6 +277,14 @@ static bool current_is_kind(w_seed_parser *parser, w_seed_lex_item_kind kind) {
   return parser->token_count != 0 && parser->token_cache[0].item.kind == kind;
 }
 
+static bool current_is_literal_event(w_seed_parser *parser,
+                                     w_seed_literal_event_kind event) {
+  if (!skip_trivia(parser)) return false;
+  return parser->token_count != 0 &&
+         parser->token_cache[0].item.kind == W_SEED_LEX_ITEM_LITERAL_EVENT &&
+         parser->token_cache[0].item.payload.literal.event == event;
+}
+
 static bool next_significant(w_seed_parser *parser, w_seed_lex_item *item) {
   if (!skip_trivia(parser)) return false;
   size_t index = 1;
@@ -486,6 +494,49 @@ static bool parse_argument(w_seed_parser *parser);
 
 static bool parse_pipeline_expression(w_seed_parser *parser,
                                       bool value_context);
+
+static bool parse_literal_expression(w_seed_parser *parser) {
+  if (!current_is_literal_event(parser, W_SEED_LITERAL_START)) {
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_EXPRESSION);
+    return false;
+  }
+  (void)consume_current(parser, NULL);
+  while (!current_is_eof(parser)) {
+    if (current_is_literal_event(parser, W_SEED_LITERAL_TEXT)) {
+      (void)consume_current(parser, NULL);
+      continue;
+    }
+    if (current_is_literal_event(parser, W_SEED_INTERPOLATION_START)) {
+      (void)consume_current(parser, NULL);
+      if (current_is_literal_event(parser, W_SEED_INTERPOLATION_END)) {
+        (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                           current_span(parser),
+                           W_SEED_PARSE_EXPECT_EXPRESSION);
+        return false;
+      }
+      if (!parse_expression(parser, 1, false)) return false;
+      if (!current_is_literal_event(parser, W_SEED_INTERPOLATION_END)) {
+        (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                           current_span(parser),
+                           W_SEED_PARSE_EXPECT_PUNCTUATION);
+        return false;
+      }
+      (void)consume_current(parser, NULL);
+      continue;
+    }
+    if (current_is_literal_event(parser, W_SEED_LITERAL_END)) {
+      (void)consume_current(parser, NULL);
+      return true;
+    }
+    (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                       current_span(parser), W_SEED_PARSE_EXPECT_EXPRESSION);
+    return false;
+  }
+  (void)record_issue(parser, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN,
+                     current_span(parser), W_SEED_PARSE_EXPECT_PUNCTUATION);
+  return false;
+}
 
 static bool parse_pipeline_contract_object(w_seed_parser *parser) {
   if (!expect_text(parser, "{", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
@@ -1085,10 +1136,7 @@ static bool parse_primary(w_seed_parser *parser, bool value_context) {
       current_is_kind(parser, W_SEED_LEX_ITEM_NUMBER) ||
       current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
     if (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
-      (void)consume_current(parser, NULL);
-      while (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
-        (void)consume_current(parser, NULL);
-      }
+      return parse_literal_expression(parser);
     } else {
       (void)consume_current(parser, NULL);
     }
