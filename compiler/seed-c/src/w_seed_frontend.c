@@ -9672,12 +9672,11 @@ static bool local_argument_expected(
           parameter_external_label_from_span(doc, doc->nodes[child].raw_span);
       bool selected = false;
       if (label.length != 0) {
-        selected = index == ordinal &&
-                   policy != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+        selected = policy != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
                    text_equal_text(label_from_span, label);
       } else {
         selected = index == ordinal &&
-                   policy != W_SEED_FRONTEND_LABEL_REQUIRED;
+                   policy == W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
       }
       if (selected) {
         const uint32_t type_node = direct_type_index(doc, child);
@@ -9726,22 +9725,24 @@ static bool external_argument_expected(
     w_seed_frontend_text label, frontend_simple_type *expected) {
   if (symbol == NULL || expected == NULL) return false;
   if (label.length != 0) {
-    if (ordinal >= symbol->parameter_count) return false;
-    const w_seed_frontend_external_parameter *parameter =
-        &symbol->parameters[ordinal];
-    if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
-        text_equal_text(parameter->name, label)) {
-      *expected = external_contextual_type(context, parameter->type);
-      return true;
+    bool found = false;
+    for (size_t index = 0u; index < symbol->parameter_count; index += 1u) {
+      const w_seed_frontend_external_parameter *parameter =
+          &symbol->parameters[index];
+      if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+          text_equal_text(parameter->name, label)) {
+        if (found) return false;
+        *expected = external_contextual_type(context, parameter->type);
+        found = true;
+      }
     }
-    return false;
+    return found;
   }
   if (ordinal >= symbol->parameter_count) return false;
   const w_seed_frontend_external_parameter *parameter =
       &symbol->parameters[ordinal];
-  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED) {
+  if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY)
     return false;
-  }
   *expected = external_contextual_type(context, parameter->type);
   return true;
 }
@@ -9752,22 +9753,24 @@ static bool host_argument_expected(
     w_seed_frontend_text label, frontend_simple_type *expected) {
   if (symbol == NULL || expected == NULL) return false;
   if (label.length != 0u) {
-    if (ordinal >= symbol->parameter_count) return false;
-    const w_seed_frontend_external_parameter *parameter =
-        &symbol->parameters[ordinal];
-    if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
-        text_equal_text(parameter->name, label)) {
-      *expected = external_contextual_type(context, parameter->type);
-      return true;
+    bool found = false;
+    for (size_t index = 0u; index < symbol->parameter_count; index += 1u) {
+      const w_seed_frontend_external_parameter *parameter =
+          &symbol->parameters[index];
+      if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+          text_equal_text(parameter->name, label)) {
+        if (found) return false;
+        *expected = external_contextual_type(context, parameter->type);
+        found = true;
+      }
     }
-    return false;
+    return found;
   }
   if (ordinal >= symbol->parameter_count) return false;
   const w_seed_frontend_external_parameter *parameter =
       &symbol->parameters[ordinal];
-  if (parameter->label_kind == W_SEED_FRONTEND_LABEL_REQUIRED) {
+  if (parameter->label_kind != W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY)
     return false;
-  }
   *expected = external_contextual_type(context, parameter->type);
   return true;
 }

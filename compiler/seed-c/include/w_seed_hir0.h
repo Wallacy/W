@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-4"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-5"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -56,6 +56,7 @@ typedef enum {
 typedef enum {
   W_SEED_HIR0_VALUE_CONST_STRING = 0,
   W_SEED_HIR0_VALUE_BINDING_READ,
+  W_SEED_HIR0_VALUE_PARAMETER_READ,
   W_SEED_HIR0_VALUE_CONST_I64,
   W_SEED_HIR0_VALUE_CONST_BOOL,
   W_SEED_HIR0_VALUE_BINARY_I64,
@@ -100,8 +101,9 @@ typedef struct {
   uint32_t owner_module;
   uint32_t target_index;
   w_seed_hir0_text name;
-  /* Only host-prelude identities use these ranges. Other identities must
-   * contain W_SEED_HIR0_NONE and zero counts. */
+  /* Function identities use the function-parameter range. Host-prelude
+   * identities use the host-parameter range. Other identities contain
+   * W_SEED_HIR0_NONE and zero counts. */
   uint32_t first_parameter;
   uint32_t parameter_count;
   uint32_t first_requirement;
@@ -225,7 +227,10 @@ typedef struct {
 
 typedef struct {
   uint32_t owner_call;
+  /* ordinal preserves source evaluation order. parameter_ordinal identifies
+   * the declaration/ABI slot. They can differ for named arguments. */
   uint32_t ordinal;
+  uint32_t parameter_ordinal;
   uint32_t value_index;
   uint32_t type_index;
   w_seed_hir0_text label;
@@ -240,6 +245,7 @@ typedef struct {
   uint32_t owner_ordinal;
   uint32_t type_index;
   uint32_t binding_index;
+  uint32_t parameter_index;
   uint32_t left_value;
   uint32_t right_value;
   uint32_t first_interpolation_segment;
