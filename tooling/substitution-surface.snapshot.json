@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:ff4ac60d128d44d8648326cd2d563bb478c664afbf1fdbd7bdc1087ba6cbbeed",
+  "corpusDigest": "sha256:85a491262305b3efbf308badc3b95d0fddd970694f2c437ab1016f26bf24b769",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4740,6 +4740,66 @@
             "nonWhitespaceCodePoints": 68,
             "lines": 1,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-windows-builder-profiles",
+      "task": {
+        "utf8Bytes": 142,
+        "codePoints": 142,
+        "nonWhitespaceCodePoints": 122,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "tooling-contract",
+        "sourceDigest": "sha256:6aae86515d76b89c5f23ea419586d2157782137d8041adc088dc1b14f452a41d",
+        "metrics": {
+          "utf8Bytes": 267,
+          "codePoints": 267,
+          "nonWhitespaceCodePoints": 242,
+          "lines": 4,
+          "surfaceLexemes": 61
+        }
+      },
+      "alternatives": [
+        {
+          "name": "public-w-profile-option",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:f2036f145034f16fe6467a098dfa504c9b1a143749eef6e212f1da8fed70edcd",
+          "metrics": {
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 17
+          }
+        },
+        {
+          "name": "manifest-only-smoke",
+          "language": "tooling-rejected",
+          "sourceDigest": "sha256:f705cbaed8f0c5af3e9db301d2cffab08c4edcfcab86183f90b844f8099bbbed",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "direct-output-replacement",
+          "language": "tooling-rejected",
+          "sourceDigest": "sha256:fed7ff5e9c8d16af72d1ca4134d065459dde9f72bdbb1576a0f2e0a35e001c44",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 13
           }
         }
       ]

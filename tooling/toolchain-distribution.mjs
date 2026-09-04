@@ -78,6 +78,68 @@ function validate() {
   if (profiles?.harmonization !==
       "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax.")
     error("profile harmonization must remain explicit and syntax-free")
+
+  const windowsBuilder = manifest.windowsBuilder
+  if (windowsBuilder?.decision !== "W-1534" ||
+      windowsBuilder?.status !== "bounded-local-evidence" ||
+      windowsBuilder?.script !== "tooling/build-w-windows.mjs" ||
+      windowsBuilder?.network !== "forbidden" ||
+      windowsBuilder?.defaultProfile !== "release")
+    error("Windows builder boundary must be the bounded W-1534 offline builder")
+  exact(windowsBuilder?.profiles?.map((profile) => profile.id),
+    ["development", "release", "benchmark", "size-experimental"],
+    "Windows builder profile ids")
+  const windowsProfiles = new Map((windowsBuilder?.profiles ?? [])
+    .map((profile) => [profile.id, profile]))
+  for (const [id, buildType, purpose, defaultValue] of [
+    ["development", "Debug", "toolchain-iteration-and-diagnostics", false],
+    ["release", "Release", "performance-first", true],
+    ["benchmark", "Release", "reproducible-pinned", false],
+    ["size-experimental", "MinSizeRel", "size-comparison-only", false],
+  ]) {
+    const profile = windowsProfiles.get(id)
+    if (profile?.cmakeBuildType !== buildType || profile?.purpose !== purpose ||
+        profile?.default !== defaultValue)
+      error(`Windows builder profile ${id} is invalid`)
+  }
+  exact(windowsBuilder?.cStandard, {
+    primary: "23",
+    recovery: "11",
+    recoveryOption: "--c11-recovery",
+    implicitFallback: false,
+  }, "Windows builder C standard policy")
+  exact(windowsBuilder?.benchmarkRecipe, {
+    requiresCleanGit: true,
+    compilerFlags: ["/Brepro", "/pathmap:<workspace>=W"],
+    linkerFlags: ["/Brepro"],
+    probe: "required-before-build",
+    headRecord: "required",
+  }, "Windows benchmark recipe")
+  exact(windowsBuilder?.output, {
+    directory: "build/w-windows",
+    entries: ["w.exe", "receipt.json"],
+    install: "validated-staged-directory-rename",
+    failurePreservesPrevious: true,
+  }, "Windows builder output")
+  exact(windowsBuilder?.receipt, {
+    file: "receipt.json",
+    schema: "w-seed-windows-build-receipt-1",
+    status: "local-evidence-only",
+    determinism: "stable-key-order-final-newline",
+    claimBoundary: "not-a-package-budget-or-performance-proof",
+  }, "Windows builder receipt")
+  exact(windowsBuilder?.smoke, {
+    runner: "staged-w.exe",
+    fixtures: [
+      "compiler/seed-c/fixtures/hlo0-hello.w",
+      "compiler/seed-c/fixtures/restaurant-if.w",
+    ],
+    fixtureSha256: "required-content-sha256-read-before-staged-run",
+    stdout: "exact-bytes",
+    outcome: "required",
+  }, "Windows builder smoke")
+  if (windowsBuilder?.benchmarkDisposition !== "compiler-lifecycle")
+    error("Windows builder benchmark disposition must be compiler-lifecycle")
   const opportunity = manifest.optimizationBacklog?.items?.find((item) =>
     item?.id === "hello-windows-pe-under-1kib")
   if (manifest.optimizationBacklog?.status !== "opportunity-only" ||
@@ -201,6 +263,7 @@ function validate() {
     error("backend direction is invalid")
   exact(manifest.implementationStatus, {
     w1533Policy: "source-backed-by-manifest-and-offline-checker",
+    w1534WindowsBuilder: "bounded-local-evidence",
     releaseBuilder: "gap",
     endUserPackage: "gap",
     crossCompilation: "gap",
@@ -210,6 +273,7 @@ function validate() {
 
 function render() {
   const matrix = manifest.primaryCrossMatrix
+  const windowsBuilder = manifest.windowsBuilder
   const tick = String.fromCharCode(96)
   const edges = matrix.edges.map((edge) =>
     `| ${edge.host} | ${edge.target} | ${edge.status} |`).join("\n")
@@ -246,6 +310,39 @@ they are separate from W program profiles and do not inherit them. The size
 profile is opt-in and experimental only. ${tick}dev${tick} is an informal naming
 opportunity only, not an alias or syntax; the canonical W profile is
 ${tick}debug${tick}. This manifest adds no CLI syntax.
+
+## Bounded Windows builder (W-1534)
+
+The current native Windows builder is bounded local evidence. It uses
+${tick}${windowsBuilder.script}${tick} with ${tick}${windowsBuilder.network}${tick} network access.
+The default toolchain profile is ${tick}${windowsBuilder.defaultProfile}${tick}.
+
+| Toolchain profile | CMake build type | Purpose | Default |
+| --- | --- | --- | ---: |
+${windowsBuilder.profiles.map((profile) =>
+    `| ${profile.id} | ${profile.cmakeBuildType} | ${profile.purpose} | ${profile.default ? "yes" : "no"} |`).join("\n")}
+
+The primary C standard is ${tick}${windowsBuilder.cStandard.primary}${tick}.
+The explicit recovery standard is ${tick}${windowsBuilder.cStandard.recovery}${tick}.
+The recovery option is ${tick}${windowsBuilder.cStandard.recoveryOption}${tick}.
+The builder does not select recovery implicitly.
+The ${tick}benchmark${tick} profile is a constrained, probed recipe. It requires
+a clean Git worktree, records HEAD, and probes
+${tick}${windowsBuilder.benchmarkRecipe.compilerFlags.join(", ")}${tick} and
+${tick}${windowsBuilder.benchmarkRecipe.linkerFlags.join(", ")}${tick} before the build.
+This bounded evidence does not claim a reproducible binary or a double-build result.
+
+The persistent output directory is ${tick}${windowsBuilder.output.directory}${tick}.
+It contains only ${windowsBuilder.output.entries.map((entry) => `${tick}${entry}${tick}`).join(" and ")}.
+The builder validates a staged directory before an atomic rename. A pre-commit
+failure preserves the previous output directory.
+
+The receipt is ${tick}${windowsBuilder.receipt.file}${tick} with schema
+${tick}${windowsBuilder.receipt.schema}${tick}. It uses stable key order and a final newline.
+It records local evidence only. It is not a package, budget, or performance proof.
+The builder reads each fixture before execution, records its SHA-256, and runs
+exact-byte ${windowsBuilder.smoke.fixtures.map((fixture) => `${tick}${fixture}${tick}`).join(" and ")}
+smokes from the staged executable.
 
 The future release builder uses this route:
 

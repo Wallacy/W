@@ -32,6 +32,41 @@ profile is opt-in and experimental only. `dev` is an informal naming
 opportunity only, not an alias or syntax; the canonical W profile is
 `debug`. This manifest adds no CLI syntax.
 
+## Bounded Windows builder (W-1534)
+
+The current native Windows builder is bounded local evidence. It uses
+`tooling/build-w-windows.mjs` with `forbidden` network access.
+The default toolchain profile is `release`.
+
+| Toolchain profile | CMake build type | Purpose | Default |
+| --- | --- | --- | ---: |
+| development | Debug | toolchain-iteration-and-diagnostics | no |
+| release | Release | performance-first | yes |
+| benchmark | Release | reproducible-pinned | no |
+| size-experimental | MinSizeRel | size-comparison-only | no |
+
+The primary C standard is `23`.
+The explicit recovery standard is `11`.
+The recovery option is `--c11-recovery`.
+The builder does not select recovery implicitly.
+The `benchmark` profile is a constrained, probed recipe. It requires
+a clean Git worktree, records HEAD, and probes
+`/Brepro, /pathmap:<workspace>=W` and
+`/Brepro` before the build.
+This bounded evidence does not claim a reproducible binary or a double-build result.
+
+The persistent output directory is `build/w-windows`.
+It contains only `w.exe` and `receipt.json`.
+The builder validates a staged directory before an atomic rename. A pre-commit
+failure preserves the previous output directory.
+
+The receipt is `receipt.json` with schema
+`w-seed-windows-build-receipt-1`. It uses stable key order and a final newline.
+It records local evidence only. It is not a package, budget, or performance proof.
+The builder reads each fixture before execution, records its SHA-256, and runs
+exact-byte `compiler/seed-c/fixtures/hlo0-hello.w` and `compiler/seed-c/fixtures/restaurant-if.w`
+smokes from the staged executable.
+
 The future release builder uses this route:
 
 `verified HIR → in-process MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable`.

@@ -41,10 +41,26 @@ Windows route uses MLIR → LLVM IR → `llc` → `lld-link` and does not promot
 general support. The heavy cache is never the user package; see
 [`TOOLCHAIN.md`](TOOLCHAIN.md) for the compact cross-target direction. Unicode
 source paths are not proven. Linux/WSL 20.1.2 remains `update-required`.
-The primary command is `bun run build:w-windows`; it tries C23 and fails closed
-when this host's MSVC/CMake rejects that dialect. To reproduce the current
-evidence, use exactly `bun run build:w-windows --c11-recovery`. There is no
-implicit standard fallback.
+The primary command is `bun run build:w-windows`; it selects the `release`
+toolchain profile by default. It tries C23 and fails closed when this host's
+MSVC/CMake rejects that dialect. To reproduce the current evidence, use
+exactly `bun run build:w-windows --c11-recovery`.
+
+The builder also accepts exactly one `--profile` value: `development` maps to
+CMake `Debug`, `release` maps to `Release`, `benchmark` maps to a
+recipe-constrained `Release`, and `size-experimental` maps to `MinSizeRel`.
+`benchmark` requires a clean Git worktree and probes the supported `/Brepro`
+and `/pathmap` flags before it builds. This bounded recipe evidence does not
+claim a reproducible binary or a double-build result. `size-experimental` is
+for size comparison only. The option is a tooling option. It is not a `w` CLI
+option.
+
+The persistent `build/w-windows` output contains only `w.exe` and
+`receipt.json`. The receipt records local toolchain, source, artifact, and
+exact Hello and Restaurant staged-smoke evidence, including each fixture's
+SHA-256. It is not a package, budget, or performance proof. A failed
+pre-commit validation preserves the previous output directory. A HEAD change
+during the build is rejected, and there is no implicit C standard fallback.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL

@@ -12,6 +12,7 @@ const manifestPath = resolve(import.meta.dir, "mlir0-windows-toolchain.json")
 const linuxManifestPath = resolve(import.meta.dir, "mlir0-toolchain.json")
 const acquisitionPath = resolve(import.meta.dir, "acquire-mlir0-windows.mjs")
 const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
+const builderPath = resolve(import.meta.dir, "build-w-windows.mjs")
 
 function fail(message) {
   throw new Error(`MLIR0 Windows acquisition: ${message}`)
@@ -85,5 +86,33 @@ for (const marker of [
   assert(smokeSource.includes(marker), `Windows smoke guard is missing: ${marker}`)
 assert(!smokeSource.includes("process.env.PATH"),
   "Windows smoke must not depend on PATH")
+
+const builderSource = await readFile(builderPath, "utf8")
+for (const marker of [
+  "parseBuildArguments",
+  "PROFILE_RECIPES",
+  "cmakeBuildType: \"Debug\"",
+  "cmakeBuildType: \"MinSizeRel\"",
+  "--c11-recovery",
+  "local-evidence-only",
+  "atomicInstallOutput",
+  "stageDirectory",
+  "/Brepro",
+  "/pathmap:",
+  "hashSmokeFixtures",
+  "fixtureSha256",
+  "source HEAD changed during build",
+  "benchmark profile requires a clean Git worktree",
+  "staged-w.exe",
+])
+  assert(builderSource.includes(marker), `Windows builder guard is missing: ${marker}`)
+for (const forbidden of [
+  "await rm(binaryPath",
+  "await rm(outputDirectory",
+  "process.env.PATH",
+  "--profile`",
+])
+  assert(!builderSource.includes(forbidden),
+    `Windows builder contains a forbidden boundary: ${forbidden}`)
 
 console.log("MLIR0 Windows acquisition: offline structural checks passed")

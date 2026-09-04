@@ -89,7 +89,7 @@
     "check:hlo0": "bun tooling/check-hlo0.mjs",
     "check:hlo1": "bun tooling/check-hlo1.mjs",
     "check:mlir0": "bun tooling/check-mlir0.mjs",
-    "check:mlir0-windows": "bun test tooling/acquire-mlir0-windows.test.mjs && bun tooling/check-mlir0-windows.mjs",
+    "check:mlir0-windows": "bun test tooling/acquire-mlir0-windows.test.mjs tooling/build-w-windows.test.mjs && bun tooling/check-mlir0-windows.mjs",
     "smoke:mlir0-windows": "bun tooling/smoke-mlir0-windows.mjs",
     "check:platform-support": "bun test tooling/platform-support.test.mjs && bun tooling/platform-support.mjs --check",
     "check:dependency-currency": "bun test tooling/dependency-currency.test.mjs && bun tooling/dependency-currency.mjs --check",

@@ -55,6 +55,76 @@
     "namespaceRule": "W program profiles and toolchain build/distribution profiles are separate; no implicit inheritance.",
     "harmonization": "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax."
   },
+  "windowsBuilder": {
+    "decision": "W-1534",
+    "status": "bounded-local-evidence",
+    "script": "tooling/build-w-windows.mjs",
+    "network": "forbidden",
+    "defaultProfile": "release",
+    "profiles": [
+      {
+        "id": "development",
+        "cmakeBuildType": "Debug",
+        "purpose": "toolchain-iteration-and-diagnostics",
+        "default": false
+      },
+      {
+        "id": "release",
+        "cmakeBuildType": "Release",
+        "purpose": "performance-first",
+        "default": true
+      },
+      {
+        "id": "benchmark",
+        "cmakeBuildType": "Release",
+        "purpose": "reproducible-pinned",
+        "default": false
+      },
+      {
+        "id": "size-experimental",
+        "cmakeBuildType": "MinSizeRel",
+        "purpose": "size-comparison-only",
+        "default": false
+      }
+    ],
+    "cStandard": {
+      "primary": "23",
+      "recovery": "11",
+      "recoveryOption": "--c11-recovery",
+      "implicitFallback": false
+    },
+    "benchmarkRecipe": {
+      "requiresCleanGit": true,
+      "compilerFlags": ["/Brepro", "/pathmap:<workspace>=W"],
+      "linkerFlags": ["/Brepro"],
+      "probe": "required-before-build",
+      "headRecord": "required"
+    },
+    "output": {
+      "directory": "build/w-windows",
+      "entries": ["w.exe", "receipt.json"],
+      "install": "validated-staged-directory-rename",
+      "failurePreservesPrevious": true
+    },
+    "receipt": {
+      "file": "receipt.json",
+      "schema": "w-seed-windows-build-receipt-1",
+      "status": "local-evidence-only",
+      "determinism": "stable-key-order-final-newline",
+      "claimBoundary": "not-a-package-budget-or-performance-proof"
+    },
+    "smoke": {
+      "runner": "staged-w.exe",
+      "fixtures": [
+        "compiler/seed-c/fixtures/hlo0-hello.w",
+        "compiler/seed-c/fixtures/restaurant-if.w"
+      ],
+      "fixtureSha256": "required-content-sha256-read-before-staged-run",
+      "stdout": "exact-bytes",
+      "outcome": "required"
+    },
+    "benchmarkDisposition": "compiler-lifecycle"
+  },
   "optimizationBacklog": {
     "status": "opportunity-only",
     "items": [
@@ -250,6 +320,7 @@
   },
   "implementationStatus": {
     "w1533Policy": "source-backed-by-manifest-and-offline-checker",
+    "w1534WindowsBuilder": "bounded-local-evidence",
     "releaseBuilder": "gap",
     "endUserPackage": "gap",
     "crossCompilation": "gap",

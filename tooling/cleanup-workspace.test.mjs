@@ -182,6 +182,7 @@ describe("workspace cleanup", () => {
   test("selects the persistent Windows W output by its exact allowlist", async () => {
     const windowsOutput = path.join(workspace, "build", "w-windows");
     await makeFile(path.join(windowsOutput, "w.exe"), "native executable");
+    await makeFile(path.join(windowsOutput, "receipt.json"), "local receipt");
 
     const plan = await collectCleanupPlan(options());
     expect(plan.candidates.map((candidate) => candidate.path)).toEqual([windowsOutput]);
