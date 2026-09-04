@@ -3970,6 +3970,43 @@ static bool test_interpolated_string_projection(void) {
   CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY &&
         fixture_capacity.result.required.interpolation_segments == 2u &&
         fixture_output_is(&fixture_capacity, sentinel, true));
+
+  static const char builtin_source[] =
+      "fn main() { let state = \"open\" "
+      "print(\"${true}/${false}/${state}\") }\nentry(main)\n";
+  value = &fixture_literal;
+  CHECK(fixture_parse(value, builtin_source));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  size_t bool_count = 0u;
+  size_t binding_read_count = 0u;
+  uint32_t bool_type = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *item = &value->expressions[index];
+    if (item->kind == W_SEED_FRONTEND_EXPR_BOOL) {
+      CHECK(item->supported && item->has_bool_value &&
+            !item->has_integer_value &&
+            item->inferred_type != W_SEED_FRONTEND_NONE &&
+            (size_t)item->inferred_type < value->result.written.types &&
+            value->types[item->inferred_type].kind ==
+                W_SEED_FRONTEND_TYPE_BOOL);
+      if (bool_type == W_SEED_FRONTEND_NONE)
+        bool_type = item->inferred_type;
+      else
+        CHECK(item->inferred_type == bool_type);
+      bool_count += 1u;
+    }
+    if (item->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(item->spelling, "state")) {
+      CHECK(item->supported && item->resolved_binding_statement == 0u &&
+            item->inferred_type == value->statements[0].effective_type);
+      binding_read_count += 1u;
+    }
+  }
+  CHECK(bool_count == 2u && binding_read_count == 1u &&
+        bool_type != W_SEED_FRONTEND_NONE);
   return true;
 }
 

@@ -44,8 +44,9 @@ the frontend publishes ordered text/expression segments and canonical `i64`
 typing for the current built-in interpolation subset. W-1524 advances HIR0 to
 schema `w-seed-hir0-3` and preserves those expressions as typed postorder
 values and ordered text/value segments. MLIR0, Native0, and public `w run`
-did not accept those values at the W-1524 boundary. W-1525 now accepts the
-panic-free signed-`i64` subset and retains all other value domains as gaps.
+did not accept those values at the W-1524 boundary. W-1525 accepts the
+panic-free signed-`i64` subset; W-1527 additionally accepts constant Bool and
+compile-time-known String values. Other value domains remain gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -71,12 +72,15 @@ native-subset selector, and performs no textual lookup. It retains the W-1522
 linear String path. It also lowers panic-free signed-`i64` arithmetic inside
 bounded String interpolation and formats the value at runtime. HLO0/HLO1/RUN0 remain
 bootstrap, audit, and recovery paths, not native prerequisites.
-W-1526 advances the current adapter to MLIR0 `w-seed-mlir0-5` and Native0
-`w-seed-native0-4`. Generated dynamic artifacts use private LLVM-dialect copy
-and signed-`i64` decimal helpers instead of `snprintf`, `%ld`, or varargs.
-Counted text now preserves NUL and percent bytes before one checked POSIX
-write. These helpers are seed implementation details, not a stable runtime
-ABI or a performance claim.
+W-1526 replaced target-ABI integer formatting with private LLVM-dialect copy
+and signed-`i64` helpers. W-1527 advances the current adapter to MLIR0
+`w-seed-mlir0-6` and Native0 `w-seed-native0-5`. The bounded native route now
+also accepts constant Bool and compile-time-known String value segments.
+`Bool` writes exact lowercase `true` or `false`; counted String data preserves
+NUL. The frontend supplies canonical Bool identity and resolves prior immutable
+String bindings inside interpolation. These helpers and compile-time String
+selection are seed implementation details, not a stable runtime ABI, general
+Display dispatch, or a performance claim.
 This decision does not claim general locals, `var`, assignment, nested scopes,
 general SSA, ownership, additional targets, the general public `w run` surface,
 or performance. W-1521 covers only the bounded public seed CLI, whose NAT1

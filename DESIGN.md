@@ -23256,6 +23256,13 @@ extension Display {
 }
 ```
 
+The built-in textual forms are locale-independent. `String: Display` appends
+its exact counted UTF-8 bytes, including embedded NUL. `Bool: Display` appends
+exactly the lowercase ASCII bytes `true` or `false`. Integer `Display` uses the
+canonical decimal form defined in §15.1.6. An implementation may fuse these
+writes into the surrounding String construction, but it cannot change their
+bytes or introduce an intermediate String as an observable requirement.
+
 Uma implementação escreve diretamente:
 
 ```w
@@ -27697,7 +27704,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-5-linear-print-and-internal-i64-display`. Seu backend tem status
+`w-seed-mlir0-6-linear-print-and-builtin-display`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35468,7 +35475,8 @@ macOS and the general public runner remain gaps. The evidence covers compiler
 lifecycle correctness only; it makes no performance, timing or result claim.
 
 W-1521 remains current for this CLI contract. W-1522 defines the static NAT1
-sequence, and W-1525 adds bounded signed-`i64` interpolation. In `w run`, the explicit path basename is
+sequence, W-1525 adds bounded signed-`i64` interpolation, and W-1527 adds the
+bounded built-in Bool and compile-time-known String values. In `w run`, the explicit path basename is
 an opaque logical source identity, including a hyphen and the terminal `.w`; it
 is not required to be a W identifier or module name. The `w check` helper and
 `w_seed_check_root_source_id` are unchanged. This makes the versioned
@@ -35690,7 +35698,7 @@ payload. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only.
 No timing or performance result is published. W-1526 replaces the temporary
 format-string adapter while retaining this accepted arithmetic subset.
 
-#### 26.4.1.10 W-1526 — internal bounded signed-i64 Display in LLVM dialect (Current form)
+#### 26.4.1.10 W-1526 — internal bounded signed-i64 Display in LLVM dialect (Retained form; adapter advanced by W-1527)
 
 **Example:** this source retains multiplication and converts its result without
 a C format string:
@@ -35730,9 +35738,72 @@ contain `w_seed_append_i64` and to omit `snprintf` and `%ld`.
 
 This milestone removes one target-ABI formatting dependency. It does not claim
 a complete runtime, a stable runtime ABI, panic lowering, general Display,
-Bool or String-valued interpolation, another target, or a performance win. The
-external sink is still POSIX `write`, and Linux x86_64 GNU remains the only
-evidenced target. `benchmarkDisposition` is `compiler-lifecycle`,
+another target, or a performance win. W-1527 later adds the bounded built-in
+Bool and compile-time-known String value cases without opening protocol
+dispatch. The external sink is still POSIX `write`, and Linux x86_64 GNU
+remains the only evidenced target. `benchmarkDisposition` is
+`compiler-lifecycle`, correctness-only; no timing or performance result is
+published.
+
+#### 26.4.1.11 W-1527 — bounded built-in Bool and String Display through native MLIR (Current form)
+
+**Example:** the Restaurant witness keeps the value domains distinct through
+the verified pipeline and produces exact bytes:
+
+```w
+fn serve() {
+  let state = "open"
+  print("Kitchen ${true}/${false}; table: ${state}")
+}
+entry(serve)
+```
+
+Its stdout is exactly `Kitchen true/false; table: open\n`.
+
+W-1527 advances MLIR0 to `w-seed-mlir0-6` and Native0 to
+`w-seed-native0-5`. Frontend schema `w-seed-frontend-12` and HIR0 schema
+`w-seed-hir0-3` remain unchanged because both schemas already represent Bool,
+String, binding relations, typed values, and interpolation segments. The
+frontend implementation now materializes one canonical Bool type identity for
+an unconstrained Bool literal and resolves a binding read anywhere inside the
+bounded argument expression tree, including inside interpolation. HIR0 keeps
+requiring a non-null type identity and an indexed prior binding; it does not
+reparse source or perform name lookup.
+
+The native selector accepts three interpolation value domains in this cut:
+
+- a panic-free signed-`i64` constant or binary tree retained from W-1525;
+- a `CONST_BOOL` value;
+- a `CONST_STRING` value or `BINDING_READ` of one prior immutable String
+  literal.
+
+Bool output is the exact locale-independent lowercase ASCII text `true` or
+`false`. The emitted LLVM dialect uses the private `w_seed_append_bool` helper,
+which is present only when the action plan contains Bool. A String value is
+folded into the counted immutable text bank because every accepted String is
+already a verified literal or read of an immutable literal. Its bytes are
+copied unchanged, including embedded NUL. This is not constant folding of an
+arbitrary expression and is not runtime String representation evidence.
+
+The existing 4097-byte stack buffer, 4096-byte stdout bound, at most 32 calls,
+64 values, 64 interpolation segments, one checked POSIX `write`, private
+signed-`i64` helper, deterministic digest, alias barriers, and all-or-nothing
+artifact publication remain unchanged. A String binding used inside an
+interpolation counts as a real binding read for the selector's no-unused-
+binding invariant. The upper-bound proof uses four bytes for `true`, five for
+`false`, and the exact verified byte count for a String value.
+
+Focused units prove canonical Bool typing, nested binding resolution, typed
+HIR records, both Bool values, counted String data, embedded NUL, exact and
+exceeded output bounds, absence of the Bool helper from integer-only artifacts,
+and short-capacity publication barriers. The MLIR gate verifies, translates,
+links, and executes the Restaurant witness and a NUL-bearing String value. The
+public bounded `w run` gate executes the same Restaurant witness byte for byte.
+
+This milestone does not implement protocol witness dispatch, user-defined
+`Display`, nonconstant Bool or runtime String values, mutable bindings, general
+locals, CFG or SSA, panic lowering, a stable runtime ABI, another target, or a
+performance result. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded

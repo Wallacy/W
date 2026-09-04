@@ -890,9 +890,10 @@ The focused HIR unit lowers `"The answer is ${6 * 7}"` to `i64(6)`, `i64(7)`,
 `multiply`, and `interpolated String` values plus two ordered segments. It also
 checks short segment capacity, output aliases, graph-edge mutations, segment
 ownership, exact bytes, digests, and receipts. MLIR0 and Native0 intentionally
-rejected those value kinds at the W-1524 boundary. W-1525 now lowers the
-panic-free signed-`i64` subset while Bool, String-valued interpolation,
-runtime panic paths, and general Display formatting remain outside MLIR0.
+rejected those value kinds at the W-1524 boundary. W-1525 lowers the
+panic-free signed-`i64` subset. W-1527 additionally lowers constant Bool and
+compile-time-known String value segments. Runtime-produced values, runtime
+panic paths, and general Display formatting remain outside MLIR0.
 
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,
@@ -1020,13 +1021,13 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
-HIR0 e a implementação não inclui, chama ou cria HLO0. W-1526 advances MLIR0
-to `w-seed-mlir0-5` and Native0 to `w-seed-native0-4`. MLIR0 re-verifies HIR
+HIR0 e a implementação não inclui, chama ou cria HLO0. W-1527 advances MLIR0
+to `w-seed-mlir0-6` and Native0 to `w-seed-native0-5`. MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
-linear NAT1 form. It also accepts bounded String interpolation with panic-free
-signed-`i64` arithmetic. It emits the arithmetic as LLVM dialect operations
-and formats the result at runtime. The single selector still supports
-HLO0/HLO1/RUN0.
+linear NAT1 form. It accepts bounded String interpolation with panic-free
+signed-`i64` arithmetic, constant Bool, and compile-time-known String values.
+Bool uses exact lowercase ASCII; String values keep their counted bytes,
+including NUL. The single selector still supports HLO0/HLO1/RUN0.
 
 `measure` e `emit` são caller-owned, bounded, sem heap, determinísticos e
 all-or-nothing; status, required, written e digest pertencem ao result.
@@ -1037,17 +1038,18 @@ implícito. O único target é `x86_64-unknown-linux-gnu`; o módulo fixa
 `llvm.target_triple` and contains only builtin and LLVM dialect. The static
 path escapes each payload byte and uses POSIX `write`. The interpolation path
 uses a bounded stack buffer, a counted text bank, internal LLVM-dialect copy
-and signed-`i64` decimal helpers, and one checked `write`. Its generated MLIR
-contains no `snprintf`, `%ld`, or variadic call.
+and signed-`i64` decimal helpers, an on-demand Bool helper, and one checked
+`write`. Its generated MLIR contains no `snprintf`, `%ld`, or variadic call.
 There is no W-level `printInt`, C source generation, custom W dialect,
 TableGen, or object cache.
 
 O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
-empty output, and `restaurant-interpolation.w`. It also executes all five
-integer binary operators, a negative result, a literal percent sign, counted
-NUL data, and multiple ordered integer fields. It
+empty output, `restaurant-interpolation.w`, and the Bool/String Restaurant
+witness. It also executes all five integer binary operators, a negative
+result, a literal percent sign, NUL in both text and a String value, and
+multiple ordered integer fields. It
 requires byte-identical MLIR for the equivalent static Restaurant forms,
 exact stdout, empty stderr, and exit zero. It preserves
 MLIR em trivia e rejeita comentário com `print`, noop, limits excedidos e formas
@@ -1056,7 +1058,8 @@ MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
 `update-required`. Linux usa ferramentas diretas; no checkout Windows
 `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo a prova não é
 suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
-geral, locals não String, CFG/general SSA, W MLIR dialect, MLIR C API
+geral, runtime-produced String or Bool, general Display dispatch, mutable
+locals, CFG/general SSA, W MLIR dialect, MLIR C API
 builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
 provider/runtime/linker/SDK, o runner `w run` público geral e performance são
 gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL e aponta
@@ -1070,8 +1073,9 @@ function is linear, returns Unit, has no parameters or effects, and the block
 contains 1..32 instructions made only of 0..32 immutable String bindings and
 1..32 ordered `print` calls. Every binding is read at least once; repeated
 reads are allowed. Instruction count equals bindings plus calls. Each argument
-is a direct String literal or a read of a prior binding. Each payload is at
-most 256 bytes and ordered stdout (payload plus LF per call) is at most 4096
+is a direct String literal, a read of a prior binding, or a bounded
+interpolated String. Each static payload is at most 256 bytes and ordered
+stdout (payload plus LF per call) is at most 4096
 bytes. MLIR0 may coalesce the pure calls into one global/write while preserving
 bytes and W order, without promising syscall boundaries. The static artifact
 retains its original 13190-byte derivation. The adapter capacity is now
@@ -1083,15 +1087,17 @@ single-print.
 The interpolation extension accepts at most 64 HIR values and 64 segments.
 It proves constant integer trees panic-free without substituting their result.
 The emitted artifact preserves the matching LLVM arithmetic operation.
-Counted text preserves interpolated NUL and percent bytes. Non-`i64` value
-segments remain outside this implementation cut. This is not a language
+Constant Bool uses `true` or `false`; a literal or prior immutable String
+binding contributes exact counted bytes. Counted text preserves NUL and
+percent bytes. User-defined Display, nonconstant Bool, and runtime-produced
+String values remain outside this implementation cut. This is not a language
 restriction.
 
 ```text
 bun run check:mlir0
 ```
 
-## Public bounded `w run` (W-1521, NAT1 extensions W-1522 and W-1525)
+## Public bounded `w run` (W-1521, NAT1 extensions through W-1527)
 
 The public seed command is limited to:
 

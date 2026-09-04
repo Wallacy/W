@@ -52,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-5" &&
-    manifest.artifact?.scope === "linear-print-and-internal-i64-display",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-6" &&
+    manifest.artifact?.scope === "linear-print-and-builtin-display",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -240,7 +240,10 @@ try {
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
   const interpolationNulPath = resolve(artifactDirectory,
     "nul-interpolation.w")
+  const stringValueNulPath = resolve(artifactDirectory,
+    "nul-string-value.w")
   const minimumI64Path = resolve(artifactDirectory, "minimum-i64.w")
+  const builtinDisplayPath = resolve(artifactDirectory, "builtin-display.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -258,8 +261,12 @@ try {
     'fn main() { print("Load ${6 * 7}%") }\nentry(main)\n')
   await writeFile(interpolationNulPath,
     Buffer.from('fn main() { print("A\u0000${6 * 7}") }\nentry(main)\n'))
+  await writeFile(stringValueNulPath,
+    Buffer.from('fn main() { let state = "A\u0000B" print("${state}") }\nentry(main)\n'))
   await writeFile(minimumI64Path,
     'fn main() { print("${0 - 9223372036854775807 - 1}") }\nentry(main)\n')
+  await writeFile(builtinDisplayPath,
+    'fn serve() { let state = "open" print("Kitchen ${true}/${false}; table: ${state}") }\nentry(serve)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -282,8 +289,12 @@ try {
       expected: Buffer.from("Load 42%\n", "utf8") },
     { name: "nul-interpolation", source: interpolationNulPath,
       expected: Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a]) },
+    { name: "nul-string-value", source: stringValueNulPath,
+      expected: Buffer.from([0x41, 0x00, 0x42, 0x0a]) },
     { name: "minimum-i64", source: minimumI64Path,
       expected: Buffer.from("-9223372036854775808\n", "utf8") },
+    { name: "builtin-display", source: builtinDisplayPath,
+      expected: Buffer.from("Kitchen true/false; table: open\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -337,6 +348,10 @@ try {
       !artifact.includes("vararg"),
     `${name} did not use the internal bounded i64 writer`)
   }
+  const builtinDisplay = artifacts.get("builtin-display")
+  assert(builtinDisplay.includes("@w_seed_append_bool") &&
+    !builtinDisplay.includes("snprintf") && !builtinDisplay.includes("vararg"),
+  "built-in Display did not retain typed Boolean lowering")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,

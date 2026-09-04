@@ -107,6 +107,54 @@ static const char MLIR0_RUNTIME_HELPERS[] =
     "    llvm.return %append_final : i64\n"
     "  }\n";
 
+static const char MLIR0_BOOL_HELPER[] =
+    "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
+    "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %bool_four = llvm.mlir.constant(4 : i64) : i64\n"
+    "    %bool_five = llvm.mlir.constant(5 : i64) : i64\n"
+    "    llvm.cond_br %value, ^bool_true, ^bool_false\n"
+    "  ^bool_true:\n"
+    "    %bool_true_0 = llvm.getelementptr %buffer[%offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_t = llvm.mlir.constant(116 : i8) : i8\n"
+    "    llvm.store %bool_t, %bool_true_0 : i8, !llvm.ptr\n"
+    "    %bool_true_1_offset = llvm.add %offset, %bool_one : i64\n"
+    "    %bool_true_1 = llvm.getelementptr %buffer[%bool_true_1_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_r = llvm.mlir.constant(114 : i8) : i8\n"
+    "    llvm.store %bool_r, %bool_true_1 : i8, !llvm.ptr\n"
+    "    %bool_true_2_offset = llvm.add %bool_true_1_offset, %bool_one : i64\n"
+    "    %bool_true_2 = llvm.getelementptr %buffer[%bool_true_2_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_u = llvm.mlir.constant(117 : i8) : i8\n"
+    "    llvm.store %bool_u, %bool_true_2 : i8, !llvm.ptr\n"
+    "    %bool_true_3_offset = llvm.add %bool_true_2_offset, %bool_one : i64\n"
+    "    %bool_true_3 = llvm.getelementptr %buffer[%bool_true_3_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_e = llvm.mlir.constant(101 : i8) : i8\n"
+    "    llvm.store %bool_e, %bool_true_3 : i8, !llvm.ptr\n"
+    "    %bool_true_end = llvm.add %offset, %bool_four : i64\n"
+    "    llvm.return %bool_true_end : i64\n"
+    "  ^bool_false:\n"
+    "    %bool_false_0 = llvm.getelementptr %buffer[%offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_f = llvm.mlir.constant(102 : i8) : i8\n"
+    "    llvm.store %bool_f, %bool_false_0 : i8, !llvm.ptr\n"
+    "    %bool_false_1_offset = llvm.add %offset, %bool_one : i64\n"
+    "    %bool_false_1 = llvm.getelementptr %buffer[%bool_false_1_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_a = llvm.mlir.constant(97 : i8) : i8\n"
+    "    llvm.store %bool_a, %bool_false_1 : i8, !llvm.ptr\n"
+    "    %bool_false_2_offset = llvm.add %bool_false_1_offset, %bool_one : i64\n"
+    "    %bool_false_2 = llvm.getelementptr %buffer[%bool_false_2_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_l = llvm.mlir.constant(108 : i8) : i8\n"
+    "    llvm.store %bool_l, %bool_false_2 : i8, !llvm.ptr\n"
+    "    %bool_false_3_offset = llvm.add %bool_false_2_offset, %bool_one : i64\n"
+    "    %bool_false_3 = llvm.getelementptr %buffer[%bool_false_3_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_s = llvm.mlir.constant(115 : i8) : i8\n"
+    "    llvm.store %bool_s, %bool_false_3 : i8, !llvm.ptr\n"
+    "    %bool_false_4_offset = llvm.add %bool_false_3_offset, %bool_one : i64\n"
+    "    %bool_false_4 = llvm.getelementptr %buffer[%bool_false_4_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i8\n"
+    "    %bool_false_e = llvm.mlir.constant(101 : i8) : i8\n"
+    "    llvm.store %bool_false_e, %bool_false_4 : i8, !llvm.ptr\n"
+    "    %bool_false_end = llvm.add %offset, %bool_five : i64\n"
+    "    llvm.return %bool_false_end : i64\n"
+    "  }\n";
+
 #define MLIR0_FIXED_LITERAL_BYTES                                            \
   ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) + (sizeof(MLIR0_PREFIX) - 1u) +       \
    (sizeof(MLIR0_GLOBAL_MIDDLE) - 1u) + (sizeof(MLIR0_GLOBAL_SUFFIX) - 1u) + \
@@ -124,7 +172,8 @@ static const char MLIR0_RUNTIME_HELPERS[] =
 #define MLIR0_DYNAMIC_VALUE_MAX_BYTES 160u
 #define MLIR0_DYNAMIC_REQUIRED_MAX_BYTES                                      \
   ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) +                                     \
-   (sizeof(MLIR0_RUNTIME_HELPERS) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
+   (sizeof(MLIR0_RUNTIME_HELPERS) - 1u) +                              \
+   (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
    ((size_t)MLIR0_DYNAMIC_MAX_ACTIONS * MLIR0_DYNAMIC_ACTION_MAX_BYTES) +    \
    ((size_t)W_SEED_NATIVE_SUBSET0_MAX_VALUES *                               \
@@ -304,6 +353,7 @@ static bool build_static_artifact(
 typedef enum {
   MLIR0_DYNAMIC_TEXT = 0,
   MLIR0_DYNAMIC_I64,
+  MLIR0_DYNAMIC_BOOL,
 } mlir0_dynamic_action_kind;
 
 typedef struct {
@@ -318,6 +368,7 @@ typedef struct {
   size_t text_bytes;
   mlir0_dynamic_action actions[MLIR0_DYNAMIC_MAX_ACTIONS];
   size_t action_count;
+  bool has_bool;
 } mlir0_dynamic_plan;
 
 static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
@@ -343,6 +394,17 @@ static bool dynamic_plan_append_i64(mlir0_dynamic_plan *plan,
   plan->actions[plan->action_count] =
       (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
   plan->action_count += 1u;
+  return true;
+}
+
+static bool dynamic_plan_append_bool(mlir0_dynamic_plan *plan,
+                                     uint32_t value_index) {
+  if (plan == NULL || plan->action_count >= MLIR0_DYNAMIC_MAX_ACTIONS)
+    return false;
+  plan->actions[plan->action_count] =
+      (mlir0_dynamic_action){MLIR0_DYNAMIC_BOOL, 0u, 0u, value_index};
+  plan->action_count += 1u;
+  plan->has_bool = true;
   return true;
 }
 
@@ -411,8 +473,20 @@ static bool build_dynamic_plan(
         if (embedded->type_index >= program->type_count) return false;
         const w_seed_hir0_type_kind type =
             program->types[embedded->type_index].kind;
-        if (type != W_SEED_HIR0_TYPE_I64 ||
-            !dynamic_plan_append_i64(&candidate, segment->value_index)) {
+        if (type == W_SEED_HIR0_TYPE_I64) {
+          if (!dynamic_plan_append_i64(&candidate, segment->value_index))
+            return false;
+        } else if (type == W_SEED_HIR0_TYPE_BOOL) {
+          if (embedded->kind != W_SEED_HIR0_VALUE_CONST_BOOL ||
+              !dynamic_plan_append_bool(&candidate, segment->value_index))
+            return false;
+        } else if (type == W_SEED_HIR0_TYPE_STRING) {
+          const uint8_t *bytes = NULL;
+          size_t length = 0u;
+          if (!value_string_bytes(program, embedded, &bytes, &length) ||
+              !dynamic_plan_append_text(&candidate, bytes, length))
+            return false;
+        } else {
           return false;
         }
       }
@@ -532,6 +606,18 @@ static bool append_dynamic_actions(const mlir0_dynamic_plan *plan,
           !append_literal(artifact, capacity, offset,
                           ") : (!llvm.ptr, i64, i64) -> i64\n"))
         return false;
+    } else if (action->kind == MLIR0_DYNAMIC_BOOL) {
+      if (!append_literal(artifact, capacity, offset, "    %cursor") ||
+          !append_size(artifact, capacity, offset, index + 1u) ||
+          !append_literal(
+              artifact, capacity, offset,
+              " = llvm.call @w_seed_append_bool(%buffer, %cursor") ||
+          !append_size(artifact, capacity, offset, index) ||
+          !append_literal(artifact, capacity, offset, ", %v") ||
+          !append_size(artifact, capacity, offset, action->value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          ") : (!llvm.ptr, i64, i1) -> i64\n"))
+        return false;
     } else {
       return false;
     }
@@ -567,6 +653,8 @@ static bool build_dynamic_artifact(
           " x i8>\n"
           ) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      (plan.has_bool &&
+       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
       !append_literal(
           artifact, capacity, &offset,
           "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"

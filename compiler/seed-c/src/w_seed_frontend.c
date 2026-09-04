@@ -184,6 +184,7 @@ typedef struct {
   uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
   uint32_t default_integer_type_index;
+  uint32_t builtin_bool_type_index;
   uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
   frontend_pending_application
@@ -4914,6 +4915,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -10118,6 +10120,31 @@ static bool output_type_index_for_simple(frontend_context *context,
     *index = context->builtin_usize_type_index;
     return true;
   }
+  if (type.kind == W_SEED_FRONTEND_TYPE_BOOL &&
+      text_equal(type.spelling, "Bool")) {
+    if (context->builtin_bool_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_BOOL;
+      builtin.spelling = (w_seed_frontend_text){"Bool", 4u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.is_signed = false;
+      builtin.bit_width = 0u;
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.subset_member_count = 0u;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->builtin_bool_type_index = builtin_index;
+    }
+    *index = context->builtin_bool_type_index;
+    return true;
+  }
   if (!context->emit || context->output == NULL) return true;
   if (type.kind == W_SEED_FRONTEND_TYPE_ENUM &&
       type.enum_index != W_SEED_FRONTEND_NONE &&
@@ -13420,6 +13447,60 @@ static bool function_statements_are_linear(const frontend_context *context,
   return true;
 }
 
+static bool expression_tree_contains(const frontend_context *context,
+                                     uint32_t root_index,
+                                     uint32_t sought_index, size_t depth) {
+  if (context == NULL || context->output == NULL ||
+      context->output->expressions == NULL || depth > 256u ||
+      (size_t)root_index >= context->count.expressions)
+    return false;
+  if (root_index == sought_index) return true;
+  const w_seed_frontend_expression *root =
+      &context->output->expressions[root_index];
+  if (root->left != W_SEED_FRONTEND_NONE &&
+      expression_tree_contains(context, root->left, sought_index,
+                               depth + 1u))
+    return true;
+  if (root->right != W_SEED_FRONTEND_NONE &&
+      expression_tree_contains(context, root->right, sought_index,
+                               depth + 1u))
+    return true;
+  if (root->first_argument != W_SEED_FRONTEND_NONE) {
+    const size_t first = root->first_argument;
+    const size_t count = root->argument_count;
+    if (context->output->arguments == NULL ||
+        first > context->count.arguments ||
+        count > context->count.arguments - first)
+      return false;
+    for (size_t offset = 0u; offset < count; offset += 1u) {
+      const w_seed_frontend_argument *argument =
+          &context->output->arguments[first + offset];
+      if (argument->expression_index != W_SEED_FRONTEND_NONE &&
+          expression_tree_contains(context, argument->expression_index,
+                                   sought_index, depth + 1u))
+        return true;
+    }
+  }
+  if (root->first_interpolation_segment != W_SEED_FRONTEND_NONE) {
+    const size_t first = root->first_interpolation_segment;
+    const size_t count = root->interpolation_segment_count;
+    if (context->output->interpolation_segments == NULL ||
+        first > context->count.interpolation_segments ||
+        count > context->count.interpolation_segments - first)
+      return false;
+    for (size_t offset = 0u; offset < count; offset += 1u) {
+      const w_seed_frontend_interpolation_segment *segment =
+          &context->output->interpolation_segments[first + offset];
+      if (segment->kind == W_SEED_FRONTEND_INTERPOLATION_EXPRESSION &&
+          segment->expression_index != W_SEED_FRONTEND_NONE &&
+          expression_tree_contains(context, segment->expression_index,
+                                   sought_index, depth + 1u))
+        return true;
+    }
+  }
+  return false;
+}
+
 static bool statement_for_expression(const frontend_context *context,
                                      uint32_t function_index,
                                      uint32_t expression_index,
@@ -13460,7 +13541,9 @@ static bool statement_for_expression(const frontend_context *context,
          argument += 1u) {
       const w_seed_frontend_argument *item =
           &context->output->arguments[(size_t)root->first_argument + argument];
-      if (item->expression_index == expression_index) {
+      if (item->expression_index != W_SEED_FRONTEND_NONE &&
+          expression_tree_contains(context, item->expression_index,
+                                   expression_index, 0u)) {
         *statement_index = index;
         return true;
       }
@@ -14856,6 +14939,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.emit = false;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  dry.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -14926,6 +15010,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
   emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
+  emit.builtin_bool_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;
   emit.const_declared_type_indices =

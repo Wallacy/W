@@ -273,9 +273,44 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
   return false;
 }
 
-static bool interpolation_maximum_bytes(const w_seed_hir0_program *program,
-                                        const w_seed_hir0_value *value,
-                                        size_t *maximum_bytes) {
+static bool interpolation_string_bytes(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    const w_seed_hir0_binding *const *bindings, size_t binding_count,
+    size_t current_instruction, size_t *binding_reads, size_t *bytes) {
+  if (program == NULL || value == NULL || bindings == NULL ||
+      binding_reads == NULL || bytes == NULL ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_STRING)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING) {
+    if (value->binding_index != W_SEED_HIR0_NONE ||
+        value->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+      return false;
+    *bytes = value->byte_count;
+    return true;
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+      value->binding_index == W_SEED_HIR0_NONE ||
+      (size_t)value->binding_index >= binding_count ||
+      value->byte_offset != 0u || value->byte_count != 0u)
+    return false;
+  const w_seed_hir0_binding *binding = bindings[value->binding_index];
+  if (binding == NULL || binding->owner_instruction >= current_instruction ||
+      binding->type_index >= program->type_count ||
+      program->types[binding->type_index].kind != W_SEED_HIR0_TYPE_STRING ||
+      binding->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD ||
+      binding_reads[value->binding_index] == SIZE_MAX)
+    return false;
+  binding_reads[value->binding_index] += 1u;
+  *bytes = binding->byte_count;
+  return true;
+}
+
+static bool interpolation_maximum_bytes(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *value,
+    const w_seed_hir0_binding *const *bindings, size_t binding_count,
+    size_t current_instruction, size_t *binding_reads,
+    size_t *maximum_bytes) {
   if (program == NULL || value == NULL || maximum_bytes == NULL ||
       value->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
       value->first_interpolation_segment >
@@ -306,6 +341,17 @@ static bool interpolation_maximum_bytes(const w_seed_hir0_program *program,
           bytes = 20u;
           break;
         }
+        case W_SEED_HIR0_TYPE_BOOL:
+          if (embedded->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
+            return false;
+          bytes = embedded->bool_value ? 4u : 5u;
+          break;
+        case W_SEED_HIR0_TYPE_STRING:
+          if (!interpolation_string_bytes(
+                  program, embedded, bindings, binding_count,
+                  current_instruction, binding_reads, &bytes))
+            return false;
+          break;
         default:
           return false;
       }
@@ -493,8 +539,9 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
                     : program->value_bytes + binding->byte_offset;
     } else if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
       size_t maximum_payload_bytes = 0u;
-      if (!interpolation_maximum_bytes(program, value,
-                                       &maximum_payload_bytes))
+      if (!interpolation_maximum_bytes(
+              program, value, candidate.bindings, binding_cursor,
+              instruction_index, binding_reads, &maximum_payload_bytes))
         return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
       size_t maximum_stdout_bytes = 0u;
       if (!sequence_stdout_add(candidate.maximum_stdout_bytes,
