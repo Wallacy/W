@@ -866,7 +866,7 @@ Labels host required copiam o nome público, positional usa label vazio e
 qualquer outra policy permanece fora deste subset.
 
 W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
-Current schema `w-seed-hir0-6` generalizes that contract. The caller-owned
+Current schema `w-seed-hir0-7` generalizes that contract. The caller-owned
 `w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, `initializer_value`, `source_span`, and
 `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries none.
@@ -881,7 +881,7 @@ fail-closed. Lowering copies binding names and the initializer graph. It never
 performs downstream textual lookup.
 
 W-1524 introduced the postorder value graph in schema `w-seed-hir0-3`. Current
-schema `w-seed-hir0-6` gives binding initializers explicit roots in that graph,
+schema `w-seed-hir0-7` gives binding initializers explicit roots in that graph,
 adds indexed parameter reads, and carries scalar terminator and call results.
 The canonical type table contains Unit, String, signed `i64`, and Bool.
 `w_seed_hir0_value` is a typed
@@ -900,8 +900,10 @@ compile-time-known String value segments. W-1528 adds later reads of immutable
 `i64`, Bool, and String bindings. W-1529 adds direct Unit calls with `i64`/Bool
 parameters, separate source and ABI ordinals, and indexed parameter reads.
 W-1530 adds final signed-`i64`/Bool terminator values and direct call results
-used by immutable bindings. Runtime String results, nested calls, runtime panic
-paths, and general Display formatting remain outside MLIR0.
+used by immutable bindings. W-1531 advances HIR0 to `w-seed-hir0-7` and adds
+bounded top-level Unit `if` diamonds with explicit `BRANCH`/`JUMP` edges.
+Runtime String results, nested calls, runtime panic paths, and general Display
+formatting remain outside MLIR0.
 
 Esta HIR0/W-1494 é uma representação bounded mais ampla que a seleção HLO0:
 ela pode carregar múltiplas funções e os records correspondentes de blocks,
@@ -1030,9 +1032,12 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
 HIR0 e a implementação não inclui, chama ou cria HLO0. W-1530 advances MLIR0
-to `w-seed-mlir0-9`; Native0 remains `w-seed-native0-6`. MLIR0 re-verifies HIR
+to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
+`w-seed-native0-6`. MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
-linear NAT1 form. It accepts bounded String interpolation with panic-free
+linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
+top-level Unit `if` diamonds using `llvm.cond_br`/`llvm.br`. It accepts bounded
+String interpolation with panic-free
 signed-`i64` arithmetic, constant Bool, compile-time-known String values, and
 later reads of typed immutable binding initializers. The multi-function path
 also emits real internal `llvm.call` operations for bounded acyclic Unit calls
@@ -1061,6 +1066,14 @@ O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → ML
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
 empty output, `restaurant-interpolation.w`, the Bool/String Restaurant witness,
 a direct-call Restaurant witness, and a scalar-return Restaurant witness. It
+also runs the W-1531 Restaurant diamond, separate minimal and no-else
+microproofs, and three equivalent correctness-only source-style candidates:
+learner (two inline diamonds), idiomatic (`serve(Bool)` called twice), and
+frontier (two diamonds calling distinct service helpers). All three candidates
+require the exact Restaurant stdout; `frontier` is an exploration role only,
+not a ranking or benchmark result. The diamond artifact requires a typed `i1`
+condition, `llvm.cond_br`, two arm-to-one-join `llvm.br` edges, both branch
+payloads, one post-join body, and real calls. It
 also executes all five integer binary operators, a negative
 result, a literal percent sign, NUL in both text and a String value, and
 multiple ordered integer fields. It
@@ -1073,7 +1086,7 @@ MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
 `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo a prova não é
 suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
 geral, runtime-produced String or Bool, general Display dispatch, mutable
-locals, CFG/general SSA, W MLIR dialect, MLIR C API
+locals, nested/general CFG and SSA beyond the diamond, W MLIR dialect, MLIR C API
 builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
 provider/runtime/linker/SDK, o runner `w run` público geral e performance são
 gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL e aponta
@@ -1156,6 +1169,11 @@ build:
 ./build/seed-c-run/w run compiler/seed-c/fixtures/restaurant-linear.w
 # Table 42 remains open
 # Kitchen is ready
+./build/seed-c-run/w run compiler/seed-c/fixtures/restaurant-if.w
+# Kitchen open
+# After service
+# Kitchen closed
+# After service
 ```
 
 The opaque-basename rule is local to `w run`. `w check` keeps its existing

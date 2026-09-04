@@ -9,6 +9,7 @@ const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
+const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -52,8 +53,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-9" &&
-    manifest.artifact?.scope === "scalar-function-results",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-10" &&
+    manifest.artifact?.scope === "unit-cfg-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -235,6 +236,7 @@ try {
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
   const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
+  const restaurantIfPath = resolve(artifactDirectory, "restaurant-if.w")
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
@@ -256,6 +258,13 @@ try {
   await writeFile(restaurantLinearLiteralPath,
     `fn serve() {\nprint("Table 42 remains open")\n` +
     `print("Kitchen is ready")\n}\nentry(serve)\n`)
+  await writeFile(restaurantIfPath,
+    `fn serve(isOpen: Bool) {\n` +
+    `  if isOpen { print("Kitchen open") } else { print("Kitchen closed") }\n` +
+    `  print("After service")\n` +
+    `}\n` +
+    `fn main() { serve(isOpen: true) serve(isOpen: false) }\n` +
+    `entry(main)\n`)
   await writeFile(twoCallsPath,
     `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
   await writeFile(arithmeticPath,
@@ -300,6 +309,9 @@ try {
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
     { name: "restaurant-linear-literal", source: restaurantLinearLiteralPath,
       expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
+    { name: "restaurant-if", source: restaurantIfPath,
+      expected: Buffer.from(
+        "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8") },
     { name: "two-calls", source: twoCallsPath,
       expected: Buffer.from("a\nb\n", "utf8") },
     { name: "typed-arithmetic", source: arithmeticPath,
@@ -404,6 +416,17 @@ try {
     artifacts.get("bool-return").includes("llvm.return %v") &&
     artifacts.get("bool-return").includes("@w_seed_append_bool"),
   "Bool return was flattened or disconnected from interpolation")
+  const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
+  const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
+  const cfgSignature = cfgArtifact.match(
+    /llvm\.func internal @w_fn_0\([^\n]*%p0: i1\)/u)
+  assert(cfgSignature && cfgArtifact.includes("llvm.cond_br %p0") &&
+    joinBranches.length === 2 &&
+    cfgArtifact.includes("\\4b\\69\\74\\63\\68\\65\\6e\\20\\6f\\70\\65\\6e\\0a") &&
+    cfgArtifact.includes("\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
+    (cfgArtifact.match(/\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a/gu) || []).length === 1 &&
+    (cfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
+  "if diamond did not retain typed cond_br, two join branches, both payloads, and one post-join body")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,
@@ -444,6 +467,10 @@ try {
     ["nested-return-call.w",
       `fn value(): i64 { return 42 }\nfn relay(): i64 { return value() }\n` +
       `fn main() { let result = relay() print("\${result}") }\nentry(main)\n`],
+    ["nested-if.w",
+      `fn main() { if true { if false { print("x") } } }\nentry(main)\n`],
+    ["scalar-cfg.w",
+      `fn main(): i64 { if true { print("x") } return 1 }\nentry(main)\n`],
     ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],
     ["too-many-instructions.w", tooManyInstructions],
     ["total-output-overflow.w", totalOutputOverflow],

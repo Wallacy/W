@@ -1386,6 +1386,126 @@ static bool test_scalar_return_and_call_result(void) {
   return true;
 }
 
+static bool test_if_diamond_cfg(void) {
+  static const char SOURCE[] =
+      "fn serve(isOpen: Bool) { "
+      "if isOpen { print(message: \"Kitchen open\", suffix: \"\") } "
+      "else { print(message: \"Kitchen closed\", suffix: \"\") } "
+      "print(message: \"After service\", suffix: \"\") }\n"
+      "fn main() { serve(isOpen: true) serve(isOpen: false) }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 5u &&
+        program->terminator_count == 5u && program->call_count == 5u &&
+        program->entry_count == 1u);
+  CHECK(program->functions[0].first_block == 0u &&
+        program->functions[0].block_count == 4u &&
+        program->functions[1].first_block == 4u &&
+        program->functions[1].block_count == 1u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 2u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[1].target_block == 3u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  CHECK(program->values[program->terminators[0].value_index].type_index == 3u &&
+        program->values[program->terminators[0].value_index].owner_kind ==
+            W_SEED_HIR0_VALUE_OWNER_TERMINATOR);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].target_block = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_branch;
+  fixture.hir_terminators[0].else_block = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_branch;
+  const w_seed_hir0_terminator saved_then = fixture.hir_terminators[1];
+  fixture.hir_terminators[1].target_block = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1].target_block = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved_then;
+
+  const uint32_t branch_value = saved_branch.value_index;
+  const w_seed_hir0_value saved_condition = fixture.hir_values[branch_value];
+  fixture.hir_values[branch_value].type_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[branch_value] = saved_condition;
+  fixture.hir_values[branch_value].owner_kind =
+      W_SEED_HIR0_VALUE_OWNER_ARGUMENT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[branch_value] = saved_condition;
+
+  const w_seed_hir0_block saved_entry = fixture.hir_blocks[0];
+  fixture.hir_blocks[0].next_block = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[0] = saved_entry;
+  const w_seed_hir0_block saved_then_block = fixture.hir_blocks[1];
+  fixture.hir_blocks[1].first_instruction += 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[1] = saved_then_block;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_if_without_else_cfg(void) {
+  static const char SOURCE[] =
+      "fn main() { if true { let label = \"Open\" "
+      "print(message: label, suffix: \"\") } "
+      "print(message: \"After\", suffix: \"\") }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->call_count == 2u && program->binding_count == 1u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->blocks[2].instruction_count == 0u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  CHECK(program->blocks[1].instruction_count == 2u &&
+        program->bindings[0].owner_block == 1u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_BINDING_READ);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_sequential_if_diamonds(void) {
+  static const char SOURCE[] =
+      "fn main() { if true { print(message: \"first\", suffix: \"\") } "
+      "print(message: \"middle\", suffix: \"\") "
+      "if false { print(message: \"second\", suffix: \"\") } "
+      "else { print(message: \"third\", suffix: \"\") } "
+      "print(message: \"after\", suffix: \"\") }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 7u &&
+        program->terminator_count == 7u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 2u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[1].target_block == 3u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[3].target_block == 4u &&
+        program->terminators[3].else_block == 5u &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[4].target_block == 6u &&
+        program->terminators[5].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[5].target_block == 6u &&
+        program->terminators[6].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1401,6 +1521,9 @@ int main(void) {
   if (!test_typed_immutable_binding_values()) return 1;
   if (!test_local_unit_call_and_parameter_reads()) return 1;
   if (!test_scalar_return_and_call_result()) return 1;
+  if (!test_if_diamond_cfg()) return 1;
+  if (!test_if_without_else_cfg()) return 1;
+  if (!test_sequential_if_diamonds()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

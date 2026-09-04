@@ -20,6 +20,7 @@ extern "C" {
 #define W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS 64u
 #define W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS 8u
 #define W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS 16u
+#define W_SEED_NATIVE_SUBSET0_MAX_BLOCKS 32u
 
 typedef enum {
   W_SEED_NATIVE_SUBSET0_OK = 0,
@@ -74,8 +75,9 @@ typedef struct {
 } w_seed_native_subset0_sequence;
 
 /* Bounded multi-function native subset. Source argument order remains in HIR;
- * parameter_ordinal supplies the declaration/ABI mapping. Every function has
- * one linear block and a Unit return. The call graph must be acyclic. */
+ * parameter_ordinal supplies the declaration/ABI mapping. Unit functions may
+ * contain the verified sequence of acyclic diamonds. The call graph is
+ * acyclic and branch output uses the maximum mutually-exclusive path. */
 typedef struct {
   const w_seed_hir0_entry *entry;
   size_t function_count;
@@ -87,6 +89,7 @@ typedef struct {
   bool has_interpolation;
   bool has_bool;
   bool has_local_calls;
+  bool has_cfg;
 } w_seed_native_subset0_program;
 
 w_seed_native_subset0_status w_seed_native_subset0_select(

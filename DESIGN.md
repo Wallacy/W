@@ -27704,7 +27704,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-9-scalar-function-results`. Seu backend tem status
+`w-seed-mlir0-10-unit-cfg-diamond`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35950,6 +35950,74 @@ recursion, indirect calls, overload dispatch, generic specialization,
 exceptions, async, ownership lowering, a stable ABI, another target, or
 performance evidence. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
+
+#### 26.4.1.15 W-1531 — bounded top-level `if` diamonds through native MLIR (Current form)
+
+**Example:** the first CFG witness has one conditional and one shared
+post-join call site:
+
+```w
+fn serve(isOpen: Bool) {
+  if isOpen { print("Kitchen open") } else { print("Kitchen closed") }
+  print("After service")
+}
+
+fn main() { serve(isOpen: true) serve(isOpen: false) }
+
+entry(main)
+```
+
+Its stdout is exactly
+`Kitchen open\nAfter service\nKitchen closed\nAfter service\n`.
+The repository also keeps separate microproofs for a minimal `if`/`else` and
+for an `if` without `else`. The learner source-style candidate duplicates two
+diamonds inline, the idiomatic candidate calls a `serve(Bool)` helper twice,
+and the frontier candidate calls distinct service helpers from two sequential
+diamonds. All three candidates must produce the same Restaurant stdout. They
+are correctness-only source styles, not benchmarks; `frontier` has an
+exploration role only, with no ranking, timing, or result claim.
+
+W-1531 advances HIR0 to `w-seed-hir0-7` and MLIR0 to `w-seed-mlir0-10`.
+HIR0 adds `BRANCH` and `JUMP` terminators. Every terminator carries explicit
+`target_block` and `else_block` fields; a branch condition is a Bool value owned
+by the terminator. `RETURN` carries no edge. Blocks are dense per function and
+ordered entry, then, else, join for each top-level conditional. `next_block`
+remains reserved and is always `NONE`.
+
+The accepted source shape is a Unit function with zero or more sequential,
+non-nested top-level `if` statements. Each conditional lowers to an acyclic
+diamond: the current block branches to then and else blocks, both arms jump to
+one join, and later top-level statements continue in that join. An absent else
+uses an empty else block. Branch bodies may contain the existing linear `let`
+and call statements. Parameter reads are valid in any block. Nested `if`,
+`guard`, `for`, or `return` in a branch, and scalar-return functions with CFG,
+are rejected at this schema boundary. Conditional values, branch-carried
+bindings, block arguments/phi, loops, multiple exits, and ownership/effects/
+tasks lowering remain future work.
+
+The frontend-to-HIR cut walks sibling and child relations and proves that every
+statement record is reached exactly once in its function range. Expression,
+argument, constant, value, and interpolation ranges are consumed monotonically.
+HIR verification proves ownership, dense ranges, spans, digests, reachability,
+diamond topology, same-function targets, acyclicity, and Bool condition type.
+No downstream stage re-resolves source names.
+
+The bounded native selector retains the acyclic call-graph proof and Unit entry
+boundary. For a CFG function it computes the exact safe maximum as sequential
+prefix + `max(then, else)` + join, with private block bounds. MLIR0 emits real
+labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Values
+defined before a branch dominate both successors; the shared cursor remains
+correct on either path. The artifact does not use `select`, precomputed output,
+or a duplicated post-join body.
+
+Native0 remains `w-seed-native0-6`: this milestone changes the private selector
+and MLIR route, but not the public Native0 artifact bytes or record contract.
+The `w run` product is verified on Linux x86_64 GNU through the pinned WSL
+toolchain. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only;
+no timing or performance result is published. Other targets and performance,
+conditional `if` expressions, nested CFG, guard/switch, loops, multiple exits,
+block arguments/phi, branch-carried bindings, ownership/effects/tasks, and a
+general runtime remain explicit gaps.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

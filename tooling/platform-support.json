@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-9",
+      "runtimeVersion": "w-seed-mlir0-10",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-9-scalar-function-results",
+      "scope": "w-seed-mlir0-10-unit-cfg-diamond",
       "claim": null,
       "axes": {
         "backend": {
@@ -107,7 +107,7 @@
               "kind": "source",
               "path": "compiler/seed-c/src/w_seed_mlir0.c",
               "symbol": "build_program_artifact",
-              "claim": "The emitter renders deterministic scalar function results, direct calls, and bounded typed interpolation as LLVM dialect text from verified HIR."
+              "claim": "The emitter renders deterministic scalar results, direct calls, bounded typed interpolation, and Unit diamond CFGs as LLVM dialect text from verified HIR."
             }
           ]
         },
@@ -117,8 +117,8 @@
             {
               "kind": "unit",
               "path": "compiler/seed-c/tests/test_mlir0.c",
-              "symbol": "test_linear_sequence",
-              "claim": "The unit checks linear print, runtime i64 arithmetic and interpolation, bounds, aliases, and forged HIR records."
+              "symbol": "test_if_diamond_cfg",
+              "claim": "The unit checks typed llvm.cond_br, both diamond arms, one join, real calls, bounds, aliases, and forged HIR records."
             }
           ]
         },
@@ -168,7 +168,7 @@
               "kind": "check",
               "path": "tooling/check-mlir0.mjs",
               "symbol": "const products = [",
-              "claim": "The local focal gate checks Hello, Restaurant, empty output, stderr, and exit status."
+              "claim": "The local focal gate checks Hello, Restaurant diamond output, empty output, stderr, and exit status."
             }
           ]
         }

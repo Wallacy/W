@@ -2174,12 +2174,16 @@ static bool test_local_binding_resolution(void) {
       "print(message) } }\nentry(main)\n"));
   fixture_configure_print_host(nested);
   (void)w_seed_frontend_run(&nested->input, &nested->output, &nested->result);
+  bool nested_message_seen = false;
   for (size_t index = 0u; index < nested->result.written.expressions; index += 1u) {
     const w_seed_frontend_expression *expression = &nested->expressions[index];
     if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
         frontend_text_is(expression->spelling, "message"))
-      CHECK(expression->resolved_binding_statement == W_SEED_FRONTEND_NONE);
+      CHECK(!nested_message_seen &&
+            expression->resolved_binding_statement == 2u &&
+            (nested_message_seen = true));
   }
+  CHECK(nested_message_seen);
   return true;
 }
 

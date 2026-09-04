@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-6"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-7"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -89,6 +89,8 @@ typedef enum {
 typedef enum {
   W_SEED_HIR0_TERMINATOR_RETURN_UNIT = 0,
   W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+  W_SEED_HIR0_TERMINATOR_BRANCH,
+  W_SEED_HIR0_TERMINATOR_JUMP,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
@@ -174,8 +176,7 @@ typedef struct {
   uint32_t instruction_count;
   uint32_t terminator_index;
   w_seed_span source_span;
-  /* HIR0 has a single linear block per function. next_block is reserved for
-   * a later CFG schema and must remain W_SEED_HIR0_NONE in this schema. */
+  /* next_block is reserved. CFG edges exist only in terminators. */
   uint32_t next_block;
 } w_seed_hir0_block;
 
@@ -279,6 +280,10 @@ typedef struct {
   uint32_t ordinal;
   uint32_t value_index;
   uint32_t result_type;
+  /* BRANCH uses target_block and else_block. JUMP uses target_block and
+   * requires else_block to be W_SEED_HIR0_NONE. RETURN uses neither field. */
+  uint32_t target_block;
+  uint32_t else_block;
   w_seed_span source_span;
 } w_seed_hir0_terminator;
 
