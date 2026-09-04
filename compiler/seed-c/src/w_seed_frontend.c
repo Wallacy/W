@@ -9869,7 +9869,7 @@ static bool block_scope_contains(const w_seed_frontend_document *doc,
 }
 
 static frontend_simple_type binding_type_for_name(
-    const frontend_context *context, w_seed_frontend_text name,
+    frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
   if (context == NULL) return simple_type_unknown();
   const w_seed_frontend_document *doc = context_document(context);
@@ -9920,7 +9920,7 @@ static frontend_simple_type binding_type_for_name(
         return contextual_type_from_span(context, doc,
                                          doc->nodes[type_node].raw_span);
       }
-      /* A direct String literal supplies the local's effective type even
+      /* A closed scalar initializer supplies the local's effective type even
        * when the declaration omits an annotation. This is type inference,
        * not name resolution: the binding relation is published separately
        * from the source-order pass below. */
@@ -9936,6 +9936,24 @@ static frontend_simple_type binding_type_for_name(
               literal_simple_type(doc, first.span, first.kind);
           if (inferred.kind == W_SEED_FRONTEND_TYPE_STRING)
             return inferred;
+        }
+        frontend_const_type_parser parser;
+        (void)memset(&parser, 0, sizeof(parser));
+        parser.context = context;
+        parser.document = doc;
+        parser.cursor = token_cursor_for(doc, doc->nodes[expression_node].raw_span);
+        parser.expected_type = simple_type_unknown();
+        parser.has_expected_type = false;
+        frontend_const_infer_value inferred = const_infer_bp(&parser, 0);
+        frontend_token trailing;
+        if (inferred.valid && !inferred.unsupported &&
+            !cursor_peek(&parser.cursor, &trailing)) {
+          if (inferred.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+              inferred.type.bit_width == 0u)
+            inferred.type = const_default_integer_type();
+          if (inferred.type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+              inferred.type.kind == W_SEED_FRONTEND_TYPE_BOOL)
+            return inferred.type;
         }
       }
     }

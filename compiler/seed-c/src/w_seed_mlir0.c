@@ -422,9 +422,15 @@ static bool value_string_bytes(const w_seed_hir0_program *program,
       value->binding_index < program->binding_count) {
     const w_seed_hir0_binding *binding =
         &program->bindings[value->binding_index];
-    *length = binding->byte_count;
+    if (binding->initializer_value >= program->value_count) return false;
+    const w_seed_hir0_value *initializer =
+        &program->values[binding->initializer_value];
+    if (initializer->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+        initializer->type_index != binding->type_index)
+      return false;
+    *length = initializer->byte_count;
     *bytes = *length == 0u ? NULL
-                          : program->value_bytes + binding->byte_offset;
+                          : program->value_bytes + initializer->byte_offset;
     return true;
   }
   return false;
@@ -471,14 +477,27 @@ static bool build_dynamic_plan(
         const w_seed_hir0_value *embedded =
             &program->values[segment->value_index];
         if (embedded->type_index >= program->type_count) return false;
+        const w_seed_hir0_value *effective = embedded;
+        uint32_t effective_index = segment->value_index;
+        if (embedded->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+          if (embedded->binding_index >= program->binding_count)
+            return false;
+          const w_seed_hir0_binding *binding =
+              &program->bindings[embedded->binding_index];
+          if (binding->initializer_value >= program->value_count ||
+              binding->type_index != embedded->type_index)
+            return false;
+          effective_index = binding->initializer_value;
+          effective = &program->values[effective_index];
+        }
         const w_seed_hir0_type_kind type =
             program->types[embedded->type_index].kind;
         if (type == W_SEED_HIR0_TYPE_I64) {
-          if (!dynamic_plan_append_i64(&candidate, segment->value_index))
+          if (!dynamic_plan_append_i64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
-          if (embedded->kind != W_SEED_HIR0_VALUE_CONST_BOOL ||
-              !dynamic_plan_append_bool(&candidate, segment->value_index))
+          if (effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL ||
+              !dynamic_plan_append_bool(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_STRING) {
           const uint8_t *bytes = NULL;

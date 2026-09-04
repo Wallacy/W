@@ -437,7 +437,7 @@ static bool test_local_binding_lowering(void) {
   CHECK(fixture.hir_counts.bindings == 1u);
   CHECK(fixture.hir_counts.instructions == 2u);
   CHECK(fixture.hir_counts.calls == 1u);
-  CHECK(fixture.hir_counts.arguments == 2u && fixture.hir_counts.values == 2u);
+  CHECK(fixture.hir_counts.arguments == 2u && fixture.hir_counts.values == 3u);
   CHECK(fixture.hir_program.instructions[0].kind ==
             W_SEED_HIR0_INSTRUCTION_BINDING &&
         fixture.hir_program.instructions[0].call_index == W_SEED_HIR0_NONE &&
@@ -451,19 +451,24 @@ static bool test_local_binding_lowering(void) {
         binding->ordinal == 0u && binding->type_index == W_SEED_HIR0_TYPE_STRING &&
         !binding->is_mutable && binding->name.count == 7u &&
         memcmp(fixture.hir_text + binding->name.offset, "message", 7u) == 0 &&
-        binding->byte_offset == 0u &&
-        binding->byte_count == strlen("Table 42 remains open"));
-  CHECK(memcmp(fixture.hir_value_bytes + binding->byte_offset,
-               "Table 42 remains open", binding->byte_count) == 0);
+        binding->initializer_value == 0u);
+  const w_seed_hir0_value *initializer = &fixture.hir_program.values[0];
+  CHECK(initializer->kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        initializer->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
+        initializer->owner_index == 0u && initializer->owner_ordinal == 0u &&
+        initializer->byte_offset == 0u &&
+        initializer->byte_count == strlen("Table 42 remains open"));
+  CHECK(memcmp(fixture.hir_value_bytes + initializer->byte_offset,
+               "Table 42 remains open", initializer->byte_count) == 0);
   CHECK(fixture.hir_program.calls[0].owner_instruction == 1u &&
-        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
-        fixture.hir_program.values[0].binding_index == 0u &&
-        fixture.hir_program.values[0].byte_offset == 0u &&
-        fixture.hir_program.values[0].byte_count == 0u &&
-        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
-        fixture.hir_program.values[1].binding_index == W_SEED_HIR0_NONE &&
-        fixture.hir_program.values[1].byte_offset == binding->byte_count &&
-        fixture.hir_program.values[1].byte_count == 1u);
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[1].binding_index == 0u &&
+        fixture.hir_program.values[1].byte_offset == 0u &&
+        fixture.hir_program.values[1].byte_count == 0u &&
+        fixture.hir_program.values[2].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        fixture.hir_program.values[2].binding_index == W_SEED_HIR0_NONE &&
+        fixture.hir_program.values[2].byte_offset == initializer->byte_count &&
+        fixture.hir_program.values[2].byte_count == 1u);
   (void)memset(&fixture.document, 0, sizeof(fixture.document));
   (void)memset(&fixture.input, 0, sizeof(fixture.input));
   (void)memset(&fixture.output, 0, sizeof(fixture.output));
@@ -481,7 +486,7 @@ static bool test_local_binding_verify_mutations(void) {
   w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
   w_seed_hir0_instruction saved_instruction0 = fixture.hir_instructions[0];
   w_seed_hir0_instruction saved_instruction1 = fixture.hir_instructions[1];
-  w_seed_hir0_value saved_value0 = fixture.hir_values[0];
+  w_seed_hir0_value saved_value1 = fixture.hir_values[1];
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_bindings[0].owner_instruction = 1u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
@@ -495,10 +500,10 @@ static bool test_local_binding_verify_mutations(void) {
   fixture.hir_instructions[1].binding_index = 0u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_instructions[1] = saved_instruction1;
-  fixture.hir_values[0].binding_index = W_SEED_HIR0_NONE;
+  fixture.hir_values[1].binding_index = W_SEED_HIR0_NONE;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
-  fixture.hir_values[0] = saved_value0;
-  fixture.hir_bindings[0].byte_offset = 1u;
+  fixture.hir_values[1] = saved_value1;
+  fixture.hir_bindings[0].initializer_value = 1u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_bindings[0] = saved_binding;
   fixture.hir_program.bindings =
@@ -1172,7 +1177,7 @@ static bool test_builtin_display_value_tree(void) {
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
-  CHECK(counts.bindings == 1u && counts.values == 5u &&
+  CHECK(counts.bindings == 1u && counts.values == 6u &&
         counts.interpolation_segments == 5u && counts.value_bytes == 7u);
   CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &result) ==
         W_SEED_HIR0_OK);
@@ -1180,31 +1185,97 @@ static bool test_builtin_display_value_tree(void) {
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output, &result,
                                         &program));
   CHECK(w_seed_hir0_verify(&program, &result));
-  CHECK(program.values[0].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
-        program.values[0].type_index == 3u && program.values[0].bool_value &&
+  CHECK(program.bindings[0].initializer_value == 0u &&
+        program.values[0].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        program.values[0].owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
         program.values[1].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
-        program.values[1].type_index == 3u && !program.values[1].bool_value &&
-        program.values[2].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
-        program.values[2].type_index == 1u &&
-        program.values[2].binding_index == 0u &&
-        program.values[3].kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        program.values[1].type_index == 3u && program.values[1].bool_value &&
+        program.values[2].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program.values[2].type_index == 3u && !program.values[2].bool_value &&
+        program.values[3].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
         program.values[3].type_index == 1u &&
-        program.values[4].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
-        program.values[4].type_index == 1u);
+        program.values[3].binding_index == 0u &&
+        program.values[4].kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        program.values[4].type_index == 1u &&
+        program.values[5].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        program.values[5].type_index == 1u);
   CHECK(program.interpolation_segments[0].kind ==
             W_SEED_HIR0_INTERPOLATION_VALUE &&
-        program.interpolation_segments[0].value_index == 0u &&
+        program.interpolation_segments[0].value_index == 1u &&
         program.interpolation_segments[1].kind ==
             W_SEED_HIR0_INTERPOLATION_TEXT &&
         program.interpolation_segments[2].kind ==
             W_SEED_HIR0_INTERPOLATION_VALUE &&
-        program.interpolation_segments[2].value_index == 1u &&
+        program.interpolation_segments[2].value_index == 2u &&
         program.interpolation_segments[3].kind ==
             W_SEED_HIR0_INTERPOLATION_TEXT &&
         program.interpolation_segments[4].kind ==
             W_SEED_HIR0_INTERPOLATION_VALUE &&
-        program.interpolation_segments[4].value_index == 2u);
+        program.interpolation_segments[4].value_index == 3u);
   CHECK(memcmp(program.value_bytes, "open//!", 7u) == 0);
+  return true;
+}
+
+static bool test_typed_immutable_binding_values(void) {
+  static const char SOURCE[] =
+      "fn serve() { let table = 6 * 7 let isOpen = true let state = \"open\" "
+      "print(message: \"Table ${table}; open: ${isOpen}; state: ${state}\", "
+      "suffix: \"!\") }\nentry(serve)\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.binding_count == 3u &&
+        fixture.hir_program.instruction_count == 4u &&
+        fixture.hir_program.value_count == 10u &&
+        fixture.hir_program.interpolation_segment_count == 6u);
+  CHECK(fixture.hir_program.bindings[0].type_index == 2u &&
+        fixture.hir_program.bindings[0].initializer_value == 2u &&
+        fixture.hir_program.values[2].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_program.values[2].owner_kind ==
+            W_SEED_HIR0_VALUE_OWNER_BINDING &&
+        fixture.hir_program.values[2].owner_index == 0u);
+  CHECK(fixture.hir_program.bindings[1].type_index == 3u &&
+        fixture.hir_program.bindings[1].initializer_value == 3u &&
+        fixture.hir_program.values[3].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        fixture.hir_program.values[3].owner_kind ==
+            W_SEED_HIR0_VALUE_OWNER_BINDING &&
+        fixture.hir_program.values[3].bool_value);
+  CHECK(fixture.hir_program.bindings[2].type_index == 1u &&
+        fixture.hir_program.bindings[2].initializer_value == 4u &&
+        fixture.hir_program.values[4].kind ==
+            W_SEED_HIR0_VALUE_CONST_STRING);
+  CHECK(fixture.hir_program.values[5].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[5].type_index == 2u &&
+        fixture.hir_program.values[5].binding_index == 0u &&
+        fixture.hir_program.values[6].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[6].type_index == 3u &&
+        fixture.hir_program.values[6].binding_index == 1u &&
+        fixture.hir_program.values[7].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[7].type_index == 1u &&
+        fixture.hir_program.values[7].binding_index == 2u &&
+        fixture.hir_program.values[8].kind ==
+            W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        fixture.hir_program.values[9].kind ==
+            W_SEED_HIR0_VALUE_CONST_STRING);
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
+  fixture.hir_bindings[0].initializer_value = 3u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_binding;
+
+  const w_seed_hir0_value saved_initializer = fixture.hir_values[2];
+  fixture.hir_values[2].owner_index = 1u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[2] = saved_initializer;
+
+  const w_seed_hir0_value saved_read = fixture.hir_values[5];
+  fixture.hir_values[5].type_index = 1u;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[5] = saved_read;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }
 
@@ -1220,6 +1291,7 @@ int main(void) {
   if (!test_closed_frontend_barriers()) return 1;
   if (!test_typed_interpolation_value_tree()) return 1;
   if (!test_builtin_display_value_tree()) return 1;
+  if (!test_typed_immutable_binding_values()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

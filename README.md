@@ -17,8 +17,9 @@ O seed também executa o subset print-literal input-driven verified-HLO0 por
 HLO1/RUN0 em gates internos bounded e test-only. W-1522 define a rota nativa
 real corrente: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect
 → LLVM IR → clang/native, sem passar por C source ou depender de HLO0. A forma
-NAT1 aceita uma sequência linear bounded de `print` com bindings String
-imutáveis e preserva stdout exato; W-1520 registra a forma schema-v2 histórica.
+NAT1 aceita uma sequência linear bounded de `print`. W-1528 adiciona bindings
+imutáveis `i64`, Bool e String no mesmo bloco. W-1520 registra a forma
+schema-v2 histórica.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -45,8 +46,10 @@ typing for the current built-in interpolation subset. W-1524 advances HIR0 to
 schema `w-seed-hir0-3` and preserves those expressions as typed postorder
 values and ordered text/value segments. MLIR0, Native0, and public `w run`
 did not accept those values at the W-1524 boundary. W-1525 accepts the
-panic-free signed-`i64` subset; W-1527 additionally accepts constant Bool and
-compile-time-known String values. Other value domains remain gaps.
+panic-free signed-`i64` subset. W-1527 adds constant Bool and
+compile-time-known String values. W-1528 adds typed immutable binding
+initializers and later reads for `i64`, Bool, and String. Other value domains
+remain gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -55,13 +58,13 @@ entrada. W-1521 cobre somente um path `.w` explícito no subset seed bounded.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
-W-1519 is `source-backed-current` for a strictly bounded immutable local
-String path. Frontend schema version 11 introduced an indexed lexical binding
+W-1519 is `source-backed-current` for the first bounded immutable local String
+path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-3` preserves that binding contract and copies the name and bytes,
-then verifies its owners, order, types, spans, dense ranges, alias barriers,
-digests, and receipt. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING`
-or exactly one `BINDING → CALL` chain with `BINDING_READ` by binding index.
+`w-seed-hir0-4` gives each binding one typed initializer root in the common
+postorder value graph. It verifies owners, order, types, spans, dense ranges,
+alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
+direct `CONST_STRING` or single `BINDING → CALL` recovery subset.
 HLO0 proves that binding plan independently; MLIR0 consumes the same verified
 HIR directly. The Restaurant witness reaches MLIR0 and native execution with
 exact stdout `Table 42 remains open\n`.
@@ -73,9 +76,10 @@ linear String path. It also lowers panic-free signed-`i64` arithmetic inside
 bounded String interpolation and formats the value at runtime. HLO0/HLO1/RUN0 remain
 bootstrap, audit, and recovery paths, not native prerequisites.
 W-1526 replaced target-ABI integer formatting with private LLVM-dialect copy
-and signed-`i64` helpers. W-1527 advances the current adapter to MLIR0
-`w-seed-mlir0-6` and Native0 `w-seed-native0-5`. The bounded native route now
-also accepts constant Bool and compile-time-known String value segments.
+and signed-`i64` helpers. W-1527 added constant Bool and compile-time-known
+String value segments. W-1528 advances the current adapter to MLIR0
+`w-seed-mlir0-7` and Native0 `w-seed-native0-6`. The bounded native route now
+also accepts typed immutable `i64`, Bool, and String binding reads.
 `Bool` writes exact lowercase `true` or `false`; counted String data preserves
 NUL. The frontend supplies canonical Bool identity and resolves prior immutable
 String bindings inside interpolation. These helpers and compile-time String

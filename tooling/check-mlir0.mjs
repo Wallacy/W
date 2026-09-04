@@ -52,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-6" &&
-    manifest.artifact?.scope === "linear-print-and-builtin-display",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-7" &&
+    manifest.artifact?.scope === "linear-print-and-typed-immutable-bindings",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -244,6 +244,7 @@ try {
     "nul-string-value.w")
   const minimumI64Path = resolve(artifactDirectory, "minimum-i64.w")
   const builtinDisplayPath = resolve(artifactDirectory, "builtin-display.w")
+  const typedBindingsPath = resolve(artifactDirectory, "typed-bindings.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -267,6 +268,9 @@ try {
     'fn main() { print("${0 - 9223372036854775807 - 1}") }\nentry(main)\n')
   await writeFile(builtinDisplayPath,
     'fn serve() { let state = "open" print("Kitchen ${true}/${false}; table: ${state}") }\nentry(serve)\n')
+  await writeFile(typedBindingsPath,
+    'fn serve() { let table = 6 * 7 let isOpen = true let state = "open" ' +
+    'print("Table ${table}; open: ${isOpen}; state: ${state}") }\nentry(serve)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -295,6 +299,8 @@ try {
       expected: Buffer.from("-9223372036854775808\n", "utf8") },
     { name: "builtin-display", source: builtinDisplayPath,
       expected: Buffer.from("Kitchen true/false; table: open\n", "utf8") },
+    { name: "typed-bindings", source: typedBindingsPath,
+      expected: Buffer.from("Table 42; open: true; state: open\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -348,10 +354,14 @@ try {
       !artifact.includes("vararg"),
     `${name} did not use the internal bounded i64 writer`)
   }
-  const builtinDisplay = artifacts.get("builtin-display")
-  assert(builtinDisplay.includes("@w_seed_append_bool") &&
-    !builtinDisplay.includes("snprintf") && !builtinDisplay.includes("vararg"),
-  "built-in Display did not retain typed Boolean lowering")
+  for (const name of ["builtin-display", "typed-bindings"]) {
+    const artifact = artifacts.get(name)
+    assert(artifact.includes("@w_seed_append_bool") &&
+      !artifact.includes("snprintf") && !artifact.includes("vararg"),
+    `${name} did not retain typed Boolean lowering`)
+  }
+  assert(artifacts.get("typed-bindings").includes("llvm.mul %v0, %v1 : i64"),
+    "typed binding arithmetic was precomputed before MLIR")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,

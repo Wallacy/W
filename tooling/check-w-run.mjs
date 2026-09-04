@@ -64,8 +64,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-6" &&
-    manifest.artifact?.scope === "linear-print-and-builtin-display",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-7" &&
+    manifest.artifact?.scope === "linear-print-and-typed-immutable-bindings",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -290,6 +290,8 @@ try {
   const restaurantLiteral = join(fixtureDirectory, "restaurant_literal.w")
   const restaurantBuiltinDisplay = join(fixtureDirectory,
     "restaurant_builtin_display.w")
+  const restaurantTypedBindings = join(fixtureDirectory,
+    "restaurant_typed_bindings.w")
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -308,6 +310,10 @@ try {
   await writeFile(restaurantBuiltinDisplay,
     "fn serve() { let state = \"open\" " +
     "print(\"Kitchen ${true}/${false}; table: ${state}\") }\nentry(serve)\n")
+  await writeFile(restaurantTypedBindings,
+    "fn serve() { let table = 6 * 7 let isOpen = true let state = \"open\" " +
+    "print(\"Table ${table}; open: ${isOpen}; state: ${state}\") }\n" +
+    "entry(serve)\n")
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -346,6 +352,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantBuiltinDisplay)],
     Buffer.from("Kitchen true/false; table: open\n", "utf8"),
     "Restaurant built-in Display interpolation")
+  expectSuccess(binary, ["run", toWsl(restaurantTypedBindings)],
+    Buffer.from("Table 42; open: true; state: open\n", "utf8"),
+    "Restaurant typed immutable bindings")
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),

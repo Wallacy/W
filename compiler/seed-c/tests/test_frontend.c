@@ -4007,6 +4007,41 @@ static bool test_interpolated_string_projection(void) {
   }
   CHECK(bool_count == 2u && binding_read_count == 1u &&
         bool_type != W_SEED_FRONTEND_NONE);
+
+  static const char typed_binding_source[] =
+      "fn serve() { let table = 6 * 7 let isOpen = true "
+      "let state = \"open\" "
+      "print(\"Table ${table}; open: ${isOpen}; state: ${state}\") }\n"
+      "entry(serve)\n";
+  value = &fixture_literal;
+  CHECK(fixture_parse(value, typed_binding_source));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.statements == 4u &&
+        value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value->types[value->statements[0].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[value->statements[0].effective_type].is_signed &&
+        value->types[value->statements[0].effective_type].bit_width == 64u &&
+        value->types[value->statements[1].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_BOOL &&
+        value->types[value->statements[2].effective_type].kind ==
+            W_SEED_FRONTEND_TYPE_STRING);
+  size_t typed_reads = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *item = &value->expressions[index];
+    if (item->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+        item->resolved_binding_statement == W_SEED_FRONTEND_NONE)
+      continue;
+    CHECK(item->resolved_binding_statement < 3u &&
+          item->inferred_type ==
+              value->statements[item->resolved_binding_statement]
+                  .effective_type);
+    typed_reads += 1u;
+  }
+  CHECK(typed_reads == 3u);
   return true;
 }
 

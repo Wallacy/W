@@ -537,6 +537,27 @@ static bool test_typed_interpolation_artifact(void) {
   CHECK(contains_bytes(output, emitted.written.mlir_bytes,
                        "\\6f\\70\\65\\6e"));
 
+  static const uint8_t typed_bindings[] =
+      "fn serve() { let table = 6 * 7 let isOpen = true "
+      "let state = \"open\" "
+      "print(\"Table ${table}; open: ${isOpen}; state: ${state}\") }\n"
+      "entry(serve)\n";
+  CHECK(lower_hir(typed_bindings, sizeof(typed_bindings) - 1u));
+  CHECK(fixture.hir_program.binding_count == 3u &&
+        fixture.hir_program.bindings[0].initializer_value == 2u &&
+        fixture.hir_program.bindings[1].initializer_value == 3u &&
+        fixture.hir_program.bindings[2].initializer_value == 4u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(output, sizeof(output), &emitted));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.mul %v0, %v1 : i64"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "@w_seed_append_i64(%buffer, %cursor1, %v2)"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "@w_seed_append_bool(%buffer, %cursor3, %v3)"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "\\6f\\70\\65\\6e"));
+
   static const uint8_t nul_string_value[] =
       "fn main() { let state = \"A\0B\" print(\"${state}\") }\n"
       "entry(main)\n";
@@ -609,8 +630,9 @@ static bool test_linear_sequence(void) {
   CHECK(fixture.hir_program.instruction_count == 3u &&
         fixture.hir_program.binding_count == 1u &&
         fixture.hir_program.call_count == 2u &&
-        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
-        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_CONST_STRING);
+        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_program.values[2].kind == W_SEED_HIR0_VALUE_CONST_STRING);
   CHECK(measure_current(&mixed_counts, &mixed_result));
   CHECK(mixed_counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES);
   CHECK(emit_current(mixed_artifact, sizeof(mixed_artifact), &mixed_result));
