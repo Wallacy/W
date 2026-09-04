@@ -1,9 +1,8 @@
-#include "w_seed_hlo1.h"
-
 #if defined(W_SEED_MLIR0_GATE)
-#include "w_seed_mlir0.h"
+#include "w_seed_native0.h"
 #define GATE_LABEL "MLIR0"
 #else
+#include "w_seed_hlo1.h"
 #define GATE_LABEL "HLO1"
 #endif
 
@@ -18,6 +17,7 @@
 #include <io.h>
 #endif
 
+#if !defined(W_SEED_MLIR0_GATE)
 enum {
   GATE_SOURCE = 4096,
   GATE_LEXER_FRAMES = 256,
@@ -286,7 +286,34 @@ static bool read_fixture(gate_fixture *fixture, const char *path) {
                              &fixture->frontend_result) == W_SEED_FRONTEND_OK &&
          lower_hir(fixture);
 }
+#endif
 
+#if defined(W_SEED_MLIR0_GATE)
+int main(int argc, char **argv) {
+  if (argc != 2 || argv[1] == NULL) return 2;
+#if defined(_WIN32)
+  if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
+#endif
+  w_seed_native0_storage storage;
+  const w_seed_native0_input input = {
+      .path = argv[1],
+      .path_length = strlen(argv[1]),
+      .logical_source_id = (w_seed_frontend_text){"hlo1-fixture", 12u},
+      .target =
+          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  const w_seed_native0_output output = {artifact, sizeof(artifact)};
+  w_seed_native0_result result;
+  if (w_seed_native0_run(&input, &storage, &output, &result) !=
+          W_SEED_NATIVE0_OK ||
+      result.mlir.written.mlir_bytes != result.mlir.required.mlir_bytes ||
+      fwrite(artifact, 1u, result.mlir.written.mlir_bytes, stdout) !=
+          result.mlir.written.mlir_bytes ||
+      fflush(stdout) != 0)
+    return 1;
+  return 0;
+}
+#else
 int main(int argc, char **argv) {
   if (argc != 2 || argv[1] == NULL) return 2;
 #if defined(_WIN32)
@@ -298,23 +325,6 @@ int main(int argc, char **argv) {
     (void)fprintf(stderr, GATE_LABEL " gate: fixture/frontend/HIR0 failed\n");
     return 1;
   }
-#if defined(W_SEED_MLIR0_GATE)
-  const w_seed_mlir0_input input = {
-      .program = &fixture.hir_program, .hir_result = &fixture.hir_result};
-  const w_seed_mlir0_target target = {
-      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
-  w_seed_mlir0_result result;
-  const w_seed_mlir0_output output = {artifact, sizeof(artifact)};
-  if (w_seed_mlir0_emit(&input, &target, &output, &result) !=
-          W_SEED_MLIR0_OK ||
-      result.written.mlir_bytes != result.required.mlir_bytes ||
-      fwrite(artifact, 1u, result.written.mlir_bytes, stdout) !=
-          result.written.mlir_bytes ||
-      fflush(stdout) != 0)
-    return 1;
-  return 0;
-#else
   const w_seed_hlo0_input input = {
       .program = &fixture.hir_program, .hir_result = &fixture.hir_result};
   w_seed_hlo0_plan plan;
@@ -341,5 +351,5 @@ int main(int argc, char **argv) {
       result.written.c_bytes || fflush(stdout) != 0)
     return 1;
   return 0;
-#endif
 }
+#endif
