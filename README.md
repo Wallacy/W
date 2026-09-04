@@ -19,8 +19,9 @@ real corrente: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM
 → LLVM IR → clang/native, sem passar por C source ou depender de HLO0. A forma
 NAT1 aceita uma sequência linear bounded de `print`. W-1528 adiciona bindings
 imutáveis `i64`, Bool e String no mesmo bloco. W-1529 adiciona chamadas diretas
-`Unit` com parâmetros `i64`/Bool, ordem de avaliação preservada e uma
-`llvm.call` real. W-1520 registra a forma
+`Unit` com parâmetros `i64`/Bool e uma `llvm.call` real. W-1530 adiciona
+retornos escalares `i64`/Bool, inferência do binding no caller e SSA real entre
+`llvm.return` e a call. W-1520 registra a forma
 schema-v2 histórica.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
@@ -50,9 +51,10 @@ values and ordered text/value segments. MLIR0, Native0, and public `w run`
 did not accept those values at the W-1524 boundary. W-1525 accepts the
 panic-free signed-`i64` subset. W-1527 adds constant Bool and
 compile-time-known String values. W-1528 adds typed immutable binding
-initializers and later reads for `i64`, Bool, and String. W-1529 advances HIR0
-to `w-seed-hir0-5` and MLIR0 to `w-seed-mlir0-8` for bounded direct Unit calls
-with `i64`/Bool parameters. Other value domains and return values remain gaps.
+initializers and later reads for `i64`, Bool, and String. W-1529 adds bounded
+direct Unit calls with `i64`/Bool parameters. W-1530 advances HIR0 to
+`w-seed-hir0-6` and MLIR0 to `w-seed-mlir0-9` for final scalar returns and
+direct call-result binding initializers. Other value domains remain gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -64,7 +66,7 @@ frontend normativo completo continuam gaps.
 W-1519 is `source-backed-current` for the first bounded immutable local String
 path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-5` gives each binding one typed initializer root in the common
+`w-seed-hir0-6` gives each binding one typed initializer root in the common
 postorder value graph. It verifies owners, order, types, spans, dense ranges,
 alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
 direct `CONST_STRING` or single `BINDING → CALL` recovery subset.
@@ -82,10 +84,12 @@ W-1526 replaced target-ABI integer formatting with private LLVM-dialect copy
 and signed-`i64` helpers. W-1527 added constant Bool and compile-time-known
 String value segments. W-1528 advances the current adapter to MLIR0
 `w-seed-mlir0-7` and Native0 `w-seed-native0-6`. W-1529 advances MLIR0 to
-`w-seed-mlir0-8` while Native0 remains v6. The bounded native route now
+`w-seed-mlir0-8`; W-1530 advances it to `w-seed-mlir0-9`, while Native0
+remains v6. The bounded native route now
 also accepts typed immutable `i64`, Bool, and String binding reads.
 It also emits real internal calls for an acyclic bounded graph of Unit
-functions with `i64`/Bool parameters.
+functions with `i64`/Bool parameters, plus final scalar `i64`/Bool returns and
+indexed caller-side results.
 `Bool` writes exact lowercase `true` or `false`; counted String data preserves
 NUL. The frontend supplies canonical Bool identity and resolves prior immutable
 String bindings inside interpolation. These helpers and compile-time String

@@ -3,8 +3,8 @@
   "version": 1,
   "status": "pinned",
   "artifact": {
-    "schema": "w-seed-mlir0-8",
-    "scope": "direct-unit-calls-and-typed-values"
+    "schema": "w-seed-mlir0-9",
+    "scope": "scalar-function-results"
   },
   "target": {
     "triple": "x86_64-unknown-linux-gnu",

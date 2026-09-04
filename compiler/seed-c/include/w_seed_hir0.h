@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-5"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-6"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -61,6 +61,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_CONST_BOOL,
   W_SEED_HIR0_VALUE_BINARY_I64,
   W_SEED_HIR0_VALUE_INTERPOLATED_STRING,
+  /* Result of one prior local CALL instruction in the same block. */
+  W_SEED_HIR0_VALUE_CALL_RESULT,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -68,6 +70,7 @@ typedef enum {
   W_SEED_HIR0_VALUE_OWNER_BINDING,
   W_SEED_HIR0_VALUE_OWNER_BINARY,
   W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
+  W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -85,6 +88,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_TERMINATOR_RETURN_UNIT = 0,
+  W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
@@ -246,6 +250,7 @@ typedef struct {
   uint32_t type_index;
   uint32_t binding_index;
   uint32_t parameter_index;
+  uint32_t call_index;
   uint32_t left_value;
   uint32_t right_value;
   uint32_t first_interpolation_segment;

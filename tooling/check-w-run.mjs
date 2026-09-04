@@ -64,8 +64,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-8" &&
-    manifest.artifact?.scope === "direct-unit-calls-and-typed-values",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-9" &&
+    manifest.artifact?.scope === "scalar-function-results",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -294,6 +294,8 @@ try {
     "restaurant_typed_bindings.w")
   const restaurantDirectCall = join(fixtureDirectory,
     "restaurant_direct_call.w")
+  const restaurantScalarReturn = join(fixtureDirectory,
+    "restaurant_scalar_return.w")
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -307,6 +309,11 @@ try {
   const recursiveCall = join(fixtureDirectory, "recursive_call.w")
   const runtimeStringParameter = join(fixtureDirectory,
     "runtime_string_parameter.w")
+  const runtimeStringResult = join(fixtureDirectory,
+    "runtime_string_result.w")
+  const missingScalarReturn = join(fixtureDirectory,
+    "missing_scalar_return.w")
+  const nestedReturnCall = join(fixtureDirectory, "nested_return_call.w")
   await writeFile(restaurantBinding,
     "fn serve() { let message = \"Table 42 remains open\" print(message) }\n" +
     "entry(serve)\n")
@@ -324,6 +331,10 @@ try {
     "  print(\"Table ${table}; open: ${isOpen}\")\n}\n" +
     "fn main() { announce(isOpen: true, table: 6 * 7) }\n" +
     "entry(main)\n")
+  await writeFile(restaurantScalarReturn,
+    "fn tableNumber(): i64 { return 6 * 7 }\n" +
+    "fn main() { let table = tableNumber() " +
+    "print(\"Table ${table}\") }\nentry(main)\n")
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -346,6 +357,16 @@ try {
   await writeFile(runtimeStringParameter,
     "fn show(value: String) { print(value) }\n" +
     "fn main() { show(value: \"x\") }\nentry(main)\n")
+  await writeFile(runtimeStringResult,
+    "fn state(): String { return \"open\" }\n" +
+    "fn main() { let value = state() print(\"${value}\") }\nentry(main)\n")
+  await writeFile(missingScalarReturn,
+    "fn value(): i64 { print(\"no value\") }\n" +
+    "fn main() { let result = value() print(\"${result}\") }\nentry(main)\n")
+  await writeFile(nestedReturnCall,
+    "fn value(): i64 { return 42 }\n" +
+    "fn relay(): i64 { return value() }\n" +
+    "fn main() { let result = relay() print(\"${result}\") }\nentry(main)\n")
   const toWsl = (path) => isWindows ? wslPath(path) : path
   residueBefore = await snapshotRunResidue()
 
@@ -373,6 +394,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantDirectCall)],
     Buffer.from("Table 42; open: true\n", "utf8"),
     "Restaurant direct W call")
+  expectSuccess(binary, ["run", toWsl(restaurantScalarReturn)],
+    Buffer.from("Table 42\n", "utf8"),
+    "Restaurant scalar return")
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),
@@ -395,6 +419,12 @@ try {
   expectSourceFailure(binary, toWsl(recursiveCall), "recursive call source")
   expectSourceFailure(binary, toWsl(runtimeStringParameter),
     "runtime String parameter source")
+  expectSourceFailure(binary, toWsl(runtimeStringResult),
+    "runtime String result source")
+  expectSourceFailure(binary, toWsl(missingScalarReturn),
+    "missing scalar return source")
+  expectSourceFailure(binary, toWsl(nestedReturnCall),
+    "nested return call source")
   expectUnsupportedOption(binary, ["run", "--entry", toWsl(helloFixture)],
     "unsupported --entry option")
   expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloFixture)],

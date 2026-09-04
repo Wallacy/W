@@ -388,6 +388,8 @@ static bool normalize_switch_expression(frontend_context *context,
                                          frontend_simple_type *actual_out,
                                          frontend_expr_value *root_out);
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling);
+static frontend_simple_type infer_expression_span(frontend_context *context,
+                                                   w_seed_span span);
 static frontend_simple_type literal_simple_type(
     const w_seed_frontend_document *doc, w_seed_span span,
     w_seed_cst_kind token_kind);
@@ -9871,12 +9873,40 @@ static bool block_scope_contains(const w_seed_frontend_document *doc,
              doc->nodes[inner].raw_span.end_byte;
 }
 
+static bool expression_is_direct_call(const w_seed_frontend_document *doc,
+                                      w_seed_span span) {
+  if (doc == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, span);
+  frontend_token token;
+  if (!cursor_take(&cursor, &token) || token.kind != W_SEED_CST_WORD ||
+      !cursor_take(&cursor, &token) || !token_text(doc, &token, "("))
+    return false;
+  size_t depth = 1u;
+  while (cursor_take(&cursor, &token)) {
+    if (token_text(doc, &token, "(")) {
+      if (depth == SIZE_MAX) return false;
+      depth += 1u;
+    } else if (token_text(doc, &token, ")")) {
+      if (depth == 0u) return false;
+      depth -= 1u;
+      if (depth == 0u) {
+        frontend_token trailing;
+        return !cursor_take(&cursor, &trailing);
+      }
+    }
+  }
+  return false;
+}
+
 static frontend_simple_type binding_type_for_name(
     frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
   if (context == NULL) return simple_type_unknown();
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || context->function_node == NULL) return simple_type_unknown();
+  const w_seed_span function_span = context->function_node->raw_span;
+  const uint32_t use_block = innermost_block_for_span(
+      doc, (uint32_t)(context->function_node - doc->nodes), use_span);
   const uint32_t parameters = first_direct_kind(
       doc, (uint32_t)(context->function_node - doc->nodes),
       W_SEED_CST_PARAMETER_LIST);
@@ -9897,9 +9927,30 @@ static frontend_simple_type binding_type_for_name(
       guard += 1;
     }
   }
-  const w_seed_span function_span = context->function_node->raw_span;
-  const uint32_t use_block = innermost_block_for_span(
-      doc, (uint32_t)(context->function_node - doc->nodes), use_span);
+  /* Earlier normalized bindings are the primary source of inferred local
+   * types. In particular, a direct call initializer already carries its
+   * resolved signature type even when the source omits an annotation. */
+  if (context->emit && context->output != NULL &&
+      context->output->statements != NULL) {
+    for (size_t index = context->count.statements; index > 0u; index -= 1u) {
+      const w_seed_frontend_statement *statement =
+          &context->output->statements[index - 1u];
+      if (statement->owner_function == context->function_index &&
+          (statement->kind == W_SEED_FRONTEND_STMT_LET ||
+           statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
+          statement->span.end_byte <= use_span.start_byte &&
+          statement->effective_type != W_SEED_FRONTEND_NONE &&
+          block_scope_contains(
+              doc,
+              innermost_block_for_span(
+                  doc, (uint32_t)(context->function_node - doc->nodes),
+                  statement->span),
+              use_block) &&
+          text_equal_text(statement->binding_name, name))
+        return simple_type_from_type_index(
+            context, statement->effective_type, simple_type_unknown());
+    }
+  }
   for (size_t index = 0; index < doc->parse.node_count; index += 1) {
     const w_seed_cst_node *candidate = &doc->nodes[index];
     if ((candidate->kind == W_SEED_CST_LET_STATEMENT ||
@@ -9930,6 +9981,11 @@ static frontend_simple_type binding_type_for_name(
       const uint32_t expression_node =
           first_direct_kind(doc, (uint32_t)index, W_SEED_CST_EXPRESSION);
       if (expression_node != W_SEED_CST_NONE) {
+        const frontend_simple_type inferred_expression =
+            infer_expression_span(context,
+                                  doc->nodes[expression_node].raw_span);
+        if (inferred_expression.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
+          return inferred_expression;
         frontend_token_cursor cursor =
             token_cursor_for(doc, doc->nodes[expression_node].raw_span);
         frontend_token first;
@@ -12230,10 +12286,12 @@ static frontend_simple_type infer_expression_span(frontend_context *context,
     uint32_t function_node = W_SEED_CST_NONE;
     if (function_signature_for_name(context, first_text, &owner_doc,
                                     &function_node)) {
+      if (!expression_is_direct_call(doc, span)) return simple_type_unknown();
       return function_return_type(context, owner_doc, function_node);
     }
     const w_seed_frontend_external_symbol *external = NULL;
     if (external_symbol_for_name(context, first_text, &external)) {
+      if (!expression_is_direct_call(doc, span)) return simple_type_unknown();
       return simple_type_from_view(external->return_type);
     }
   }

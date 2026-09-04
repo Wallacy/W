@@ -27704,7 +27704,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-8-direct-unit-calls-and-typed-values`. Seu backend tem status
+`w-seed-mlir0-9-scalar-function-results`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35854,7 +35854,7 @@ dispatch, function calls, panic lowering, another target, or a stable runtime
 ABI. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only; no
 timing or performance result is published.
 
-#### 26.4.1.13 W-1529 — typed direct Unit calls through native MLIR (Current form)
+#### 26.4.1.13 W-1529 — typed direct Unit calls through native MLIR (Retained form; adapter advanced by W-1530)
 
 **Example:** this Restaurant witness evaluates named arguments in source order,
 maps them to declaration order, and executes a real W-to-W call:
@@ -35902,6 +35902,54 @@ same witness. The route does not flatten the call or precompute `42`.
 
 `benchmarkDisposition` is `compiler-lifecycle`, correctness-only. This
 milestone publishes no timing or performance result and no stable W ABI.
+
+#### 26.4.1.14 W-1530 — scalar function results through verified HIR and native MLIR (Current form)
+
+**Example:** a scalar result crosses a real call boundary before it is used by
+the caller:
+
+```w
+fn tableNumber(): i64 {
+  return 6 * 7
+}
+
+fn main() {
+  let table = tableNumber()
+  print("Table ${table}")
+}
+
+entry(main)
+```
+
+Its stdout is exactly `Table 42\n`.
+
+W-1530 advances HIR0 to `w-seed-hir0-6` and MLIR0 to
+`w-seed-mlir0-9`. A non-Unit function can return canonical signed `i64` or
+Bool from its final statement. `RETURN_VALUE` owns the verified return value
+tree. A direct local call with one of those result types produces a
+`CALL_RESULT` value. That value refers to one prior call in the same block and
+can initialize an immutable binding. The frontend infers the binding type from
+the call signature, so no redundant annotation is required.
+
+The HIR value graph keeps instruction-owned values before terminator-owned
+values. Both partitions are dense. Verification checks the function return
+type, terminator type, call result type, callee identity, call order, owner,
+span, range, digest, and receipt. A Unit function retains `RETURN_UNIT` and
+cannot publish a value. HIR construction and verification do not evaluate
+`6 * 7`.
+
+The bounded native selector accepts only Unit, signed `i64`, and Bool function
+results. The `.default` entry still returns Unit and has no parameters. MLIR0
+emits a typed internal function, typed `llvm.return`, result-producing
+`llvm.call`, and the caller's SSA use. The checked artifact retains
+`llvm.mul`; it does not replace the call result with `42` or output bytes.
+
+This milestone does not add return-call expressions, nested calls, runtime
+String results, multiple exits, conditionals, loops, phi/block arguments,
+recursion, indirect calls, overload dispatch, generic specialization,
+exceptions, async, ownership lowering, a stable ABI, another target, or
+performance evidence. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only; no timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

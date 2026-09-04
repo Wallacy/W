@@ -1338,6 +1338,54 @@ static bool test_local_unit_call_and_parameter_reads(void) {
   return true;
 }
 
+static bool test_scalar_return_and_call_result(void) {
+  static const char SOURCE[] =
+      "fn tableNumber(): i64 { return 6 * 7 }\n"
+      "fn main() { let table = tableNumber() "
+      "print(message: \"Table ${table}\", suffix: \"\") }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->call_count == 2u &&
+        program->binding_count == 1u && program->terminator_count == 2u &&
+        program->functions[0].return_type == 2u &&
+        program->functions[1].return_type == 0u);
+  CHECK(program->calls[0].result_type == 2u &&
+        program->identities[program->calls[0].callee_identity].target_index ==
+            0u &&
+        program->instructions[program->calls[0].owner_instruction]
+                .result_type == 2u);
+  const uint32_t initializer = program->bindings[0].initializer_value;
+  CHECK(initializer < program->value_count &&
+        program->values[initializer].kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[initializer].type_index == 2u &&
+        program->values[initializer].call_index == 0u);
+  CHECK(program->terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[0].result_type == 2u &&
+        program->terminators[0].value_index < program->value_count &&
+        program->values[program->terminators[0].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->terminators[1].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_result = fixture.hir_values[initializer];
+  fixture.hir_values[initializer].call_index = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[initializer] = saved_result;
+  const w_seed_hir0_terminator saved_terminator = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].result_type = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_terminator;
+  const w_seed_hir0_call saved_call = fixture.hir_calls[0];
+  fixture.hir_calls[0].result_type = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1352,6 +1400,7 @@ int main(void) {
   if (!test_builtin_display_value_tree()) return 1;
   if (!test_typed_immutable_binding_values()) return 1;
   if (!test_local_unit_call_and_parameter_reads()) return 1;
+  if (!test_scalar_return_and_call_result()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

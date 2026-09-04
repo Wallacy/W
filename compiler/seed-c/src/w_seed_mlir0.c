@@ -875,6 +875,10 @@ static bool append_program_value_operand(
            append_literal(artifact, capacity, offset, "%p") &&
            append_size(artifact, capacity, offset, parameter->ordinal);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT)
+    return value->call_index < program->call_count &&
+           append_literal(artifact, capacity, offset, "%call") &&
+           append_size(artifact, capacity, offset, value->call_index);
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64) &&
@@ -893,7 +897,8 @@ static bool append_program_value_tree(
   if (emitted[value_index]) return true;
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
-      value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+      value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     emitted[value_index] = true;
     return true;
   }
@@ -1088,7 +1093,15 @@ static bool append_program_local_call(
       return false;
     values[argument->parameter_ordinal] = argument->value_index;
   }
-  if (!append_literal(artifact, capacity, offset, "    llvm.call @w_fn_") ||
+  if (call->result_type != 0u &&
+      (!append_literal(artifact, capacity, offset, "    %call") ||
+       !append_size(artifact, capacity, offset,
+                    (size_t)(call - program->calls)) ||
+       !append_literal(artifact, capacity, offset, " = ")))
+    return false;
+  if (!append_literal(artifact, capacity, offset,
+                      call->result_type == 0u ? "    llvm.call @w_fn_"
+                                              : "llvm.call @w_fn_") ||
       !append_size(artifact, capacity, offset, callee->target_index) ||
       !append_literal(artifact, capacity, offset,
                       "(%buffer, %cursor_address"))
@@ -1115,7 +1128,13 @@ static bool append_program_local_call(
         !append_literal(artifact, capacity, offset, type))
       return false;
   }
-  return append_literal(artifact, capacity, offset, ") -> ()\n");
+  if (call->result_type == 0u)
+    return append_literal(artifact, capacity, offset, ") -> ()\n");
+  const char *return_type = program_type_name(program, call->result_type);
+  return return_type != NULL &&
+         append_literal(artifact, capacity, offset, ") -> ") &&
+         append_literal(artifact, capacity, offset, return_type) &&
+         append_literal(artifact, capacity, offset, "\n");
 }
 
 static bool append_program_function(
@@ -1144,8 +1163,18 @@ static bool append_program_function(
         !append_literal(artifact, capacity, offset, type))
       return false;
   }
+  if (!append_literal(artifact, capacity, offset, ")"))
+    return false;
+  if (function->return_type != 0u) {
+    const char *return_type =
+        program_type_name(program, function->return_type);
+    if (return_type == NULL ||
+        !append_literal(artifact, capacity, offset, " -> ") ||
+        !append_literal(artifact, capacity, offset, return_type))
+      return false;
+  }
   if (!append_literal(artifact, capacity, offset,
-                      ") {\n    %text_base = llvm.mlir.addressof "
+                      " {\n    %text_base = llvm.mlir.addressof "
                       "@w_seed_mlir0_text : !llvm.ptr\n"))
     return false;
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
@@ -1191,8 +1220,27 @@ static bool append_program_function(
       return false;
     }
   }
-  return append_literal(artifact, capacity, offset,
-                        "    llvm.return\n  }\n");
+  if (block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (function->return_type == 0u)
+    return terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+           append_literal(artifact, capacity, offset,
+                          "    llvm.return\n  }\n");
+  const char *return_type = program_type_name(program, function->return_type);
+  return return_type != NULL &&
+         terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+         append_program_value_tree(program, terminator->value_index,
+                                   (uint32_t)function_index, emitted, artifact,
+                                   capacity, offset, 0u) &&
+         append_literal(artifact, capacity, offset, "    llvm.return ") &&
+         append_program_value_operand(program, terminator->value_index,
+                                      (uint32_t)function_index, artifact,
+                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : ") &&
+         append_literal(artifact, capacity, offset, return_type) &&
+         append_literal(artifact, capacity, offset, "\n  }\n");
 }
 
 static bool build_program_artifact(
