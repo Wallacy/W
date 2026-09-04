@@ -31,6 +31,20 @@ W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
 não suporte Windows nativo.
+W-1532 records bounded candidate evidence for Windows x86_64: users can
+materialize the external development toolchain with `bun run
+acquire:mlir0-windows` (network is enabled only by this opt-in) and build a
+persistent `w.exe` with `bun run build:w-windows`. The build uses only the
+validated cache and explicit Visual Studio/SDK paths; it does not copy the
+toolchain, and the future runtime does not download or search for tools. The
+Windows route uses MLIR → LLVM IR → `llc` → `lld-link` and does not promote
+general support. The heavy cache is never the user package; see
+[`TOOLCHAIN.md`](TOOLCHAIN.md) for the compact cross-target direction. Unicode
+source paths are not proven. Linux/WSL 20.1.2 remains `update-required`.
+The primary command is `bun run build:w-windows`; it tries C23 and fails closed
+when this host's MSVC/CMake rejects that dialect. To reproduce the current
+evidence, use exactly `bun run build:w-windows --c11-recovery`. There is no
+implicit standard fallback.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL

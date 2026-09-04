@@ -7502,7 +7502,7 @@ static bool normalize_type_tree_depth(frontend_context *context,
       value.enum_base_index = enum_index;
     }
   }
-  frontend_enum_subset_shape subset_shape;
+  frontend_enum_subset_shape subset_shape = {0};
   bool has_subset_shape =
       !application_candidate &&
       enum_subset_shape_for_type(context, doc, type_node, &subset_shape);
@@ -10965,7 +10965,9 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     return appended;
   }
   if (token_text(parser->document, &token, "(")) {
-    frontend_expr_value nested;
+    frontend_expr_value nested = {0};
+    nested.index = W_SEED_FRONTEND_NONE;
+    nested.type = simple_type_unknown();
     if (!cursor_peek_text(&parser->cursor, ")") &&
         !expression_parse_bp(parser, 0, &nested)) {
       return false;

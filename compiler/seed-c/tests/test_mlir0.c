@@ -119,6 +119,8 @@ static mlir_fixture fixture;
 
 static const w_seed_mlir0_target TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+static const w_seed_mlir0_target WINDOWS_TARGET = {
+    W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC};
 
 static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
   if (source_bytes == NULL || source_length == 0u ||
@@ -429,6 +431,86 @@ static bool test_direct_products(void) {
   CHECK(contains_bytes(output, counts.mlir_bytes, "\\0a"));
   CHECK(contains_bytes(output, counts.mlir_bytes, "!llvm.array<1 x i8>"));
   CHECK(output[counts.mlir_bytes] == 0x5au);
+  return true;
+}
+
+static bool test_windows_target_runtime_surface(void) {
+  static const uint8_t source[] =
+      "fn main() { print(\"Hello, Windows!\") }\nentry(main)\n";
+  CHECK(w_seed_mlir0_target_is_supported(&WINDOWS_TARGET));
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &measured) ==
+        W_SEED_MLIR0_OK);
+  uint8_t first[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t second[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result first_result;
+  w_seed_mlir0_result second_result;
+  CHECK(w_seed_mlir0_emit(&input, &WINDOWS_TARGET,
+                          &(w_seed_mlir0_output){first, sizeof(first)},
+                          &first_result) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(&input, &WINDOWS_TARGET,
+                          &(w_seed_mlir0_output){second, sizeof(second)},
+                          &second_result) == W_SEED_MLIR0_OK);
+  CHECK(first_result.written.mlir_bytes == counts.mlir_bytes &&
+        second_result.written.mlir_bytes == counts.mlir_bytes &&
+        memcmp(first, second, counts.mlir_bytes) == 0 &&
+        memcmp(first_result.mlir_sha256, measured.mlir_sha256,
+               sizeof(first_result.mlir_sha256)) == 0);
+  CHECK(contains_bytes(first, counts.mlir_bytes,
+                       "// " W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "\nmodule "));
+  CHECK(contains_bytes(first, counts.mlir_bytes,
+                       "x86_64-pc-windows-msvc"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "@GetStdHandle"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "@WriteFile"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "@ExitProcess"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "@mainCRTStartup"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "@w_seed_mlir0_buffer"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "llvm.mlir.zero"));
+  CHECK(contains_bytes(first, counts.mlir_bytes,
+                       "llvm.load %written : !llvm.ptr -> i32"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "%write_complete"));
+  CHECK(contains_bytes(first, counts.mlir_bytes, "-11 : i32"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "@write("));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "HeapAlloc"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes, "HeapFree"));
+  CHECK(!contains_bytes(first, counts.mlir_bytes,
+                       W_SEED_MLIR0_TARGET_TRIPLE_LINUX));
+  (void)memset(first, 0x5bu, sizeof(first));
+  (void)memset(&first_result, 0x24u, sizeof(first_result));
+  const w_seed_mlir0_result snapshot = first_result;
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){first, counts.mlir_bytes - 1u},
+            &first_result) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(first); index += 1u)
+    CHECK(first[index] == 0x5bu);
+  CHECK(memcmp(&first_result, &snapshot, sizeof(snapshot)) == 0);
+
+  static const uint8_t interpolated[] =
+      "fn main() { let message = \"Open\" "
+      "print(\"${message}\") }\nentry(main)\n";
+  CHECK(lower_hir(interpolated, sizeof(interpolated) - 1u));
+  const w_seed_mlir0_input dynamic_input = mlir_input();
+  w_seed_mlir0_counts dynamic_counts;
+  w_seed_mlir0_result dynamic_result;
+  CHECK(w_seed_mlir0_measure(&dynamic_input, &WINDOWS_TARGET, &dynamic_counts,
+                             &dynamic_result) == W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &dynamic_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){second, sizeof(second)}, &dynamic_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes,
+                       "@w_seed_mlir0_buffer"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "llvm.mlir.zero"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "@w_seed_write"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "@mainCRTStartup"));
+  CHECK(contains_bytes(second, dynamic_counts.mlir_bytes, "%write_complete"));
+  CHECK(!contains_bytes(second, dynamic_counts.mlir_bytes, "@write("));
+  CHECK(!contains_bytes(second, dynamic_counts.mlir_bytes, "HeapAlloc"));
+  CHECK(!contains_bytes(second, dynamic_counts.mlir_bytes, "HeapFree"));
   return true;
 }
 
@@ -1179,6 +1261,7 @@ static bool test_valid_hir_outside_subset(void) {
 
 int main(void) {
   if (!test_direct_products()) return 1;
+  if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;
   if (!test_direct_unit_call()) return 1;

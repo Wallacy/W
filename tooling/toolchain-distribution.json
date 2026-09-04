@@ -1,0 +1,258 @@
+{
+  "$schema": "w-toolchain-distribution-1",
+  "version": 1,
+  "status": "design-oracle-input",
+  "decision": "W-1533",
+  "networkBoundary": {
+    "compilerInvocation": "forbidden-silent-toolchain-acquisition",
+    "toolchainAcquisition": "explicit-opt-in-tooling-only",
+    "registryDependencyFetch": "separate-authorized-policy"
+  },
+  "profileContract": {
+    "wProgram": [
+      {
+        "id": "debug",
+        "purpose": "iteration-and-diagnostics",
+        "status": "existing-design-profile"
+      },
+      {
+        "id": "release",
+        "purpose": "performance-first",
+        "status": "existing-design-profile"
+      },
+      {
+        "id": "benchmark",
+        "purpose": "reproducible-pinned",
+        "status": "existing-design-profile"
+      }
+    ],
+    "toolchain": [
+      {
+        "id": "development",
+        "purpose": "toolchain-iteration-speed",
+        "default": false,
+        "status": "contract-only"
+      },
+      {
+        "id": "release",
+        "purpose": "performance-first",
+        "default": true,
+        "status": "contract-only"
+      },
+      {
+        "id": "benchmark",
+        "purpose": "reproducible-pinned",
+        "default": false,
+        "status": "contract-only"
+      },
+      {
+        "id": "size-experimental",
+        "purpose": "size-comparison-only",
+        "default": false,
+        "status": "opt-in-only"
+      }
+    ],
+    "namespaceRule": "W program profiles and toolchain build/distribution profiles are separate; no implicit inheritance.",
+    "harmonization": "debug is the canonical W profile; dev is an informal naming opportunity only, not an alias or syntax."
+  },
+  "optimizationBacklog": {
+    "status": "opportunity-only",
+    "items": [
+      {
+        "id": "hello-windows-pe-under-1kib",
+        "status": "opportunity",
+        "scope": "build:w-windows@W-1532",
+        "currentObservationBytes": 2560,
+        "targetBytes": 1024,
+        "metric": "fileContainerBytes",
+        "gate": "benchmark-no-regression",
+        "defaultAction": "none"
+      }
+    ]
+  },
+  "layers": [
+    {
+      "id": "development-cache",
+      "role": "development-and-release-cache",
+      "distributed": false,
+      "networkAtRuntime": "forbidden",
+      "sourceManifest": "tooling/mlir0-windows-toolchain.json",
+      "location": "external-user-cache",
+      "includes": [
+        "mlir-opt",
+        "mlir-translate",
+        "llc",
+        "lld-link",
+        "headers",
+        "MLIR/LLVM/LLD development static libraries",
+        "debug-and-text-tools"
+      ],
+      "wProvenance": "external-evaluation-only"
+    },
+    {
+      "id": "release-builder",
+      "role": "hermetic-minimal-builder",
+      "distributed": false,
+      "networkAtBuild": "forbidden",
+      "toolchainCopy": false,
+      "route": [
+        "verified HIR",
+        "in-process MLIR APIs and W pass subset",
+        "LLVM target machine and object",
+        "LLD library",
+        "target executable"
+      ],
+      "llvmConfiguration": {
+        "buildType": "Release",
+        "optimizationPriority": "performance-first",
+        "lto": "conditional-after-benchmark-no-regression",
+        "sectionGarbageCollection": "conditional-after-benchmark-no-regression",
+        "deadStripping": "conditional-after-benchmark-no-regression",
+        "minSizeRel": "experimental-comparison-only",
+        "projects": ["MLIR", "LLVM", "LLD"],
+        "targets": ["X86", "AArch64"],
+        "cliTools": "excluded"
+      },
+      "inputs": [
+        "W-signed target pack",
+        "explicit SDK/import/runtime provenance",
+        "release recipe and SBOM"
+      ]
+    },
+    {
+      "id": "end-user-package",
+      "role": "compact-hermetic-toolchain",
+      "distributed": true,
+      "networkAtRuntime": "forbidden",
+      "includes": [
+        "w executable",
+        "W-signed versioned target packs",
+        "runtime components required by the selected target"
+      ],
+      "excludes": [
+        "mlir-opt",
+        "mlir-translate",
+        "llc",
+        "lld-link",
+        "Clang CLI",
+        "generic MLIR textual parser",
+        "headers",
+        "MLIR/LLVM/LLD development static libraries",
+        "debug files"
+      ],
+      "targetPackPolicy": {
+        "signed": true,
+        "versioned": true,
+        "shipInStandardPackage": true,
+        "separateInstallOption": "only-after-measured-budget-failure",
+        "silentDownload": false
+      }
+    }
+  ],
+  "primaryCrossMatrix": {
+    "architectures": ["x86_64", "aarch64"],
+    "platforms": ["windows", "linux", "macos"],
+    "hosts": [
+      "host-windows-x86_64-native",
+      "host-linux-x86_64-native",
+      "host-macos-aarch64-native"
+    ],
+    "targetFamilies": [
+      {
+        "platform": "windows",
+        "triples": ["x86_64-pc-windows-msvc", "aarch64-pc-windows-msvc"],
+        "pack": "windows-x86-aarch64"
+      },
+      {
+        "platform": "linux",
+        "triples": ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"],
+        "pack": "linux-x86-aarch64"
+      },
+      {
+        "platform": "macos",
+        "triples": ["x86_64-apple-darwin", "aarch64-apple-darwin"],
+        "pack": "macos-x86-aarch64"
+      }
+    ],
+    "edges": [
+      { "host": "windows", "target": "windows", "status": "future-candidate" },
+      { "host": "windows", "target": "linux", "status": "future-candidate" },
+      { "host": "windows", "target": "macos", "status": "future-candidate" },
+      { "host": "linux", "target": "windows", "status": "future-candidate" },
+      { "host": "linux", "target": "linux", "status": "future-candidate" },
+      { "host": "linux", "target": "macos", "status": "future-candidate" },
+      { "host": "macos", "target": "windows", "status": "future-candidate" },
+      { "host": "macos", "target": "linux", "status": "future-candidate" },
+      { "host": "macos", "target": "macos", "status": "future-candidate" }
+    ],
+    "crossToolchainDownload": "forbidden",
+    "implementation": "gap"
+  },
+  "platformRequirements": {
+    "sdk": "explicit per target",
+    "importLibraries": "explicit per target",
+    "runtime": "explicit per target",
+    "provenance": "W-signed release record and SBOM",
+    "apple": "Apple SDK and license evidence is a blocker",
+    "currentEvidence": "Windows x86_64 development cache only"
+  },
+  "budget": {
+    "goalCompressedMiB": 50,
+    "provisionalGateCompressedMiB": 64,
+    "measurement": "required",
+    "failurePolicy": "visible-failure-and-explicit-review",
+    "observation": {
+      "recipe": "build:w-windows@W-1532",
+      "wExecutableBytes": 10034688,
+      "wExecutableIncludesBackend": false,
+      "helloWindowsPeBytes": 2560,
+      "helloWindowsPeHasCrt": false,
+      "sectionBytes": null,
+      "codeBytes": null,
+      "importBytes": null,
+      "isBudgetProof": false
+    }
+  },
+  "requiredMetrics": [
+    "compressedArtifactBytes",
+    "installedFootprintBytes",
+    "mainExecutableBytes",
+    "perTargetPackBytes",
+    "coldCompileStartupMs",
+    "coldHelloBuildMs",
+    "warmCompileThroughput",
+    "toolchainStartupMs",
+    "artifactRuntimeMs",
+    "fileContainerBytes",
+    "sectionBytes",
+    "codeBytes",
+    "importBytes",
+    "benchmarkVsBaseline",
+    "unexpectedDynamicDependencies",
+    "sbom"
+  ],
+  "comparison": {
+    "zig": {
+      "official": true,
+      "version": "0.16",
+      "source": "https://ziglang.org/download/0.16.0/",
+      "observedCompressedMiB": {
+        "linux-macos": [49, 55],
+        "windows": [89, 94]
+      },
+      "use": "context-only; not a W support or performance claim"
+    }
+  },
+  "backendDirection": {
+    "releaseCoverage": "integrated LLVM backend with minimal components",
+    "futureNativeBackend": "research-only fast path",
+    "mlirReplacement": false
+  },
+  "implementationStatus": {
+    "w1533Policy": "source-backed-by-manifest-and-offline-checker",
+    "releaseBuilder": "gap",
+    "endUserPackage": "gap",
+    "crossCompilation": "gap",
+    "budgetEvidence": "gap"
+  }
+}

@@ -584,20 +584,25 @@
         "kind": "third-party-release-record",
         "urls": [
           "https://github.com/munich-quantum-software/portable-mlir-toolchain",
-          "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.11",
-          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-22.1.8"
+          "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.31",
+          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.0"
         ]
       },
-      "locations": ["tooling/platform-support.json", "PLATFORM-SUPPORT.md"],
+      "locations": [
+        "tooling/platform-support.json",
+        "PLATFORM-SUPPORT.md",
+        "tooling/mlir0-windows-toolchain.json",
+        "tooling/build-w-windows.mjs"
+      ],
       "latestStable": null,
       "current": {
-        "release": "2026.08.11",
-        "llvmTag": "llvmorg-22.1.8",
+        "release": "2026.08.31",
+        "llvmTag": "llvmorg-23.1.0",
         "status": "evaluation-only"
       },
       "selected": {
-        "release": "2026.08.11",
-        "llvmTag": "llvmorg-22.1.8",
+        "release": "2026.08.31",
+        "llvmTag": "llvmorg-23.1.0",
         "status": "evaluation-only",
         "promotion": "not-allowed"
       },
@@ -609,6 +614,7 @@
       },
       "limitations": [
         "third-party not W authority or support",
+        "only x86_64-pc-windows-msvc asset inspected",
         "version mismatch with current 20.1.2 evidence",
         "no completed W trust, SBOM, or provenance audit",
         "host binaries do not prove cross-compilation",

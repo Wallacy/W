@@ -1095,6 +1095,36 @@ multi-call. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
 
+### Native Windows x86_64 candidate (W-1532)
+
+The same MLIR0 subset has bounded native evidence for target
+`x86_64-pc-windows-msvc`. The pipeline is
+`mlir-opt.exe → mlir-translate.exe → llc.exe → lld-link.exe + kernel32.lib`;
+it does not use Clang, the CRT, or WSL. The artifact uses `GetStdHandle`,
+`WriteFile`, and `ExitProcess`, with `mainCRTStartup`, the console subsystem,
+and `nodefaultlib`. The runner uses explicit paths from the materialized
+manifest, `CreateProcessW`, `CREATE_NEW` temporaries, and all-or-nothing cleanup.
+
+To keep the development cache outside the repository:
+
+```text
+bun run acquire:mlir0-windows          # network is an explicit opt-in
+bun run build:w-windows                # primary C23 attempt; fails closed here
+bun run build:w-windows --c11-recovery # exact current host evidence recipe
+```
+
+`build:w-windows` discovers Visual Studio through `vswhere`, probes the Windows
+SDK explicitly, and does not copy the heavy toolchain. The
+`bun run check:w-run-windows` gate proves Hello, Restaurant/if, interpolation,
+linear output, a forwarded empty argument, invalid source without stdout, and
+an x64 PE. The cache has role `development-and-release-only`,
+`bundledWithW: false`, and its extracted size is not a W package budget. This is
+candidate evidence, not general support. Unicode source paths, the general
+ABI/runtime, packaging, CI, cross-compilation, and other targets remain gaps.
+The builder tries C23 first; this host's MSVC/CMake rejects that dialect, so
+the current local evidence uses the explicit `--c11-recovery` option. There is
+no implicit standard fallback.
+
 NAT1 accepts exactly one module, function, `.default` entry and block. The
 function is linear, returns Unit, has no parameters or effects, and the block
 contains 1..32 instructions made only of 0..32 immutable String bindings and
@@ -1148,8 +1178,9 @@ all returns. Arguments after `--` are forwarded byte-for-byte, and the child
 inherits stdout/stderr. Normal exit is propagated; signal exit is `128 +
 signal`. Invocation, source, unsupported and missing-tool errors return 2;
 internal, I/O and cleanup errors return 3. `--entry` and `--offline` are
-rejected. Native Windows, macOS, the general runner and performance remain
-gaps. The gate is compiler-lifecycle correctness evidence only.
+rejected. The bounded native Windows route is a separate W-1532 candidate;
+macOS, the general runner and performance remain gaps. The gate is
+compiler-lifecycle correctness evidence only.
 
 On Linux x86_64, run:
 
@@ -1158,7 +1189,12 @@ bun run check:w-run
 ```
 
 On a Windows host, the same gate builds and runs the Linux binary in WSL
-Ubuntu. It does not claim native Windows support.
+Ubuntu. It does not claim general native Windows support. The separate
+bounded candidate gate is:
+
+```text
+bun run check:w-run-windows
+```
 
 The versioned fixtures can be run directly from the repository root after the
 build:

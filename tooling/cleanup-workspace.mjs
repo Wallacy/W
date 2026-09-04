@@ -17,6 +17,7 @@ export const DEFAULT_TEMP_MIN_AGE_MS = 24 * 60 * 60 * 1000;
 
 export const WORKSPACE_OUTPUTS = Object.freeze([
   { relativePath: "build", marker: "cmake" },
+  { relativePath: "build/w-windows", marker: "known-output" },
   { relativePath: ".codex/build-seed", marker: "cmake" },
   { relativePath: "reference/last-light/build", marker: "known-output" },
   { relativePath: "portal/dist", marker: "known-output" },
@@ -222,6 +223,15 @@ async function workspaceTargets(workspaceRoot) {
           scope: "workspace",
           rule: { relativePath: rule.relativePath, marker: "known-empty-output" },
         });
+        continue;
+      }
+      const explicitBuildChildren = new Set(
+        WORKSPACE_OUTPUTS
+          .filter((candidate) => candidate.relativePath.startsWith("build/") &&
+            candidate.relativePath.slice("build/".length).indexOf("/") === -1)
+          .map((candidate) => candidate.relativePath.slice("build/".length)),
+      );
+      if (entries.every((entry) => entry.isDirectory() && explicitBuildChildren.has(entry.name))) {
         continue;
       }
     }

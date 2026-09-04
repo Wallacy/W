@@ -153,14 +153,14 @@ Latest stable: `version: 17.0.0`.
 
 | ID | Name | Status | Current | Selected | Successor | Sources |
 | --- | --- | --- | --- | --- | --- | --- |
-| `portable-mlir-toolchain` | portable MLIR toolchain candidate | evaluation-only | release: 2026.08.11; llvmTag: llvmorg-22.1.8; status: evaluation-only | release: 2026.08.11; llvmTag: llvmorg-22.1.8; status: evaluation-only; promotion: not-allowed | — | [source 1](https://github.com/munich-quantum-software/portable-mlir-toolchain)<br>[source 2](https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.11)<br>[source 3](https://github.com/llvm/llvm-project/releases/tag/llvmorg-22.1.8) |
+| `portable-mlir-toolchain` | portable MLIR toolchain candidate | evaluation-only | release: 2026.08.31; llvmTag: llvmorg-23.1.0; status: evaluation-only | release: 2026.08.31; llvmTag: llvmorg-23.1.0; status: evaluation-only; promotion: not-allowed | — | [source 1](https://github.com/munich-quantum-software/portable-mlir-toolchain)<br>[source 2](https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.31)<br>[source 3](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.0) |
 
 ### `portable-mlir-toolchain`
 
 Scope: possible bootstrap, mirror, or rebuild input.
-Locations: `tooling/platform-support.json`, `PLATFORM-SUPPORT.md`.
+Locations: `tooling/platform-support.json`, `PLATFORM-SUPPORT.md`, `tooling/mlir0-windows-toolchain.json`, `tooling/build-w-windows.mjs`.
 
-Limits: third-party not W authority or support; version mismatch with current 20.1.2 evidence; no completed W trust, SBOM, or provenance audit; host binaries do not prove cross-compilation; Apple SDK and license are not supplied or proven.
+Limits: third-party not W authority or support; only x86_64-pc-windows-msvc asset inspected; version mismatch with current 20.1.2 evidence; no completed W trust, SBOM, or provenance audit; host binaries do not prove cross-compilation; Apple SDK and license are not supplied or proven.
 
 ## Project and schema versions
 

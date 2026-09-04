@@ -211,6 +211,7 @@ const externalToolchainCandidateKeys = new Set([
   "observedRelease",
   "llvmTag",
   "publishedHostTriples",
+  "inspectedHostTriples",
   "evidenceCapabilities",
   "limitations",
 ]);
@@ -228,8 +229,8 @@ const expectedExternalToolchainCandidate = Object.freeze({
   id: "portable-mlir-toolchain",
   status: "evaluation-only",
   license: "Apache-2.0",
-  observedRelease: "2026.08.11",
-  llvmTag: "llvmorg-22.1.8",
+  observedRelease: "2026.08.31",
+  llvmTag: "llvmorg-23.1.0",
   publishedHostTriples: Object.freeze([
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
@@ -238,6 +239,7 @@ const expectedExternalToolchainCandidate = Object.freeze({
     "x86_64-apple-darwin",
     "aarch64-apple-darwin",
   ]),
+  inspectedHostTriples: Object.freeze(["x86_64-pc-windows-msvc"]),
   evidenceCapabilities: Object.freeze([
     "per-platform-build-scripts",
     "sha256-release-assets",
@@ -246,6 +248,7 @@ const expectedExternalToolchainCandidate = Object.freeze({
   ]),
   limitations: Object.freeze([
     "third-party not W authority/support",
+    "inspection covered only x86_64-pc-windows-msvc",
     "version mismatch with current pinned 20.1.2",
     "no completed W trust/SBOM/provenance audit",
     "host binaries do not prove cross-compilation",
@@ -551,11 +554,6 @@ function validateTargetRow(row, index, root, errors) {
   if (row.state === "candidate") {
     if (row.claim !== null) addError(errors, `candidate target "${id}" must not declare a claim.`);
     if (row.scope !== null) addError(errors, `candidate target "${id}" scope must be null.`);
-    for (const axis of TARGET_AXES) {
-      if (facts.get(axis)?.status !== "missing") {
-        addError(errors, `candidate target "${id}" axis "${axis}" must be missing.`);
-      }
-    }
   }
   if (row.state === "evidence" && row.claim !== null) {
     addError(errors, `evidence target "${id}" must not declare a general claim.`);
@@ -843,6 +841,7 @@ function validateExternalToolchainCandidates(value, errors) {
     requireString(candidate.observedRelease, `${location}.observedRelease`, errors);
     requireString(candidate.llvmTag, `${location}.llvmTag`, errors);
     validateStringArray(candidate.publishedHostTriples, `${location}.publishedHostTriples`, errors);
+    validateStringArray(candidate.inspectedHostTriples, `${location}.inspectedHostTriples`, errors);
     validateStringArray(candidate.evidenceCapabilities, `${location}.evidenceCapabilities`, errors);
     validateStringArray(candidate.limitations, `${location}.limitations`, errors);
     if (candidate.id !== expectedExternalToolchainCandidate.id) {
@@ -855,13 +854,16 @@ function validateExternalToolchainCandidates(value, errors) {
       addError(errors, `${location}.license must be Apache-2.0.`);
     }
     if (candidate.observedRelease !== expectedExternalToolchainCandidate.observedRelease) {
-      addError(errors, `${location}.observedRelease must be 2026.08.11.`);
+      addError(errors, `${location}.observedRelease must be 2026.08.31.`);
     }
     if (candidate.llvmTag !== expectedExternalToolchainCandidate.llvmTag) {
-      addError(errors, `${location}.llvmTag must be llvmorg-22.1.8.`);
+      addError(errors, `${location}.llvmTag must be llvmorg-23.1.0.`);
     }
     if (!same(candidate.publishedHostTriples, expectedExternalToolchainCandidate.publishedHostTriples)) {
-      addError(errors, `${location}.publishedHostTriples must list exactly the six published host triples.`);
+      addError(errors, `${location}.publishedHostTriples must preserve the six upstream release host triples.`);
+    }
+    if (!same(candidate.inspectedHostTriples, expectedExternalToolchainCandidate.inspectedHostTriples)) {
+      addError(errors, `${location}.inspectedHostTriples must list only the inspected x86_64 Windows host triple.`);
     }
     if (!same(candidate.evidenceCapabilities, expectedExternalToolchainCandidate.evidenceCapabilities)) {
       addError(errors, `${location}.evidenceCapabilities must list the closed capability set.`);
@@ -1411,7 +1413,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     "",
     "## Target candidates",
     "",
-    "Candidates have no support claim. Each candidate needs all six promotion axes.",
+    "Candidates have no support claim. Candidate rows may record bounded axis evidence; promotion still requires every axis to pass with evidence.",
   ];
   for (const group of TARGET_GROUPS) {
     lines.push("", `### ${titleForGroup(group)}`, "", ...markdownTable(
@@ -1423,6 +1425,27 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
         blockersFor(target),
       ]),
     ));
+  }
+  const candidateAxisEvidence = candidates.flatMap((target) => TARGET_AXES.flatMap((axis) => {
+    const fact = target.axes?.[axis];
+    if (!fact || fact.status === "missing") return [];
+    return [[
+      `\`${target.triple}\``,
+      axis,
+      fact.status,
+      fact.evidence?.map((item) => item.claim).join("<br>") ?? "—",
+      blockersFor(target),
+    ]];
+  }));
+  if (candidateAxisEvidence.length > 0) {
+    lines.push(
+      "",
+      "### Bounded candidate axis evidence",
+      "",
+      "This table records local evidence without promoting the candidate target.",
+      "",
+      ...markdownTable(["Target", "Axis", "Status", "Evidence", "Remaining blockers"], candidateAxisEvidence),
+    );
   }
   lines.push(
     "",
@@ -1469,7 +1492,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
     "External records are evaluation-only. They cannot promote a W target, compiler host, or cross-compilation edge.",
     "",
     ...markdownTable(
-      ["ID", "Status", "License", "Observed release", "LLVM tag", "Published hosts", "Evidence capabilities", "Limitations"],
+      ["ID", "Status", "License", "Observed release", "LLVM tag", "Published hosts", "Inspected hosts", "Evidence capabilities", "Limitations"],
       externalCandidates.map((candidate) => [
         `\`${candidate.id ?? "—"}\``,
         candidate.status ?? "—",
@@ -1477,6 +1500,7 @@ export function renderPlatformSupport(value, { root = repositoryRoot } = {}) {
         candidate.observedRelease ?? "—",
         candidate.llvmTag ?? "—",
         candidate.publishedHostTriples?.join("<br>") ?? "—",
+        candidate.inspectedHostTriples?.join("<br>") ?? "—",
         candidate.evidenceCapabilities?.join("<br>") ?? "—",
         candidate.limitations?.join("<br>") ?? "—",
       ]),
