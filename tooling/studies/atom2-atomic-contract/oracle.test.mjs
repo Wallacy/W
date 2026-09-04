@@ -12,7 +12,7 @@ const manifest = JSON.parse(fs.readFileSync(path.join(studyDirectory, "study.jso
 const byId = new Map(corpus.cases.map((testCase) => [testCase.id, testCase]));
 
 describe("ATOM2 atomic contract host oracle", () => {
-  test("validates the four axes and closes active Research", () => {
+  test("validates the four axes and contains no active research labels", () => {
     const checked = validateAtom2(corpus, { root: path.resolve(toolingDirectory, "..") });
     expect(checked.errors).toEqual([]);
     expect(new Set(checked.results.map((item) => item.axis))).toEqual(new Set(["A", "B", "C", "D"]));

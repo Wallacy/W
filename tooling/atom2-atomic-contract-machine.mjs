@@ -462,7 +462,7 @@ export function validateAtom2(corpus, { root } = {}) {
   }
   if (byId.get("B-generation-wrap")?.status !== "rejected") errors.push("B generation wrap must be rejected.");
   if (byId.get("C-adapter-complete")?.status !== "unsafe-adapter-permitted") errors.push("C adapter must be permitted only behind unsafe evidence.");
-  if (results.some((item) => item.status === "research-blocker" || item.status === "candidate-research" || item.status === "adapter-research")) errors.push("ATOM2 must not retain an active Research status.");
+  if (results.some((item) => item.status === "research-blocker" || item.status === "candidate-research" || item.status === "adapter-research")) errors.push("ATOM2 must not retain a legacy active research status.");
   return { errors, results };
 }
 

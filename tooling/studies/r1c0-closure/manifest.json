@@ -146,7 +146,7 @@
     {
       "id": "R1-atom2-atomic-contract",
       "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-      "digest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11"
+      "digest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea"
     },
     {
       "id": "R1-avf0-availability-feature",

@@ -85,5 +85,5 @@ and Linux RCU. Implementation evidence remains separate: W compile and run,
 target probes, provider behavior, stress, debug receipts, and human or model
 studies are still missing.
 
-ATOM2 closes the design gate and supersedes the ATOM1 Research result. It does
+ATOM2 closes the design gate and supersedes the historical ATOM1 result. It does
 not close the implementation-evidence gaps.

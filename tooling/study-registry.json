@@ -84,14 +84,14 @@
     {
       "path": "tooling/studies/atom2-atomic-contract/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11",
+      "digest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea",
       "status": "design-oracle-input",
       "id": "R1-atom2-atomic-contract"
     },
     {
       "path": "tooling/studies/atom2-atomic-contract/study.json",
       "kind": "study",
-      "digest": "sha256:012adc1738bcb52888ded3b8a3d5b75a64cc20822a6ade4ba450661b27b67686",
+      "digest": "sha256:cfe0f8175238a28f51cbd444ff3013712ff892566947dbecdc527324d0c20caf",
       "status": "design-oracle-input",
       "id": "ATOM2"
     },
@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:6e91793567afa961c40669bbc4ccd90d49f29519108cc54313118fb2ed3084fc",
+      "digest": "sha256:985b3051d77aae89c787e7230cc70ed6f33006a283e00bb13e05afb977a9ed7f",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:56666006e6b5700f0e0152e3be23e78a3b922938f32b8a8c6e11bc2d78935f2d",
+      "digest": "sha256:354b1384733550056b33b3cccdb8ee9aadc2e6a987a9163a4f6646edc52b4f89",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -616,7 +616,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:c768b4bead99ad70302cd7b76ab5af315c2e64b426f777d5fa00b82a1ad45b0c",
+      "digest": "sha256:a6e81356cb30679763fc4c62841b7b1dadcc00d9df91fe962e237feb456c5a3c",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -1130,7 +1130,7 @@
     {
       "path": "tooling/check-atom2-atomic-contract.mjs",
       "kind": "script-target",
-      "digest": "sha256:016c06654d28bdd17445c43e30581cf330956f4bacc35d04a984554cee48814e"
+      "digest": "sha256:cc5ab54c83974a45aaba991ea23372a6a6dd7bb203149aaec483d1feb1644980"
     },
     {
       "path": "tooling/check-avf0-availability-feature.mjs",
@@ -1335,7 +1335,7 @@
     {
       "path": "tooling/studies/atom2-atomic-contract/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b"
+      "digest": "sha256:9002f03582b400c286b4b7d54492be792a1617c42c886ceda9e272d444d596d8"
     },
     {
       "path": "tooling/studies/avf0-availability-feature/oracle.test.mjs",
@@ -1375,7 +1375,7 @@
     {
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:bf29f34fd08259dcb573b01816c97693248b9cb812897df7f8e161f1fd327894"
+      "digest": "sha256:14631bdf755c03c9d6d54b19963149d0c577791738242f66e9b2a0832b7ac0ac"
     },
     {
       "path": "tooling/studies/fst0-first-settled-task/check.mjs",
@@ -6527,7 +6527,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/atom2-atomic-contract/oracle.test.mjs",
-      "declaredDigest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b",
+      "declaredDigest": "sha256:9002f03582b400c286b4b7d54492be792a1617c42c886ceda9e272d444d596d8",
       "status": "resolved",
       "source": "tooling/studies/atom2-atomic-contract/bundle.json"
     },
@@ -6637,7 +6637,7 @@
       "pointer": "bundle.path",
       "path": "bundle.json",
       "resolved": "tooling/studies/atom2-atomic-contract/bundle.json",
-      "declaredDigest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11",
+      "declaredDigest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea",
       "status": "resolved",
       "source": "tooling/studies/atom2-atomic-contract/study.json"
     },
@@ -6647,7 +6647,7 @@
       "pointer": "checker.path",
       "path": "../../check-atom2-atomic-contract.mjs",
       "resolved": "tooling/check-atom2-atomic-contract.mjs",
-      "declaredDigest": "sha256:016c06654d28bdd17445c43e30581cf330956f4bacc35d04a984554cee48814e",
+      "declaredDigest": "sha256:cc5ab54c83974a45aaba991ea23372a6a6dd7bb203149aaec483d1feb1644980",
       "status": "resolved",
       "source": "tooling/studies/atom2-atomic-contract/study.json"
     },
@@ -6667,7 +6667,7 @@
       "pointer": "oracle.path",
       "path": "../../atom2-atomic-contract-machine.mjs",
       "resolved": "tooling/atom2-atomic-contract-machine.mjs",
-      "declaredDigest": "sha256:977697cb9e0797bc41e3e1a551952b21f93d3094de63a1feb1a1b9dfae538f53",
+      "declaredDigest": "sha256:3862c1f2c9daea623bcfe9ad9f0224f16a328de6f10064426ee704f2bfbf9336",
       "status": "resolved",
       "source": "tooling/studies/atom2-atomic-contract/study.json"
     },
@@ -6737,7 +6737,7 @@
       "pointer": "studyOracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/atom2-atomic-contract/oracle.test.mjs",
-      "declaredDigest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b",
+      "declaredDigest": "sha256:9002f03582b400c286b4b7d54492be792a1617c42c886ceda9e272d444d596d8",
       "status": "resolved",
       "source": "tooling/studies/atom2-atomic-contract/study.json"
     },
@@ -8297,7 +8297,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:bf29f34fd08259dcb573b01816c97693248b9cb812897df7f8e161f1fd327894",
+      "declaredDigest": "sha256:14631bdf755c03c9d6d54b19963149d0c577791738242f66e9b2a0832b7ac0ac",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8327,7 +8327,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:af3d40e910ad89899ab5f50df9b38426f5f9e916fc67c35fb7a50d2a77dfd2c0",
+      "declaredDigest": "sha256:15c89b259d084b9419db798f9902da14916c73efa350561937e1ef405ecb36dd",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8417,7 +8417,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:af3d40e910ad89899ab5f50df9b38426f5f9e916fc67c35fb7a50d2a77dfd2c0",
+      "declaredDigest": "sha256:15c89b259d084b9419db798f9902da14916c73efa350561937e1ef405ecb36dd",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8677,7 +8677,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:7ca7b697de48d58893d19608ee2b983c0ba43da516a8e7ce09d310a8ce58db05",
+      "declaredDigest": "sha256:925c7a6f0d7b2ef47e3e60d84a80db241c60cb4d173e57b4b045bb13b349a4e4",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8687,7 +8687,7 @@
       "pointer": "artifacts.6.path",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:bf29f34fd08259dcb573b01816c97693248b9cb812897df7f8e161f1fd327894",
+      "declaredDigest": "sha256:14631bdf755c03c9d6d54b19963149d0c577791738242f66e9b2a0832b7ac0ac",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8697,7 +8697,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:6e91793567afa961c40669bbc4ccd90d49f29519108cc54313118fb2ed3084fc",
+      "declaredDigest": "sha256:985b3051d77aae89c787e7230cc70ed6f33006a283e00bb13e05afb977a9ed7f",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -12997,7 +12997,7 @@
       "pointer": "bundles.4.path",
       "path": "tooling/studies/atom2-atomic-contract/bundle.json",
       "resolved": "tooling/studies/atom2-atomic-contract/bundle.json",
-      "declaredDigest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11",
+      "declaredDigest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
