@@ -55,9 +55,9 @@ The WSL edge is outside the 3x3 native baseline and does not count as a native W
 
 | Triple | State | Verification | Scope | Host profile | Artifact | Compiler/runtime | Axes | Blockers |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | evidence | null | w-seed-mlir0-5-linear-print-and-internal-i64-display | native-process@1 | native-executable | tooling/mlir0-toolchain.json / w-seed-mlir0-5 | backend: pass; runtime: partial; hostAdapter: partial; sdkProfile: partial; linkerSysrootPackaging: partial; ciEvidence: partial | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-unknown-linux-gnu` | evidence | null | w-seed-mlir0-6-linear-print-and-builtin-display | native-process@1 | native-executable | tooling/mlir0-toolchain.json / w-seed-mlir0-6 | backend: pass; runtime: partial; hostAdapter: partial; sdkProfile: partial; linkerSysrootPackaging: partial; ciEvidence: partial | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 
-The current evidence target is `x86_64-unknown-linux-gnu`. Its scope is `w-seed-mlir0-5-linear-print-and-internal-i64-display`.
+The current evidence target is `x86_64-unknown-linux-gnu`. Its scope is `w-seed-mlir0-6-linear-print-and-builtin-display`.
 The evidence covers the MLIR0 source, unit, focal check, and pinned manifest.
 It does not claim a general W target, SDK, packaging, or official CI.
 

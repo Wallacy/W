@@ -187,6 +187,7 @@ fn literalSummary(_ seconds: u64): (String, String, String, String) {
   let bytes = b"W"
   let json = '{"value":${seconds},"unit":"s"}'
   let doubleQuoted = "${integer}:${hexadecimal}:${ratio}:${enabled}:${scalar}:${byte}"
+  let builtins = "Kitchen ${true}/${false}; table: ${"open"}"
   let raw = #"C:\orders\${seconds}"#
   let rawSingle = #'C:\orders\${seconds}'#
   let multiline = """
@@ -203,6 +204,7 @@ fn literalSummary(_ seconds: u64): (String, String, String, String) {
     """#
   expect inferredText == "W"
   expect bytes.count == 1
+  expect builtins == "Kitchen true/false; table: open"
   return (
     json,
     doubleQuoted,

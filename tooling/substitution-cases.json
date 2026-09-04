@@ -2707,6 +2707,73 @@
         "bun run check:w-run — public bounded runner retains exact Restaurant output"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-builtin-display-values",
+      "reviewItem": "bounded Bool and String interpolation values against erased type identity, source re-resolution, generic runtime ABI, and precomputed Bool text.",
+      "decisions": ["W-1527"],
+      "task": "Carry built-in Bool and compile-time-known String values from source through verified HIR into exact native Display bytes.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let state = \"open\"",
+          "print(\"Kitchen ${true}/${false}; table: ${state}\")",
+          "stdout: Kitchen true/false; table: open\\n"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "untyped-bool",
+          "language": "w-rejected",
+          "source": ["Bool literal with inferred_type = NONE"],
+          "expectedDifference": "The frontend publishes one canonical Bool identity and HIR continues to reject untyped values."
+        },
+        {
+          "name": "hir-name-reresolution",
+          "language": "w-rejected",
+          "source": ["Resolve state by spelling while lowering interpolation"],
+          "expectedDifference": "The frontend records the indexed prior binding inside the expression tree; HIR consumes that relation without source lookup."
+        },
+        {
+          "name": "premature-string-runtime",
+          "language": "w-rejected",
+          "source": ["Call an unspecified String runtime ABI for an immutable literal"],
+          "expectedDifference": "The bounded selector copies already verified counted literal bytes and makes no general runtime-layout claim."
+        },
+        {
+          "name": "bool-as-precomputed-root-text",
+          "language": "w-rejected",
+          "source": ["Replace the typed Bool action with a precomputed whole output"],
+          "expectedDifference": "The artifact retains i1 constants and calls a private lowercase Bool writer only when Bool is used."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "expression_tree_contains",
+          "claim": "Frontend binding resolution recognizes identifiers nested inside a bounded interpolation expression tree."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "interpolation_string_bytes",
+          "claim": "The selector accepts only a verified String literal or prior immutable binding and accounts for the read."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_BOOL_HELPER",
+          "claim": "The artifact-local LLVM dialect helper emits exact lowercase Bool bytes."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "builtin-display",
+          "claim": "The source-to-native gate executes the combined Restaurant witness and byte-exact NUL String value."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0 — canonical Bool/String values, MLIR verification, native execution, NUL, and bounds",
+        "bun run check:w-run — public bounded runner executes the combined Restaurant witness"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

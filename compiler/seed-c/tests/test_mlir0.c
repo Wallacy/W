@@ -364,6 +364,27 @@ static bool build_binding_call_source(char *buffer, size_t capacity,
   return true;
 }
 
+static bool build_binding_interpolation_source(char *buffer, size_t capacity,
+                                               size_t payload_bytes,
+                                               size_t calls) {
+  size_t offset = 0u;
+  if (!append_text(buffer, capacity, &offset,
+                   "fn main() { let message = \""))
+    return false;
+  if (payload_bytes > capacity - offset) return false;
+  (void)memset(buffer + offset, 'x', payload_bytes);
+  offset += payload_bytes;
+  if (!append_text(buffer, capacity, &offset, "\"\n")) return false;
+  for (size_t call = 0u; call < calls; call += 1u)
+    if (!append_text(buffer, capacity, &offset,
+                     "print(\"${message}\")\n"))
+      return false;
+  if (!append_text(buffer, capacity, &offset, "}\nentry(main)\n")) return false;
+  if (offset >= capacity) return false;
+  buffer[offset] = '\0';
+  return true;
+}
+
 static bool test_direct_products(void) {
   static const uint8_t hello[] =
       "fn main() { print(\"Hello, world!\") }\nentry(main)\n";
@@ -469,6 +490,8 @@ static bool test_typed_interpolation_artifact(void) {
                        "llvm.call @w_seed_append_i64"));
   CHECK(contains_bytes(output, counts.mlir_bytes,
                        "llvm.func internal @w_seed_copy"));
+  CHECK(!contains_bytes(output, counts.mlir_bytes,
+                        "llvm.func internal @w_seed_append_bool"));
   CHECK(!contains_bytes(output, counts.mlir_bytes, "snprintf"));
   CHECK(!contains_bytes(output, counts.mlir_bytes, "%ld"));
   CHECK(!contains_bytes(output, counts.mlir_bytes, "vararg"));
@@ -495,6 +518,35 @@ static bool test_typed_interpolation_artifact(void) {
   CHECK(contains_bytes(output, emitted.written.mlir_bytes, "\\41\\00"));
   CHECK(contains_bytes(output, emitted.written.mlir_bytes,
                        "llvm.call @w_seed_append_i64"));
+
+  static const uint8_t builtin_display[] =
+      "fn main() { let state = \"open\" "
+      "print(\"Kitchen ${true}/${false}; table: ${state}\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(builtin_display, sizeof(builtin_display) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(output, sizeof(output), &emitted));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_seed_append_bool"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_bool"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(true) : i1"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(false) : i1"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "\\6f\\70\\65\\6e"));
+
+  static const uint8_t nul_string_value[] =
+      "fn main() { let state = \"A\0B\" print(\"${state}\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(nul_string_value, sizeof(nul_string_value) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(output, sizeof(output), &emitted));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "\\41\\00\\42\\0a"));
+  CHECK(!contains_bytes(output, emitted.written.mlir_bytes,
+                        "llvm.func internal @w_seed_append_bool"));
   return true;
 }
 
@@ -663,6 +715,20 @@ static bool test_linear_sequence(void) {
         stdout_limit_artifact[stdout_limit_counts.mlir_bytes] == 0x6eu);
   CHECK(contains_bytes(stdout_limit_artifact, stdout_limit_counts.mlir_bytes,
                        "!llvm.array<4096 x i8>"));
+
+  CHECK(build_binding_interpolation_source(
+      source, sizeof(source), W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD - 1u, 16u));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(measure_current(&stdout_limit_counts, &stdout_limit_measured));
+  CHECK(emit_current(stdout_limit_artifact, sizeof(stdout_limit_artifact),
+                     &stdout_limit_emitted));
+  CHECK(contains_bytes(stdout_limit_artifact, stdout_limit_counts.mlir_bytes,
+                       "!llvm.array<4096 x i8>"));
+
+  CHECK(build_binding_interpolation_source(
+      source, sizeof(source), W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD, 17u));
+  CHECK(lower_hir((const uint8_t *)source, strlen(source)));
+  CHECK(expect_sequence_unsupported());
 
   CHECK(build_call_source(source, sizeof(source),
                           W_SEED_NATIVE_SUBSET0_MAX_CALLS));

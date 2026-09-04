@@ -1161,6 +1161,53 @@ static bool test_typed_interpolation_value_tree(void) {
   return true;
 }
 
+static bool test_builtin_display_value_tree(void) {
+  static const char SOURCE[] =
+      "fn main() { let state = \"open\" "
+      "print(message: \"${true}/${false}/${state}\", suffix: \"!\") }\n"
+      "entry(main)\n";
+  CHECK(fixture_frontend(SOURCE));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  CHECK(counts.bindings == 1u && counts.values == 5u &&
+        counts.interpolation_segments == 5u && counts.value_bytes == 7u);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &result) ==
+        W_SEED_HIR0_OK);
+  w_seed_hir0_program program;
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output, &result,
+                                        &program));
+  CHECK(w_seed_hir0_verify(&program, &result));
+  CHECK(program.values[0].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program.values[0].type_index == 3u && program.values[0].bool_value &&
+        program.values[1].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program.values[1].type_index == 3u && !program.values[1].bool_value &&
+        program.values[2].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        program.values[2].type_index == 1u &&
+        program.values[2].binding_index == 0u &&
+        program.values[3].kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        program.values[3].type_index == 1u &&
+        program.values[4].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        program.values[4].type_index == 1u);
+  CHECK(program.interpolation_segments[0].kind ==
+            W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program.interpolation_segments[0].value_index == 0u &&
+        program.interpolation_segments[1].kind ==
+            W_SEED_HIR0_INTERPOLATION_TEXT &&
+        program.interpolation_segments[2].kind ==
+            W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program.interpolation_segments[2].value_index == 1u &&
+        program.interpolation_segments[3].kind ==
+            W_SEED_HIR0_INTERPOLATION_TEXT &&
+        program.interpolation_segments[4].kind ==
+            W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program.interpolation_segments[4].value_index == 2u);
+  CHECK(memcmp(program.value_bytes, "open//!", 7u) == 0);
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1172,6 +1219,7 @@ int main(void) {
   if (!test_verify_mutations()) return 1;
   if (!test_closed_frontend_barriers()) return 1;
   if (!test_typed_interpolation_value_tree()) return 1;
+  if (!test_builtin_display_value_tree()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }
