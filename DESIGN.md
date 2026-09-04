@@ -35363,7 +35363,8 @@ literal cases.
 This decision does not add general locals, `var`, assignment, nested or
 shadowing scopes, multiple bindings or values in the HLO selector, CFG, general
 SSA, ownership or borrows, DCE or optimization, the W dialect, additional hosts
-or targets, public `w run`, or performance.
+or targets, the general public `w run` surface, or performance. W-1521 records
+the separate bounded public seed command and does not widen this route.
 
 `benchmarkDisposition` is `compiler-lifecycle`. The evidence is correctness-only,
 with no timing or result.
@@ -35423,8 +35424,43 @@ current factual toolchain is 20.1.2 with `update-required` currency status.
 The finite gaps are general HIR, multiple bindings or values, CFG/general SSA,
 the W MLIR dialect, an MLIR C API builder, ownership/effects/tasks lowering,
 optimizer/pass pipeline, provider/runtime/linker/SDK/packaging, other hosts or
-targets, public `w run`, and performance. `benchmarkDisposition` is
+targets, the general public `w run` surface, and performance. W-1521 closes
+only the bounded public seed subset. `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only, with no timing or result.
+
+#### 26.4.1.5 W-1521 — bounded public seed `w run` (Current form)
+
+W-1521 is `source-backed-current` only for the bounded public command
+`w run <explicit-path.w> [-- <args...>]` on Linux x86_64. On a Windows host,
+the same evidence runs the Linux binary through WSL Ubuntu; this does not
+promote native Windows support. The `.w` path is explicit and singular. The
+command does not perform recursive, cwd or PATH discovery, imports,
+package/workspace selection, registry access or network access. Source must be
+non-empty, valid UTF-8 and at most 4096 bytes.
+
+**Example:**
+
+```text
+w run compiler/seed-c/fixtures/hlo0-hello.w
+```
+
+The command uses caller-owned, no-heap Native0. The logical source id is the
+caller-supplied basename. The route is
+`source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
+mlir-translate → clang/native`, directly, without HLO0 or HLO1. The recipe
+uses only the verified absolute pinned paths for `mlir-opt-20`,
+`mlir-translate-20` and `clang-20`, with factual version 20.1.2. Execution
+uses a private `/tmp/w-run-XXXXXX` directory with mode 0700 and fixed files
+with modes 0600/0700, uses `execv` without a shell, and cleans every file and
+directory on every return.
+
+Arguments after `--` are forwarded byte-for-byte to the generated program.
+The child inherits stdout and stderr. A normal exit is propagated; a child
+terminated by a signal returns `128 + signal`. Invocation, source,
+unsupported and missing-tool errors return 2; internal, I/O and cleanup errors
+return 3. `--entry` and `--offline` are rejected in this cut. Native Windows,
+macOS and the general public runner remain gaps. The evidence covers compiler
+lifecycle correctness only; it makes no performance, timing or result claim.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
@@ -35477,7 +35513,8 @@ Erros de source e features fora do subset usam exit `2`. Falha do verifier
 compartilhado, `INVALID_PLAN`, `ALIAS` ou falha do sink usa exit `3`. O oracle
 cobre source canônico, whitespace, comentários, UTF-8, limites, shape,
 identidade, payload, effects, short write, flush failed e repetição exata. O
-mesmo oracle comprova que o binário público continua rejeitando `w run`.
+O oracle RUN0 não estabelece o runner público geral. W-1521 é a decisão
+separada para o subset público seed bounded.
 
 O helper comum de I/O verifica `_setmode` no Windows, cada write e cada flush.
 Uma falha de I/O da CLI usa exit `3`. Essa infraestrutura não altera o help ou

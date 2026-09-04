@@ -37,7 +37,8 @@ bun tooling/check-suite.mjs --dry-run --suite root-compiler
 
 `check:quick` valida manifests, projeções, documentação e parsing mantido sem
 builds C pesados. `check:compiler` executa uma vez os gates do compilador seed,
-ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1, RUN0 interno e da CLI `w`. Os leaves
+ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
+interno permanece um gate focal separado (`bun run check:run0`). Os leaves
 `root/check:acquisition`, `root/check:owner-guard` e
 `root/check:seed-manifest` aparecem uma vez em `root-compiler`; MAN0 fica
 imediatamente depois de OWN0. O gate MAN0 atravessa o caminho OWN0 que consome,
@@ -157,9 +158,12 @@ Ubuntu. O adapter Windows permanece incondicionalmente fail-closed neste
 bundle; seus probes são somente diagnósticos. Execute
 `bun run check:owner-guard`. RUN0 consome o plano
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
-Execute `bun run check:run0` para esse gate. Isso não é frontend normativo
+Execute `bun run check:run0` para esse gate. O subset público W-1521 usa
+`w run <explicit-path.w> [-- <args...>]` em Linux x86_64, ou o binário Linux
+por WSL Ubuntu no host Windows; execute `bun run check:w-run` para o produto.
+Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
-owner selection, backend, linker, runtime ou `w run`.
+owner selection, backend, linker, runtime ou o runner `w run` geral.
 
 ## Estudos e oracles
 

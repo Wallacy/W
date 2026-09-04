@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:9afa9e431618c22b5a7e43ce26f3e55fe9e888a2138356aca5a90c00f8b0d975",
+  "corpusDigest": "sha256:4ef40767f6bac7b3ddd7bc907193dd94f5fab92a404ac9d447ec7dfea5ea491e",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3739,11 +3739,11 @@
     {
       "id": "R0-mlir0-native-terminal",
       "task": {
-        "utf8Bytes": 152,
-        "codePoints": 152,
-        "nonWhitespaceCodePoints": 129,
+        "utf8Bytes": 200,
+        "codePoints": 200,
+        "nonWhitespaceCodePoints": 169,
         "lines": 1,
-        "surfaceLexemes": 27
+        "surfaceLexemes": 37
       },
       "selected": {
         "name": "selected",

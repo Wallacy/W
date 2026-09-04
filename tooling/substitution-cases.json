@@ -2178,8 +2178,8 @@
     {
       "id": "R0-mlir0-native-terminal",
       "reviewItem": "verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.",
-      "decisions": ["W-1520"],
-      "task": "Carry the verified HIR0 input through the bounded MLIR0 LLVM-dialect recipe to a native executable without generating C or claiming a general W backend.",
+      "decisions": ["W-1520", "W-1521"],
+      "task": "Carry the verified HIR0 input through the bounded MLIR0 LLVM-dialect recipe to a native executable, including the bounded public seed w run route, without generating C or claiming a general W backend.",
       "selected": {
         "language": "w",
         "source": [
@@ -2248,6 +2248,21 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "const products = [",
           "claim": "The focal gate executes Hello, Restaurant and empty artifacts through MLIR verification, LLVM IR translation, native link and exact stdout/stderr/exit checks."
+        },
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "w_seed_run_execute",
+          "claim": "The public runner accepts one explicit bounded source path, executes the pinned Linux native recipe and enforces exit and cleanup policy."
+        },
+        {
+          "path": "compiler/seed-c/cli/w.c",
+          "symbol": "w_seed_run_parse",
+          "claim": "The public command parser exposes only the bounded w run argument surface and forwards arguments after --."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "const expectedHelp =",
+          "claim": "The product gate builds and exercises the Linux binary directly, including WSL evidence, rejection cases and temporary-directory cleanup."
         }
       ],
       "checks": [
