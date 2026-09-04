@@ -3,8 +3,8 @@
   "version": 1,
   "status": "pinned",
   "artifact": {
-    "schema": "w-seed-mlir0-3",
-    "scope": "linear-print-sequence"
+    "schema": "w-seed-mlir0-4",
+    "scope": "linear-print-and-i64-interpolation"
   },
   "target": {
     "triple": "x86_64-unknown-linux-gnu",

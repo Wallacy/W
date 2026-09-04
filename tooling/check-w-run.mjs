@@ -8,6 +8,7 @@ const seedDirectory = resolve(root, "compiler", "seed-c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
+const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedVersion = "20.1.2"
 const expectedHelp =
@@ -63,8 +64,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-3" &&
-    manifest.artifact?.scope === "linear-print-sequence",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-4" &&
+    manifest.artifact?.scope === "linear-print-and-i64-interpolation",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -334,6 +335,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantLinearFixture)],
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear sequence")
+  expectSuccess(binary, ["run", toWsl(restaurantInterpolationFixture)],
+    Buffer.from("Table 42 remains open\n", "utf8"),
+    "Restaurant typed interpolation")
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),

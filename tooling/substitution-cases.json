@@ -2579,6 +2579,67 @@
         "ctest seed compiler — unchanged HLO0/MLIR0/Native0 boundaries remain green"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-runtime-i64-interpolation",
+      "reviewItem": "runtime signed-i64 interpolation against precomputed output, printInt bypass, and unchecked LLVM arithmetic.",
+      "decisions": ["W-1525"],
+      "task": "Execute the Restaurant arithmetic witness through verified HIR, LLVM dialect arithmetic, runtime formatting, native link, and public w run.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "print(\"Table ${6 * 7} remains open\")",
+          "MLIR0: llvm.mul %v0, %v1; bounded runtime signed-i64 Display; checked write",
+          "stdout: Table 42 remains open\\n"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "source": ["MLIR0 global: Table 42 remains open"],
+          "expectedDifference": "The emitted artifact retains the integer constants and LLVM arithmetic operation. It does not contain the computed Restaurant payload."
+        },
+        {
+          "name": "special-print-int",
+          "language": "w-rejected",
+          "source": ["printInt(6 * 7)"],
+          "expectedDifference": "W source calls print with an interpolated String. The temporary target adapter is not a W-level callable."
+        },
+        {
+          "name": "unchecked-arithmetic",
+          "language": "w-rejected",
+          "source": ["llvm.sdiv without divisor proof", "llvm.mul after ignored overflow"],
+          "expectedDifference": "The selector proves the bounded literal tree cannot panic before it publishes any artifact."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "evaluate_i64",
+          "claim": "The selector proves overflow and division fault absence without supplying the computed result to emission."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_dynamic_artifact",
+          "claim": "MLIR0 emits LLVM arithmetic, bounded runtime formatting, and one checked write."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_typed_interpolation_artifact",
+          "claim": "The unit proves retained multiplication, no precomputed payload, capacity transactions, and semantic barriers."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-interpolation.w",
+          "symbol": "print(\"Table ${6 * 7} remains open\")",
+          "claim": "The Restaurant witness drives native arithmetic and String interpolation."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0 — source-to-native interpolation, all integer operators, negative output, percent data, and barriers",
+        "bun run check:w-run — public bounded runner executes the Restaurant interpolation witness"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

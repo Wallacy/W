@@ -44,7 +44,8 @@ the frontend publishes ordered text/expression segments and canonical `i64`
 typing for the current built-in interpolation subset. W-1524 advances HIR0 to
 schema `w-seed-hir0-3` and preserves those expressions as typed postorder
 values and ordered text/value segments. MLIR0, Native0, and public `w run`
-still reject the new value kinds, so no native interpolation claim is made.
+did not accept those values at the W-1524 boundary. W-1525 now accepts the
+panic-free signed-`i64` subset and retains all other value domains as gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -63,10 +64,12 @@ or exactly one `BINDING → CALL` chain with `BINDING_READ` by binding index.
 HLO0 proves that binding plan independently; MLIR0 consumes the same verified
 HIR directly. The Restaurant witness reaches MLIR0 and native execution with
 exact stdout `Table 42 remains open\n`.
-W-1522 replaces W-1520's MLIR0 schema-v2 contract in place with
-`w-seed-mlir0-3` and Native0 `w-seed-native0-2`: its internal API accepts only
+W-1525 advances the direct adapter to MLIR0 `w-seed-mlir0-4` and Native0
+`w-seed-native0-3`. Its internal API accepts only
 `{ program, hir_result }`, re-verifies HIR through the private shared
-native-subset selector, and performs no textual lookup. HLO0/HLO1/RUN0 remain
+native-subset selector, and performs no textual lookup. It retains the W-1522
+linear String path. It also lowers panic-free signed-`i64` arithmetic inside
+bounded String interpolation and formats the value at runtime. HLO0/HLO1/RUN0 remain
 bootstrap, audit, and recovery paths, not native prerequisites.
 This decision does not claim general locals, `var`, assignment, nested scopes,
 general SSA, ownership, additional targets, the general public `w run` surface,
@@ -215,7 +218,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v3 LLVM-dialect terminal para um target com NAT1 linear-print, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v4 LLVM-dialect terminal para um target com NAT1 linear-print e interpolação signed-`i64` bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

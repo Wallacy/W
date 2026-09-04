@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:2e6c9a9c5ed8f0bb76213943dd286b14139f64b61d4058df800951a841f91003",
+  "corpusDigest": "sha256:5d2f05a573a1f87efe79a4ac08d4559b1b42a605cddf46891162074cbfa4cc89",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4116,6 +4116,66 @@
             "nonWhitespaceCodePoints": 32,
             "lines": 2,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-runtime-i64-interpolation",
+      "task": {
+        "utf8Bytes": 139,
+        "codePoints": 139,
+        "nonWhitespaceCodePoints": 121,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c17721743aa8ecb00b3564f938dcbd973e43d2c2e5c58b31b982a6f08255f8e3",
+        "metrics": {
+          "utf8Bytes": 144,
+          "codePoints": 144,
+          "nonWhitespaceCodePoints": 124,
+          "lines": 3,
+          "surfaceLexemes": 32
+        }
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c1301bfc76d9cedef3db85c93db3f198da5593786c660a1fe9495ce0a42a6b57",
+          "metrics": {
+            "utf8Bytes": 35,
+            "codePoints": 35,
+            "nonWhitespaceCodePoints": 30,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "special-print-int",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:e313692b93524c07db0379843ee8b960479aa84268be0ec70a60b67b282aaa8e",
+          "metrics": {
+            "utf8Bytes": 15,
+            "codePoints": 15,
+            "nonWhitespaceCodePoints": 13,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "unchecked-arithmetic",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:7305fc0bc6901e0b93064a860d282ac7d6378e3f41eb91e545a289650ca2a71d",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 56,
+            "lines": 2,
+            "surfaceLexemes": 12
           }
         }
       ]

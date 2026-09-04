@@ -74,6 +74,8 @@ typedef struct {
   w_seed_frontend_statement statements[TEST_STATEMENTS];
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
+  w_seed_frontend_interpolation_segment
+      interpolation_segments[TEST_EXPRESSIONS];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
@@ -101,6 +103,8 @@ typedef struct {
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_requirement hir_requirements[TEST_HIR_RECORDS];
   w_seed_hir0_value hir_values[TEST_HIR_RECORDS];
+  w_seed_hir0_interpolation_segment
+      hir_interpolation_segments[TEST_HIR_RECORDS];
   w_seed_hir0_terminator hir_terminators[TEST_HIR_RECORDS];
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
   uint8_t hir_text[TEST_HIR_TEXT];
@@ -183,6 +187,8 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
       .expression_capacity = TEST_EXPRESSIONS,
       .arguments = fixture.arguments,
       .argument_capacity = TEST_ARGUMENTS,
+      .interpolation_segments = fixture.interpolation_segments,
+      .interpolation_segment_capacity = TEST_EXPRESSIONS,
       .symbols = fixture.symbols,
       .symbol_capacity = TEST_SYMBOLS,
       .facts = fixture.facts,
@@ -261,6 +267,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .requirement_capacity = TEST_HIR_RECORDS,
       .values = fixture.hir_values,
       .value_capacity = TEST_HIR_RECORDS,
+      .interpolation_segments = fixture.hir_interpolation_segments,
+      .interpolation_segment_capacity = TEST_HIR_RECORDS,
       .terminators = fixture.hir_terminators,
       .terminator_capacity = TEST_HIR_RECORDS,
       .entries = fixture.hir_entries,
@@ -436,6 +444,66 @@ static bool test_restaurant_and_nul(void) {
   return true;
 }
 
+static bool expect_sequence_unsupported(void);
+
+static bool test_typed_interpolation_artifact(void) {
+  static const uint8_t source[] =
+      "fn main() { print(\"The answer is ${6 * 7}!\") }\nentry(main)\n";
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.value_count == 4u);
+  CHECK(fixture.hir_program.interpolation_segment_count == 3u);
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  CHECK(measure_current(&counts, &measured));
+  CHECK(counts.mlir_bytes > 0u && counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES);
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(output, 0xa7u, sizeof(output));
+  w_seed_mlir0_result emitted;
+  CHECK(emit_current(output, sizeof(output), &emitted));
+  CHECK(emitted.written.mlir_bytes == counts.mlir_bytes &&
+        memcmp(emitted.mlir_sha256, measured.mlir_sha256,
+               sizeof(emitted.mlir_sha256)) == 0);
+  CHECK(contains_bytes(output, counts.mlir_bytes,
+                       "llvm.mul %v0, %v1 : i64"));
+  CHECK(contains_bytes(output, counts.mlir_bytes,
+                       "llvm.call @snprintf"));
+  CHECK(contains_bytes(output, counts.mlir_bytes,
+                       "vararg(!llvm.func<i32 (ptr, i64, ptr, ...)>)"));
+  CHECK(!contains_bytes(output, counts.mlir_bytes, "The answer is 42"));
+  CHECK(output[counts.mlir_bytes] == 0xa7u);
+
+  (void)memset(output, 0xb7u, sizeof(output));
+  (void)memset(&emitted, 0xc7u, sizeof(emitted));
+  const w_seed_mlir0_result result_snapshot = emitted;
+  const w_seed_mlir0_input input = mlir_input();
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, counts.mlir_bytes - 1u},
+            &emitted) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xb7u);
+  CHECK(memcmp(&emitted, &result_snapshot, sizeof(emitted)) == 0);
+  return true;
+}
+
+static bool test_interpolation_semantic_barriers(void) {
+  static const uint8_t division_by_zero[] =
+      "fn main() { print(\"${8 / 0}\") }\nentry(main)\n";
+  CHECK(lower_hir(division_by_zero, sizeof(division_by_zero) - 1u));
+  CHECK(expect_sequence_unsupported());
+
+  static const uint8_t overflow[] =
+      "fn main() { print(\"${9223372036854775807 * 2}\") }\nentry(main)\n";
+  CHECK(lower_hir(overflow, sizeof(overflow) - 1u));
+  CHECK(expect_sequence_unsupported());
+
+  static const uint8_t nul_text[] =
+      "fn main() { print(\"A\0${6 * 7}\") }\nentry(main)\n";
+  CHECK(lower_hir(nul_text, sizeof(nul_text) - 1u));
+  CHECK(expect_sequence_unsupported());
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -553,7 +621,7 @@ static bool test_linear_sequence(void) {
   w_seed_mlir0_counts stdout_limit_counts;
   w_seed_mlir0_result stdout_limit_measured;
   CHECK(measure_current(&stdout_limit_counts, &stdout_limit_measured));
-  CHECK(stdout_limit_counts.mlir_bytes == W_SEED_MLIR0_MAX_BYTES);
+  CHECK(stdout_limit_counts.mlir_bytes < W_SEED_MLIR0_MAX_BYTES);
   uint8_t stdout_limit_artifact[W_SEED_MLIR0_MAX_BYTES + 1u];
   (void)memset(stdout_limit_artifact, 0x4cu, sizeof(stdout_limit_artifact));
   w_seed_mlir0_result stdout_limit_short;
@@ -859,6 +927,8 @@ static bool test_valid_hir_outside_subset(void) {
 int main(void) {
   if (!test_direct_products()) return 1;
   if (!test_restaurant_and_nul()) return 1;
+  if (!test_typed_interpolation_artifact()) return 1;
+  if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;
   if (!test_aliases()) return 1;

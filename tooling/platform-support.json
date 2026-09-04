@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-3",
+      "runtimeVersion": "w-seed-mlir0-4",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-3-linear-print-sequence",
+      "scope": "w-seed-mlir0-4-linear-print-and-i64-interpolation",
       "claim": null,
       "axes": {
         "backend": {
@@ -107,7 +107,7 @@
               "kind": "source",
               "path": "compiler/seed-c/src/w_seed_mlir0.c",
               "symbol": "build_artifact",
-              "claim": "The emitter renders deterministic linear-print-sequence builtin and LLVM dialect text from a verified HIR native-subset selection."
+              "claim": "The emitter renders deterministic linear print and bounded i64 interpolation as LLVM dialect text from verified HIR."
             }
           ]
         },
@@ -118,7 +118,7 @@
               "kind": "unit",
               "path": "compiler/seed-c/tests/test_mlir0.c",
               "symbol": "test_linear_sequence",
-              "claim": "The unit checks exact multi-print order, literal and binding artifacts, bounded payloads, and NUL bytes; adjacent tests cover aliases and forged HIR inputs and records."
+              "claim": "The unit checks linear print, runtime i64 arithmetic and interpolation, bounds, aliases, and forged HIR records."
             }
           ]
         },

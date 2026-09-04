@@ -8,6 +8,7 @@ const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
+const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -51,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-3" &&
-    manifest.artifact?.scope === "linear-print-sequence",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-4" &&
+    manifest.artifact?.scope === "linear-print-and-i64-interpolation",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -235,6 +236,8 @@ try {
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
   const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
+  const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
+  const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -245,6 +248,11 @@ try {
     `print("Kitchen is ready")\n}\nentry(serve)\n`)
   await writeFile(twoCallsPath,
     `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
+  await writeFile(arithmeticPath,
+    'fn main() { print("${8 + 2} ${2 - 8} ${8 * 2} ${8 / 2} ${8 % 3}") }\n' +
+    'entry(main)\n')
+  await writeFile(percentPath,
+    'fn main() { print("Load ${6 * 7}%") }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -255,10 +263,16 @@ try {
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
     { name: "restaurant-linear", source: restaurantLinearFixture,
       expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
+    { name: "restaurant-interpolation", source: restaurantInterpolationFixture,
+      expected: Buffer.from("Table 42 remains open\n", "utf8") },
     { name: "restaurant-linear-literal", source: restaurantLinearLiteralPath,
       expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
     { name: "two-calls", source: twoCallsPath,
       expected: Buffer.from("a\nb\n", "utf8") },
+    { name: "typed-arithmetic", source: arithmeticPath,
+      expected: Buffer.from("10 -6 16 4 2\n", "utf8") },
+    { name: "percent-interpolation", source: percentPath,
+      expected: Buffer.from("Load 42%\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
