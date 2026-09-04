@@ -34,6 +34,7 @@ export const PFU0_SUPERSESSIONS = Object.freeze({
 export const HISTORICAL_POST_SNAPSHOT_RESEARCH_GATES = Object.freeze(["W-1486", "W-1503"]);
 export const ACTIVE_RESEARCH_GATES = Object.freeze([]);
 export const RESEARCH_STATE_INVENTORY_PATH = "tooling/research-state-inventory.json";
+export const RESEARCH_STATE_ARTIFACT_DIGEST_DOMAIN = "w-research-state-artifacts-v1";
 export const RESEARCH_STATE_CATEGORIES = Object.freeze([
   "historical",
   "rejected",
@@ -215,6 +216,36 @@ export function digestFile(file) {
   return `sha256:${crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex")}`;
 }
 
+function compareArtifactPaths(left, right) {
+  return Buffer.compare(Buffer.from(left, "utf8"), Buffer.from(right, "utf8"));
+}
+
+export function sortResearchStateArtifacts(artifacts) {
+  return [...artifacts].sort(compareArtifactPaths);
+}
+
+function frameResearchStateDigestPart(value) {
+  const text = String(value);
+  return `${Buffer.byteLength(text, "utf8")}:${text}`;
+}
+
+// The domain-separated payload length-frames the domain, each sorted path, and
+// each current raw-file SHA-256. This binds the maintained paths and contents
+// without adding per-file digests to the inventory.
+export function researchStateArtifactsDigest(artifacts, { root = repositoryRoot } = {}) {
+  if (!Array.isArray(artifacts) || artifacts.some((artifact) => typeof artifact !== "string" || artifact.trim() === "")) {
+    throw new TypeError("research-state artifacts must be non-empty strings");
+  }
+  const parts = [RESEARCH_STATE_ARTIFACT_DIGEST_DOMAIN];
+  for (const artifact of sortResearchStateArtifacts(artifacts)) {
+    const file = resolveInside(artifact, root);
+    if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error(`missing:${artifact}`);
+    parts.push(artifact, digestFile(file));
+  }
+  const framed = `${parts.map(frameResearchStateDigestPart).join("\n")}\n`;
+  return `sha256:${crypto.createHash("sha256").update(framed).digest("hex")}`;
+}
+
 function digestValue(value) {
   return `sha256:${crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
 }
@@ -258,7 +289,7 @@ export function validateResearchStateInventory(inventory = loadResearchStateInve
   const normalizationPendingCount = families.filter((family) => family?.normalizationPending === true).length;
   if (inventory?.status === "normalization-in-progress" && normalizationPendingCount === 0) errors.push("research-state inventory status must close when no family is pending.");
   if (inventory?.status === "authoritative-maintained-surface" && normalizationPendingCount > 0) errors.push("research-state inventory cannot be authoritative while normalization is pending.");
-  const familyKeys = ["id", "category", "decisionRefs", "successorDecisions", "implementationGaps", "normalizationPending", "artifacts"];
+  const familyKeys = ["id", "category", "decisionRefs", "successorDecisions", "implementationGaps", "normalizationPending", "artifacts", "artifactsDigest"];
   const activeLookingCategories = new Set(["active", "open", "candidate", "research", "research-gated", "research/open"]);
   for (const [index, family] of families.entries()) {
     const location = `research-state inventory families[${index}]`;
@@ -281,9 +312,23 @@ export function validateResearchStateInventory(inventory = loadResearchStateInve
     }
     if (typeof family.normalizationPending !== "boolean") errors.push(`${location}.normalizationPending must be boolean.`);
     if (!Array.isArray(family.artifacts) || family.artifacts.length === 0) errors.push(`${location}.artifacts must be non-empty.`);
-    for (const artifact of family.artifacts ?? []) {
+    const artifacts = Array.isArray(family.artifacts) ? family.artifacts : [];
+    const artifactStrings = artifacts.every((artifact) => typeof artifact === "string" && artifact.trim() !== "");
+    if (!artifactStrings) errors.push(`${location}.artifacts must contain non-empty strings.`);
+    if (new Set(artifacts).size !== artifacts.length) errors.push(`${location}.artifacts must be unique.`);
+    if (artifactStrings && !same(artifacts, sortResearchStateArtifacts(artifacts))) errors.push(`${location}.artifacts must be sorted by path.`);
+    let artifactRefsValid = artifactStrings;
+    for (const artifact of artifacts) {
       const file = resolveInside(artifact);
-      if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) errors.push(`${location} artifact path is missing or escapes: ${artifact}.`);
+      if (!file || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
+        artifactRefsValid = false;
+        errors.push(`${location} artifact path is missing or escapes: ${artifact}.`);
+      }
+    }
+    if (!/^sha256:[0-9a-f]{64}$/u.test(family.artifactsDigest ?? "")) {
+      errors.push(`${location}.artifactsDigest must be a sha256 digest.`);
+    } else if (artifactRefsValid && family.artifactsDigest !== researchStateArtifactsDigest(artifacts)) {
+      errors.push(`${location}.artifactsDigest is stale.`);
     }
   }
   return errors;
@@ -830,6 +875,15 @@ export function mutationChecks() {
   successorFamily.successorDecisions = [];
   successorFamily.implementationGaps = [];
   checks.researchInventoryMissingSuccessorRejected = !researchStateInventoryFacts(missingSuccessor).valid;
+
+  const alteredArtifactDigest = clone(state.researchStateInventory);
+  alteredArtifactDigest.families.find((family) => family.id === "cyc1").artifactsDigest = `sha256:${"0".repeat(64)}`;
+  checks.researchInventoryArtifactDigestRejected = !researchStateInventoryFacts(alteredArtifactDigest).valid;
+
+  const alteredArtifactPath = clone(state.researchStateInventory);
+  const alteredFamily = alteredArtifactPath.families.find((family) => family.id === "cyc1");
+  alteredFamily.artifacts[0] = `${alteredFamily.artifacts[0]}-mutated`;
+  checks.researchInventoryArtifactPathRejected = !researchStateInventoryFacts(alteredArtifactPath).valid;
 
   const migratedInventory = clone(state.researchStateInventory);
   migratedInventory.status = "normalization-in-progress";

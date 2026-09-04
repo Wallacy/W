@@ -654,7 +654,7 @@
         "studyRefs": [
           {
             "path": "tooling/studies/atom2-atomic-contract/README.md",
-            "digest": "sha256:e2a01178c74c11876ea5fb33cd767a4da52f5d75a5b15baa22f028bbf1c8e20e",
+            "digest": "sha256:1b6f815e6c9fe8d0d9a7b6b63677179933f5922277c88c6cd79c585da194ce5a",
             "claim": "ATOM2 closed contract and evidence boundary"
           },
           {
@@ -664,12 +664,12 @@
           },
           {
             "path": "tooling/atom2-atomic-contract-machine.mjs",
-            "digest": "sha256:977697cb9e0797bc41e3e1a551952b21f93d3094de63a1feb1a1b9dfae538f53",
+            "digest": "sha256:3862c1f2c9daea623bcfe9ad9f0224f16a328de6f10064426ee704f2bfbf9336",
             "claim": "ATOM2 two-reducer host derivation machine"
           },
           {
             "path": "tooling/studies/atom2-atomic-contract/bundle.json",
-            "digest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11",
+            "digest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea",
             "claim": "ATOM2 study bundle and implementation gap receipt"
           }
         ],
@@ -1381,17 +1381,17 @@
         "studyRefs": [
           {
             "path": "tooling/studies/syn1-typed-generation/README.md",
-            "digest": "sha256:b184da7768b718d96bb6a6b648393356308dd31a41b9ffd40a2d7387148f8a38",
+            "digest": "sha256:28a5f256c13c80ded80c78e825d4735472e8d3d6420a4f59395dc70b43849dc5",
             "claim": "SYN1 problem-first scope, two publication boundaries, real Tree-sitter/source-shape evidence, target registry fixture, navigation requirement, C2 comparison, and D rejection."
           },
           {
             "path": "tooling/syn1-typed-generation-cases.json",
-            "digest": "sha256:45c2e9fd53871a23eac6488009a7080a55c763c070a911906efd6eb2e6b9f0a0",
+            "digest": "sha256:f6155b1458d16d9d54d36d8dcb900196357fbb335e345f90c4643b4d090d2287",
             "claim": "SYN1 schema-3 65-case A/B/C/D corpus with module sets, strict events, action graphs, exact dependencies, maps, baseline refs, and target variants."
           },
           {
             "path": "tooling/syn1-typed-generation-machine.mjs",
-            "digest": "sha256:b456241a569fd00a30306c030b49a3a1fe0f8cc078d8102d68c709bb9b2d1bd8",
+            "digest": "sha256:9995e1973602477d834b8e5a3bc09bc875ba2bbd4af2a25717d7dbae04fb7118",
             "claim": "SYN1 host machine for W parsing and bounded source shape; semantic phase trace, interface publication, compiler cache, and provider remain candidate or missing evidence."
           },
           {
@@ -1768,42 +1768,42 @@
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/study.json",
-            "digest": "sha256:7a8c6ef6ef0812f8d5b594beb312ceeffccd3b180005200bb67a70dc794d94e1",
+            "digest": "sha256:b21101ef0b2968de5c7c2a8a573b69e7d1b72b05a1c27b19a61eae73a7d9e322",
             "claim": "CYC1 gate manifest, roles, evidence, and stop condition"
           },
           {
             "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-            "digest": "sha256:5a112a758e76b6f0779851ccc5735a902feaf3a3dae58d79dcc86f194eb5c368",
+            "digest": "sha256:119079ad6a7567952335c2342cb16d6f276f70100bea1dfd41201e2ac7787cd7",
             "claim": "CYC1 explicit-cycle study bundle and reserved witnesses"
           },
           {
             "path": "tooling/cyc1-explicit-cycle-cases.json",
-            "digest": "sha256:5fc31315a6415b5a50cffb20c8fa18907b9fdc46c7adbafb40c992401a62fb8c",
+            "digest": "sha256:1354ca34501d257809ca8e4bcd02e155f063c5dd4d68d0db8f3b2018edd64576",
             "claim": "event-derived graph lifecycle case corpus"
           },
           {
             "path": "tooling/cyc1-explicit-cycle-machine.mjs",
-            "digest": "sha256:d795c6b5615142aaeb1ca35b2dc9facbb3a68c3ff070eca96b5512d31416ef72",
+            "digest": "sha256:807c3755c3947556ef7b4e0498eb34dae4b0461900bf24663acaeb087dbe32da",
             "claim": "independent Tarjan and lifecycle oracle"
           },
           {
             "path": "tooling/cyc1-explicit-cycle-manifest.mjs",
-            "digest": "sha256:4c04c5d1c3de47fb240e7ba1d2a9cc845cfbc32fba9408ca31ec850157486127",
+            "digest": "sha256:89674357f92d609162e52f470372611b9bdf25ce391975161cddff371ab1a1eb",
             "claim": "study manifest and source-reference validator"
           },
           {
             "path": "tooling/check-cyc1-explicit-cycle.mjs",
-            "digest": "sha256:0c9ce302a2ac6f5fe0450a4e99873a945480987681f809fdc7ed217159a4594b",
+            "digest": "sha256:1ed6f293c0d2f4a89359463a44b566a71b44c5533f46e4fbe9b0f46c52733feb",
             "claim": "deterministic CYC1 snapshot checker"
           },
           {
             "path": "tooling/cyc1-explicit-cycle-reference.test.mjs",
-            "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9",
+            "digest": "sha256:2dcabe152879e2631906d2efca9366c7957eca2ee9d2f56e07643147b8bca906",
             "claim": "mutation-resistant host reference tests"
           },
           {
             "path": "tooling/cyc1-explicit-cycle-results.snapshot.jsonl",
-            "digest": "sha256:449c40b13eb15c322fd7aa1245be0dcb1fafecd27e74b7e1559fce1c4529253a",
+            "digest": "sha256:5724cec1b6792bd6265775488a6c3e857bb076d799da1ce83d3f7aaed52eee04",
             "claim": "derived CYC1 metrics and classifications"
           }
         ],
@@ -2910,37 +2910,37 @@
         "studyRefs": [
           {
             "path": "tooling/studies/dyn1-versioned-behavior/README.md",
-            "digest": "sha256:b953321a149301bcb10ce8e180921480ccb258d83b0b650acfa2f941b0f99487",
+            "digest": "sha256:8aa9ca80a1290b4f16ca2c3a0e23949b111867897f2dd620a3594f777112afca",
             "claim": "DYN1 host design-oracle scope and four route dispositions"
           },
           {
             "path": "tooling/dyn1-versioned-behavior-cases.json",
-            "digest": "sha256:0f8203d2f28e539420a278aadeabff29e2121e1a09f920ef9c17dd1a5413f7f0",
+            "digest": "sha256:0352eb0a5382703272059db1b593c969946cb49f3203e64fbf2e2b01375112d5",
             "claim": "DYN1 event-derived corpus for REPL, generations, export, faults, and rejected mechanisms"
           },
           {
             "path": "tooling/dyn1-versioned-behavior-machine.mjs",
-            "digest": "sha256:4c2b918e89e5f87f61e43aa3ccf638f5b0b83d56152b2ed64d0bb6229dfd5fd4",
+            "digest": "sha256:dbf0d485aba85957a355cf6071263427587c30a1d57b14699a204f0b2a78d038",
             "claim": "DYN1 independent local/split reducers and receipt validators"
           },
           {
             "path": "tooling/dyn1-versioned-behavior-manifest.mjs",
-            "digest": "sha256:dfa0d6125cf008bdeb16af4f2bc7c729d96523e0fbfe0d2d8b7f29e44b627351",
+            "digest": "sha256:bf2c1fc932448243adbf1461c2fbb313a4feb56525754d45159a41c35a9a197e",
             "claim": "DYN1 manifest boundary for source, role, and evidence claims"
           },
           {
             "path": "tooling/check-dyn1-versioned-behavior.mjs",
-            "digest": "sha256:2ab6b2a80376482260be663c7247f17e62d8ecce80bcbda59c7a9de8bb994cb1",
+            "digest": "sha256:96f5d47914510ba98833a8e19dc97c0c84c0ffc0d2e5b2b29092343d44aa9285",
             "claim": "DYN1 derived metrics and snapshot checker"
           },
           {
             "path": "tooling/dyn1-versioned-behavior-reference.test.mjs",
-            "digest": "sha256:871aa1c4ef4a5bd6dd2c60e89380b6d718998dca9e58b0a16e8b7a3bf96386d6",
+            "digest": "sha256:e5042685e50dbd5952ded06b17547680230f01fd1d2ebc3bcfecf48c7ecd5f9d",
             "claim": "DYN1 host mutation and boundary reference tests"
           },
           {
             "path": "tooling/dyn1-versioned-behavior-results.snapshot.jsonl",
-            "digest": "sha256:62ab8c4f8c0b0970fb794c4e5900b09eff3a1f4fe92cdc111e99f77ccbe30bd7",
+            "digest": "sha256:01a90b2617c9e2a4d6419eb3ae7219a81af878114b40b60b8841e71aadcfa78b",
             "claim": "DYN1 derived design-oracle result snapshot"
           },
           {

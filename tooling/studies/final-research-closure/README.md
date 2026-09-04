@@ -43,7 +43,10 @@ classified as `historical`, `rejected`, `current-design-evidence-gap`, or
 traceable without becoming active research. `normalizationPending` is `false`
 for every registered family. FRC0 requires the authoritative status,
 `normalized: true`, and a zero pending count; future reopening candidates
-remain classified without becoming active research.
+remain classified without becoming active research. Each family also carries an
+`artifactsDigest` from the domain `w-research-state-artifacts-v1`: it
+length-frames sorted artifact paths and their current file SHA-256 values.
+Refresh only this inventory with `bun tooling/refresh-research-state-inventory.mjs`.
 
 Checks scoped:
 

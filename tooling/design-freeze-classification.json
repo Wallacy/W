@@ -3701,7 +3701,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-await-stable-borrow",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -3713,7 +3713,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-await-stable-borrow",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -6765,7 +6765,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-callable-fresh-loan",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -6783,7 +6783,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-callable-fresh-loan",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -7287,7 +7287,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-generic-invariant",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -7305,7 +7305,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-generic-invariant",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -7927,7 +7927,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-current-body-derived-free",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -7939,7 +7939,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-current-body-derived-free",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -14686,7 +14686,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-await-stable",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -14698,7 +14698,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-await-stable",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -15884,7 +15884,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-lending-cursor-live-view",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -15902,7 +15902,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-lending-cursor-live-view",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -21220,7 +21220,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-interface-owned-relation",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -21232,7 +21232,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-interface-owned-relation",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -31672,7 +31672,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-await-stable-borrow",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -31684,7 +31684,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-await-stable-borrow",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -31746,7 +31746,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-callable-fresh-loan",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -31764,7 +31764,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-callable-fresh-loan",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -31794,7 +31794,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-foreign-boundary",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -31806,7 +31806,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-foreign-boundary",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -32709,7 +32709,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/brx2-borrow-relations-cases.json",
-        "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+        "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
         "caseId": "BRX2-provider-consumer-relation-digest",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -32721,7 +32721,7 @@
         {
           "kind": "oracle",
           "path": "tooling/brx2-borrow-relations-cases.json",
-          "sha256": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+          "sha256": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
           "caseId": "BRX2-provider-consumer-relation-digest",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -46805,7 +46805,7 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/borrow-expressivity-cases.json",
-        "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+        "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
         "caseId": "BRX0-bodyless-single-compatible",
         "sourceRef": {
           "path": "reference/last-light/borrow_expressivity.w",
@@ -46823,7 +46823,7 @@
         {
           "kind": "oracle",
           "path": "tooling/borrow-expressivity-cases.json",
-          "sha256": "sha256:e348fa01b0b93fb1f314a046a0a7694b0bc4bc12892d8829dc4085ef359df2cc",
+          "sha256": "sha256:0fcda889542be208ab6d56d600c2e4d6956bdaa7392cc146b6eb76016049f141",
           "caseId": "BRX0-bodyless-single-compatible",
           "sourceRef": {
             "path": "reference/last-light/borrow_expressivity.w",
@@ -46885,14 +46885,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/gen1-incremental-suspension-cases.json",
-        "sha256": "sha256:68c5ad36cf86b1f7410cf9df3a73e38602743923fcd414662d1d1384728260ed",
+        "sha256": "sha256:aee576ed8b91172ba1cec08618f08f18cf6fb0ae7fe0f4d4bcd8b34fefb6205a",
         "caseId": "GEN1-pull-simple"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/gen1-incremental-suspension-cases.json",
-          "sha256": "sha256:68c5ad36cf86b1f7410cf9df3a73e38602743923fcd414662d1d1384728260ed",
+          "sha256": "sha256:aee576ed8b91172ba1cec08618f08f18cf6fb0ae7fe0f4d4bcd8b34fefb6205a",
           "caseId": "GEN1-pull-simple"
         }
       ],
@@ -46925,7 +46925,7 @@
         {
           "kind": "oracle",
           "path": "tooling/gen1-incremental-suspension-cases.json",
-          "sha256": "sha256:68c5ad36cf86b1f7410cf9df3a73e38602743923fcd414662d1d1384728260ed",
+          "sha256": "sha256:aee576ed8b91172ba1cec08618f08f18cf6fb0ae7fe0f4d4bcd8b34fefb6205a",
           "caseId": "GEN1-pull-simple"
         }
       ],
@@ -46956,20 +46956,20 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/asic0-evidence-gap-closure-cases.json",
-        "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+        "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
         "caseId": "ASIC0-W-1355-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1355-current"
         },
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1355-adversarial"
         }
       ],
@@ -47099,20 +47099,20 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/asic0-evidence-gap-closure-cases.json",
-        "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+        "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
         "caseId": "ASIC0-W-1359-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1359-current"
         },
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1359-adversarial"
         }
       ],
@@ -49209,20 +49209,20 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/asic0-evidence-gap-closure-cases.json",
-        "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+        "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
         "caseId": "ASIC0-W-1420-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1420-current"
         },
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1420-adversarial"
         }
       ],
@@ -49379,20 +49379,20 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/asic0-evidence-gap-closure-cases.json",
-        "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+        "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
         "caseId": "ASIC0-W-1425-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1425-current"
         },
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1425-adversarial"
         }
       ],
@@ -49733,20 +49733,20 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/asic0-evidence-gap-closure-cases.json",
-        "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+        "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
         "caseId": "ASIC0-W-1435-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1435-current"
         },
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1435-adversarial"
         }
       ],
@@ -50291,7 +50291,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1355-current",
           "decisionBridge": {
             "decisionId": "W-1355",
@@ -50302,7 +50302,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1359-current",
           "decisionBridge": {
             "decisionId": "W-1359",
@@ -50356,7 +50356,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1420-current",
           "decisionBridge": {
             "decisionId": "W-1420",
@@ -50367,7 +50367,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1425-current",
           "decisionBridge": {
             "decisionId": "W-1425",
@@ -50419,7 +50419,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1435-current",
           "decisionBridge": {
             "decisionId": "W-1435",
@@ -50430,7 +50430,7 @@
         {
           "kind": "oracle",
           "path": "tooling/asic0-evidence-gap-closure-cases.json",
-          "sha256": "sha256:5a4632038f18c2f4f54e9381c9374d4173de350bd9e7f391647620e7c410a6a4",
+          "sha256": "sha256:a7fe71f9e9917df0efe9833311797787e5dac704802896bb0805603204d198f3",
           "caseId": "ASIC0-W-1435-adversarial",
           "decisionBridge": {
             "decisionId": "W-1435",
@@ -51368,14 +51368,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/design-research-closure-cases.json",
-        "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+        "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
         "caseId": "DRC0-W-1473-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/design-research-closure-cases.json",
-          "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+          "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
           "caseId": "DRC0-W-1473-current"
         }
       ],
@@ -51400,14 +51400,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/design-research-closure-cases.json",
-        "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+        "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
         "caseId": "DRC0-W-1474-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/design-research-closure-cases.json",
-          "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+          "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
           "caseId": "DRC0-W-1474-current"
         }
       ],
@@ -51432,14 +51432,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/design-research-closure-cases.json",
-        "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+        "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
         "caseId": "DRC0-W-1475-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/design-research-closure-cases.json",
-          "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+          "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
           "caseId": "DRC0-W-1475-current"
         }
       ],
@@ -51771,14 +51771,14 @@
       "authorityRef": {
         "kind": "oracle-case",
         "path": "tooling/design-research-closure-cases.json",
-        "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+        "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
         "caseId": "DRC0-W-1484-current"
       },
       "evidence": [
         {
           "kind": "oracle",
           "path": "tooling/design-research-closure-cases.json",
-          "sha256": "sha256:85853ff4749900d39cead85b7ec967c00ba01b44fae854f44d1a536dadb46f3b",
+          "sha256": "sha256:3b776c1ff6d557aaaf5adaa5dae5d6b78f0789e735bdb7d258c500052cbb0a7c",
           "caseId": "DRC0-W-1484-current"
         }
       ],
