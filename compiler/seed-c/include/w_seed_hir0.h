@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-2"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-3"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -32,6 +32,8 @@ typedef enum {
 typedef enum {
   W_SEED_HIR0_TYPE_UNIT = 0,
   W_SEED_HIR0_TYPE_STRING,
+  W_SEED_HIR0_TYPE_I64,
+  W_SEED_HIR0_TYPE_BOOL,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -54,7 +56,30 @@ typedef enum {
 typedef enum {
   W_SEED_HIR0_VALUE_CONST_STRING = 0,
   W_SEED_HIR0_VALUE_BINDING_READ,
+  W_SEED_HIR0_VALUE_CONST_I64,
+  W_SEED_HIR0_VALUE_CONST_BOOL,
+  W_SEED_HIR0_VALUE_BINARY_I64,
+  W_SEED_HIR0_VALUE_INTERPOLATED_STRING,
 } w_seed_hir0_value_kind;
+
+typedef enum {
+  W_SEED_HIR0_VALUE_OWNER_ARGUMENT = 0,
+  W_SEED_HIR0_VALUE_OWNER_BINARY,
+  W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
+} w_seed_hir0_value_owner_kind;
+
+typedef enum {
+  W_SEED_HIR0_BINARY_ADD = 0,
+  W_SEED_HIR0_BINARY_SUBTRACT,
+  W_SEED_HIR0_BINARY_MULTIPLY,
+  W_SEED_HIR0_BINARY_DIVIDE,
+  W_SEED_HIR0_BINARY_REMAINDER,
+} w_seed_hir0_binary_operator;
+
+typedef enum {
+  W_SEED_HIR0_INTERPOLATION_TEXT = 0,
+  W_SEED_HIR0_INTERPOLATION_VALUE,
+} w_seed_hir0_interpolation_segment_kind;
 
 typedef enum {
   W_SEED_HIR0_TERMINATOR_RETURN_UNIT = 0,
@@ -210,13 +235,32 @@ typedef struct {
 
 typedef struct {
   w_seed_hir0_value_kind kind;
-  uint32_t owner_argument;
+  w_seed_hir0_value_owner_kind owner_kind;
+  uint32_t owner_index;
+  uint32_t owner_ordinal;
   uint32_t type_index;
   uint32_t binding_index;
+  uint32_t left_value;
+  uint32_t right_value;
+  uint32_t first_interpolation_segment;
+  uint32_t interpolation_segment_count;
+  w_seed_hir0_binary_operator binary_operator;
+  int64_t integer_value;
+  bool bool_value;
   uint32_t byte_offset;
   uint32_t byte_count;
   w_seed_span source_span;
 } w_seed_hir0_value;
+
+typedef struct {
+  w_seed_hir0_interpolation_segment_kind kind;
+  uint32_t owner_value;
+  uint32_t ordinal;
+  uint32_t value_index;
+  uint32_t byte_offset;
+  uint32_t byte_count;
+  w_seed_span source_span;
+} w_seed_hir0_interpolation_segment;
 
 typedef struct {
   uint32_t owner_block;
@@ -251,6 +295,7 @@ typedef struct {
   size_t arguments;
   size_t requirements;
   size_t values;
+  size_t interpolation_segments;
   size_t terminators;
   size_t entries;
   size_t text_bytes;
@@ -300,6 +345,9 @@ typedef struct {
   const w_seed_hir0_value *values;
   size_t value_count;
   size_t value_capacity;
+  const w_seed_hir0_interpolation_segment *interpolation_segments;
+  size_t interpolation_segment_count;
+  size_t interpolation_segment_capacity;
   const w_seed_hir0_terminator *terminators;
   size_t terminator_count;
   size_t terminator_capacity;
@@ -344,6 +392,8 @@ typedef struct {
   size_t requirement_capacity;
   w_seed_hir0_value *values;
   size_t value_capacity;
+  w_seed_hir0_interpolation_segment *interpolation_segments;
+  size_t interpolation_segment_capacity;
   w_seed_hir0_terminator *terminators;
   size_t terminator_capacity;
   w_seed_hir0_entry *entries;

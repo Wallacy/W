@@ -238,6 +238,18 @@ static bool test_failures_and_capacity(void) {
     CHECK(output[index] == 0xc1u);
   CHECK(memcmp(&result, &unsupported_snapshot, sizeof(result)) == 0);
 
+  static const uint8_t interpolation[] =
+      "fn main() { print(\"The answer is ${6 * 7}\") }\nentry(main)\n";
+  (void)memset(output, 0xd1u, sizeof(output));
+  (void)memset(&result, 0xd2u, sizeof(result));
+  const w_seed_native0_result interpolation_snapshot = result;
+  CHECK(run_source(interpolation, sizeof(interpolation) - 1u,
+                   "interpolation-id", 16u, output, sizeof(output), &result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xd1u);
+  CHECK(memcmp(&result, &interpolation_snapshot, sizeof(result)) == 0);
+
   return true;
 }
 

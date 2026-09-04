@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:aceef589b2a6cbb1ee246794bb3989e0cff6dfa02ac23cc4176bd4c529ee93ca",
+  "corpusDigest": "sha256:2e6c9a9c5ed8f0bb76213943dd286b14139f64b61d4058df800951a841f91003",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4036,13 +4036,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:870820fc55b903f2586cd32f38ddee99a86a06e17f0e48c87b656cce57366315",
+        "sourceDigest": "sha256:ab21603df489fd5650ed453b0d87a00afd488b6144d9e1cc20bf02ac61e2252a",
         "metrics": {
-          "utf8Bytes": 192,
-          "codePoints": 192,
-          "nonWhitespaceCodePoints": 169,
+          "utf8Bytes": 242,
+          "codePoints": 242,
+          "nonWhitespaceCodePoints": 212,
           "lines": 3,
-          "surfaceLexemes": 41
+          "surfaceLexemes": 53
         }
       },
       "alternatives": [
@@ -4068,6 +4068,54 @@
             "nonWhitespaceCodePoints": 35,
             "lines": 2,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir0-typed-interpolation",
+      "task": {
+        "utf8Bytes": 117,
+        "codePoints": 117,
+        "nonWhitespaceCodePoints": 104,
+        "lines": 1,
+        "surfaceLexemes": 15
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:97aa2e5632387e7a3b2f71f384dd4cfde496870d959d44609310e1340eab96bf",
+        "metrics": {
+          "utf8Bytes": 132,
+          "codePoints": 132,
+          "nonWhitespaceCodePoints": 116,
+          "lines": 2,
+          "surfaceLexemes": 43
+        }
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:42e5057b56f037d737414b0e807a45d4f55d47450e89e32c15a0f7a01f7dd59a",
+          "metrics": {
+            "utf8Bytes": 32,
+            "codePoints": 32,
+            "nonWhitespaceCodePoints": 28,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "source-reparse-or-special-host-call",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:a6d9470ae1e02fe21522d7941d2eaff653597d4f37f2d1a993092e6f8bcd321d",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 2,
+            "surfaceLexemes": 14
           }
         }
       ]

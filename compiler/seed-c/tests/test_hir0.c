@@ -102,6 +102,8 @@ typedef struct {
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_requirement hir_requirements[TEST_HIR_RECORDS];
   w_seed_hir0_value hir_values[TEST_HIR_RECORDS];
+  w_seed_hir0_interpolation_segment
+      hir_interpolation_segments[TEST_HIR_RECORDS];
   w_seed_hir0_terminator hir_terminators[TEST_HIR_RECORDS];
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
   uint8_t hir_text[TEST_HIR_TEXT];
@@ -281,6 +283,8 @@ static void setup_hir_output(void) {
       .requirement_capacity = TEST_HIR_RECORDS,
       .values = fixture.hir_values,
       .value_capacity = TEST_HIR_RECORDS,
+      .interpolation_segments = fixture.hir_interpolation_segments,
+      .interpolation_segment_capacity = TEST_HIR_RECORDS,
       .terminators = fixture.hir_terminators,
       .terminator_capacity = TEST_HIR_RECORDS,
       .entries = fixture.hir_entries,
@@ -318,7 +322,7 @@ static bool test_canonical_and_copy_boundary(void) {
   CHECK(lower(CANONICAL_SOURCE));
   CHECK(fixture.hir_counts.modules == 1u);
   CHECK(fixture.hir_counts.identities == 5u);
-  CHECK(fixture.hir_counts.types == 2u);
+  CHECK(fixture.hir_counts.types == 4u);
   CHECK(fixture.hir_counts.functions == 1u);
   CHECK(fixture.hir_counts.parameters == 0u);
   CHECK(fixture.hir_counts.blocks == 1u);
@@ -527,6 +531,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_requirements, value,
                sizeof(fixture.hir_requirements));
   (void)memset(fixture.hir_values, value, sizeof(fixture.hir_values));
+  (void)memset(fixture.hir_interpolation_segments, value,
+               sizeof(fixture.hir_interpolation_segments));
   (void)memset(fixture.hir_terminators, value,
                sizeof(fixture.hir_terminators));
   (void)memset(fixture.hir_entries, value, sizeof(fixture.hir_entries));
@@ -556,6 +562,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_arguments,
       (const uint8_t *)fixture.hir_requirements,
       (const uint8_t *)fixture.hir_values,
+      (const uint8_t *)fixture.hir_interpolation_segments,
       (const uint8_t *)fixture.hir_terminators,
       (const uint8_t *)fixture.hir_entries,
       fixture.hir_text,
@@ -569,6 +576,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
       sizeof(fixture.hir_requirements), sizeof(fixture.hir_values),
+      sizeof(fixture.hir_interpolation_segments),
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
       sizeof(fixture.hir_text), sizeof(fixture.hir_value_bytes),
       sizeof(fixture.hir_receipt)};
@@ -603,7 +611,7 @@ static bool test_capacity_and_alias_barriers(void) {
   capacity_case cases[] = {
       {&fixture.hir_output.module_capacity, 1u},
       {&fixture.hir_output.identity_capacity, 5u},
-      {&fixture.hir_output.type_capacity, 2u},
+      {&fixture.hir_output.type_capacity, 4u},
       {&fixture.hir_output.function_capacity, 1u},
       {&fixture.hir_output.parameter_capacity, 0u},
       {&fixture.hir_output.block_capacity, 1u},
@@ -863,7 +871,7 @@ static bool test_verify_mutations(void) {
   CHECK(!w_seed_hir0_verify(program, result));
   *program = saved_program;
   RESTORE_RECORDS();
-  fixture.hir_values[0].owner_argument = W_SEED_HIR0_NONE;
+  fixture.hir_values[0].owner_index = W_SEED_HIR0_NONE;
   CHECK(!w_seed_hir0_verify(program, result));
   *program = saved_program;
   RESTORE_RECORDS();
@@ -1059,32 +1067,97 @@ static bool test_closed_frontend_barriers(void) {
   return true;
 }
 
-static bool test_interpolation_stops_at_hir0_boundary(void) {
+static bool test_typed_interpolation_value_tree(void) {
   static const char SOURCE[] =
       "fn main() { print(message: \"The answer is ${6 * 7}\", suffix: \"!\") }\n"
       "entry(main)\n";
   CHECK(fixture_frontend(SOURCE));
   CHECK(fixture.result.written.interpolation_segments == 2u);
   setup_hir_output();
-  fill_hir_output(0xa5u);
-
   const w_seed_hir0_input input = hir_input();
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
-  (void)memset(&counts, 0xa5, sizeof(counts));
-  (void)memset(&result, 0xa5, sizeof(result));
-  const w_seed_hir0_counts counts_before = counts;
-  const w_seed_hir0_result result_before = result;
-
+  (void)memset(&counts, 0xa4, sizeof(counts));
+  (void)memset(&result, 0xa4, sizeof(result));
+  const w_seed_hir0_counts rejected_counts = counts;
+  const w_seed_hir0_result rejected_measure = result;
+  const uint32_t saved_owner =
+      fixture.interpolation_segments[0].owner_expression;
+  fixture.interpolation_segments[0].owner_expression = W_SEED_FRONTEND_NONE;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
-  CHECK(memcmp(&counts, &counts_before, sizeof(counts)) == 0);
-  CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
+  CHECK(memcmp(&counts, &rejected_counts, sizeof(counts)) == 0);
+  CHECK(memcmp(&result, &rejected_measure, sizeof(result)) == 0);
+  fixture.interpolation_segments[0].owner_expression = saved_owner;
 
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  CHECK(counts.types == 4u && counts.values == 5u &&
+        counts.interpolation_segments == 2u && counts.value_bytes == 15u);
   CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &result) ==
-        W_SEED_HIR0_UNSUPPORTED);
+        W_SEED_HIR0_OK);
+  w_seed_hir0_program program;
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output, &result,
+                                        &program));
+  CHECK(w_seed_hir0_verify(&program, &result));
+  CHECK(program.arguments[0].value_index == 3u &&
+        program.arguments[1].value_index == 4u);
+  CHECK(program.values[0].kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+        program.values[0].integer_value == 6 &&
+        program.values[1].kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+        program.values[1].integer_value == 7);
+  CHECK(program.values[2].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program.values[2].binary_operator == W_SEED_HIR0_BINARY_MULTIPLY &&
+        program.values[2].left_value == 0u &&
+        program.values[2].right_value == 1u);
+  CHECK(program.values[3].kind ==
+            W_SEED_HIR0_VALUE_INTERPOLATED_STRING &&
+        program.values[3].first_interpolation_segment == 0u &&
+        program.values[3].interpolation_segment_count == 2u);
+  CHECK(program.interpolation_segments[0].kind ==
+            W_SEED_HIR0_INTERPOLATION_TEXT &&
+        program.interpolation_segments[0].byte_count == 14u &&
+        program.interpolation_segments[1].kind ==
+            W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program.interpolation_segments[1].value_index == 2u);
+  CHECK(memcmp(program.value_bytes, "The answer is !", 15u) == 0);
+
+  const w_seed_hir0_value saved_binary = fixture.hir_values[2];
+  const w_seed_hir0_value saved_interpolation = fixture.hir_values[3];
+  const w_seed_hir0_interpolation_segment saved_segment =
+      fixture.hir_interpolation_segments[1];
+  fixture.hir_values[2].left_value = 1u;
+  CHECK(!w_seed_hir0_verify(&program, &result));
+  fixture.hir_values[2] = saved_binary;
+  fixture.hir_values[3].interpolation_segment_count = 1u;
+  CHECK(!w_seed_hir0_verify(&program, &result));
+  fixture.hir_values[3] = saved_interpolation;
+  fixture.hir_interpolation_segments[1].owner_value = 2u;
+  CHECK(!w_seed_hir0_verify(&program, &result));
+  fixture.hir_interpolation_segments[1] = saved_segment;
+  CHECK(w_seed_hir0_verify(&program, &result));
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_result rejected_result;
+  (void)memset(&rejected_result, 0xa5, sizeof(rejected_result));
+  const w_seed_hir0_result rejected_before = rejected_result;
+  fixture.hir_output.interpolation_segment_capacity = 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected_result) ==
+        W_SEED_HIR0_CAPACITY);
   CHECK(hir_output_is_byte(0xa5u));
-  CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
+  CHECK(memcmp(&rejected_result, &rejected_before,
+               sizeof(rejected_result)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_output aliased = fixture.hir_output;
+  aliased.interpolation_segments =
+      (w_seed_hir0_interpolation_segment *)(void *)fixture.hir_values;
+  CHECK(w_seed_hir0_run(&input, &aliased, &rejected_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&rejected_result, &rejected_before,
+               sizeof(rejected_result)) == 0);
   return true;
 }
 
@@ -1098,7 +1171,7 @@ int main(void) {
   if (!test_capacity_and_alias_barriers()) return 1;
   if (!test_verify_mutations()) return 1;
   if (!test_closed_frontend_barriers()) return 1;
-  if (!test_interpolation_stops_at_hir0_boundary()) return 1;
+  if (!test_typed_interpolation_value_tree()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

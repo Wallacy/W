@@ -174,6 +174,7 @@ O corpus compara, no mínimo:
 - subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 contra hardcode Hello-only, stdout direto e bypass sem source provenance.
 - verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
+- typed topological interpolation HIR against precomputed output, source reparsing, and witness-specific print paths.
 - catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.
 - catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
@@ -7757,8 +7758,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 | W-1521 | bounded public seed `w run` on Linux x86_64 (WSL Linux evidence) | W-1521 is `source-backed-current` only for the public seed command `w run <explicit-path.w> [-- <args...>]` on Linux x86_64; on a Windows host, the evidence runs the Linux binary through WSL Ubuntu. The command accepts one explicit `.w` path and does not discover sources recursively, from cwd or PATH, or through imports, packages, workspaces, registries or network. Source is non-empty, valid UTF-8 and at most 4096 bytes. Native0 is caller-owned and no-heap; the logical source id is the basename treated as an opaque identity, not as a W identifier or module name. The direct route is source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → clang/native, without HLO0 or HLO1. Absolute pinned tool paths and factual version 20.1.2 are checked. A private `/tmp/w-run-XXXXXX` directory uses mode 0700, fixed files use modes 0600/0700, execv uses no shell, and every return cleans all files and directories. Arguments after `--` are forwarded byte-for-byte; the child inherits stdout/stderr. Normal exit is propagated and signal exit is `128 + signal`; invocation, source, unsupported or missing-tool errors return 2, while internal, I/O or cleanup failures return 3. `--entry` and `--offline` are rejected. Native Windows, macOS and the general public runner remain gaps. The evidence is compiler-lifecycle correctness only; it has no performance, timing or result claim. HLO0, HLO1 and RUN0 are not native prerequisites. W-1522 extends this CLI contract only with the bounded NAT1 linear-print sequence | `source-backed-current`, strictly bounded; implementation evidence is `compiler/seed-c/cli/run.c`, `compiler/seed-c/cli/w.c`, `compiler/seed-c/include/w_seed_native0.h`, `compiler/seed-c/src/w_seed_native0.c`, `tooling/check-w-run.mjs` and `tooling/mlir0-toolchain.json`; `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
-| W-1522 | bounded linear print sequence on direct verified HIR0 | W-1522 is the current `source-backed-current` NAT1 cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with `w-seed-mlir0-3` and `w-seed-native0-2`; frontend schema `w-seed-frontend-11` and HIR0 schema `w-seed-hir0-2` remain unchanged. Verified HIR0 must contain exactly one module, function, `.default` entry and block. The function is linear, returns Unit, has no parameters and no effects. The block has 1..32 instructions made only of 0..32 immutable String bindings, each read at least once, and 1..32 ordered `print` calls, with instruction count equal to bindings plus calls. Each call argument is a direct String literal or a read of a prior binding. Each payload is at most 256 bytes and ordered stdout payload plus LF is at most 4096 bytes. MLIR0 may coalesce the pure ordered calls into one private global and one `write`, preserving W bytes and order without promising syscall boundaries. `W_SEED_MLIR0_MAX_BYTES = 13190` is derived and proved by static assertions. Measure and emit remain caller-owned, no-heap, deterministic, digest-bearing and all-or-nothing for invalid HIR, unsupported shape, short capacity and aliases. HLO0, HLO1 and RUN0 remain single-print and reject multi-call sequences. The public `w run` basename is an opaque source identity, not an identifier or module name; `w check` is unchanged, so the versioned hyphenated fixtures execute directly. The canonical witness is `compiler/seed-c/fixtures/restaurant-linear.w` with exact stdout `Table 42 remains open\\nKitchen is ready\\n`. No general locals, CFG, Int, interpolation, `var`, DCE, HLO0 requirement or performance claim is made. | `source-backed-current`, strictly bounded; implementation evidence is the direct MLIR0/Native0 units and gates, the versioned Restaurant fixture, and the platform manifest; `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
-| W-1523 | structured interpolation in the seed frontend | Frontend schema `w-seed-frontend-12` preserves lexer literal-event identity in CST leaves, parses interpolation bodies as nested expressions, and publishes a dense caller-owned sequence of text or expression segments. Text segments own `const_bytes` slices; expression segments own normalized expression indices. Unconstrained integer interpolation defaults to canonical signed `i64`, and dry/emit use dedicated stable inferred type identities. Capacity is measured and failure is all-or-nothing. HIR0 validates the new array shape but does not lower interpolation yet. | `source-backed-current` only for parser/frontend records and focused tests; HIR/MLIR/native execution and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1522 | bounded linear print sequence on direct verified HIR0 | W-1522 is the current `source-backed-current` NAT1 selector. Before W 1.0, it replaces W-1520's schema-v2 contract in place with `w-seed-mlir0-3` and `w-seed-native0-2`; W-1524 later advances HIR0 to schema v3 without widening this selector. Verified HIR0 must contain exactly one module, function, `.default` entry and block. The function is linear, returns Unit, has no parameters and no effects. The block has 1..32 instructions made only of 0..32 immutable String bindings, each read at least once, and 1..32 ordered `print` calls, with instruction count equal to bindings plus calls. Each call argument is a direct String literal or a read of a prior binding. Each payload is at most 256 bytes and ordered stdout payload plus LF is at most 4096 bytes. MLIR0 may coalesce the pure ordered calls into one private global and one `write`, preserving W bytes and order without promising syscall boundaries. `W_SEED_MLIR0_MAX_BYTES = 13190` is derived and proved by static assertions. Measure and emit remain caller-owned, no-heap, deterministic, digest-bearing and all-or-nothing for invalid HIR, unsupported shape, short capacity and aliases. HLO0, HLO1 and RUN0 remain single-print and reject multi-call sequences. The public `w run` basename is an opaque source identity, not an identifier or module name; `w check` is unchanged, so the versioned hyphenated fixtures execute directly. The canonical witness is `compiler/seed-c/fixtures/restaurant-linear.w` with exact stdout `Table 42 remains open\\nKitchen is ready\\n`. No general locals, CFG, Int, interpolation, `var`, DCE, HLO0 requirement or performance claim is made. | `source-backed-current`, strictly bounded; implementation evidence is the direct MLIR0/Native0 units and gates, the versioned Restaurant fixture, and the platform manifest; `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1523 | structured interpolation in the seed frontend | Frontend schema `w-seed-frontend-12` preserves lexer literal-event identity in CST leaves, parses interpolation bodies as nested expressions, and publishes a dense caller-owned sequence of text or expression segments. Text segments own `const_bytes` slices; expression segments own normalized expression indices. Unconstrained integer interpolation defaults to canonical signed `i64`, and dry/emit use dedicated stable inferred type identities. Capacity is measured and failure is all-or-nothing. At this decision boundary, HIR0 validated the new array shape but did not lower interpolation; W-1524 later adds that bounded HIR cut. | `source-backed-current` only for parser/frontend records and focused tests; MLIR/native execution and performance remain gaps, while HIR evidence is classified separately by W-1524. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1524 | typed topological interpolation values in verified HIR0 | HIR0 schema `w-seed-hir0-3` adds canonical `i64` and Bool types, typed scalar and binary values, explicit value ownership, and ordered text/value interpolation segments. Values are postorder, children point backward, parentheses normalize away, and every root is owned by one call argument. Counts, capacities, aliases, bridge, digests, receipt, spans, dense byte coverage, and adversarial verification include the new records. The witness retains `6 * 7`; it does not precompute output. | `source-backed-current` for the bounded frontend→verified-HIR cut. MLIR/Display/native/public `w run`, general expressions and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -8726,7 +8728,8 @@ W-1522 is the current `source-backed-current` decision for the NAT1 product
 cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
 MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`. W-1523
 later advances the frontend schema without widening NAT1; HIR0 schema
-`w-seed-hir0-2` remains unchanged.
+HIR0 schema `w-seed-hir0-2` remained unchanged in W-1522. W-1524 later
+advances it to schema v3 without changing this NAT1 selector.
 The direct route is `source → parser/frontend → verified HIR0 → MLIR0 →
 mlir-opt → mlir-translate → clang/native`, without HLO0, HLO1 or RUN0 as a
 requirement.
@@ -8805,15 +8808,50 @@ bug was found for inferred String bindings; both passes now always publish one
 dedicated inferred-String identity.
 
 The segment array participates in measured capacity and caller-owned
-all-or-nothing publication. HIR0 checks the new input range and aliases, then
-rejects the new expression kind because HIR schema v2 has no integer,
-arithmetic, interpolation, or Display records. This rejection is a deliberate
-stage boundary, not a product claim. The next implementation bundle must
-extend verified HIR and direct MLIR lowering before native output can claim the
-arithmetic Restaurant witness.
+all-or-nothing publication. At the W-1523 boundary, HIR0 checked the new input
+range and aliases, then rejected the expression because schema v2 had no
+integer, arithmetic, interpolation, or Display records. W-1524 later extends
+verified HIR. Direct MLIR lowering must still be complete before native output
+can claim the arithmetic Restaurant witness.
 
 The evidence is compiler-lifecycle correctness only. It has no timing,
 ranking, or performance result.
+
+#### W-1524 — typed topological interpolation values in verified HIR0
+
+W-1523 made the frontend expression graph consumable, but stopping there left
+the first semantic boundary unable to carry the program that the native
+milestone must eventually execute. W-1524 adds the smallest general HIR shape
+that preserves the computation instead of recognizing the witness.
+
+HIR0 schema `w-seed-hir0-3` uses a postorder value graph. Children precede
+parents, and a discriminated owner relation connects every value to a call
+argument, binary parent, or interpolation value segment. This ordering makes
+cycle rejection and complete reachability a linear verification property.
+Parentheses normalize away. Binary arithmetic remains an operation record;
+HIR lowering does not fold `6 * 7` and does not synthesize `42`.
+
+Interpolation is a separate ordered record family because text and embedded
+values have different payloads and lifetimes. Text owns copied bytes. Value
+segments own an earlier typed value. The parent String owns a dense segment
+range. The receipt and both digests cover every new discriminator, relation,
+scalar, slice, count, and span.
+
+Four canonical built-in HIR type identities—Unit, String, signed `i64`, and
+Bool—remove dependence on frontend type-record discovery order. The current
+cut accepts only the operators and built-in Display domains already structured
+by W-1523. Immutable local bindings remain String-only. Nested interpolation,
+negative literals, arithmetic semantics such as overflow, general SSA, and
+general type lowering are deliberately not inferred from this evidence.
+
+The unit lowers the source spelling `"The answer is ${6 * 7}"` to five values:
+two `i64` constants, one multiplication, one interpolated String, and the
+ordinary suffix String. Adversarial checks mutate edges, owners, segment
+ranges, capacities, aliases, bytes, digests, and receipts. MLIR/native
+execution is the next distinct milestone because it must implement arithmetic
+and Display formatting without a precomputed payload or special `printInt`
+path. The evidence is compiler-lifecycle correctness only, with no timing or
+performance result.
 
 #### W-1507 — catálogo operacional de hosts e targets
 
