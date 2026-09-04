@@ -18,6 +18,10 @@ a semântica da linguagem. Para decisões normativas, leia
 `DESIGN-INDEX.md`, `DIAGNOSTICS.md`, `STUDIES.md`, `DEPENDENCIES.md` e outros índices são
 projeções. Quando uma projeção divergir, corrija sua fonte e regenere a saída.
 
+The [whole-system review](SYSTEM-REVIEW.md) records the 2026-09-04 findings,
+evidence limits, and proposed priorities. It is non-normative and does not
+replace current contracts or implementation receipts.
+
 ## Mapa de diretórios
 
 | Diretório | Função |
