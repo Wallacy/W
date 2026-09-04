@@ -93,7 +93,7 @@
       ]
     },
     "root-compiler": {
-      "description": "Seed C compiler, ACQ0 acquisition, OWN0 owner observation, verified HIR0/HLO0/HLO1, RUN0, and w CLI gates.",
+      "description": "Seed C compiler, ACQ0 acquisition, OWN0 owner observation, verified HIR0/HLO0/HLO1, and w CLI gates.",
       "steps": [
         { "package": "root", "script": "check:seed-source-reader" },
         { "package": "root", "script": "check:seed-test-exits" },
@@ -111,7 +111,7 @@
         { "package": "root", "script": "check:seed-diagnostic" },
         { "package": "root", "script": "check:seed-check-driver" },
         { "package": "root", "script": "check:w-cli" },
-        { "package": "root", "script": "check:run0" },
+        { "package": "root", "script": "check:w-run" },
         { "package": "root", "script": "check:seed-foreign" },
         { "package": "root", "script": "check:seed-frontend" },
         { "package": "root", "script": "check:frontend-freeze" },

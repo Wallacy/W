@@ -13,7 +13,9 @@ import { basename, join, resolve } from "node:path"
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const fixture = resolve(root, "reference", "last-light", "checker_bootstrap.w")
-const expectedHelp = "usage: w check <path/file.w> [--json]\n"
+const expectedHelp =
+  "usage: w check <path/file.w> [--json]\n" +
+  "usage: w run <path/file.w> [-- <args...>]\n"
 const sourceCapacity = 16 * 1024 * 1024
 
 function fail(message) {

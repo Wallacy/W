@@ -7,7 +7,9 @@ const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const expectedOutput = Buffer.from("Hello, world!\n", "utf8")
-const expectedPublicHelp = "usage: w check <path/file.w> [--json]\n"
+const expectedPublicHelp =
+  "usage: w check <path/file.w> [--json]\n" +
+  "usage: w run <path/file.w> [-- <args...>]\n"
 const expectedGateUsage = "usage: w_seed_run0_gate <path/file.w>\n"
 const acquisitionFailure =
   "w_seed_run0_gate: source is missing, unreadable, empty, or over 4096 bytes\n"
@@ -160,10 +162,14 @@ try {
   expectHelp(executable, ["help"], expectedPublicHelp, "w help")
   expectHelp(executable, ["check", "--help"], expectedPublicHelp,
     "w check --help")
-  expectUsageFailure(executable, ["run", canonicalFixture],
-    expectedPublicHelp, "public w run remains unavailable")
-  expectUsageFailure(executable, ["run", "--help"], expectedPublicHelp,
-    "public w run help remains unavailable")
+  expectHelp(executable, ["run", "--help"], expectedPublicHelp,
+    "w run --help")
+  expectUsageFailure(executable, ["run", "--entry", canonicalFixture],
+    expectedPublicHelp, "w run --entry remains unavailable")
+  expectUsageFailure(executable, ["run", "--offline", canonicalFixture],
+    expectedPublicHelp, "w run --offline remains unavailable")
+  expectUsageFailure(executable, ["run", canonicalFixture, "arg"],
+    expectedPublicHelp, "w run requires -- before program arguments")
 
   const canonicalFirst = expectExactGate(run0Gate, canonicalFixture,
     expectedOutput, "canonical source first run")
@@ -304,7 +310,7 @@ try {
   }
 
   console.log("RUN0 gate: test-only source pipeline, bounded failures, " +
-    "public w run barrier, RUN0 effects, and I/O helper passed")
+    "public run argument surface, RUN0 effects, and I/O helper passed")
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
 }
