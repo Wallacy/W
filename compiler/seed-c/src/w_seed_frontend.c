@@ -30,6 +30,8 @@ typedef struct {
 typedef struct {
   w_seed_cst_kind kind;
   w_seed_span span;
+  w_seed_literal_kind literal_kind;
+  w_seed_literal_event_kind literal_event;
 } frontend_token;
 
 typedef struct {
@@ -86,6 +88,7 @@ typedef struct {
   size_t entries;
   size_t statements;
   size_t expressions;
+  size_t interpolation_segments;
   size_t arguments;
   size_t symbols;
   size_t facts;
@@ -180,6 +183,7 @@ typedef struct {
   bool current_const_root_emitted;
   uint32_t current_module_const;
   uint32_t builtin_usize_type_index;
+  uint32_t default_integer_type_index;
   uint32_t inferred_string_type_index;
   bool normalizing_generic_domain;
   frontend_pending_application
@@ -3943,6 +3947,8 @@ static bool token_cursor_next(frontend_token_cursor *cursor,
     }
     token->kind = node->kind;
     token->span = node->raw_span;
+    token->literal_kind = node->literal_kind;
+    token->literal_event = node->literal_event;
     return true;
   }
   return false;
@@ -3957,6 +3963,13 @@ static frontend_token_cursor token_cursor_for(
 static bool token_text(const w_seed_frontend_document *doc,
                        const frontend_token *token, const char *text) {
   return token != NULL && text_equal(text_from_span(doc, token->span), text);
+}
+
+static bool token_is_literal_event(
+    const frontend_token *token, w_seed_literal_event_kind event) {
+  return token != NULL && token->kind == W_SEED_CST_LITERAL_EVENT &&
+         token->literal_kind != W_SEED_LITERAL_NONE &&
+         token->literal_event == event;
 }
 
 static bool cursor_take_text(frontend_token_cursor *cursor, const char *text,
@@ -4844,6 +4857,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->entries = measure->entries;
   counts->statements = measure->statements;
   counts->expressions = measure->expressions;
+  counts->interpolation_segments = measure->interpolation_segments;
   counts->arguments = measure->arguments;
   counts->symbols = measure->symbols;
   counts->facts = measure->facts;
@@ -4899,6 +4913,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   dry.function_index = W_SEED_FRONTEND_NONE;
   dry.current_module_const = W_SEED_FRONTEND_NONE;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -7115,6 +7130,21 @@ static bool context_append_expression(frontend_context *context,
                                    ? 0
                                    : context->output->expression_capacity,
                                index);
+}
+
+static bool context_append_interpolation_segment(
+    frontend_context *context, w_seed_frontend_interpolation_segment value,
+    uint32_t *index) {
+  const size_t ordinal = context->count.interpolation_segments;
+  context->count.interpolation_segments += 1u;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->interpolation_segments
+          : NULL,
+      context->output == NULL ? 0u
+                              : context->output->interpolation_segment_capacity,
+      index);
 }
 
 static bool context_append_argument(frontend_context *context,
@@ -10037,6 +10067,31 @@ static bool output_type_index_for_simple(frontend_context *context,
   if (index == NULL) return false;
   *index = W_SEED_FRONTEND_NONE;
   if (context == NULL) return true;
+  if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+      type.bit_width == 64u && text_equal(type.spelling, "i64")) {
+    if (context->default_integer_type_index == W_SEED_FRONTEND_NONE) {
+      w_seed_frontend_type builtin;
+      (void)memset(&builtin, 0, sizeof(builtin));
+      builtin.kind = W_SEED_FRONTEND_TYPE_INTEGER;
+      builtin.spelling = (w_seed_frontend_text){"i64", 3u};
+      builtin.nominal_name = builtin.spelling;
+      builtin.span = empty_span(0u);
+      builtin.is_signed = true;
+      builtin.bit_width = 64u;
+      builtin.element_type = W_SEED_FRONTEND_NONE;
+      builtin.return_type = W_SEED_FRONTEND_NONE;
+      builtin.first_parameter = W_SEED_FRONTEND_NONE;
+      builtin.enum_base_index = W_SEED_FRONTEND_NONE;
+      builtin.first_subset_member = W_SEED_FRONTEND_NONE;
+      builtin.subset_member_count = 0u;
+      builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      uint32_t builtin_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(context, builtin, &builtin_index)) return false;
+      context->default_integer_type_index = builtin_index;
+    }
+    *index = context->default_integer_type_index;
+    return true;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && !type.is_signed &&
       type.bit_width == (uint16_t)W_SEED_FRONTEND_TARGET_USIZE_BITS &&
       text_equal(type.spelling, "usize")) {
@@ -10283,6 +10338,8 @@ static bool expression_append(frontend_expression_parser *parser,
   record.member_name = (w_seed_frontend_text){NULL, 0};
   record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
   record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+  record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
+  record.interpolation_segment_count = 0u;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     record.resolved_local_ordinal = loop_local_ordinal_for_span(
         parser->context, spelling, span);
@@ -10430,6 +10487,142 @@ static bool expression_parse_bp(frontend_expression_parser *parser,
 
 static bool expression_parse_prefix(frontend_expression_parser *parser,
                                      frontend_expr_value *value);
+
+static bool interpolation_display_supported(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+         type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         type.kind == W_SEED_FRONTEND_TYPE_STRING;
+}
+
+static bool expression_parse_interpolated_string(
+    frontend_expression_parser *parser, frontend_token start,
+    frontend_expr_value *value) {
+  if (parser == NULL || value == NULL ||
+      !token_is_literal_event(&start, W_SEED_LITERAL_START)) {
+    return false;
+  }
+  const size_t first_segment = parser->context->count.interpolation_segments;
+  size_t segment_count = 0u;
+  bool supported = start.literal_kind == W_SEED_LITERAL_STRING ||
+                   start.literal_kind == W_SEED_LITERAL_MULTILINE_STRING;
+  size_t end_byte = start.span.end_byte;
+  while (true) {
+    frontend_token token;
+    if (!cursor_take(&parser->cursor, &token)) return false;
+    if (token_is_literal_event(&token, W_SEED_LITERAL_TEXT)) {
+      w_seed_frontend_interpolation_segment segment;
+      (void)memset(&segment, 0, sizeof(segment));
+      segment.kind = W_SEED_FRONTEND_INTERPOLATION_TEXT;
+      segment.owner_expression = W_SEED_FRONTEND_NONE;
+      segment.ordinal = (uint32_t)segment_count;
+      segment.span = token.span;
+      segment.expression_index = W_SEED_FRONTEND_NONE;
+      segment.const_byte_offset = W_SEED_FRONTEND_NONE;
+      segment.const_byte_count = 0u;
+      const w_seed_frontend_text text =
+          text_from_span(parser->document, token.span);
+      bool plain = true;
+      for (size_t index = 0u; index < text.length; index += 1u) {
+        if (text.data[index] == '\\') {
+          plain = false;
+          break;
+        }
+      }
+      if (plain && text.length <= (size_t)UINT32_MAX) {
+        if (!context_append_const_bytes(parser->context,
+                                        (const uint8_t *)text.data,
+                                        text.length,
+                                        &segment.const_byte_offset)) {
+          return false;
+        }
+        segment.const_byte_count = (uint32_t)text.length;
+      } else {
+        supported = false;
+      }
+      uint32_t ignored = W_SEED_FRONTEND_NONE;
+      if (!context_append_interpolation_segment(parser->context, segment,
+                                                &ignored)) {
+        return false;
+      }
+      segment_count += 1u;
+      end_byte = token.span.end_byte;
+      continue;
+    }
+    if (token_is_literal_event(&token, W_SEED_INTERPOLATION_START)) {
+      frontend_expr_value nested;
+      if (!expression_parse_bp(parser, 0, &nested)) return false;
+      if (nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          nested.type.bit_width == 0u &&
+          !expression_value_set_type(parser, &nested,
+                                     const_default_integer_type())) {
+        return false;
+      }
+      frontend_token close;
+      if (!cursor_take(&parser->cursor, &close) ||
+          !token_is_literal_event(&close, W_SEED_INTERPOLATION_END)) {
+        return false;
+      }
+      w_seed_frontend_interpolation_segment segment;
+      (void)memset(&segment, 0, sizeof(segment));
+      segment.kind = W_SEED_FRONTEND_INTERPOLATION_EXPRESSION;
+      segment.owner_expression = W_SEED_FRONTEND_NONE;
+      segment.ordinal = (uint32_t)segment_count;
+      segment.span = nested.span;
+      segment.expression_index = nested.index >= (size_t)UINT32_MAX
+                                     ? W_SEED_FRONTEND_NONE
+                                     : (uint32_t)nested.index;
+      segment.const_byte_offset = W_SEED_FRONTEND_NONE;
+      segment.const_byte_count = 0u;
+      supported = supported && nested.supported &&
+                  interpolation_display_supported(nested.type) &&
+                  segment.expression_index != W_SEED_FRONTEND_NONE;
+      uint32_t ignored = W_SEED_FRONTEND_NONE;
+      if (!context_append_interpolation_segment(parser->context, segment,
+                                                &ignored)) {
+        return false;
+      }
+      segment_count += 1u;
+      end_byte = close.span.end_byte;
+      continue;
+    }
+    if (!token_is_literal_event(&token, W_SEED_LITERAL_END)) return false;
+    end_byte = token.span.end_byte;
+    break;
+  }
+  if (first_segment > (size_t)UINT32_MAX ||
+      segment_count == 0u || segment_count > (size_t)UINT32_MAX) {
+    return false;
+  }
+  const w_seed_span span = {start.span.start_byte, end_byte};
+  if (!supported) {
+    (void)context_append_fact(parser->context,
+                              W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                              span, text_from_span(parser->document, span));
+  }
+  frontend_simple_type string_type =
+      simple_type_from_view((w_seed_frontend_text){"String", 6u});
+  if (!expression_append(
+          parser, W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING, span,
+          text_from_span(parser->document, span),
+          (w_seed_frontend_text){NULL, 0u}, string_type, supported,
+          (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
+          W_SEED_FRONTEND_NONE, 0u, value)) {
+    return false;
+  }
+  if (parser->context->emit && parser->context->output != NULL &&
+      value->index < parser->context->output->expression_capacity) {
+    w_seed_frontend_expression *owner =
+        &parser->context->output->expressions[value->index];
+    owner->first_interpolation_segment = (uint32_t)first_segment;
+    owner->interpolation_segment_count = (uint32_t)segment_count;
+    for (size_t index = 0u; index < segment_count; index += 1u) {
+      parser->context->output
+          ->interpolation_segments[first_segment + index]
+          .owner_expression = (uint32_t)value->index;
+    }
+  }
+  return true;
+}
 
 static bool expression_parse_primary(frontend_expression_parser *parser,
                                      frontend_expr_value *value) {
@@ -10599,6 +10792,22 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
   }
   if (token.kind == W_SEED_CST_NUMBER ||
       token.kind == W_SEED_CST_LITERAL_EVENT) {
+    if (token_is_literal_event(&token, W_SEED_LITERAL_START)) {
+      frontend_token_cursor scan = parser->cursor;
+      frontend_token event;
+      bool interpolated = false;
+      while (cursor_take(&scan, &event) &&
+             event.kind == W_SEED_CST_LITERAL_EVENT) {
+        if (token_is_literal_event(&event, W_SEED_INTERPOLATION_START)) {
+          interpolated = true;
+          break;
+        }
+        if (token_is_literal_event(&event, W_SEED_LITERAL_END)) break;
+      }
+      if (interpolated) {
+        return expression_parse_interpolated_string(parser, token, value);
+      }
+    }
     frontend_simple_type type = literal_simple_type(
         parser->document, token.span, token.kind);
     /* A calculated generic scalar has an explicit domain.  Apply that
@@ -11589,11 +11798,18 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
     if (arithmetic_or_comparison &&
         value->type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
         right.type.kind == W_SEED_FRONTEND_TYPE_INTEGER) {
-      /* Widening validation accepts a width-zero literal, but the emitted
-       * child record must carry the concrete operand type as well.  Coerce
+      /* Default two unconstrained integer literals to i64.  Otherwise coerce
        * exactly one unsuffixed literal when the other operand is concrete and
-       * the literal is representable. */
+       * the literal is representable.  Child records and the root then carry
+       * the same semantic type. */
       if (expression_value_is_unsuffixed_integer(value) &&
+          expression_value_is_unsuffixed_integer(&right)) {
+        const frontend_simple_type default_type = const_default_integer_type();
+        if (!expression_value_set_type(parser, value, default_type) ||
+            !expression_value_set_type(parser, &right, default_type)) {
+          return false;
+        }
+      } else if (expression_value_is_unsuffixed_integer(value) &&
           right.type.bit_width != 0u &&
           unsuffixed_integer_fits(value->type.spelling, right.type)) {
         if (!expression_value_set_type(parser, value, right.type)) return false;
@@ -11602,6 +11818,7 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
                  unsuffixed_integer_fits(right.type.spelling, value->type)) {
         if (!expression_value_set_type(parser, &right, value->type)) return false;
       }
+      result_type = value->type;
     }
     if (text_equal(operator_text, "&&") || text_equal(operator_text, "||")) {
       result_type = simple_type_from_view((w_seed_frontend_text){"Bool", 4});
@@ -11798,6 +12015,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
+    fallback.interpolation_segment_count = 0u;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -11841,6 +12060,8 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
+    fallback.interpolation_segment_count = 0u;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -12057,6 +12278,8 @@ static bool normalize_switch_expression(
   switch_record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   switch_record.resolved_function_index = W_SEED_FRONTEND_NONE;
   switch_record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+  switch_record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
+  switch_record.interpolation_segment_count = 0u;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -14552,6 +14775,9 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->statement_capacity) &&
          capacity_ok(required->expressions, output->expressions,
                      output->expression_capacity) &&
+         capacity_ok(required->interpolation_segments,
+                     output->interpolation_segments,
+                     output->interpolation_segment_capacity) &&
          capacity_ok(required->arguments, output->arguments,
                      output->argument_capacity) &&
          capacity_ok(required->switch_arms, output->switch_arms,
@@ -14629,6 +14855,7 @@ w_seed_frontend_status w_seed_frontend_run(
   dry.result = result;
   dry.emit = false;
   dry.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  dry.default_integer_type_index = W_SEED_FRONTEND_NONE;
   dry.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   dry.const_inferred_types = frontend_const_inferred_types_scratch;
   dry.const_declared_type_indices =
@@ -14698,6 +14925,7 @@ w_seed_frontend_status w_seed_frontend_run(
   emit.function_index = W_SEED_FRONTEND_NONE;
   emit.current_module_const = W_SEED_FRONTEND_NONE;
   emit.builtin_usize_type_index = W_SEED_FRONTEND_NONE;
+  emit.default_integer_type_index = W_SEED_FRONTEND_NONE;
   emit.inferred_string_type_index = W_SEED_FRONTEND_NONE;
   emit.const_inferred_types = frontend_const_inferred_types_scratch;
   emit.const_declared_type_indices =

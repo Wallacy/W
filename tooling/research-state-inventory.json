@@ -466,7 +466,7 @@
         "RATIONALE.md",
         "tooling/studies/w1504-pipeline-transaction/task-ledger.json"
       ],
-      "artifactsDigest": "sha256:360dc3f396256fd55125f45e8cd9163179ad7fc47788209d691dc0f3ff5d9db1"
+      "artifactsDigest": "sha256:b428abb1c84b9f2775cb7592734a66d87fb95445248a9c6d21c138a7dd0e1577"
     }
   ]
 }

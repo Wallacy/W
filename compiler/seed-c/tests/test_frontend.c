@@ -44,6 +44,7 @@ enum {
   TEST_ENTRIES = 16,
   TEST_STATEMENTS = 256,
   TEST_EXPRESSIONS = 1024,
+  TEST_INTERPOLATION_SEGMENTS = 1024,
   TEST_ARGUMENTS = 256,
   TEST_SWITCH_ARMS = 256,
   TEST_ENUM_MEMBERSHIP_CASES = 1024,
@@ -98,6 +99,8 @@ typedef struct {
   w_seed_frontend_entry entries[TEST_ENTRIES];
   w_seed_frontend_statement statements[TEST_STATEMENTS];
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
+  w_seed_frontend_interpolation_segment
+      interpolation_segments[TEST_INTERPOLATION_SEGMENTS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
   w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
   w_seed_frontend_enum_membership_case
@@ -194,6 +197,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->statements));
   (void)memset(fixture_value->expressions, value,
                sizeof(fixture_value->expressions));
+  (void)memset(fixture_value->interpolation_segments, value,
+               sizeof(fixture_value->interpolation_segments));
   (void)memset(fixture_value->arguments, value,
                sizeof(fixture_value->arguments));
   (void)memset(fixture_value->switch_arms, value,
@@ -264,6 +269,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->statements), value) &&
          all_bytes_equal(fixture_value->expressions,
                          sizeof(fixture_value->expressions), value) &&
+         all_bytes_equal(fixture_value->interpolation_segments,
+                         sizeof(fixture_value->interpolation_segments), value) &&
          all_bytes_equal(fixture_value->arguments,
                          sizeof(fixture_value->arguments), value) &&
          all_bytes_equal(fixture_value->switch_arms,
@@ -389,6 +396,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .statement_capacity = TEST_STATEMENTS,
       .expressions = fixture_value->expressions,
       .expression_capacity = TEST_EXPRESSIONS,
+      .interpolation_segments = fixture_value->interpolation_segments,
+      .interpolation_segment_capacity = TEST_INTERPOLATION_SEGMENTS,
       .symbols = fixture_value->symbols,
       .symbol_capacity = TEST_SYMBOLS,
       .facts = fixture_value->facts,
@@ -482,6 +491,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->entries == right->entries &&
          left->statements == right->statements &&
          left->expressions == right->expressions &&
+         left->interpolation_segments == right->interpolation_segments &&
          left->arguments == right->arguments && left->symbols == right->symbols &&
          left->switch_arms == right->switch_arms &&
          left->enum_membership_cases == right->enum_membership_cases &&
@@ -2064,7 +2074,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-11") &&
+                         "w-seed-frontend-12") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2103,8 +2113,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-11\n",
-                         strlen("schema=w-seed-frontend-11\n")));
+        receipt_contains(value, "schema=w-seed-frontend-12\n",
+                         strlen("schema=w-seed-frontend-12\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -3892,6 +3902,77 @@ static bool test_string_expression_projection(void) {
   return true;
 }
 
+static bool test_interpolated_string_projection(void) {
+  static const char source[] =
+      "fn answer(): String { return \"The answer is ${6 * 7}\" }\n";
+  fixture *value = &fixture_const;
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.interpolation_segments == 2u);
+  CHECK(value->result.written.const_bytes == 14u);
+
+  uint32_t interpolation_index = W_SEED_FRONTEND_NONE;
+  uint32_t binary_index = W_SEED_FRONTEND_NONE;
+  size_t integer_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING) {
+      interpolation_index = (uint32_t)index;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+      binary_index = (uint32_t)index;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_INTEGER) {
+      integer_count += 1u;
+    }
+  }
+  CHECK(interpolation_index != W_SEED_FRONTEND_NONE);
+  CHECK(binary_index != W_SEED_FRONTEND_NONE);
+  CHECK(integer_count == 2u);
+  const w_seed_frontend_expression *interpolation =
+      &value->expressions[interpolation_index];
+  CHECK(interpolation->supported &&
+        interpolation->first_interpolation_segment == 0u &&
+        interpolation->interpolation_segment_count == 2u);
+  const w_seed_frontend_interpolation_segment *text =
+      &value->interpolation_segments[0];
+  const w_seed_frontend_interpolation_segment *expression =
+      &value->interpolation_segments[1];
+  CHECK(text->kind == W_SEED_FRONTEND_INTERPOLATION_TEXT &&
+        text->owner_expression == interpolation_index && text->ordinal == 0u &&
+        text->expression_index == W_SEED_FRONTEND_NONE &&
+        text->const_byte_offset == 0u && text->const_byte_count == 14u &&
+        memcmp(value->const_bytes, "The answer is ", 14u) == 0);
+  CHECK(expression->kind == W_SEED_FRONTEND_INTERPOLATION_EXPRESSION &&
+        expression->owner_expression == interpolation_index &&
+        expression->ordinal == 1u &&
+        expression->expression_index == binary_index &&
+        expression->const_byte_offset == W_SEED_FRONTEND_NONE &&
+        expression->const_byte_count == 0u);
+  const uint32_t integer_type = value->expressions[binary_index].inferred_type;
+  CHECK(integer_type != W_SEED_FRONTEND_NONE &&
+        integer_type < value->result.written.types &&
+        value->types[integer_type].kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[integer_type].is_signed &&
+        value->types[integer_type].bit_width == 64u);
+  CHECK(value->expressions[value->expressions[binary_index].left].inferred_type ==
+            integer_type &&
+        value->expressions[value->expressions[binary_index].right].inferred_type ==
+            integer_type);
+
+  const uint8_t sentinel = 0xa5u;
+  CHECK(fixture_parse(&fixture_capacity, source));
+  fixture_fill_output(&fixture_capacity, sentinel);
+  fixture_capacity.output.interpolation_segments = NULL;
+  fixture_capacity.output.interpolation_segment_capacity = 0u;
+  (void)w_seed_frontend_run(&fixture_capacity.input,
+                            &fixture_capacity.output,
+                            &fixture_capacity.result);
+  CHECK(fixture_capacity.result.status == W_SEED_FRONTEND_CAPACITY &&
+        fixture_capacity.result.required.interpolation_segments == 2u &&
+        fixture_output_is(&fixture_capacity, sentinel, true));
+  return true;
+}
+
 typedef enum {
   TEST_GENERIC_CAPACITY_APPLICATION = 0,
   TEST_GENERIC_CAPACITY_ARGUMENT,
@@ -4048,6 +4129,7 @@ int main(void) {
   if (!test_generic_applications()) return 1;
   if (!test_typed_const_expressions()) return 1;
   if (!test_string_expression_projection()) return 1;
+  if (!test_interpolated_string_projection()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   return 0;
 }

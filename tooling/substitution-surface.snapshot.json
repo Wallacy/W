@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:5e2c99348390f923e419fbf30aaed968307058f2e37e60cf46a631764baf5ef6",
+  "corpusDigest": "sha256:aceef589b2a6cbb1ee246794bb3989e0cff6dfa02ac23cc4176bd4c529ee93ca",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4020,6 +4020,54 @@
             "nonWhitespaceCodePoints": 21,
             "lines": 1,
             "surfaceLexemes": 5
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-frontend-interpolation-segments",
+      "task": {
+        "utf8Bytes": 109,
+        "codePoints": 109,
+        "nonWhitespaceCodePoints": 95,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:870820fc55b903f2586cd32f38ddee99a86a06e17f0e48c87b656cce57366315",
+        "metrics": {
+          "utf8Bytes": 192,
+          "codePoints": 192,
+          "nonWhitespaceCodePoints": 169,
+          "lines": 3,
+          "surfaceLexemes": 41
+        }
+      },
+      "alternatives": [
+        {
+          "name": "opaque-literal-events",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:86c30d3a6554db20127d5e505f18e8c54cc5092b54281d00d94ae8ae139a2f51",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 32,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "precomputed-or-special-print-path",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:b27d4e52db28a7d6cba8d20b3741ea9527c3cda194113ef2e90c79133229624e",
+          "metrics": {
+            "utf8Bytes": 41,
+            "codePoints": 41,
+            "nonWhitespaceCodePoints": 35,
+            "lines": 2,
+            "surfaceLexemes": 10
           }
         }
       ]

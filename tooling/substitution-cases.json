@@ -2474,6 +2474,62 @@
         "Last Light focal parse — composition and pipeline witnesses"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-frontend-interpolation-segments",
+      "reviewItem": "structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.",
+      "decisions": ["W-1523"],
+      "task": "Preserve interpolation as an ordered typed frontend structure before adding verified HIR and native lowering.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn answer(): String { return \"The answer is ${6 * 7}\" }",
+          "frontend: INTERPOLATED_STRING(TEXT(\"The answer is \"), EXPRESSION(MULTIPLY(i64(6), i64(7))))",
+          "HIR0: unsupported without output publication"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "opaque-literal-events",
+          "language": "w-rejected",
+          "source": ["frontend: STRING(lexer-event-run)"],
+          "expectedDifference": "The parser keeps literal-event identity and parses each interpolation body as an ordinary nested expression."
+        },
+        {
+          "name": "precomputed-or-special-print-path",
+          "language": "w-rejected",
+          "source": ["print(\"The answer is 42\")", "printInt(6 * 7)"],
+          "expectedDifference": "The frontend retains text and expression segments; later HIR and MLIR stages must implement arithmetic, Display, and construction without a witness-specific bypass."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_frontend.h",
+          "symbol": "w_seed_frontend_interpolation_segment",
+          "claim": "Frontend schema v12 publishes explicit ordered text and expression segments."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "expression_parse_interpolated_string",
+          "claim": "The frontend normalizes interpolation segments and canonical built-in types."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_interpolated_string_projection",
+          "claim": "The unit proves segment ownership, exact text, nested arithmetic, canonical i64, and capacity transactions."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_interpolation_stops_at_hir0_boundary",
+          "claim": "HIR0 rejects the new frontend shape without mutating measure or output buffers."
+        }
+      ],
+      "checks": [
+        "bun run check:seed-parser — structured interpolation CST",
+        "bun run check:seed-frontend — schema-v12 interpolation projection",
+        "bun run check:hir0 — explicit unsupported stage boundary"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

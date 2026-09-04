@@ -34,6 +34,7 @@ enum {
   TEST_STATEMENTS = 32,
   TEST_EXPRESSIONS = 64,
   TEST_ARGUMENTS = 32,
+  TEST_INTERPOLATION_SEGMENTS = 16,
   TEST_SYMBOLS = 32,
   TEST_FACTS = 16,
   TEST_DIAGNOSTICS = 8,
@@ -72,6 +73,8 @@ typedef struct {
   w_seed_frontend_statement statements[TEST_STATEMENTS];
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
+  w_seed_frontend_interpolation_segment
+      interpolation_segments[TEST_INTERPOLATION_SEGMENTS];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
   w_seed_frontend_fact facts[TEST_FACTS];
   w_seed_frontend_diagnostic diagnostics[TEST_DIAGNOSTICS];
@@ -185,8 +188,10 @@ static bool fixture_parse(const char *text) {
       .expression_capacity = TEST_EXPRESSIONS,
       .arguments = fixture.arguments,
       .argument_capacity = TEST_ARGUMENTS,
-       .symbols = fixture.symbols,
-       .symbol_capacity = TEST_SYMBOLS,
+      .interpolation_segments = fixture.interpolation_segments,
+      .interpolation_segment_capacity = TEST_INTERPOLATION_SEGMENTS,
+      .symbols = fixture.symbols,
+      .symbol_capacity = TEST_SYMBOLS,
       .facts = fixture.facts,
       .fact_capacity = TEST_FACTS,
       .diagnostics = fixture.diagnostics,
@@ -1054,6 +1059,35 @@ static bool test_closed_frontend_barriers(void) {
   return true;
 }
 
+static bool test_interpolation_stops_at_hir0_boundary(void) {
+  static const char SOURCE[] =
+      "fn main() { print(message: \"The answer is ${6 * 7}\", suffix: \"!\") }\n"
+      "entry(main)\n";
+  CHECK(fixture_frontend(SOURCE));
+  CHECK(fixture.result.written.interpolation_segments == 2u);
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  (void)memset(&counts, 0xa5, sizeof(counts));
+  (void)memset(&result, 0xa5, sizeof(result));
+  const w_seed_hir0_counts counts_before = counts;
+  const w_seed_hir0_result result_before = result;
+
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(memcmp(&counts, &counts_before, sizeof(counts)) == 0);
+  CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
+
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&result, &result_before, sizeof(result)) == 0);
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1064,6 +1098,7 @@ int main(void) {
   if (!test_capacity_and_alias_barriers()) return 1;
   if (!test_verify_mutations()) return 1;
   if (!test_closed_frontend_barriers()) return 1;
+  if (!test_interpolation_stops_at_hir0_boundary()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }
