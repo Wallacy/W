@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-11"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-12"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -116,7 +116,25 @@ typedef enum {
   W_SEED_FRONTEND_EXPR_MEMBER,
   W_SEED_FRONTEND_EXPR_INDEX,
   W_SEED_FRONTEND_EXPR_RANGE,
+  /* Append-only ordered text/expression interpolation. */
+  W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING,
 } w_seed_frontend_expr_kind;
+
+typedef enum {
+  W_SEED_FRONTEND_INTERPOLATION_TEXT = 0,
+  W_SEED_FRONTEND_INTERPOLATION_EXPRESSION,
+} w_seed_frontend_interpolation_segment_kind;
+
+typedef struct {
+  w_seed_frontend_interpolation_segment_kind kind;
+  uint32_t owner_expression;
+  uint32_t ordinal;
+  w_seed_span span;
+  /* TEXT owns a slice in const_bytes. EXPRESSION owns expression_index. */
+  uint32_t expression_index;
+  uint32_t const_byte_offset;
+  uint32_t const_byte_count;
+} w_seed_frontend_interpolation_segment;
 
 typedef enum {
   W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE = 0,
@@ -256,6 +274,7 @@ typedef struct {
   size_t entries;
   size_t statements;
   size_t expressions;
+  size_t interpolation_segments;
   size_t arguments;
   size_t symbols;
   size_t facts;
@@ -761,6 +780,9 @@ typedef struct {
   /* Append-only lexical relation for a local binding read.  The value is a
    * normalized statement index, never a source-text identity. */
   uint32_t resolved_binding_statement;
+  /* Append-only ordered interpolation range. */
+  uint32_t first_interpolation_segment;
+  uint32_t interpolation_segment_count;
 } w_seed_frontend_expression;
 
 typedef enum {
@@ -837,6 +859,8 @@ typedef struct {
   size_t statement_capacity;
   w_seed_frontend_expression *expressions;
   size_t expression_capacity;
+  w_seed_frontend_interpolation_segment *interpolation_segments;
+  size_t interpolation_segment_capacity;
   w_seed_frontend_symbol *symbols;
   size_t symbol_capacity;
   w_seed_frontend_fact *facts;

@@ -44,6 +44,7 @@ enum {
   PROBE_ENTRIES = 4096,
   PROBE_STATEMENTS = 65536,
   PROBE_EXPRESSIONS = 262144,
+  PROBE_INTERPOLATION_SEGMENTS = 262144,
   PROBE_ARGUMENTS = 65536,
   PROBE_SWITCH_ARMS = 65536,
   PROBE_ENUM_MEMBERSHIP_CASES = 262144,
@@ -94,6 +95,8 @@ static w_seed_frontend_parameter parameters[PROBE_PARAMETERS];
 static w_seed_frontend_entry entries[PROBE_ENTRIES];
 static w_seed_frontend_statement statements[PROBE_STATEMENTS];
 static w_seed_frontend_expression expressions[PROBE_EXPRESSIONS];
+static w_seed_frontend_interpolation_segment
+    interpolation_segments[PROBE_INTERPOLATION_SEGMENTS];
 static w_seed_frontend_argument arguments[PROBE_ARGUMENTS];
 static w_seed_frontend_switch_arm switch_arms[PROBE_SWITCH_ARMS];
 static w_seed_frontend_enum_membership_case
@@ -294,6 +297,8 @@ int main(void) {
       .statement_capacity = PROBE_STATEMENTS,
       .expressions = expressions,
       .expression_capacity = PROBE_EXPRESSIONS,
+      .interpolation_segments = interpolation_segments,
+      .interpolation_segment_capacity = PROBE_INTERPOLATION_SEGMENTS,
       .symbols = symbols,
       .symbol_capacity = PROBE_SYMBOLS,
       .facts = facts,
@@ -330,6 +335,7 @@ int main(void) {
                " types=%" PRIuMAX " functions=%" PRIuMAX
                " params=%" PRIuMAX " entries=%" PRIuMAX
                " statements=%" PRIuMAX " expressions=%" PRIuMAX
+               " interpolation_segments=%" PRIuMAX
                " arguments=%" PRIuMAX " symbols=%" PRIuMAX
                " facts=%" PRIuMAX " diagnostics=%" PRIuMAX
                " diagnostic_facts=%" PRIuMAX
@@ -360,6 +366,7 @@ int main(void) {
                (uintmax_t)result.written.entries,
                (uintmax_t)result.written.statements,
                (uintmax_t)result.written.expressions,
+               (uintmax_t)result.written.interpolation_segments,
                (uintmax_t)result.written.arguments,
                (uintmax_t)result.written.symbols,
                (uintmax_t)result.written.facts,

@@ -35478,8 +35478,8 @@ changing the public argument grammar.
 W-1522 is the current `source-backed-current` decision for the NAT1 product
 cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
 MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; no legacy
-adapter is retained. Frontend schema `w-seed-frontend-11` and HIR0 schema
-`w-seed-hir0-2` remain unchanged. The primary route is
+adapter is retained. W-1523 later advances the frontend schema without
+widening the NAT1 selector; HIR0 schema `w-seed-hir0-2` remains unchanged. The primary route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
 clang/native`, directly and without HLO0, HLO1, or RUN0.
 
@@ -35527,6 +35527,67 @@ literal and binding forms are products, and their ordered artifacts are
 byte-identical when they represent the same bytes. The public `w run` path
 uses the W-1521 opaque-basename correction for this witness; `w check` remains
 unchanged.
+
+#### 26.4.1.7 W-1523 — structured interpolation in the seed frontend (Current form)
+
+W-1523 is `source-backed-current` for the parser and frontend boundary only.
+It advances the frontend schema to `w-seed-frontend-12`. It does not widen
+HIR0, MLIR0, Native0, or public `w run`.
+
+**Example:** the frontend preserves the text and arithmetic as two ordered
+segments; HIR0 rejects the represented value until its next schema adds the
+required integer, arithmetic, and interpolation records.
+
+```w
+fn answer(): String {
+  return "The answer is ${6 * 7}"
+}
+entry(answer)
+```
+
+The parser keeps the lexer literal kind and literal-event kind on every
+lossless literal-event leaf. It parses each interpolation body as an ordinary
+nested expression. A later phase can therefore consume the tree without
+reparsing delimiters or source bytes.
+
+The frontend publishes `W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING` and an
+ordered caller-owned array of `w_seed_frontend_interpolation_segment` records.
+Each parent expression owns one dense `first_interpolation_segment` and
+`interpolation_segment_count` range. Every segment records its owner, ordinal,
+source span, and exactly one payload:
+
+- a text segment owns a normalized slice in the existing `const_bytes` arena;
+- an expression segment owns one normalized frontend expression index.
+
+The current supported seed cut accepts ordinary single-line or multiline
+String interpolation with at least one segment. Text must not require escape
+decoding in this cut. Interpolated values must be a supported seed `Integer`,
+`Bool`, or `String`, which are the currently represented built-in Display
+domains. Raw strings never interpolate. Unsupported literal families or text
+that requires decoding retain an explicit unsupported fact instead of a false
+consumable record.
+
+An unconstrained integer interpolation defaults to signed `i64`, including
+both operands of an unconstrained integer binary expression. The dry and emit
+passes use one dedicated canonical `i64` type record, so type counts and type
+indices do not depend on an earlier explicit type record. The same rule fixes
+the analogous inferred-String dry/emit identity: inferred String bindings use
+one dedicated record in both passes.
+
+Segment count and capacity are part of frontend measure/run. Short segment
+capacity fails before publication and preserves every caller-owned output
+buffer. HIR0 validates the new frontend array shape and alias range, but still
+rejects interpolated expressions as outside its schema-v2 subset. The next
+finite milestone must add verified integer, arithmetic, and interpolation
+records to HIR and lower Display formatting through MLIR. Until that
+milestone, the Restaurant arithmetic witness is not a native product and no
+precomputed text or special `printInt` path is allowed.
+
+The focused evidence covers `"The answer is ${6 * 7}"`, nested grouping,
+literal-event identity, dense segment ownership, exact text bytes, canonical
+`i64` typing, empty interpolation rejection, short capacity, and unchanged
+HIR0 rejection. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only. No timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

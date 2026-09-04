@@ -134,7 +134,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` é `w-seed-frontend-11`. Os campos D2/D3
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-12`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -142,8 +142,14 @@ inferência scalar D7; a versão 8 separa `logical_source_id`, `module_id` e
 `local_module_name` e acrescenta edges de import resolvidos caller-owned; a
 versão 9 acrescenta o carrier de diagnostics frontend com facts, items e
 labels tipados, counts exatos e ranges caller-owned append-only. Version 11
-publishes `resolved_binding_statement` as an explicit indexed relation. It
-keeps `effective_type` separate from `declared_type`.
+publishes `resolved_binding_statement` as an explicit indexed relation and
+keeps `effective_type` separate from `declared_type`. Version 12 preserves
+literal-event identity on CST leaves and adds ordered interpolation segment
+records. Text segments own `const_bytes`; expression segments own normalized
+expression indices. The current seed accepts plain ordinary String text and
+built-in integer, Boolean, or String interpolation. It defaults unconstrained
+integer interpolation to canonical signed `i64`. Escape decoding, general
+Display conformance, HIR lowering, and native interpolation remain gaps.
 
 O seed materializa `Bool`, inteiros bounded (incluindo `usize`), strings simples
 sem escape, cases enum contextuais e `StaticList` caller-owned. Inteiros usam

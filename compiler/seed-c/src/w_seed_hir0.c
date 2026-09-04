@@ -183,6 +183,7 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   HIR0_COUNT(entries);
   HIR0_COUNT(statements);
   HIR0_COUNT(expressions);
+  HIR0_COUNT(interpolation_segments);
   HIR0_COUNT(arguments);
   HIR0_COUNT(symbols);
   HIR0_COUNT(facts);
@@ -270,6 +271,8 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(entries, entry_capacity, w_seed_frontend_entry);
   HIR0_FRONTEND_ARRAY(statements, statement_capacity, w_seed_frontend_statement);
   HIR0_FRONTEND_ARRAY(expressions, expression_capacity, w_seed_frontend_expression);
+  HIR0_FRONTEND_ARRAY(interpolation_segments, interpolation_segment_capacity,
+                      w_seed_frontend_interpolation_segment);
   HIR0_FRONTEND_ARRAY(arguments, argument_capacity, w_seed_frontend_argument);
   HIR0_FRONTEND_ARRAY(const_bytes, const_bytes_capacity, uint8_t);
 #undef HIR0_FRONTEND_ARRAY
@@ -865,6 +868,11 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   if (!frontend_sources_ok(input)) return HIR0_PREPARE_INVALID;
   if (!host_shape_ok(input->frontend_input->host_scope))
     return HIR0_PREPARE_INVALID;
+  /* Frontend v12 interpolation has a structurally valid caller-owned range,
+   * but HIR0 schema v2 has no record that can represent it. Stop at the
+   * versioned boundary before interpreting its additional integer types. */
+  if (frontend_result->written.interpolation_segments != 0u)
+    return HIR0_PREPARE_UNSUPPORTED;
   if (!frontend_type_records_ok(input) || !frontend_module_ranges_ok(input) ||
       !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
       !frontend_symbol_records_ok(input))
@@ -891,6 +899,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.generic_parameters != 0u ||
       frontend_result->written.generic_applications != 0u ||
       frontend_result->written.generic_arguments != 0u ||
+      frontend_result->written.interpolation_segments != 0u ||
       frontend_result->written.typed_const_expressions != 0u ||
       frontend_result->written.const_values != 0u ||
       frontend_result->written.const_elements != 0u ||
@@ -1162,6 +1171,8 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
   HIR0_INPUT_RANGE(entries, w_seed_frontend_entry);
   HIR0_INPUT_RANGE(statements, w_seed_frontend_statement);
   HIR0_INPUT_RANGE(expressions, w_seed_frontend_expression);
+  HIR0_INPUT_RANGE(interpolation_segments,
+                   w_seed_frontend_interpolation_segment);
   HIR0_INPUT_RANGE(symbols, w_seed_frontend_symbol);
   HIR0_INPUT_RANGE(facts, w_seed_frontend_fact);
   HIR0_INPUT_RANGE(diagnostics, w_seed_frontend_diagnostic);
