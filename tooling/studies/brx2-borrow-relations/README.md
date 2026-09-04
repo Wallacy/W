@@ -1,8 +1,8 @@
 # BRX2 — relation-owned borrowed results
 
-Status: design-only Research. This study does not change the W grammar or
-define implemented compiler behavior. It does not claim compiler, runtime,
-provider, ABI, or foreign-function evidence.
+Status: historical design provenance, superseded by BRX3. This study does not
+change the W grammar or define implemented compiler behavior. It does not claim
+compiler, runtime, provider, ABI, or foreign-function evidence.
 
 ## Problem first
 
@@ -28,7 +28,7 @@ syntax:
 | current receiver/body | The receiver or body derives exact input slots. | current |
 | unique bodyless | Exactly one compatible input supplies the result origin. | current |
 | ambiguous bodyless | Two or more independent inputs have no authoritative origin. | W-BORROW-0011 rejection |
-| requirement/interface relation | A sealed data-only relation maps each result slot to input slots. | Research candidate |
+| requirement/interface relation | A sealed data-only relation maps each result slot to input slots. | Historical candidate, superseded by BRX3 |
 | nominal aggregate | An owned sum carries the choice. | Safe API alternative |
 
 The candidate relation has no source lifetime names, GAT, macro, caller flag,
@@ -54,7 +54,7 @@ The verifier rejects missing, duplicate, forged, unknown, recursive, empty, or
 mode-incompatible slots. It rejects stale relation and interface-lock digests.
 It rejects a witness that diverges from the requirement relation. It rejects
 variance during generic substitution because function relations are invariant.
-An unverified declaration may publish a candidate relation for Research, but an
+An unverified declaration may publish a historical candidate relation, but an
 open/generic/separate-compilation verification stage requires explicit
 implementation and witness receipts plus provider and consumer interface keys.
 Missing or stale receipts do not default to the relation.
@@ -68,7 +68,8 @@ cancel drain. Dynamic boundaries reject dynamic borrow edges.
 Callable, any-fn, await, Stream, and boundary cases use the relation mapping
 only when that candidate is applicable. A rejected relation keeps the
 baseline rejection and diagnostics; a valid relation candidate remains
-Research after the BRX0 baseline close. Static and immortal edges are
+historical provenance after the BRX0 baseline close and is superseded by BRX3.
+Static and immortal edges are
 non-dynamic and can cross the bounded boundary case.
 
 Independent results derive from non-dependent result slots. Static and
@@ -110,9 +111,11 @@ separate-compilation import/provider witnesses, generic substitution checks,
 real HIR and interface verification, and the existing W-914/OriginSet/ABI
 invariants with no runtime lifetime metadata. The BRX0 baseline now closes
 unique bodyless provenance and rejects ambiguous bodyless declarations with
-W-BORROW-0011. Stop and keep BRX2 Research if
-the relation needs a caller claim, hidden escape, runtime field, new lifetime
-syntax, or an unverified witness. The host oracle closes the relation for
+W-BORROW-0011. Stop and keep this BRX2 witness historical if the relation needs
+a caller claim, hidden escape, runtime field, new lifetime syntax, or an
+unverified witness. BRX3 is the current source-clause design; its compiler,
+HIR, separate-compilation, provider/linker, FFI, and runtime evidence remain
+open. The host oracle closes the relation for
 structured inputs, but no closed W mechanism is proven across all these
 invariants; initializer borrowed-view results and unsupported declaration kinds
 are rejected; no source spelling is promoted.

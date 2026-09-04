@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 const ARTIFACT_IDS = ["sourceBase", "corpus", "machine", "checker", "snapshot", "bundle"];
-const WITNESS_ROLES = new Set(["alternative", "research-candidate", "rejected-witness"]);
+const WITNESS_ROLES = new Set(["alternative", "historical-candidate", "rejected-witness"]);
 
 function digestFile(file) {
   return "sha256:" + crypto.createHash("sha256").update(fs.readFileSync(file)).digest("hex");

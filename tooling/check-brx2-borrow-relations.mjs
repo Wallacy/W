@@ -150,7 +150,7 @@ const output = {
       decision, derived.filter((item) => item.decision === decision).length,
     ])),
     relationExactCount: derived.filter((item) => item.mapping.relationExact).length,
-    exactResearchCandidateCount: derived.filter((item) => item.mapping.relationExact && item.route === "research").length,
+    historicalCandidateCount: derived.filter((item) => item.mapping.relationExact && item.route === "historical-candidate").length,
     exactRejectedCount: derived.filter((item) => item.mapping.relationExact && item.decision === "rejected").length,
     invocationNegativeCount: derived.filter((item) => item.invocation.status === "rejected").length,
     declarationDecisionCounts: Object.fromEntries([...new Set(derived.map((item) => item.declarationDecision))].sort().map((decision) => [
@@ -194,5 +194,6 @@ if (errors.length > 0) {
 process.stdout.write(
   "BRX2 borrow relations: " + output.metrics.caseCount + " cases, " +
   output.metrics.relationExactCount + " exact relation candidates, " +
+  output.metrics.historicalCandidateCount + " historical candidate routes, " +
   output.metrics.invocationNegativeCount + " invocation negatives.\n",
 );

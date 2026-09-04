@@ -19,13 +19,13 @@
       "id": "FRC0-research-state-inventory",
       "role": "research-state-inventory",
       "path": "tooling/research-state-inventory.json",
-      "digest": "sha256:c310e7d173ec08fcb063ac33fb407d5ee456abf6c92d378dc6ae3e70dee2f65b"
+      "digest": "sha256:b4ca9f826ae83f098a62b25c2261cd4bc0a2de6516506ea5522eb0fa8240403a"
     },
     {
       "id": "FRC0-machine",
       "role": "machine",
       "path": "tooling/final-research-closure-machine.mjs",
-      "digest": "sha256:877432f5dad656bfdfa1c3d79d613c5de865cb47a4f0cd00aa83ebe633fa4566"
+      "digest": "sha256:426da523518119d15e59c85ee0f72c3a89c92c01922e9019073c05553bf910a1"
     },
     {
       "id": "FRC0-root-checker",
@@ -43,19 +43,19 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:0c07f634f906c8a237663ad03d604471090b898654347706b007e91e5702b4ba"
+      "digest": "sha256:3dbd065eafe2ac53cf52fc78800e8029dad5f9db2f0d1d704cfb741dab8bfde4"
     },
     {
       "id": "FRC0-oracle",
       "role": "oracle",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "digest": "sha256:1b2b545ff7978cc4bfa3575fc9eb2e8e9c2cd0588d2516db5bc70a3feb2507b0"
+      "digest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba"
     },
     {
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:03f7b9e2e81cd4b58e80def24a0860aca67e92db5a476f23bbb46b4855e0a4f7"
+      "digest": "sha256:d27c76df87ec58e64dc32dc1713bce6ab72c4b172c09c897328a58f42c5fa679"
     },
     {
       "id": "FRC0-study",
@@ -175,7 +175,7 @@
       "id": "FRC0-study-checker",
       "role": "study-checker",
       "path": "tooling/check-study-bundles.mjs",
-      "digest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d"
+      "digest": "sha256:1a1aae4c2cd63c77627d2ae3ac2ee61e9414964040c08a3ad235aae8b0e7d567"
     },
     {
       "id": "FRC0-classification",
