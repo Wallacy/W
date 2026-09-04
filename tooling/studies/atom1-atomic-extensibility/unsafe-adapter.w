@@ -1,4 +1,4 @@
-// ATOM1 Research shape for a specialized unsafe reclamation adapter.
+// ATOM1 historical candidate shape for a specialized unsafe reclamation adapter.
 
 module atom1_unsafe_adapter
 

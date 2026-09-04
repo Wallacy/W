@@ -222,15 +222,37 @@
       ]
     },
     {
-      "id": "atom1-atom2",
+      "id": "atom1",
       "category": "historical",
+      "decisionRefs": ["W-1352"],
+      "successorDecisions": ["W-1352"],
+      "implementationGaps": [],
+      "normalizationPending": false,
+      "artifacts": [
+        "tooling/atom1-atomic-extensibility-cases.json",
+        "tooling/atom1-atomic-extensibility-machine.mjs",
+        "tooling/atom1-atomic-extensibility-manifest.mjs",
+        "tooling/check-atom1-atomic-extensibility.mjs",
+        "tooling/atom1-atomic-extensibility-results.snapshot.jsonl",
+        "tooling/studies/atom1-atomic-extensibility/study.json",
+        "tooling/studies/atom1-atomic-extensibility/oracle.test.mjs",
+        "tooling/studies/atom1-atomic-extensibility/README.md",
+        "tooling/studies/atom1-atomic-extensibility/current-composition.w",
+        "tooling/studies/atom1-atomic-extensibility/derived-record.w",
+        "tooling/studies/atom1-atomic-extensibility/generational-handle.w",
+        "tooling/studies/atom1-atomic-extensibility/snapshot-cell.w",
+        "tooling/studies/atom1-atomic-extensibility/unsafe-adapter.w",
+        "tooling/studies/atom1-atomic-extensibility/reserved-universal-atomic.txt"
+      ]
+    },
+    {
+      "id": "atom2",
+      "category": "current-design-evidence-gap",
       "decisionRefs": ["W-1352"],
       "successorDecisions": ["W-1352"],
       "implementationGaps": [],
       "normalizationPending": true,
       "artifacts": [
-        "tooling/atom1-atomic-extensibility-cases.json",
-        "tooling/atom1-atomic-extensibility-machine.mjs",
         "tooling/atom2-atomic-contract-cases.json",
         "tooling/atom2-atomic-contract-machine.mjs"
       ]

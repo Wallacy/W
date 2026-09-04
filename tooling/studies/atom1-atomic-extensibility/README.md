@@ -1,6 +1,6 @@
 # ATOM1 — atomic extensibility study (historical)
 
-Status: superseded historical Research. ATOM2 is the current ATOM0-G1 design
+Status: superseded historical candidate study. ATOM2 is the current ATOM0-G1 design
 oracle and contract decision. This study does not define a W contract and does
 not claim compiler, runtime, provider, or FFI implementation.
 
@@ -57,7 +57,7 @@ table checks the generation before dereference. A stale handle is rejected and
 never dereferenced. A tagged pointer can still pass a CAS and fail its
 provenance, lifetime, ABA, or reclamation proof. The oracle therefore keeps it
 blocked without those proofs. Complete provenance, lifetime, ABA, and
-reclamation receipts route only to an unsafe specialized-adapter Research
+reclamation receipts route only to an unsafe specialized-adapter historical candidate
 result; safe-wrapper promotion remains unproven. A safer domain/service
 composition remains the current route.
 
@@ -73,7 +73,7 @@ evidence, not as a semantic-interface change. Direct FFI carrier exposure is
 rejected.
 
 For C, the oracle requires an explicit adapter schema before it returns a
-Research result. The schema names participants, registration, unlink-before-
+historical-candidate result. The schema names participants, registration, unlink-before-
 retire, retired bounds, quiescence, deleter context, shutdown, memory orders,
 target progress, fault behavior, and a `foreignBoundary` (`none` or
 `persistent-callback`). Events require unlink → retire → reader quiescence →

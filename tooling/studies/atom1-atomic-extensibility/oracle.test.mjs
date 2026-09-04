@@ -18,9 +18,9 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(new Set(checked.results.map((item) => item.axis))).toEqual(new Set(["A", "B", "C"]));
   });
 
-  test("A derives a value-only record but keeps the result in Research", () => {
+  test("A derives a value-only record but keeps the result as a historical candidate", () => {
     const accepted = evaluateAtom1Case(byId.get("A-sign-epoch-derived-x64"));
-    expect(accepted.status).toBe("candidate-research");
+    expect(accepted.status).toBe("historical-candidate");
     expect(accepted.progress).toBe("profile-lockfree");
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-padding")).code).toBe("raw-layout-coupling-rejected");
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-pointer-field")).code).toBe("atomic-value-lifetime-or-provenance");
@@ -29,19 +29,19 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-enum-payload")).code).toBe("enum-descriptor-invalid");
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-custom-encoding")).code).toBe("custom-encoding-noninvertible");
     const layoutReceipt = evaluateAtom1Case(byId.get("A-sign-epoch-layout-receipt-ignored"));
-    expect(layoutReceipt.status).toBe("candidate-research");
+    expect(layoutReceipt.status).toBe("historical-candidate");
     expect(layoutReceipt.carrierBytes).toBe(8);
     const partialReceipt = structuredClone(byId.get("A-sign-epoch-layout-receipt-ignored"));
     delete partialReceipt.record.fullyInitialized;
     expect(evaluateAtom1Case(partialReceipt).code).toBe("layout-receipt-schema");
     const boolBit = evaluateAtom1Case(byId.get("A-sign-epoch-bool-bit"));
-    expect(boolBit.status).toBe("candidate-research");
+    expect(boolBit.status).toBe("historical-candidate");
     expect(boolBit.canonicalBits).toBe(1);
     expect(boolBit.carrierBytes).toBe(1);
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-target-sized-field")).code).toBe("target-sized-field-unsupported");
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-zero-bit-enum")).code).toBe("canonical-carrier-zero-width");
     const wide96 = evaluateAtom1Case(byId.get("A-sign-epoch-wide96-lockfree"));
-    expect(wide96.status).toBe("candidate-research");
+    expect(wide96.status).toBe("historical-candidate");
     expect(wide96.canonicalBits).toBe(96);
     expect(wide96.carrierBytes).toBe(16);
     const wide96Fallback = evaluateAtom1Case(byId.get("A-sign-epoch-wide96-fallback"));
@@ -49,7 +49,7 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(wide96Fallback.canonicalBits).toBe(96);
     expect(wide96Fallback.carrierBytes).toBe(16);
     const wide128 = evaluateAtom1Case(byId.get("A-sign-epoch-wide128-lockfree"));
-    expect(wide128.status).toBe("candidate-research");
+    expect(wide128.status).toBe("historical-candidate");
     expect(wide128.canonicalBits).toBe(128);
     expect(wide128.carrierBytes).toBe(16);
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-wide128-lockfree-forbidden")).code).toBe("target-lockfree-unavailable");
@@ -59,7 +59,7 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     const forgedFacts = structuredClone(byId.get("A-sign-epoch-derived-x64"));
     forgedFacts.record.facts = { copy: false, lifetimeIndependent: false, dropFree: false, pointer: true };
     const derived = evaluateAtom1Case(forgedFacts);
-    expect(derived.status).toBe("candidate-research");
+    expect(derived.status).toBe("historical-candidate");
     expect(derived.callerFactsIgnored).toBe(true);
   });
 
@@ -82,7 +82,7 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-semantic-contract-drift")).code).toBe("semantic-interface-drift");
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-wabi-carrier-drift")).code).toBe("w-abi-carrier-drift");
     const providerChange = evaluateAtom1Case(byId.get("A-sign-epoch-provider-digest-change"));
-    expect(providerChange.status).toBe("candidate-research");
+    expect(providerChange.status).toBe("historical-candidate");
     expect(providerChange.providerDigestChanged).toBe(true);
     expect(evaluateAtom1Case(byId.get("A-sign-epoch-ffi-direct-carrier")).code).toBe("ffi-direct-carrier-forbidden");
   });
@@ -96,10 +96,10 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(evaluateAtom1Case(byId.get("B-menu-handle-generation")).dereferenceCount).toBe(1);
     expect(evaluateAtom1Case(byId.get("B-menu-handle-generation-wrap")).code).toBe("generation-wrap-alias");
     expect(evaluateAtom1Case(byId.get("B-menu-handle-generation-wrap")).dereferenceCount).toBe(0);
-    expect(evaluateAtom1Case(byId.get("B-tagged-pointer-cas-without-reclamation")).status).toBe("research-blocker");
+    expect(evaluateAtom1Case(byId.get("B-tagged-pointer-cas-without-reclamation")).status).toBe("historical-candidate");
     expect(evaluateAtom1Case(byId.get("B-tagged-pointer-specialized-adapter")).code).toBe("pointer-proof-missing");
     const receipts = evaluateAtom1Case(byId.get("B-tagged-pointer-provenance-receipts"));
-    expect(receipts.status).toBe("adapter-research");
+    expect(receipts.status).toBe("historical-candidate");
     expect(receipts.unsafeCoreRequired).toBe(true);
     expect(receipts.safeWrapperPromotion).toBe("unproven");
   });
@@ -116,8 +116,8 @@ describe("ATOM1 atomic extensibility host oracle", () => {
     expect(evaluateAtom1Case(byId.get("C-reclamation-wrong-deleter-domain")).code).toBe("wrong-deleter-domain");
     expect(evaluateAtom1Case(byId.get("C-reclamation-live-shutdown")).code).toBe("shutdown-nonquiescent");
     expect(evaluateAtom1Case(byId.get("C-reclamation-missing-ffi-drain")).code).toBe("foreign-drain-missing");
-    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-unsafe-schema")).status).toBe("adapter-research");
-    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-ffi-schema")).status).toBe("adapter-research");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-unsafe-schema")).status).toBe("historical-candidate");
+    expect(evaluateAtom1Case(byId.get("C-reclamation-complete-ffi-schema")).status).toBe("historical-candidate");
     expect(evaluateAtom1Case(byId.get("C-reclamation-none-with-ffi-events")).code).toBe("foreign-boundary-events-forbidden");
     expect(evaluateAtom1Case(byId.get("C-reclamation-order-swapped")).code).toBe("retire-before-unlink");
     expect(evaluateAtom1Case(byId.get("C-reclamation-duplicate-participant")).code).toBe("duplicate-participant");

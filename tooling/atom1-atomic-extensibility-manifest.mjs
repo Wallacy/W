@@ -15,7 +15,7 @@ export function validateAtom1StudyManifest(manifest, { studyDirectory } = {}) {
   if (manifest?.$schema !== "w-atomic-extensibility-study-1") errors.push("ATOM1 study schema is invalid.");
   if (manifest?.status !== "design-oracle-input") errors.push("ATOM1 study status must be design-oracle-input.");
   if (manifest?.id !== "ATOM1" || manifest?.gate !== "ATOM0-G1") errors.push("ATOM1 study must identify ATOM0-G1.");
-  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("ATOM1 study must contain current and Research variants.");
+  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("ATOM1 study must contain current and historical-candidate variants.");
   const variantIds = new Set();
   for (const variant of manifest?.variants ?? []) {
     if (typeof variant.id !== "string" || variant.id.trim() === "" || variantIds.has(variant.id)) errors.push(`ATOM1 variant id is missing or duplicated: ${variant?.id}`);

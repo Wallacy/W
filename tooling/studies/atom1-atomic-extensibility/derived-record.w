@@ -1,4 +1,4 @@
-// ATOM1 Research candidate. Existing source shape, compiler-derived atomicValue.
+// ATOM1 historical candidate. Existing source shape, compiler-derived atomicValue.
 
 module atom1_derived_record
 

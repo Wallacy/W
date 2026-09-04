@@ -20,7 +20,7 @@
     {
       "path": "../../../tooling/research-state-inventory.json",
       "symbol": "w-research-state-inventory-1",
-      "digest": "sha256:de4e14b72e3fa1d0138fc92dc35ee0e6039133b7b478c04b3514543329482306"
+      "digest": "sha256:af3d40e910ad89899ab5f50df9b38426f5f9e916fc67c35fb7a50d2a77dfd2c0"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -144,7 +144,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:8ae3ed542e01bfb5c1f57106fe17e3e5e8db39b21a38f76549c24f67f487e631"
+    "digest": "sha256:bf29f34fd08259dcb573b01816c97693248b9cb812897df7f8e161f1fd327894"
   },
   "evidence": {
     "current": [

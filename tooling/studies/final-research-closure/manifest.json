@@ -19,13 +19,13 @@
       "id": "FRC0-research-state-inventory",
       "role": "research-state-inventory",
       "path": "tooling/research-state-inventory.json",
-      "digest": "sha256:de4e14b72e3fa1d0138fc92dc35ee0e6039133b7b478c04b3514543329482306"
+      "digest": "sha256:af3d40e910ad89899ab5f50df9b38426f5f9e916fc67c35fb7a50d2a77dfd2c0"
     },
     {
       "id": "FRC0-machine",
       "role": "machine",
       "path": "tooling/final-research-closure-machine.mjs",
-      "digest": "sha256:426da523518119d15e59c85ee0f72c3a89c92c01922e9019073c05553bf910a1"
+      "digest": "sha256:a036f44e98b969963b66967936b1a30698ea390fbfbbe267d6004b5d87ddcf1c"
     },
     {
       "id": "FRC0-root-checker",
@@ -43,19 +43,19 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:76e5e62f4e8e081b731d14a8b3c929aa04c06f0feca86fda9cd9f911ab0880b7"
+      "digest": "sha256:7ca7b697de48d58893d19608ee2b983c0ba43da516a8e7ce09d310a8ce58db05"
     },
     {
       "id": "FRC0-oracle",
       "role": "oracle",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "digest": "sha256:8ae3ed542e01bfb5c1f57106fe17e3e5e8db39b21a38f76549c24f67f487e631"
+      "digest": "sha256:bf29f34fd08259dcb573b01816c97693248b9cb812897df7f8e161f1fd327894"
     },
     {
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:0612cacf9e367ad7e57fb71aca14152a77acca567c019221585be5508a12028c"
+      "digest": "sha256:6e91793567afa961c40669bbc4ccd90d49f29519108cc54313118fb2ed3084fc"
     },
     {
       "id": "FRC0-study",
