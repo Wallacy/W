@@ -60,4 +60,4 @@ if (errors.length > 0) {
   process.stderr.write(`${errors.join("\n")}\n`);
   process.exit(1);
 }
-process.stdout.write(`ATOM2 atomic contract: ${checked.results.length} cases, ${snapshot.metrics.activeResearchStatuses} active Research statuses, ${snapshot.metrics.statusCounts["promoted-value-record"] ?? 0} promoted carriers, ${snapshot.metrics.statusCounts.rejected ?? 0} rejected.\n`);
+process.stdout.write(`ATOM2 atomic contract: ${checked.results.length} cases, ${snapshot.metrics.activeResearchStatuses} legacy research statuses, ${snapshot.metrics.statusCounts["promoted-value-record"] ?? 0} promoted carriers, ${snapshot.metrics.statusCounts.rejected ?? 0} rejected.\n`);

@@ -105,7 +105,7 @@
     },
     {
       "id": "unsafe-adapter",
-      "role": "research-candidate",
+      "role": "current-design-evidence-gap",
       "disposition": "implementation-evidence-gap",
       "language": "w",
       "path": "unsafe-adapter.w",
@@ -225,7 +225,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b"
+    "digest": "sha256:9002f03582b400c286b4b7d54492be792a1617c42c886ceda9e272d444d596d8"
   },
   "evidence": {
     "current": [

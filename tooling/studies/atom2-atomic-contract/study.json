@@ -111,11 +111,11 @@
   "oracle": {
     "path": "../../atom2-atomic-contract-machine.mjs",
     "status": "independent-host-oracle",
-    "digest": "sha256:977697cb9e0797bc41e3e1a551952b21f93d3094de63a1feb1a1b9dfae538f53"
+    "digest": "sha256:3862c1f2c9daea623bcfe9ad9f0224f16a328de6f10064426ee704f2bfbf9336"
   },
   "checker": {
     "path": "../../check-atom2-atomic-contract.mjs",
-    "digest": "sha256:016c06654d28bdd17445c43e30581cf330956f4bacc35d04a984554cee48814e"
+    "digest": "sha256:cc5ab54c83974a45aaba991ea23372a6a6dd7bb203149aaec483d1feb1644980"
   },
   "snapshot": {
     "path": "../../atom2-atomic-contract-results.snapshot.jsonl",
@@ -123,11 +123,11 @@
   },
   "bundle": {
     "path": "bundle.json",
-    "digest": "sha256:a24b37aa59e2d4e002809b848fa735f75c908673698123519394fda0cc233d11"
+    "digest": "sha256:933d7cbd2f1f4e01ce28c87d7f7a77dabc90ba3bc8b4a109df41d892ca1ec3ea"
   },
   "studyOracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:164e6acc89a721a78803e38fbc346ecb12aae3c84b6d0c6c92a297783eb7036b"
+    "digest": "sha256:9002f03582b400c286b4b7d54492be792a1617c42c886ceda9e272d444d596d8"
   },
   "evidence": {
     "current": [

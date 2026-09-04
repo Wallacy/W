@@ -62,7 +62,7 @@ describe("FRC0 final research closure host oracle", () => {
       status: "normalization-in-progress",
       normalized: false,
       familyCount: 15,
-      normalizationPendingCount: 2,
+      normalizationPendingCount: 1,
     });
     expect(current.facts.researchStateInventory).toMatchObject({
       categoryCounts: {

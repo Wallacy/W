@@ -251,10 +251,23 @@
       "decisionRefs": ["W-1352"],
       "successorDecisions": ["W-1352"],
       "implementationGaps": [],
-      "normalizationPending": true,
+      "normalizationPending": false,
       "artifacts": [
         "tooling/atom2-atomic-contract-cases.json",
-        "tooling/atom2-atomic-contract-machine.mjs"
+        "tooling/atom2-atomic-contract-machine.mjs",
+        "tooling/atom2-atomic-contract-manifest.mjs",
+        "tooling/check-atom2-atomic-contract.mjs",
+        "tooling/atom2-atomic-contract-results.snapshot.jsonl",
+        "tooling/studies/atom2-atomic-contract/study.json",
+        "tooling/studies/atom2-atomic-contract/bundle.json",
+        "tooling/studies/atom2-atomic-contract/oracle.test.mjs",
+        "tooling/studies/atom2-atomic-contract/README.md",
+        "tooling/studies/atom2-atomic-contract/canonical-carrier.w",
+        "tooling/studies/atom2-atomic-contract/current-composition.w",
+        "tooling/studies/atom2-atomic-contract/generational-handle.w",
+        "tooling/studies/atom2-atomic-contract/snapshot-cell.w",
+        "tooling/studies/atom2-atomic-contract/unsafe-adapter.w",
+        "tooling/studies/atom2-atomic-contract/rejected-universal.txt"
       ]
     },
     {
