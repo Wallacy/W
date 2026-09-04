@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:e3400d672272b592f89ec53f735902b8ab53784a33fb34250e799ac55f38c076",
+      "digest": "sha256:7ba7222c7907205266cf86b4011c0efd162cf0935363817eb9d4f8340897a4af",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:c6da9698919457042656c76ef9f5efeca1d28f2eef82290998acf46950861c16",
+      "digest": "sha256:d123682e108ce69ed2fcfbf33864b4b75dcf44efa2f8d35b361ba3b5d27f85a8",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -8327,7 +8327,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:d2126fa8047c865dcdf93aceab1a04aa2e214536878b9d0462bb2e0849642100",
+      "declaredDigest": "sha256:8f0d5820f4ddbfa7cfc0a5e21e1395d34dd7c57162e47411e589270833b2d8f6",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8357,7 +8357,7 @@
       "pointer": "sourceRefs.4.path",
       "path": "../../../tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:135676d21ca1c16e16bbdc8c895dba6cb7b6edd220e2b47c877105688d519320",
+      "declaredDigest": "sha256:f18fb43f8225fe6b751f107fc7b6fa1bf22dc67f12ad57bb45aa754be4b00f02",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8367,7 +8367,7 @@
       "pointer": "sourceRefs.5.path",
       "path": "../../../RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:ff87424c41b6eac4a1c1ca905167d7d99f84168a57794c46214604f74864be0c",
+      "declaredDigest": "sha256:2412a6592138609378d578ce37c3d4f59cc47af4c968afe8ec38d9fa2bed4e6d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8377,7 +8377,7 @@
       "pointer": "sourceRefs.6.path",
       "path": "../../../DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:4d5ef97fa6133c2a69f26a6e810812194ebf57be55cad34f454d991217a9145b",
+      "declaredDigest": "sha256:2d2f6fb8d618c02c9456295bf6b0dc9ad225c6c3cd8eed2afe3407bc8bc364e9",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8417,7 +8417,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:d2126fa8047c865dcdf93aceab1a04aa2e214536878b9d0462bb2e0849642100",
+      "declaredDigest": "sha256:8f0d5820f4ddbfa7cfc0a5e21e1395d34dd7c57162e47411e589270833b2d8f6",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8617,7 +8617,7 @@
       "pointer": "artifacts.28.path",
       "path": "tooling/design-freeze-classification.json",
       "resolved": "tooling/design-freeze-classification.json",
-      "declaredDigest": "sha256:135676d21ca1c16e16bbdc8c895dba6cb7b6edd220e2b47c877105688d519320",
+      "declaredDigest": "sha256:f18fb43f8225fe6b751f107fc7b6fa1bf22dc67f12ad57bb45aa754be4b00f02",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8627,7 +8627,7 @@
       "pointer": "artifacts.29.path",
       "path": "RATIONALE.md",
       "resolved": "RATIONALE.md",
-      "declaredDigest": "sha256:ff87424c41b6eac4a1c1ca905167d7d99f84168a57794c46214604f74864be0c",
+      "declaredDigest": "sha256:2412a6592138609378d578ce37c3d4f59cc47af4c968afe8ec38d9fa2bed4e6d",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8647,7 +8647,7 @@
       "pointer": "artifacts.30.path",
       "path": "DESIGN.md",
       "resolved": "DESIGN.md",
-      "declaredDigest": "sha256:4d5ef97fa6133c2a69f26a6e810812194ebf57be55cad34f454d991217a9145b",
+      "declaredDigest": "sha256:2d2f6fb8d618c02c9456295bf6b0dc9ad225c6c3cd8eed2afe3407bc8bc364e9",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8657,7 +8657,7 @@
       "pointer": "artifacts.31.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
-      "declaredDigest": "sha256:2c000c3477117783023e4161cd0216c012edcd5b88e98ff8fa004de619b028a3",
+      "declaredDigest": "sha256:a297e0d8a5ab620ad7de38e6aa8993f85d2d9cb8c50e90f9a6d72554f042103f",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8677,7 +8677,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:52c148bf7f032a018f6944a61a76d2ac3383a5e3ae60b67e76f5d08cdb14227d",
+      "declaredDigest": "sha256:bba715d55b849f477a1ef0bdfcad5b81df83ada7104a052955cfd977863ff320",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8697,7 +8697,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:e3400d672272b592f89ec53f735902b8ab53784a33fb34250e799ac55f38c076",
+      "declaredDigest": "sha256:7ba7222c7907205266cf86b4011c0efd162cf0935363817eb9d4f8340897a4af",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },

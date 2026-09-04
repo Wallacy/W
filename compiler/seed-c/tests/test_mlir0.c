@@ -466,9 +466,12 @@ static bool test_typed_interpolation_artifact(void) {
   CHECK(contains_bytes(output, counts.mlir_bytes,
                        "llvm.mul %v0, %v1 : i64"));
   CHECK(contains_bytes(output, counts.mlir_bytes,
-                       "llvm.call @snprintf"));
+                       "llvm.call @w_seed_append_i64"));
   CHECK(contains_bytes(output, counts.mlir_bytes,
-                       "vararg(!llvm.func<i32 (ptr, i64, ptr, ...)>)"));
+                       "llvm.func internal @w_seed_copy"));
+  CHECK(!contains_bytes(output, counts.mlir_bytes, "snprintf"));
+  CHECK(!contains_bytes(output, counts.mlir_bytes, "%ld"));
+  CHECK(!contains_bytes(output, counts.mlir_bytes, "vararg"));
   CHECK(!contains_bytes(output, counts.mlir_bytes, "The answer is 42"));
   CHECK(output[counts.mlir_bytes] == 0xa7u);
 
@@ -483,6 +486,15 @@ static bool test_typed_interpolation_artifact(void) {
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xb7u);
   CHECK(memcmp(&emitted, &result_snapshot, sizeof(emitted)) == 0);
+
+  static const uint8_t nul_text[] =
+      "fn main() { print(\"A\0${6 * 7}\") }\nentry(main)\n";
+  CHECK(lower_hir(nul_text, sizeof(nul_text) - 1u));
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(output, sizeof(output), &emitted));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes, "\\41\\00"));
+  CHECK(contains_bytes(output, emitted.written.mlir_bytes,
+                       "llvm.call @w_seed_append_i64"));
   return true;
 }
 
@@ -497,10 +509,6 @@ static bool test_interpolation_semantic_barriers(void) {
   CHECK(lower_hir(overflow, sizeof(overflow) - 1u));
   CHECK(expect_sequence_unsupported());
 
-  static const uint8_t nul_text[] =
-      "fn main() { print(\"A\0${6 * 7}\") }\nentry(main)\n";
-  CHECK(lower_hir(nul_text, sizeof(nul_text) - 1u));
-  CHECK(expect_sequence_unsupported());
   return true;
 }
 

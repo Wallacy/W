@@ -27697,7 +27697,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-4-linear-print-and-i64-interpolation`. Seu backend tem status
+`w-seed-mlir0-5-linear-print-and-internal-i64-display`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35503,8 +35503,8 @@ MLIR0 may coalesce the ordered calls into one private global and one `write`
 operation because bindings are pure and the accepted sequence has no other
 effects. This preserves the exact bytes and W order; it does not promise a
 syscall boundary for each source call. The static artifact fits its original
-derived 13190-byte bound. W-1525 raises the adapter capacity to 65536 bytes for
-generated value operations and runtime formatting. `measure` and `emit` remain caller-owned,
+derived 13190-byte bound. W-1526 raises the adapter capacity to 98304 bytes for
+generated value operations and the internal Display helpers. `measure` and `emit` remain caller-owned,
 no-heap, deterministic, alias-safe, digest-bearing, and all-or-nothing:
 invalid HIR, unsupported shape, short capacity, or any relevant alias leaves
 caller output and result unchanged.
@@ -35639,9 +35639,9 @@ expressions, negative integer literals, overflow policy, and performance
 remain later milestones. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
-#### 26.4.1.9 W-1525 — bounded signed-i64 interpolation through native MLIR (Current form)
+#### 26.4.1.9 W-1525 — bounded signed-i64 interpolation through native MLIR (Retained subset; adapter advanced by W-1526)
 
-W-1525 advances MLIR0 to `w-seed-mlir0-4` and Native0 to
+W-1525 introduced MLIR0 `w-seed-mlir0-4` and Native0
 `w-seed-native0-3`. The accepted HIR retains the W-1522 linear module,
 function, entry, block, binding, and call shape. A call argument may now be an
 interpolated String. Its values are signed `i64` constants or bounded binary
@@ -35687,7 +35687,53 @@ link, and execution. Its exact stdout is `Table 42 remains open\n`. The gate
 also executes all five accepted operators, a negative result, and a literal
 percent sign. It confirms that emitted MLIR has no precomputed `Table 42`
 payload. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only.
-No timing or performance result is published.
+No timing or performance result is published. W-1526 replaces the temporary
+format-string adapter while retaining this accepted arithmetic subset.
+
+#### 26.4.1.10 W-1526 — internal bounded signed-i64 Display in LLVM dialect (Current form)
+
+**Example:** this source retains multiplication and converts its result without
+a C format string:
+
+```w
+fn serve() {
+  print("Table ${6 * 7} remains open")
+}
+entry(serve)
+```
+
+W-1526 advances MLIR0 to `w-seed-mlir0-5` and Native0 to
+`w-seed-native0-4`. The selector and the retained HIR arithmetic are unchanged.
+The emitter no longer constructs a C format string and the generated artifact
+contains no `snprintf`, `%ld`, variadic call, `printInt`, or precomputed
+interpolation result.
+
+The artifact creates one immutable text bank and an ordered action plan. A text
+action calls the internal LLVM-dialect function `w_seed_copy`. An integer action
+calls `w_seed_append_i64`. The integer helper derives the unsigned magnitude,
+counts decimal digits, and writes them backwards into the final buffer. This
+also handles `i64.min` without a signed negation overflow. The helpers are
+private implementation details of the seed artifact, not callable W functions
+or the final runtime ABI.
+
+The program allocates one 4097-byte stack buffer and performs one checked POSIX
+`write` after every action completes. Text is copied by explicit byte count, so
+interpolated String text may contain NUL and `%` without escaping or truncation.
+The output remains bounded to 4096 bytes. MLIR0 measure and emit remain
+caller-owned, no-heap, deterministic, digest-bearing, alias-safe, and
+all-or-nothing. The conservative artifact capacity is 98304 bytes.
+
+The source-to-native gate executes the Restaurant witness, all five retained
+integer operators, negative output, percent data, NUL-bearing interpolation,
+and multiple ordered integer fields. It requires the dynamic artifacts to
+contain `w_seed_append_i64` and to omit `snprintf` and `%ld`.
+
+This milestone removes one target-ABI formatting dependency. It does not claim
+a complete runtime, a stable runtime ABI, panic lowering, general Display,
+Bool or String-valued interpolation, another target, or a performance win. The
+external sink is still POSIX `write`, and Linux x86_64 GNU remains the only
+evidenced target. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only; no timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -293,9 +293,6 @@ static bool interpolation_maximum_bytes(const w_seed_hir0_program *program,
     size_t bytes = 0u;
     if (segment->kind == W_SEED_HIR0_INTERPOLATION_TEXT) {
       bytes = segment->byte_count;
-      for (size_t index = 0u; index < bytes; index += 1u)
-        if (program->value_bytes[segment->byte_offset + index] == 0u)
-          return false;
     } else if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
                segment->value_index < program->value_count) {
       const w_seed_hir0_value *embedded =

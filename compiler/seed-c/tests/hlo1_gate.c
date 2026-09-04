@@ -304,9 +304,13 @@ int main(int argc, char **argv) {
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_output output = {artifact, sizeof(artifact)};
   w_seed_native0_result result;
-  if (w_seed_native0_run(&input, &storage, &output, &result) !=
-          W_SEED_NATIVE0_OK ||
-      result.mlir.written.mlir_bytes != result.mlir.required.mlir_bytes ||
+  const w_seed_native0_status status =
+      w_seed_native0_run(&input, &storage, &output, &result);
+  if (status != W_SEED_NATIVE0_OK) {
+    (void)fprintf(stderr, "MLIR0 gate: Native0 status %d\n", (int)status);
+    return 1;
+  }
+  if (result.mlir.written.mlir_bytes != result.mlir.required.mlir_bytes ||
       fwrite(artifact, 1u, result.mlir.written.mlir_bytes, stdout) !=
           result.mlir.written.mlir_bytes ||
       fflush(stdout) != 0)

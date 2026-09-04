@@ -18,7 +18,7 @@ extern "C" {
 /* Native0 is the bounded source-to-MLIR0 adapter used by the seed gate. It
  * reads one explicit file path, retains no heap state, and uses only storage
  * supplied by its caller. */
-#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-3"
+#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-4"
 #define W_SEED_NATIVE0_MAX_SOURCE_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_PATH_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES 4096u

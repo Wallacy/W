@@ -71,6 +71,12 @@ native-subset selector, and performs no textual lookup. It retains the W-1522
 linear String path. It also lowers panic-free signed-`i64` arithmetic inside
 bounded String interpolation and formats the value at runtime. HLO0/HLO1/RUN0 remain
 bootstrap, audit, and recovery paths, not native prerequisites.
+W-1526 advances the current adapter to MLIR0 `w-seed-mlir0-5` and Native0
+`w-seed-native0-4`. Generated dynamic artifacts use private LLVM-dialect copy
+and signed-`i64` decimal helpers instead of `snprintf`, `%ld`, or varargs.
+Counted text now preserves NUL and percent bytes before one checked POSIX
+write. These helpers are seed implementation details, not a stable runtime
+ABI or a performance claim.
 This decision does not claim general locals, `var`, assignment, nested scopes,
 general SSA, ownership, additional targets, the general public `w run` surface,
 or performance. W-1521 covers only the bounded public seed CLI, whose NAT1
@@ -218,7 +224,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v4 LLVM-dialect terminal para um target com NAT1 linear-print e interpolação signed-`i64` bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v5 LLVM-dialect terminal para um target com NAT1 linear-print e Display signed-`i64` interno bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

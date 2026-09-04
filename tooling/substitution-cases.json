@@ -2640,6 +2640,73 @@
         "bun run check:w-run — public bounded runner executes the Restaurant interpolation witness"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-internal-i64-display",
+      "reviewItem": "internal bounded i64 Display helpers against target-ABI snprintf, precomputed output, per-segment writes, and NUL rejection.",
+      "decisions": ["W-1526"],
+      "task": "Replace target-ABI interpolation formatting with counted artifact-local LLVM-dialect helpers while retaining one bounded write.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "print(\"Table ${6 * 7} remains open\")",
+          "MLIR0: text bank + w_seed_copy + w_seed_append_i64 + one checked write",
+          "stdout: Table 42 remains open\\n"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "target-abi-snprintf",
+          "language": "w-rejected",
+          "source": ["snprintf(buffer, capacity, format, value)", "%ld"],
+          "expectedDifference": "The current dynamic artifact contains no format-string call, C varargs, or target-sized long assumption."
+        },
+        {
+          "name": "precomputed-payload",
+          "language": "w-rejected",
+          "source": ["MLIR0 global: Table 42 remains open"],
+          "expectedDifference": "The artifact retains the integer constants, arithmetic operation, and runtime decimal conversion."
+        },
+        {
+          "name": "per-segment-write",
+          "language": "w-rejected",
+          "source": ["write(text); write(integer); write(text)"],
+          "expectedDifference": "All text and digits are assembled in one bounded buffer before one checked external write."
+        },
+        {
+          "name": "nul-rejection",
+          "language": "w-rejected",
+          "source": ["reject interpolated text when it contains 0x00"],
+          "expectedDifference": "Counted copying preserves NUL as ordinary String data and the executable stdout oracle checks the exact bytes."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_RUNTIME_HELPERS",
+          "claim": "The generated artifact defines private counted copy and signed-i64 decimal helpers in LLVM dialect."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_dynamic_plan",
+          "claim": "The emitter derives ordered text and integer actions from verified HIR without format-string interpretation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_typed_interpolation_artifact",
+          "claim": "The unit requires internal helpers, excludes snprintf and percent-long, preserves NUL, and keeps emission transactional."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a])",
+          "claim": "The source-to-native gate executes exact NUL-bearing interpolation and rejects the replaced formatting route."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0 — internal Display helpers, NUL, operators, ordered fields, and native execution",
+        "bun run check:w-run — public bounded runner retains exact Restaurant output"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

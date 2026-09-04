@@ -15,11 +15,11 @@ extern "C" {
  * program, selects the fixed native print subset, and emits textual builtin
  * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
  * and does not allocate or execute. */
-#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-4"
+#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-5"
 #define W_SEED_MLIR0_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
  * segments, 4096 output bytes, and the fixed LLVM-dialect skeleton. */
-#define W_SEED_MLIR0_MAX_BYTES 65536u
+#define W_SEED_MLIR0_MAX_BYTES 98304u
 
 typedef enum {
   W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU = 0,

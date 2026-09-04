@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-4",
+      "runtimeVersion": "w-seed-mlir0-5",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-4-linear-print-and-i64-interpolation",
+      "scope": "w-seed-mlir0-5-linear-print-and-internal-i64-display",
       "claim": null,
       "axes": {
         "backend": {

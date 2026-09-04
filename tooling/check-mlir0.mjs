@@ -52,8 +52,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-4" &&
-    manifest.artifact?.scope === "linear-print-and-i64-interpolation",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-5" &&
+    manifest.artifact?.scope === "linear-print-and-internal-i64-display",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -238,6 +238,9 @@ try {
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
+  const interpolationNulPath = resolve(artifactDirectory,
+    "nul-interpolation.w")
+  const minimumI64Path = resolve(artifactDirectory, "minimum-i64.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -253,6 +256,10 @@ try {
     'entry(main)\n')
   await writeFile(percentPath,
     'fn main() { print("Load ${6 * 7}%") }\nentry(main)\n')
+  await writeFile(interpolationNulPath,
+    Buffer.from('fn main() { print("A\u0000${6 * 7}") }\nentry(main)\n'))
+  await writeFile(minimumI64Path,
+    'fn main() { print("${0 - 9223372036854775807 - 1}") }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -273,13 +280,18 @@ try {
       expected: Buffer.from("10 -6 16 4 2\n", "utf8") },
     { name: "percent-interpolation", source: percentPath,
       expected: Buffer.from("Load 42%\n", "utf8") },
+    { name: "nul-interpolation", source: interpolationNulPath,
+      expected: Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a]) },
+    { name: "minimum-i64", source: minimumI64Path,
+      expected: Buffer.from("-9223372036854775808\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
   for (const product of products) {
     const generated = run(seedGate, [product.source])
     assert(generated.exitCode === 0,
-      `${product.name} source route failed: ${generated.stderrText.trim()}`)
+      `${product.name} source route failed with ${generated.exitCode}: ` +
+      generated.stderrText.trim())
     assert(generated.stderr.length === 0 && generated.stdout.length > 0,
       `${product.name} route did not emit one MLIR artifact`)
     artifacts.set(product.name, Buffer.from(generated.stdout))
@@ -317,6 +329,14 @@ try {
     "Restaurant payload did not change MLIR")
   assert(!artifacts.get("hello").equals(artifacts.get("empty")),
     "empty payload did not change MLIR")
+  for (const name of ["restaurant-interpolation", "typed-arithmetic",
+    "percent-interpolation", "nul-interpolation", "minimum-i64"]) {
+    const artifact = artifacts.get(name)
+    assert(artifact.includes("@w_seed_append_i64") &&
+      !artifact.includes("snprintf") && !artifact.includes("%ld") &&
+      !artifact.includes("vararg"),
+    `${name} did not use the internal bounded i64 writer`)
+  }
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,
