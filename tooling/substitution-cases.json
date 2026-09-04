@@ -2178,13 +2178,18 @@
     {
       "id": "R0-mlir0-native-terminal",
       "reviewItem": "verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.",
-      "decisions": ["W-1520", "W-1521"],
-      "task": "Carry the verified HIR0 input through the bounded MLIR0 LLVM-dialect recipe to a native executable, including the bounded public seed w run route, without generating C or claiming a general W backend.",
+      "decisions": ["W-1520", "W-1521", "W-1522"],
+      "task": "Carry a bounded verified-HIR0 linear print sequence through the MLIR0 LLVM-dialect recipe to a native executable, including the public seed w run route, without generating C or claiming a general W backend.",
       "selected": {
         "language": "w",
         "source": [
-          "fn serve() { print(\"Table 42 remains open\") }",
-          "entry(serve)"
+          "fn serve() {",
+          "  let message = \"Table 42 remains open\"",
+          "  print(message)",
+          "  print(\"Kitchen is ready\")",
+          "}",
+          "entry(serve)",
+          "stdout: Table 42 remains open\\nKitchen is ready\\n"
         ]
       },
       "alternatives": [
@@ -2221,23 +2226,23 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "symbol": "w_seed_native_subset0_select",
-          "claim": "The private shared selector re-verifies HIR0, accepts only the direct literal or one immutable binding/read shape, and exposes structured borrowed slices without textual lookup."
+          "symbol": "w_seed_native_subset0_select_sequence",
+          "claim": "The private sequence selector re-verifies HIR0 and accepts only the bounded ordered literal-or-prior-binding NAT1 shape."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_artifact",
-          "claim": "The emitter consumes the direct verified-HIR selection and renders deterministic builtin plus LLVM dialect text with byte-faithful payload escapes."
+          "claim": "The emitter coalesces the bounded ordered sequence into deterministic builtin plus LLVM dialect text with byte-faithful payload escapes."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "symbol": "test_restaurant_and_nul",
-          "claim": "The unit covers direct and binding Restaurant products, byte-identical artifacts, NUL payload bytes, capacity, aliases and forged HIR boundaries."
+          "symbol": "test_linear_sequence",
+          "claim": "The unit covers ordered Restaurant calls, direct/binding equality, exact and short capacity, aliases, unused bindings and forged HIR boundaries."
         },
         {
           "path": "compiler/seed-c/tests/hlo1_gate.c",
           "symbol": "W_SEED_MLIR0_GATE",
-          "claim": "The MLIR0 gate uses the direct source → parser/frontend → verified HIR0 → MLIR0 route and emits no artifact for rejected shapes."
+          "claim": "The MLIR0 gate uses the direct source → parser/frontend → verified HIR0 → MLIR0 route, executes the Restaurant sequence, and emits no artifact for rejected shapes."
         },
         {
           "path": "tooling/mlir0-toolchain.json",
@@ -2247,12 +2252,12 @@
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "const products = [",
-          "claim": "The focal gate executes Hello, Restaurant and empty artifacts through MLIR verification, LLVM IR translation, native link and exact stdout/stderr/exit checks."
+          "claim": "The focal gate executes Hello, Restaurant linear-sequence and empty artifacts through MLIR verification, LLVM IR translation, native link and exact stdout/stderr/exit checks."
         },
         {
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_execute",
-          "claim": "The public runner accepts one explicit bounded source path, executes the pinned Linux native recipe and enforces exit and cleanup policy."
+          "claim": "The public runner accepts one explicit bounded source path, including hyphenated fixture basenames, executes the pinned Linux native recipe and enforces exit and cleanup policy."
         },
         {
           "path": "compiler/seed-c/cli/w.c",
@@ -2262,12 +2267,12 @@
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "const expectedHelp =",
-          "claim": "The product gate builds and exercises the Linux binary directly, including WSL evidence, rejection cases and temporary-directory cleanup."
+          "claim": "The product gate builds and exercises the Linux binary directly on both versioned hyphenated fixtures, including WSL evidence, rejection cases and temporary-directory cleanup."
         }
       ],
       "checks": [
         "bun run check:mlir0 — source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → clang/native with byte-exact Hello/Restaurant/empty execution",
-        "bun test compiler/seed-c/tests/test_mlir0.c — direct/binding Restaurant equality, capacity, alias, NUL and HIR-forgery unit coverage",
+        "bun run check:mlir0 — ordered Restaurant sequence, direct/binding equality, exact/short capacity, alias, NUL and HIR-forgery unit coverage",
         "bun run check:seed-c11-recovery — shared seed remains available in explicit C11 recovery"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]

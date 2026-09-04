@@ -27697,7 +27697,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-2-verified-hir-print`. Seu backend tem status `pass`. Runtime,
+`w-seed-mlir0-3-linear-print-sequence`. Seu backend tem status `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
 Ela não declara target geral, SDK, packaging ou CI oficial. O manifest
@@ -35234,13 +35234,14 @@ somente quanto aos milestones Hello-only; W-1494 permanece current. C23 é a
 lane primária, C11 é recovery explícita, e falha de toolchain presente é FAIL
 (ausência é SKIP).
 
-#### 26.4.1.2 W-1506 — ponte terminal MLIR0 para LLVM (Forma histórica; W-1520 supersede)
+#### 26.4.1.2 W-1506 — terminal MLIR0-to-LLVM bridge (Historical form; superseded by W-1522)
 
 W-1506 é uma decisão histórica. Ela registrou a primeira forma do adapter
 MLIR0, com schema `w-seed-mlir0-1` e dependência de um plano HLO0 verificado.
-W-1520 substitui esse contrato antes do W 1.0: não existe adapter de
-compatibilidade para preservar a forma antiga por inércia. Os detalhes abaixo
-preservam a evidência histórica, mas não definem a rota nativa corrente.
+W-1520 substituiu esse contrato antes do W 1.0, e W-1522 agora supersede a
+forma schema-v2 antes do W 1.0: não existe adapter de compatibilidade para
+preservar uma forma antiga por inércia. Os detalhes abaixo preservam a
+evidência histórica, mas não definem a rota nativa corrente.
 
 **Exemplo:** Hello, Restaurante e vazio atravessam MLIR0 e produzem stdout exato com LF, stderr vazio e exit zero.
 
@@ -35369,21 +35370,22 @@ the separate bounded public seed command and does not widen this route.
 `benchmarkDisposition` is `compiler-lifecycle`. The evidence is correctness-only,
 with no timing or result.
 
-#### 26.4.1.4 W-1520 — verified-HIR direct MLIR0 native route (Forma vigente)
+#### 26.4.1.4 W-1520 — verified-HIR direct MLIR0 native route (Historical form; superseded by W-1522)
 
-W-1520 is the current `source-backed-current` decision for the bounded native
-seed route. Before W 1.0, it replaces the incompatible MLIR0 schema v1 with
-`w-seed-mlir0-2`; there is no parallel legacy adapter. W-1506 is historical,
-and W-1505 remains current for the HLO0 direct subset contract. W-1519 remains
-current for immutable local binding semantics.
+W-1520 recorded the historical schema-v2 direct verified-HIR route. Before W
+1.0, it replaced the incompatible MLIR0 schema v1 with `w-seed-mlir0-2`; W-1522
+later superseded this schema-v2 contract in place, with no parallel legacy
+adapter. At that decision, W-1506 was historical, W-1505 remained current for
+the HLO0 direct subset contract, and W-1519 remained current for immutable
+local binding semantics.
 
-The primary product pipeline is:
+The primary product pipeline was:
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
-clang/native`. HLO0, HLO1, and RUN0 remain bootstrap, audit, and recovery
-paths. They are not prerequisites for the primary native route. HLO0 proves
-its binding plan independently; MLIR0 consumes the same HIR directly.
+clang/native`. HLO0, HLO1, and RUN0 remained bootstrap, audit, and recovery
+paths. They were not prerequisites for the primary native route. HLO0 proved
+its binding plan independently; MLIR0 consumed the same HIR directly.
 
-**Example:** the accepted Restaurant source reaches MLIR0 as verified HIR0:
+**Example:** the accepted Restaurant source reached MLIR0 as verified HIR0:
 
 ```w
 fn serve() {
@@ -35393,39 +35395,40 @@ fn serve() {
 entry(serve)
 ```
 
-The internal caller passes `w_seed_mlir0_input { program, hir_result }`.
-MLIR0 verifies that HIR0 and emits the bounded artifact. This example uses
-only the existing seed syntax; it does not claim general lowering.
+The internal caller passed `w_seed_mlir0_input { program, hir_result }`.
+MLIR0 verified that HIR0 and emitted the bounded artifact. This example used
+only the existing seed syntax; it did not claim general lowering.
 
-The internal MLIR0 API consumes only
-`w_seed_mlir0_input { program, hir_result }`. The header includes HIR0 and
-neither the header nor source includes, calls, or creates HLO0. MLIR0
-re-verifies HIR at its boundary through the private `native_subset0` selector.
-That selector is the one exact selector shared independently by HLO0 and
-MLIR0. It accepts only a direct `CONST_STRING` or one immutable prior String
-`BINDING → CALL` with a `BINDING_READ`. It exposes structured borrowed records
-and HIR payload slices; it performs no textual name lookup.
+The internal MLIR0 API consumed only
+`w_seed_mlir0_input { program, hir_result }`. The header included HIR0 and
+neither the header nor source included, called, or created HLO0. MLIR0
+re-verified HIR at its boundary through the private `native_subset0` selector.
+That selector was the one exact selector shared independently by HLO0 and
+MLIR0. It accepted only a direct `CONST_STRING` or one immutable prior String
+`BINDING → CALL` with a `BINDING_READ`. It exposed structured borrowed records
+and HIR payload slices; it performed no textual name lookup.
 
-MLIR0 remains caller-owned, bounded, no-heap, transactional, and all-or-nothing.
-Preflight validates HIR before capacities or ranges are used. Invalid HIR,
+MLIR0 remained caller-owned, bounded, no-heap, transactional, and all-or-nothing.
+Preflight validated HIR before capacities or ranges were used. Invalid HIR,
 unsupported subset or target, short capacity, and any descriptor/result/HIR
-range alias leave caller output and result records unchanged. The artifact is
+range alias left caller output and result records unchanged. The artifact was
 LF-only textual builtin plus LLVM dialect, with payload+LF and its digest. The
-only emitted target is `x86_64-unknown-linux-gnu`; no general target support,
-W dialect, custom dialect, or general SSA is claimed.
+only emitted target was `x86_64-unknown-linux-gnu`; no general target support,
+W dialect, custom dialect, or general SSA was claimed.
 
-The gate proves source, parser/frontend, verified HIR0, MLIR0, MLIR verification,
+The gate proved source, parser/frontend, verified HIR0, MLIR0, MLIR verification,
 LLVM IR translation, native link, and execution. Direct Hello, empty, and the
-Restaurant binding and literal forms remain products. Restaurant binding and
-literal artifacts are byte-identical and both produce exact stdout
-`Table 42 remains open\n`; there are no timing or performance results. The
-current factual toolchain is 20.1.2 with `update-required` currency status.
+Restaurant binding and literal forms were products. Restaurant binding and
+literal artifacts were byte-identical and both produced exact stdout
+`Table 42 remains open\n`; there were no timing or performance results. The
+factual toolchain was 20.1.2
+with `update-required` currency status.
 
-The finite gaps are general HIR, multiple bindings or values, CFG/general SSA,
+The finite gaps were general HIR, multiple bindings or values, CFG/general SSA,
 the W MLIR dialect, an MLIR C API builder, ownership/effects/tasks lowering,
 optimizer/pass pipeline, provider/runtime/linker/SDK/packaging, other hosts or
-targets, the general public `w run` surface, and performance. W-1521 closes
-only the bounded public seed subset. `benchmarkDisposition` is
+targets, the general public `w run` surface, and performance. W-1521 closed
+only the bounded public seed subset. `benchmarkDisposition` was
 `compiler-lifecycle`, correctness-only, with no timing or result.
 
 #### 26.4.1.5 W-1521 — bounded public seed `w run` (Current form)
@@ -35461,6 +35464,69 @@ unsupported and missing-tool errors return 2; internal, I/O and cleanup errors
 return 3. `--entry` and `--offline` are rejected in this cut. Native Windows,
 macOS and the general public runner remain gaps. The evidence covers compiler
 lifecycle correctness only; it makes no performance, timing or result claim.
+
+W-1521 remains current for this CLI contract and now points to W-1522 for the
+NAT1 linear-print-sequence extension. In `w run`, the explicit path basename is
+an opaque logical source identity, including a hyphen and the terminal `.w`; it
+is not required to be a W identifier or module name. The `w check` helper and
+`w_seed_check_root_source_id` are unchanged. This makes the versioned
+`hlo0-hello.w` and `restaurant-linear.w` examples executable directly without
+changing the public argument grammar.
+
+#### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Current form)
+
+W-1522 is the current `source-backed-current` decision for the NAT1 product
+cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
+MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; no legacy
+adapter is retained. Frontend schema `w-seed-frontend-11` and HIR0 schema
+`w-seed-hir0-2` remain unchanged. The primary route is
+`source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
+clang/native`, directly and without HLO0, HLO1, or RUN0.
+
+The accepted HIR shape is exactly one module, one function, one `.default`
+entry, and one block. The function is linear, returns Unit, has no parameters,
+and declares no effects. The block has 1..32 instructions, consisting only of
+0..32 immutable String bindings and 1..32 ordered `print` calls; instruction
+count equals binding count plus call count. Every binding is read at least once
+by a later instruction. Repeated reads are allowed. Each call has one
+positional String argument that is either a direct literal or a read of a prior
+binding. Source order is preserved. Each payload is at most 256 bytes, and the
+concatenated stdout bytes (payload plus LF for every call) are at most 4096
+bytes. No other instruction or call is accepted.
+
+MLIR0 may coalesce the ordered calls into one private global and one `write`
+operation because bindings are pure and the accepted sequence has no other
+effects. This preserves the exact bytes and W order; it does not promise a
+syscall boundary for each source call. The artifact bound
+`W_SEED_MLIR0_MAX_BYTES = 13190` is derived from the fixed skeleton, worst-case
+escaped output, and bounded decimal fields, and is proved by compile-time
+static assertions rather than trial. `measure` and `emit` remain caller-owned,
+no-heap, deterministic, alias-safe, digest-bearing, and all-or-nothing:
+invalid HIR, unsupported shape, short capacity, or any relevant alias leaves
+caller output and result unchanged.
+
+HLO0, HLO1, and RUN0 retain their existing single-print schemas and reject
+multi-call sequences. This decision does not add Int, interpolation, `var`,
+CFG, general SSA, DCE, general locals, general types, a W dialect, a general
+runtime, HLO0 as a requirement, or a performance claim.
+
+The canonical witness is
+`compiler/seed-c/fixtures/restaurant-linear.w`:
+
+```w
+fn serve() {
+  let message = "Table 42 remains open"
+  print(message)
+  print("Kitchen is ready")
+}
+entry(serve)
+```
+
+Its exact stdout is `Table 42 remains open\nKitchen is ready\n`. The direct
+literal and binding forms are products, and their ordered artifacts are
+byte-identical when they represent the same bytes. The public `w run` path
+uses the W-1521 opaque-basename correction for this witness; `w check` remains
+unchanged.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

@@ -87,8 +87,9 @@ export const platformSupportPath = path.join(toolingDirectory, "platform-support
 export const platformSupportDocumentPath = path.join(repositoryRoot, "PLATFORM-SUPPORT.md");
 const mlir0ToolchainSchema = "w-seed-mlir0-toolchain-1";
 const currentTargetTriple = "x86_64-unknown-linux-gnu";
-const currentTargetScope = "w-seed-mlir0-2-verified-hir-print";
-const currentRuntimeVersion = "w-seed-mlir0-2";
+const currentTargetScope = "w-seed-mlir0-3-linear-print-sequence";
+const currentRuntimeVersion = "w-seed-mlir0-3";
+const currentArtifactScope = "linear-print-sequence";
 const pinnedToolchainVersion = "20.1.2";
 const currentEvidenceCurrencyStatus = "update-required";
 const futureNativePlanPolicy = "llvmorg-23.1.0-exact-pin-with-build-provenance-gate";
@@ -1184,6 +1185,10 @@ function validateMlir0Manifest(value, current, root, errors) {
   if (!manifest) return;
   if (manifest.$schema !== mlir0ToolchainSchema || manifest.version !== 1 || manifest.status !== "pinned") {
     addError(errors, "mlir0 toolchain manifest mismatch: schema, version, or pinned status is invalid.");
+  }
+  if (manifest.artifact?.schema !== currentRuntimeVersion ||
+      manifest.artifact?.scope !== currentArtifactScope) {
+    addError(errors, "mlir0 toolchain manifest mismatch: artifact schema or scope disagrees with the current MLIR0 evidence.");
   }
   if (manifest.target?.triple !== currentTargetTriple || manifest.target?.triple !== current?.row?.triple) {
     addError(errors, "mlir0 toolchain manifest mismatch: target triple does not match the current evidence row.");

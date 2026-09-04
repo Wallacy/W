@@ -729,7 +729,7 @@ if (!w1519 || w1519.category !== "source-backed-current" ||
   ]) {
     if (!w1519Text.includes(boundedGap)) fail(`fixed VAL1 assertion W-1519 must retain bounded gap ${boundedGap}.`);
   }
-  for (const currentId of ["W-1505", "W-1520"]) {
+  for (const currentId of ["W-1505", "W-1522"]) {
     const current = entriesById.get(currentId);
     if (!current || !["source-backed-current", "oracle-backed-current"].includes(current.category)) {
       fail(`fixed VAL1 assertion ${currentId} must remain current.`);
@@ -740,39 +740,48 @@ if (!w1519 || w1519.category !== "source-backed-current" ||
 const w1506 = entriesById.get("W-1506");
 if (!w1506 || w1506.category !== "superseded" ||
     w1506.authorityRef?.kind !== "superseding-decision" ||
-    w1506.authorityRef?.decisionId !== "W-1520" ||
-    w1506.supersessionClaim?.decisionId !== "W-1520") {
-  fail("fixed VAL1 assertion W-1506 must be superseded by W-1520.");
+    w1506.authorityRef?.decisionId !== "W-1522" ||
+    w1506.supersessionClaim?.decisionId !== "W-1522") {
+  fail("fixed VAL1 assertion W-1506 must be superseded by W-1522.");
 }
 
 const w1520 = entriesById.get("W-1520");
 const w1520Case = legacySubstitutionCases.get("R0-mlir0-native-terminal");
-const w1520SourceRefs = [
+if (!w1520 || w1520.category !== "superseded" ||
+    w1520.authorityRef?.kind !== "superseding-decision" ||
+    w1520.authorityRef?.decisionId !== "W-1522" ||
+    w1520.supersessionClaim?.decisionId !== "W-1522" || !w1520Case ||
+    !(w1520Case.decisions ?? []).includes("W-1520") ||
+    !(w1520Case.decisions ?? []).includes("W-1522")) {
+  fail("fixed VAL1 assertion W-1520 must be superseded by W-1522 through case R0.");
+}
+
+const w1522 = entriesById.get("W-1522");
+const w1522SourceRefs = [
   ["compiler/seed-c/include/w_seed_mlir0.h", "w_seed_mlir0_input"],
-  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select"],
+  ["compiler/seed-c/src/w_seed_native_subset0.c", "w_seed_native_subset0_select_sequence"],
   ["compiler/seed-c/src/w_seed_mlir0.c", "build_artifact"],
-  ["compiler/seed-c/tests/test_mlir0.c", "test_restaurant_and_nul"],
-  ["compiler/seed-c/tests/hlo1_gate.c", "W_SEED_MLIR0_GATE"],
+  ["compiler/seed-c/tests/test_mlir0.c", "test_linear_sequence"],
+  ["compiler/seed-c/tests/test_native0.c", "test_products"],
+  ["compiler/seed-c/cli/run.c", "run_logical_source_id"],
   ["tooling/check-mlir0.mjs", "const products = ["],
-  ["tooling/mlir0-toolchain.json", "pipeline"],
+  ["tooling/check-w-run.mjs", "const expectedHelp ="],
+  ["compiler/seed-c/fixtures/restaurant-linear.w", "serve"],
 ];
-if (!w1520 || w1520.category !== "source-backed-current" ||
-    w1520.authorityRef?.kind !== "source-case" ||
-    w1520.authorityRef?.caseId !== "R0-mlir0-native-terminal" ||
-    w1520.supersessionClaim !== undefined || !w1520Case ||
-    !(w1520Case.decisions ?? []).includes("W-1520")) {
-  fail("fixed VAL1 assertion W-1520 must be current source-backed through case R0.");
+if (!w1522 || w1522.category !== "source-backed-current" || !w1520Case ||
+    !(w1520Case.decisions ?? []).includes("W-1522")) {
+  fail("fixed VAL1 assertion W-1522 must be current through case R0.");
 } else {
-  if (!Array.isArray(w1520.sourceRefs) || w1520.sourceRefs.length !== w1520SourceRefs.length) {
-    fail("fixed VAL1 assertion W-1520 must provide concrete direct-route sourceRefs.");
+  if (!Array.isArray(w1522.sourceRefs) || w1522.sourceRefs.length !== w1522SourceRefs.length) {
+    fail("fixed VAL1 assertion W-1522 must provide concrete NAT1 sourceRefs.");
   } else {
     const seen = new Set();
-    for (const [index, [expectedPath, expectedSymbol]] of w1520SourceRefs.entries()) {
-      const ref = w1520.sourceRefs[index];
-      const location = `entries[${classification.entries.indexOf(w1520)}].sourceRefs[${index}]`;
+    for (const [index, [expectedPath, expectedSymbol]] of w1522SourceRefs.entries()) {
+      const ref = w1522.sourceRefs[index];
+      const location = `entries[${classification.entries.indexOf(w1522)}].sourceRefs[${index}]`;
       validateSourceRef(ref, location);
       const key = `${ref?.path}\0${ref?.symbol}`;
-      if (seen.has(key)) fail(`${location} duplicates a W-1520 source reference.`);
+      if (seen.has(key)) fail(`${location} duplicates a W-1522 source reference.`);
       seen.add(key);
       if (ref?.path !== expectedPath || ref?.symbol !== expectedSymbol) {
         fail(`${location} must identify ${expectedPath} and ${expectedSymbol}.`);
@@ -786,26 +795,24 @@ if (!w1520 || w1520.category !== "source-backed-current" ||
   const mlirSource = fs.readFileSync(path.join(wDirectory, "compiler/seed-c/src/w_seed_mlir0.c"), "utf8");
   if (!mlirHeader.includes("w_seed_hir0.h") || !mlirHeader.includes("w_seed_mlir0_input") ||
       /w_seed_hlo0/u.test(mlirHeader) || /w_seed_hlo0/u.test(mlirSource)) {
-    fail("fixed VAL1 assertion W-1520 must keep MLIR0 direct-HIR and free of w_seed_hlo0 references.");
+    fail("fixed VAL1 assertion W-1522 must keep MLIR0 direct-HIR and free of w_seed_hlo0 references.");
   }
   const caseText = JSON.stringify(w1520Case);
   if (!/verified HIR0/iu.test(caseText) || /HLO0 prerequisite|depends on HLO0|HLO0 payload/iu.test(caseText)) {
     fail("fixed VAL1 assertion R0 must describe direct verified HIR0 without an HLO0 prerequisite.");
   }
-  if (w1520.benchmarkDisposition !== "compiler-lifecycle" ||
-      typeof w1520.benchmarkEvidence !== "string" ||
-      !/correctness-only/i.test(w1520.benchmarkEvidence) ||
-      !/no timing or result/i.test(w1520.benchmarkEvidence)) {
-    fail("fixed VAL1 assertion W-1520 must publish compiler-lifecycle correctness-only evidence without timing or result.");
+  if (w1522.benchmarkDisposition !== "compiler-lifecycle" ||
+      typeof w1522.benchmarkEvidence !== "string" ||
+      !/correctness-only/i.test(w1522.benchmarkEvidence) ||
+      !/no timing or result/i.test(w1522.benchmarkEvidence)) {
+    fail("fixed VAL1 assertion W-1522 must publish compiler-lifecycle correctness-only evidence without timing or result.");
   }
-  const w1520Text = `${w1520.canonicalClaim} ${w1520.reason}`.toLowerCase();
+  const w1522Text = `${w1522.canonicalClaim} ${w1522.reason}`.toLowerCase();
   for (const boundedGap of [
-    "general hir", "multiple values", "bindings", "cfg", "general ssa", "w mlir dialect",
-    "mlir c api builder", "ownership", "effects", "tasks", "optimizer", "pass pipeline",
-    "provider", "runtime", "linker", "sdk", "packaging", "other hosts/targets",
-    "public w run", "performance",
+    "general locals", "cfg", "int", "interpolation", "var", "dce",
+    "hlo0 requirement", "performance",
   ]) {
-    if (!w1520Text.includes(boundedGap)) fail(`fixed VAL1 assertion W-1520 must retain bounded gap ${boundedGap}.`);
+    if (!w1522Text.includes(boundedGap)) fail(`fixed VAL1 assertion W-1522 must retain bounded gap ${boundedGap}.`);
   }
 }
 

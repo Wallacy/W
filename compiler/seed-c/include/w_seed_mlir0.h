@@ -15,12 +15,10 @@ extern "C" {
  * program, selects the fixed native print subset, and emits textual builtin
  * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
  * and does not allocate or execute. */
-#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-2"
+#define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-3"
 #define W_SEED_MLIR0_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
-/* The fixed 4096-byte bound is checked in the implementation as the sum of
- * every literal, four bounded decimal fields and three bytes for each of the
- * 257 possible payload-plus-LF bytes. */
-#define W_SEED_MLIR0_MAX_BYTES 4096u
+/* 886 fixed bytes + (3 * 4096 escaped stdout bytes) + 16 decimal bytes. */
+#define W_SEED_MLIR0_MAX_BYTES 13190u
 
 typedef enum {
   W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU = 0,

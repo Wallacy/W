@@ -34,7 +34,6 @@ bool w_seed_run_parse(int argc, char **argv, w_seed_run_request *request) {
 
 #if defined(__linux__)
 
-#include "check_host.h"
 #include "w_seed_native0.h"
 
 #include <errno.h>
@@ -141,6 +140,24 @@ static int run_tool(const char *executable, char *const arguments[]) {
   return wait_for_tool(child);
 }
 
+/* Run accepts a source basename as an opaque logical identity. The argv path
+ * has already been NUL-terminated by the host, so this helper only derives
+ * the final basename and preserves the public .w extension check. */
+static bool run_logical_source_id(const char *path, size_t length,
+                                  w_seed_frontend_text *source_id) {
+  if (source_id != NULL) *source_id = (w_seed_frontend_text){NULL, 0u};
+  if (path == NULL || length < 3u || source_id == NULL ||
+      path[length - 2u] != '.' || path[length - 1u] != 'w')
+    return false;
+  size_t basename_start = 0u;
+  for (size_t index = 0u; index < length; index += 1u)
+    if (path[index] == '/') basename_start = index + 1u;
+  if (basename_start >= length) return false;
+  *source_id = (w_seed_frontend_text){path + basename_start,
+                                      length - basename_start};
+  return true;
+}
+
 static int wait_for_program(pid_t child) {
   int status = 0;
   while (waitpid(child, &status, 0) < 0) {
@@ -200,9 +217,7 @@ int w_seed_run_execute(const w_seed_run_request *request) {
   if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
     return 2;
   w_seed_frontend_text source_id;
-  if (w_seed_check_root_source_id(request->path, path_length, &source_id) !=
-      W_SEED_CHECK_HOST_OK)
-    return 2;
+  if (!run_logical_source_id(request->path, path_length, &source_id)) return 2;
 
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_input native_input = {

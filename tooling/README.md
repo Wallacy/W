@@ -146,9 +146,10 @@ local. Execute `bun run check:compiler` para os gates do bundle.
 
 O caminho C23 `source → parser → frontend → HIR0 verificada → HLO0 → HLO1`
 continua limitado aos subset e witnesses documentados. A rota nativa primária
-W-1520 é independente: `source → parser/frontend → HIR0 verificada → MLIR0 →
+W-1522 é independente: `source → parser/frontend → HIR0 verificada → MLIR0 →
 mlir-opt → mlir-translate → clang/native`; HLO0, HLO1 e RUN0 são bootstrap,
-auditoria e recovery, não pré-requisitos dessa rota. ACQ0 executa CHK6 em
+auditoria e recovery, não pré-requisitos dessa rota. MLIR0 v3 aceita somente a
+sequência NAT1 linear bounded; HLO0/HLO1/RUN0 continuam single-print. ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,
 rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. OWN0 observa e
@@ -160,7 +161,9 @@ bundle; seus probes são somente diagnósticos. Execute
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
 Execute `bun run check:run0` para esse gate. O subset público W-1521 usa
 `w run <explicit-path.w> [-- <args...>]` em Linux x86_64, ou o binário Linux
-por WSL Ubuntu no host Windows; execute `bun run check:w-run` para o produto.
+por WSL Ubuntu no host Windows; o basename explícito é uma source identity
+opaca, não um identifier de módulo. Execute `bun run check:w-run` para o
+produto; a extensão NAT1 é definida por W-1522.
 Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
 owner selection, backend, linker, runtime ou o runner `w run` geral.

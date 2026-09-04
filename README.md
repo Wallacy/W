@@ -14,14 +14,15 @@ formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
 coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
 no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
 O seed também executa o subset print-literal input-driven verified-HLO0 por
-HLO1/RUN0 em gates internos bounded e test-only. W-1520 define a primeira rota
-nativa real: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect →
-LLVM IR → clang/native, sem passar por C source ou depender de HLO0. Hello é o
-witness canônico, mas o mesmo caminho aceita payloads String variáveis e
-compara stdout exato. W-1521 publica somente o subset bounded
-`w run <explicit-path.w> [-- <args...>]` em Linux x86_64; o runner público
-geral continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout
-Windows, não suporte Windows nativo.
+HLO1/RUN0 em gates internos bounded e test-only. W-1522 define a rota nativa
+real corrente: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect
+→ LLVM IR → clang/native, sem passar por C source ou depender de HLO0. A forma
+NAT1 aceita uma sequência linear bounded de `print` com bindings String
+imutáveis e preserva stdout exato; W-1520 registra a forma schema-v2 histórica.
+W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
+em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
+continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
+não suporte Windows nativo.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
@@ -35,6 +36,8 @@ compatibility floors, evidence snapshots e external evaluations.
 HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
 seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma direta de uma
 função/entry/block/call/argument. W-1519 adds a bounded verified binding shape.
+W-1522 extends only the direct MLIR0 consumer to ordered linear print
+sequences; HLO0/HLO1/RUN0 retain their single-print contracts.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -52,13 +55,15 @@ or exactly one `BINDING → CALL` chain with `BINDING_READ` by binding index.
 HLO0 proves that binding plan independently; MLIR0 consumes the same verified
 HIR directly. The Restaurant witness reaches MLIR0 and native execution with
 exact stdout `Table 42 remains open\n`.
-W-1520 replaces MLIR0 schema v1 in place with `w-seed-mlir0-2`: its internal
-API accepts only `{ program, hir_result }`, re-verifies HIR through the private
-shared native-subset selector, and performs no textual lookup. HLO0/HLO1/RUN0
-remain bootstrap, audit, and recovery paths, not native prerequisites.
+W-1522 replaces W-1520's MLIR0 schema-v2 contract in place with
+`w-seed-mlir0-3` and Native0 `w-seed-native0-2`: its internal API accepts only
+`{ program, hir_result }`, re-verifies HIR through the private shared
+native-subset selector, and performs no textual lookup. HLO0/HLO1/RUN0 remain
+bootstrap, audit, and recovery paths, not native prerequisites.
 This decision does not claim general locals, `var`, assignment, nested scopes,
 general SSA, ownership, additional targets, the general public `w run` surface,
-or performance. W-1521 covers only the bounded public seed subset.
+or performance. W-1521 covers only the bounded public seed CLI, whose NAT1
+sequence extension is defined by W-1522.
 
 MAN0 é o reader C controlado, compilado em modo C23, guarded, caller-owned e
 bounded de manifests estruturais. C11 é somente a lane explícita de
@@ -202,7 +207,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 LLVM-dialect terminal para um target, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v3 LLVM-dialect terminal para um target com NAT1 linear-print, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

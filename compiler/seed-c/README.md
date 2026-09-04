@@ -996,12 +996,14 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 
 `include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
-HIR0 e a implementação não inclui, chama ou cria HLO0. A API incompatível
-`w-seed-mlir0-2` re-verifica HIR na fronteira por meio do helper privado
-`native_subset0`, que é o seletor exato compartilhado independentemente por
-HLO0 e MLIR0. Ele aceita somente uma `CONST_STRING` direta ou uma binding
-String imutável anterior em `BINDING → CALL` com `BINDING_READ`; publica slices
-e records estruturados emprestados e não faz lookup textual.
+HIR0 e a implementação não inclui, chama ou cria HLO0. W-1522 substitui em
+place a API `w-seed-mlir0-2` por `w-seed-mlir0-3` e sobe Native0 para
+`w-seed-native0-2`. MLIR0 re-verifica HIR na fronteira por meio do helper
+privado `native_subset0`; o selector de sequência é privado e o selector
+single existente continua a sustentar HLO0/HLO1/RUN0. O caminho corrente aceita
+somente a forma linear NAT1: literals String diretos ou reads de bindings
+String imutáveis anteriores, com slices e records estruturados emprestados e
+sem lookup textual.
 
 `measure` e `emit` são caller-owned, bounded, sem heap, determinísticos e
 all-or-nothing; status, required, written e digest pertencem ao result.
@@ -1028,16 +1030,30 @@ suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
 geral, múltiplas bindings/values, CFG/general SSA, W MLIR dialect, MLIR C API
 builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
 provider/runtime/linker/SDK, o runner `w run` público geral e performance são
-gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL. HLO0,
-HLO1 e RUN0 continuam bootstrap, auditoria e recovery. O bundle tem
+gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL e aponta
+NAT1. HLO0, HLO1 e RUN0 continuam bootstrap, auditoria e recovery e rejeitam
+multi-call. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
+
+NAT1 accepts exactly one module, function, `.default` entry and block. The
+function is linear, returns Unit, has no parameters or effects, and the block
+contains 1..32 instructions made only of 0..32 immutable String bindings and
+1..32 ordered `print` calls. Every binding is read at least once; repeated
+reads are allowed. Instruction count equals bindings plus calls. Each argument
+is a direct String literal or a read of a prior binding. Each payload is at
+most 256 bytes and ordered stdout (payload plus LF per call) is at most 4096
+bytes. MLIR0 may coalesce the pure calls into one global/write while preserving
+bytes and W order, without promising syscall boundaries. The statically proved
+artifact bound is `W_SEED_MLIR0_MAX_BYTES = 13190`; measure and emit remain
+all-or-nothing with alias and digest invariants. HLO0/HLO1/RUN0 remain
+single-print.
 
 ```text
 bun run check:mlir0
 ```
 
-## Public bounded `w run` (W-1521)
+## Public bounded `w run` (W-1521, NAT1 extension W-1522)
 
 The public seed command is limited to:
 
@@ -1048,7 +1064,9 @@ w run <explicit-path.w> [-- <args...>]
 It accepts one explicit `.w` path and non-empty valid UTF-8 source up to 4096
 bytes. It does not discover source recursively, from cwd or PATH, or through
 imports, packages, workspaces, registries or network. Native0 is caller-owned
-and no-heap; the logical source id is the basename. The direct route is
+and no-heap; the logical source id is the opaque basename supplied by the
+caller, including hyphens and the terminal `.w`, rather than a W identifier or
+module name. The direct route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
 mlir-translate → clang/native`; HLO0, HLO1 and RUN0 are not prerequisites.
 
@@ -1071,6 +1089,21 @@ bun run check:w-run
 On a Windows host, the same gate builds and runs the Linux binary in WSL
 Ubuntu. It does not claim native Windows support.
 
+The versioned fixtures can be run directly from the repository root after the
+build:
+
+```text
+./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
+# Hello, world!
+./build/seed-c-run/w run compiler/seed-c/fixtures/restaurant-linear.w
+# Table 42 remains open
+# Kitchen is ready
+```
+
+The opaque-basename rule is local to `w run`. `w check` keeps its existing
+identifier helper and grammar; no general source identity or runner surface is
+claimed.
+
 For a manual Linux or WSL smoke from the repository root:
 
 ```sh
@@ -1079,6 +1112,9 @@ cmake -S compiler/seed-c -B build/seed-c-run -G Ninja \
 cmake --build build/seed-c-run --target w
 ./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
 # Hello, world!
+./build/seed-c-run/w run compiler/seed-c/fixtures/restaurant-linear.w
+# Table 42 remains open
+# Kitchen is ready
 rm -rf -- ./build/seed-c-run
 ```
 

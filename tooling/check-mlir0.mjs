@@ -7,6 +7,7 @@ import { dialectDisclosure, probeCDialect } from "./c-dialect.mjs"
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
+const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -50,6 +51,9 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
+  assert(manifest.artifact?.schema === "w-seed-mlir0-3" &&
+    manifest.artifact?.scope === "linear-print-sequence",
+  "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
   for (const role of ["mlir", "llvm", "clang"])
@@ -94,7 +98,7 @@ function validateManifest(manifest) {
     manifest.distribution?.macosMlir === "gap" &&
     manifest.distribution?.packaging === "gap",
   "toolchain distribution evidence is invalid")
-  assert(manifest.execution?.stdout === "payload + LF" &&
+  assert(manifest.execution?.stdout === "ordered payloads + LF per print" &&
     manifest.execution?.stderr === "empty" && manifest.execution?.exit === 0,
   "toolchain execution contract is invalid")
 }
@@ -229,11 +233,18 @@ try {
   const seedGate = resolve(buildDirectory, `w_seed_mlir0_gate${suffix}`)
   const restaurantPath = resolve(artifactDirectory, "restaurant.w")
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
+  const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
+  const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
   await writeFile(restaurantLiteralPath,
     `fn serve() { print("Table 42 remains open") }\nentry(serve)\n`)
+  await writeFile(restaurantLinearLiteralPath,
+    `fn serve() {\nprint("Table 42 remains open")\n` +
+    `print("Kitchen is ready")\n}\nentry(serve)\n`)
+  await writeFile(twoCallsPath,
+    `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -242,6 +253,12 @@ try {
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
     { name: "restaurant-literal", source: restaurantLiteralPath,
       expected: Buffer.from("Table 42 remains open\n", "utf8") },
+    { name: "restaurant-linear", source: restaurantLinearFixture,
+      expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
+    { name: "restaurant-linear-literal", source: restaurantLinearLiteralPath,
+      expected: Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8") },
+    { name: "two-calls", source: twoCallsPath,
+      expected: Buffer.from("a\nb\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -279,6 +296,9 @@ try {
   assert(artifacts.get("restaurant-binding").equals(
     artifacts.get("restaurant-literal")),
   "Restaurant literal and binding MLIR artifacts differ")
+  assert(artifacts.get("restaurant-linear").equals(
+    artifacts.get("restaurant-linear-literal")),
+  "Restaurant linear literal and binding MLIR artifacts differ")
   assert(!artifacts.get("hello").equals(artifacts.get("restaurant-binding")),
     "Restaurant payload did not change MLIR")
   assert(!artifacts.get("hello").equals(artifacts.get("empty")),
@@ -292,15 +312,25 @@ try {
     Buffer.from(commented.stdout).equals(artifacts.get("hello")),
   "trivia changed the deterministic MLIR artifact")
 
+  const tooManyInstructions =
+    `fn main() {\n${Array.from({ length: 33 }, () => "print(\"x\")").join("\n")}\n` +
+    `}\nentry(main)\n`
+  const totalOutputOverflow =
+    `fn main() {\nlet message = "${"x".repeat(256)}"\n` +
+    `${Array.from({ length: 17 }, () => "print(message)").join("\n")}\n` +
+    `}\nentry(main)\n`
   const adversarial = [
     ["comment-with-print.w",
       `fn main() { noop("Other") } // print("Hello, world!")\nentry(main)\n`],
     ["noop.w", `fn main() { noop("Other") }\nentry(main)\n`],
-    ["two-calls.w", `fn main() { print("a")\nprint("b") }\nentry(main)\n`],
     ["outside-subset.w",
       `fn main(value: String) { print(value) }\nentry(main)\n`],
     ["var-binding.w",
       `fn main() { var message = "Hello, world!" print(message) }\nentry(main)\n`],
+    ["unused-binding.w",
+      `fn main() { let message = "unused" print("kept") }\nentry(main)\n`],
+    ["too-many-instructions.w", tooManyInstructions],
+    ["total-output-overflow.w", totalOutputOverflow],
   ]
   for (const [name, source] of adversarial) {
     const path = resolve(artifactDirectory, name)
