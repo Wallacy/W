@@ -37,7 +37,7 @@ describe("R1 BRX0 higher-order borrow expressivity", () => {
     expect(result.forms.A2_freeAllInputs).toBe("rejects-ambiguous-inputs");
   });
 
-  test("the relation candidate closes the problem without changing the selected source form", () => {
+  test("the historical relation candidate records the problem without changing the selected source form", () => {
     const result = evaluateBorrowCase({
       id: "relation",
       declaration: selectDeclaration({
@@ -46,7 +46,7 @@ describe("R1 BRX0 higher-order borrow expressivity", () => {
     });
     expect(result.mapping.relationalExact).toBe(true);
     expect(result.forms.B1_relationalSchema).toBe("candidate-closes");
-    expect(result.decision).toBe("research-blocker");
+    expect(result.decision).toBe("historical-candidate");
   });
 
   test("the nominal aggregate is an API alternative, not a direct borrowed result", () => {

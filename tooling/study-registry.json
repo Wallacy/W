@@ -112,14 +112,14 @@
     {
       "path": "tooling/studies/brx2-borrow-relations/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00",
+      "digest": "sha256:7a9ef9e373bbea003f2670dbfd5198b8ae75ce283228ce3c6de5daca23a63ca7",
       "status": "design-oracle-input",
       "id": "R1-brx2-borrow-relations"
     },
     {
       "path": "tooling/studies/brx2-borrow-relations/study.json",
       "kind": "study",
-      "digest": "sha256:daa0e221f60b3ac5420534d1956d3306ea7e2c5b81a8b3b981ee526d6b64a329",
+      "digest": "sha256:12c1ffeeb42cda26d44ab20bffc17f448b6e2a26d4b13652941c6de35c66e947",
       "status": "design-oracle-input",
       "id": "BRX2"
     },
@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:03f7b9e2e81cd4b58e80def24a0860aca67e92db5a476f23bbb46b4855e0a4f7",
+      "digest": "sha256:d27c76df87ec58e64dc32dc1713bce6ab72c4b172c09c897328a58f42c5fa679",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:57b108cd5834bbe185067e2c99166a379773ea1581d4e2aed08a96227841a201",
+      "digest": "sha256:fc02d59f1f185fb8fb782b6cd201305cdad044f8a329c569bf3b9636b40aa268",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -371,7 +371,7 @@
     {
       "path": "tooling/studies/r1-borrow-expressivity/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:94e81f3899da15e9968978487f9a7ac31e3d1d33944917d58f693effd2419553",
+      "digest": "sha256:3fd578b68d2f0db6e4451bd97751670c7fd5832512291e6c587c9667c876c687",
       "status": "design-oracle-input",
       "id": "R1-borrow-expressivity"
     },
@@ -616,7 +616,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:a16afc469d77ee562b45ef2af968e1f96ce5cef3742a67a04c93a4669a109524",
+      "digest": "sha256:0a0b60ad789cbcebbbaadd7c2de5a8f50dcc0a7c7f290fe1096383fbefc87459",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -1100,7 +1100,7 @@
     {
       "path": "tooling/borrow-expressivity-reference.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:e87cb5726af8a00089b67439b31f27360d418ee3828b022d2b36ac20a5ab7e31"
+      "digest": "sha256:392f4aec51e764c8da7bea31de94b9a027da3a1319c56b0ce4ecef1c3b6dc50a"
     },
     {
       "path": "tooling/brx2-borrow-relations-reference.test.mjs",
@@ -1140,12 +1140,12 @@
     {
       "path": "tooling/check-borrow-expressivity-cases.mjs",
       "kind": "script-target",
-      "digest": "sha256:8ab3cff11359aba3903246306f4d79d84cddbbd3dcd0fc1ff454932fb4e36d48"
+      "digest": "sha256:cdbe40256ce76f05edfa53f033ae8fbcf0c18187588cc57616cd81d8aeafefc8"
     },
     {
       "path": "tooling/check-brx2-borrow-relations.mjs",
       "kind": "script-target",
-      "digest": "sha256:9169b53e24933d0a8df3d3e5e595439b4461623b5b4e862377e6799a210530b2"
+      "digest": "sha256:8d265c26247e81d83a7879b4b2908f3668b2e7d1af4259cd40fda29a45d4207b"
     },
     {
       "path": "tooling/check-brx3-borrow-relations.mjs",
@@ -1225,7 +1225,7 @@
     {
       "path": "tooling/check-study-bundles.mjs",
       "kind": "script-target",
-      "digest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d"
+      "digest": "sha256:1a1aae4c2cd63c77627d2ae3ac2ee61e9414964040c08a3ad235aae8b0e7d567"
     },
     {
       "path": "tooling/check-suite.mjs",
@@ -1345,7 +1345,7 @@
     {
       "path": "tooling/studies/brx2-borrow-relations/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:3528755bba810bddedfc158cb7b5351eb7f2e123035a797def4226020b917c9b"
+      "digest": "sha256:c184ff82c5b5ed29ce32b1e031b3ece0deb2eade7aefb188d2e7738439918b5e"
     },
     {
       "path": "tooling/studies/brx3-borrow-relations/oracle.test.mjs",
@@ -1375,7 +1375,7 @@
     {
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:1b2b545ff7978cc4bfa3575fc9eb2e8e9c2cd0588d2516db5bc70a3feb2507b0"
+      "digest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba"
     },
     {
       "path": "tooling/studies/fst0-first-settled-task/check.mjs",
@@ -1475,7 +1475,7 @@
     {
       "path": "tooling/studies/r1-borrow-expressivity/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:ef17f72a886faa940bf2459d236f01230c4f5105dc1d206695f2453b73b7312a"
+      "digest": "sha256:f704208090589fa95f8bd6b0d1123416a1ad147123f3fabb3bb5500cf341e5b2"
     },
     {
       "path": "tooling/studies/r1c0-closure/native.w",
@@ -7037,7 +7037,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/brx2-borrow-relations/oracle.test.mjs",
-      "declaredDigest": "sha256:3528755bba810bddedfc158cb7b5351eb7f2e123035a797def4226020b917c9b",
+      "declaredDigest": "sha256:c184ff82c5b5ed29ce32b1e031b3ece0deb2eade7aefb188d2e7738439918b5e",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/bundle.json"
     },
@@ -7077,7 +7077,7 @@
       "pointer": "variants.2.path",
       "path": "relation-contract.txt",
       "resolved": "tooling/studies/brx2-borrow-relations/relation-contract.txt",
-      "declaredDigest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978",
+      "declaredDigest": "sha256:a329371bebf4fda11d1a246e6bce72107a5c9d3997a836e453167d44542f8a15",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/bundle.json"
     },
@@ -7097,7 +7097,7 @@
       "pointer": "artifactRefs.1.path",
       "path": "../../brx2-borrow-relations-cases.json",
       "resolved": "tooling/brx2-borrow-relations-cases.json",
-      "declaredDigest": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+      "declaredDigest": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -7107,7 +7107,7 @@
       "pointer": "artifactRefs.2.path",
       "path": "../../brx2-borrow-relations-machine.mjs",
       "resolved": "tooling/brx2-borrow-relations-machine.mjs",
-      "declaredDigest": "sha256:9644780bbf2874e56bd7ed78c6ece1883c135340909a9866b8b9c7bfc9726b9d",
+      "declaredDigest": "sha256:7f0e0067955c5eabdcb7d2fb189425236a0cb6d2b55756470a4cc89ce6f18753",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -7117,7 +7117,7 @@
       "pointer": "artifactRefs.3.path",
       "path": "../../check-brx2-borrow-relations.mjs",
       "resolved": "tooling/check-brx2-borrow-relations.mjs",
-      "declaredDigest": "sha256:9169b53e24933d0a8df3d3e5e595439b4461623b5b4e862377e6799a210530b2",
+      "declaredDigest": "sha256:8d265c26247e81d83a7879b4b2908f3668b2e7d1af4259cd40fda29a45d4207b",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -7127,7 +7127,7 @@
       "pointer": "artifactRefs.4.path",
       "path": "../../brx2-borrow-relations-results.snapshot.jsonl",
       "resolved": "tooling/brx2-borrow-relations-results.snapshot.jsonl",
-      "declaredDigest": "sha256:f2656c2dd052ccc6d19af3c1c2a3d0abac7c0c7720f10d830cac84f130d9fc17",
+      "declaredDigest": "sha256:d1761286ac77d7a593a402bc8b56034f361dce25ca7ac56f681641362b204fe5",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -7137,7 +7137,7 @@
       "pointer": "artifactRefs.5.path",
       "path": "bundle.json",
       "resolved": "tooling/studies/brx2-borrow-relations/bundle.json",
-      "declaredDigest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00",
+      "declaredDigest": "sha256:7a9ef9e373bbea003f2670dbfd5198b8ae75ce283228ce3c6de5daca23a63ca7",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -7217,7 +7217,7 @@
       "pointer": "witnesses.0.path",
       "path": "relation-contract.txt",
       "resolved": "tooling/studies/brx2-borrow-relations/relation-contract.txt",
-      "declaredDigest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978",
+      "declaredDigest": "sha256:a329371bebf4fda11d1a246e6bce72107a5c9d3997a836e453167d44542f8a15",
       "status": "resolved",
       "source": "tooling/studies/brx2-borrow-relations/study.json"
     },
@@ -8297,7 +8297,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:1b2b545ff7978cc4bfa3575fc9eb2e8e9c2cd0588d2516db5bc70a3feb2507b0",
+      "declaredDigest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8327,7 +8327,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:c310e7d173ec08fcb063ac33fb407d5ee456abf6c92d378dc6ae3e70dee2f65b",
+      "declaredDigest": "sha256:b4ca9f826ae83f098a62b25c2261cd4bc0a2de6516506ea5522eb0fa8240403a",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8417,7 +8417,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:c310e7d173ec08fcb063ac33fb407d5ee456abf6c92d378dc6ae3e70dee2f65b",
+      "declaredDigest": "sha256:b4ca9f826ae83f098a62b25c2261cd4bc0a2de6516506ea5522eb0fa8240403a",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8527,7 +8527,7 @@
       "pointer": "artifacts.2.path",
       "path": "tooling/final-research-closure-machine.mjs",
       "resolved": "tooling/final-research-closure-machine.mjs",
-      "declaredDigest": "sha256:877432f5dad656bfdfa1c3d79d613c5de865cb47a4f0cd00aa83ebe633fa4566",
+      "declaredDigest": "sha256:426da523518119d15e59c85ee0f72c3a89c92c01922e9019073c05553bf910a1",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8607,7 +8607,7 @@
       "pointer": "artifacts.27.path",
       "path": "tooling/check-study-bundles.mjs",
       "resolved": "tooling/check-study-bundles.mjs",
-      "declaredDigest": "sha256:d647a20dd9a4a3b59e2a305cf8802e9eb0e5b3137ca66aff4de5739e8173b60d",
+      "declaredDigest": "sha256:1a1aae4c2cd63c77627d2ae3ac2ee61e9414964040c08a3ad235aae8b0e7d567",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8677,7 +8677,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:0c07f634f906c8a237663ad03d604471090b898654347706b007e91e5702b4ba",
+      "declaredDigest": "sha256:3dbd065eafe2ac53cf52fc78800e8029dad5f9db2f0d1d704cfb741dab8bfde4",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8687,7 +8687,7 @@
       "pointer": "artifacts.6.path",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:1b2b545ff7978cc4bfa3575fc9eb2e8e9c2cd0588d2516db5bc70a3feb2507b0",
+      "declaredDigest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8697,7 +8697,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:03f7b9e2e81cd4b58e80def24a0860aca67e92db5a476f23bbb46b4855e0a4f7",
+      "declaredDigest": "sha256:d27c76df87ec58e64dc32dc1713bce6ab72c4b172c09c897328a58f42c5fa679",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -10997,7 +10997,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/r1-borrow-expressivity/oracle.test.mjs",
-      "declaredDigest": "sha256:ef17f72a886faa940bf2459d236f01230c4f5105dc1d206695f2453b73b7312a",
+      "declaredDigest": "sha256:f704208090589fa95f8bd6b0d1123416a1ad147123f3fabb3bb5500cf341e5b2",
       "status": "resolved",
       "source": "tooling/studies/r1-borrow-expressivity/bundle.json"
     },
@@ -11037,7 +11037,7 @@
       "pointer": "variants.2.path",
       "path": "relation-schema.txt",
       "resolved": "tooling/studies/r1-borrow-expressivity/relation-schema.txt",
-      "declaredDigest": "sha256:ca998366f061c3375e731866029837414937225f7872f9cdbafb91b8ff2769ec",
+      "declaredDigest": "sha256:4ae89c609cf6843f3ba31c5a3b792dc8c5d3c84354c68799facd6d9beaf6bd0b",
       "status": "resolved",
       "source": "tooling/studies/r1-borrow-expressivity/bundle.json"
     },
@@ -13127,7 +13127,7 @@
       "pointer": "bundles.6.path",
       "path": "tooling/studies/r1-borrow-expressivity/bundle.json",
       "resolved": "tooling/studies/r1-borrow-expressivity/bundle.json",
-      "declaredDigest": "sha256:94e81f3899da15e9968978487f9a7ac31e3d1d33944917d58f693effd2419553",
+      "declaredDigest": "sha256:3fd578b68d2f0db6e4451bd97751670c7fd5832512291e6c587c9667c876c687",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -13137,7 +13137,7 @@
       "pointer": "bundles.7.path",
       "path": "tooling/studies/brx2-borrow-relations/bundle.json",
       "resolved": "tooling/studies/brx2-borrow-relations/bundle.json",
-      "declaredDigest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00",
+      "declaredDigest": "sha256:7a9ef9e373bbea003f2670dbfd5198b8ae75ce283228ce3c6de5daca23a63ca7",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },

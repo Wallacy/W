@@ -55,7 +55,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
     }}).invocation.status).toBe("accepted");
   });
 
-  test("bodyless free requirements reject ambiguous origins and retain relation research", () => {
+  test("bodyless free requirements reject ambiguous origins and retain historical relation provenance", () => {
     const declaration = {
       kind: "free",
       body: false,
@@ -65,7 +65,7 @@ describe("BRX0 borrow expressivity host oracle", () => {
       relationSchema: { pairs: [{ result: "result", sources: ["primary"] }] },
     };
     const result = evaluateBorrowCase({ id: "select", declaration });
-    expect(result.decision).toBe("research-blocker");
+    expect(result.decision).toBe("historical-candidate");
     expect(result.mapping.baseline).toEqual({});
     expect(result.mapping.baselineError.code).toBe("W-BORROW-0011");
     expect(result.mapping.relational.result).toEqual(["primary"]);

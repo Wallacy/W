@@ -659,8 +659,10 @@ export function evaluateBorrowRelationCase(rawInput) {
   const invalidAssay = !!assayError;
   const rejected = (baselineError && !relationApplicable) || invalidAssay || missingRequiredRelation ||
     abi.wAbiChanged || diagnostics.some((item) => REJECTING_DIAGNOSTICS.has(item.code));
-  const route = rejected ? "rejected" : baselineExact ? "current" : "research";
-  const declarationDecision = rejected ? "rejected" : baselineExact ? "accepted" : "research-blocker";
+  // BRX2 is retained as historical provenance. BRX3 owns the current source
+  // clause, so a valid relation candidate must not appear as active research.
+  const route = rejected ? "rejected" : baselineExact ? "current" : "historical-candidate";
+  const declarationDecision = rejected ? "rejected" : baselineExact ? "accepted" : "historical-candidate";
   return {
     id: text(input.id),
     assay: {

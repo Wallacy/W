@@ -156,12 +156,12 @@
     {
       "id": "R1-borrow-expressivity",
       "path": "tooling/studies/r1-borrow-expressivity/bundle.json",
-      "digest": "sha256:94e81f3899da15e9968978487f9a7ac31e3d1d33944917d58f693effd2419553"
+      "digest": "sha256:3fd578b68d2f0db6e4451bd97751670c7fd5832512291e6c587c9667c876c687"
     },
     {
       "id": "R1-brx2-borrow-relations",
       "path": "tooling/studies/brx2-borrow-relations/bundle.json",
-      "digest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00"
+      "digest": "sha256:7a9ef9e373bbea003f2670dbfd5198b8ae75ce283228ce3c6de5daca23a63ca7"
     },
     {
       "id": "R1-brx3-borrow-relations",

@@ -52,7 +52,8 @@ export const RESEARCH_STATE_FAMILY_IDS = Object.freeze([
   "dyn1",
   "atom1-atom2",
   "cyc1",
-  "brx2-brx3",
+  "brx2",
+  "brx3",
   "w1504",
 ]);
 export const DESIGN_ONLY_CLOSURES = Object.freeze({

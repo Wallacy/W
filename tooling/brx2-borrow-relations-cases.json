@@ -5,7 +5,7 @@
   "machine": "brx2-borrow-relations-machine",
   "sourceBase": {
     "path": "../reference/last-light/borrow_expressivity.w",
-    "digest": "sha256:37818b9c3947ee73081c7d39fa7db1423a657f35323fbc6031e788fef6ac3200",
+    "digest": "sha256:7990af949683713b527e927a813901c9afd9f6b5723ad84e648b1d78891499ec",
     "symbols": [
       "MenuCursor",
       "MenuSelection",
@@ -285,8 +285,8 @@
         }
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -347,8 +347,8 @@
         }
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -418,8 +418,8 @@
         }
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -590,8 +590,8 @@
         }
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -652,8 +652,8 @@
         }
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -760,8 +760,8 @@
         ]
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research"
+        "decision": "historical-candidate",
+        "route": "historical-candidate"
       },
       "assay": {
         "kind": "independent-assay",
@@ -2797,8 +2797,8 @@
         "interfaceLockRelationDigest": "sha256:98af3ac4f2464aad5fa3f36deaa92627faa97723f7f96e64faddb1fa75b5ea8d"
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true
       },
       "assay": {
@@ -3027,8 +3027,8 @@
         "erasure": "any-fn"
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "accepted",
@@ -3104,8 +3104,8 @@
         "cancelDrainComplete": true
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "accepted",
@@ -3175,8 +3175,8 @@
         "reusesStorage": true
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "rejected",
@@ -3244,8 +3244,8 @@
         "boundary": "channel"
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "rejected",
@@ -3314,8 +3314,8 @@
         "boundary": "channel"
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "accepted"
@@ -3383,8 +3383,8 @@
         "boundary": "foreignRetention"
       },
       "expected": {
-        "decision": "research-blocker",
-        "route": "research",
+        "decision": "historical-candidate",
+        "route": "historical-candidate",
         "relationExact": true,
         "invocation": {
           "status": "accepted"

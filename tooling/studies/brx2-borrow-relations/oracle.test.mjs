@@ -38,7 +38,7 @@ describe("BRX2 borrow-relation study oracle", () => {
     expect(manifest.evidence.missing).toContain("hir-verifier");
     for (const witness of manifest.witnesses) {
       expect(fileDigest(path.join(studyDirectory, witness.path))).toBe(witness.digest);
-      expect(["alternative", "research-candidate", "rejected-witness"]).toContain(witness.role);
+      expect(["alternative", "historical-candidate", "rejected-witness"]).toContain(witness.role);
     }
     expect(validateBRX2StudyManifest(manifest, { studyDirectory, root })).toEqual([]);
   });
@@ -92,7 +92,7 @@ describe("BRX2 borrow-relation study oracle", () => {
       interface: {},
     });
     const result = evaluateBorrowRelationCase({ id: "oracle-relation", declaration, assay: primaryAssay });
-    expect(result.route).toBe("research");
+    expect(result.route).toBe("historical-candidate");
     expect(result.mapping.relationExact).toBe(true);
     expect(result.mapping.relation).toEqual({ result: ["primary"] });
     expect(result.mapping.relationEdges).toHaveLength(1);

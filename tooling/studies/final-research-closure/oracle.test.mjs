@@ -3,6 +3,7 @@ import corpus from "../../final-research-closure-cases.json" with { type: "json"
 import {
   loadState,
   runFRC0Case,
+  validateResearchStateInventory,
   validateCorpus,
 } from "../../final-research-closure-machine.mjs";
 
@@ -60,8 +61,16 @@ describe("FRC0 final research closure host oracle", () => {
       active: [],
       status: "normalization-in-progress",
       normalized: false,
-      familyCount: 13,
-      normalizationPendingCount: 5,
+      familyCount: 14,
+      normalizationPendingCount: 4,
+    });
+    expect(current.facts.researchStateInventory).toMatchObject({
+      categoryCounts: {
+        historical: 7,
+        rejected: 1,
+        "current-design-evidence-gap": 5,
+        "future-reopen-candidate": 1,
+      },
     });
     expect(current.facts.designOnlyClosures).toEqual({
       "W-1517": "oracle-backed-current",
@@ -75,5 +84,18 @@ describe("FRC0 final research closure host oracle", () => {
     for (const testCase of adversarial) {
       expect(runFRC0Case(testCase, { state }).status).toBe("rejected");
     }
+  });
+
+  test("rejects a merged or duplicated BRX2/BRX3 inventory family", () => {
+    const inventory = loadState().researchStateInventory;
+    const merged = structuredClone(inventory);
+    merged.families.find((family) => family.id === "brx2").id = "brx2-brx3";
+    expect(validateResearchStateInventory(merged).some((error) =>
+      error.includes("unknown") || error.includes("exhaustive"))).toBe(true);
+
+    const duplicate = structuredClone(inventory);
+    duplicate.families.find((family) => family.id === "brx3").id = "brx2";
+    expect(validateResearchStateInventory(duplicate).some((error) =>
+      error.includes("unique") || error.includes("exhaustive"))).toBe(true);
   });
 });

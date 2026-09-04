@@ -50,15 +50,15 @@
       "role": "alternative",
       "language": "w-reserved",
       "path": "relation-schema.txt",
-      "digest": "sha256:ca998366f061c3375e731866029837414937225f7872f9cdbafb91b8ff2769ec",
+      "digest": "sha256:4ae89c609cf6843f3ba31c5a3b792dc8c5d3c84354c68799facd6d9beaf6bd0b",
       "changedConstructs": [
-        "research-only result-to-input relation pair",
+        "historical-superseded result-to-input relation pair",
         "missing, stale, duplicate, and forged mappings are rejected",
         "candidate has no promoted source spelling"
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
-        "note": "This is a prose witness for a Research candidate, not W source."
+        "note": "This is historical candidate prose, not W source; BRX3 supersedes it."
       }
     }
   ],
@@ -89,7 +89,7 @@
     },
     {
       "kind": "recall",
-      "instruction": "After the controlled delay, reconstruct unique-source closure, ambiguous rejection, relation Research, and the nominal alternative, then name missing evidence.",
+      "instruction": "After the controlled delay, reconstruct unique-source closure, ambiguous rejection, the historical relation candidate, and the nominal alternative, then name missing evidence.",
       "minimumDelaySeconds": 60
     },
     {
@@ -153,7 +153,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:ef17f72a886faa940bf2459d236f01230c4f5105dc1d206695f2453b73b7312a"
+    "digest": "sha256:f704208090589fa95f8bd6b0d1123416a1ad147123f3fabb3bb5500cf341e5b2"
   },
   "evidence": {
     "current": [

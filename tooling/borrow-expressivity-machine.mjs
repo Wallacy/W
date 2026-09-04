@@ -246,7 +246,7 @@ export function deriveBaselineMapping(declaration) {
   return Object.fromEntries(dependentResults.map((result) => [result, [...sources].sort()]));
 }
 
-/** Derive the research-only relational candidate from structured pairs. */
+/** Derive the historical-superseded relational candidate from structured pairs. */
 export function deriveRelationalMapping(declaration) {
   return relationPairsToMapping(declaration.relationSchema?.pairs, declaration);
 }
@@ -510,7 +510,7 @@ export function evaluateBorrowCase(input) {
     ? "rejected"
     : baselineExact
       ? "accepted"
-      : "research-blocker";
+      : "historical-candidate";
   const runtimeLifetimeMetadata = [];
 
   return {

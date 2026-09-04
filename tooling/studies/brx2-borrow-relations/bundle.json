@@ -2,7 +2,16 @@
   "$schema": "w-substitution-study-bundle-1",
   "status": "design-oracle-input",
   "id": "R1-brx2-borrow-relations",
-  "title": "Requirement-owned relations for borrowed higher-order results",
+  "researchState": "historical",
+  "supersededBy": "BRX3",
+  "successorDecisions": [
+    "W-1381",
+    "W-1382",
+    "W-1383",
+    "W-1384",
+    "W-1436"
+  ],
+  "title": "Historical requirement-owned relation provenance",
   "r0Cases": [
     "R0-borrow-bodyless-relation"
   ],
@@ -49,12 +58,13 @@
       "id": "relation-contract",
       "language": "w-reserved",
       "path": "relation-contract.txt",
-      "role": "research-candidate",
-      "digest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978",
+      "role": "historical-candidate",
+      "disposition": "historical-superseded",
+      "digest": "sha256:a329371bebf4fda11d1a246e6bce72107a5c9d3997a836e453167d44542f8a15",
       "changedConstructs": [
         "requirement-owned data-only BorrowRelation/1",
         "provider and witness must publish the same relation digest",
-        "source spelling remains reserved until authority is decided"
+        "source spelling was reserved before BRX3 selected the current clause"
       ],
       "parseEvidence": {
         "status": "reserved-not-parsed",
@@ -73,7 +83,7 @@
     },
     {
       "id": "relation-authority",
-      "expected": "candidate route requires requirement/interface ownership and exact witnesses"
+      "expected": "historical candidate route records requirement/interface ownership and exact witnesses"
     },
     {
       "id": "authority-negative",
@@ -83,11 +93,11 @@
   "tasks": [
     {
       "kind": "explain",
-      "instruction": "Explain which relation is current, which relation is Research, and who owns a candidate relation."
+      "instruction": "Explain which relation was historical, how BRX3 superseded it, and who owned the candidate relation."
     },
     {
       "kind": "recall",
-      "instruction": "After the controlled delay, reconstruct A, B, C, and D and name missing evidence.",
+      "instruction": "After the controlled delay, reconstruct A, B, C, and D and name the missing implementation evidence.",
       "minimumDelaySeconds": 60
     },
     {
@@ -151,7 +161,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:3528755bba810bddedfc158cb7b5351eb7f2e123035a797def4226020b917c9b"
+    "digest": "sha256:c184ff82c5b5ed29ce32b1e031b3ece0deb2eade7aefb188d2e7738439918b5e"
   },
   "evidence": {
     "current": [

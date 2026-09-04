@@ -242,6 +242,6 @@ if (errors.length > 0) {
 process.stdout.write(
   `BRX0 borrow expressivity: ${results.length} cases, ` +
   `${results.filter((result) => result.decision === "accepted").length} accepted, ` +
-  `${results.filter((result) => result.decision === "research-blocker").length} research blockers, ` +
+  `${results.filter((result) => result.decision === "historical-candidate").length} historical candidate routes, ` +
   `${results.filter((result) => result.invocation.status === "rejected").length} invocation negatives.\n`,
 );

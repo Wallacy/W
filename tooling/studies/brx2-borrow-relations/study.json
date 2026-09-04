@@ -3,6 +3,15 @@
   "status": "design-oracle-input",
   "id": "BRX2",
   "gate": "BRX2-R1",
+  "researchState": "historical",
+  "supersededBy": "BRX3",
+  "successorDecisions": [
+    "W-1381",
+    "W-1382",
+    "W-1383",
+    "W-1384",
+    "W-1436"
+  ],
   "title": "Requirement-owned relations for borrowed higher-order results",
   "sourceBase": {
     "path": "../../../reference/last-light/borrow_expressivity.w",
@@ -26,33 +35,33 @@
     {
       "id": "corpus",
       "path": "../../brx2-borrow-relations-cases.json",
-      "digest": "sha256:c5da806e0f444b55f44a55386c5f63c3d2e308800fab44b34a7860b2c0e10a81",
+      "digest": "sha256:12b21011629d82ebb4a43a00ae70043849a5a98193e5df89aca02258d9ac8191",
       "schema": "w-brx2-borrow-relations-cases-1",
       "identity": "BRX2-relation-owned-borrow"
     },
     {
       "id": "machine",
       "path": "../../brx2-borrow-relations-machine.mjs",
-      "digest": "sha256:9644780bbf2874e56bd7ed78c6ece1883c135340909a9866b8b9c7bfc9726b9d",
+      "digest": "sha256:7f0e0067955c5eabdcb7d2fb189425236a0cb6d2b55756470a4cc89ce6f18753",
       "identity": "evaluateBorrowRelationCase"
     },
     {
       "id": "checker",
       "path": "../../check-brx2-borrow-relations.mjs",
-      "digest": "sha256:9169b53e24933d0a8df3d3e5e595439b4461623b5b4e862377e6799a210530b2",
+      "digest": "sha256:8d265c26247e81d83a7879b4b2908f3668b2e7d1af4259cd40fda29a45d4207b",
       "identity": "deriveBorrowRelationCorpus"
     },
     {
       "id": "snapshot",
       "path": "../../brx2-borrow-relations-results.snapshot.jsonl",
-      "digest": "sha256:f2656c2dd052ccc6d19af3c1c2a3d0abac7c0c7720f10d830cac84f130d9fc17",
+      "digest": "sha256:d1761286ac77d7a593a402bc8b56034f361dce25ca7ac56f681641362b204fe5",
       "schema": "w-brx2-borrow-relations-results-1",
       "identity": "w-brx2-borrow-relations-results-1"
     },
     {
       "id": "bundle",
       "path": "bundle.json",
-      "digest": "sha256:58628320fe526444ffeb56d6282cee28901d8b728ee94297cf6d1697766d4a00",
+      "digest": "sha256:7a9ef9e373bbea003f2670dbfd5198b8ae75ce283228ce3c6de5daca23a63ca7",
       "schema": "w-substitution-study-bundle-1",
       "identity": "R1-brx2-borrow-relations"
     }
@@ -60,8 +69,8 @@
   "witnesses": [
     {
       "path": "relation-contract.txt",
-      "role": "research-candidate",
-      "digest": "sha256:c5b5045edc3b65b5e647426595af6f7fbbbd8ee7848eeee72f29fbb13c9c5978"
+      "role": "historical-candidate",
+      "digest": "sha256:a329371bebf4fda11d1a246e6bce72107a5c9d3997a836e453167d44542f8a15"
     },
     {
       "path": "nominal-aggregate.txt",
