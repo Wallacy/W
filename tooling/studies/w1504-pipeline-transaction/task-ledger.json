@@ -139,7 +139,7 @@
     }
   ],
   "failurePolicy": {
-    "status": "research/open",
+    "status": "historical/superseded-by-W-1511",
     "rules": [
       {
         "case": "query-only",
@@ -192,7 +192,7 @@
   "tasks": [
     {
       "id": "W-1504-T1",
-      "state": "Pesquisa",
+      "state": "historical/superseded-by-W-1511",
       "title": "Surface, body shape and fork comparison",
       "dependencies": ["DESIGN.md §3.2", "W-1504"],
       "outputs": [
@@ -208,7 +208,7 @@
     },
     {
       "id": "W-1504-T2",
-      "state": "Pesquisa",
+      "state": "historical/superseded-by-W-1511",
       "title": "Effect classification and failure semantics",
       "dependencies": ["W-1504-T1", "DESIGN.md §12.13"],
       "outputs": [
@@ -224,7 +224,7 @@
     },
     {
       "id": "W-1504-T3",
-      "state": "Pesquisa",
+      "state": "historical/superseded-by-W-1511",
       "title": "Provider, transport, capabilities and ownership",
       "dependencies": ["W-1504-T2"],
       "outputs": [
@@ -240,7 +240,7 @@
     },
     {
       "id": "W-1504-T4",
-      "state": "Pesquisa",
+      "state": "historical/superseded-by-W-1511",
       "title": "Promotion gates, migration, benchmarks and human evidence",
       "dependencies": ["W-1504-T1", "W-1504-T2", "W-1504-T3"],
       "outputs": [
@@ -250,7 +250,7 @@
       ],
       "adversarialCases": ["W-1504-explain-diagnostics", "W-1504-default-contract", "W-1504-remote-result-branch"],
       "evidence": {
-        "current": ["registered-research-boundary", "official-primary-references"],
+        "current": ["historical-registration-boundary", "official-primary-references"],
         "missing": ["parser-checker", "HIR-schema", "effect-classification", "provider-transport-oracle", "commit-ACK-faults", "DAG-region-decision", "Last-Light-migration", "round-trip-contention-benchmarks", "human-usability"]
       },
       "stopCondition": "Historical stop condition: do not promote this registration; W-1511 owns the current grammar and source migration."
@@ -268,7 +268,7 @@
     "round-trip/contention benchmarks and human usability evidence"
   ],
   "evidenceBoundary": {
-    "current": ["design-source", "last-light-service-oracle", "last-light-transaction-oracle", "official-primary-references", "research-ledger"],
+    "current": ["design-source", "last-light-service-oracle", "last-light-transaction-oracle", "official-primary-references", "historical-ledger"],
     "missing": ["parser", "checker", "HIR", "effect-checker", "provider", "transport", "fault-injection", "runtime", "migration", "benchmarks", "human-study", "model-study"],
     "hostOnly": true,
     "syntaxPromotion": false,

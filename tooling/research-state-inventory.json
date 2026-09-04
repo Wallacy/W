@@ -312,7 +312,7 @@
       "decisionRefs": ["W-1504"],
       "successorDecisions": ["W-1511"],
       "implementationGaps": [],
-      "normalizationPending": true,
+      "normalizationPending": false,
       "artifacts": [
         "tooling/studies/w1504-pipeline-transaction/task-ledger.json",
         "RATIONALE.md"
