@@ -247,7 +247,7 @@ function evaluateA(testCase) {
       return result(testCase, "fallback-declared", "native-carrier-not-lockfree-fallback", { target: testCase.target.id, carrierBytes: carrierWidth, provider: fallback.kind, progress: "profile-fact", canonicalBits: logical.canonicalBits, logicalFacts: facts, callerFactsIgnored: logical.callerFactsIgnored });
     }
     const providerDigestChanged = testCase.interface?.providerDigest !== undefined && testCase.interface?.candidateProviderDigest !== undefined && testCase.interface.providerDigest !== testCase.interface.candidateProviderDigest;
-    return result(testCase, "candidate-research", "derived-value-record", {
+    return result(testCase, "historical-candidate", "derived-value-record", {
       target: testCase.target.id,
       lockFree: isLockFree,
       progress: "profile-lockfree",
@@ -329,7 +329,7 @@ function evaluateB(testCase) {
         dereferenceCount += 1;
       } else return result(testCase, "rejected", "unknown-handle-operation");
     }
-    if (generationWrapped) return result(testCase, "research-blocker", "generation-wrap-alias", { dereferenceCount: 0, route: "integer-handle-requires-wider-generation-or-retirement" });
+    if (generationWrapped) return result(testCase, "historical-candidate", "generation-wrap-alias", { dereferenceCount: 0, route: "integer-handle-requires-wider-generation-or-retirement" });
     return result(testCase, "handle-current", staleRejected ? "stale-generation" : "generation-checked", {
       dereferenceCount,
       dereference: false,
@@ -342,11 +342,11 @@ function evaluateB(testCase) {
     if (!pointer.cas) return result(testCase, "rejected", "pointer-cas-missing");
     const adapter = testCase.reclamation ?? {};
     const schema = validateAdapterSchema(adapter);
-    if (!pointer.provenance || !pointer.lifetime || !pointer.abaProof) return result(testCase, "research-blocker", "pointer-proof-missing", { unsafeCoreRequired: true, safeWrapperPromotion: "unproven", missing: ["provenance", "lifetime", "abaProof"].filter((key) => !pointer[key]) });
-    if (!schema.ok) return result(testCase, "research-blocker", "atomic-pair-insufficient", { missing: schema.missing, route: "unsafe-adapter-or-domain-service" });
+    if (!pointer.provenance || !pointer.lifetime || !pointer.abaProof) return result(testCase, "historical-candidate", "pointer-proof-missing", { unsafeCoreRequired: true, safeWrapperPromotion: "unproven", missing: ["provenance", "lifetime", "abaProof"].filter((key) => !pointer[key]) });
+    if (!schema.ok) return result(testCase, "historical-candidate", "atomic-pair-insufficient", { missing: schema.missing, route: "unsafe-adapter-or-domain-service" });
     const events = deriveReclamationEvents(adapter);
     if (!events.ok) return result(testCase, "rejected", events.code, events.details);
-    return result(testCase, "adapter-research", "unsafe-schema-complete", { route: "specialized-unsafe-adapter", unsafeCoreRequired: true, safeWrapperPromotion: "unproven" });
+    return result(testCase, "historical-candidate", "unsafe-schema-complete", { route: "specialized-unsafe-adapter", unsafeCoreRequired: true, safeWrapperPromotion: "unproven" });
   }
   return result(testCase, "rejected", "unknown-axis-b-route");
 }
@@ -480,7 +480,7 @@ function evaluateC(testCase) {
   if (!schema.ok) return result(testCase, "rejected", schema.code, { missing: schema.missing });
   const events = deriveReclamationEvents(adapter);
   if (!events.ok) return result(testCase, "rejected", events.code, events.details);
-  return result(testCase, "adapter-research", "unsafe-schema-complete", { route: "specialized-unsafe-adapter", unsafeCoreRequired: true, safeWrapperPromotion: "unproven" });
+  return result(testCase, "historical-candidate", "unsafe-schema-complete", { route: "specialized-unsafe-adapter", unsafeCoreRequired: true, safeWrapperPromotion: "unproven" });
 }
 
 export function evaluateAtom1Case(testCase) {
@@ -520,15 +520,15 @@ export function validateAtom1(corpus, { root } = {}) {
     "C-menu-snapshot-cell", "C-reclamation-missing-registration", "C-reclamation-before-unlink", "C-reclamation-before-quiescence", "C-reclamation-unbounded-retired", "C-reclamation-wrong-deleter-domain", "C-reclamation-live-shutdown", "C-reclamation-missing-ffi-drain", "C-reclamation-complete-unsafe-schema", "C-reclamation-complete-ffi-schema", "C-reclamation-none-with-ffi-events", "C-reclamation-order-swapped", "C-reclamation-duplicate-participant", "C-reclamation-invalid-order", "C-reclamation-invalid-progress", "C-reclamation-invalid-fault", "C-reclamation-double-reclaim", "C-reclamation-double-drop", "C-reclamation-shutdown-retired", "C-reclamation-shutdown-reader", "C-reclamation-shutdown-callback", "C-reclamation-cross-participant-reader-exit",
   ];
   for (const id of required) if (!resultById.has(id)) errors.push(`ATOM1 required case missing: ${id}`);
-  if (resultById.get("A-sign-epoch-derived-x64")?.status !== "candidate-research") errors.push("A derived x64 must remain Research.");
+  if (resultById.get("A-sign-epoch-derived-x64")?.status !== "historical-candidate") errors.push("A derived x64 must remain a historical candidate.");
   if (resultById.get("A-sign-epoch-derived-fallback")?.status !== "fallback-declared") errors.push("A fallback must remain declared fallback.");
   if (resultById.get("B-menu-handle-stale-generation")?.code !== "stale-generation") errors.push("B stale handle must reject before dereference.");
   if (resultById.get("B-menu-handle-generation")?.dereferenceCount !== 1) errors.push("B valid handle must dereference exactly once.");
   if (resultById.get("B-menu-handle-stale-generation")?.dereferenceCount !== 0) errors.push("B stale handle must dereference zero times.");
   if (resultById.get("B-menu-handle-generation-wrap")?.dereferenceCount !== 0) errors.push("B wrapped generation must dereference zero times.");
   if (resultById.get("B-tagged-pointer-specialized-adapter")?.code !== "pointer-proof-missing") errors.push("B tagged pointer without provenance proofs must remain blocked.");
-  if (resultById.get("B-tagged-pointer-provenance-receipts")?.status !== "adapter-research" || resultById.get("B-tagged-pointer-provenance-receipts")?.safeWrapperPromotion !== "unproven") errors.push("B complete pointer receipts must remain unsafe adapter Research.");
+  if (resultById.get("B-tagged-pointer-provenance-receipts")?.status !== "historical-candidate" || resultById.get("B-tagged-pointer-provenance-receipts")?.safeWrapperPromotion !== "unproven") errors.push("B complete pointer receipts must remain a historical unsafe-adapter candidate.");
   if (resultById.get("C-menu-snapshot-cell")?.status !== "snapshot-current") errors.push("C SnapshotCell must remain the current route.");
-  if (resultById.get("C-reclamation-complete-unsafe-schema")?.status !== "adapter-research") errors.push("C complete reclamation schema must remain unsafe adapter Research.");
+  if (resultById.get("C-reclamation-complete-unsafe-schema")?.status !== "historical-candidate") errors.push("C complete reclamation schema must remain a historical unsafe-adapter candidate.");
   return { errors, results };
 }

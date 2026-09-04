@@ -61,14 +61,14 @@ describe("FRC0 final research closure host oracle", () => {
       active: [],
       status: "normalization-in-progress",
       normalized: false,
-      familyCount: 14,
+      familyCount: 15,
       normalizationPendingCount: 2,
     });
     expect(current.facts.researchStateInventory).toMatchObject({
       categoryCounts: {
         historical: 8,
         rejected: 1,
-        "current-design-evidence-gap": 4,
+        "current-design-evidence-gap": 5,
         "future-reopen-candidate": 1,
       },
     });
@@ -95,6 +95,19 @@ describe("FRC0 final research closure host oracle", () => {
 
     const duplicate = structuredClone(inventory);
     duplicate.families.find((family) => family.id === "brx3").id = "brx2";
+    expect(validateResearchStateInventory(duplicate).some((error) =>
+      error.includes("unique") || error.includes("exhaustive"))).toBe(true);
+  });
+
+  test("rejects a merged or duplicated ATOM1/ATOM2 inventory family", () => {
+    const inventory = loadState().researchStateInventory;
+    const merged = structuredClone(inventory);
+    merged.families.find((family) => family.id === "atom1").id = "atom1-atom2";
+    expect(validateResearchStateInventory(merged).some((error) =>
+      error.includes("unknown") || error.includes("exhaustive"))).toBe(true);
+
+    const duplicate = structuredClone(inventory);
+    duplicate.families.find((family) => family.id === "atom2").id = "atom1";
     expect(validateResearchStateInventory(duplicate).some((error) =>
       error.includes("unique") || error.includes("exhaustive"))).toBe(true);
   });

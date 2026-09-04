@@ -16,7 +16,7 @@
       "id": "derived-record",
       "language": "w",
       "path": "derived-record.w",
-      "role": "research"
+      "role": "historical-candidate"
     },
     {
       "id": "generational-handle",
@@ -34,7 +34,7 @@
       "id": "unsafe-adapter",
       "language": "w",
       "path": "unsafe-adapter.w",
-      "role": "research"
+      "role": "historical-candidate"
     },
     {
       "id": "reserved-universal",
@@ -83,7 +83,7 @@
   "oracle": {
     "path": "../../atom1-atomic-extensibility-machine.mjs",
     "status": "independent-host-oracle",
-    "digest": "sha256:6de57a612ea226e92d3023846017e9ab6156c6473b02eac475de07f9bb91e839"
+    "digest": "sha256:2caf688327f38d5d81757fe8b588c03389750f2f67a3b7c800e16fb27fa5e885"
   },
   "evidence": {
     "current": [
