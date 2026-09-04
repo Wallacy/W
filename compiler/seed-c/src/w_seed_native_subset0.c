@@ -49,7 +49,8 @@ w_seed_native_subset0_status w_seed_native_subset0_select(
   if (program->module_count != 1u || program->function_count != 1u ||
       program->parameter_count != 0u || program->block_count != 1u ||
       program->call_count != 1u || program->argument_count != 1u ||
-      program->requirement_count != 1u || program->value_count != 1u ||
+      program->requirement_count != 1u ||
+      program->value_count != (binding_shape ? 2u : 1u) ||
       program->terminator_count != 1u || program->entry_count != 1u ||
       (!direct_shape && !binding_shape))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
@@ -103,7 +104,15 @@ w_seed_native_subset0_status w_seed_native_subset0_select(
         program->types[selection->binding->type_index].kind !=
             W_SEED_HIR0_TYPE_STRING ||
         selection->binding->name.count == 0u ||
-        selection->binding->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+        selection->binding->initializer_value >= program->value_count)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    const w_seed_hir0_value *initializer =
+        &program->values[selection->binding->initializer_value];
+    if (initializer->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+        initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+        initializer->owner_index != 0u || initializer->owner_ordinal != 0u ||
+        initializer->type_index != selection->binding->type_index ||
+        initializer->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   }
 
@@ -178,11 +187,13 @@ w_seed_native_subset0_status w_seed_native_subset0_select(
         selection->value->byte_offset != 0u ||
         selection->value->byte_count != 0u)
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
-    selection->payload_bytes = selection->binding->byte_count;
+    const w_seed_hir0_value *initializer =
+        &program->values[selection->binding->initializer_value];
+    selection->payload_bytes = initializer->byte_count;
     selection->payload = selection->payload_bytes == 0u
                             ? NULL
                             : program->value_bytes +
-                                  selection->binding->byte_offset;
+                                  initializer->byte_offset;
   }
   return W_SEED_NATIVE_SUBSET0_OK;
 }
@@ -273,6 +284,35 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
   return false;
 }
 
+static bool resolve_binding_value(
+    const w_seed_hir0_program *program, const w_seed_hir0_value *read,
+    const w_seed_hir0_binding *const *bindings, size_t binding_count,
+    size_t current_instruction, size_t *binding_reads,
+    const w_seed_hir0_value **initializer) {
+  if (program == NULL || read == NULL || bindings == NULL ||
+      binding_reads == NULL || initializer == NULL ||
+      read->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
+      read->binding_index == W_SEED_HIR0_NONE ||
+      (size_t)read->binding_index >= binding_count ||
+      read->byte_offset != 0u || read->byte_count != 0u)
+    return false;
+  const w_seed_hir0_binding *binding = bindings[read->binding_index];
+  if (binding == NULL || binding->owner_instruction >= current_instruction ||
+      binding->type_index != read->type_index ||
+      binding->initializer_value >= program->value_count ||
+      binding_reads[read->binding_index] == SIZE_MAX)
+    return false;
+  const w_seed_hir0_value *value =
+      &program->values[binding->initializer_value];
+  if (value->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+      value->owner_index != read->binding_index ||
+      value->owner_ordinal != 0u || value->type_index != binding->type_index)
+    return false;
+  binding_reads[read->binding_index] += 1u;
+  *initializer = value;
+  return true;
+}
+
 static bool interpolation_string_bytes(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value,
     const w_seed_hir0_binding *const *bindings, size_t binding_count,
@@ -289,20 +329,14 @@ static bool interpolation_string_bytes(
     *bytes = value->byte_count;
     return true;
   }
-  if (value->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
-      value->binding_index == W_SEED_HIR0_NONE ||
-      (size_t)value->binding_index >= binding_count ||
-      value->byte_offset != 0u || value->byte_count != 0u)
+  const w_seed_hir0_value *initializer = NULL;
+  if (!resolve_binding_value(program, value, bindings, binding_count,
+                             current_instruction, binding_reads,
+                             &initializer) ||
+      initializer->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+      initializer->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
     return false;
-  const w_seed_hir0_binding *binding = bindings[value->binding_index];
-  if (binding == NULL || binding->owner_instruction >= current_instruction ||
-      binding->type_index >= program->type_count ||
-      program->types[binding->type_index].kind != W_SEED_HIR0_TYPE_STRING ||
-      binding->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD ||
-      binding_reads[value->binding_index] == SIZE_MAX)
-    return false;
-  binding_reads[value->binding_index] += 1u;
-  *bytes = binding->byte_count;
+  *bytes = initializer->byte_count;
   return true;
 }
 
@@ -333,24 +367,38 @@ static bool interpolation_maximum_bytes(
       const w_seed_hir0_value *embedded =
           &program->values[segment->value_index];
       if (embedded->type_index >= program->type_count) return false;
+      const w_seed_hir0_value *effective = embedded;
+      if (embedded->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+          !resolve_binding_value(program, embedded, bindings, binding_count,
+                                 current_instruction, binding_reads,
+                                 &effective))
+        return false;
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
           int64_t ignored = 0;
-          if (!evaluate_i64(program, segment->value_index, 0u, &ignored))
+          if (!evaluate_i64(
+                  program, (uint32_t)(effective - program->values), 0u,
+                  &ignored))
             return false;
           bytes = 20u;
           break;
         }
         case W_SEED_HIR0_TYPE_BOOL:
-          if (embedded->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
+          if (effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
             return false;
-          bytes = embedded->bool_value ? 4u : 5u;
+          bytes = effective->bool_value ? 4u : 5u;
           break;
         case W_SEED_HIR0_TYPE_STRING:
-          if (!interpolation_string_bytes(
-                  program, embedded, bindings, binding_count,
-                  current_instruction, binding_reads, &bytes))
+          if (embedded->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+            if (effective->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+                effective->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+              return false;
+            bytes = effective->byte_count;
+          } else if (!interpolation_string_bytes(
+                         program, embedded, bindings, binding_count,
+                         current_instruction, binding_reads, &bytes)) {
             return false;
+          }
           break;
         default:
           return false;
@@ -451,10 +499,17 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
           binding->owner_block != candidate.function->first_block ||
           binding->ordinal != ordinal || binding->is_mutable ||
           binding->type_index >= program->type_count ||
-          program->types[binding->type_index].kind !=
-              W_SEED_HIR0_TYPE_STRING ||
+          program->types[binding->type_index].kind ==
+              W_SEED_HIR0_TYPE_UNIT ||
           binding->name.count == 0u ||
-          binding->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+          binding->initializer_value >= program->value_count)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      const w_seed_hir0_value *initializer =
+          &program->values[binding->initializer_value];
+      if (initializer->owner_kind != W_SEED_HIR0_VALUE_OWNER_BINDING ||
+          initializer->owner_index != binding_cursor ||
+          initializer->owner_ordinal != 0u ||
+          initializer->type_index != binding->type_index)
         return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
       candidate.bindings[binding_cursor] = binding;
       binding_cursor += 1u;
@@ -530,13 +585,21 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
       binding = candidate.bindings[value->binding_index];
       if (binding == NULL || binding->owner_instruction >= instruction_index ||
           binding->owner_block != candidate.function->first_block ||
+          binding->type_index != value->type_index ||
+          binding->initializer_value >= program->value_count ||
           binding_reads[value->binding_index] == SIZE_MAX)
         return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+      const w_seed_hir0_value *initializer =
+          &program->values[binding->initializer_value];
+      if (initializer->kind != W_SEED_HIR0_VALUE_CONST_STRING ||
+          initializer->type_index != binding->type_index ||
+          initializer->byte_count > W_SEED_NATIVE_SUBSET0_MAX_PAYLOAD)
+        return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
       binding_reads[value->binding_index] += 1u;
-      payload_bytes = binding->byte_count;
+      payload_bytes = initializer->byte_count;
       payload = payload_bytes == 0u
                     ? NULL
-                    : program->value_bytes + binding->byte_offset;
+                    : program->value_bytes + initializer->byte_offset;
     } else if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
       size_t maximum_payload_bytes = 0u;
       if (!interpolation_maximum_bytes(

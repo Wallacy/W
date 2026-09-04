@@ -27704,7 +27704,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-6-linear-print-and-builtin-display`. Seu backend tem status
+`w-seed-mlir0-7-linear-print-and-typed-immutable-bindings`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35320,11 +35320,11 @@ runtime, distribuição MLIR nativa Windows, `w run` e performance permanecem
 gaps explícitos. `benchmarkDisposition` é `compiler-lifecycle`, correctness-only,
 sem timing ou ranking. Não há mudança de linguagem, grammar, portal ou registry.
 
-#### 26.4.1.3 W-1519 — verified immutable local String binding through the native seed pipeline (Forma vigente)
+#### 26.4.1.3 W-1519 — verified immutable local String binding through the native seed pipeline (Retained form; HIR advanced by W-1528)
 
-W-1519 is `source-backed-current` for a strictly bounded extension of the
-native seed path. W-1519 remains current for binding semantics; W-1520
-supersedes W-1506 for the native route and W-1505 remains current for HLO0.
+W-1519 is `source-backed-current` for the first strictly bounded binding form.
+W-1528 replaces its byte-only HIR representation with typed initializer roots.
+W-1505 retains the narrow HLO0 recovery form.
 
 **Example:** the Restaurant witness declares one prior immutable binding:
 
@@ -35342,13 +35342,10 @@ The frontend uses schema `w-seed-frontend-11`. It separates
 Resolution is lexical and linear in source order. It accepts only one
 unambiguous prior binding. Downstream consumers do not perform name lookup.
 
-W-1519 introduced schema `w-seed-hir0-2`; current HIR0 schema
-`w-seed-hir0-3` preserves this binding contract. It adds the caller-owned
-`w_seed_hir0_binding` record with `owner_instruction`, `owner_block`,
-`ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`,
-and `is_mutable=false`. The binding ordinal equals the instruction ordinal.
-`BINDING` carries the binding index. `CALL` carries none. `BINDING_READ` carries
-the same index, `byte_count=0`, and canonical offset zero.
+W-1519 introduced schema `w-seed-hir0-2` with a byte-only String initializer.
+W-1528 advances the current HIR0 schema to `w-seed-hir0-4`. Each binding now
+owns one typed `initializer_value` root. The root replaces the separate byte
+fields while preserving indexed reads and downstream name-lookup exclusion.
 
 Bindings are present in counts, program, output, capacities, alias tables,
 `program_from_output`, receipt, semantic digest, and provenance digest. The
@@ -35484,15 +35481,16 @@ is not required to be a W identifier or module name. The `w check` helper and
 examples executable directly without
 changing the public argument grammar.
 
-#### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Current form)
+#### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Retained static form; adapter advanced by W-1528)
 
-W-1522 is the current `source-backed-current` decision for the NAT1 product
-cut. Before W 1.0, it replaces W-1520's schema-v2 contract in place with
+W-1522 is the retained `source-backed-current` static NAT1 product cut.
+Before W 1.0, it replaced W-1520's schema-v2 contract in place with
 MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; no legacy
 adapter is retained. W-1525 later advances these schemas to v4 and v3 while
 preserving this static sequence. W-1523 later advances the frontend schema without
-widening the NAT1 selector. W-1524 later advances HIR0 to
-`w-seed-hir0-3` while preserving this NAT1 selection contract. The primary route is
+widening the NAT1 selector. W-1524 later introduced HIR0
+`w-seed-hir0-3`. W-1528 advances HIR0 to v4 and the native adapter to typed
+immutable bindings. The primary route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
 clang/native`, directly and without HLO0, HLO1, or RUN0.
 
@@ -35745,7 +35743,7 @@ remains the only evidenced target. `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only; no timing or performance result is
 published.
 
-#### 26.4.1.11 W-1527 — bounded built-in Bool and String Display through native MLIR (Current form)
+#### 26.4.1.11 W-1527 — bounded built-in Bool and String Display through native MLIR (Retained form; adapter advanced by W-1528)
 
 **Example:** the Restaurant witness keeps the value domains distinct through
 the verified pipeline and produces exact bytes:
@@ -35805,6 +35803,56 @@ This milestone does not implement protocol witness dispatch, user-defined
 locals, CFG or SSA, panic lowering, a stable runtime ABI, another target, or a
 performance result. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
+
+#### 26.4.1.12 W-1528 — typed immutable binding initializers through native MLIR (Current form)
+
+**Example:** the Restaurant witness names three distinct built-in values and
+uses them later in one interpolation:
+
+```w
+fn serve() {
+  let table = 6 * 7
+  let isOpen = true
+  let state = "open"
+  print("Table ${table}; open: ${isOpen}; state: ${state}")
+}
+entry(serve)
+```
+
+Its stdout is exactly `Table 42; open: true; state: open\n`.
+
+W-1528 advances HIR0 to `w-seed-hir0-4`, MLIR0 to `w-seed-mlir0-7`,
+and Native0 to `w-seed-native0-6`. The frontend schema remains
+`w-seed-frontend-12`. A local `let` may infer the current canonical signed
+`i64`, `Bool`, or `String` type from a closed supported initializer. Name
+resolution publishes the exact prior statement index and its effective type;
+downstream phases do not repeat source-name lookup.
+
+HIR0 removes the byte-only special case from its binding record. Every binding
+now owns exactly one `initializer_value` root in the common postorder value
+graph through `VALUE_OWNER_BINDING`. The root type equals the binding type.
+Child values retain their ordinary binary or interpolation ownership. A
+`BINDING_READ` may use any of the three represented non-Unit built-in types and
+must refer to a type-equal binding in the same block whose instruction strictly
+precedes the use. Initializer values, their bytes, owners, ordinals, spans, and
+indices participate in capacities, alias barriers, both digests, the receipt,
+and independent verification.
+
+The current native selector accepts immutable bindings whose initializer is a
+verified String literal, Bool literal, or panic-free signed-`i64` expression.
+When an interpolation reads such a binding, MLIR actions refer to the original
+initializer SSA value. The arithmetic initializer remains an `llvm.mul` in the
+artifact; neither the frontend nor HIR substitutes `42`. Counted String bytes
+remain exact, including NUL, and Bool remains lowercase ASCII. Every selected
+binding must have at least one later read. The existing 32-instruction,
+32-binding, 64-value, 64-segment, and 4096-output-byte bounds remain in force.
+
+This is still a single-function, single-block, immutable subset. It does not
+add `var`, assignment, mutable reads, nested scopes, phi/block arguments,
+general CFG or SSA construction, runtime String storage, protocol witness
+dispatch, function calls, panic lowering, another target, or a stable runtime
+ABI. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only; no
+timing or performance result is published.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

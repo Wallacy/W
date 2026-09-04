@@ -222,6 +222,23 @@ test "ordinary strings interpolate and raw strings do not" for literalSummary {
 }
 ```
 
+Immutable bindings retain their inferred types through later interpolation:
+
+<!-- w-example role=executable use=typedBindingSummary observable=value -->
+```w
+fn typedBindingSummary() {
+  let table = 6 * 7
+  let isOpen = true
+  let state = "open"
+  print("Table ${table}; open: ${isOpen}; state: ${state}")
+}
+
+test "typed bindings preserve values" for typedBindingSummary {
+  expect output of typedBindingSummary() ==
+    "Table 42; open: true; state: open\n"
+}
+```
+
 ## Collections and ranges
 
 <!-- w-example role=executable use=collectionSummary observable=value -->

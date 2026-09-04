@@ -2774,6 +2774,86 @@
         "bun run check:w-run — public bounded runner executes the combined Restaurant witness"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-typed-immutable-bindings",
+      "reviewItem": "typed immutable binding initializers against byte-only binding records, downstream name lookup, precomputed arithmetic, and unchecked forward or cross-block reads.",
+      "decisions": ["W-1528"],
+      "task": "Carry typed immutable binding initializers and later reads from source through verified HIR into exact native output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let table = 6 * 7",
+          "let isOpen = true",
+          "let state = \"open\"",
+          "print(\"Table ${table}; open: ${isOpen}; state: ${state}\")",
+          "stdout: Table 42; open: true; state: open\\n"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "byte-only-binding-record",
+          "language": "w-rejected",
+          "source": ["Store only String initializer bytes in each HIR binding"],
+          "expectedDifference": "Every binding owns one typed root in the common postorder value graph."
+        },
+        {
+          "name": "downstream-name-lookup",
+          "language": "w-rejected",
+          "source": ["Resolve table, isOpen, and state by source spelling in the backend"],
+          "expectedDifference": "Frontend publishes an indexed prior relation and every later phase consumes that relation."
+        },
+        {
+          "name": "precomputed-arithmetic-output",
+          "language": "w-rejected",
+          "source": ["Replace 6 * 7 with the output bytes 42 before MLIR emission"],
+          "expectedDifference": "The generated artifact retains llvm.mul and uses the initializer SSA value."
+        },
+        {
+          "name": "unchecked-binding-read",
+          "language": "w-rejected",
+          "source": ["Allow a forward, cross-block, or type-mismatched binding read"],
+          "expectedDifference": "HIR verification requires one block, strict prior order, and equal represented types."
+        },
+        {
+          "name": "premature-mutable-local",
+          "language": "w-rejected",
+          "source": ["Accept var and assignment without CFG, SSA, or mutation semantics"],
+          "expectedDifference": "The source-backed milestone remains immutable and declares mutable locals as a gap."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_binding_type_supported",
+          "claim": "HIR lowering admits only represented non-Unit binding types and emits one owned initializer value tree."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "resolve_binding_value",
+          "claim": "The native selector resolves the indexed verified binding and rejects unsupported initializer forms."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_dynamic_plan",
+          "claim": "MLIR actions use the original initializer value index instead of precomputed output text."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_typed_immutable_binding_values",
+          "claim": "The unit proves typed roots and reads, then rejects forged initializer indices, owners, and types."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "typed-bindings",
+          "claim": "The product gate verifies retained multiplication and byte-exact native Restaurant output."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0 — retained initializer SSA values and exact native output",
+        "bun run check:w-run — public bounded runner executes the typed Restaurant witness"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

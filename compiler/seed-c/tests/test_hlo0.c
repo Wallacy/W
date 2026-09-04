@@ -695,14 +695,15 @@ static bool test_hlo_binding_chain_all_or_nothing(void) {
   const w_seed_hlo0_input input = hlo_input();
   CHECK(fixture.hir_program.binding_count == 1u &&
         fixture.hir_program.instruction_count == 2u &&
-        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_BINDING_READ);
+        fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_CONST_STRING &&
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_BINDING_READ);
 
   const w_seed_hir0_binding saved_binding = fixture.hir_bindings[0];
   const w_seed_hir0_instruction saved_binding_instruction =
       fixture.hir_instructions[0];
   const w_seed_hir0_instruction saved_call_instruction =
       fixture.hir_instructions[1];
-  const w_seed_hir0_value saved_value = fixture.hir_values[0];
+  const w_seed_hir0_value saved_value = fixture.hir_values[1];
 
   prepare_hlo_output(0xa5u);
   fixture.hir_bindings[0].owner_instruction = 1u;
@@ -730,14 +731,14 @@ static bool test_hlo_binding_chain_all_or_nothing(void) {
   fixture.hir_instructions[1] = saved_call_instruction;
 
   prepare_hlo_output(0xa5u);
-  fixture.hir_values[0].binding_index = W_SEED_HIR0_NONE;
+  fixture.hir_values[1].binding_index = W_SEED_HIR0_NONE;
   CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
-  fixture.hir_values[0] = saved_value;
+  fixture.hir_values[1] = saved_value;
 
   prepare_hlo_output(0xa5u);
-  fixture.hir_values[0].byte_count = 1u;
+  fixture.hir_values[1].byte_count = 1u;
   CHECK(expect_status_current(W_SEED_HLO0_INVALID, input));
-  fixture.hir_values[0] = saved_value;
+  fixture.hir_values[1] = saved_value;
 
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;

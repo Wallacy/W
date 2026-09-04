@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-3"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-4"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
@@ -64,6 +64,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_VALUE_OWNER_ARGUMENT = 0,
+  W_SEED_HIR0_VALUE_OWNER_BINDING,
   W_SEED_HIR0_VALUE_OWNER_BINARY,
   W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
 } w_seed_hir0_value_owner_kind;
@@ -189,8 +190,7 @@ typedef struct {
   uint32_t type_index;
   w_seed_hir0_text name;
   bool is_mutable;
-  uint32_t byte_offset;
-  uint32_t byte_count;
+  uint32_t initializer_value;
   w_seed_span source_span;
 } w_seed_hir0_binding;
 

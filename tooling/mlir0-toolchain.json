@@ -3,8 +3,8 @@
   "version": 1,
   "status": "pinned",
   "artifact": {
-    "schema": "w-seed-mlir0-6",
-    "scope": "linear-print-and-builtin-display"
+    "schema": "w-seed-mlir0-7",
+    "scope": "linear-print-and-typed-immutable-bindings"
   },
   "target": {
     "triple": "x86_64-unknown-linux-gnu",
