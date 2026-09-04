@@ -1027,7 +1027,8 @@ MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
 suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
 geral, múltiplas bindings/values, CFG/general SSA, W MLIR dialect, MLIR C API
 builder, ownership/effects/tasks lowering, optimizer/pass pipeline,
-provider/runtime/linker/SDK, `w run` público e performance são gaps. HLO0,
+provider/runtime/linker/SDK, o runner `w run` público geral e performance são
+gaps; W-1521 fecha somente o subset público seed bounded em Linux/WSL. HLO0,
 HLO1 e RUN0 continuam bootstrap, auditoria e recovery. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
@@ -1035,6 +1036,54 @@ result.
 ```text
 bun run check:mlir0
 ```
+
+## Public bounded `w run` (W-1521)
+
+The public seed command is limited to:
+
+```text
+w run <explicit-path.w> [-- <args...>]
+```
+
+It accepts one explicit `.w` path and non-empty valid UTF-8 source up to 4096
+bytes. It does not discover source recursively, from cwd or PATH, or through
+imports, packages, workspaces, registries or network. Native0 is caller-owned
+and no-heap; the logical source id is the basename. The direct route is
+`source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
+mlir-translate → clang/native`; HLO0, HLO1 and RUN0 are not prerequisites.
+
+The gate checks the absolute pinned tool paths and factual version 20.1.2. A
+private `/tmp/w-run-XXXXXX` directory uses mode 0700 and fixed files use modes
+0600/0700. The runner uses `execv` without a shell and cleans every path on
+all returns. Arguments after `--` are forwarded byte-for-byte, and the child
+inherits stdout/stderr. Normal exit is propagated; signal exit is `128 +
+signal`. Invocation, source, unsupported and missing-tool errors return 2;
+internal, I/O and cleanup errors return 3. `--entry` and `--offline` are
+rejected. Native Windows, macOS, the general runner and performance remain
+gaps. The gate is compiler-lifecycle correctness evidence only.
+
+On Linux x86_64, run:
+
+```text
+bun run check:w-run
+```
+
+On a Windows host, the same gate builds and runs the Linux binary in WSL
+Ubuntu. It does not claim native Windows support.
+
+For a manual Linux or WSL smoke from the repository root:
+
+```sh
+cmake -S compiler/seed-c -B build/seed-c-run -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/bin/gcc
+cmake --build build/seed-c-run --target w
+./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
+# Hello, world!
+rm -rf -- ./build/seed-c-run
+```
+
+The automated reproduction remains `bun run check:w-run`; it also checks
+rejection cases and cleanup of its private build and fixture directories.
 
 ## RUN0 execução interna bounded verified-HLO0
 
@@ -1076,8 +1125,9 @@ caso preserva o prefixo aceito. O segundo preserva a saída completa. Sink
 reject continua com zero bytes.
 
 `cli/io.c` centraliza `_setmode`, writes e flushes verificados. O target
-público mantém somente o help e a rota `w check` vigentes. O oracle prova que
-o binário público rejeita `w run`.
+público mantém o help, a rota `w check` e o subset bounded W-1521 de
+`w run`. O oracle RUN0 prova somente a superfície interna RUN0; não prova o
+runner público geral.
 
 ```text
 bun run check:run0

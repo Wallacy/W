@@ -18,7 +18,9 @@ HLO1/RUN0 em gates internos bounded e test-only. W-1520 define a primeira rota
 nativa real: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect →
 LLVM IR → clang/native, sem passar por C source ou depender de HLO0. Hello é o
 witness canônico, mas o mesmo caminho aceita payloads String variáveis e
-compara stdout exato. A evidência MLIR0 é Linux x86_64 sob WSL no checkout
+compara stdout exato. W-1521 publica somente o subset bounded
+`w run <explicit-path.w> [-- <args...>]` em Linux x86_64; o runner público
+geral continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout
 Windows, não suporte Windows nativo.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
@@ -36,7 +38,8 @@ função/entry/block/call/argument. W-1519 adds a bounded verified binding shape
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
-Essa evidência não publica `w run` nem a leitura segura dos arquivos de entrada.
+Essa evidência não publica o runner geral nem a leitura geral dos arquivos de
+entrada. W-1521 cobre somente um path `.w` explícito no subset seed bounded.
 Owner detection, resolução externa, provider `std`, package/workspace e o
 frontend normativo completo continuam gaps.
 
@@ -54,7 +57,8 @@ API accepts only `{ program, hir_result }`, re-verifies HIR through the private
 shared native-subset selector, and performs no textual lookup. HLO0/HLO1/RUN0
 remain bootstrap, audit, and recovery paths, not native prerequisites.
 This decision does not claim general locals, `var`, assignment, nested scopes,
-general SSA, ownership, additional targets, public `w run`, or performance.
+general SSA, ownership, additional targets, the general public `w run` surface,
+or performance. W-1521 covers only the bounded public seed subset.
 
 MAN0 é o reader C controlado, compilado em modo C23, guarded, caller-owned e
 bounded de manifests estruturais. C11 é somente a lane explícita de
@@ -198,7 +202,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 LLVM-dialect terminal para um target e RUN0 interno test-only. Limites, witnesses e gaps ficam no README do componente; o checkout não publica `w run` |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 LLVM-dialect terminal para um target, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
@@ -231,9 +235,11 @@ o module set nativo. O entry registra os process signals no runtime. Um worker
 usa outro product e outro host lifecycle.
 
 Um arquivo único é um módulo normal. Ele exige uma declaração `fn` e um
-`entry`. A direção futura `w run path/file.w` seleciona `.default` ou usa
-`--entry` para selecionar outro entry. O checkout atual não publica esse
-comando. Statements finais sem `entry` são rejeitados.
+`entry`. W-1521 publica somente `w run path/file.w [-- <args...>]` para o
+subset seed bounded em Linux x86_64 (ou o binário Linux por WSL no host
+Windows). A direção futura geral seleciona `.default` ou usa `--entry` com
+contexto de package/workspace; o checkout não fecha essa surface geral.
+Statements finais sem `entry` são rejeitados.
 
 O Última Luz também é um workspace. O package `last-light/menu-compiler`
 descreve uma build transform tipada para o package principal. O contrato recebe
