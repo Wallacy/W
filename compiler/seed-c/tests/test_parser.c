@@ -2576,6 +2576,20 @@ static bool test_interpolation_expression_shapes(void) {
       (size_t)(literal - source) + strlen("\"The answer is ${6 * 7}\""),
       (size_t)(arithmetic - source),
       (size_t)(arithmetic - source) + strlen("6 * 7")));
+  size_t literal_events[5] = {0};
+  for (size_t index = 0; index < value.result.node_count; index += 1) {
+    const w_seed_cst_node *node = &value.nodes[index];
+    if (node->kind != W_SEED_CST_LITERAL_EVENT) continue;
+    CHECK(node->literal_kind == W_SEED_LITERAL_STRING);
+    CHECK((size_t)node->literal_event <
+          sizeof(literal_events) / sizeof(literal_events[0]));
+    literal_events[node->literal_event] += 1;
+  }
+  CHECK(literal_events[W_SEED_LITERAL_START] == 1);
+  CHECK(literal_events[W_SEED_LITERAL_TEXT] == 1);
+  CHECK(literal_events[W_SEED_INTERPOLATION_START] == 1);
+  CHECK(literal_events[W_SEED_INTERPOLATION_END] == 1);
+  CHECK(literal_events[W_SEED_LITERAL_END] == 1);
   CHECK(check_leaf_partition(&value));
   CHECK(check_tree_links(&value));
 

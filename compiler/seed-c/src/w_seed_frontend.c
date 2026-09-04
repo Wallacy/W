@@ -10142,11 +10142,11 @@ static bool binding_effective_type_index(frontend_context *context,
     *index = context->inferred_string_type_index;
     return true;
   }
-  if (!output_type_index_for_simple(context, type, index)) return false;
-  if (*index != W_SEED_FRONTEND_NONE) {
-    context->inferred_string_type_index = *index;
-    return true;
-  }
+  /* Do not reuse an earlier emitted String record here.  The dry pass has no
+   * output records to search, so reuse would make its measured type count
+   * differ from the emit pass whenever an inferred String binding follows an
+   * explicit String use.  This dedicated record is the stable identity for
+   * all inferred String bindings in both passes. */
   w_seed_frontend_type value;
   (void)memset(&value, 0, sizeof(value));
   value.kind = W_SEED_FRONTEND_TYPE_STRING;

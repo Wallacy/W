@@ -98,7 +98,9 @@ function expectOk(executable, bytes, label) {
   const result = probe(executable, input, label)
   if (result.parsed.parse !== 0 || result.parsed.frontend !== "ok" ||
       result.parsed.facts !== 0 || result.parsed.diagnostics !== 0) {
-    fail(`${label} was not a clean supported witness`)
+    fail(`${label} was not a clean supported witness ` +
+      `(parse=${result.parsed.parse}, frontend=${result.parsed.frontend}, ` +
+      `facts=${result.parsed.facts}, diagnostics=${result.parsed.diagnostics})`)
   }
   return result
 }
@@ -193,7 +195,7 @@ function expectGenericDeclarationSchema(executable) {
     "const fn isValidStagePath(_ stages: StaticList<ServiceStage>): Bool { " +
     "return true }\n" +
     "struct StagePath<_ stages: StaticList<ServiceStage>" +
-    "<(isValidStagePath(.member))>> { orderId: u64 }\n"
+    "<(isValidStagePath(.member))>> { let orderId: u64 }\n"
   const stage = expectOk(executable, stageSource, "generic StagePath declaration")
   if (stage.parsed.generic_parameters !== 1) {
     fail("generic StagePath declaration did not publish one parameter")
@@ -378,7 +380,7 @@ function expectTypedConstExpressions(executable) {
   const source =
     "const fn isUltimateAnswer(value: i64): Bool { return value == 42 }\n" +
     "struct UltimateAnswer<_ value: i64<(isUltimateAnswer(.member))>> {}\n" +
-    "struct Use { immediate: UltimateAnswer<42> computed: " +
+    "struct Use { let immediate: UltimateAnswer<42> let computed: " +
     "UltimateAnswer<(6 * 7)> }\n"
   const result = expectOk(executable, source, "typed const expression witness")
   if (result.parsed.generic_applications !== 2 ||
@@ -401,7 +403,7 @@ function expectTypedConstExpressions(executable) {
   expectUnsupported(
     executable,
     "struct Box<_ value: i64> {}\n" +
-      "struct Use { value: Box<(unknownValue)> }\n",
+      "struct Use { let value: Box<(unknownValue)> }\n",
     "unsupported typed const identifier",
   )
 }
@@ -436,7 +438,7 @@ function expectGenericApplications(executable) {
     executable,
     "struct Inner<T> {}\n" +
       "struct Outer<X> {}\n" +
-      "struct Use { value: Outer<Inner<u8>> }\n",
+      "struct Use { let value: Outer<Inner<u8>> }\n",
     "nested generic application",
   )
   const nestedApplications = receiptLines(nested.output, "generic-application=")
@@ -482,8 +484,8 @@ function expectGenericApplications(executable) {
   const staticValue = expectOk(
     executable,
     "struct StaticValue<T, _ value: T> {}\n" +
-      "struct Use { a: StaticValue<Bool, true> " +
-      "b: StaticValue<String, \"The final seating\"> }\n",
+      "struct Use { let a: StaticValue<Bool, true> " +
+      "let b: StaticValue<String, \"The final seating\"> }\n",
     "dependent StaticValue applications",
   )
   const parameter = receiptLines(staticValue.output, "generic-parameter=")
@@ -499,8 +501,8 @@ function expectGenericApplications(executable) {
     executable,
     "enum ServiceStage { accepted completed }\n" +
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
-      "struct Use { a: StagePath<[.accepted, .accepted]> " +
-      "b: StagePath<[]> c: StagePath<[.accepted]> }\n",
+      "struct Use { let a: StagePath<[.accepted, .accepted]> " +
+      "let b: StagePath<[]> let c: StagePath<[.accepted]> }\n",
     "StagePath list applications",
   )
   if (stage.parsed.generic_applications !== 3 ||
@@ -521,7 +523,7 @@ function expectGenericApplications(executable) {
     "enum ServiceStage { accepted completed }\n" +
     "struct StagePath<_ stages: StaticList</* c */ ServiceStage ><(isValid(.member))>> {}\n" +
       "const fn isValid(stages: StaticList</* c */ ServiceStage >): Bool { return true }\n" +
-      "struct Use { value: StagePath<[.accepted]> }\n",
+      "struct Use { let value: StagePath<[.accepted]> }\n",
     "whitespace StaticList application",
   )
   const spacedApplications = receiptLines(spaced.output, "generic-application=")
@@ -583,7 +585,7 @@ function expectGenericApplications(executable) {
       (application.startsWith("Anchored<")
         ? "struct Anchored<T, _ middle: usize, after: usize> {}\n"
         : "struct Matrix<Element, rows: usize, columns: usize> {}\n") +
-        `struct Use { x: ${application} }\n`,
+        `struct Use { let x: ${application} }\n`,
       code,
       `invalid generic application ${application}`,
     )
@@ -597,7 +599,7 @@ function expectGenericApplications(executable) {
     "enum ServiceStage { accepted completed }\n" +
       "enum OtherStage { accepted }\n" +
       "struct StagePath<_ stages: StaticList<ServiceStage>> {}\n" +
-      "struct Use { value: StagePath<[OtherStage.accepted]> }\n",
+      "struct Use { let value: StagePath<[OtherStage.accepted]> }\n",
     "qualified enum member mismatch",
   )
   if (!receiptLines(qualified.output, "generic-application=")[0].includes("|binding=0|")) {
@@ -608,28 +610,28 @@ function expectGenericApplications(executable) {
     [
       "const fn helper(_ value: Bool): Bool { return value }\n" +
         "struct S<value: Bool> {}\n" +
-        "struct Use { x: S<value: (helper(true))> }\n",
+        "struct Use { let x: S<value: (helper(true))> }\n",
       "computed generic value",
     ],
     [
       "struct S<value: String> {}\n" +
-        "struct Use { x: S<value: \"a\\\\n\"> }\n",
+        "struct Use { let x: S<value: \"a\\\\n\"> }\n",
       "escaped generic string",
     ],
     [
       "struct S<value: Bytes> {}\n" +
-        "struct Use { x: S<value: b\"abc\"> }\n",
+        "struct Use { let x: S<value: b\"abc\"> }\n",
       "Bytes generic domain",
     ],
     [
       "struct S<value: StaticList<StaticList<Bool>>> {}\n" +
-        "struct Use { x: S<value: [[true]]> }\n",
+        "struct Use { let x: S<value: [[true]]> }\n",
       "nested StaticList generic domain",
     ],
     [
       "struct Fixed {}\n" +
         "struct S<value: Fixed> {}\n" +
-        "struct Use { x: S<value: Fixed> }\n",
+        "struct Use { let x: S<value: Fixed> }\n",
       "fixed aggregate generic domain",
     ],
   ]
@@ -652,7 +654,7 @@ function expectGenericApplications(executable) {
     executable,
     "enum E { a(value: u8) }\n" +
       "struct S<value: E> {}\n" +
-      "struct Use { x: S<value: .a> }\n",
+      "struct Use { let x: S<value: .a> }\n",
     "enum case payload generic value",
   )
   if (!receiptLines(enumPayload.output, "generic-application=")[0].includes("|binding=0|")) {
@@ -662,7 +664,7 @@ function expectGenericApplications(executable) {
     executable,
     "enum E { a }\n" +
       "struct S<value: E> {}\n" +
-      "struct Use { x: S<value: .missing> }\n",
+      "struct Use { let x: S<value: .missing> }\n",
     "unknown contextual enum case",
   )
   if (!receiptLines(unknownEnum.output, "generic-application=")[0].includes("|binding=0|")) {
@@ -671,7 +673,7 @@ function expectGenericApplications(executable) {
   const mixed = expectDiagnostic(
     executable,
     "struct S<first: String, second: Bool> {}\n" +
-      "struct Use { x: S<first: \"a\\\\n\", bogus: (true)> }\n",
+      "struct Use { let x: S<first: \"a\\\\n\", bogus: (true)> }\n",
     "W-CONTRACT-0001",
     "mixed invalid and unsupported generic value",
   )

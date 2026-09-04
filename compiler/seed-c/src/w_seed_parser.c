@@ -136,11 +136,14 @@ static w_seed_cst_index add_node(w_seed_parser *parser, w_seed_cst_kind kind,
   }
   const w_seed_cst_index index = (w_seed_cst_index)parser->node_count;
   w_seed_cst_node *node = &parser->nodes[parser->node_count];
+  (void)memset(node, 0, sizeof(*node));
   node->kind = kind;
   node->flags = flags;
   node->raw_span = span;
   node->first_child = W_SEED_CST_NONE;
   node->next_sibling = W_SEED_CST_NONE;
+  node->literal_kind = W_SEED_LITERAL_NONE;
+  node->literal_event = W_SEED_LITERAL_START;
   parser->node_count += 1;
 
   if (parser->frame_count != 0) {
@@ -349,6 +352,10 @@ static bool consume_raw(w_seed_parser *parser, uint16_t flags,
                                                : override_kind);
   const w_seed_cst_index leaf = add_raw_span(parser, kind, flags, item.span);
   if (leaf == W_SEED_CST_NONE) return false;
+  if (item.kind == W_SEED_LEX_ITEM_LITERAL_EVENT) {
+    parser->nodes[leaf].literal_kind = item.payload.literal.literal;
+    parser->nodes[leaf].literal_event = item.payload.literal.event;
+  }
   parser->last_token_end = item.span.end_byte;
   parser->has_last_token = true;
   shift_token(parser);
