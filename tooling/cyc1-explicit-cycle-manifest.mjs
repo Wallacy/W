@@ -56,7 +56,7 @@ export function validateCyc1StudyManifest(manifest, { studyDirectory, repository
   if (manifest?.status !== "design-oracle-input") errors.push("CYC1 study status must be design-oracle-input.");
   if (manifest?.id !== "CYC1" || manifest?.gate !== "CYC0-G1") errors.push("CYC1 study must identify CYC0-G1.");
   if (!nonEmpty(manifest?.question) || !nonEmpty(manifest?.recommendation) || !nonEmpty(manifest?.stopCondition)) errors.push("CYC1 study question, recommendation, and stopCondition are required.");
-  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("CYC1 study must contain current, Research, and rejected variants.");
+  if (!Array.isArray(manifest?.variants) || manifest.variants.length < 5) errors.push("CYC1 study must contain current, future-reopen, and rejected variants.");
   const variantIds = new Set();
   for (const [index, variant] of (manifest?.variants ?? []).entries()) {
     const location = `variants[${index}]`;
@@ -112,7 +112,7 @@ function isValidVariant(variant, ids, location, errors) {
     return false;
   }
   ids.add(variant.id);
-  if (!["current", "research-candidate", "rejected-witness"].includes(variant.role)) errors.push(`${location}.role is invalid.`);
+  if (!["current", "future-reopen-candidate", "rejected-witness"].includes(variant.role)) errors.push(`${location}.role is invalid.`);
   if (!nonEmpty(variant.language)) errors.push(`${location}.language is required.`);
   return true;
 }

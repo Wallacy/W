@@ -206,7 +206,7 @@
     {
       "id": "R1-cyc1-explicit-cycle-lifecycle",
       "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/bundle.json",
-      "digest": "sha256:5a112a758e76b6f0779851ccc5735a902feaf3a3dae58d79dcc86f194eb5c368"
+      "digest": "sha256:119079ad6a7567952335c2342cb16d6f276f70100bea1dfd41201e2ac7787cd7"
     },
     {
       "id": "R1-cyc2-conditional-liveness",

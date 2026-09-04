@@ -429,21 +429,21 @@
     {
       "id": "CYC1-POS-generation-id-cache",
       "family": "conditional-liveness",
-      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "generationIdCacheWithInvalidation", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "generationIdCacheWithInvalidation", "digest": "sha256:4d4f5f1f914926f1ecd47fc4ba179523a8154c4cd3fbaf0baf4349b43c882112" }],
       "composition": { "kind": "generation-id-cache", "idDetached": true, "explicitInvalidation": true, "valueToKeyStrong": false },
       "expect": { "status": "composable-alternative", "code": "generation-id-detaches-key" }
     },
     {
       "id": "CYC1-POS-owner-scoped-cache-lease",
       "family": "conditional-liveness",
-      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "ownerScopedLeaseWithClose", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "ownerScopedLeaseWithClose", "digest": "sha256:4d4f5f1f914926f1ecd47fc4ba179523a8154c4cd3fbaf0baf4349b43c882112" }],
       "composition": { "kind": "owner-scoped-cache", "ownerLease": true, "explicitClose": true, "valueToKeyStrong": false },
       "expect": { "status": "composable-alternative", "code": "owner-lease-breaks-edge" }
     },
     {
       "id": "CYC1-POS-detached-cache-value",
       "family": "conditional-liveness",
-      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "detachedValueWithoutBackEdge", "digest": "sha256:290e29f7b71a9993a6c706440d4145bfc2fc2f6f568a68945d7966f57df6c73c" }],
+      "sourceRefs": [{ "path": "tooling/studies/cyc1-explicit-cycle-lifecycle/conditional-liveness.w", "symbol": "detachedValueWithoutBackEdge", "digest": "sha256:4d4f5f1f914926f1ecd47fc4ba179523a8154c4cd3fbaf0baf4349b43c882112" }],
       "composition": { "kind": "detached-value", "detached": true, "keyIdentityRequired": false, "valueToKeyStrong": false },
       "expect": { "status": "composable-alternative", "code": "detached-value-no-back-edge" }
     },
@@ -452,14 +452,14 @@
       "family": "conditional-liveness",
       "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
       "composition": { "kind": "naive-weak-key" },
-      "expect": { "status": "candidate-research", "code": "ordinary-weak-insufficient" }
+      "expect": { "status": "future-reopen-candidate", "code": "ordinary-weak-insufficient" }
     },
     {
       "id": "CYC1-RESEARCH-ephemeron-value-key-cycle",
       "family": "conditional-liveness",
       "sourceRefs": [{ "path": "reference/last-light/memory.w", "symbol": "MenuSection" }],
       "composition": { "kind": "ephemeron", "valueToKeyStrong": true },
-      "expect": { "status": "candidate-research", "code": "ephemeron-value-key-cycle" }
+      "expect": { "status": "future-reopen-candidate", "code": "ephemeron-value-key-cycle" }
     },
     {
       "id": "CYC1-REJECT-transparent-collector",

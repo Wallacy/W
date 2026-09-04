@@ -1191,7 +1191,7 @@
         {
           "id": "cycle-reference",
           "path": "tooling/cyc1-explicit-cycle-reference.test.mjs",
-          "digest": "sha256:492e4162e0f3523e894c85c437c2ffe1b9e5c0dcbd7d39c5299c9985ca96aea9",
+          "digest": "sha256:2dcabe152879e2631906d2efca9366c7957eca2ee9d2f56e07643147b8bca906",
           "claim": "Independent callback drain and cycle lifecycle assertions"
         }
       ],

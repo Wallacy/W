@@ -32,8 +32,8 @@ compositions are tested for caches that do not need ephemeron semantics:
 - a detached value that has no strong value-to-key edge.
 
 Ordinary weak handles do not implement a weak-key/ephemeron rule. The naive
-weak-key and value-to-key cases therefore remain a conditional-liveness
-Research subcapability. No primitive, syntax, or collector is proposed.
+weak-key and value-to-key cases therefore remain future-reopen candidates for
+conditional liveness. No primitive, syntax, or collector is proposed.
 
 Foreign edges and roots without adapter metadata are `unknown`. The census
 does not call `deinit`, reclaim storage, or repair a graph. A static SCC is

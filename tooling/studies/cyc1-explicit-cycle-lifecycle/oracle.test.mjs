@@ -23,4 +23,11 @@ describe("CYC1 study oracle", () => {
     expect(evaluateCyc1Case(strong).code).toBe("W-OWNERSHIP-0014");
     expect(evaluateCyc1Case(hidden).status).toBe("unknown");
   });
+
+  test("keeps weak-key and ephemeron routes future-only", () => {
+    const weakKey = corpus.cases.find((testCase) => testCase.id === "CYC1-RESEARCH-naive-weak-key");
+    const ephemeron = corpus.cases.find((testCase) => testCase.id === "CYC1-RESEARCH-ephemeron-value-key-cycle");
+    expect(evaluateCyc1Case(weakKey).status).toBe("future-reopen-candidate");
+    expect(evaluateCyc1Case(ephemeron).status).toBe("future-reopen-candidate");
+  });
 });

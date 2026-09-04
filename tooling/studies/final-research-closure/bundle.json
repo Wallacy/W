@@ -20,7 +20,7 @@
     {
       "path": "../../../tooling/research-state-inventory.json",
       "symbol": "w-research-state-inventory-1",
-      "digest": "sha256:15c89b259d084b9419db798f9902da14916c73efa350561937e1ef405ecb36dd"
+      "digest": "sha256:42bcda71432bfb86cef48da988f19087489323824a22b6a24fd2a9670e228f72"
     },
     {
       "path": "../../../tooling/frontend-freeze-cases.json",
@@ -30,7 +30,7 @@
     {
       "path": "../../../tooling/hum0-human-review-protocol.json",
       "symbol": "w-hum0-human-review-protocol-1",
-      "digest": "sha256:2e46f018ceb8236484c8476c162c1e8553b9ee12eba4e711c909c722702895f1"
+      "digest": "sha256:018381b9b02649f367e50893bdff07f6bb1385fbbf1e6ac73b20439bb94cbefc"
     },
     {
       "path": "../../../tooling/design-freeze-classification.json",
@@ -144,7 +144,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:14631bdf755c03c9d6d54b19963149d0c577791738242f66e9b2a0832b7ac0ac"
+    "digest": "sha256:f51fb99228d2505c7aaac4fea7aad3b0e423b60d997dd35cb187bdf43a3a3d78"
   },
   "evidence": {
     "current": [

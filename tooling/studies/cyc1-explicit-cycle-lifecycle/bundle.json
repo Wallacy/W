@@ -94,11 +94,11 @@
     },
     {
       "id": "conditional-liveness",
-      "role": "research-candidate",
-      "disposition": "research-candidate",
+      "role": "future-reopen-candidate",
+      "disposition": "future-reopen-candidate",
       "language": "w",
       "path": "conditional-liveness.w",
-      "digest": "sha256:00c0bb0e3dfc5a8030730211bee20d1c210f8b79307e4b5d50bcfe4d423bab7c",
+      "digest": "sha256:4d4f5f1f914926f1ecd47fc4ba179523a8154c4cd3fbaf0baf4349b43c882112",
       "changedConstructs": [
         "generation/ID cache with explicit invalidation",
         "owner-scoped lease with close",
@@ -156,7 +156,7 @@
       "id": "conditional-liveness",
       "scenario": "weak-key-and-ephemeron",
       "expected": {
-        "route": "research-extension"
+        "route": "future-reopen-candidate"
       }
     },
     {
@@ -238,7 +238,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:def6b7133c719ff534766f3fb81d25a827369c9f05eb1c273c1f29bbe7844f0c"
+    "digest": "sha256:271b7cece512912a2e983624282089901697c6ec253e04d275def928b37ce8b0"
   },
   "evidence": {
     "current": [

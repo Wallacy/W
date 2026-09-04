@@ -36,13 +36,14 @@ fechamento DRC0 antes de recascade.
 
 ## Research-state inventory
 
-`tooling/research-state-inventory.json` is the maintained cross-surface registry
-under normalization. Its `active` list is exactly `[]`; each listed family is
+`tooling/research-state-inventory.json` is the authoritative maintained
+cross-surface registry. Its `active` list is exactly `[]`; each listed family is
 classified as `historical`, `rejected`, `current-design-evidence-gap`, or
 `future-reopen-candidate`. Historical text and implementation gaps remain
-traceable without becoming active research. `normalizationPending` marks legacy
-nested artifacts that still need a later, family-scoped relabeling pass, so FRC0
-reports the inventory as `normalized: false` until that pass is complete.
+traceable without becoming active research. `normalizationPending` is `false`
+for every registered family. FRC0 requires the authoritative status,
+`normalized: true`, and a zero pending count; future reopening candidates
+remain classified without becoming active research.
 
 Checks scoped:
 
