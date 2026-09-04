@@ -48,7 +48,7 @@ export const REQUIRED_CASES = [
   "HRD0-B-local-split-equivalence",
   "HRD0-B-schema-wabi-rejected",
   "HRD0-B-untrusted-native-rejected",
-  "HRD0-C-generated-module-reopen-research",
+  "HRD0-C-generated-module-reopen-historical-candidate",
   "HRD0-C-generated-module-injection-rejected",
   "HRD0-C-invocation-spelling-unresolved",
   "HRD0-D-production-reload-rejected",
@@ -169,7 +169,7 @@ function mergedFacts(corpus, testCase) {
 function routeForFacts(facts, invocation = false) {
   if (facts.runner.mode !== "development" || facts.runner.releaseDynamicMode || facts.runner.untrustedNative || (facts.runner.isolation === "native" && facts.runner.untrusted)) return "intentionally-rejected";
   if (REJECTED_MECHANISMS[facts.runner.mechanism]) return "intentionally-rejected";
-  if (invocation || facts.runner.sourceKind === "generated-module-set") return "research";
+  if (invocation || facts.runner.sourceKind === "generated-module-set") return "historical-candidate";
   return "current-composition";
 }
 
@@ -272,8 +272,8 @@ function generatedReady(result, facts, seen) {
   if (facts.runner.sourceKind !== "generated-module-set") return true;
   if (!seen.has("actionResult") || !seen.has("reopenUnit") || !seen.has("semanticCheck")) {
     terminal(result, "rejected", "generated-unit-not-reopened", facts.generations.old);
-    result.route = "research";
-    result.disposition = "research";
+    result.route = "historical-candidate";
+    result.disposition = "historical-candidate";
     return false;
   }
   result.generatedReopened = true;
@@ -284,9 +284,9 @@ function generatedReady(result, facts, seen) {
 function finish(result, facts, seen) {
   if (result.status !== "pending") return result;
   if (result.invocation === "tooling-owned-unselected" && seen.has("invocation")) {
-    result.route = "research";
-    result.disposition = "research";
-    return terminal(result, "research", "invocation-not-selected", facts.generations.old);
+    result.route = "historical-candidate";
+    result.disposition = "historical-candidate";
+    return terminal(result, "historical-candidate", "invocation-not-selected", facts.generations.old);
   }
   if (!result.published) return terminal(result, "rejected", "publication-not-reached", facts.generations.old);
   if (!result.oldAdmissionClosed) return terminal(result, "rejected", "admission-not-closed", facts.generations.old);
@@ -295,10 +295,10 @@ function finish(result, facts, seen) {
   if (!generatedReady(result, facts, seen)) return result;
   if (result.status === "pending") {
     if (facts.runner.sourceKind === "generated-module-set") {
-      result.route = "research";
-      result.disposition = "research";
-      result.status = "research";
-      result.code = "generated-module-research";
+      result.route = "historical-candidate";
+      result.disposition = "historical-candidate";
+      result.status = "historical-candidate";
+      result.code = "generated-module-historical-candidate";
     } else {
       result.status = "committed";
       result.code = "dev-runner-switch-committed";

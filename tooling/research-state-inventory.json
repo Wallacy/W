@@ -181,16 +181,23 @@
     },
     {
       "id": "hrd0",
-      "category": "current-design-evidence-gap",
+      "category": "historical",
       "decisionRefs": ["W-1398", "W-1399"],
-      "successorDecisions": [],
-      "implementationGaps": ["W-1399"],
-      "normalizationPending": true,
+      "successorDecisions": ["W-1398", "W-1399"],
+      "implementationGaps": [],
+      "normalizationPending": false,
       "artifacts": [
         "tooling/hot-reload-dev-cases.json",
         "tooling/hot-reload-dev-machine.mjs",
+        "tooling/hot-reload-dev-manifest.mjs",
+        "tooling/check-hot-reload-dev.mjs",
+        "tooling/hot-reload-dev-results.snapshot.jsonl",
         "tooling/studies/hrd0-hot-reload-dev/study.json",
-        "tooling/studies/hrd0-hot-reload-dev/bundle.json"
+        "tooling/studies/hrd0-hot-reload-dev/bundle.json",
+        "tooling/studies/hrd0-hot-reload-dev/README.md",
+        "tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs",
+        "tooling/studies/hrd0-hot-reload-dev/local-runner.w",
+        "tooling/studies/hrd0-hot-reload-dev/split-runner.w"
       ]
     },
     {

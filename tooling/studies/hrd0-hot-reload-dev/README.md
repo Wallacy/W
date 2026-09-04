@@ -17,7 +17,7 @@ falha de drain depois de publication é `degraded`/fault e nunca rollback.
 | --- | --- | --- |
 | A | unit normal, snapshot REPL e falha bounded | composição existente; evidência de implementação ainda ausente |
 | B | generation de service/plugin tipado, ABI/closure/schema e local/split | composição existente de DYN1; reducers independentes |
-| C | module set gerado content-addressed e escolha de invocação | Research por SYN1; units geradas devem reabrir/checkar; `w dev` vs `w run --watch` não é escolhido |
+| C | generated content-addressed module set and invocation ownership | Historical SYN1 provenance; generated units must reopen and pass checks; W-1398/W-1399 own the current implementation evidence gap and no CLI spelling is selected |
 | D | production reload, eval/exec, monkey patch, active frame, native sandbox e `dlclose` vivo | intencionalmente rejeitado |
 
 O corpus e o reducer são host-only. Eles preservam package identity, recipe,

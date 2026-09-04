@@ -196,14 +196,14 @@
     {
       "path": "tooling/studies/final-research-closure/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:d27c76df87ec58e64dc32dc1713bce6ab72c4b172c09c897328a58f42c5fa679",
+      "digest": "sha256:575db797571daa9d6a9427492bedefd44cab264906223391a5f312bf5079a61e",
       "status": "design-oracle-input",
       "id": "R1-final-research-closure"
     },
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:fc02d59f1f185fb8fb782b6cd201305cdad044f8a329c569bf3b9636b40aa268",
+      "digest": "sha256:201f8ecded8e0257a3296613fcec6fb03cba362dad6aeaff919829d5526741cd",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -245,14 +245,14 @@
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
       "kind": "bundle",
-      "digest": "sha256:63a10cfd51fbaed5118d95d944edadf524e1904d4364f2d3444869395a76360a",
+      "digest": "sha256:f74a168fb6b8eb382690cf88599effee88503e9025d6b3ed9b38c4acc3a4fddc",
       "status": "design-oracle-input",
       "id": "R1-hrd0-hot-reload-dev"
     },
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/study.json",
       "kind": "study",
-      "digest": "sha256:aca0950b45db5246f21364d5b2c963869a2854ccbfcdac4ab3d7bf0742919ff6",
+      "digest": "sha256:2416a5989cf5b4ac89e6bb480bd11a6d5eba590d3a59744ae1fda03875025ffb",
       "status": "design-oracle-input",
       "id": "HRD0"
     },
@@ -616,7 +616,7 @@
     {
       "path": "tooling/studies/r1c0-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:0a0b60ad789cbcebbbaadd7c2de5a8f50dcc0a7c7f290fe1096383fbefc87459",
+      "digest": "sha256:c768b4bead99ad70302cd7b76ab5af315c2e64b426f777d5fa00b82a1ad45b0c",
       "status": "design-oracle-input",
       "id": "R1C0"
     },
@@ -686,7 +686,7 @@
     {
       "path": "tooling/studies/syn2-dyn2-closure/study.json",
       "kind": "study",
-      "digest": "sha256:191587e32f42830d5a92b37e9df3a86353dc7b0e6c7c6164c6bf21bbe7171537",
+      "digest": "sha256:fe0fc3654f4c905ea891fd8d2958ecbd00f7224a4985c77669fa34c6404d7c5d",
       "status": "design-oracle-input",
       "id": "SYN2-DYN2"
     },
@@ -1185,7 +1185,7 @@
     {
       "path": "tooling/check-hot-reload-dev.mjs",
       "kind": "script-target",
-      "digest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe"
+      "digest": "sha256:834182e4359ea0fd6474f86fcc2df87524c4200e4797247484b67c3df4a4af4b"
     },
     {
       "path": "tooling/check-hum0-human-review.mjs",
@@ -1375,7 +1375,7 @@
     {
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba"
+      "digest": "sha256:da294935949b477e5f121810041d96a57f80c1e40bde2332ede9d1baa89b3a59"
     },
     {
       "path": "tooling/studies/fst0-first-settled-task/check.mjs",
@@ -1395,7 +1395,7 @@
     {
       "path": "tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs",
       "kind": "script-target",
-      "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085"
+      "digest": "sha256:3d3baed8fe3b82a87692aa69e0cb249ea60905faf2839a27953c6913c2f05f64"
     },
     {
       "path": "tooling/studies/hum0-human-review/oracle.test.mjs",
@@ -8297,7 +8297,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba",
+      "declaredDigest": "sha256:da294935949b477e5f121810041d96a57f80c1e40bde2332ede9d1baa89b3a59",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8327,7 +8327,7 @@
       "pointer": "sourceRefs.1.path",
       "path": "../../../tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:b4ca9f826ae83f098a62b25c2261cd4bc0a2de6516506ea5522eb0fa8240403a",
+      "declaredDigest": "sha256:18e90b66cd4a28a56e824b4d0e49929c19ab82e60cfd2cfb6fc00afd0078ebce",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/bundle.json"
     },
@@ -8417,7 +8417,7 @@
       "pointer": "artifacts.1.path",
       "path": "tooling/research-state-inventory.json",
       "resolved": "tooling/research-state-inventory.json",
-      "declaredDigest": "sha256:b4ca9f826ae83f098a62b25c2261cd4bc0a2de6516506ea5522eb0fa8240403a",
+      "declaredDigest": "sha256:18e90b66cd4a28a56e824b4d0e49929c19ab82e60cfd2cfb6fc00afd0078ebce",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8677,7 +8677,7 @@
       "pointer": "artifacts.5.path",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
       "resolved": "tooling/final-research-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:3dbd065eafe2ac53cf52fc78800e8029dad5f9db2f0d1d704cfb741dab8bfde4",
+      "declaredDigest": "sha256:86f795b12a7509d9d5d1acf6e81c7e543eb37d040f26c637afa9724d3115617e",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8687,7 +8687,7 @@
       "pointer": "artifacts.6.path",
       "path": "tooling/studies/final-research-closure/oracle.test.mjs",
       "resolved": "tooling/studies/final-research-closure/oracle.test.mjs",
-      "declaredDigest": "sha256:ffb31bda49a3f7b6a3d716bc1f89700fa3a847afd85cd7c70851e35ce96b80ba",
+      "declaredDigest": "sha256:da294935949b477e5f121810041d96a57f80c1e40bde2332ede9d1baa89b3a59",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -8697,7 +8697,7 @@
       "pointer": "artifacts.7.path",
       "path": "tooling/studies/final-research-closure/bundle.json",
       "resolved": "tooling/studies/final-research-closure/bundle.json",
-      "declaredDigest": "sha256:d27c76df87ec58e64dc32dc1713bce6ab72c4b172c09c897328a58f42c5fa679",
+      "declaredDigest": "sha256:575db797571daa9d6a9427492bedefd44cab264906223391a5f312bf5079a61e",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
@@ -9337,7 +9337,7 @@
       "pointer": "oracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs",
-      "declaredDigest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085",
+      "declaredDigest": "sha256:3d3baed8fe3b82a87692aa69e0cb249ea60905faf2839a27953c6913c2f05f64",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/bundle.json"
     },
@@ -9447,7 +9447,7 @@
       "pointer": "checker.path",
       "path": "../../check-hot-reload-dev.mjs",
       "resolved": "tooling/check-hot-reload-dev.mjs",
-      "declaredDigest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe",
+      "declaredDigest": "sha256:834182e4359ea0fd6474f86fcc2df87524c4200e4797247484b67c3df4a4af4b",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9457,7 +9457,7 @@
       "pointer": "corpus.path",
       "path": "../../hot-reload-dev-cases.json",
       "resolved": "tooling/hot-reload-dev-cases.json",
-      "declaredDigest": "sha256:a2da815c5f8e6745a8d35cb597c535a8181708b5458fe58f32a2f9fd9c510f96",
+      "declaredDigest": "sha256:2f705e4cffd08deef616eacf42df68be9e0760dc7c0c0c2bd587ca5b87c57ec1",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9497,7 +9497,7 @@
       "pointer": "machine.path",
       "path": "../../hot-reload-dev-machine.mjs",
       "resolved": "tooling/hot-reload-dev-machine.mjs",
-      "declaredDigest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841",
+      "declaredDigest": "sha256:8676563b94f5cd437a2df736cacb29f51e3ca00ddbe925ed96c62937339fd16a",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9507,7 +9507,7 @@
       "pointer": "snapshot.path",
       "path": "../../hot-reload-dev-results.snapshot.jsonl",
       "resolved": "tooling/hot-reload-dev-results.snapshot.jsonl",
-      "declaredDigest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6",
+      "declaredDigest": "sha256:9c99ecceec514065abc7ff87a11071fedeaaec144ec86a3755ce5f8e8a7d48d2",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -9597,7 +9597,7 @@
       "pointer": "studyOracle.path",
       "path": "oracle.test.mjs",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs",
-      "declaredDigest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085",
+      "declaredDigest": "sha256:3d3baed8fe3b82a87692aa69e0cb249ea60905faf2839a27953c6913c2f05f64",
       "status": "resolved",
       "source": "tooling/studies/hrd0-hot-reload-dev/study.json"
     },
@@ -12847,7 +12847,7 @@
       "pointer": "bundles.26.path",
       "path": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/bundle.json",
-      "declaredDigest": "sha256:63a10cfd51fbaed5118d95d944edadf524e1904d4364f2d3444869395a76360a",
+      "declaredDigest": "sha256:f74a168fb6b8eb382690cf88599effee88503e9025d6b3ed9b38c4acc3a4fddc",
       "status": "resolved",
       "source": "tooling/studies/r1c0-closure/manifest.json"
     },
@@ -14677,7 +14677,7 @@
       "pointer": "artifacts.snapshot.path",
       "path": "../../syn2-dyn2-closure-results.snapshot.jsonl",
       "resolved": "tooling/syn2-dyn2-closure-results.snapshot.jsonl",
-      "declaredDigest": "sha256:7fa3f22f4905a84065cc4e0dad2f9f0dbf20713d7335b621452c32a701090006",
+      "declaredDigest": "sha256:b8a6deca16164b011cbdae6f4cd5dfca70915548a90910e8f5531a983f13434c",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14717,7 +14717,7 @@
       "pointer": "buildsOn.2.path",
       "path": "../hrd0-hot-reload-dev/study.json",
       "resolved": "tooling/studies/hrd0-hot-reload-dev/study.json",
-      "declaredDigest": "sha256:aca0950b45db5246f21364d5b2c963869a2854ccbfcdac4ab3d7bf0742919ff6",
+      "declaredDigest": "sha256:2416a5989cf5b4ac89e6bb480bd11a6d5eba590d3a59744ae1fda03875025ffb",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14757,7 +14757,7 @@
       "pointer": "independentReducers.1.checker.path",
       "path": "../../check-hot-reload-dev.mjs",
       "resolved": "tooling/check-hot-reload-dev.mjs",
-      "declaredDigest": "sha256:ad9b6736e719bb64b37f12cf5689e1093abaed522bb1a4e86bc54d122c1d8cfe",
+      "declaredDigest": "sha256:834182e4359ea0fd6474f86fcc2df87524c4200e4797247484b67c3df4a4af4b",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14767,7 +14767,7 @@
       "pointer": "independentReducers.1.machine.path",
       "path": "../../hot-reload-dev-machine.mjs",
       "resolved": "tooling/hot-reload-dev-machine.mjs",
-      "declaredDigest": "sha256:4e4ec9b8932bec90a0cbe67a2cccf51bdc7aedacffdc9e21e19adb00bb1bc841",
+      "declaredDigest": "sha256:8676563b94f5cd437a2df736cacb29f51e3ca00ddbe925ed96c62937339fd16a",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },
@@ -14777,7 +14777,7 @@
       "pointer": "independentReducers.1.snapshot.path",
       "path": "../../hot-reload-dev-results.snapshot.jsonl",
       "resolved": "tooling/hot-reload-dev-results.snapshot.jsonl",
-      "declaredDigest": "sha256:a433ba7517c34f3385ad18970faa96070db5dd33428fa4ec221f8f9304fed6f6",
+      "declaredDigest": "sha256:9c99ecceec514065abc7ff87a11071fedeaaec144ec86a3755ce5f8e8a7d48d2",
       "status": "resolved",
       "source": "tooling/studies/syn2-dyn2-closure/study.json"
     },

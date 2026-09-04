@@ -111,7 +111,7 @@
       "scenario": "reopen-generated-set-before-freeze",
       "expected": {
         "axis": "C",
-        "route": "research"
+        "route": "historical-candidate"
       }
     },
     {
@@ -170,7 +170,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:0c7a262c03c2413bd0cc7e99f5c24a78c09315fbf28990892b7f17c1705cb085"
+    "digest": "sha256:3d3baed8fe3b82a87692aa69e0cb249ea60905faf2839a27953c6913c2f05f64"
   },
   "evidence": {
     "current": [
