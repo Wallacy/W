@@ -20,8 +20,9 @@ typedef struct {
  * argv and are forwarded unchanged after an optional -- separator. */
 bool w_seed_run_parse(int argc, char **argv, w_seed_run_request *request);
 
-/* Execute one parsed request. Linux runs the bounded Native0-to-native path;
- * other hosts return the documented unsupported status without side effects. */
+/* Execute one parsed request. Linux uses its pinned native path; an explicitly
+ * configured Windows build uses the bounded MLIR0-to-PE path. Other hosts
+ * return the documented unsupported status without side effects. */
 int w_seed_run_execute(const w_seed_run_request *request);
 
 #ifdef __cplusplus

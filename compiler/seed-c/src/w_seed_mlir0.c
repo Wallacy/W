@@ -50,6 +50,82 @@ static const char MLIR0_RETURN_SUFFIX[] =
     "  }\n"
     "}\n";
 
+static const char MLIR0_WINDOWS_SCHEMA_COMMENT[] =
+    "// " W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "\n";
+static const char MLIR0_WINDOWS_PREFIX[] =
+    "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+    "\"} {\n"
+    "  llvm.mlir.global private constant @w_seed_mlir0_payload(\"";
+static const char MLIR0_WINDOWS_GLOBAL_MIDDLE[] =
+    "\") : !llvm.array<";
+#define MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT                                      \
+  "  llvm.mlir.global internal @w_seed_mlir0_buffer() : !llvm.array<4097 x i8> {\n" \
+  "    %buffer_zero = llvm.mlir.zero : !llvm.array<4097 x i8>\n"            \
+  "    llvm.return %buffer_zero : !llvm.array<4097 x i8>\n"                 \
+  "  }\n"
+static const char MLIR0_WINDOWS_BUFFER_GLOBAL[] =
+    MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT;
+static const char MLIR0_WINDOWS_GLOBAL_SUFFIX[] =
+    " x i8>\n"
+    MLIR0_WINDOWS_BUFFER_GLOBAL_TEXT
+    "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
+    "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
+    "  llvm.func @ExitProcess(%code: i32)\n"
+    "  llvm.func @mainCRTStartup() {\n"
+    "    %stdout = llvm.mlir.constant(-11 : i32) : i32\n"
+    "    %length = llvm.mlir.constant(";
+static const char MLIR0_WINDOWS_LENGTH_MIDDLE[] =
+    " : i64) : i64\n"
+    "    %length32 = llvm.mlir.constant(";
+static const char MLIR0_WINDOWS_LENGTH32_MIDDLE[] =
+    " : i32) : i32\n"
+    "    %zero = llvm.mlir.constant(0 : i32) : i32\n"
+    "    %zero64 = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %base = llvm.mlir.addressof @w_seed_mlir0_payload : !llvm.ptr\n"
+    "    %data = llvm.getelementptr %base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<";
+static const char MLIR0_WINDOWS_GEP_SUFFIX[] =
+    " x i8>\n"
+    "    %written = llvm.alloca %one x i32 : (i64) -> !llvm.ptr\n"
+    "    llvm.store %zero, %written : i32, !llvm.ptr\n"
+    "    %null = llvm.inttoptr %zero64 : i64 to !llvm.ptr\n"
+    "    %handle = llvm.call @GetStdHandle(%stdout) : (i32) -> !llvm.ptr\n"
+    "    %write_ok = llvm.call @WriteFile(%handle, %data, %length32, %written, %null) : (!llvm.ptr, !llvm.ptr, i32, !llvm.ptr, !llvm.ptr) -> i32\n"
+    "    %success = llvm.mlir.constant(0 : i32) : i32\n"
+    "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
+    "    %write_actual = llvm.load %written : !llvm.ptr -> i32\n"
+    "    %write_ok_flag = llvm.icmp \"ne\" %write_ok, %zero : i32\n"
+    "    %write_complete = llvm.icmp \"eq\" %write_actual, %length32 : i32\n"
+    "    %write_valid = llvm.and %write_ok_flag, %write_complete : i1\n"
+    "    %status = llvm.select %write_valid, %success, %failure : i1, i32\n"
+    "    llvm.call @ExitProcess(%status) : (i32) -> ()\n"
+    "    llvm.return\n"
+    "  }\n"
+    "}\n";
+
+static const char MLIR0_WINDOWS_RUNTIME_HELPER[] =
+    "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
+    "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
+    "  llvm.func @ExitProcess(%code: i32)\n"
+    "  llvm.func internal @w_seed_write(%buffer: !llvm.ptr, %count: i64) -> i64 {\n"
+    "    %write_zero32 = llvm.mlir.constant(0 : i32) : i32\n"
+    "    %write_zero64 = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %write_one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %write_stdout = llvm.mlir.constant(-11 : i32) : i32\n"
+    "    %write_count32 = llvm.trunc %count : i64 to i32\n"
+    "    %write_address = llvm.alloca %write_one x i32 : (i64) -> !llvm.ptr\n"
+    "    llvm.store %write_zero32, %write_address : i32, !llvm.ptr\n"
+    "    %write_null = llvm.inttoptr %write_zero64 : i64 to !llvm.ptr\n"
+    "    %write_handle = llvm.call @GetStdHandle(%write_stdout) : (i32) -> !llvm.ptr\n"
+    "    %write_ok = llvm.call @WriteFile(%write_handle, %buffer, %write_count32, %write_address, %write_null) : (!llvm.ptr, !llvm.ptr, i32, !llvm.ptr, !llvm.ptr) -> i32\n"
+    "    %write_actual = llvm.load %write_address : !llvm.ptr -> i32\n"
+    "    %write_ok_flag = llvm.icmp \"ne\" %write_ok, %write_zero32 : i32\n"
+    "    %write_complete = llvm.icmp \"eq\" %write_actual, %write_count32 : i32\n"
+    "    %write_valid = llvm.and %write_ok_flag, %write_complete : i1\n"
+    "    %write_result = llvm.select %write_valid, %count, %write_zero64 : i1, i64\n"
+    "    llvm.return %write_result : i64\n"
+    "  }\n";
+
 static const char MLIR0_HEX[] = "0123456789abcdef";
 
 static const char MLIR0_RUNTIME_HELPERS[] =
@@ -286,7 +362,13 @@ static bool append_escaped_bytes(uint8_t *buffer, size_t capacity,
 
 static bool target_is_supported(const w_seed_mlir0_target *target) {
   return target != NULL &&
-         target->kind == W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU;
+         (target->kind == W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU ||
+          target->kind == W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC);
+}
+
+static bool target_is_windows(const w_seed_mlir0_target *target) {
+  return target != NULL &&
+         target->kind == W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC;
 }
 
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target) {
@@ -313,8 +395,12 @@ static bool build_static_artifact(
     return false;
   size_t stdout_bytes = 0u;
   size_t offset = 0u;
-  if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_PREFIX))
+  const bool windows = target_is_windows(target);
+  if (!append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_SCHEMA_COMMENT
+                              : MLIR0_SCHEMA_COMMENT) ||
+      !append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_PREFIX : MLIR0_PREFIX))
     return false;
   for (size_t call = 0u; call < sequence->call_count; call += 1u) {
     const w_seed_native_subset0_call_selection *item =
@@ -332,15 +418,30 @@ static bool build_static_artifact(
     stdout_bytes += line_bytes;
   }
   if (stdout_bytes != sequence->stdout_bytes ||
-      !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_MIDDLE) ||
+      !append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_GLOBAL_MIDDLE
+                              : MLIR0_GLOBAL_MIDDLE) ||
       !append_size(artifact, capacity, &offset, stdout_bytes) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_GLOBAL_SUFFIX) ||
+      !append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_GLOBAL_SUFFIX
+                              : MLIR0_GLOBAL_SUFFIX) ||
       !append_size(artifact, capacity, &offset, stdout_bytes) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_LENGTH_MIDDLE) ||
+      !append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_LENGTH_MIDDLE
+                              : MLIR0_LENGTH_MIDDLE) ||
       !append_size(artifact, capacity, &offset, stdout_bytes) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_GEP_SUFFIX) ||
-      !append_size(artifact, capacity, &offset, stdout_bytes) ||
-      !append_literal(artifact, capacity, &offset, MLIR0_RETURN_SUFFIX))
+      !append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_LENGTH32_MIDDLE
+                              : MLIR0_GEP_SUFFIX))
+    return false;
+  if (windows) {
+    if (!append_size(artifact, capacity, &offset, stdout_bytes) ||
+        !append_literal(artifact, capacity, &offset,
+                        MLIR0_WINDOWS_GEP_SUFFIX))
+      return false;
+  } else if (!append_size(artifact, capacity, &offset, stdout_bytes) ||
+             !append_literal(artifact, capacity, &offset,
+                             MLIR0_RETURN_SUFFIX))
     return false;
   *written = offset;
   w_seed_sha256_state state;
@@ -658,54 +759,93 @@ static bool build_dynamic_artifact(
   if (!build_dynamic_plan(program, sequence, &plan)) return false;
 
   size_t offset = 0u;
-  if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
-      !append_literal(artifact, capacity, &offset,
-                      "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
-                      "\"} {\n"
-                      "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
+  const bool windows = target_is_windows(target);
+  if (!append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_SCHEMA_COMMENT
+                              : MLIR0_SCHEMA_COMMENT) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          windows
+              ? "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                "\"} {\n"
+                "  llvm.mlir.global private constant @w_seed_mlir0_text(\""
+              : "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                "\"} {\n"
+                "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
       !append_escaped_bytes(artifact, capacity, &offset, plan.text,
                             plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
       !append_size(artifact, capacity, &offset, plan.text_bytes) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          " x i8>\n"
-          ) ||
+      !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+      (windows &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
       (plan.has_bool &&
-       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"
-          "  llvm.func @main() -> i32 {\n"
-          "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
-          "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n"
-          "    %text_base = llvm.mlir.addressof @w_seed_mlir0_text : !llvm.ptr\n") ||
+       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
+    return false;
+  if (windows) {
+    if (!append_literal(artifact, capacity, &offset,
+                        MLIR0_WINDOWS_RUNTIME_HELPER))
+      return false;
+  } else if (!append_literal(
+                 artifact, capacity, &offset,
+                 "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"))
+    return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      "  llvm.func @main() -> i32 {\n") ||
+      (windows
+           ? !append_literal(
+                 artifact, capacity, &offset,
+                 "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
+           : !append_literal(
+                 artifact, capacity, &offset,
+                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+      !append_literal(artifact, capacity, &offset,
+                      "    %text_base = llvm.mlir.addressof @w_seed_mlir0_text : !llvm.ptr\n") ||
       !append_value_operations(program, artifact, capacity, &offset) ||
       !append_literal(artifact, capacity, &offset,
                       "    %cursor0 = llvm.mlir.constant(0 : i64) : i64\n") ||
-      !append_dynamic_actions(&plan, artifact, capacity, &offset) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          "    %fd = llvm.mlir.constant(1 : i32) : i32\n") ||
+      !append_dynamic_actions(&plan, artifact, capacity, &offset))
+    return false;
+  if (windows) {
+    if (!append_literal(artifact, capacity, &offset,
+                        "    %written = llvm.call @w_seed_write(%buffer, %cursor"))
+      return false;
+  } else if (!append_literal(
+                 artifact, capacity, &offset,
+                 "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
+                 "    %written = llvm.call @write(%fd, %buffer, %cursor"))
+    return false;
+  if (!append_size(artifact, capacity, &offset, plan.action_count) ||
       !append_literal(artifact, capacity, &offset,
-                      "    %written = llvm.call @write(%fd, %buffer, %cursor") ||
-      !append_size(artifact, capacity, &offset, plan.action_count) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          ") : (i32, !llvm.ptr, i64) -> i64\n"
-          "    %equal = llvm.icmp \"eq\" %written, %cursor") ||
+                      windows
+                          ? ") : (!llvm.ptr, i64) -> i64\n"
+                            "    %equal = llvm.icmp \"eq\" %written, %cursor"
+                          : ") : (i32, !llvm.ptr, i64) -> i64\n"
+                            "    %equal = llvm.icmp \"eq\" %written, %cursor") ||
       !append_size(artifact, capacity, &offset, plan.action_count) ||
       !append_literal(
           artifact, capacity, &offset,
           " : i64\n"
           "    %success = llvm.mlir.constant(0 : i32) : i32\n"
           "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
-          "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
-          "    llvm.return %status : i32\n"
-          "  }\n"
-          "}\n"))
+          "    %status = llvm.select %equal, %success, %failure : i1, i32\n") ||
+      !append_literal(artifact, capacity, &offset,
+                      "    llvm.return %status : i32\n"
+                      "  }\n"))
     return false;
+  if (windows &&
+      !append_literal(artifact, capacity, &offset,
+                      "  llvm.func @mainCRTStartup() {\n"
+                      "    %status = llvm.call @main() : () -> i32\n"
+                      "    llvm.call @ExitProcess(%status) : (i32) -> ()\n"
+                      "    llvm.return\n"
+                      "  }\n"))
+    return false;
+  if (!append_literal(artifact, capacity, &offset, "}\n")) return false;
   *written = offset;
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);
@@ -1425,23 +1565,38 @@ static bool build_program_artifact(
   mlir0_program_plan plan;
   if (!build_program_plan(program, &plan)) return false;
   size_t offset = 0u;
-  if (!append_literal(artifact, capacity, &offset, MLIR0_SCHEMA_COMMENT) ||
+  const bool windows = target_is_windows(target);
+  if (!append_literal(artifact, capacity, &offset,
+                      windows ? MLIR0_WINDOWS_SCHEMA_COMMENT
+                              : MLIR0_SCHEMA_COMMENT) ||
       !append_literal(
           artifact, capacity, &offset,
-          "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
-          "\"} {\n"
-          "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
+          windows
+              ? "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                "\"} {\n"
+                "  llvm.mlir.global private constant @w_seed_mlir0_text(\""
+              : "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                "\"} {\n"
+                "  llvm.mlir.global private constant @w_seed_mlir0_text(\"") ||
       !append_escaped_bytes(artifact, capacity, &offset, plan.text,
                             plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, "\") : !llvm.array<") ||
       !append_size(artifact, capacity, &offset, plan.text_bytes) ||
       !append_literal(artifact, capacity, &offset, " x i8>\n") ||
+      (windows &&
+       !append_literal(artifact, capacity, &offset,
+                       MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
       (plan.has_bool &&
-       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
-      !append_literal(
-          artifact, capacity, &offset,
-          "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"))
+       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
+    return false;
+  if (windows) {
+    if (!append_literal(artifact, capacity, &offset,
+                        MLIR0_WINDOWS_RUNTIME_HELPER))
+      return false;
+  } else if (!append_literal(
+                 artifact, capacity, &offset,
+                 "  llvm.func @write(%fd: i32, %buffer: !llvm.ptr, %count: i64) -> i64\n"))
     return false;
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
@@ -1450,9 +1605,18 @@ static bool build_program_artifact(
       return false;
   if (!append_literal(
           artifact, capacity, &offset,
-          "  llvm.func @main() -> i32 {\n"
-          "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
-          "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n"
+          "  llvm.func @main() -> i32 {\n") ||
+      (windows
+           ? !append_literal(
+                 artifact, capacity, &offset,
+                 "    %buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
+                 "    %buffer = llvm.getelementptr %buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n")
+           : !append_literal(
+                 artifact, capacity, &offset,
+                 "    %capacity = llvm.mlir.constant(4097 : i64) : i64\n"
+                 "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
+      !append_literal(
+          artifact, capacity, &offset,
           "    %cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
           "    %cursor_address = llvm.alloca %cursor_count x i64 : (i64) -> !llvm.ptr\n"
           "    %cursor_zero = llvm.mlir.constant(0 : i64) : i64\n"
@@ -1463,17 +1627,34 @@ static bool build_program_artifact(
       !append_literal(
           artifact, capacity, &offset,
           "(%buffer, %cursor_address) : (!llvm.ptr, !llvm.ptr) -> ()\n"
-          "    %length = llvm.load %cursor_address : !llvm.ptr -> i64\n"
-          "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
-          "    %written = llvm.call @write(%fd, %buffer, %length) : (i32, !llvm.ptr, i64) -> i64\n"
+          "    %length = llvm.load %cursor_address : !llvm.ptr -> i64\n") ||
+      (windows
+           ? !append_literal(
+                 artifact, capacity, &offset,
+                 "    %written = llvm.call @w_seed_write(%buffer, %length) : (!llvm.ptr, i64) -> i64\n")
+           : !append_literal(
+                 artifact, capacity, &offset,
+                 "    %fd = llvm.mlir.constant(1 : i32) : i32\n"
+                 "    %written = llvm.call @write(%fd, %buffer, %length) : (i32, !llvm.ptr, i64) -> i64\n")) ||
+      !append_literal(
+          artifact, capacity, &offset,
           "    %equal = llvm.icmp \"eq\" %written, %length : i64\n"
           "    %success = llvm.mlir.constant(0 : i32) : i32\n"
           "    %failure = llvm.mlir.constant(1 : i32) : i32\n"
-          "    %status = llvm.select %equal, %success, %failure : i1, i32\n"
-          "    llvm.return %status : i32\n"
-          "  }\n"
-          "}\n"))
+          "    %status = llvm.select %equal, %success, %failure : i1, i32\n") ||
+      !append_literal(artifact, capacity, &offset,
+                      "    llvm.return %status : i32\n"
+                      "  }\n"))
     return false;
+  if (windows &&
+      !append_literal(artifact, capacity, &offset,
+                      "  llvm.func @mainCRTStartup() {\n"
+                      "    %status = llvm.call @main() : () -> i32\n"
+                      "    llvm.call @ExitProcess(%status) : (i32) -> ()\n"
+                      "    llvm.return\n"
+                      "  }\n"))
+    return false;
+  if (!append_literal(artifact, capacity, &offset, "}\n")) return false;
   *written = offset;
   w_seed_sha256_state state;
   w_seed_sha256_init(&state);

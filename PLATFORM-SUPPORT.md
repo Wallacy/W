@@ -63,14 +63,14 @@ It does not claim a general W target, SDK, packaging, or official CI.
 
 ## Target candidates
 
-Candidates have no support claim. Each candidate needs all six promotion axes.
+Candidates have no support claim. Candidate rows may record bounded axis evidence; promotion still requires every axis to pass with evidence.
 
 ### Desktop-server
 
 | Triple | State | Verification | Blockers |
 | --- | --- | --- | --- |
 | `aarch64-unknown-linux-gnu` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
-| `x86_64-pc-windows-msvc` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | candidate | null | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 | `aarch64-pc-windows-msvc` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 | `aarch64-apple-darwin` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 | `x86_64-apple-darwin` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
@@ -104,6 +104,19 @@ Candidates have no support claim. Each candidate needs all six promotion axes.
 | `nvptx64-nvidia-cuda` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 | `amdgcn-amd-amdhsa` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 | `spirv64-unknown-vulkan` | candidate | null | backend, runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+
+### Bounded candidate axis evidence
+
+This table records local evidence without promoting the candidate target.
+
+| Target | Axis | Status | Evidence | Remaining blockers |
+| --- | --- | --- | --- | --- |
+| `x86_64-pc-windows-msvc` | backend | pass | The emitter produces the bounded Windows LLVM dialect artifact and target triple. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | runtime | partial | The bounded candidate artifact uses GetStdHandle, WriteFile, ExitProcess, and a bounded global buffer; this does not close the general runtime axis. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | hostAdapter | partial | The bounded local gate launches the generated executable with explicit Win32 process and cleanup rules; this does not close the general host-adapter axis. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | sdkProfile | partial | The local gate's explicit Windows SDK probe selects a regular x64 kernel32.lib and records its SDK version; this does not close the SDK distribution axis. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | linkerSysrootPackaging | partial | The local build gate records lld-link, kernel32.lib, and no toolchain copy, but packaging is not implemented. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
+| `x86_64-pc-windows-msvc` | ciEvidence | partial | The focal native Windows gate runs the bounded evidence locally; hosted CI evidence is not claimed. | runtime, hostAdapter, sdkProfile, linkerSysrootPackaging, ciEvidence |
 
 ## Promotion axes
 
@@ -143,9 +156,9 @@ Promotion waits for pinned outputs, SHA256, SBOM, provenance, signing, CI, and s
 ## External toolchain candidates
 External records are evaluation-only. They cannot promote a W target, compiler host, or cross-compilation edge.
 
-| ID | Status | License | Observed release | LLVM tag | Published hosts | Evidence capabilities | Limitations |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| `portable-mlir-toolchain` | evaluation-only | Apache-2.0 | 2026.08.11 | llvmorg-22.1.8 | x86_64-unknown-linux-gnu<br>aarch64-unknown-linux-gnu<br>x86_64-pc-windows-msvc<br>aarch64-pc-windows-msvc<br>x86_64-apple-darwin<br>aarch64-apple-darwin | per-platform-build-scripts<br>sha256-release-assets<br>release-attestation<br>verified-release-commit | third-party not W authority/support<br>version mismatch with current pinned 20.1.2<br>no completed W trust/SBOM/provenance audit<br>host binaries do not prove cross-compilation<br>Apple SDK/license not supplied/proven |
+| ID | Status | License | Observed release | LLVM tag | Published hosts | Inspected hosts | Evidence capabilities | Limitations |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `portable-mlir-toolchain` | evaluation-only | Apache-2.0 | 2026.08.31 | llvmorg-23.1.0 | x86_64-unknown-linux-gnu<br>aarch64-unknown-linux-gnu<br>x86_64-pc-windows-msvc<br>aarch64-pc-windows-msvc<br>x86_64-apple-darwin<br>aarch64-apple-darwin | x86_64-pc-windows-msvc | per-platform-build-scripts<br>sha256-release-assets<br>release-attestation<br>verified-release-commit | third-party not W authority/support<br>inspection covered only x86_64-pc-windows-msvc<br>version mismatch with current pinned 20.1.2<br>no completed W trust/SBOM/provenance audit<br>host binaries do not prove cross-compilation<br>Apple SDK/license not supplied/proven |
 
 The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a future Windows-native bundle; it is not W trust, SBOM, provenance, or cross-compilation evidence.
 

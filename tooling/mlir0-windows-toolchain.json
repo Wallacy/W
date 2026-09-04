@@ -1,0 +1,137 @@
+{
+  "$schema": "w-seed-mlir0-windows-toolchain-1",
+  "version": 1,
+  "status": "external-evaluation",
+  "artifact": {
+    "schema": "w-seed-mlir0-10",
+    "scope": "unit-cfg-diamond"
+  },
+  "host": {
+    "platform": "windows",
+    "architecture": "x86_64",
+    "triple": "x86_64-pc-windows-msvc",
+    "mode": "native"
+  },
+  "target": {
+    "triple": "x86_64-pc-windows-msvc",
+    "arch": "x86_64",
+    "os": "windows",
+    "abi": "msvc"
+  },
+  "toolchain": {
+    "mlir": "23.1.0",
+    "llvm": "23.1.0",
+    "lld": "23.1.0"
+  },
+  "asset": {
+    "provider": "portable-mlir-toolchain",
+    "repository": "https://github.com/munich-quantum-software/portable-mlir-toolchain",
+    "release": "2026.08.31",
+    "llvmTag": "llvmorg-23.1.0",
+    "targetTriple": "x86_64-pc-windows-msvc",
+    "archiveFormat": "tar.zst",
+    "fileName": "llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
+    "url": "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.08.31/llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
+    "sizeBytes": 415482701,
+    "sha256": "35244de53a023a3e546e070b34d27ce9f7142ace92b238b5707c1d0cf24fd944",
+    "license": "Apache-2.0"
+  },
+  "archivePolicy": {
+    "allowedEntryTypes": [
+      "file",
+      "directory"
+    ],
+    "rejectSymlink": true,
+    "rejectHardlink": true,
+    "rejectReparsePoint": true,
+    "rejectAbsolutePath": true,
+    "rejectTraversal": true,
+    "rejectDuplicatePath": true
+  },
+  "tools": {
+    "versionArgs": [
+      "--version"
+    ],
+    "expectedVersion": "23.1.0",
+    "required": [
+      "mlir-opt.exe",
+      "mlir-translate.exe",
+      "llc.exe",
+      "lld-link.exe"
+    ],
+    "optional": [
+      "clang.exe",
+      "clang-cl.exe",
+      "ld.lld.exe",
+      "lld.exe",
+      "llvm-config.exe"
+    ],
+    "discovery": "recursive-exact-basename-after-archive-inspection",
+    "ambiguousBasename": "reject",
+    "missingOptional": "record",
+    "optionalProbeFailure": "record"
+  },
+  "buildBoundary": {
+    "script": "tooling/build-w-windows.mjs",
+    "output": "build/w-windows/w.exe",
+    "network": "forbidden",
+    "toolchainCopy": false,
+    "visualStudioDiscovery": "vswhere-with-explicit-VsDevCmd",
+    "sdkDiscovery": "explicit-kernel32-x64-probe",
+    "configuration": {
+      "generator": "Ninja",
+      "buildType": "Release",
+      "cStandard": "23",
+      "recoveryCStandard": "11",
+      "makeProgram": "explicit-ninja-path",
+      "cStandardPolicy": "C23-primary; C11-explicit-recovery-only",
+      "cStandardEvidence": "MSVC 19.51.36256.0 CMake generation rejected C23; use --c11-recovery explicitly",
+      "nativeRun": true,
+      "toolchainRoles": ["mlir-opt", "mlir-translate", "llc", "lld-link"],
+      "linkLibraries": ["kernel32.lib"]
+    },
+    "testCommand": "build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w"
+  },
+  "materialization": {
+    "cache": "external-user-cache",
+    "defaultPath": "%LOCALAPPDATA%/W/toolchains/portable-mlir-toolchain/2026.08.31/x86_64-pc-windows-msvc",
+    "destination": "explicit-or-default-cache-outside-repository",
+    "staging": "same-parent-unique-directory",
+    "stagingPrefix": ".w-mlir0-acquire-",
+    "materializedManifest": "w-mlir0-windows-materialized.json",
+    "sizeDefinition": "archive payload files; excludes the materialized manifest",
+    "reuse": "validate-existing-materialization",
+    "commit": "atomic-directory-rename"
+  },
+  "runtimeBoundary": {
+    "consumer": "future-w-run",
+    "network": "forbidden",
+    "pathSearch": "forbidden",
+    "shell": "forbidden",
+    "distributionRole": "development-and-release-only",
+    "bundledWithW": false,
+    "extractedSizeIsWBudget": false,
+    "futureRuntime": "minimal-hermetic-components",
+    "futureCrossTargetPlatforms": [
+      "windows",
+      "linux",
+      "macos"
+    ],
+    "acquisition": "tooling/acquire-mlir0-windows.mjs",
+    "materializedManifest": "w-mlir0-windows-materialized.json"
+  },
+  "provenance": {
+    "kind": "external-evaluation",
+    "supportClaim": "none",
+    "platformSupportState": "candidate",
+    "acquisitionRecord": "tooling/mlir0-windows-toolchain.json",
+    "trustBoundary": "third-party release asset; hash and size are checked before extraction; W support is not inferred"
+  },
+  "linuxWslProfile": {
+    "manifest": "tooling/mlir0-toolchain.json",
+    "version": "20.1.2",
+    "targetTriple": "x86_64-unknown-linux-gnu",
+    "status": "pinned-update-required",
+    "nativeWindows": false
+  }
+}

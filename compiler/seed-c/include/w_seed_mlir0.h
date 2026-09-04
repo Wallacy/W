@@ -16,14 +16,19 @@ extern "C" {
  * plus LLVM dialect MLIR for one fixed target. The artifact is recipe-private
  * and does not allocate or execute. */
 #define W_SEED_MLIR0_SCHEMA_VERSION "w-seed-mlir0-10"
-#define W_SEED_MLIR0_TARGET_TRIPLE "x86_64-unknown-linux-gnu"
+#define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-1"
+#define W_SEED_MLIR0_TARGET_TRIPLE_LINUX "x86_64-unknown-linux-gnu"
+#define W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "x86_64-pc-windows-msvc"
+/* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
+#define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
  * segments, 4096 output bytes, and the fixed LLVM-dialect skeleton. */
 #define W_SEED_MLIR0_MAX_BYTES 196608u
 
 typedef enum {
   W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU = 0,
-  W_SEED_MLIR0_TARGET_UNSUPPORTED = 1,
+  W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC = 1,
+  W_SEED_MLIR0_TARGET_UNSUPPORTED = 2,
 } w_seed_mlir0_target_kind;
 
 typedef struct {
@@ -59,7 +64,7 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_output;
 
-/* Return true only for the one target represented by this schema. */
+/* Return true only for the explicit Linux or Windows target schemas. */
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target);
 
 /* Measure one deterministic MLIR artifact without writing caller-owned output. */

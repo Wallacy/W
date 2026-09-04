@@ -222,14 +222,74 @@
       "scope": null,
       "claim": null,
       "axes": {
-        "backend": { "status": "missing", "evidence": [] },
-        "runtime": { "status": "missing", "evidence": [] },
-        "hostAdapter": { "status": "missing", "evidence": [] },
-        "sdkProfile": { "status": "missing", "evidence": [] },
-        "linkerSysrootPackaging": { "status": "missing", "evidence": [] },
-        "ciEvidence": { "status": "missing", "evidence": [] }
+        "backend": {
+          "status": "pass",
+          "evidence": [
+            {
+              "kind": "source",
+              "path": "compiler/seed-c/src/w_seed_mlir0.c",
+              "symbol": "build_program_artifact",
+              "claim": "The emitter produces the bounded Windows LLVM dialect artifact and target triple."
+            }
+          ]
+        },
+      "runtime": {
+        "status": "partial",
+          "evidence": [
+            {
+              "kind": "source",
+              "path": "compiler/seed-c/src/w_seed_mlir0.c",
+              "symbol": "build_program_artifact",
+              "claim": "The bounded candidate artifact uses GetStdHandle, WriteFile, ExitProcess, and a bounded global buffer; this does not close the general runtime axis."
+            }
+          ]
+        },
+      "hostAdapter": {
+        "status": "partial",
+          "evidence": [
+            {
+              "kind": "source",
+              "path": "compiler/seed-c/cli/run.c",
+              "symbol": "windows_run_program",
+              "claim": "The bounded local gate launches the generated executable with explicit Win32 process and cleanup rules; this does not close the general host-adapter axis."
+            }
+          ]
+        },
+      "sdkProfile": {
+        "status": "partial",
+          "evidence": [
+            {
+              "kind": "source",
+              "path": "tooling/windows-build-support.mjs",
+              "symbol": "findWindowsSdkKernel32",
+              "claim": "The local gate's explicit Windows SDK probe selects a regular x64 kernel32.lib and records its SDK version; this does not close the SDK distribution axis."
+            }
+          ]
+        },
+        "linkerSysrootPackaging": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "manifest",
+              "path": "tooling/mlir0-windows-toolchain.json",
+              "symbol": "buildBoundary",
+              "claim": "The local build gate records lld-link, kernel32.lib, and no toolchain copy, but packaging is not implemented."
+            }
+          ]
+        },
+        "ciEvidence": {
+          "status": "partial",
+          "evidence": [
+            {
+              "kind": "check",
+              "path": "tooling/check-w-run-windows.mjs",
+              "symbol": "expectExact",
+              "claim": "The focal native Windows gate runs the bounded evidence locally; hosted CI evidence is not claimed."
+            }
+          ]
+        }
       },
-      "blockers": ["backend", "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
+      "blockers": ["runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence"]
     },
     {
       "id": "target-aarch64-pc-windows-msvc",
@@ -850,8 +910,8 @@
       "id": "portable-mlir-toolchain",
       "status": "evaluation-only",
       "license": "Apache-2.0",
-      "observedRelease": "2026.08.11",
-      "llvmTag": "llvmorg-22.1.8",
+      "observedRelease": "2026.08.31",
+      "llvmTag": "llvmorg-23.1.0",
       "publishedHostTriples": [
         "x86_64-unknown-linux-gnu",
         "aarch64-unknown-linux-gnu",
@@ -860,6 +920,7 @@
         "x86_64-apple-darwin",
         "aarch64-apple-darwin"
       ],
+      "inspectedHostTriples": ["x86_64-pc-windows-msvc"],
       "evidenceCapabilities": [
         "per-platform-build-scripts",
         "sha256-release-assets",
@@ -868,6 +929,7 @@
       ],
       "limitations": [
         "third-party not W authority/support",
+        "inspection covered only x86_64-pc-windows-msvc",
         "version mismatch with current pinned 20.1.2",
         "no completed W trust/SBOM/provenance audit",
         "host binaries do not prove cross-compilation",

@@ -36019,6 +36019,102 @@ conditional `if` expressions, nested CFG, guard/switch, loops, multiple exits,
 block arguments/phi, branch-carried bindings, ownership/effects/tasks, and a
 general runtime remain explicit gaps.
 
+#### 26.4.1.16 W-1532 — bounded native Windows x86_64 seed route (Candidate evidence)
+
+W-1532 records bounded native Windows evidence for the same MLIR0 seed subset.
+The explicit command is `w run <explicit-path.w>` on a Windows x86_64 host. The
+Windows target is `x86_64-pc-windows-msvc`; the runtime surface uses
+`GetStdHandle(STD_OUTPUT_HANDLE)`, `WriteFile`, and `ExitProcess`, with
+`mainCRTStartup`, console subsystem, and `nodefaultlib`. It does not declare or
+call POSIX `write`.
+
+The native pipeline is exactly `mlir-opt.exe → mlir-translate.exe → llc.exe
+-filetype=obj -mtriple=x86_64-pc-windows-msvc → lld-link.exe /entry:mainCRTStartup
+/subsystem:console /nodefaultlib + kernel32.lib → program.exe`. The executable
+paths come from the validated external manifest and explicit Windows SDK probe.
+`build:w-windows` uses `vswhere` and an explicit `VsDevCmd.bat` only for the
+build gate. Runtime execution does not use PATH discovery, WSL, a shell, network,
+or Clang.
+
+The portable MLIR release is development/release tooling only. It is outside the
+repository and is not bundled with W. The materialized cache is validated and
+reused before the build; it is not a distribution-size budget or provenance claim
+for W. The gate proved Hello, Restaurant/if, interpolation, linear output, empty
+forwarded argument, invalid-source rejection without stdout, and an x64 PE.
+`build/w-windows/w.exe` and the generated PE sizes are recipe-scoped observations
+only. The local recipe records a 10034688-byte `w.exe` and a 2560-byte Hello PE;
+the latter has no CRT in the observed link. These values are not a portable
+minimum, performance result, or package-budget proof.
+
+This remains a `candidate` route, not general Windows support. Backend, bounded
+runtime surface, host adapter, and the local SDK/link step have evidence; general
+W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, and other
+targets remain gaps. The source reader has no proof for Unicode source paths, so
+that behavior is not claimed. The builder tried primary C23 and MSVC/CMake
+rejected that dialect; the local evidence therefore uses the explicit
+`--c11-recovery` path. C11 is recovery only, not a silent fallback. Linux/WSL W-1521 remains the separate
+20.1.2/update-required route. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only; no timing or performance result is published.
+
+**Example:** a local candidate build keeps the heavy cache external. The primary
+command tries C23 and fails closed when this host rejects it; the exact current
+evidence recipe is an explicit C11 recovery:
+
+```text
+bun run build:w-windows
+bun run build:w-windows --c11-recovery
+build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
+```
+
+#### 26.4.1.17 W-1533 — compact cross-target distribution contract (Direction)
+
+W-1533 separates three layers: a heavy external development/release cache, a
+hermetic minimal release builder, and a compact end-user package. The first is
+never distributed with W. The future builder uses verified HIR → in-process MLIR
+APIs/pass subset → LLVM target machine/object → LLD library → executable; its
+CLI tools, generic MLIR textual parser, headers, MLIR/LLVM/LLD development static
+libraries, and debug files are
+not package inputs.
+
+The primary matrix is X86/AArch64 across Windows, Linux, and macOS, with explicit
+SDK, import-library, runtime, signing, and provenance records for every target.
+Apple SDK and license evidence is a blocker. W-signed, versioned target packs are
+planned for the standard package; a separately signed install option requires a
+measured budget failure and explicit review, and silent download is forbidden.
+Performance has priority over bundle or executable size. The standard build is
+`Release`; LTO, section garbage collection, and dead stripping are allowed only
+after a benchmark gate shows no regression. `MinSizeRel` is experimental
+comparison only. Required metrics are compressed artifact, installed footprint,
+main executable, per-target packs, toolchain startup, cold Hello build, cold and
+warm compilation, artifact runtime, file/container bytes, section bytes, code
+bytes/imports, benchmark versus baseline, unexpected dynamic dependencies, and
+SBOM. The initial goal is about 50 MiB compressed with a visible provisional
+64 MiB host gate; size is never a license for a performance regression.
+
+**Exemplo:** the W program selects `debug`, `release`, or `benchmark`; the
+toolchain builder selects its separate `development`, `release`, `benchmark`,
+or opt-in `size-experimental` profile. A Hello PE reduction below 1 KiB is an
+`opportunity` backlog item and does not change the default performance-first
+recipe.
+
+The W program profile names are `debug` for iteration and diagnostics, `release`
+for performance-first output, and `benchmark` for reproducible pinned work.
+These names are separate from toolchain build/distribution profiles: toolchain
+`development` is for toolchain iteration, `release` is the performance-first
+default, `benchmark` is reproducible and pinned, and `size-experimental` is
+opt-in only. The informal `dev` name is recorded only as a naming opportunity,
+not an alias or syntax; the canonical W profile is `debug`. This direction adds
+no CLI syntax and does not imply that the current builder implements these
+profiles. A size opportunity is backlog state only and never an automatic gate.
+
+This is a policy direction backed by `tooling/toolchain-distribution.json` and its
+offline checker. The release builder, end-user package, cross-compilation, and
+budget evidence are implementation gaps. An integrated minimal LLVM backend is
+the release direction; a fast native backend is research-only and does not
+replace MLIR. Zig 0.16 is comparison context only, not a W support or performance
+claim. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no
+timing or result claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

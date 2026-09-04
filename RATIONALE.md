@@ -182,6 +182,8 @@ O corpus compara, no mínimo:
 - typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.
 - scalar function results against precomputed output, erased call results, unchecked return types, and downstream name lookup.
 - bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.
+- bounded native Windows x86_64 MLIR route against WSL-only execution, PATH discovery, POSIX write, and Clang/CRT coupling.
+- compact cross-target distribution layers against shipping the heavy CLI toolchain, silent downloads, and unmeasured package-budget exceptions.
 - catálogo operacional de compiler hosts, emitted targets e cross-compilation contra triple-only support, WSL nativo falso e claims sem os eixos.
 - catálogo operacional de dependency currency contra selectors floating, floors elevados e evidência histórica promovida.
 - aquisição ACQ0 caller-owned compartilhada contra storage/retry duplicados, acoplamento a CHK7, storage global e snapshot global presumido entre waves.
@@ -220,7 +222,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 93 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 95 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7776,6 +7778,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1530 | scalar function results through verified HIR and native MLIR | HIR0 schema `w-seed-hir0-6` adds `RETURN_VALUE`, terminator-owned scalar value trees, and indexed `CALL_RESULT`; MLIR0 schema `w-seed-mlir0-9` emits typed signed-`i64`/Bool returns and result-producing direct calls. The frontend infers an immutable binding type from the local call signature. HIR verification proves dense owner partitions, prior same-block call identity, and exact function/call/terminator/result type agreement. The Restaurant witness retains `llvm.mul`, a typed `llvm.return`, a result-producing `llvm.call`, and executes exact `Table 42\n`. | `source-backed-current` only for bounded final scalar returns and direct binding initializers on the Linux x86_64 GNU seed route. Return-call expressions, nested calls, runtime String results, multiple exits, CFG, recursion, indirect calls, stable ABI, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
 | W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The Restaurant witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` only for the bounded Unit diamond route. Conditional values/if expressions, block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch, multiple exits, ownership/effects/tasks, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
+| W-1532 | bounded native Windows x86_64 seed route through MLIR/LLVM/LLD | Native Windows evidence runs `w run <explicit-path.w>` with target `x86_64-pc-windows-msvc` and the direct `mlir-opt.exe` → `mlir-translate.exe` → `llc.exe` → `lld-link.exe` + `kernel32.lib` pipeline. The emitted runtime uses `GetStdHandle`, `WriteFile`, and `ExitProcess`, with `mainCRTStartup`, console subsystem, and `nodefaultlib`; the external development cache is validated and never bundled with W. The gate proves Hello, Restaurant/if, interpolation, linear output, empty forwarded argument, invalid-source silence, and an x64 PE. | Candidate evidence only, not general Windows support. General W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -9084,6 +9088,88 @@ timing, or result claim. Explicit gaps are conditional values/if expressions,
 block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch,
 multiple exits, ownership/effects/tasks, other targets, and performance.
 
+#### W-1532 — bounded native Windows x86_64 seed route
+
+W-1532 is the first native Windows evaluation of the direct MLIR0 seed route.
+The exact asset is the `portable-mlir-toolchain` release `2026.08.31`, LLVM
+`llvmorg-23.1.0`, for `x86_64-pc-windows-msvc`. Acquisition is an explicit
+network opt-in into the external user cache; normal checks and the future runner
+are offline and use only the validated materialization manifest. The cache is
+development/release tooling and is not the W distribution.
+
+The observed tool chain is `mlir-opt.exe` → `mlir-translate.exe` → `llc.exe`
+with `-filetype=obj -mtriple=x86_64-pc-windows-msvc` → `lld-link.exe` with
+`/entry:mainCRTStartup /subsystem:console /nodefaultlib` and the x64 Windows SDK
+`kernel32.lib`. Clang is optional and absent from this asset; the route does not
+need it. MLIR0 emits a bounded Win32 stdout helper using `GetStdHandle`,
+`WriteFile`, and `ExitProcess`, and the runner uses explicit tool paths,
+`CreateProcessW`, unpredictable `CREATE_NEW` temporaries, and all-or-nothing
+cleanup. `vswhere` and an explicit `VsDevCmd.bat` are gate/build discovery only.
+
+The native gate built `w.exe`, produced and executed a PE x64, and checked exact
+stdout and exit for Hello, Restaurant/if, interpolation, linear, and empty
+forwarded-argument fixtures. Invalid source and unsupported forms returned the
+bounded error without stdout. The gate also checks that no WSL, shell, PATH
+search, Clang, network, or temporary residue enters the runtime path. The local
+recipe observation was `w.exe` 10034688 bytes and the Hello PE file/container
+2560 bytes with no CRT; these are recipe-scoped facts, not a portable minimum,
+performance result, or distribution-budget proof. The heavy cache payload was
+3798882244 bytes excluding its materialized manifest.
+
+The builder tried C23 first. MSVC 19.51.36256.0 with CMake rejected the C23
+dialect during generation, so the current local evidence uses the explicit
+`--c11-recovery` option. C11 is recovery only and is never selected silently.
+
+This is candidate/external-evaluation evidence only. Backend, bounded runtime,
+host adapter, and local SDK/link evidence are recorded separately; general W
+ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other
+targets, and performance remain gaps. The source reader does not yet prove
+Unicode source-path behavior. Linux/WSL remains the separate W-1521 evidence
+route with MLIR/LLVM `20.1.2` and `currencyStatus: update-required`.
+
+#### W-1533 — compact hermetic cross-target distribution contract
+
+W-1533 records a policy boundary, not a package implementation. The three
+layers are: an external heavy development/release cache; a hermetic release
+builder that consumes verified HIR and in-process MLIR/LLVM/LLD APIs; and an
+end-user package containing the W executable and W-signed, versioned target
+packs. The end-user package excludes `mlir-opt`, `mlir-translate`, `llc`,
+`lld-link`, Clang CLI, generic MLIR textual parsers, headers,
+MLIR/LLVM/LLD development static libraries, debug files, and the heavy cache.
+
+The primary cross matrix is X86 and AArch64 across Windows, Linux, and macOS.
+Every edge needs explicit SDK, import-library, runtime, signing, and provenance
+facts. The standard package is intended to cross-compile without downloading a
+cross toolchain. Target packs ship in the standard package; a separately signed
+install option requires measured budget failure and explicit review, with no
+silent download. Apple SDK and license evidence is a blocker.
+
+Performance has priority over bundle or executable size. The standard build is
+`Release`; LTO, section garbage collection, and dead stripping are conditional
+on a benchmark gate with no regression in toolchain startup, cold/warm
+compilation, throughput, or applicable artifact runtime. `MinSizeRel` is an
+experimental comparison only. The initial compressed goal is about 50 MiB with
+a visible provisional 64 MiB host gate; size is not a license for regression.
+Required measurements are compressed artifact, installed footprint, main
+executable, each target pack, cold Hello build, cold/warm compilation, toolchain
+startup, artifact runtime, file/container bytes, section bytes, code bytes and
+imports, benchmark versus baseline, unexpected dynamic dependencies, and SBOM.
+A visible failure triggers review and does not remove packs silently. Official
+Zig 0.16 download sizes of about 49–55 MiB for Linux/macOS and 89–94 MiB for
+Windows are comparison context only. Minimal LLVM and a fast native backend
+remain the release direction and research-only direction respectively; the
+builder, package, cross compilation, and budget evidence are implementation gaps.
+
+The W program profile names are `debug` for iteration and diagnostics, `release`
+for performance-first output, and `benchmark` for reproducible pinned work.
+These are separate from toolchain build/distribution profiles: toolchain
+`development` is for toolchain iteration, `release` is the performance-first
+default, `benchmark` is reproducible and pinned, and `size-experimental` is
+opt-in only. The informal `dev` name is recorded only as a naming opportunity,
+not an alias; the canonical W profile is `debug`, and this policy adds no CLI
+syntax. The Hello PE reduction below 1 KiB is an `opportunity` backlog item,
+not an automatic gate.
+
 #### W-1507 — catálogo operacional de hosts e targets
 
 W-1507 transforma a matriz de suporte de §20.8.3 em uma fonte operacional
@@ -9152,16 +9238,15 @@ build. A meta é distribuição W first-class: cada host primário deve compilar
 para os outros dois. O bundle não implementa cross toolchains.
 
 Pesquisa adicional registrou [`portable-mlir-toolchain`](https://github.com/munich-quantum-software/portable-mlir-toolchain)
-e [seu release 2026.08.11](https://github.com/munich-quantum-software/portable-mlir-toolchain/releases)
-como `externalToolchainCandidates` evaluation-only. O README descreve MLIR
-prebuilt, scripts Linux/macOS/Windows e build-lld no Windows; o release
-publica assets SHA256 para os seis hosts, release attestation e commit GitHub
-verified, com LLVM `llvmorg-22.1.8`. Isso não é autoridade ou suporte W, não
+e seu [release 2026.08.31](https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/tag/2026.08.31)
+como `externalToolchainCandidates` evaluation-only. O release mantém os seis
+host triples publicados no snapshot upstream; a inspeção local desta rodada
+cobriu somente `x86_64-pc-windows-msvc`, com LLVM `llvmorg-23.1.0` e o asset
+pinado registrado no manifest Windows. Isso não é autoridade ou suporte W, não
 fecha trust/SBOM/provenance, não prova cross-compilation e não fornece/prova
-Apple SDK/licença. A versão diverge tanto da evidence histórica `20.1.2`
-quanto do successor selecionado `llvmorg-23.1.0`; portanto, não substitui
-nenhum deles. Fica como possível bootstrap, mirror ou rebuild input para um
-bundle futuro. Não houve download nem alteração da evidência MLIR0.
+Apple SDK/licença. A evidência histórica `20.1.2` continua separada e marcada
+`update-required`. Fica como possível bootstrap, mirror ou rebuild input para um
+bundle futuro. A aquisição é tooling opt-in; ela não altera a evidência Linux.
 
 As fontes primárias registradas são [Rust platform support](https://doc.rust-lang.org/rustc/platform-support.html), [Rust target tier policy](https://doc.rust-lang.org/rustc/target-tier-policy.html), [MLIR getting started](https://mlir.llvm.org/getting_started/), [LLVM getting started](https://llvm.org/docs/GettingStarted.html) e [LLVM CMake target selection](https://llvm.org/docs/CMake.html). A classificação é `source-backed-current` somente para a matriz, seu checker e a projeção. `benchmarkDisposition` é `not-applicable` porque o bundle é metadata, projection e policy gate sem runtime ou performance.
 

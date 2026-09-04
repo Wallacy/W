@@ -57,6 +57,18 @@ describe("platform support catalog", () => {
     expect(source.externalToolchainCandidates[0].id).toBe("portable-mlir-toolchain");
     expect(source.externalToolchainCandidates[0].status).toBe("evaluation-only");
     expect(source.externalToolchainCandidates[0].publishedHostTriples).toHaveLength(6);
+    expect(source.externalToolchainCandidates[0].inspectedHostTriples).toEqual(["x86_64-pc-windows-msvc"]);
+    const windowsCandidate = source.targets.find((target) => target.triple === "x86_64-pc-windows-msvc");
+    expect(windowsCandidate.state).toBe("candidate");
+    expect(windowsCandidate.axes.backend.status).toBe("pass");
+    expect(windowsCandidate.axes.runtime.status).toBe("partial");
+    expect(windowsCandidate.axes.hostAdapter.status).toBe("partial");
+    expect(windowsCandidate.axes.sdkProfile.status).toBe("partial");
+    expect(windowsCandidate.axes.linkerSysrootPackaging.status).toBe("partial");
+    expect(windowsCandidate.axes.ciEvidence.status).toBe("partial");
+    expect(windowsCandidate.blockers).toEqual([
+      "runtime", "hostAdapter", "sdkProfile", "linkerSysrootPackaging", "ciEvidence",
+    ]);
     expect(source.externalToolchainCandidates[0].evidenceCapabilities).toEqual([
       "per-platform-build-scripts",
       "sha256-release-assets",

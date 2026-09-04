@@ -3081,6 +3081,127 @@
         "bun run check:w-run — public bounded runner executes all W-1531 evidence fixtures"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-windows-native",
+      "reviewItem": "bounded native Windows x86_64 MLIR route against WSL-only execution, PATH discovery, POSIX write, and Clang/CRT coupling.",
+      "decisions": ["W-1532"],
+      "task": "Run the bounded MLIR0 fixture natively on Windows x86_64 with explicit materialized tools, Win32 stdout, and a CRT-free PE link.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn main() { print(\"Hello, Windows!\") }",
+          "entry(main)",
+          "native pipeline: mlir-opt -> mlir-translate -> llc -> lld-link + kernel32.lib",
+          "stdout bytes: Hello, Windows! + LF"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "wsl-only-route",
+          "language": "w-rejected",
+          "source": ["Run the Windows command through WSL Linux and call that native support"],
+          "expectedDifference": "The bounded evidence executes w.exe and the generated PE directly on Windows."
+        },
+        {
+          "name": "path-or-network-discovery",
+          "language": "w-rejected",
+          "source": ["Search PATH or download tools from w run"],
+          "expectedDifference": "Runtime paths are explicit validated configuration; runtime network and PATH discovery are forbidden."
+        },
+        {
+          "name": "posix-or-clang-crt",
+          "language": "w-rejected",
+          "source": ["Call POSIX write or use Clang and the CRT for the Windows artifact"],
+          "expectedDifference": "The Windows runtime calls GetStdHandle, WriteFile, and ExitProcess and links mainCRTStartup with nodefaultlib."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_program_artifact",
+          "claim": "The emitter selects the Windows target triple and Win32 runtime surface."
+        },
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "run_windows_native",
+          "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "main",
+          "claim": "The native gate builds and executes Hello, Restaurant/if, interpolation, linear, and negative fixtures."
+        },
+        {
+          "path": "tooling/mlir0-windows-toolchain.json",
+          "symbol": "requiredTools",
+          "claim": "The external development cache pins the Windows MLIR/LLVM/LLD asset and roles."
+        }
+      ],
+      "checks": [
+        "bun run check:mlir0-windows — Windows target/runtime markers and manifest checks",
+        "bun run check:w-run-windows — native w.exe and PE stdout/exit/error gate",
+        "bun run build:w-windows — explicit VS/SDK build with the external cache"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-compact-cross-target-distribution",
+      "reviewItem": "compact cross-target distribution layers against shipping the heavy CLI toolchain, silent downloads, and unmeasured package-budget exceptions.",
+      "decisions": ["W-1533"],
+      "task": "Define a compact signed cross-target package while keeping development tooling external and every budget exception measurable.",
+      "selected": {
+        "language": "w-policy",
+        "source": [
+          "development cache: heavy MLIR/LLVM/LLD tools, external and not distributed",
+          "release builder: verified HIR -> in-process MLIR APIs -> LLVM target machine/object -> LLD library",
+          "end-user package: w executable plus W-signed versioned target packs",
+          "matrix: X86/AArch64 across Windows/Linux/macOS; no silent cross-toolchain download"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "ship-cli-toolchain",
+          "language": "w-rejected",
+          "source": ["Put mlir-opt, mlir-translate, llc, lld-link, headers, static libraries, and debug files in every user package"],
+          "expectedDifference": "The policy keeps the development cache separate and excludes generic CLI tools and development payloads from the end-user package."
+        },
+        {
+          "name": "silent-target-download",
+          "language": "w-rejected",
+          "source": ["Download a cross toolchain or target pack without an explicit signed installation decision"],
+          "expectedDifference": "Cross-toolchain download is forbidden and a separate install option requires explicit measured-budget review."
+        },
+        {
+          "name": "unmeasured-budget-exception",
+          "language": "w-rejected",
+          "source": ["Remove target packs silently when the package exceeds the provisional size gate"],
+          "expectedDifference": "Compressed artifact, footprint, executable, packs, startup, dependencies, and SBOM metrics are required; failure is visible."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "tooling/toolchain-distribution.json",
+          "symbol": "layers",
+          "claim": "The machine-readable policy separates development cache, release builder, and end-user package."
+        },
+        {
+          "path": "tooling/toolchain-distribution.mjs",
+          "symbol": "validate",
+          "claim": "The offline checker validates the three-layer, matrix, signing, budget, and gap contract."
+        },
+        {
+          "path": "TOOLCHAIN.md",
+          "symbol": "Three layers",
+          "claim": "The human projection records the future route, primary matrix, metrics, and budget review."
+        }
+      ],
+      "checks": [
+        "bun run check:toolchain-distribution — offline manifest and projection validation",
+        "bun run design:index:check — W-1533 source and projection index integrity",
+        "bun run check:links — documentation links remain valid"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

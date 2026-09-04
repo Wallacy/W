@@ -62,6 +62,12 @@ target_include_directories(w_seed_source
     ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
 
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+  # The SDK owner-guard source includes Win32 headers, but this define is not
+  # inferred by the VS 18 Ninja environment. Keep it on that target only.
+  target_compile_definitions(w_seed_source PRIVATE _AMD64_)
+endif()
+
 if(MSVC)
   target_compile_options(w_seed_source PRIVATE /W4 /WX)
 else()
@@ -303,6 +309,58 @@ target_include_directories(w_seed_run_cli_tests PRIVATE
 )
 target_link_libraries(w_seed_run_cli_tests PRIVATE w_seed_source)
 
+if(WIN32)
+  option(W_SEED_ENABLE_WINDOWS_NATIVE_RUN
+    "Enable the explicit local MLIR/LLVM/LLD Windows run pipeline" OFF)
+  set(W_MLIR0_WINDOWS_MLIR_OPT "" CACHE FILEPATH
+    "Explicit materialized mlir-opt.exe for the Windows evidence build")
+  set(W_MLIR0_WINDOWS_MLIR_TRANSLATE "" CACHE FILEPATH
+    "Explicit materialized mlir-translate.exe for the Windows evidence build")
+  set(W_MLIR0_WINDOWS_LLC "" CACHE FILEPATH
+    "Explicit materialized llc.exe for the Windows evidence build")
+  set(W_MLIR0_WINDOWS_LLD_LINK "" CACHE FILEPATH
+    "Explicit materialized lld-link.exe for the Windows evidence build")
+  set(W_MLIR0_WINDOWS_KERNEL32_LIB "" CACHE FILEPATH
+    "Explicit Windows SDK kernel32.lib for the Windows evidence build")
+  if(W_SEED_ENABLE_WINDOWS_NATIVE_RUN)
+    foreach(W_MLIR0_WINDOWS_PATH IN ITEMS
+        W_MLIR0_WINDOWS_MLIR_OPT
+        W_MLIR0_WINDOWS_MLIR_TRANSLATE
+        W_MLIR0_WINDOWS_LLC
+        W_MLIR0_WINDOWS_LLD_LINK
+        W_MLIR0_WINDOWS_KERNEL32_LIB)
+      if("${${W_MLIR0_WINDOWS_PATH}}" STREQUAL "" OR
+         NOT EXISTS "${${W_MLIR0_WINDOWS_PATH}}")
+        message(FATAL_ERROR
+          "${W_MLIR0_WINDOWS_PATH} must be an existing explicit local path")
+      endif()
+      file(TO_CMAKE_PATH "${${W_MLIR0_WINDOWS_PATH}}" ${W_MLIR0_WINDOWS_PATH})
+    endforeach()
+  endif()
+  set(W_SEED_WINDOWS_NATIVE_RUN_ENABLED ${W_SEED_ENABLE_WINDOWS_NATIVE_RUN})
+  set(W_SEED_WINDOWS_GENERATED_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/w_seed_windows_config.h.in"
+    "${W_SEED_WINDOWS_GENERATED_INCLUDE}/w_seed_windows_config.h" @ONLY)
+  target_include_directories(w PRIVATE "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
+  target_include_directories(w_seed_run_cli_tests PRIVATE
+    "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
+  if(W_SEED_ENABLE_WINDOWS_NATIVE_RUN)
+    if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+      message(FATAL_ERROR
+        "W_SEED_ENABLE_WINDOWS_NATIVE_RUN requires a Windows x86_64 build")
+    endif()
+    # The installed Windows SDK headers in the VS 18 Ninja environment do
+    # not infer this target macro from CMAKE_SIZEOF_VOID_P. Limit it to the
+    # two targets that include the Win32 runner headers.
+    target_compile_definitions(w PRIVATE _AMD64_)
+    target_compile_definitions(w_seed_run_cli_tests PRIVATE _AMD64_)
+    target_link_libraries(w PRIVATE kernel32 bcrypt)
+    target_link_libraries(w_seed_run_cli_tests PRIVATE kernel32 bcrypt)
+  endif()
+endif()
+
 add_executable(w_seed_constir_probe
   tests/constir_probe.c
 )
@@ -430,6 +488,7 @@ if(MSVC)
   target_compile_options(w_seed_hlo1_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo1_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_mlir0_tests PRIVATE /W4 /WX)
+  target_link_options(w_seed_mlir0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
