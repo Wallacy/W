@@ -78,6 +78,7 @@
     "check:seed-check-driver": "bun tooling/check-seed-check-driver.mjs",
     "check:maintained-parse": "bun tooling/check-maintained-parse.mjs",
     "check:w-cli": "bun tooling/check-w-check-cli.mjs",
+    "check:w-run": "bun tooling/check-w-run.mjs",
     "check:run0": "bun tooling/check-run0.mjs",
     "check:seed-foreign": "bun tooling/check-seed-foreign.mjs",
     "check:seed-frontend": "bun tooling/check-seed-frontend.mjs",

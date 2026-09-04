@@ -280,6 +280,7 @@ target_link_libraries(w_seed_check_host_tests PRIVATE w_seed_source)
 
 add_executable(w
   cli/w.c
+  cli/run.c
   cli/check.c
   cli/check_host.c
   cli/check_pipeline.c
@@ -291,6 +292,16 @@ target_include_directories(w PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/cli
 )
 target_link_libraries(w PRIVATE w_seed_source)
+
+add_executable(w_seed_run_cli_tests
+  tests/test_run.c
+  cli/run.c
+  cli/check_host.c
+)
+target_include_directories(w_seed_run_cli_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/cli
+)
+target_link_libraries(w_seed_run_cli_tests PRIVATE w_seed_source)
 
 add_executable(w_seed_constir_probe
   tests/constir_probe.c
@@ -412,6 +423,7 @@ if(MSVC)
   target_compile_options(w_seed_check_pipeline_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_check_host_tests PRIVATE /W4 /WX)
   target_compile_options(w PRIVATE /W4 /WX)
+  target_compile_options(w_seed_run_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_gate PRIVATE /W4 /WX)
@@ -743,6 +755,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_run_cli_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_frontend_tests PRIVATE
     -Wall
     -Wextra
@@ -909,6 +930,7 @@ add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_run0_unit COMMAND w_seed_run0_tests)
 add_test(NAME w_seed_cli_io_unit COMMAND w_seed_cli_io_tests)
+add_test(NAME w_seed_run_cli_unit COMMAND w_seed_run_cli_tests)
 add_test(NAME w_seed_check_storage_unit COMMAND w_seed_check_storage_tests)
 add_test(NAME w_seed_check_retry_unit COMMAND w_seed_check_retry_tests)
 add_test(NAME w_seed_check_pipeline_unit COMMAND w_seed_check_pipeline_tests)

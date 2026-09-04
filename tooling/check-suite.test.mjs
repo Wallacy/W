@@ -73,27 +73,27 @@ describe("check-suite manifest", () => {
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(112);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
 
-    const isRun0 = (step) =>
-      step.package === "root" && step.script === "check:run0";
+    const isWRun = (step) =>
+      step.package === "root" && step.script === "check:w-run";
     for (const suiteName of ["root-compiler", "tree-check", "root-check"]) {
       const expanded = flattenCheckSuite({
         suites: loaded.suites,
         suiteName,
       });
-      const run0Indices = expanded
-        .map((step, index) => isRun0(step) ? index : -1)
+      const wRunIndices = expanded
+        .map((step, index) => isWRun(step) ? index : -1)
         .filter((index) => index >= 0);
-      expect(run0Indices).toHaveLength(1);
-      const run0Index = run0Indices[0];
-      expect(expanded.slice(run0Index - 1, run0Index + 2)).toEqual([
+      expect(wRunIndices).toHaveLength(1);
+      const wRunIndex = wRunIndices[0];
+      expect(expanded.slice(wRunIndex - 1, wRunIndex + 2)).toEqual([
         { package: "root", script: "check:w-cli" },
-        { package: "root", script: "check:run0" },
+        { package: "root", script: "check:w-run" },
         { package: "root", script: "check:seed-foreign" },
       ]);
     }
-    expect(loaded.suites["root-compiler"].steps.filter(isRun0)).toHaveLength(1);
-    expect(loaded.suites["tree-check"].steps.filter(isRun0)).toHaveLength(0);
-    expect(loaded.suites["root-check"].steps.filter(isRun0)).toHaveLength(0);
+    expect(loaded.suites["root-compiler"].steps.filter(isWRun)).toHaveLength(1);
+    expect(loaded.suites["tree-check"].steps.filter(isWRun)).toHaveLength(0);
+    expect(loaded.suites["root-check"].steps.filter(isWRun)).toHaveLength(0);
     expect(loaded.suites["tree-check"].steps.filter(
       (step) => step.suite === "root-compiler")).toHaveLength(1);
     expect(loaded.suites["root-check"].steps.filter(
