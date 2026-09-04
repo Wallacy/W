@@ -2854,6 +2854,80 @@
         "bun run check:w-run — public bounded runner executes the typed Restaurant witness"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-typed-direct-unit-call",
+      "reviewItem": "typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.",
+      "decisions": ["W-1529"],
+      "task": "Carry reordered named arguments through verified HIR and a real typed LLVM-dialect call into exact native output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn announce(table: i64, isOpen: Bool) { print(\"Table ${table}; open: ${isOpen}\") }",
+          "fn main() { announce(isOpen: true, table: 6 * 7) }",
+          "entry(main)",
+          "stdout bytes: Table 42; open: true + LF"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "flattened-call",
+          "language": "w-rejected",
+          "source": ["Inline announce into main before emitting MLIR"],
+          "expectedDifference": "The artifact contains distinct internal functions and a real llvm.call."
+        },
+        {
+          "name": "abi-order-evaluation",
+          "language": "w-rejected",
+          "source": ["Evaluate table before isOpen because table is ABI slot zero"],
+          "expectedDifference": "Argument trees are evaluated in source order and mapped to ABI slots afterward."
+        },
+        {
+          "name": "backend-name-lookup",
+          "language": "w-rejected",
+          "source": ["Resolve parameters or labels by spelling while emitting MLIR"],
+          "expectedDifference": "HIR carries indexed parameter reads and parameter ordinals."
+        },
+        {
+          "name": "recursive-call-graph",
+          "language": "w-rejected",
+          "source": ["Accept direct recursion without a stack or output bound proof"],
+          "expectedDifference": "The bounded selector rejects cycles before emission."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_statement_and_expression_ok",
+          "claim": "HIR lowering preserves source argument order and indexed declaration slots."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select_program",
+          "claim": "The bounded selector validates the acyclic multi-function Unit subset."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_program_artifact",
+          "claim": "The emitter produces distinct functions, typed parameters, and real llvm.call operations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_local_unit_call_and_parameter_reads",
+          "claim": "The unit proves indexed parameter reads and source-order versus ABI-order separation."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "direct-call",
+          "claim": "The product gate verifies, translates, links, and executes the direct-call Restaurant witness."
+        }
+      ],
+      "checks": [
+        "bun run check:hir0 — direct call records, parameter reads, and adversarial slot mutations",
+        "bun run check:mlir0 — real llvm.call, source evaluation order, native execution, and exact output",
+        "bun run check:w-run — public bounded runner executes the direct-call Restaurant witness"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

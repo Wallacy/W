@@ -27704,7 +27704,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-7-linear-print-and-typed-immutable-bindings`. Seu backend tem status
+`w-seed-mlir0-8-direct-unit-calls-and-typed-values`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -35804,7 +35804,7 @@ locals, CFG or SSA, panic lowering, a stable runtime ABI, another target, or a
 performance result. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
-#### 26.4.1.12 W-1528 — typed immutable binding initializers through native MLIR (Current form)
+#### 26.4.1.12 W-1528 — typed immutable binding initializers through native MLIR (Retained form; adapter advanced by W-1529)
 
 **Example:** the Restaurant witness names three distinct built-in values and
 uses them later in one interpolation:
@@ -35847,12 +35847,61 @@ remain exact, including NUL, and Bool remains lowercase ASCII. Every selected
 binding must have at least one later read. The existing 32-instruction,
 32-binding, 64-value, 64-segment, and 4096-output-byte bounds remain in force.
 
-This is still a single-function, single-block, immutable subset. It does not
+This milestone was a single-function, single-block, immutable subset. It did not
 add `var`, assignment, mutable reads, nested scopes, phi/block arguments,
 general CFG or SSA construction, runtime String storage, protocol witness
 dispatch, function calls, panic lowering, another target, or a stable runtime
 ABI. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only; no
 timing or performance result is published.
+
+#### 26.4.1.13 W-1529 — typed direct Unit calls through native MLIR (Current form)
+
+**Example:** this Restaurant witness evaluates named arguments in source order,
+maps them to declaration order, and executes a real W-to-W call:
+
+```w
+fn announce(table: i64, isOpen: Bool) {
+  print("Table ${table}; open: ${isOpen}")
+}
+
+fn main() {
+  announce(isOpen: true, table: 6 * 7)
+}
+
+entry(main)
+```
+
+Its stdout is exactly `Table 42; open: true\n`.
+
+W-1529 advances HIR0 to `w-seed-hir0-5` and MLIR0 to
+`w-seed-mlir0-8`. Native0 remains `w-seed-native0-6`. HIR function identities
+publish their parameter range and Unit return type. A `PARAMETER_READ` carries
+the exact global parameter index, type, owner function, and source span. A call
+argument carries both `ordinal`, which preserves source evaluation order, and
+`parameter_ordinal`, which selects the declaration and ABI slot. Named
+arguments can therefore reorder without changing evaluation order. A
+positional-only `_ name: T` argument remains fixed at its declared ordinal.
+Duplicate or missing slots fail closed; types are compared semantically rather
+than by incidental frontend arena index.
+
+The bounded native selector accepts 1..8 functions, at most 16 total `i64` or
+Bool parameters, one linear block and Unit return per function, and an acyclic
+direct-call graph. The entry function has no parameters. Existing bounds of 32
+instructions, 32 calls, 32 bindings, 64 values, 64 interpolation segments, and
+4096 output bytes remain in force. Runtime String parameters, recursion,
+indirect calls, overload dispatch, generic specialization, non-Unit returns,
+throwing, async, unsafe, borrow clauses, general CFG, and mutable state remain
+unsupported.
+
+MLIR0 emits one internal LLVM-dialect function for every selected W function.
+Typed operands cross a real `llvm.call`; the callee reads `%pN` values and the
+caller retains `6 * 7` as `llvm.mul`. A shared bounded output buffer and cursor
+are private seed implementation details. `mlir-opt`, LLVM translation, native
+link, the generated executable, and public bounded `w run` all exercise the
+same witness. The route does not flatten the call or precompute `42`.
+
+`benchmarkDisposition` is `compiler-lifecycle`, correctness-only. This
+milestone publishes no timing or performance result and no stable W ABI.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

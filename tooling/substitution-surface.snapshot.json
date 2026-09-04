@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:a5ee8ce3bb94102822c49d76b7ef3284d87d7592229b460c3ea21606c44a82ba",
+  "corpusDigest": "sha256:e190132be7085a50966c84ed75be30afff8b3253563f4c24c7f12f9a99989d80",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4404,6 +4404,78 @@
             "nonWhitespaceCodePoints": 56,
             "lines": 1,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-typed-direct-unit-call",
+      "task": {
+        "utf8Bytes": 113,
+        "codePoints": 113,
+        "nonWhitespaceCodePoints": 97,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:5a28d73b35352e2a23ff41ce9e78e59222dddc08adde6c6fadf29a1bdbf38da0",
+        "metrics": {
+          "utf8Bytes": 185,
+          "codePoints": 185,
+          "nonWhitespaceCodePoints": 156,
+          "lines": 4,
+          "surfaceLexemes": 50
+        }
+      },
+      "alternatives": [
+        {
+          "name": "flattened-call",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:3f464bedb4a8397cc99bc83e46422fb7ce8a12ccdb0a42d5e40132de46c1f7a1",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "abi-order-evaluation",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:9af0f7d92aae3b9cce7bd72a4d2de1ab01abf258fb533e5ed341abce554dcace",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 50,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "backend-name-lookup",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c28f20235fa666583f7005a2bfdfb4daba718dbf866c9a95d65bd92b6670dfe4",
+          "metrics": {
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "recursive-call-graph",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:80aa97469b9ffb7421b78a2cf1023677fae384d22ec7928aaaf24e4d34d1604d",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 52,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

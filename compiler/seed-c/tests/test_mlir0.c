@@ -585,6 +585,41 @@ static bool test_interpolation_semantic_barriers(void) {
   return true;
 }
 
+static bool test_direct_unit_call(void) {
+  static const uint8_t source[] =
+      "fn announce(table: i64, isOpen: Bool) {\n"
+      "  print(\"Table ${table}; open: ${isOpen}\")\n"
+      "}\n"
+      "fn main() {\n"
+      "  announce(isOpen: true, table: 6 * 7)\n"
+      "}\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.parameter_count == 2u &&
+        fixture.hir_program.call_count == 2u);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.func internal @w_fn_1"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.call @w_fn_0(%buffer, %cursor_address, %v6, %v3)"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.mul %v4, %v5 : i64"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "@w_seed_append_i64(%buffer, %cursor0_1, %p0)"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "@w_seed_append_bool(%buffer, %cursor0_3, %p1)"));
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -1024,6 +1059,7 @@ int main(void) {
   if (!test_direct_products()) return 1;
   if (!test_restaurant_and_nul()) return 1;
   if (!test_typed_interpolation_artifact()) return 1;
+  if (!test_direct_unit_call()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;

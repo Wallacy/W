@@ -18,6 +18,8 @@ extern "C" {
 #define W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES 4096u
 #define W_SEED_NATIVE_SUBSET0_MAX_VALUES 64u
 #define W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS 64u
+#define W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS 8u
+#define W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS 16u
 
 typedef enum {
   W_SEED_NATIVE_SUBSET0_OK = 0,
@@ -71,6 +73,22 @@ typedef struct {
   bool has_interpolation;
 } w_seed_native_subset0_sequence;
 
+/* Bounded multi-function native subset. Source argument order remains in HIR;
+ * parameter_ordinal supplies the declaration/ABI mapping. Every function has
+ * one linear block and a Unit return. The call graph must be acyclic. */
+typedef struct {
+  const w_seed_hir0_entry *entry;
+  size_t function_count;
+  size_t parameter_count;
+  size_t instruction_count;
+  size_t binding_count;
+  size_t call_count;
+  size_t maximum_stdout_bytes;
+  bool has_interpolation;
+  bool has_bool;
+  bool has_local_calls;
+} w_seed_native_subset0_program;
+
 w_seed_native_subset0_status w_seed_native_subset0_select(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -82,6 +100,11 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_sequence *sequence);
+
+w_seed_native_subset0_status w_seed_native_subset0_select_program(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_program *selection);
 
 #ifdef __cplusplus
 }

@@ -453,7 +453,7 @@ test "numeric policies name overflow and representation" for numericPolicies {
 
 ## Functions, labels, defaults, and rest
 
-<!-- w-example role=executable use=labelled,join,route observable=value -->
+<!-- w-example role=executable use=labelled,join,route,announce observable=value -->
 ```w
 fn labelled(
   _ value: String,
@@ -472,6 +472,10 @@ fn join(separator: String, values: String...): String {
 fn route(_ audit: String): String { return "positional:${audit}" }
 fn route(audit: String): String { return "labeled:${audit}" }
 
+fn announce(table: i64, isOpen: Bool): String {
+  return "Table ${table}; open: ${isOpen}"
+}
+
 test "call labels and rest arguments keep their shape" for labelled {
   let labels = labelled("n", externalAudit: "o", "r", title: "h", to: "t")
   let values = ["east", "west"]
@@ -479,6 +483,8 @@ test "call labels and rest arguments keep their shape" for labelled {
   expect join(separator: "/", values: each values) == "east/west"
   expect route("open") == "positional:open"
   expect route(audit: "open") == "labeled:open"
+  // Named arguments may reorder; evaluation still follows source order.
+  expect announce(isOpen: true, table: 6 * 7) == "Table 42; open: true"
 }
 ```
 
