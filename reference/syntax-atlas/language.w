@@ -16,13 +16,14 @@ import service atlas.catalog as catalog
 export struct Place<ID> : Hashable {
   let id: ID
   var label: String = "square"
+  var storedCount: usize = 0
 
-  let summary: String { get => label }
+  let summary: usize { get => storedCount }
   let labelView: ref String { get => label }
 
-  var replaceable: String {
-    get => label
-    set(value) { label = value }
+  var replaceable: usize {
+    get => storedCount
+    set(value) { storedCount = value }
   }
 
   var replaceableView: ref String {
@@ -40,9 +41,9 @@ export struct Place<ID> : Hashable {
     set(value) { label = value }
   }
 
-  var buffered: inout String {
-    get => label
-    set(value) { label = value }
+  var buffered: inout usize {
+    get => storedCount
+    set(value) { storedCount = value }
   }
 
   fn describe(): String {
@@ -116,19 +117,25 @@ behavior Initialized for Place {
 
 behavior Versioned<Value> for Value {
   var epoch: u64
+  var reads: u64
 
-  init() { epoch = 0 }
+  init() {
+    epoch = 0
+    reads = 0
+  }
   export let mutationEpoch: u64 { get => epoch }
+  export let readCount: u64 { get => reads }
+  mut willGet(kind: PropertyAccessKind) { reads += 1 }
   mut didSet(current: ref Value) { epoch += 1 }
 }
 
-// Facet observers enter through a named composition; a direct observer
-// application is not a property declaration form.
+// A named composition remains useful for multiple behaviors and aliases.
 behavior VersionedPlace for Place<String> =
   (value: Initialized, version: Versioned)
 
 struct VersionedPlaceBox {
   var VersionedPlace place: Place<String> = Place(id: "north", label: "square")
+  var Versioned visits: u16 = 0
 }
 
 const DefaultLabel: String = "square"
@@ -144,6 +151,14 @@ test "qualified facet path" for VersionedPlaceBox {
   let title = (box.place#value).title
   epoch
   title
+}
+
+test "direct observer facets" for VersionedPlaceBox {
+  var box = VersionedPlaceBox()
+  let visits = box.visits
+  visits
+  box.visits#readCount
+  box.visits#mutationEpoch
 }
 // atlas:end data-declarations
 

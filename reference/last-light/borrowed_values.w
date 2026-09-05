@@ -31,7 +31,8 @@ export struct BorrowedMenu {
 }
 
 // A stored mut ref field is a move-only exclusive capability. It does not own
-// or keep the referent alive; `inout` remains only a parameter/call convention.
+// or keep the referent alive; `inout` remains a parameter/call convention, and
+// a computed property annotation is a capability rather than a stored type.
 export struct OvenControl {
   let temperature: mut ref f64
 }
@@ -96,7 +97,7 @@ export fn warmThroughStoredControl(kitchen: inout Kitchen): f64 {
 // A shared child borrow is inferred from the parent borrow. The parent remains
 // frozen only during this call and becomes usable after the return.
 export fn menuTitle(menu: ref BorrowedMenu): ref String {
-  return menu.document.title
+  return ref menu.document.title
 }
 
 // Array<ref String> owns its descriptor and storage. Each element adds a
@@ -109,11 +110,11 @@ fn countTitle(title: ref String): usize {
   return title.scalars.count
 }
 
-// A copied shared child keeps the same parent origin. The parent remains
-// frozen until both references reach their last use.
+// Copying a borrow edge keeps the same parent origin. The parent remains frozen
+// until both references reach their last use; this does not copy an owned String.
 export fn duplicatedTitleLength(menu: ref BorrowedMenu): usize {
   let title = menuTitle(menu: menu)
-  let duplicate = copy title
+  let duplicate = title
   return countTitle(title: title) + countTitle(title: duplicate)
 }
 

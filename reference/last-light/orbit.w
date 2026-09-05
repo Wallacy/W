@@ -71,9 +71,9 @@ export enum PropertyAccessKind {
   mutableBorrowed
 }
 
-// An observer is reachable through a named composition only. A direct
-// `var Versioned value = rhs` application is rejected; a zero-storage
-// composition would synthesize plain storage and still pass the RHS to it.
+// A direct observer application is explicit: it synthesizes one plain logical
+// storage slot, and the RHS initializes that slot rather than observer init.
+// Named composition remains the form for multiple behaviors and aliases.
 export behavior VersionedDegrees for u16 =
   (degrees: WrappedDegrees, version: Versioned)
 
@@ -81,32 +81,60 @@ fn nudge(value: mut ref u16) { value += 5 }
 
 export struct Attitude {
   var VersionedDegrees yaw: mut ref u16 = 0
+  var Versioned remainingCorrections: u16 = 8
 
   mut fn rotate(by delta: u16) {
     yaw += delta
+  }
+
+  mut fn sampleYaw(after epoch: u64): u16? {
+    if yaw#version.mutationEpoch == epoch { return .none }
+    return .some(yaw)
   }
 }
 
 test "attitude rotation wraps degrees" for Attitude {
   var attitude = Attitude()
+  // A value result does not make the observer metadata write readonly.
+  let remaining = attitude.remainingCorrections
+  expect remaining == 8
+  expect attitude.remainingCorrections#readCount == 1
+  expect attitude.remainingCorrections#mutationEpoch == 0
+
   attitude.yaw = 350
   attitude.rotate(by: 25)
 
   expect attitude.yaw == 15
 
+  // The declared mut ref kind stays fixed even when the caller compares a value.
   let beforeReset = attitude.yaw#version.mutationEpoch
-  expect beforeReset == 2
+  expect beforeReset == 3
+  expect attitude.yaw#version.readCount == 2
   expect attitude.yaw#version.replacementCount == 1
 
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
-  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.mutationEpoch == 5
+  expect attitude.yaw#version.readCount == 3
   expect attitude.yaw#version.replacementCount == 1
 
   nudge(value: mut ref attitude.yaw)
   expect attitude.yaw == 5
-  expect attitude.yaw#version.mutationEpoch == 4
+  expect attitude.yaw#version.mutationEpoch == 7
+  expect attitude.yaw#version.readCount == 5
   expect attitude.yaw#version.replacementCount == 1
+
+  let savedEpoch = attitude.yaw#version.mutationEpoch
+  expect attitude.sampleYaw(after: savedEpoch) == .none
+  expect attitude.yaw#version.readCount == 5
+  attitude.rotate(by: 355)
+  expect attitude.sampleYaw(after: savedEpoch) == .some(0)
+  let publishedEpoch = attitude.yaw#version.mutationEpoch
+  expect publishedEpoch == 9
+  expect attitude.sampleYaw(after: publishedEpoch) == .none
+  expect attitude.yaw#version.readCount == 7
+  // resetMutationEpoch invalidates saved epochs; it is not a global ticket/cache key.
+  attitude.yaw#version.resetMutationEpoch()
 }
 
 export type SatelliteId = u32

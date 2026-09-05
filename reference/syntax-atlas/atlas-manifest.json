@@ -2151,7 +2151,7 @@
       "construction": "immutable value property",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "let summary: String"
+      "witness": "let summary: usize"
     },
     {
       "id": "property-let-ref",
@@ -2167,7 +2167,7 @@
       "construction": "mutable value property",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "var replaceable: String"
+      "witness": "var replaceable: usize"
     },
     {
       "id": "property-var-ref",
@@ -2191,7 +2191,7 @@
       "construction": "copy-in copy-out property",
       "designStatus": "current",
       "evidenceStatus": "tree-sitter-parse-only",
-      "witness": "var buffered: inout String"
+      "witness": "var buffered: inout usize"
     },
     {
       "id": "pattern-enum",
@@ -2413,14 +2413,14 @@
           "digest": "sha256:7caca1c77bc66e3d98a8f88eee030cb7a64377e54981cb3fc9f9d2378f7710e5"
         }
       ],
-      "snippetDigest": "sha256:d216dbfeb607c193b696e19360074e574e1d76cf50643adaf8f4fbc29ade66bf",
-      "snippetBytes": 2453
+      "snippetDigest": "sha256:794cb65267fc5117bc75ee4df3dcb6f6fb751f94f4affab1874bd42f3eb644f8",
+      "snippetBytes": 2803
     },
     {
       "id": "types-and-contracts",
       "file": "language.w",
       "order": 3,
-      "line": 181,
+      "line": 196,
       "title": "Type contracts, static values, and function types",
       "family": "types",
       "designStatus": "current",
@@ -2460,7 +2460,7 @@
       "id": "callables-and-foreign",
       "file": "language.w",
       "order": 4,
-      "line": 150,
+      "line": 165,
       "title": "Callable modes, generics, and foreign bodies",
       "family": "callables",
       "designStatus": "current",
@@ -2507,7 +2507,7 @@
       "id": "literals-and-collections",
       "file": "language.w",
       "order": 5,
-      "line": 231,
+      "line": 246,
       "title": "Literals, tuples, and collections",
       "family": "values",
       "designStatus": "current",
@@ -2540,7 +2540,7 @@
       "id": "patterns",
       "file": "language.w",
       "order": 6,
-      "line": 205,
+      "line": 220,
       "title": "Patterns, ranges, and matches",
       "family": "patterns",
       "designStatus": "current",
@@ -2795,7 +2795,7 @@
       "id": "entry-declaration",
       "file": "language.w",
       "order": 13,
-      "line": 269,
+      "line": 284,
       "title": "Explicit entry descriptor",
       "family": "entry",
       "designStatus": "current",
@@ -2915,6 +2915,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:ee1f61cc818819842f8072979bc6255aee91962c57d2bf3bb6b5c6dc1a4f45dd"
+    "coverageDigest": "sha256:1a6686f55fa59d24d7ba1dbe09b00f65b88b54c848c78bc71988e6f437d9b813"
   }
 }

@@ -821,10 +821,16 @@ design recommendation is ratified merely by its inclusion in this queue.
 | NCFG0/W-1535 | Closed with bounded native evidence | Continue with findings 1–4 before general property lowering |
 | 7 — build publication | Fixed, bounded filesystem evidence | Pre-commit restoration and post-commit partial-cleanup tests pass. Crash recovery remains outside this fix |
 | 8 — reproducibility | Recipe and probe fixed; full-build comparison deferred | Space-separated flags, strict option handling, complete mappings and scoped receipt validation pass. Compare complete W builds after NCFG0 closure |
-| 1–4 — properties and ownership | Queued, semantic priority | Reconcile approved syntax, explicit retain rules, and observer mutation authority before general property lowering |
+| 1–4 — properties and ownership | Contract and examples reconciled; implementation evidence pending | Keep W-1536 direct-observer rules in checker, lowering, runtime-ownership and benchmark gaps before general property lowering |
 | 9 — native CI | Queued | Require pinned native execution and distinguish unavailable local tools from failed CI prerequisites |
 | 5–6, 11–12 — documentation and navigation | Queued | Consolidate doctest rules, repair examples and readers, and update capability-specific status |
 | 10 — test quality | Queued, applied to new fixes now | Use behavior and known-bad mutations for changed tooling, then remove measured redundant checks |
+
+The 2026-09-04 property bundle records W-1536: an explicit single observer can
+synthesize plain logical storage, while named composition remains available for
+multiple behaviors and aliases. This is a contract and source/parse correction;
+it is not evidence that the W checker, lowering, runtime ownership or native
+backend executes the examples.
 
 The first maintenance bundle changes
 [`build-w-windows.mjs`](tooling/build-w-windows.mjs), its
@@ -895,7 +901,7 @@ selected, not an always-running goal.
 | Order | Bundle | Priority / effort | Completion and stop condition |
 |---|---|---|---|
 | 1 | Build publication and reproducibility | P1 / M | Isolated fault tests prove safe post-commit cleanup; actual options and two clean build receipts agree |
-| 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 resolved in one canonical table and counterexamples; no new syntax family |
+| 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
 | 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W; missing dependencies fail; skip counts remain explicit |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
 | 5 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |

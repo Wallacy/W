@@ -58,7 +58,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "package {",
-        "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
         "claim": "Current package root is a data-only manifest."
       },
       "observations": {
@@ -168,7 +168,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
         "claim": "Current workspace member ownership is a candidate's control."
       },
       "observations": {
@@ -278,7 +278,7 @@
       "source": {
         "path": "reference/last-light/build.w",
         "symbol": "workspace {",
-        "digest": "sha256:20ac6c86fbf46804384397cd9d5ecc6bb2944af97b43a435f673d82e0a3a3038",
+        "digest": "sha256:53943d95e353121b18807492c3d7282df2bfb77b1a89cbf3859d8d4637ef44fc",
         "claim": "Workspace root is the source-backed ownership boundary."
       },
       "observations": {
@@ -369,7 +369,7 @@
       "source": {
         "path": "reference/last-light/streams.w",
         "symbol": "serveOneByOne",
-        "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+        "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
         "claim": "Current Last Light service output uses an explicit pull stream."
       },
       "observations": {
@@ -438,7 +438,7 @@
       "source": {
         "path": "reference/last-light/streams.w",
         "symbol": "runBoundedOrderWindow",
-        "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+        "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
         "claim": "Current bounded dialogue keeps channel capacity and endpoints explicit."
       },
       "observations": {
@@ -477,7 +477,7 @@
       "source": {
         "path": "reference/last-light/streams.w",
         "symbol": "runBoundedOrderWindow",
-        "digest": "sha256:5ae074f0f46cc0bbb9c15946bd019c0ea206051df559bdd1d5f8f94f63ad668b",
+        "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
         "claim": "Current channel dialogue is the negative boundary for a one-way output stream."
       },
       "observations": {
@@ -577,7 +577,7 @@
       "source": {
         "path": "reference/last-light/execution.w",
         "symbol": "completionCount: u64 { get }",
-        "digest": "sha256:ab836fd0cc91edd15f742605dd4867e0fe083851121f2d16a49944297600199d",
+        "digest": "sha256:c59db27e6acb51975c56109741934bb11d9b4ebce08edc6baaeefd6c8eac794c",
         "claim": "Current property accessors expose a property-safe getter."
       },
       "observations": {
@@ -622,7 +622,7 @@
       "source": {
         "path": "reference/last-light/orbit.w",
         "symbol": "mut set(newValue)",
-        "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
+        "digest": "sha256:c2e6e5ea3f4df56cf3c57a7179b4ce93c2b12aa2b37aaa2b0ae129483211b449",
         "claim": "Current setter lifecycle is a comparison control for local hooks."
       },
       "observations": {
@@ -672,7 +672,7 @@
       "source": {
         "path": "reference/last-light/orbit.w",
         "symbol": "mut set(newValue)",
-        "digest": "sha256:694e24dc76d9cf302054fac30a5833252bcc1abdbb11dcf9464eeb1b0eea18c8",
+        "digest": "sha256:c2e6e5ea3f4df56cf3c57a7179b4ce93c2b12aa2b37aaa2b0ae129483211b449",
         "claim": "Current setter is the control against hidden observer state."
       },
       "observations": {
