@@ -71,6 +71,23 @@ export const PROFILE_RECIPES = Object.freeze({
     reproducible: false,
   }),
 })
+
+const REPRODUCIBILITY_SPEC = Object.freeze({
+  compilerOptions: Object.freeze([
+    "/options:strict",
+    "/Brepro",
+  ]),
+  linkerOptions: Object.freeze([
+    "/Brepro",
+    "/WX",
+  ]),
+  pathMapping: "build-and-workspace-to-stable-labels",
+  mappings: Object.freeze([
+    Object.freeze({ token: "<build>", replacement: "B" }),
+    Object.freeze({ token: "<workspace>", replacement: "W" }),
+  ]),
+})
+
 export const SMOKE_CASES = Object.freeze([
   Object.freeze({
     id: "hello",
@@ -261,44 +278,99 @@ function probeCompilerIdentity(vsDevCmd) {
   }
 }
 
-async function probeMsvcReproducibility(vsDevCmd, probeDirectory) {
+function pathMapFlag(pathValue, replacement) {
+  return `/pathmap:${pathValue}=${replacement}`
+}
+
+export function reproducibilityRecipe(buildDirectory, workspaceDirectory = root) {
+  if (typeof buildDirectory !== "string" || buildDirectory.length === 0)
+    fail("reproducibility build directory must be a non-empty path")
+  if (typeof workspaceDirectory !== "string" || workspaceDirectory.length === 0)
+    fail("reproducibility workspace directory must be a non-empty path")
+
+  const concretePaths = [resolve(buildDirectory), resolve(workspaceDirectory)]
+  const concreteMappings = REPRODUCIBILITY_SPEC.mappings.map((mapping, index) =>
+    pathMapFlag(concretePaths[index], mapping.replacement))
+  const normalizedMappings = REPRODUCIBILITY_SPEC.mappings.map((mapping) =>
+    pathMapFlag(mapping.token, mapping.replacement))
+  return {
+    compilerFlags: [
+      ...REPRODUCIBILITY_SPEC.compilerOptions,
+      ...concreteMappings,
+    ],
+    linkerFlags: [...REPRODUCIBILITY_SPEC.linkerOptions],
+    normalizedCompilerFlags: [
+      ...REPRODUCIBILITY_SPEC.compilerOptions,
+      ...normalizedMappings,
+    ],
+    normalizedLinkerFlags: [...REPRODUCIBILITY_SPEC.linkerOptions],
+    pathMapping: REPRODUCIBILITY_SPEC.pathMapping,
+  }
+}
+
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")
+}
+
+function hasIgnoredRequiredOption(output, requiredFlags) {
+  if (/\bD9002\b/iu.test(output)) return true
+  const ignoredWords = "(?:ignore(?:d|s|ing)?|unknown|unsupported|not\\s+(?:recognized|supported))"
+  return requiredFlags.some((flag) => {
+    const escapedFlag = escapeRegex(flag)
+    return new RegExp(`${ignoredWords}[^\\r\\n]*${escapedFlag}`, "iu").test(output) ||
+      new RegExp(`${escapedFlag}[^\\r\\n]*${ignoredWords}`, "iu").test(output)
+  })
+}
+
+function assertProbeResult(label, result, requiredFlags, rejectWarnings = false) {
+  const output = outputText(result)
+  if (result?.exitCode !== 0)
+    fail(`benchmark reproducibility ${label} probe failed: ${output.slice(-1500)}`)
+  if (hasIgnoredRequiredOption(output, requiredFlags))
+    fail(`benchmark reproducibility ${label} probe ignored a required option: ${output.slice(-1500)}`)
+  if (rejectWarnings && /\bwarning\b/iu.test(output))
+    fail(`benchmark reproducibility ${label} probe emitted a warning: ${output.slice(-1500)}`)
+}
+
+export async function probeMsvcReproducibility(vsDevCmd, probeDirectory, options = {}) {
   const sourcePath = join(probeDirectory, "w-repro-probe.c")
   const objectPath = join(probeDirectory, "w-repro-probe.obj")
   const executablePath = join(probeDirectory, "w-repro-probe.exe")
   await writeFile(sourcePath, "int mainCRTStartup(void) { return 0; }\n", "utf8")
-  const compilerFlags = [
+  const recipe = options?.recipe ?? reproducibilityRecipe(
+    probeDirectory,
+    options?.workspaceDirectory ?? root,
+  )
+  const runProbe = options?.run ?? ((command, args, runOptions) =>
+    runWithVisualStudio(vsDevCmd, command, args, runOptions))
+  if (typeof runProbe !== "function") fail("reproducibility probe runner must be a function")
+  const compilerResult = runProbe("cl.exe", [
     "/nologo",
-    "/Brepro",
-    `/pathmap:${root}=W`,
-  ]
-  const compilerResult = runWithVisualStudio(vsDevCmd, "cl.exe", [
-    ...compilerFlags,
+    ...recipe.compilerFlags,
     "/c",
     `/Fo${objectPath}`,
     sourcePath,
   ], { cwd: probeDirectory })
-  if (compilerResult.exitCode !== 0)
-    fail(`benchmark reproducibility compiler probe failed: ${outputText(compilerResult).slice(-1500)}`)
+  assertProbeResult("compiler", compilerResult, recipe.compilerFlags)
 
   const linkerFlags = [
     "/nologo",
-    "/Brepro",
+    ...recipe.linkerFlags,
     `/out:${executablePath}`,
     "/entry:mainCRTStartup",
     "/subsystem:console",
     "/nodefaultlib",
     objectPath,
   ]
-  const linkerResult = runWithVisualStudio(vsDevCmd, "link.exe", linkerFlags,
+  const linkerResult = runProbe("link.exe", linkerFlags,
     { cwd: probeDirectory })
-  if (linkerResult.exitCode !== 0)
-    fail(`benchmark reproducibility linker probe failed: ${outputText(linkerResult).slice(-1500)}`)
+  assertProbeResult("linker", linkerResult, recipe.linkerFlags, true)
 
   return {
     required: true,
-    compilerFlags: ["/Brepro", "/pathmap:<workspace>=W"],
-    linkerFlags: ["/Brepro"],
-    pathMapping: "workspace-source-to-W",
+    compilerFlags: recipe.normalizedCompilerFlags,
+    linkerFlags: recipe.normalizedLinkerFlags,
+    pathMapping: recipe.pathMapping,
     probes: { compiler: "passed", linker: "passed" },
   }
 }
@@ -313,13 +385,29 @@ function emptyReproducibilityRecipe() {
   }
 }
 
-function cmakeProfileArguments(recipe, buildDirectory) {
+function quoteCmakeFlag(flag) {
+  if (!/[\s"]/u.test(flag)) return flag
+  return `"${flag.replaceAll('"', '\\"')}"`
+}
+
+function cmakeFlagFragment(flags) {
+  return flags.map((flag) => quoteCmakeFlag(flag)).join(" ")
+}
+
+export function cmakeProfileArguments(
+  recipe,
+  buildDirectory,
+  workspaceDirectory = root,
+  concreteRecipe = undefined,
+) {
   const args = [
     `-DCMAKE_BUILD_TYPE=${recipe.cmakeBuildType}`,
   ]
   if (recipe.reproducible) {
-    args.push(`-DCMAKE_C_FLAGS=/Brepro;/pathmap:${root}=W;/pathmap:${buildDirectory}=B`)
-    args.push("-DCMAKE_EXE_LINKER_FLAGS=/Brepro")
+    const reproducibility = concreteRecipe ??
+      reproducibilityRecipe(buildDirectory, workspaceDirectory)
+    args.push(`-DCMAKE_C_FLAGS=${cmakeFlagFragment(reproducibility.compilerFlags)}`)
+    args.push(`-DCMAKE_EXE_LINKER_FLAGS=${cmakeFlagFragment(reproducibility.linkerFlags)}`)
   }
   return args
 }
@@ -399,14 +487,39 @@ function expectProgram(executablePath, smokeCase) {
   return smokeRecord(smokeCase, result)
 }
 
+function isNormalizedReproducibilityFlag(value, field) {
+  if (field === "compilerFlags") {
+    return REPRODUCIBILITY_SPEC.compilerOptions.includes(value) ||
+      REPRODUCIBILITY_SPEC.mappings.some((mapping) =>
+        value === pathMapFlag(mapping.token, mapping.replacement))
+  }
+  if (field === "linkerFlags") return REPRODUCIBILITY_SPEC.linkerOptions.includes(value)
+  return false
+}
+
 function hasAbsolutePathString(value) {
   return isAbsolute(value) || /^[A-Za-z]:[\\/]/u.test(value) || value.startsWith("\\\\")
 }
 
-function receiptContainsAbsolutePath(value) {
-  if (typeof value === "string") return hasAbsolutePathString(value)
-  if (Array.isArray(value)) return value.some((item) => receiptContainsAbsolutePath(item))
-  if (isObject(value)) return Object.values(value).some((item) => receiptContainsAbsolutePath(item))
+function receiptContainsAbsolutePath(value, context = "generic") {
+  if (typeof value === "string") {
+    const field = context.startsWith("reproducibility-") ? context.slice(16) : null
+    return field === null
+      ? hasAbsolutePathString(value)
+      : !isNormalizedReproducibilityFlag(value, field) && hasAbsolutePathString(value)
+  }
+  if (Array.isArray(value))
+    return value.some((item) => receiptContainsAbsolutePath(item, context))
+  if (isObject(value)) {
+    return Object.entries(value).some(([key, item]) => {
+      const childContext = context === "reproducibility"
+        ? (key === "compilerFlags" || key === "linkerFlags"
+          ? `reproducibility-${key}`
+          : "generic")
+        : key === "reproducibility" ? "reproducibility" : "generic"
+      return receiptContainsAbsolutePath(item, childContext)
+    })
+  }
   return false
 }
 
@@ -496,9 +609,9 @@ export function validateReceipt(receipt) {
       "benchmark receipt must record a clean source tree")
     add(repro.required === true &&
       JSON.stringify(repro.compilerFlags) === JSON.stringify([
-        "/Brepro", "/pathmap:<workspace>=W",
-      ]) && JSON.stringify(repro.linkerFlags) === JSON.stringify(["/Brepro"]) &&
-      repro.pathMapping === "workspace-source-to-W" &&
+        "/options:strict", "/Brepro", "/pathmap:<build>=B", "/pathmap:<workspace>=W",
+      ]) && JSON.stringify(repro.linkerFlags) === JSON.stringify(["/Brepro", "/WX"]) &&
+      repro.pathMapping === "build-and-workspace-to-stable-labels" &&
       hasCanonicalKeys(repro.probes, ["compiler", "linker"]) &&
       repro.probes.compiler === "passed" && repro.probes.linker === "passed",
     "benchmark receipt does not prove its reproducibility recipe")
@@ -681,12 +794,12 @@ export async function stageOutput({ builtBinary, stageParent, receipt }) {
   }
 }
 
-async function uniqueBackupPath(parent) {
+async function uniqueBackupPath(parent, lstatOperation = lstat) {
   const prefix = join(parent, `.w-windows-backup-${process.pid}-${Date.now().toString(36)}`)
   let candidate = prefix
   for (let index = 0; index < 100; index += 1) {
     try {
-      await lstat(candidate)
+      await lstatOperation(candidate)
       candidate = `${prefix}-${index + 1}`
     } catch (error) {
       if (error?.code === "ENOENT") return candidate
@@ -696,21 +809,52 @@ async function uniqueBackupPath(parent) {
   fail("cannot reserve a recoverable output backup path")
 }
 
-export async function atomicInstallOutput(stageDirectory, targetDirectory) {
+function installOperation(overrides, name, fallback) {
+  const operation = overrides?.[name]
+  if (operation === undefined) return fallback
+  if (typeof operation !== "function") fail(`atomic install fs.${name} must be a function`)
+  return operation
+}
+
+function defaultInstallWarning(message) {
+  console.error(`W Windows build warning: ${message}`)
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error)
+}
+
+export async function atomicInstallOutput(stageDirectory, targetDirectory, options = {}) {
+  const fsOverrides = options?.fs ?? {}
+  const fileSystem = {
+    lstat: installOperation(fsOverrides, "lstat", lstat),
+    mkdir: installOperation(fsOverrides, "mkdir", mkdir),
+    rename: installOperation(fsOverrides, "rename", rename),
+    rm: installOperation(fsOverrides, "rm", rm),
+  }
+  const warning = options?.onWarning ?? defaultInstallWarning
+  if (typeof warning !== "function") fail("atomic install onWarning must be a function")
+
   await validateOutputDirectory(stageDirectory)
   const parent = dirname(targetDirectory)
-  await mkdir(parent, { recursive: true })
+  await fileSystem.mkdir(parent, { recursive: true })
   const targetExists = await physicalDirectory(targetDirectory, "existing output")
-  const backupDirectory = targetExists ? await uniqueBackupPath(parent) : null
-  if (targetExists) await rename(targetDirectory, backupDirectory)
+  const backupDirectory = targetExists
+    ? await uniqueBackupPath(parent, fileSystem.lstat)
+    : null
+  if (targetExists) await fileSystem.rename(targetDirectory, backupDirectory)
   try {
-    await rename(stageDirectory, targetDirectory)
+    await fileSystem.rename(stageDirectory, targetDirectory)
   } catch (error) {
     if (backupDirectory !== null) {
       try {
-        await rename(backupDirectory, targetDirectory)
+        await fileSystem.rename(backupDirectory, targetDirectory)
       } catch (restoreError) {
-        throw new Error(`output swap failed and restore failed: ${error.message}; ${restoreError.message}`)
+        throw new Error(
+          `output swap failed and restore failed: ${errorMessage(error)}; ${errorMessage(restoreError)}; ` +
+          `recoverable backup retained at ${backupDirectory}; ` +
+          `caller-owned stage path: ${stageDirectory}`,
+        )
       }
     }
     throw error
@@ -718,17 +862,15 @@ export async function atomicInstallOutput(stageDirectory, targetDirectory) {
 
   if (backupDirectory !== null) {
     try {
-      await rm(backupDirectory, { recursive: true, force: false })
+      await fileSystem.rm(backupDirectory, { recursive: true, force: false })
     } catch (error) {
-      const failedDirectory = await uniqueBackupPath(parent)
       try {
-        await rename(targetDirectory, failedDirectory)
-        await rename(backupDirectory, targetDirectory)
-        await rm(failedDirectory, { recursive: true, force: false })
-      } catch (restoreError) {
-        throw new Error(`output backup cleanup failed and restore failed: ${error.message}; ${restoreError.message}`)
+        await warning(
+          `output backup cleanup failed: ${errorMessage(error)}; retained backup: ${backupDirectory}`,
+        )
+      } catch {
+        // A warning failure must not change the committed installation.
       }
-      throw error
     }
   }
   return targetDirectory
@@ -782,18 +924,23 @@ async function main() {
   const cmake = requireCommand("cmake")
   const ninja = requireCommand("ninja")
   const buildDirectory = await mkdtemp(join(tmpdir(), "w-build-windows-"))
+  const concreteReproducibility = recipe.reproducible
+    ? reproducibilityRecipe(buildDirectory)
+    : undefined
   const outputParent = dirname(outputDirectory)
   let stageDirectory
   try {
     const reproducibility = recipe.reproducible
-      ? await probeMsvcReproducibility(visualStudio.devCommand, buildDirectory)
+      ? await probeMsvcReproducibility(visualStudio.devCommand, buildDirectory, {
+        recipe: concreteReproducibility,
+      })
       : emptyReproducibilityRecipe()
     const cmakeArguments = [
       "-S", seedDirectory,
       "-B", buildDirectory,
       "-G", "Ninja",
       `-DCMAKE_MAKE_PROGRAM=${ninja}`,
-      ...cmakeProfileArguments(recipe, buildDirectory),
+      ...cmakeProfileArguments(recipe, buildDirectory, root, concreteReproducibility),
       "-DCMAKE_C_COMPILER=cl",
       `-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${buildDirectory}`,
       `-DW_SEED_C_STANDARD=${options.cStandard}`,

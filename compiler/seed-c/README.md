@@ -1119,10 +1119,13 @@ bun run build:w-windows --profile size-experimental --c11-recovery # MinSizeRel
 SDK explicitly, and does not copy the heavy toolchain. The default `release`
 profile maps to CMake `Release`. The `development` profile maps to `Debug`.
 The `benchmark` profile maps to a recipe-constrained `Release`, requires a
-clean Git worktree, records HEAD, and probes `/Brepro` and `/pathmap` before the
-build. This bounded recipe evidence does not claim a reproducible binary or a
-double-build result. The `size-experimental` profile maps to `MinSizeRel` for
-size comparison only.
+clean Git worktree, records HEAD, and probes `/options:strict`, `/Brepro`,
+`/pathmap:<build>=B`, and `/pathmap:<workspace>=W` before the build. The build
+uses the same space-separated compiler fragment, with the specific build map
+before the broad workspace map, and uses `/Brepro /WX` for the linker. The
+receipt records normalized options and mappings. This bounded recipe evidence
+does not claim a reproducible binary or a double-build result. The
+`size-experimental` profile maps to `MinSizeRel` for size comparison only.
 These are toolchain profiles. They do not add a profile option to `w run`,
 `w check`, or another W command. The
 `bun run check:w-run-windows` gate proves Hello, Restaurant/if, interpolation,
