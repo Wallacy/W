@@ -1223,10 +1223,11 @@ typedef struct {
 } hir0_statement_walk;
 
 static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
-                                      uint32_t first_statement, bool branch);
+                                      uint32_t first_statement, bool branch,
+                                      size_t depth);
 
 static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
-                                bool branch) {
+                                bool branch, size_t depth) {
   if (walk == NULL || walk->input == NULL || walk->output == NULL ||
       walk->result == NULL || index == W_SEED_FRONTEND_NONE ||
       (size_t)index >= walk->result->written.statements)
@@ -1240,7 +1241,8 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
                         statement->span))
     return false;
   if (branch && statement->kind != W_SEED_FRONTEND_STMT_LET &&
-      statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION)
+      statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION &&
+      statement->kind != W_SEED_FRONTEND_STMT_IF)
     return false;
   if (statement->kind == W_SEED_FRONTEND_STMT_LET) {
     if (!text_valid(statement->binding_name) ||
@@ -1298,7 +1300,8 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         walk->segments, walk->value_bytes);
   }
   if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
-    if (branch || statement->condition_expression == W_SEED_FRONTEND_NONE ||
+    if (depth >= W_SEED_HIR0_MAX_NESTING ||
+        statement->condition_expression == W_SEED_FRONTEND_NONE ||
         statement->condition_expression != statement->expression_index ||
         (size_t)statement->condition_expression >=
             walk->result->written.expressions)
@@ -1316,8 +1319,10 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
             walk->const_byte_cursor, walk->values, walk->segments,
             walk->value_bytes) ||
         !add_size(*walk->if_total, 1u, walk->if_total) ||
-        !hir0_walk_statement_chain(walk, statement->first_child, true) ||
-        !hir0_walk_statement_chain(walk, statement->else_child, true))
+        !hir0_walk_statement_chain(walk, statement->first_child, true,
+                                   depth + 1u) ||
+        !hir0_walk_statement_chain(walk, statement->else_child, true,
+                                   depth + 1u))
       return false;
     return true;
   }
@@ -1346,13 +1351,14 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
 }
 
 static bool hir0_walk_statement_chain(hir0_statement_walk *walk,
-                                      uint32_t first_statement, bool branch) {
+                                      uint32_t first_statement, bool branch,
+                                      size_t depth) {
   if (walk == NULL || first_statement == W_SEED_FRONTEND_NONE) return true;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE &&
          guard < walk->result->written.statements) {
-    if (!hir0_walk_statement(walk, cursor, branch)) return false;
+    if (!hir0_walk_statement(walk, cursor, branch, depth)) return false;
     cursor = walk->output->statements[cursor].next_sibling;
     guard += 1u;
   }
@@ -1411,7 +1417,8 @@ static bool frontend_statement_and_expression_cfg_ok(
         .if_total = &function_if_count,
         .has_value_return = false,
     };
-    if (!hir0_walk_statement_chain(&walk, function->first_statement, false) ||
+    if (!hir0_walk_statement_chain(&walk, function->first_statement, false,
+                                   0u) ||
         relation_if_count != function_if_count ||
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
         (return_kind != W_SEED_FRONTEND_TYPE_UNIT &&
@@ -1517,7 +1524,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !frontend_function_ranges_ok(input) || !frontend_entry_records_ok(input) ||
       !frontend_symbol_records_ok(input))
     return HIR0_PREPARE_INVALID;
-  /* HIR0 accepts a bounded linear subset and sequential Unit-diamond CFG. */
+  /* HIR0 accepts a bounded linear subset and nested Unit structured CFG. */
   /* HIR0 is intentionally closed. Every frontend family not represented by
    * an HIR0 record is an explicit barrier, including append-only families. */
   if (frontend_result->written.imports != 0u ||
@@ -2339,6 +2346,273 @@ static void zero_bytes(void *pointer, size_t bytes) {
   if (bytes != 0u) (void)memset(pointer, 0, bytes);
 }
 
+typedef struct {
+  const w_seed_hir0_counts *counts;
+  w_seed_hir0_output *output;
+  const w_seed_frontend_output *frontend;
+  const w_seed_frontend_result *frontend_result;
+  const w_seed_frontend_input *frontend_input;
+  size_t function;
+  size_t *text_offset;
+  size_t *value_offset;
+  size_t *instruction_offset;
+  size_t *binding_offset;
+  size_t *call_offset;
+  size_t *argument_offset;
+  size_t *value_index;
+  size_t *interpolation_segment_index;
+} hir0_emit_context;
+
+/* collect() has already proved this graph. Keep the walk bounded by the
+ * statement range and by the same HIR nesting limit used by emission. */
+static size_t hir0_region_if_count(const hir0_emit_context *context,
+                                   uint32_t first_statement, size_t depth) {
+  if (context == NULL || first_statement == W_SEED_FRONTEND_NONE) return 0u;
+  size_t total = 0u;
+  size_t guard = 0u;
+  uint32_t cursor = first_statement;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      total += 1u;
+      total += hir0_region_if_count(context, statement->first_child,
+                                    depth + 1u);
+      total += hir0_region_if_count(context, statement->else_child,
+                                    depth + 1u);
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  return total;
+}
+
+static size_t hir0_region_block_count(const hir0_emit_context *context,
+                                      uint32_t first_statement, size_t depth) {
+  const size_t if_count = hir0_region_if_count(context, first_statement, depth);
+  return if_count > (SIZE_MAX - 1u) / 3u ? 0u : 1u + if_count * 3u;
+}
+
+static void hir0_emit_binding_or_call(hir0_emit_context *context,
+                                      uint32_t statement_index,
+                                      size_t block_index) {
+  const w_seed_frontend_statement *statement =
+      &context->frontend->statements[statement_index];
+  w_seed_hir0_block *block = &context->output->blocks[block_index];
+  if (statement->kind == W_SEED_FRONTEND_STMT_LET) {
+    const w_seed_frontend_expression *initializer =
+        &context->frontend->expressions[statement->expression_index];
+    uint32_t call_result = W_SEED_HIR0_NONE;
+    if (initializer->kind == W_SEED_FRONTEND_EXPR_CALL) {
+      const uint32_t nested_call = emit_call_instruction_unchecked(
+          context->frontend_input, context->frontend,
+          context->frontend_result, context->counts, context->function,
+          block_index, statement_index, statement->expression_index,
+          context->output, context->text_offset, context->instruction_offset,
+          context->call_offset, context->argument_offset, context->value_index,
+          context->interpolation_segment_index, context->value_offset);
+      call_result = (uint32_t)*context->value_index;
+      context->output->values[*context->value_index] = (w_seed_hir0_value){
+          .kind = W_SEED_HIR0_VALUE_CALL_RESULT,
+          .owner_kind = W_SEED_HIR0_VALUE_OWNER_BINDING,
+          .owner_index = (uint32_t)*context->binding_offset,
+          .owner_ordinal = 0u,
+          .type_index = context->output->calls[nested_call].result_type,
+          .binding_index = W_SEED_HIR0_NONE,
+          .parameter_index = W_SEED_HIR0_NONE,
+          .call_index = nested_call,
+          .left_value = W_SEED_HIR0_NONE,
+          .right_value = W_SEED_HIR0_NONE,
+          .first_interpolation_segment = W_SEED_HIR0_NONE,
+          .interpolation_segment_count = 0u,
+          .binary_operator = W_SEED_HIR0_BINARY_ADD,
+          .integer_value = 0,
+          .bool_value = false,
+          .byte_offset = 0u,
+          .byte_count = 0u,
+          .source_span = initializer->span};
+      *context->value_index += 1u;
+    }
+    w_seed_hir0_instruction *instruction =
+        &context->output->instructions[*context->instruction_offset];
+    instruction->owner_block = (uint32_t)block_index;
+    instruction->ordinal = (uint32_t)(
+        *context->instruction_offset - block->first_instruction);
+    instruction->result_type = 0u;
+    instruction->kind = W_SEED_HIR0_INSTRUCTION_BINDING;
+    instruction->call_index = W_SEED_HIR0_NONE;
+    instruction->binding_index = (uint32_t)*context->binding_offset;
+    instruction->source_span = statement->span;
+    w_seed_hir0_binding *binding =
+        &context->output->bindings[*context->binding_offset];
+    binding->owner_instruction = (uint32_t)*context->instruction_offset;
+    binding->owner_block = (uint32_t)block_index;
+    binding->ordinal = instruction->ordinal;
+    binding->type_index = hir_type_from_frontend(
+        context->frontend, context->frontend_result, statement->effective_type);
+    append_text_unchecked(statement->binding_name, context->output->text_bytes,
+                          context->text_offset, &binding->name);
+    binding->is_mutable = false;
+    binding->initializer_value =
+        call_result != W_SEED_HIR0_NONE
+            ? call_result
+            : emit_value_tree_unchecked(
+                  context->frontend, context->frontend_result,
+                  context->function, statement_index,
+                  statement->expression_index,
+                  W_SEED_HIR0_VALUE_OWNER_BINDING,
+                  (uint32_t)*context->binding_offset, 0u, context->output,
+                  context->value_index, context->interpolation_segment_index,
+                  context->value_offset);
+    binding->source_span = statement->span;
+    *context->binding_offset += 1u;
+    *context->instruction_offset += 1u;
+    return;
+  }
+  (void)emit_call_instruction_unchecked(
+      context->frontend_input, context->frontend, context->frontend_result,
+      context->counts, context->function, block_index, statement_index,
+      statement->expression_index, context->output, context->text_offset,
+      context->instruction_offset, context->call_offset,
+      context->argument_offset, context->value_index,
+      context->interpolation_segment_index, context->value_offset);
+}
+
+static void hir0_emit_chain(hir0_emit_context *context,
+                            uint32_t first_statement, size_t current_block,
+                            uint32_t terminal_target, bool root,
+                            size_t depth) {
+  w_seed_hir0_block *block = &context->output->blocks[current_block];
+  block->first_instruction = (uint32_t)*context->instruction_offset;
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_LET ||
+        statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
+      hir0_emit_binding_or_call(context, cursor, current_block);
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      const size_t then_block = current_block + 1u;
+      const size_t then_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      const size_t else_block = then_block + then_count;
+      const size_t else_count = hir0_region_block_count(
+          context, statement->else_child, depth + 1u);
+      const size_t join_block = else_block + else_count;
+      block->instruction_count = (uint32_t)(
+          *context->instruction_offset - block->first_instruction);
+      context->output->terminators[current_block] = (w_seed_hir0_terminator){
+          .owner_block = (uint32_t)current_block,
+          .kind = W_SEED_HIR0_TERMINATOR_BRANCH,
+          .ordinal = block->instruction_count,
+          .value_index = W_SEED_HIR0_NONE,
+          .result_type = 3u,
+          .target_block = (uint32_t)then_block,
+          .else_block = (uint32_t)else_block,
+          .source_span = statement->span};
+      hir0_emit_chain(context, statement->first_child, then_block,
+                      (uint32_t)join_block, false, depth + 1u);
+      hir0_emit_chain(context, statement->else_child, else_block,
+                      (uint32_t)join_block, false, depth + 1u);
+      current_block = join_block;
+      block = &context->output->blocks[current_block];
+      block->first_instruction = (uint32_t)*context->instruction_offset;
+      cursor = statement->next_sibling;
+      guard += 1u;
+      continue;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
+      block->instruction_count = (uint32_t)(
+          *context->instruction_offset - block->first_instruction);
+      context->output->terminators[current_block] = (w_seed_hir0_terminator){
+          .owner_block = (uint32_t)current_block,
+          .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
+          .ordinal = block->instruction_count,
+          .value_index = W_SEED_HIR0_NONE,
+          .result_type = context->output->functions[context->function]
+                             .return_type,
+          .target_block = W_SEED_HIR0_NONE,
+          .else_block = W_SEED_HIR0_NONE,
+          .source_span = statement->span};
+      return;
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+  block->instruction_count = (uint32_t)(
+      *context->instruction_offset - block->first_instruction);
+  if (root) {
+    context->output->terminators[current_block] = (w_seed_hir0_terminator){
+        .owner_block = (uint32_t)current_block,
+        .kind = W_SEED_HIR0_TERMINATOR_RETURN_UNIT,
+        .ordinal = block->instruction_count,
+        .value_index = W_SEED_HIR0_NONE,
+        .result_type = 0u,
+        .target_block = W_SEED_HIR0_NONE,
+        .else_block = W_SEED_HIR0_NONE,
+        .source_span = context->frontend->functions[context->function]
+                           .body_span};
+  } else {
+    context->output->terminators[current_block] = (w_seed_hir0_terminator){
+        .owner_block = (uint32_t)current_block,
+        .kind = W_SEED_HIR0_TERMINATOR_JUMP,
+        .ordinal = block->instruction_count,
+        .value_index = W_SEED_HIR0_NONE,
+        .result_type = 0u,
+        .target_block = terminal_target,
+        .else_block = W_SEED_HIR0_NONE,
+        .source_span = first_statement == W_SEED_FRONTEND_NONE
+                           ? block->source_span
+                           : context->frontend->statements[first_statement]
+                                 .span};
+  }
+}
+
+static void hir0_emit_terminator_values(hir0_emit_context *context,
+                                        uint32_t first_statement,
+                                        size_t current_block, size_t depth) {
+  uint32_t cursor = first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < context->frontend_result->written.statements) {
+    const w_seed_frontend_statement *statement =
+        &context->frontend->statements[cursor];
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+      context->output->terminators[current_block].value_index =
+          emit_value_tree_unchecked(
+              context->frontend, context->frontend_result, context->function,
+              cursor, statement->condition_expression,
+              W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)current_block, 0u,
+              context->output, context->value_index,
+              context->interpolation_segment_index, context->value_offset);
+      const size_t then_block = current_block + 1u;
+      const size_t then_count = hir0_region_block_count(
+          context, statement->first_child, depth + 1u);
+      const size_t else_block = then_block + then_count;
+      const size_t else_count = hir0_region_block_count(
+          context, statement->else_child, depth + 1u);
+      const size_t join_block = else_block + else_count;
+      hir0_emit_terminator_values(context, statement->first_child, then_block,
+                                  depth + 1u);
+      hir0_emit_terminator_values(context, statement->else_child, else_block,
+                                  depth + 1u);
+      current_block = join_block;
+    } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
+      context->output->terminators[current_block].value_index =
+          emit_value_tree_unchecked(
+              context->frontend, context->frontend_result, context->function,
+              cursor, statement->expression_index,
+              W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)current_block, 0u,
+              context->output, context->value_index,
+              context->interpolation_segment_index, context->value_offset);
+    }
+    cursor = statement->next_sibling;
+    guard += 1u;
+  }
+}
+
 static void emit_records(const w_seed_hir0_input *input,
                          const w_seed_hir0_counts *counts,
                          w_seed_hir0_output *output) {
@@ -2545,422 +2819,76 @@ static void emit_records(const w_seed_hir0_input *input,
   size_t argument_offset = 0u;
   size_t value_index = 0u;
   size_t interpolation_segment_index = 0u;
-  /* Blocks are laid out per function as entry, then, else, join for each
-   * top-level IF.  The frontend validator has already proved that every
-   * branch is a nonnested linear chain, so this second traversal is a
-   * deterministic, failure-free lowering pass. */
   size_t block_cursor = 0u;
   for (size_t function = 0u; function < counts->functions; function += 1u) {
     const w_seed_frontend_function *source = &frontend->functions[function];
-    size_t if_count = 0u;
-    uint32_t statement_cursor = source->first_statement;
-    size_t statement_guard = 0u;
-    while (statement_cursor != W_SEED_FRONTEND_NONE &&
-           statement_guard < source->statement_count) {
-      if (frontend->statements[statement_cursor].kind ==
-          W_SEED_FRONTEND_STMT_IF)
-        if_count += 1u;
-      statement_cursor = frontend->statements[statement_cursor].next_sibling;
-      statement_guard += 1u;
-    }
-    const size_t function_block_count = 1u + if_count * 3u;
+    hir0_emit_context layout = {
+        .frontend = frontend,
+        .frontend_result = frontend_result};
+    const size_t function_block_count = hir0_region_block_count(
+        &layout, source->first_statement, 0u);
     w_seed_hir0_function *target_function = &output->functions[function];
     target_function->first_block = (uint32_t)block_cursor;
     target_function->block_count = (uint32_t)function_block_count;
     block_cursor += function_block_count;
   }
-  block_cursor = 0u;
   for (size_t function = 0u; function < counts->functions; function += 1u) {
-    const w_seed_frontend_function *source = &frontend->functions[function];
-    const size_t function_block_start = block_cursor;
-    size_t if_count = 0u;
-    uint32_t statement_cursor = source->first_statement;
-    size_t statement_guard = 0u;
-    while (statement_cursor != W_SEED_FRONTEND_NONE &&
-           statement_guard < source->statement_count) {
-      if (frontend->statements[statement_cursor].kind ==
-          W_SEED_FRONTEND_STMT_IF)
-        if_count += 1u;
-      statement_cursor = frontend->statements[statement_cursor].next_sibling;
-      statement_guard += 1u;
-    }
-    const size_t function_block_count = 1u + if_count * 3u;
-    size_t current_block = function_block_start;
-    const w_seed_frontend_type_kind return_kind =
-        frontend->types[source->return_type].kind;
-    for (size_t offset = 0u; offset < function_block_count; offset += 1u) {
-      w_seed_hir0_block *block = &output->blocks[function_block_start + offset];
+    const w_seed_hir0_function *target_function = &output->functions[function];
+    for (size_t offset = 0u; offset < target_function->block_count;
+         offset += 1u) {
+      w_seed_hir0_block *block =
+          &output->blocks[(size_t)target_function->first_block + offset];
       block->owner_function = (uint32_t)function;
       block->ordinal = (uint32_t)offset;
-      /* Assign the range when lowering enters the block.  Diamond blocks are
-       * initialized together, but their instruction offsets advance as the
-       * then/else/join chains are emitted. */
       block->first_instruction = W_SEED_HIR0_NONE;
       block->instruction_count = 0u;
-      block->terminator_index = (uint32_t)(function_block_start + offset);
-      block->source_span = source->body_span;
+      block->terminator_index =
+          (uint32_t)((size_t)target_function->first_block + offset);
+      block->source_span = target_function->body_span;
       block->next_block = W_SEED_HIR0_NONE;
     }
-    /* Emit each direct sibling chain into the current block.  The helper is
-     * intentionally local to this pass through explicit cursor state. */
-    uint32_t cursor = source->first_statement;
-    size_t guard = 0u;
-    output->blocks[current_block].first_instruction =
-        (uint32_t)instruction_offset;
-    while (cursor != W_SEED_FRONTEND_NONE && guard < source->statement_count) {
-      const w_seed_frontend_statement *statement = &frontend->statements[cursor];
-      w_seed_hir0_block *block = &output->blocks[current_block];
-      if (statement->kind == W_SEED_FRONTEND_STMT_LET) {
-        const w_seed_frontend_expression *initializer =
-            &frontend->expressions[statement->expression_index];
-        uint32_t call_result = W_SEED_HIR0_NONE;
-        if (initializer->kind == W_SEED_FRONTEND_EXPR_CALL) {
-          const uint32_t nested_call = emit_call_instruction_unchecked(
-              frontend_input, frontend, frontend_result, counts, function,
-              current_block, cursor, statement->expression_index, output,
-              &text_offset, &instruction_offset, &call_offset,
-              &argument_offset, &value_index, &interpolation_segment_index,
-              &value_offset);
-          call_result = (uint32_t)value_index;
-          output->values[value_index] = (w_seed_hir0_value){
-              .kind = W_SEED_HIR0_VALUE_CALL_RESULT,
-              .owner_kind = W_SEED_HIR0_VALUE_OWNER_BINDING,
-              .owner_index = (uint32_t)binding_offset,
-              .owner_ordinal = 0u,
-              .type_index = output->calls[nested_call].result_type,
-              .binding_index = W_SEED_HIR0_NONE,
-              .parameter_index = W_SEED_HIR0_NONE,
-              .call_index = nested_call,
-              .left_value = W_SEED_HIR0_NONE,
-              .right_value = W_SEED_HIR0_NONE,
-              .first_interpolation_segment = W_SEED_HIR0_NONE,
-              .interpolation_segment_count = 0u,
-              .binary_operator = W_SEED_HIR0_BINARY_ADD,
-              .integer_value = 0,
-              .bool_value = false,
-              .byte_offset = 0u,
-              .byte_count = 0u,
-              .source_span = initializer->span};
-          value_index += 1u;
-        }
-        w_seed_hir0_instruction *instruction =
-            &output->instructions[instruction_offset];
-        instruction->owner_block = (uint32_t)current_block;
-        instruction->ordinal = (uint32_t)(instruction_offset -
-                                           block->first_instruction);
-        instruction->result_type = 0u;
-        instruction->kind = W_SEED_HIR0_INSTRUCTION_BINDING;
-        instruction->call_index = W_SEED_HIR0_NONE;
-        instruction->binding_index = (uint32_t)binding_offset;
-        instruction->source_span = statement->span;
-        w_seed_hir0_binding *binding = &output->bindings[binding_offset];
-        binding->owner_instruction = (uint32_t)instruction_offset;
-        binding->owner_block = (uint32_t)current_block;
-        binding->ordinal = instruction->ordinal;
-        binding->type_index = hir_type_from_frontend(
-            frontend, frontend_result, statement->effective_type);
-        append_text_unchecked(statement->binding_name, output->text_bytes,
-                              &text_offset, &binding->name);
-        binding->is_mutable = false;
-        binding->initializer_value =
-            call_result != W_SEED_HIR0_NONE
-                ? call_result
-                : emit_value_tree_unchecked(
-                      frontend, frontend_result, function, cursor,
-                      statement->expression_index,
-                      W_SEED_HIR0_VALUE_OWNER_BINDING,
-                      (uint32_t)binding_offset, 0u, output, &value_index,
-                      &interpolation_segment_index, &value_offset);
-        binding->source_span = statement->span;
-        binding_offset += 1u;
-        instruction_offset += 1u;
-      } else if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
-        (void)emit_call_instruction_unchecked(
-            frontend_input, frontend, frontend_result, counts, function,
-            current_block, cursor, statement->expression_index, output,
-            &text_offset, &instruction_offset, &call_offset, &argument_offset,
-            &value_index, &interpolation_segment_index, &value_offset);
-      } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
-        const size_t then_block = current_block + 1u;
-        const size_t else_block = current_block + 2u;
-        const size_t join_block = current_block + 3u;
-        block->instruction_count = (uint32_t)(instruction_offset -
-                                               block->first_instruction);
-        output->terminators[current_block] = (w_seed_hir0_terminator){
-            .owner_block = (uint32_t)current_block,
-            .kind = W_SEED_HIR0_TERMINATOR_BRANCH,
-            .ordinal = block->instruction_count,
-            .value_index = W_SEED_HIR0_NONE,
-            .result_type = 3u,
-            .target_block = (uint32_t)then_block,
-            .else_block = (uint32_t)else_block,
-            .source_span = statement->span};
-        current_block = then_block;
-        w_seed_hir0_block *then_record = &output->blocks[current_block];
-        then_record->first_instruction = (uint32_t)instruction_offset;
-        uint32_t branch_cursor = statement->first_child;
-        size_t branch_guard = 0u;
-        while (branch_cursor != W_SEED_FRONTEND_NONE &&
-               branch_guard < source->statement_count) {
-          const w_seed_frontend_statement *branch_statement =
-              &frontend->statements[branch_cursor];
-          if (branch_statement->kind == W_SEED_FRONTEND_STMT_LET) {
-            const w_seed_frontend_expression *initializer =
-                &frontend->expressions[branch_statement->expression_index];
-            uint32_t branch_call_result = W_SEED_HIR0_NONE;
-            if (initializer->kind == W_SEED_FRONTEND_EXPR_CALL) {
-              const uint32_t nested_call = emit_call_instruction_unchecked(
-                  frontend_input, frontend, frontend_result, counts, function,
-                  current_block, branch_cursor,
-                  branch_statement->expression_index, output, &text_offset,
-                  &instruction_offset, &call_offset, &argument_offset,
-                  &value_index, &interpolation_segment_index, &value_offset);
-              branch_call_result = (uint32_t)value_index;
-              output->values[value_index] = (w_seed_hir0_value){
-                  .kind = W_SEED_HIR0_VALUE_CALL_RESULT,
-                  .owner_kind = W_SEED_HIR0_VALUE_OWNER_BINDING,
-                  .owner_index = (uint32_t)binding_offset,
-                  .owner_ordinal = 0u,
-                  .type_index = output->calls[nested_call].result_type,
-                  .binding_index = W_SEED_HIR0_NONE,
-                  .parameter_index = W_SEED_HIR0_NONE,
-                  .call_index = nested_call,
-                  .left_value = W_SEED_HIR0_NONE,
-                  .right_value = W_SEED_HIR0_NONE,
-                  .first_interpolation_segment = W_SEED_HIR0_NONE,
-                  .interpolation_segment_count = 0u,
-                  .binary_operator = W_SEED_HIR0_BINARY_ADD,
-                  .integer_value = 0,
-                  .bool_value = false,
-                  .byte_offset = 0u,
-                  .byte_count = 0u,
-                  .source_span = initializer->span};
-              value_index += 1u;
-            }
-            w_seed_hir0_instruction *branch_instruction =
-                &output->instructions[instruction_offset];
-            branch_instruction->owner_block = (uint32_t)current_block;
-            branch_instruction->ordinal = (uint32_t)(
-                instruction_offset - then_record->first_instruction);
-            branch_instruction->result_type = 0u;
-            branch_instruction->kind = W_SEED_HIR0_INSTRUCTION_BINDING;
-            branch_instruction->call_index = W_SEED_HIR0_NONE;
-            branch_instruction->binding_index = (uint32_t)binding_offset;
-            branch_instruction->source_span = branch_statement->span;
-            w_seed_hir0_binding *branch_binding =
-                &output->bindings[binding_offset];
-            branch_binding->owner_instruction = (uint32_t)instruction_offset;
-            branch_binding->owner_block = (uint32_t)current_block;
-            branch_binding->ordinal = branch_instruction->ordinal;
-            branch_binding->type_index = hir_type_from_frontend(
-                frontend, frontend_result, branch_statement->effective_type);
-            append_text_unchecked(branch_statement->binding_name,
-                                  output->text_bytes, &text_offset,
-                                  &branch_binding->name);
-            branch_binding->is_mutable = false;
-            branch_binding->initializer_value =
-                branch_call_result != W_SEED_HIR0_NONE
-                    ? branch_call_result
-                    : emit_value_tree_unchecked(
-                          frontend, frontend_result, function, branch_cursor,
-                          branch_statement->expression_index,
-                          W_SEED_HIR0_VALUE_OWNER_BINDING,
-                          (uint32_t)binding_offset, 0u, output, &value_index,
-                          &interpolation_segment_index, &value_offset);
-            branch_binding->source_span = branch_statement->span;
-            binding_offset += 1u;
-            instruction_offset += 1u;
-          } else {
-            (void)emit_call_instruction_unchecked(
-                frontend_input, frontend, frontend_result, counts, function,
-                current_block, branch_cursor,
-                branch_statement->expression_index, output, &text_offset,
-                &instruction_offset, &call_offset, &argument_offset,
-                &value_index, &interpolation_segment_index, &value_offset);
-          }
-          branch_cursor = branch_statement->next_sibling;
-          branch_guard += 1u;
-        }
-        then_record->instruction_count = (uint32_t)(instruction_offset -
-                                                     then_record->first_instruction);
-        output->terminators[current_block] = (w_seed_hir0_terminator){
-            .owner_block = (uint32_t)current_block,
-            .kind = W_SEED_HIR0_TERMINATOR_JUMP,
-            .ordinal = then_record->instruction_count,
-            .value_index = W_SEED_HIR0_NONE,
-            .result_type = 0u,
-            .target_block = (uint32_t)join_block,
-            .else_block = W_SEED_HIR0_NONE,
-            .source_span = statement->span};
-        current_block = else_block;
-        w_seed_hir0_block *else_record = &output->blocks[current_block];
-        else_record->first_instruction = (uint32_t)instruction_offset;
-        branch_cursor = statement->else_child;
-        branch_guard = 0u;
-        while (branch_cursor != W_SEED_FRONTEND_NONE &&
-               branch_guard < source->statement_count) {
-          const w_seed_frontend_statement *branch_statement =
-              &frontend->statements[branch_cursor];
-          if (branch_statement->kind == W_SEED_FRONTEND_STMT_LET) {
-            const w_seed_frontend_expression *initializer =
-                &frontend->expressions[branch_statement->expression_index];
-            uint32_t branch_call_result = W_SEED_HIR0_NONE;
-            if (initializer->kind == W_SEED_FRONTEND_EXPR_CALL) {
-              const uint32_t nested_call = emit_call_instruction_unchecked(
-                  frontend_input, frontend, frontend_result, counts, function,
-                  current_block, branch_cursor,
-                  branch_statement->expression_index, output, &text_offset,
-                  &instruction_offset, &call_offset, &argument_offset,
-                  &value_index, &interpolation_segment_index, &value_offset);
-              branch_call_result = (uint32_t)value_index;
-              output->values[value_index] = (w_seed_hir0_value){
-                  .kind = W_SEED_HIR0_VALUE_CALL_RESULT,
-                  .owner_kind = W_SEED_HIR0_VALUE_OWNER_BINDING,
-                  .owner_index = (uint32_t)binding_offset,
-                  .owner_ordinal = 0u,
-                  .type_index = output->calls[nested_call].result_type,
-                  .binding_index = W_SEED_HIR0_NONE,
-                  .parameter_index = W_SEED_HIR0_NONE,
-                  .call_index = nested_call,
-                  .left_value = W_SEED_HIR0_NONE,
-                  .right_value = W_SEED_HIR0_NONE,
-                  .first_interpolation_segment = W_SEED_HIR0_NONE,
-                  .interpolation_segment_count = 0u,
-                  .binary_operator = W_SEED_HIR0_BINARY_ADD,
-                  .integer_value = 0,
-                  .bool_value = false,
-                  .byte_offset = 0u,
-                  .byte_count = 0u,
-                  .source_span = initializer->span};
-              value_index += 1u;
-            }
-            w_seed_hir0_instruction *branch_instruction =
-                &output->instructions[instruction_offset];
-            branch_instruction->owner_block = (uint32_t)current_block;
-            branch_instruction->ordinal = (uint32_t)(
-                instruction_offset - else_record->first_instruction);
-            branch_instruction->result_type = 0u;
-            branch_instruction->kind = W_SEED_HIR0_INSTRUCTION_BINDING;
-            branch_instruction->call_index = W_SEED_HIR0_NONE;
-            branch_instruction->binding_index = (uint32_t)binding_offset;
-            branch_instruction->source_span = branch_statement->span;
-            w_seed_hir0_binding *branch_binding =
-                &output->bindings[binding_offset];
-            branch_binding->owner_instruction = (uint32_t)instruction_offset;
-            branch_binding->owner_block = (uint32_t)current_block;
-            branch_binding->ordinal = branch_instruction->ordinal;
-            branch_binding->type_index = hir_type_from_frontend(
-                frontend, frontend_result, branch_statement->effective_type);
-            append_text_unchecked(branch_statement->binding_name,
-                                  output->text_bytes, &text_offset,
-                                  &branch_binding->name);
-            branch_binding->is_mutable = false;
-            branch_binding->initializer_value =
-                branch_call_result != W_SEED_HIR0_NONE
-                    ? branch_call_result
-                    : emit_value_tree_unchecked(
-                          frontend, frontend_result, function, branch_cursor,
-                          branch_statement->expression_index,
-                          W_SEED_HIR0_VALUE_OWNER_BINDING,
-                          (uint32_t)binding_offset, 0u, output, &value_index,
-                          &interpolation_segment_index, &value_offset);
-            branch_binding->source_span = branch_statement->span;
-            binding_offset += 1u;
-            instruction_offset += 1u;
-          } else {
-            (void)emit_call_instruction_unchecked(
-                frontend_input, frontend, frontend_result, counts, function,
-                current_block, branch_cursor,
-                branch_statement->expression_index, output, &text_offset,
-                &instruction_offset, &call_offset, &argument_offset,
-                &value_index, &interpolation_segment_index, &value_offset);
-          }
-          branch_cursor = branch_statement->next_sibling;
-          branch_guard += 1u;
-        }
-        else_record->instruction_count = (uint32_t)(instruction_offset -
-                                                     else_record->first_instruction);
-        output->terminators[current_block] = (w_seed_hir0_terminator){
-            .owner_block = (uint32_t)current_block,
-            .kind = W_SEED_HIR0_TERMINATOR_JUMP,
-            .ordinal = else_record->instruction_count,
-            .value_index = W_SEED_HIR0_NONE,
-            .result_type = 0u,
-            .target_block = (uint32_t)join_block,
-            .else_block = W_SEED_HIR0_NONE,
-            .source_span = statement->span};
-        current_block = join_block;
-        block = &output->blocks[current_block];
-        block->first_instruction = (uint32_t)instruction_offset;
-        cursor = statement->next_sibling;
-        guard += 1u;
-        continue;
-      } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
-        block->instruction_count = (uint32_t)(instruction_offset -
-                                               block->first_instruction);
-        output->terminators[current_block] = (w_seed_hir0_terminator){
-            .owner_block = (uint32_t)current_block,
-            .kind = W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
-            .ordinal = block->instruction_count,
-            .value_index = W_SEED_HIR0_NONE,
-            .result_type = output->functions[function].return_type,
-            .target_block = W_SEED_HIR0_NONE,
-            .else_block = W_SEED_HIR0_NONE,
-            .source_span = statement->span};
-        cursor = statement->next_sibling;
-        guard += 1u;
-        continue;
-      }
-      cursor = statement->next_sibling;
-      guard += 1u;
-    }
-    w_seed_hir0_block *last_block = &output->blocks[current_block];
-    last_block->instruction_count = (uint32_t)(instruction_offset -
-                                                last_block->first_instruction);
-    if (return_kind == W_SEED_FRONTEND_TYPE_UNIT) {
-      output->terminators[current_block] = (w_seed_hir0_terminator){
-          .owner_block = (uint32_t)current_block,
-          .kind = W_SEED_HIR0_TERMINATOR_RETURN_UNIT,
-          .ordinal = last_block->instruction_count,
-          .value_index = W_SEED_HIR0_NONE,
-          .result_type = 0u,
-          .target_block = W_SEED_HIR0_NONE,
-          .else_block = W_SEED_HIR0_NONE,
-          .source_span = source->body_span};
-    }
-    block_cursor = function_block_start + function_block_count;
   }
-  /* Term values are appended after all instruction-owned values.  This keeps
-   * the single dense value stream monotonic for the verifier while retaining
-   * explicit ownership by the branch/return terminator. */
   for (size_t function = 0u; function < counts->functions; function += 1u) {
-    const w_seed_frontend_function *source = &frontend->functions[function];
-    size_t current_block = output->functions[function].first_block;
-    uint32_t cursor = source->first_statement;
-    size_t guard = 0u;
-    while (cursor != W_SEED_FRONTEND_NONE && guard < source->statement_count) {
-      const w_seed_frontend_statement *statement = &frontend->statements[cursor];
-      if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
-        output->terminators[current_block].value_index =
-            emit_value_tree_unchecked(
-                frontend, frontend_result, function, cursor,
-                statement->condition_expression,
-                W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)current_block,
-                0u, output,
-                &value_index, &interpolation_segment_index, &value_offset);
-        current_block += 3u;
-      } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
-        output->terminators[current_block].value_index =
-            emit_value_tree_unchecked(
-                frontend, frontend_result, function, cursor,
-                statement->expression_index,
-                W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)current_block,
-                0u, output,
-                &value_index, &interpolation_segment_index, &value_offset);
-      }
-      cursor = statement->next_sibling;
-      guard += 1u;
-    }
+    const w_seed_hir0_function *target_function = &output->functions[function];
+    hir0_emit_context context = {
+        .counts = counts,
+        .output = output,
+        .frontend = frontend,
+        .frontend_result = frontend_result,
+        .frontend_input = frontend_input,
+        .function = function,
+        .text_offset = &text_offset,
+        .value_offset = &value_offset,
+        .instruction_offset = &instruction_offset,
+        .binding_offset = &binding_offset,
+        .call_offset = &call_offset,
+        .argument_offset = &argument_offset,
+        .value_index = &value_index,
+        .interpolation_segment_index = &interpolation_segment_index};
+    hir0_emit_chain(&context,
+                    frontend->functions[function].first_statement,
+                    target_function->first_block, W_SEED_HIR0_NONE, true, 0u);
+  }
+  for (size_t function = 0u; function < counts->functions; function += 1u) {
+    const w_seed_hir0_function *target_function = &output->functions[function];
+    hir0_emit_context context = {
+        .counts = counts,
+        .output = output,
+        .frontend = frontend,
+        .frontend_result = frontend_result,
+        .frontend_input = frontend_input,
+        .function = function,
+        .text_offset = &text_offset,
+        .value_offset = &value_offset,
+        .instruction_offset = &instruction_offset,
+        .binding_offset = &binding_offset,
+        .call_offset = &call_offset,
+        .argument_offset = &argument_offset,
+        .value_index = &value_index,
+        .interpolation_segment_index = &interpolation_segment_index};
+    hir0_emit_terminator_values(
+        &context, frontend->functions[function].first_statement,
+        target_function->first_block, 0u);
   }
   /* Entry identities and records are dense after functions. */
   const size_t entry_identity_base = counts->modules + counts->functions;
@@ -3671,6 +3599,108 @@ static bool verify_value_tree(
   return true;
 }
 
+/* The block range is a structured layout proof. A branch starts its true arm
+ * at the next block. The true arm ends before the false arm, and both terminal
+ * jumps name one forward join. Recursion is limited by the HIR nesting bound. */
+static bool verify_cfg_arm(const w_seed_hir0_program *program,
+                           uint32_t function_index, size_t start,
+                           size_t end, size_t depth, size_t *last_block,
+                           size_t *join_block);
+
+static bool verify_cfg_branch(const w_seed_hir0_program *program,
+                              uint32_t function_index, size_t branch_block,
+                              size_t end, size_t depth, size_t *join_block) {
+  if (program == NULL || join_block == NULL || depth >= W_SEED_HIR0_MAX_NESTING ||
+      branch_block >= end || branch_block + 1u >= end)
+    return false;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[branch_block];
+  if (branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      branch->target_block != branch_block + 1u ||
+      branch->else_block <= branch->target_block ||
+      branch->else_block >= end ||
+      program->blocks[branch->target_block].owner_function != function_index ||
+      program->blocks[branch->else_block].owner_function != function_index)
+    return false;
+  size_t then_last = 0u;
+  size_t then_join = 0u;
+  if (!verify_cfg_arm(program, function_index, branch->target_block, end,
+                      depth + 1u, &then_last, &then_join) ||
+      then_last + 1u != branch->else_block)
+    return false;
+  size_t else_last = 0u;
+  size_t else_join = 0u;
+  if (!verify_cfg_arm(program, function_index, branch->else_block, end,
+                      depth + 1u, &else_last, &else_join) ||
+      else_join != then_join || then_join != else_last + 1u ||
+      then_join >= end || then_join <= branch_block)
+    return false;
+  *join_block = then_join;
+  return true;
+}
+
+static bool verify_cfg_arm(const w_seed_hir0_program *program,
+                           uint32_t function_index, size_t start,
+                           size_t end, size_t depth, size_t *last_block,
+                           size_t *join_block) {
+  if (program == NULL || last_block == NULL || join_block == NULL ||
+      start >= end || depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  size_t current = start;
+  size_t guard = 0u;
+  while (current < end && guard < end) {
+    const w_seed_hir0_terminator *term = &program->terminators[current];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      size_t nested_join = 0u;
+      if (!verify_cfg_branch(program, function_index, current, end, depth,
+                             &nested_join) ||
+          nested_join <= current || nested_join >= end)
+        return false;
+      current = nested_join;
+      guard += 1u;
+      continue;
+    }
+    if (term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+        term->target_block == W_SEED_HIR0_NONE ||
+        term->target_block <= current || term->target_block >= end ||
+        term->else_block != W_SEED_HIR0_NONE ||
+        program->blocks[term->target_block].owner_function != function_index)
+      return false;
+    *last_block = current;
+    *join_block = term->target_block;
+    return true;
+  }
+  return false;
+}
+
+static bool verify_cfg_function(const w_seed_hir0_program *program,
+                                size_t function_index) {
+  if (program == NULL || function_index >= program->function_count) return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  const size_t start = function->first_block;
+  const size_t end = start + function->block_count;
+  size_t current = start;
+  size_t guard = 0u;
+  while (current < end && guard < function->block_count) {
+    const w_seed_hir0_terminator *term = &program->terminators[current];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      size_t join = 0u;
+      if (!verify_cfg_branch(program, (uint32_t)function_index, current, end,
+                             0u, &join) ||
+          join <= current || join >= end)
+        return false;
+      current = join;
+      guard += 1u;
+      continue;
+    }
+    if (term->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+        term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE)
+      return false;
+    return current + 1u == end;
+  }
+  return false;
+}
+
 static bool verify_records(const w_seed_hir0_program *program) {
   size_t expected_instructions = 0u;
   if (program->module_count != 1u || program->function_count == 0u ||
@@ -4070,41 +4100,11 @@ static bool verify_records(const w_seed_hir0_program *program) {
         program->values[value->value_index].type_index != value->result_type)
       return false;
   }
-  /* Each accepted CFG function is a sequence of diamonds.  This proves
-   * reachability, acyclicity, and that both arms of each BRANCH join at the
-   * one following block. */
-  for (size_t function = 0u; function < program->function_count; function += 1u) {
-    const w_seed_hir0_function *owner = &program->functions[function];
-    size_t offset = 0u;
-    while (offset < owner->block_count) {
-      const size_t block_index = (size_t)owner->first_block + offset;
-      const w_seed_hir0_terminator *term = &program->terminators[block_index];
-      if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-        if (offset + 3u >= owner->block_count ||
-            term->target_block != block_index + 1u ||
-            term->else_block != block_index + 2u)
-          return false;
-        const size_t join = block_index + 3u;
-        const w_seed_hir0_terminator *then_term =
-            &program->terminators[block_index + 1u];
-        const w_seed_hir0_terminator *else_term =
-            &program->terminators[block_index + 2u];
-        if (then_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
-            else_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
-            then_term->target_block != join ||
-            else_term->target_block != join)
-          return false;
-        offset += 3u;
-        continue;
-      }
-      if (term->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
-          term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE)
-        return false;
-      if (offset + 1u != owner->block_count) return false;
-      offset += 1u;
-    }
-    if (owner->return_type != 0u && owner->block_count != 1u) return false;
-  }
+  /* The bounded parser proves reachability exactly once from each function
+   * entry. Its contiguous arm ranges and forward joins also prove acyclicity,
+   * common postdominators, and the absence of orphan blocks. */
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (!verify_cfg_function(program, function)) return false;
   if (value_cursor != program->value_count ||
       interpolation_segment_cursor != program->interpolation_segment_count ||
       value_byte_cursor != program->value_byte_count)

@@ -166,6 +166,33 @@ its cleanup. Specify borrow end, nested access, throw, cancellation, unwind,
 and forbidden suspension. Observers are opt-in costs and can inhibit read
 elimination or reordering.
 
+The concrete acceptance case is
+[`orbit.w`](reference/last-light/orbit.w), not a new wrapper abstraction.
+`Versioned` increments its epoch after a `.mutableBorrowed` access. Its test
+reads `attitude.yaw` in an assertion before it checks the epoch. The declaration
+exposes `mut ref u16`, but the example expects that assertion not to increase
+the epoch. Section 8.4 does not establish that distinction. Define whether the
+hook kind follows the projected access mode or a weaker use at the call site.
+Do not infer that mutable admission proves an actual change in value.
+
+The next semantic bundle must resolve these cases together:
+
+- A mutating read hook needs explicit receiver authority. A behavior must not
+  create hidden synchronization or mutate ordinary metadata through shared
+  read-only access.
+- The projected value mode and required receiver authority are distinct.
+  Record both in the property contract, including protocol witnesses.
+- A borrowed getter completes its cleanup before `didGet`. The receiver loan
+  must cover both operations, including structured error unwinding.
+- Compare a value read, read-only borrow, exclusive borrow, replacement,
+  `inout` writeback, storage facet, and observer facet in one exact trace.
+- Check the trace without reading the logical property again. Facet lookup
+  bypasses the logical getter and can inspect observer counters.
+
+These are acceptance requirements for consolidation, not implemented property
+semantics. Parser acceptance and a host-side trace cannot substitute for a W
+checker and runtime witness.
+
 ### 5. Doctest syntax has two authorities — P2
 
 Section 5.2 uses `call:` to open an inline example and explicitly says
@@ -221,6 +248,18 @@ compile options, inspect the effective compiler invocation, and make the probe
 fail when a required option is ignored. Verify two clean-directory builds,
 not merely the presence of `/Brepro` in source text. Record exact compiler,
 linker, SDK, flags, mappings, outputs, and debug sidecars.
+
+NCFG0 integration exposed a separate cache-maintenance issue. The materialized
+Windows toolchain pins the entire repository manifest. Changing only W's
+artifact schema invalidated reuse, although the archive, tools, versions, and
+target did not change. The builder correctly refused the stale provenance.
+
+Queue a bounded, explicit pin-migration operation. It must validate the old
+pin and installed bytes before recording an authorized new manifest. Preserve
+recovery on failure and validate again after publication. Do not accept a new
+digest merely because the directory exists. A future cache identity can
+separate toolchain content from consumer-artifact compatibility, with both
+identities retained in build receipts.
 
 ### 9. Green CI does not require a native W witness — P1 evidence gate
 
@@ -773,12 +812,13 @@ here rather than in another task catalog.
 
 The economic workflow uses one Luna Max worker for a closed implementation
 bundle. The coordinator owns the contract, prioritization, and diff review.
-Existing NCFG0/W-1535 changes remain separate and must not enter a maintenance
-commit by accident. No broader design recommendation is ratified merely by
-its inclusion in this queue.
+The build-safety changes were committed separately from NCFG0/W-1535. That
+compiler bundle now has focused native evidence, as recorded below. No broader
+design recommendation is ratified merely by its inclusion in this queue.
 
 | Findings | State | Next bounded action |
 |---|---|---|
+| NCFG0/W-1535 | Closed with bounded native evidence | Continue with findings 1–4 before general property lowering |
 | 7 — build publication | Fixed, bounded filesystem evidence | Pre-commit restoration and post-commit partial-cleanup tests pass. Crash recovery remains outside this fix |
 | 8 — reproducibility | Recipe and probe fixed; full-build comparison deferred | Space-separated flags, strict option handling, complete mappings and scoped receipt validation pass. Compare complete W builds after NCFG0 closure |
 | 1–4 — properties and ownership | Queued, semantic priority | Reconcile approved syntax, explicit retain rules, and observer mutation authority before general property lowering |
@@ -807,6 +847,38 @@ The native smoke is local evidence, not a mandatory CI lane or a complete W
 build. No process-interruption test or real locked-file test was performed.
 The implementation was reviewed by the coordinator, not an independent human.
 
+NCFG0 validation completed on 2026-09-04:
+
+- HIR0 and Native0 rebuilt, and their unit tests passed.
+- `bun run check:mlir0` and `bun run check:w-run` passed against the current
+  source through Linux/WSL and the real MLIR/LLVM/native route.
+- `bun run check:mlir0-windows` passed 24 tests and the structural check.
+- `bun run build:w-windows --c11-recovery` produced a Release Windows binary.
+  Hello, Restaurant, and nested Restaurant passed with exact stdout.
+- The Windows `w.exe` is 10,033,664 bytes. This is one build observation,
+  not a size-optimization or performance result.
+- The depth-64 unit emits MLIR. The depth-65 Native0 unit rejects the source
+  with unchanged output and result bytes. Native execution evidence covers
+  the Restaurant witness, not the depth-64 boundary.
+
+The Windows cache initially rejected the changed manifest digest. The old
+manifest matched its recorded pin exactly. Only the W artifact fields changed.
+All other manifest fields remained equal. The installed files and versions
+passed validation against the old pin before its metadata was changed.
+Validation passed again against the current pin. No tool bytes, checks, or
+trust policies changed, and no download was needed. The temporary backup was
+removed after validation.
+
+Build-owned staging was removed. The cleanup dry-run retained `build/` because
+the usable `build/w-windows` output was explicitly kept. It found no separate
+eligible candidate. The completed Linux test build remains under that retained
+tree; it is not an active worker or background build.
+
+Final documentation checks passed: 1,535 classified decisions, 101 substitution
+cases, current index and substitution projections, 71 linked Markdown files,
+and `git diff --check`. These counts describe repository consistency, not
+language completeness. Property and ownership findings remain open.
+
 The build-safety bundle has `benchmarkDisposition: deferred`. The follow-up
 task `windows-build-reproducibility` requires a clean, reviewed source baseline
 after NCFG0 closure. It ends with two complete W builds under equivalent
@@ -825,7 +897,7 @@ selected, not an always-running goal.
 | 1 | Build publication and reproducibility | P1 / M | Isolated fault tests prove safe post-commit cleanup; actual options and two clean build receipts agree |
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 resolved in one canonical table and counterexamples; no new syntax family |
 | 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W; missing dependencies fail; skip counts remain explicit |
-| 4 | Finish the paused NCFG0 bundle | P2 / M | Review current dirty code, update only required projections and run affected native gates; explicit commit |
+| 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
 | 5 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
 | 6 | Runtime-input vertical slice | P2 / L | CLI input affects output at runtime; error path and a loop/branch execute; no expected-output shortcut |
 | 7 | Enum/result and ownership vertical slice | P2 / L | Resource-bearing enum, match, borrow/move and typed failure work through native execution |

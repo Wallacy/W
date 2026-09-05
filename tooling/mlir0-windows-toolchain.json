@@ -3,8 +3,8 @@
   "version": 1,
   "status": "external-evaluation",
   "artifact": {
-    "schema": "w-seed-mlir0-10",
-    "scope": "unit-cfg-diamond"
+    "schema": "w-seed-mlir0-11",
+    "scope": "unit-cfg-nested-diamond"
   },
   "host": {
     "platform": "windows",

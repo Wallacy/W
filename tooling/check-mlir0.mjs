@@ -10,6 +10,7 @@ const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -53,8 +54,8 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-10" &&
-    manifest.artifact?.scope === "unit-cfg-diamond",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-11" &&
+    manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -237,6 +238,7 @@ try {
   const restaurantLiteralPath = resolve(artifactDirectory, "restaurant-literal.w")
   const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
   const restaurantIfPath = resolve(artifactDirectory, "restaurant-if.w")
+  const restaurantNestedIfPath = resolve(artifactDirectory, "restaurant-nested-if.w")
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
@@ -265,6 +267,8 @@ try {
     `}\n` +
     `fn main() { serve(isOpen: true) serve(isOpen: false) }\n` +
     `entry(main)\n`)
+  await writeFile(restaurantNestedIfPath,
+    await readFile(restaurantNestedIfFixture))
   await writeFile(twoCallsPath,
     `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
   await writeFile(arithmeticPath,
@@ -312,6 +316,13 @@ try {
     { name: "restaurant-if", source: restaurantIfPath,
       expected: Buffer.from(
         "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8") },
+    { name: "restaurant-nested-if", source: restaurantNestedIfPath,
+      expected: Buffer.from(
+        "Restaurant open\nKitchen ready\nOpen branch joined\nPost-join service\n" +
+        "Restaurant open\nKitchen closed\nOpen branch joined\nPost-join service\n" +
+        "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
+        "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
+        "utf8") },
     { name: "two-calls", source: twoCallsPath,
       expected: Buffer.from("a\nb\n", "utf8") },
     { name: "typed-arithmetic", source: arithmeticPath,
@@ -428,6 +439,16 @@ try {
     (cfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "if diamond did not retain typed cond_br, two join branches, both payloads, and one post-join body")
 
+  const nestedCfgArtifact = artifacts.get("restaurant-nested-if").toString("utf8")
+  const nestedJoinBranches = nestedCfgArtifact.match(
+    /llvm\.br \^w_fn_0_b_(?:4|8|9)\n/gu) || []
+  assert(nestedCfgArtifact.includes("llvm.cond_br %p0") &&
+    (nestedCfgArtifact.match(/llvm\.cond_br %p1/gu) || []).length >= 2 &&
+    nestedJoinBranches.length >= 6 &&
+    nestedCfgArtifact.includes("\\50\\6f\\73\\74\\2d\\6a\\6f\\69\\6e\\20\\73\\65\\72\\76\\69\\63\\65\\0a") &&
+    (nestedCfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 4,
+  "nested Restaurant did not retain both inner diamonds and one post-join call per invocation")
+
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,
     `// source comment\nfn main() {   print("Hello, world!")   }\n\nentry(main)\n`)
@@ -443,6 +464,9 @@ try {
     `fn main() {\nlet message = "${"x".repeat(256)}"\n` +
     `${Array.from({ length: 17 }, () => "print(message)").join("\n")}\n` +
     `}\nentry(main)\n`
+  const nestedIfTooDeep =
+    `fn main() { ${"if true { ".repeat(65)}print("x") ` +
+    `${"} ".repeat(65)}}\nentry(main)\n`
   const adversarial = [
     ["comment-with-print.w",
       `fn main() { noop("Other") } // print("Hello, world!")\nentry(main)\n`],
@@ -467,8 +491,7 @@ try {
     ["nested-return-call.w",
       `fn value(): i64 { return 42 }\nfn relay(): i64 { return value() }\n` +
       `fn main() { let result = relay() print("\${result}") }\nentry(main)\n`],
-    ["nested-if.w",
-      `fn main() { if true { if false { print("x") } } }\nentry(main)\n`],
+    ["nested-if-too-deep.w", nestedIfTooDeep],
     ["scalar-cfg.w",
       `fn main(): i64 { if true { print("x") } return 1 }\nentry(main)\n`],
     ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],

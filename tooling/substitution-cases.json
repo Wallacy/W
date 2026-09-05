@@ -3270,6 +3270,96 @@
         "bun run check:mlir0-windows — offline acquisition and builder contract gate"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-mlir0-nested-if",
+      "reviewItem": "bounded nested if diamonds against shared-continuation revisits, implicit joins, and premature general CFG.",
+      "decisions": ["W-1535"],
+      "task": "Carry nested Unit ifs through verified HIR0, bounded native maximum analysis, real LLVM conditional branches, and exact four-path Restaurant output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve(isOpen: Bool, isKitchen: Bool) {",
+          "  if isOpen {",
+          "    print(\"Restaurant open\")",
+          "    if isKitchen { print(\"Kitchen ready\") } else { print(\"Kitchen closed\") }",
+          "    print(\"Open branch joined\")",
+          "  } else {",
+          "    print(\"Restaurant closed\")",
+          "    if isKitchen { print(\"Kitchen ready\") } else { print(\"Kitchen closed\") }",
+          "    print(\"Closed branch joined\")",
+          "  }",
+          "  print(\"Post-join service\")",
+          "}",
+          "fn main() { serve(isOpen: true, isKitchen: true) serve(isOpen: true, isKitchen: false) serve(isOpen: false, isKitchen: true) serve(isOpen: false, isKitchen: false) }",
+          "entry(main)",
+          "fixture: compiler/seed-c/fixtures/restaurant-nested-if.w",
+          "stdout bytes: four Boolean combinations plus one post-join line per call"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "flattened-nested-output",
+          "language": "w-rejected",
+          "source": ["Precompute the four Restaurant outputs before HIR or MLIR emission"],
+          "expectedDifference": "The route retains nested typed llvm.cond_br, arm payloads, joins, and the post-join call."
+        },
+        {
+          "name": "implicit-nested-join",
+          "language": "w-rejected",
+          "source": ["Reuse one generic join field or implicit fall-through for nested arm continuations"],
+          "expectedDifference": "The layout derives the common join from explicit forward arm-terminal jumps while next_block remains reserved."
+        },
+        {
+          "name": "unbounded-general-cfg",
+          "language": "w-rejected",
+          "source": ["Accept loops, branch-carried bindings, phi values, or scalar-return CFG with nested if"],
+          "expectedDifference": "The bounded cut admits only nested structured if in ordinary Unit functions and rejects the listed CFG expansion."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_statement_and_expression_cfg_ok",
+          "claim": "HIR consumes nested child and sibling IF relations and emits a deterministic forward structured CFG."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_function_maximum",
+          "claim": "Native selection computes a checked maximum over mutually exclusive nested arms without revisiting shared continuations."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_program_artifact",
+          "claim": "MLIR emits nested labeled blocks and typed llvm.cond_br and llvm.br operations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_nested_if_depth_boundary",
+          "claim": "The HIR unit accepts depth 64 and rejects depth 65."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_nested_depth_and_linear_analysis",
+          "claim": "The Native0 unit exercises a full binary nested structural stress witness, accepts depth 64 and emits it as MLIR, and rejects depth 65 with unchanged output/result snapshots."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-nested-if",
+          "claim": "The MLIR0 gate verifies, translates, links, and executes the nested Restaurant fixture with exact four-case stdout."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurant-nested-if",
+          "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
+        }
+      ],
+      "checks": [
+        "bun run check:hir0 — nested HIR topology, depth boundary, and adversarial verification",
+        "bun run check:mlir0 — nested LLVM dialect, translation, native link, and exact Restaurant output",
+        "bun run check:w-run — public runner executes the nested Restaurant four-case fixture"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

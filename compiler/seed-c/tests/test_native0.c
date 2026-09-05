@@ -65,9 +65,60 @@ static size_t count_bytes(const uint8_t *bytes, size_t length,
   return count;
 }
 
+static bool append_source_text(char *buffer, size_t capacity, size_t *offset,
+                               const char *text) {
+  if (buffer == NULL || offset == NULL || text == NULL || *offset > capacity)
+    return false;
+  const size_t count = strlen(text);
+  if (count > capacity - *offset) return false;
+  (void)memcpy(buffer + *offset, text, count);
+  *offset += count;
+  buffer[*offset] = '\0';
+  return true;
+}
+
+static bool append_nested_chain(char *buffer, size_t capacity, size_t *offset,
+                                size_t depth) {
+  if (depth == 0u)
+    return append_source_text(buffer, capacity, offset,
+                              "print(\"x\") ");
+  return append_source_text(buffer, capacity, offset, "if true { ") &&
+         append_nested_chain(buffer, capacity, offset, depth - 1u) &&
+         append_source_text(buffer, capacity, offset, "} ");
+}
+
+static bool make_nested_chain_source(char *buffer, size_t capacity,
+                                     size_t depth) {
+  size_t offset = 0u;
+  if (!append_source_text(buffer, capacity, &offset, "fn main() { ") ||
+      !append_nested_chain(buffer, capacity, &offset, depth))
+    return false;
+  return append_source_text(buffer, capacity, &offset, "}\nentry(main)\n");
+}
+
+static bool append_nested_tree(char *buffer, size_t capacity, size_t *offset,
+                               size_t depth) {
+  if (depth == 0u) return true;
+  return append_source_text(buffer, capacity, offset, "if true { ") &&
+         append_nested_tree(buffer, capacity, offset, depth - 1u) &&
+         append_source_text(buffer, capacity, offset, "} else { ") &&
+         append_nested_tree(buffer, capacity, offset, depth - 1u) &&
+         append_source_text(buffer, capacity, offset, "} ");
+}
+
+static bool make_nested_tree_source(char *buffer, size_t capacity,
+                                    size_t depth) {
+  size_t offset = 0u;
+  if (!append_source_text(buffer, capacity, &offset, "fn main() { ") ||
+      !append_nested_tree(buffer, capacity, &offset, depth) ||
+      !append_source_text(buffer, capacity, &offset, "print(\"x\") }\n"))
+    return false;
+  return append_source_text(buffer, capacity, &offset, "entry(main)\n");
+}
+
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-10") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-11") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -77,9 +128,9 @@ static bool test_products(void) {
   static const uint8_t trivia[] =
       "// leading trivia\nfn serve() { print(\"Table 42 remains open\") } "
       "// trailing trivia\nentry(serve)\n";
-  uint8_t literal_bytes[W_SEED_MLIR0_MAX_BYTES];
-  uint8_t binding_bytes[W_SEED_MLIR0_MAX_BYTES];
-  uint8_t trivia_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t literal_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t binding_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t trivia_bytes[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result literal_result;
   w_seed_native0_result binding_result;
   w_seed_native0_result trivia_result;
@@ -122,7 +173,7 @@ static bool test_products(void) {
       "  print(message)\n"
       "  print(\"Kitchen is ready\")\n"
       "}\nentry(serve)\n";
-  uint8_t linear_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t linear_bytes[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result linear_result;
   CHECK(run_source(linear, sizeof(linear) - 1u, "linear-id", 9u,
                    linear_bytes, sizeof(linear_bytes), &linear_result) ==
@@ -147,7 +198,7 @@ static bool test_products(void) {
       "}\n"
       "fn main() { serve(isOpen: true) serve(isOpen: false) }\n"
       "entry(main)\n";
-  uint8_t cfg_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t cfg_bytes[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result cfg_result;
   CHECK(run_source(cfg, sizeof(cfg) - 1u, "cfg-id", 6u, cfg_bytes,
                    sizeof(cfg_bytes), &cfg_result) == W_SEED_NATIVE0_OK);
@@ -168,10 +219,57 @@ static bool test_products(void) {
   return true;
 }
 
+static bool test_nested_depth_and_linear_analysis(void) {
+  static char depth_source[W_SEED_NATIVE0_MAX_SOURCE_BYTES];
+  static uint8_t depth_output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result depth_result;
+  CHECK(make_nested_chain_source(depth_source, sizeof(depth_source) - 1u,
+                                 W_SEED_HIR0_MAX_NESTING));
+  const w_seed_native0_status depth64_status = run_source(
+      (const uint8_t *)depth_source, strlen(depth_source), "depth64-id", 10u,
+      depth_output, sizeof(depth_output), &depth_result);
+  CHECK(depth64_status == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.functions[0].block_count ==
+            W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION &&
+        storage.hir_program.block_count ==
+            W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION &&
+        storage.hir_program.value_count ==
+            W_SEED_HIR0_MAX_NESTING + 1u &&
+        contains_bytes(depth_output, depth_result.mlir.written.mlir_bytes,
+                       "^w_fn_0_b_192:") &&
+        contains_bytes(depth_output, depth_result.mlir.written.mlir_bytes,
+                       "\\78\\0a"));
+
+  CHECK(make_nested_tree_source(depth_source, sizeof(depth_source) - 1u, 7u));
+  CHECK(run_source((const uint8_t *)depth_source, strlen(depth_source),
+                   "tree-id", 7u, depth_output, sizeof(depth_output),
+                   &depth_result) == W_SEED_NATIVE0_OK);
+  /* 2^7 - 1 nested diamonds are a structural stress witness. */
+  CHECK(storage.hir_program.block_count == 382u &&
+        storage.hir_program.value_count == 128u &&
+        contains_bytes(depth_output, depth_result.mlir.written.mlir_bytes,
+                       "^w_fn_0_b_381:") &&
+        count_bytes(depth_output, depth_result.mlir.written.mlir_bytes,
+                    "llvm.cond_br") >= 127u);
+
+  CHECK(make_nested_chain_source(depth_source, sizeof(depth_source) - 1u,
+                                 W_SEED_HIR0_MAX_NESTING + 1u));
+  (void)memset(depth_output, 0xa5u, sizeof(depth_output));
+  (void)memset(&depth_result, 0x5au, sizeof(depth_result));
+  const w_seed_native0_result snapshot = depth_result;
+  CHECK(run_source((const uint8_t *)depth_source, strlen(depth_source),
+                   "depth65-id", 10u, depth_output, sizeof(depth_output),
+                   &depth_result) == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(memcmp(&depth_result, &snapshot, sizeof(snapshot)) == 0);
+  for (size_t index = 0u; index < sizeof(depth_output); index += 1u)
+    CHECK(depth_output[index] == 0xa5u);
+  return true;
+}
+
 static bool test_failures_and_capacity(void) {
   static const uint8_t hello[] =
       "fn main() { print(\"Hello, world!\") }\nentry(main)\n";
-  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
   CHECK(run_source(hello, sizeof(hello) - 1u, "capacity-id", 11u, output,
                    sizeof(output), &result) == W_SEED_NATIVE0_OK);
@@ -325,7 +423,7 @@ static bool test_aliases(void) {
   w_seed_native0_result alias_snapshot;
   (void)memset(&alias_snapshot, 0xd2u, sizeof(alias_snapshot));
   const w_seed_native0_result alias_result_snapshot = alias_snapshot;
-  uint8_t output_snapshot[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t output_snapshot[W_SEED_MLIR0_MAX_BYTES];
   (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
   CHECK(w_seed_native0_run(
             &input, &storage,
@@ -390,7 +488,7 @@ static bool test_aliases(void) {
   (void)memset(&alias_snapshot, 0x32u, sizeof(alias_snapshot));
   const w_seed_native0_result input_storage_result_snapshot = alias_snapshot;
   const w_seed_native0_output input_storage_output = {output, sizeof(output)};
-  uint8_t input_storage_output_snapshot[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t input_storage_output_snapshot[W_SEED_MLIR0_MAX_BYTES];
   (void)memcpy(input_storage_output_snapshot, output,
                sizeof(input_storage_output_snapshot));
   CHECK(w_seed_native0_run(
@@ -474,8 +572,11 @@ static bool test_aliases(void) {
 }
 
 int main(void) {
+  (void)fprintf(stderr, "native0 storage bytes: %llu\n",
+                (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_products();
-  const bool failures = products && test_failures_and_capacity();
+  const bool nested = products && test_nested_depth_and_linear_analysis();
+  const bool failures = nested && test_failures_and_capacity();
   const bool aliases = failures && test_aliases();
   (void)remove(TEST_PATH);
   if (!aliases) return 1;

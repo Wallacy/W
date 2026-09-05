@@ -10,6 +10,7 @@ const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
 const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner.w")
@@ -70,8 +71,8 @@ function validateManifest(manifest) {
   assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-10" &&
-    manifest.artifact?.scope === "unit-cfg-diamond",
+  assert(manifest.artifact?.schema === "w-seed-mlir0-11" &&
+    manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -393,9 +394,18 @@ try {
     "Restaurant typed interpolation")
   const expectedRestaurantIf = Buffer.from(
     "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8")
+  const expectedRestaurantNestedIf = Buffer.from(
+    "Restaurant open\nKitchen ready\nOpen branch joined\nPost-join service\n" +
+    "Restaurant open\nKitchen closed\nOpen branch joined\nPost-join service\n" +
+    "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
+    "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
+    "utf8")
   expectSuccess(binary, ["run", toWsl(restaurantIfFixture)],
     expectedRestaurantIf,
     "Restaurant if diamond")
+  expectSuccess(binary, ["run", toWsl(restaurantNestedIfFixture)],
+    expectedRestaurantNestedIf,
+    "Restaurant nested if")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],

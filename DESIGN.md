@@ -35951,7 +35951,7 @@ exceptions, async, ownership lowering, a stable ABI, another target, or
 performance evidence. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
-#### 26.4.1.15 W-1531 — bounded top-level `if` diamonds through native MLIR (Current form)
+#### 26.4.1.15 W-1531 — bounded top-level `if` diamonds through native MLIR (Retained form; nested CFG advanced by W-1535)
 
 **Example:** the first CFG witness has one conditional and one shared
 post-join call site:
@@ -36014,10 +36014,11 @@ Native0 remains `w-seed-native0-6`: this milestone changes the private selector
 and MLIR route, but not the public Native0 artifact bytes or record contract.
 The `w run` product is verified on Linux x86_64 GNU through the pinned WSL
 toolchain. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only;
-no timing or performance result is published. Other targets and performance,
-conditional `if` expressions, nested CFG, guard/switch, loops, multiple exits,
-block arguments/phi, branch-carried bindings, ownership/effects/tasks, and a
-general runtime remain explicit gaps.
+no timing or performance result is published. W-1535 advances the bounded
+nested structured Unit CFG form; other targets and performance, conditional
+`if` expressions, general CFG beyond that bounded form, guard/switch, loops,
+multiple exits, block arguments/phi, branch-carried bindings,
+ownership/effects/tasks, and a general runtime remain explicit gaps.
 
 #### 26.4.1.16 W-1532 — bounded native Windows x86_64 seed route (Candidate evidence)
 
@@ -36186,6 +36187,85 @@ bun run build:w-windows --profile release --c11-recovery
 build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
 build/w-windows/w.exe run compiler/seed-c/fixtures/restaurant-if.w
 ```
+
+#### 26.4.1.19 W-1535 — bounded nested structured `if` through verified HIR0 and MLIR0 (Current form)
+
+**Example:** the canonical nested Restaurant witness exercises both outer
+branches, both inner branches, and one post-join statement:
+
+```w
+fn serve(isOpen: Bool, isKitchen: Bool) {
+  if isOpen {
+    print("Restaurant open")
+    if isKitchen { print("Kitchen ready") }
+    else { print("Kitchen closed") }
+    print("Open branch joined")
+  } else {
+    print("Restaurant closed")
+    if isKitchen { print("Kitchen ready") }
+    else { print("Kitchen closed") }
+    print("Closed branch joined")
+  }
+  print("Post-join service")
+}
+```
+
+W-1535 keeps the existing `if` syntax and Bool condition rules. An ordinary
+Unit-returning function may contain nested `if`, including an `else if` that
+the frontend represents as a nested IF record. Existing `let`, call, and
+nested `if` statements are accepted in the body. Branches still reject
+`return`, `var`, guards, switches, loops, conditional values, block
+arguments/phi, branch-carried bindings, effects, tasks, and ownership
+expansion. Scalar-return CFG remains outside this cut.
+
+HIR0 advances to `w-seed-hir0-8` and defines one nesting bound of 64 IF
+records. The bound is checked before recursive relation walks or emission;
+depth 64 is accepted and depth 65 fails closed as `UNSUPPORTED`. For every
+accepted function, one entry block and exactly three additional blocks per IF
+are laid out in deterministic topological order: branch, complete true
+subregion, complete false subregion, join, then the sibling continuation.
+`next_block` remains reserved and `BRANCH` has only its two generic successor
+fields. Arm-terminal jumps and the bounded layout imply the structured merge.
+All edges point forward and no block is reused.
+
+The HIR verifier proves dense function/block/terminator ownership and ranges,
+exact structural reachability, arm boundaries, common join/postdominator,
+forward edges, acyclicity, condition ownership and Bool type, and absence of
+orphan or duplicate blocks. It rejects forged target, else, jump, join, order,
+owner, or depth records. Lowering is preflighted and caller-owned; a failed
+bound, capacity, alias, or verification check does not mutate output records,
+digests, or receipts.
+
+Native selection retains the call-cycle and binding-read checks. After HIR
+verification, maximum stdout uses a reverse-topological DP. The DP visits each
+verified block and terminator once and each CFG edge once. Sequential edges
+add, structured branch arms use `max`, and a shared continuation is not
+revisited. Checked arithmetic and the current 4096-byte stdout bound remain in
+force. Native selection also traverses instructions and calls and validates
+value trees. The adversarial full-tree fixture is a structural stress witness,
+not timing evidence.
+
+MLIR0 advances to `w-seed-mlir0-11` and the Windows label to
+`w-seed-mlir0-windows-2`; it consumes the verified forward graph without a
+new public syntax or a generic join field. Native0 remains
+`w-seed-native0-6`: separate private HIR capacities cover the 64-depth
+witness, while the public artifact schema and receipt semantics do not change.
+The recipe-local `w_seed_native0_storage` observation is 458448 bytes before
+these capacities and 570576 bytes after them on this build; it is not an ABI,
+stack, package-size, or performance claim. A static 768 KiB ceiling protects
+the caller-owned storage contract.
+
+The product evidence is `compiler/seed-c/fixtures/restaurant-nested-if.w`.
+Linux/WSL and native Windows Release C11-recovery routes execute its exact
+four-case stdout through the built W artifact. The Native0 unit accepts depth
+64 and emits it as MLIR; its depth-65 case rejects with unchanged output and
+result snapshots. The HIR unit proves only acceptance of depth 64 and
+rejection of depth 65. The real LLVM/native execution in this bundle is the
+four-case Restaurant witness on Linux/WSL and Windows. `benchmarkDisposition`
+is `compiler-lifecycle`; this bundle makes no timing, throughput, ranking, or
+result claim. The CFG DP is bounded by verified blocks, terminators, and edges.
+Native selection also traverses instructions and calls and validates value
+trees.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
