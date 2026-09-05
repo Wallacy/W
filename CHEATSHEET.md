@@ -602,7 +602,7 @@ test "generic conformances preserve the concrete item" for Shelf {
 
 ## Properties, behaviors, and facets
 
-<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude,PropertyModes,PropertyAccessKind,accessName,nudge,overwrite observable=value -->
+<!-- w-example role=executable use=WrappedDegrees,Versioned,VersionedDegrees,Attitude,PropertyModes,PropertyAccessKind,accessName,nudge,overwrite,sampleYaw observable=value -->
 ```w
 behavior WrappedDegrees for u16 {
   var current: u16
@@ -686,7 +686,12 @@ fn overwrite(value: inout u16) { value = 21 }
 
 struct Attitude {
   var VersionedDegrees yaw: mut ref u16 = 0
+  var Versioned remainingCorrections: u16 = 8
   mut fn rotate(by delta: u16) { yaw += delta }
+  mut fn sampleYaw(after epoch: u64): u16? {
+    if yaw#version.mutationEpoch == epoch { return .none }
+    return .some(yaw)
+  }
 }
 
 test "behavior composition exposes qualified facets" for Attitude {
@@ -701,42 +706,79 @@ test "behavior composition exposes qualified facets" for Attitude {
   expect modes.storage == 21
 
   var attitude = Attitude()
+  // A value result does not make the observer metadata write readonly.
+  let remaining = attitude.remainingCorrections
+  expect remaining == 8
+  expect attitude.remainingCorrections#readCount == 1
+  expect attitude.remainingCorrections#mutationEpoch == 0
+
   attitude.yaw = 350
   attitude.rotate(by: 25)
   expect attitude.yaw == 15
-  expect attitude.yaw#version.mutationEpoch == 2
+  // The declared mut ref kind stays fixed even when the caller compares a value.
+  let beforeReset = attitude.yaw#version.mutationEpoch
+  expect beforeReset == 3
+  expect attitude.yaw#version.readCount == 2
   expect attitude.yaw#version.replacementCount == 1
-  expect attitude.yaw#version.readCount > 0
   attitude.yaw#degrees.reset()
   expect attitude.yaw == 0
-  expect attitude.yaw#version.mutationEpoch == 3
+  expect attitude.yaw#version.mutationEpoch == 5
+  expect attitude.yaw#version.readCount == 3
   expect attitude.yaw#version.replacementCount == 1
-  // Direct mutable-borrow access runs get observers, not set observers.
+  // Epoch counts mutation admissions; facet reads do not run the logical get.
   nudge(value: mut ref attitude.yaw)
   expect attitude.yaw == 5
-  expect attitude.yaw#version.mutationEpoch == 4
+  expect attitude.yaw#version.mutationEpoch == 7
+  expect attitude.yaw#version.readCount == 5
   expect attitude.yaw#version.replacementCount == 1
+
+  let savedEpoch = attitude.yaw#version.mutationEpoch
+  expect attitude.sampleYaw(after: savedEpoch) == .none
+  expect attitude.yaw#version.readCount == 5
+  attitude.rotate(by: 355)
+  expect attitude.sampleYaw(after: savedEpoch) == .some(0)
+  let publishedEpoch = attitude.yaw#version.mutationEpoch
+  expect publishedEpoch == 9
+  expect attitude.sampleYaw(after: publishedEpoch) == .none
+  expect attitude.yaw#version.readCount == 7
+  // resetMutationEpoch invalidates saved epochs; it is not a global ticket/cache key.
+  attitude.yaw#version.resetMutationEpoch()
   let accessKind: PropertyAccessKind = .value
   expect accessName(kind: accessKind) == "value"
 }
 ```
 
 The property declaration selects the access mode; the accessor is always
-spelled `get`. `let p: T` returns a read-only value, and `let p: ref T` returns
+spelled `get`. `let p: T` returns a value through a read-only getter, and `let p: ref T` returns
 a read-only borrow. `var p: T` may replace a value, `var p: ref T` may replace
 or borrow it, `var p: mut ref T` exposes a scoped exclusive borrow, and
-`var p: inout T` performs copy-in/copy-out through `get` plus `set`. The forms
-`let p: mut ref T`, `let p: inout T`, `get ref`, and `get mut ref` are invalid.
-Every stored or computed property starts with `let`, `var`, or `const`; W does
-not accept a bare `name: T` property. Enum payload labels, tuple labels,
-parameters, and call labels are not properties and therefore do not use a
-property binder. Neither do `build.w` manifest keys or foreign ABI layout
-members; `foreign c { struct Header { size: c.size } }` describes C layout,
-not a W property.
+`var p: inout T` performs copy-in/copy-out through `get` plus `set`. The form
+`let p: mut ref T` is invalid for a computed property; a stored `let p: mut ref T`
+remains a move-only capability whose reborrow needs exclusive authority over the
+enclosing place. `let p: inout T` is never a stored type and is invalid for a
+computed `let`; `get ref` and
+`get mut ref` are not accessor variants. Runtime stored or computed properties
+start with `let` or `var`; `const` is a separate compile-time member without
+per-instance storage or a runtime accessor. W does not accept a bare `name: T`
+property. Enum payload labels, tuple labels, parameters, and call labels are
+not properties and therefore do not use a property binder. Neither do
+`build.w` manifest keys or foreign ABI layout members; `foreign c { struct
+Header { size: c.size } }` describes C layout, not a W property.
+An explicit one-observer application uses `var`, for example
+`var Versioned value: u16 = 0`; it synthesizes plain storage and exposes direct
+facet paths. A named composition remains the form for multiple behaviors or
+reusable aliases. The RHS initializes the plain storage, not observer metadata.
 `willGet` and `didGet` are opt-in observer hooks. Their
-`PropertyAccessKind` is `.value`, `.borrowed`, or `.mutableBorrowed`. Set
-observers count value-in/value-out writeback, while direct mutable-borrow
-access does not invoke `willSet` or `didSet`.
+`PropertyAccessKind` comes from the declared projection (`T`/`inout` value,
+`ref` borrowed, `mut ref` mutableBorrowed), even when the caller compares or
+copies the result. A `mut` read hook needs exclusive enclosing authority from
+`willGet` through getter cleanup and `didGet`; it does not add a hidden lock,
+atomic or interior mutation. Epoch counts admissions, and a metadata facet does
+not execute the logical get. Set observers count value-in/value-out writeback,
+while direct mutable-borrow access does not invoke `willSet` or `didSet`. For
+computed or behavior-backed `inout`, the getter must produce an owned,
+property-safe `T`; the single-owner non-`Copy` transport below applies only to a
+plain direct stored place, not to an accessor get.
 
 ## Option, conversion, and type queries
 
@@ -837,7 +879,7 @@ fn ticketLabel(ticket: Ticket): String { return copy ticket.label }
 fn bumpTicket(ticket: mut ref Ticket) { ticket.label = "bumped" }
 fn consumeTicket(ticket: take Ticket): String { return copy ticket.label }
 
-fn readFirst(values: ref Array<String>): String { return values[0] }
+fn readFirst(values: ref Array<String>): ref String { return ref values[0] }
 
 fn replaceFirst(values: inout Array<String>, replacement: String) {
   values[0] = replacement
@@ -869,7 +911,7 @@ test "ownership operations are explicit at the call site" for consume {
   let _ = pinned
   expect point == Point(x: 1, y: 2)
   expect translatedPoint == Point(x: 2, y: 3)
-  expect ticketText == "T-7"
+  expect ticketText == "bumped"
   expect moved == "north"
   expect movedReceipt.id == 7
   expect values[0] == "west"
@@ -878,10 +920,15 @@ test "ownership operations are explicit at the call site" for consume {
 ```
 
 `ref T` is a shared read-only borrow. `mut ref T` is a dependent exclusive
-borrow. `mut view T` is an exclusive logical view. `inout T` is only a
+borrow. `mut view T` is an exclusive logical view. `inout T` is a
 parameter/call convention: `values: inout values` reserves the source place,
-lets the callee mutate a local, and writes back on normal return or structured
-`throw`. It is not a field, result, binding mode, or iteration mode.
+lets the callee mutate a local, and writes back once on normal return,
+structured `throw`, or structured cancellation. A computed `var p: inout T`
+publishes this capability but is not a stored type; a stored `var p: T` is the
+direct place form. Under the exclusive reservation, a single non-`Copy` owner
+can move into the callee local and return without hidden clone, retain, or deep
+copy. `inout` is not a result, binding mode, stored-field type, capture, or
+iteration mode.
 
 Structs and enums are value-semantic and are not automatically `Copy`. `Copy`
 is implicit, bounded, and has no hidden allocation or data-dependent graph
@@ -890,12 +937,14 @@ an explicit `copy value` contract that may allocate or traverse and promises
 logical independence. In graph terms, `Copy` is always shallow: it never clones
 the reachable object graph. A statically bounded traversal of inline `Copy`
 fields does not make it a deep copy. An `object` is a singular identity/owner and cannot satisfy `Copy`; sharing uses a
-`shared` handle, while `Duplicable` must create a valid new identity. A type may
-declare a first-party COW strategy for `Duplicable`, but COW is not a universal
-String or Array baseline and must document allocator, budget, failure, cleanup,
-and cross-domain costs. On a computed property, the surface spelling is
-`set(value)`; a behavior body may write `mut set(value)` to mark mutation of its
-backing storage.
+`shared` handle, while `Duplicable` must create a valid new identity. Shared and
+weak handles are move-first; `copy handle` explicitly retains the same identity
+and never clones its payload, and aggregates containing those owners do not gain
+implicit `Copy`. A type may declare a first-party COW strategy for `Duplicable`,
+but COW is not a universal String or Array baseline and must document allocator,
+budget, failure, cleanup, and cross-domain costs. On a computed property, the
+surface spelling is `set(value)`; a behavior body may write `mut set(value)` to
+mark mutation of its backing storage.
 
 ## Callable values and captures
 

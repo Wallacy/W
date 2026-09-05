@@ -21,3 +21,15 @@ This file is not W source. The checker must not parse it.
 - value as? Ticket as? OrderId               [W-TYPE-0124: resultado optional borrowed não é source válido]
 - x |> f() ?? fallback                     [W-PIPE-0001: suffixo binary não parentetizado não é call template]
 - x |> f() || fallback                     [W-PIPE-0001: suffixo lógico não parentetizado não é call template]
+
+Contract-only ownership/property witnesses below are not checker evidence;
+they state rejected contract shapes and intentionally provide no diagnostic IDs.
+
+- `struct Bare { value: u16 }`                         [CONTRACT-ONLY: bare W field]
+- `let value: mut ref u16 { get => storage }`          [CONTRACT-ONLY: computed let mut ref]
+- `struct Stored { var value: inout u16 }`             [CONTRACT-ONLY: stored inout]
+- `var text: inout String { get => label; set(value) { label = value } }` [CONTRACT-ONLY: computed inout String getter borrows label]
+- `ref self` with a `mut willGet` read observer         [CONTRACT-ONLY: read mut observer through ref owner]
+- readonly witness implemented with an extra `mut ref self` requirement [CONTRACT-ONLY: strengthened readonly witness]
+- `edit(left: inout box.value, right: inout box.value)` [CONTRACT-ONLY: overlapping inout]
+- `struct SharedPair: Copy { let owner: shared Node }`  [CONTRACT-ONLY: implicit Copy with shared owner]

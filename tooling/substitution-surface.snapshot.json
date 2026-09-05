@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:f55c222ae4dd402e8a3300bee4da97a13b4196e9c12536a21daa47fdd2dd607f",
+  "corpusDigest": "sha256:a65337d3b15f5ae8212088949795ce23ed90c5434d1a37b107f533386607fdbc",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -3964,13 +3964,13 @@
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:3f46bec6140be1dd12cf2903470d65eb7ce0a5005ba8b2f05f59a387cd24c6d7",
+        "sourceDigest": "sha256:baa3a847fc6cd5cfbca7d4754c448ff4a9cba9c61ebeba0d014a6ed5c4465ea6",
         "metrics": {
-          "utf8Bytes": 541,
-          "codePoints": 541,
-          "nonWhitespaceCodePoints": 476,
-          "lines": 8,
-          "surfaceLexemes": 140
+          "utf8Bytes": 585,
+          "codePoints": 585,
+          "nonWhitespaceCodePoints": 514,
+          "lines": 9,
+          "surfaceLexemes": 147
         }
       },
       "alternatives": [
@@ -4008,18 +4008,6 @@
             "nonWhitespaceCodePoints": 75,
             "lines": 3,
             "surfaceLexemes": 16
-          }
-        },
-        {
-          "name": "observer-without-composition",
-          "language": "w-rejected",
-          "sourceDigest": "sha256:f66de6e4c0a3896afa7b2f4490674f0629a637dce9a43f5554845a7315eff5c5",
-          "metrics": {
-            "utf8Bytes": 25,
-            "codePoints": 25,
-            "nonWhitespaceCodePoints": 21,
-            "lines": 1,
-            "surfaceLexemes": 5
           }
         }
       ]

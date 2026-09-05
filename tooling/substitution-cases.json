@@ -2419,13 +2419,14 @@
     {
       "id": "R0-fpp0-facets-pipe-pipeline",
       "reviewItem": "FPP0 facets, pipe-forward e pipeline unificada contra projeções implícitas, UFCS e grafo sem schema",
-      "decisions": ["W-1509", "W-1510", "W-1511", "W-1512"],
+      "decisions": ["W-1509", "W-1510", "W-1511", "W-1512", "W-1536"],
       "task": "Exercise the closed FPP0 source surfaces: immediate qualified facets and nominal behavior composition, a multi-stage functional pipe-forward chain, ordinary Task combinators, and explicit pipeline modes with commit.",
       "selected": {
         "language": "w",
         "source": [
           "export behavior VersionedDegrees for u16 = (degrees: WrappedDegrees, version: Versioned<u16>)",
           "var VersionedDegrees yaw: u16 = 350_u16",
+          "var Versioned remainingCorrections: u16 = 8",
           "yaw#degrees.reset()",
           "task#cancel(reason: .shutdown)",
           "let outcome = await Task.withDeadline(until: deadline, input: take job, using: work)",
@@ -2452,12 +2453,6 @@
           "language": "w-rejected",
           "source": ["TaskGroup.concurrentMap(items)", "transaction { return value }", "pipeline { return value }"],
           "expectedDifference": "Graph execution uses pipeline schemas and one commit terminal; standalone transaction, TaskGroup families, and pipeline return are not current forms."
-        },
-        {
-          "name": "observer-without-composition",
-          "language": "w-rejected",
-          "source": ["var Versioned value = rhs"],
-          "expectedDifference": "An observer does not become a direct initializer. It enters a nominal composition; zero storage behaviors synthesize plain storage for that composition."
         }
       ],
       "sourceRefs": [

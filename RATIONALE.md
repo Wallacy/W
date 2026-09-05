@@ -6339,7 +6339,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-095 | annotations/macros | rejeitado na v0 | `@annotations`; macro AST universal |
 | W-096 | portal | gerar após design freeze; protótipo congelado | páginas manuais; escolher Astro agora |
 | W-097 | aplicação `<...>` | contrato fechado por head e payload tipado | slots universais; mapa aberto |
-| W-098 | campos | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
+| W-098 | campos (histórico; superseded by W-1516) | imutável sem prefixo; `var` para mutation | `let` obrigatório; `let` opcional |
 | W-099 | collection dinâmica | `Array<T>`, `Map<K, V>` e `Set<T>` | `[T]`; braces para map/set |
 | W-100 | tensor indexing | `tensor[i, j]`; prefixo retorna view | nesting obrigatório; método `at` |
 | W-101 | recurso async | `defer async`, scope estruturado ou `take async fn`; sem obrigação linear universal | async destructor; task detached no drop; lint como semântica |
@@ -7760,8 +7760,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1512 | composição nominal e observers property-safe (histórico; superseded by W-1516) | behaviors compõem por tuple rotulada e aliases estáticos; no máximo um storage; observers têm somente `willSet`/`didSet`, e `modify` conclui com um `didSet` pós-borrow sem proposed artificial; paths herdados permanecem qualificados e cycles/collisions são errors | `source-backed-current` histórico para design, grammar, Last Light, corpus e CHEATSHEET; `benchmarkDisposition: required`, status `blocked/deferred`; blockers: composição no checker/lowering, ABI/fingerprint, runtime de hooks e provider; nenhum timing ou resultado foi coletado |
 | W-1513 | raiz contextual de execução target-neutral | `execution` substitui a raiz contextual `process`; `.` projeta somente facts/capabilities já concedidos, `#` expõe controles imediatos, nenhuma forma descobre ou amplia authority ambiental, e `std.process` permanece módulo opcional de host com owners explícitos | `oracle-backed-current` para DESIGN, Last Light, EE e PR0; `benchmarkDisposition: not-applicable`, pois a mudança remove aliases e reloca resolução sem alterar o algoritmo runtime; checker/lowering/provider target-neutral continuam gaps |
 | W-1514 | labels e calls reorderable | `name: T` publica label externo homônimo; `external internal: T` separa label e binding; `_ name: T` é positional-only. Named arguments fazem bind por label em qualquer posição da call e não consomem slots positional-only; argumentos sem label preservam a ordem da sua subsequência, e tipos nunca escolhem binding. Call shape usa receiver/nome, conjunto global de labels e aridade positional-only; permutações não criam overloads. O allocator contextual único pode ocupar qualquer posição declarada, e `|>` preenche exatamente um slot obrigatório não contextual ainda sem binding, sem placeholder. | `source-backed-current` para DESIGN, RATIONALE, grammar, corpus e execution-ergonomics; `benchmarkDisposition: not-applicable`; checker/lowering completo e pipe execution permanecem gaps |
-| W-1515 | separação de ownership, copy e object defaults | `ref T` é borrow shared read-only; `mut ref T` é borrow exclusivo direto, dependent e lifetime-checked; `mut view T` é view exclusiva lógica; `inout T` é somente convenção parameter/call value-in/value-out, com source reservado e writeback normal/throw estruturado. `Copy` é implícito, bounded e sem hidden allocation/deep traversal; `Duplicable` é `copy value` explícito e pode alocar; structs/enums não são Copy por default. `object` sem modo em parâmetro normaliza para `ref ObjectType`, e `mut objectPlace` é a forma curta de mut ref. COW só é direção first-party declarada e research-gated, sem keyword nova. | `source-backed-current` para contrato e exemplos; `implementation-evidence-gap` para checker/lowering/runtime/backend. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
-| W-1516 | properties, behaviors e access observers | A surface remove `modify` e variantes do getter. Toda property usa `let`, `var` ou `const`; a forma bare é rejeitada. O mode fica no tipo (`T`, `ref T`, `mut ref T`, `inout T`) e o accessor é sempre `get`, com `set(value)` para replacement/writeback. `let` admite somente value ou ref; `var inout` exige get+set; `var mut ref` projeta borrow exclusivo sem fingir set. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `source-backed-current` para DESIGN, RATIONALE, Last Light, grammar, reflection availability, corpus e CHEATSHEET; `implementation-evidence-gap` para checker/lowering/runtime. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`, blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner; nenhum timing/result |
+| W-1515 | separação de ownership, copy e object defaults | `ref T` é borrow shared read-only; `mut ref T` é borrow exclusivo direto, dependent e lifetime-checked; `mut view T` é view exclusiva lógica; `inout T` é convenção parameter/call value-in/value-out, enquanto `var p: inout T` em computed property é capability, não stored type. O source fica reservado e o writeback ocorre uma vez em retorno normal, `throw` ou cancellation estruturados, inclusive sem mudança de bits; não há requisito global `T: Copy`, e um owner non-`Copy` pode ser transferido localmente e devolvido sem clone/retain/deepcopy oculto. `Copy` é implícito e bounded; `Duplicable` é `copy value` explícito e pode alocar; structs/enums não são Copy por default. `object` sem modo em parâmetro normaliza para `ref ObjectType`, e `mut objectPlace` é a forma curta de `mut ref`. COW só é direção first-party declarada e research-gated, sem keyword nova. | `implementation-evidence-gap` para contrato, fixtures e gates de parse-only; blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`; nenhum timing/result |
+| W-1516 | properties, behaviors e access observers | A surface remove `modify` e variantes do getter. Toda property runtime stored ou computed usa `let` ou `var`; `const` é member compile-time separado, sem storage por instância ou accessor runtime; a forma bare é rejeitada. O mode fica no tipo (`T`, `ref T`, `mut ref T`, `inout T`) e o accessor é sempre `get`, com `set(value)` para replacement/writeback. `let` computed admite somente value ou ref; `let` stored pode conservar uma capability `mut ref` move-only. `var inout` computed exige get+set, enquanto stored `var p: T` é place direto; `var p: inout T` stored continua inválido. `PropertyAccessKind` possui `value`, `borrowed` e `mutableBorrowed`; `willGet`/`didGet` são opt-in, hooks lexicais/reversos e observáveis, com receiver efetivo publicado quando um hook `mut` exige reserva exclusiva. Storage behavior é no máximo um; observer behavior não fornece storage/accessors. | `implementation-evidence-gap` para contrato, fixtures e gates de parse-only; blockers: checker/lowering, property access lowering, runtime ownership, native backend e language benchmark runner. `benchmarkDisposition: deferred`, `taskId: property-access-ownership-benchmark`; nenhum timing/result |
 | W-1517 | contrato design-only de allocation, placement e memory profiles | `.none` significa somente ausência de allocator geral/root; `.bounded<budget:N>` mede receipts físicos vivos sobre o backing corrente e devolve cobrança na desalocação; `.stack<capacity:N>` é native-stack estrito, sem fallback. O módulo pode declarar `allocation: .forbidDynamic` e `storage: .stack(maximumFrame:N)`; functions publicam summaries inferidos. Profiles `memory` exigem `dynamicAllocation: .allow ou .forbid` e `automaticStorage: .infer ou .stack(maximumFrame:N, maximumCallPath:N)`. A taxonomia separa logical allocation effect de physical storage (`ssa/elided`, `inline`, `nativeStack`, `taskFrame`, `static`, `threadLocal`, `fixedLease`, `providerLease`, `foreign`); `w explain memory` separa fact/decision/estimate/measurement/unknown. | `oracle-backed-current` para o contrato e o oracle de design; `design-only` com blockers compiler/HIR-general/escape/linker/target/provider/runtime/MLIR/explain/benchmark. `benchmarkDisposition: deferred`, correctness-first, sem timing/result; W-1503 é superseded |
 | W-1518 | contrato design-only de registry, publicação e execução | W-owned metadata usa CBOR determinístico e DSSE role-specific sobre bytes exatos; objects usam SHA-256 tagged e digest dos bytes armazenados; root genesis é trusted out-of-band e roots N+1 exigem threshold old+new; Statements in-toto v1/SLSA v1.2 permanecem JSON externo dentro de DSSE. Paths `/v1/root/<version>.dsse`, `/v1/timestamp.dsse` e `/v1/o/sha256/<hex>` separam root, freshness e objects; discovery/search/channel/update são convenience. Package index aponta version→release digest; estados são append-only; capability privada não é authority. PCB0, WEC0, TEV0, SEV0, SBX0, RSX0 e ENT0 têm contratos de design fechados, com implementation evidence missing. | `oracle-backed-current` para o contrato e reducer estrutural host-only; `design-only` com blockers crypto/verifier, registry/server, compiler, runner, provider, sandbox, target/OS, attestation, freshness/clock, fault, reproduction e benchmarks. `benchmarkDisposition: deferred`, correctness-first, sem timing/result; W-1486 é superseded |
 | W-1519 | verified immutable local String binding through the native seed pipeline | Frontend schema `w-seed-frontend-11` separates `statement.effective_type` from source `declared_type` and publishes `expression.resolved_binding_statement` as an indexed lexical relation. Resolution accepts only one unambiguous prior binding in source order. HIR0 schema `w-seed-hir0-2` adds caller-owned `w_seed_hir0_binding` with `owner_instruction`, `owner_block`, `ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`, and `is_mutable=false`. `BINDING` carries the binding index. `CALL` carries none. `BINDING_READ` carries a valid prior binding index, zero byte count, and canonical offset zero. Bindings occur in program, output, counts, capacities, alias tables, `program_from_output`, receipt, semantic digest, and provenance digest. Verification requires owners, order, types, spans, dense ranges, contiguous bytes without gap or overlap, and alias barriers. Lowering accepts only one immutable prior `let` String literal and a later `print` read. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING` or exactly one immutable binding with `BINDING → CALL` in one block and a binding-index read. Equivalent literal and binding forms produce byte-identical HLO0 plans and receipts. HLO0 independently proves its binding plan; MLIR0 consumes the same verified HIR directly. The Restaurant witness traverses parser, frontend, verified HIR, direct MLIR0, verification, translation, native link, and execution with exact stdout `Table 42 remains open\n`. Hello and empty remain direct literals. General locals, `var`, assignment, nested or shadowing scopes, multiple HLO bindings or values, CFG, general SSA, ownership, borrows, DCE, optimization, W dialect, additional hosts or targets, the general public `w run` surface, and performance remain out of scope; W-1521 covers only the bounded public seed subset. | `source-backed-current`, strictly bounded. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. W-1505 and W-1519 remain current for the HLO0 and binding contracts; W-1522 supersedes W-1520 for the native route |
@@ -7784,6 +7784,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1534 | bounded native Windows builder profiles and local receipt | The tooling-only Windows builder accepts one strict `--profile` value. `development` maps to CMake Debug, `release` maps to Release and is the default, `benchmark` maps to a constrained, probed Release recipe with a clean Git worktree and recorded HEAD, and `size-experimental` maps to MinSizeRel for size comparison only. C23 remains primary and C11 remains explicit recovery. The builder reads fixture bytes before execution, records their SHA-256 identities, runs exact Hello and Restaurant smokes from a staged `w.exe`, writes deterministic `receipt.json`, and atomically swaps a dedicated output directory containing only `w.exe` and the receipt. | `source-backed-current` for the script, focused tests, machine manifests, and one real release C11-recovery build on the current Windows host. The four-profile execution matrix, package/release claims, cross-compilation, Unicode source paths, and performance remain gaps. The receipt is local evidence only and not package, budget, or performance proof. Benchmark recipe evidence is constrained/probed only; no reproducible-binary or double-build claim is made. `benchmarkDisposition: compiler-lifecycle`, correctness and recipe evidence only, no timing or result |
 | W-1535 | nested structured `if` through verified HIR0 and linear native maximum analysis | HIR0 schema `w-seed-hir0-8` keeps the existing `if` syntax and admits nested IF records only in Unit-returning ordinary functions. A single bound of 64 IF depth is checked before recursion or emission. Each IF contributes exactly three blocks; layout is branch, complete true subregion, complete false subregion, join, then sibling continuation. `next_block` stays reserved and BRANCH keeps only generic true/false successors. The verifier proves dense ownership/ranges, structural reachability exactly once, arm regions, common join/postdominator, forward acyclicity, condition ownership/type, and no forged or orphan records. Native selection uses one reverse-topological DP over verified blocks and edges, with checked `max(then, else)` and cached shared continuations; call-cycle and binding-read checks remain. | `source-backed-current` for the bounded nested Unit route and exact Restaurant fixture on Linux/WSL plus native Windows Release C11 recovery. The Native0 unit accepts depth 64 and emits it as MLIR; its depth-65 case returns `UNSUPPORTED` with unchanged output/result snapshots. The HIR unit proves only acceptance of depth 64 and rejection of depth 65. Real LLVM/native execution is the Restaurant four-case witness on Linux/WSL and Windows. Full binary depth-7 is a structural stress witness, not timing evidence. HIR/Native0 capacity expansion is private: the local `w_seed_native0_storage` observation is 458448 bytes before and 570576 bytes after, with a 768 KiB ceiling; these are recipe-local layout observations, not ABI, stack, package, or performance claims. MLIR0 advances to `w-seed-mlir0-11` (Windows `w-seed-mlir0-windows-2`); Native0 remains v6 because public bytes and receipt semantics do not change. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, ranking, or measured-performance claim |
+| W-1536 | direct observer application with synthesized plain storage | A behavior with no `get`/`set`, beyond its zero-slot `init()`, declares only metadata, facets and hooks and is an observer. Explicit `var Versioned p: T = rhs` is current and synthesizes one plain logical storage slot; `Versioned<Value>` infers `Value` from `T`. The RHS initializes that plain storage once and is never passed to the observer's zero-slot `init()`. A direct observer requires that zero-slot initializer, has unqualified facet paths and no main storage or accessor; a storage behavior keeps its one-slot initializer. Two or more behaviors or reusable aliases remain a nominal composition. Synthesized storage and the direct observer identity enter ABI and fingerprint; `TypeInfo.Property` exposes only the logical property name/type/mutability/accessMode/hasSetter, not observer or backing identity; `w explain property` shows observer, storage, hooks and cost; mut read hooks retain mutable/exclusive receiver authority. | `implementation-evidence-gap` for the DESIGN contract, fixtures, syntax-atlas and substitution parse/provenance only; these sources do not prove checker, lowering, runtime ownership or native behavior. Existing blockers remain checker/lowering, property access lowering, runtime ownership, native backend and language benchmark runner. `benchmarkDisposition: deferred`, task `property-access-ownership-benchmark`; no timing or result. W-1536 revises only the direct-observer subrule recorded in W-1501, W-1512 and W-1516; it does not supersede those decisions. Rejected alternatives are a mandatory nominal wrapper, passing the RHS to observer init, synthetic `#version` aliases, RHS-based inference instead of logical type, and an observer that declares storage/accessors. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10331,17 +10332,67 @@ válido. A forma curta não generaliza para struct ou enum: `mut structPlace` n�
 é uma identidade/owner singular e não atende a `Copy`; sharing usa `shared`, e
 uma nova identidade exige `Duplicable`.
 
+**Emenda corrente de W-1515 (Consolidação de 2026-09-04; sem novo ID ou
+category promotion).**
+`inout` continua uma expressão de argumento e uma convenção de parâmetro; uma
+annotation `var p: inout T` é a capability de uma computed property e não torna
+`inout` um tipo armazenável. Um stored `var p: T` é um place real e admite
+`inout p`; uma property apoiada por behavior tem accessors e segue a capability
+computed, mesmo quando possui backing storage. A reserva cobre prepare, get, call,
+writeback e hooks. O value-in/value-out faz um único writeback em retorno normal,
+`throw` estruturado e cancellation estruturada, inclusive sem mudança de bits;
+uma access que nunca abriu não escreve de volta, e panic/fault não promete
+cleanup fictício. Não há requisito global `T: Copy`: sob a reserva exclusiva,
+um único owner lógico non-`Copy` pode ser transferido ao local do callee e
+devolvido sem clone, retain ou deepcopy oculto, com o local inicializado em todos
+os exits estruturados. `await`, `async` e `spawn` seguem as regras existentes de
+stability, lifetime e mobility, sem proibição genérica de suspensão.
+
+Nesta emenda, `Copy` continua uma cópia implícita bounded, sem allocation,
+retain/release ou traversal dependente de dados. Copiar `ref`/`view` pode
+duplicar uma borrow edge sob o loan ativo, mas não retém um owner `shared` por
+ARC. Handles `shared`/`weak` são move-first; `copy handle` é explícito, retém a
+mesma identity e não clona o payload. Aggregates que contêm esses owners, ou
+`mut ref`/`mut view`, não ganham `Copy` implícito. Os defaults atuais de object
+(`ref` nominal e a forma curta de `mut ref` para object place) permanecem; W não
+importa defaults de outras linguagens. Uma lowering direta só é equivalente
+quando preserva os valores observados `current`/`proposed`, a ordem de hooks e
+cleanup e o ownership; os mesmos counts ou o resultado final, sozinhos, não
+bastam.
+
+O backlog `property-access-ownership-benchmark` permanece `deferred` e sem
+evidence de runtime/compiler. Variants futuras devem cobrir value-in/value-out,
+`mut ref` direto, lowering otimizado equivalente, owners/drop/retain e código;
+timings e outros resultados ficam para a implementação e não são inventados.
+
+Como precedente, [Rust `Copy`](https://doc.rust-lang.org/std/marker/trait.Copy.html)
+descreve uma cópia implícita que exige componentes compatíveis e não convive com
+`Drop`. W retém somente a intuição de uma cópia bounded e explícita no contrato:
+não importa derivation, `Drop`, defaults ou as demais regras de Rust, e mantém
+handles shared/weak move-first com `copy handle` explícito.
+
+Como precedente, a [referência de declarações do Swift](https://raw.githubusercontent.com/swiftlang/swift-book/main/TSPL.docc/ReferenceManual/Declarations.md)
+e a [referência de properties](https://raw.githubusercontent.com/swiftlang/swift-book/main/TSPL.docc/LanguageGuide/Properties.md)
+documentam `inout` como acesso temporário a argumento com writeback e formas de
+accessor de property. W usa essa comparação apenas para delimitar value-in/out e
+accessors: não importa a syntax `&`, ARC/COW, defaults, exclusivity ou o modelo
+de properties do Swift, que continuam sendo contratos próprios de W.
+
 #### W-1516 — modalities de property e observers de acesso
 
 W-1516 remove `modify` e as variantes `get ref`/`get mut ref` da superfície
-vigente. Toda property declara `let`, `var` ou `const`; a forma bare `name: T`
-é rejeitada. Enum payload labels, tuple labels e parâmetros não são properties.
-Members de `foreign c struct` são descrições de layout ABI e chaves de
-`build.w` são dados de manifesto; nenhum dos dois declara uma property W.
+vigente. Toda property runtime, stored ou computed, declara `let` ou `var`;
+`const` é um member compile-time separado, sem storage por instância ou
+accessor runtime. A forma bare `name: T` é rejeitada. Enum payload labels, tuple
+labels e parâmetros não são properties. Members de `foreign c struct` são
+descrições de layout ABI e chaves de `build.w` são dados de manifesto; nenhum
+dos dois declara uma property W.
 O access mode fica no tipo da property, enquanto o accessor tem sempre o nome
 `get`: `T`, `ref T`, `mut ref T` ou `inout T`. Assim, `let p: T` e
-`let p: ref T` são read-only; `let p: mut ref T`, `let p: inout T`, `let` com
-`set` e property write-only são inválidos. Uma property `var` pode usar os
+`let p: ref T` são read-only. Em uma declaração computed, `let p: mut ref T`,
+`let p: inout T`, `let` com `set` e property write-only são inválidos. Um stored
+`let p: mut ref T` continua uma capability dependent move-only e só permite
+reborrow com autoridade exclusiva do place enclosing. Uma property `var` pode usar os
 quatro modes; `inout` exige `get`+`set`. Stored `var p: T` já é um place e não
 precisa repetir o mode. `const` não recebe observer runtime. O receiver interno
 de `set` é `mut ref self`.
@@ -10373,3 +10424,74 @@ comparar value-in/value-out, mut-ref direto, lowering optimized equivalent,
 observers e detach COW, preservando correctness e sem publicar timing/result.
 Os blockers são checker/lowering, property access lowering, runtime ownership,
 native backend e language benchmark runner.
+
+**Emenda corrente de W-1516 (Consolidação de 2026-09-04; sem novo ID ou
+category promotion).** A tabela
+de modes continua sendo a projeção lógica da property e o requisito mínimo de
+receiver do getter; o receiver requirement efetivo pode ser mais forte. Assim,
+um read hook `mut` exige reserva exclusiva do enclosing property/receiver desde
+`willGet` até o cleanup do getter e `didGet`, inclusive durante a vida do borrow;
+resultado value ou `ref` não permite obter essa autoridade por `ref self` ou owner
+read-only. A interface normalizada publica essa exigência, um protocol witness
+não pode fortalecer um requirement read-only, e caller genérico ou erased
+preserva a obrigação. O body do storage getter deve ser válido no mode declarado;
+authority de observer não escreve no logical storage. A property apoiada por
+behavior continua sujeita a essa distinção, sem inout arbitrário derivado do
+backing.
+
+`PropertyAccessKind` vem somente do mode da projeção: `T`/`inout` é `value`,
+`ref` é `borrowed` e `mut ref` é `mutableBorrowed`. Comparação, cópia escalar ou
+outra escolha do caller não faz downgrade, não pula hooks e não muda o kind.
+Hooks `will` seguem ordem lexical e hooks `did` ordem inversa. Para ref e mut ref,
+`didGet` ocorre após o borrow e o cleanup fecharem, mas antes de liberar a reserva
+externa; closes aninhados são LIFO e error/cancellation estruturados fecham o
+cleanup. Getters e hooks próprios são sync, nonthrows e não suspendem. Observer
+mut é opt-in; sem authority externa, reads concorrentes são rejeitados pela
+exclusividade existente. Não há lock, atomicidade ou interior mutation ocultos,
+e metadata ordinário não é atomic.
+
+O epoch de `VersionedDegrees` conta mutation admissions, não comparação de bits;
+o facet de metadata não executa o logical get. O exemplo canônico registra
+`beforeReset == 3`, zera o epoch e, após o reset do storage e a leitura final,
+chega a `2`; isso é contrato source-backed, não resultado de execução desta
+emenda. Permanecem rejeitadas as alternativas de retain escondido, inferir
+`PropertyAccessKind` do callsite, counters atômicos ocultos e três formas de
+getter; o custo de reservar observer exclusivamente é explícito.
+
+O backlog `property-access-ownership-benchmark` continua
+`implementation-evidence-gap`: runtime/compiler witness ainda está pendente.
+Variants futuras devem comparar learner, idiomatic e frontier para
+value/ref/mut-ref/computed-inout, hooked e unhooked, e complete/elided writeback
+sob os mesmos counts, verificando também `current`/`proposed`, ordem de
+hooks/cleanup e ownership. Owner/drop/retain, código e tempo ficam para a
+implementação; nenhum timing é afirmado agora.
+
+#### W-1536 — aplicação direta de observer com storage plain sintetizado
+
+Esta emenda da Consolidação de 2026-09-04 revisa somente a subregra que
+rejeitava a aplicação direta de um observer em W-1501, W-1512 e W-1516. Ela não
+supersede esses IDs inteiros nem promove evidência. Um behavior sem `get`/`set`,
+além do `init()` zero-slot, declara somente metadata, facets e hooks e pode ser
+aplicado explicitamente como `var Versioned p: T = rhs`. A aplicação infere
+`Versioned<Value>` a partir de `T`, e a aplicação é permitida somente com `var`;
+sintetiza exatamente um storage lógico plain,
+usa o RHS uma vez para inicializar esse storage e nunca o passa ao `init()` do
+observer. O observer direto não declara storage principal nem accessor e expõe
+facets sem alias; uma composição nominal preserva aliases para múltiplos
+behaviors ou nomes reutilizáveis. O storage sintetizado e a identidade da
+aplicação participam de ABI e fingerprint; `TypeInfo.Property` continua
+expondo somente nome, tipo, mutabilidade, `accessMode` e `hasSetter` da
+property lógica, sem identidade de observer ou backing; `w explain property`
+mostra observer, storage, hooks e custo. Portanto não são sugar invisível. O
+initializer one-slot permanece exclusivo de
+behavior de storage; sem RHS, a inicialização segue definite-init e o
+constructor normal, sem default inventado.
+
+A decisão rejeita exigir wrapper nominal para um único observer, passar o RHS ao
+initializer do observer, fabricar alias `#version`, inferir a aplicação pelo
+RHS em vez do tipo lógico e permitir observer com storage/accessor. Um hook de
+leitura `mut` mantém a autoridade mutable/exclusiva do receiver. Fixtures,
+atlas e substitution são apenas source/provenance/parse-only; checker,
+lowering, runtime ownership, backend nativo e benchmark runner permanecem
+gaps. O backlog `property-access-ownership-benchmark` continua deferred com
+os blockers existentes; nenhuma execução, medição ou timing é afirmada.

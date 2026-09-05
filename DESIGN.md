@@ -1329,10 +1329,12 @@ type_path = identifier ("." identifier)* ;
 ```
 
 Um type possui no máximo um qualifier sintático. `mut ref T` é um borrow
-exclusivo direto e `mut view T` é uma view lógica mutável. `inout T` não é type.
-Ele aparece somente no contrato de parâmetro e na operação de call. Em
-`parameter: ref any P`, `ref` pertence ao parâmetro e `any P` é o type. A
-seção 7 define essa separação de ownership.
+exclusivo direto e `mut view T` é uma view lógica mutável. `inout T` não é type
+identity nem stored type: aparece no contrato de parâmetro e na operação de
+call. A annotation `var p: inout T` de uma computed property é uma capability
+de access definida em [§8.4](#84-propriedades-computadas), não um tipo `inout`
+armazenável. Em `parameter: ref any P`, `ref` pertence ao parâmetro e `any P` é
+o type. A seção 7 define essa separação de ownership.
 
 `&` compõe requirements nominais. O qualifier aplica-se à composição completa:
 
@@ -4669,20 +4671,33 @@ var atomic completed: u64 = 0
 - um behavior fica entre `var` e o nome;
 - `atomic` ocupa a mesma posição, mas é um modifier verificado pelo compilador.
 
-Campos usam uma forma mais curta:
+Properties de instance, sejam stored ou computed, usam `let` ou `var` como
+markers runtime. `let` fixa o binding/field depois da inicialização e `var`
+publica mutation conforme a tabela canônica de [§8.4](#84-propriedades-computadas).
+`const` é um member compile-time separado, sem storage por instância ou accessor runtime; ele
+não é uma const-property nem um getter const. A forma bare `name: T` é inválida
+para property W. Campos de layout ABI em `foreign c struct`, enum payload labels,
+tuple labels, parâmetros e chaves de `build.w` continuam bare porque não são
+properties W. Em behavior, o backing permanece `var` no subset vigente e facets
+usam `let`/`var`; não há uma forma nova de const-property ou immutable backing.
+
+Stored fields usam a mesma distinção sem duplicar a tabela de access modes:
+`let` fixa o field/handle e não permite rebind; um stored `mut ref T` continua
+uma capability dependent move-only e só permite reborrow exclusivo com
+autoridade exclusiva sobre o place enclosing. `ref self` ou um owner read-only
+não ganha write via field. `let p: inout T` continua inválido porque `inout` não
+é armazenável. Um field sem initializer vira input obrigatório do constructor ou
+do instance descriptor.
+
+Campos e properties usam uma forma explícita:
 
 ```w
 struct Ticket {
-  id: TicketId
+  let id: TicketId
   var attempts: u8
   var Lazy summary = buildSummary()
 }
 ```
-
-Um campo sem prefixo é imutável depois da inicialização. `var` permite mutation.
-`let field: T` não é uma segunda grafia. Essa forma economiza tokens sem perder
-o contraste visual com estado mutável. Um campo sem initializer vira input
-obrigatório do constructor ou do instance descriptor.
 
 ### 7.2 Funções
 
@@ -5083,13 +5098,30 @@ origem e o lifetime. O valor dependent não possui o referent e não pode
 sobreviver ao place de origem. O source place permanece sob o checker de
 lifetime e não vira um value armazenável.
 
-`inout T` é somente uma convenção de parâmetro e call. O callee recebe um local
-mutável. O source place fica reservado durante a call. O lowering faz writeback
-no retorno normal e em `throw` estruturado. Panic ou fault não fabrica cleanup
-ou writeback. `inout` não é um type armazenável, resultado, pattern mode,
-iteration mode, aggregate field, capture mode ou property accessor. Uma
-implementação pode baixar `inout` para borrow direto somente quando prova
-equivalência observacional. Essa equivalência não muda a superfície.
+`inout T` é uma convenção de parâmetro e call; a expressão `inout place` só
+aparece no argumento de uma call. O callee recebe um local mutável e o source
+place fica reservado durante a call. O value-in/value-out conclui um único
+writeback no retorno normal, em `throw` estruturado e em cancellation estruturada,
+inclusive quando os bits não mudam; uma access que nunca abriu não faz writeback.
+Panic ou fault não fabrica cleanup ou writeback. Não há requisito global `T: Copy`:
+sob a reserva exclusiva, um único owner lógico pode ser transferido ao local do
+callee e devolvido sem clone, retain ou deepcopy oculto; todos os exits
+estruturados deixam esse local inicializado.
+
+`inout` não é um type armazenável, resultado, binding, pattern mode, iteration
+mode, aggregate field, capture mode ou generic type argument. A declaração de
+computed property `var p: inout T { get set }` é uma capability de property, não
+um tipo `inout` storable, e segue [§8.4](#84-propriedades-computadas). Um stored
+`var p: T` já é um place real e pode ser passado com `inout p`; um stored
+`var p: inout T` continua inválido. `async`, `await` e `spawn` seguem as regras
+existentes de estabilidade, reserva, lifetime e mobilidade; não há proibição
+genérica de suspensão do callee. Uma implementação pode baixar `inout` para
+borrow direto somente quando preserva os valores observados `current` e
+`proposed`, a ordem e os counts dos hooks, cleanup, ownership e os erros de
+retorno/throw/cancellation estruturados. Counts ou resultado final iguais,
+sozinhos, não bastam; a justificativa e os precedentes estão na emenda corrente
+de W-1515 em [`RATIONALE.md`](RATIONALE.md#w-1515-ownership-copy-e-object-defaults).
+Essa equivalência não muda a superfície.
 
 ```w
 fn edit(value: inout Counter) { value += 1 }
@@ -5151,9 +5183,10 @@ edit(value: inout draft)             // cria loan exclusivo
 ```
 
 O checker rejeita `inspect(value: ownedMenu)` quando o parâmetro exige `ref`,
-`change(value: ownedMenu)` quando exige `mut ref`,
-`store(value: ref ownedOrder)` e qualquer `inout` fora de parâmetro/call. Ele
-usa o contrato esperado e a value category
+`change(value: ownedMenu)` quando exige `mut ref` e
+`store(value: ref ownedOrder)`. A expressão `inout` continua inválida fora do
+argumento de call; a annotation `var p: inout T` só é válida para computed
+property conforme §8.4, nunca para um stored type. Ele usa o contrato esperado e a value category
 depois do type checking. A grafia isolada não distingue owner place, borrow e
 rvalue.
 O receiver read-only de um método continua implícito em `value.method()` porque
@@ -5183,12 +5216,16 @@ marker.
 
 `Copy` e `Duplicable` são contratos distintos:
 
-- `Copy` é implícito, bounded e sem hidden allocation ou traversal dependente de
-  dados. Uma travessia fieldwise fixa de fields `Copy` é permitida. Ele preserva
-  a semântica dos fields. Copiar um field `ref` copia a borrow edge.
-  Copiar um handle shared copia o handle e sua identity. Em termos de grafo,
-  `Copy` é sempre shallow: ele nunca clona o grafo alcançável. A travessia fixa
-  de fields inline não transforma essa regra em deep copy.
+- `Copy` é implícito, bounded e sem hidden allocation, retain/release ou
+  traversal dependente de dados. Uma travessia fieldwise fixa de components
+  `Copy` é permitida. Copiar um field `ref` ou `view` pode duplicar sua borrow
+  edge sob o loan ativo, mas isso não retém um owner `shared`. Handles de
+  ownership `shared`/`weak` são move-first e não tornam um aggregate
+  implicitamente `Copy`; `copy handle` é explícito, retém a mesma identity e
+  nunca clona o payload. `mut ref`, `mut view` e aggregates que os contêm
+  permanecem move-only. Em termos de grafo, `Copy` é sempre shallow: ele nunca
+  clona o grafo alcançável. A travessia fixa de fields inline não transforma essa
+  regra em deep copy.
 - `Duplicable` é `copy value` explícito. Ele pode percorrer ou alocar storage e
   promete independência lógica conforme o type contract.
 
@@ -5208,11 +5245,11 @@ let socketCopy = copy socket
 `Copy` e `Duplicable` não são sinônimos universais de shallow ou deep copy.
 String, Bytes, Array, Map e Set atendem a `Duplicable` quando seus elementos
 atendem. Um resource, capability ou owner singular não ganha conformance
-automática. `Copy` exige que todos os components permitam cópia bounded e sem
-hidden allocation. Um `object` nominal representa uma identidade/owner singular
-e não pode atender a `Copy`; compartilhamento usa o handle `shared`, e uma
-duplicação lógica só existe quando o próprio contrato `Duplicable` cria uma nova
-identidade válida.
+automática. `Copy` exige que todos os components permitam cópia bounded sem
+hidden ownership operation. Um `object` nominal representa uma identidade/owner
+singular e não pode atender a `Copy`; compartilhamento usa o handle `shared`, e
+uma duplicação lógica só existe quando o próprio contrato `Duplicable` cria uma
+nova identidade válida.
 
 `const` não é um ownership mode. Ele exige um argumento compile-time e não
 adiciona syntax no call site. A seção 3.6.1 define o requisito.
@@ -5245,7 +5282,8 @@ usar o aggregate parcialmente inicializado.
 Um aggregate ou capture torna-se lifetime-dependent quando contém `ref`, `mut
 ref`, `mut view` ou outro borrow. Ele só pode existir quando origem e lifetime
 forem provados; não possui o referent e não sobrevive a ele. `inout` não pode
-ser field. `copy` só é válido quando a composição atende a `Copy` ou quando o
+ser stored field; a única annotation de property é a capability computed de
+§8.4. `copy` só é válido quando a composição atende a `Copy` ou quando o
 caller usa `Duplicable` explicitamente. A cópia preserva as dependency edges e
 sua projeção de origins. O move transfere as edges sem criar ownership do
 referent. A regra vale para tuples, structs, objects, enums, `Option`,
@@ -5918,18 +5956,21 @@ Precedentes e alternativas de inicialização ficam no
 
 ### 8.4 Propriedades computadas
 
-Toda property de `struct`, `object`, `enum`, `protocol` ou `behavior` declara
-`let`, `var` ou `const`. A forma bare `name: T` é rejeitada. Enum payload labels,
-tuple labels e parâmetros não são properties e continuam sem esse marker. Um
-member de `foreign c struct` descreve layout ABI estrangeiro, não uma property
-W, e conserva a forma C-like `name: c.type`. Chaves de `build.w` também são
-dados de manifesto, não declarações de property.
+Toda property runtime de `struct`, `object`, `enum`, `protocol` ou `behavior`
+declara `let` ou `var`, seja stored ou computed. `const` dentro de um type é um
+member compile-time separado, conforme §8.2: não possui storage por instância ou accessor
+runtime e nunca é um const getter. A forma bare `name: T` é rejeitada para
+property W. Enum payload labels, tuple labels e parâmetros não são properties e
+continuam sem esse marker. Um member de `foreign c struct` descreve layout ABI
+estrangeiro, não uma property W, e conserva a forma C-like `name: c.type`.
+Chaves de `build.w` também são dados de manifesto, não declarações de property.
 
-`let` declara uma property sem replacement ou acesso mutável. `var` declara uma
-property que pode publicar replacement, borrow exclusivo ou copy-in/copy-out.
-`const` continua compile-time e não recebe accessors runtime. Uma computed
-property precisa declarar seus accessors e continua diferente de um stored
-field:
+Uma computed `let` declara uma property sem replacement ou acesso mutável. `var`
+declara uma property que pode publicar replacement, borrow exclusivo ou
+copy-in/copy-out.
+`const` continua member compile-time e não recebe accessors runtime. Uma
+computed property precisa declarar seus accessors e continua diferente de um
+stored field:
 
 ```w
 export struct PaymentProof {
@@ -5971,23 +6012,64 @@ O modo fica no type da property. O accessor possui um único nome, `get`:
 | `var p: mut ref T` | `mut ref self` | borrow exclusivo scoped | replacement opcional |
 | `var p: inout T` | `mut ref self` | value-in/value-out | obrigatório |
 
-`let p: mut ref T`, `let p: inout T`, `let` com `set` e property write-only são
-rejeitados. Uma computed property `var p: T` com `get`/`set` permite leitura e
-replacement, mas não se torna argumento `inout` arbitrário. `var p: inout T`
-publica essa capacidade. Um stored field `var p: T` já é um place real e
+A tabela é o requisito mínimo de receiver do getter. A projeção lógica e o
+receiver requirement efetivo são fatos distintos: um hook de leitura `mut` pode
+exigir uma reserva exclusiva adicional, sem mudar o mode lógico da property.
+
+Em uma declaração computed, `let p: mut ref T`, `let p: inout T`, `let` com
+`set` e property write-only são rejeitados. Isso não rejeita um stored `let`
+cujo tipo seja `mut ref T`: ele fixa uma capability dependent move-only, que só
+permite reborrow exclusivo com autoridade exclusiva sobre o place enclosing.
+Uma computed property `var p: T` com `get`/`set` permite leitura e replacement,
+mas não se torna argumento `inout` arbitrário. `var p: inout T` publica essa
+capacidade e exige `get`+`set`. Um stored field `var p: T` já é um place real e
 continua elegível para `mut ref` ou `inout` pelas regras normais de ownership;
-o modifier extra é necessário somente quando accessors precisam projetar o
-place.
+um stored `var p: inout T` continua inválido. O modifier extra é necessário
+somente quando accessors precisam projetar o place. Um `ref self` ou owner
+read-only não ganha write via field.
+
+Uma property apoiada por `behavior` segue essa mesma capability computed no
+mode que publica: seus accessors são gerados e o backing não concede `inout`
+arbitrário. A transferência única de um owner non-`Copy` sob `inout` aplica-se
+a um stored place direto/plain, não a um getter de behavior. Quando há getter,
+setter ou observers, o getter precisa produzir um valor `T` owned e
+property-safe pelas regras acima; não existe snapshot ou clone implícito do
+valor current.
+
+Uma aplicação direta de observer exige `var`. O behavior aplicado diretamente
+é classificado como observer quando não
+possui `get`/`set`; além do `init()` zero-slot, declara somente metadata,
+facets e hooks. A forma explícita
+`var Versioned p: T = rhs` então sintetiza exatamente um storage lógico plain e
+um `init()` zero-slot para a metadata do observer. O RHS inicializa o storage
+plain uma vez e nunca é argumento de `init()` do observer. A aplicação direta
+não declara storage principal nem accessor próprio; storage behavior continua
+usando o initializer one-slot. Facets de um observer direto são paths não
+qualificados (`p#readCount`), enquanto composição nominal preserva aliases.
 
 `get => expression` e `set(value) => expression` são corpos curtos; blocks
 permanecem disponíveis. O expected mode vem da declaration, não de uma variante
 do accessor. Em `ref T`, a expressão de `get` precisa identificar um place que
 possa produzir um borrow read-only. Em `mut ref T`, ela precisa identificar um
 place estável que possa produzir um borrow exclusivo. Em `inout T`, `get` e
-`set` formam a operação reservada de copy-in/copy-out. O source nunca escreve
-`get ref`, `get mut ref`, `return ref` ou `return mut ref`; essas formas são
-rejeitadas. Um getter borrowed pode usar `defer`; o accessor retoma depois que
-o borrow fecha.
+`set` formam a operação reservada de value-in/value-out. Dentro do getter de
+uma property, o body não escreve as formas de accessor `get ref`, `get mut ref`,
+`return ref` ou `return mut ref`; essas formas de accessor são rejeitadas. Uma
+função borrowed fora desse body continua podendo usar `return ref` ou `return
+mut ref` conforme [§9.2](#92-owner-único-move-e-borrow). Um getter
+borrowed pode usar `defer`; o accessor retoma depois que o borrow fecha.
+
+Para uma computed `var p: inout T`, receiver e path são avaliados uma vez. A
+reserva exclusiva cobre prepare, `get`, a call, writeback e hooks; overlap segue
+`Place`/`Loan` existentes e os closes são LIFO. O `get` precisa produzir um `T`
+owned e property-safe: `Copy` ou um novo valor bounded sem allocation geral. Ele
+não pode mover um owned de `self` borrowed nem usar `Duplicable` oculto. Se isso
+não for possível para o tipo, a API usa um método explícito ou `mut ref` direto.
+O value-in conclui um único writeback no retorno, em `throw` e em cancellation
+estruturada, mesmo sem mudança de bits; acesso nunca aberto não faz writeback.
+Panic ou fault não fabrica cleanup. O callee pode suspender somente conforme as
+regras existentes de lifetime e mobility; não há requisito global `T: Copy` nem
+proibição genérica de `await`/`async`/`spawn`.
 Em um `behavior` body, o prefixo opcional `mut` em `mut set(value)` declara que
 a implementação muta seu backing; a surface de computed property continua
 `set(value)`.
@@ -6050,9 +6132,11 @@ custo no call site.
 
 Um getter de receiver borrowed não move um valor move-only para fora de
 `self`. Ele pode devolver um valor `Copy`, um novo valor owned ou uma view
-permitida pelo borrow checker. Uma property `mut ref T` projeta um place
-exclusivo sem copiar. Uma property `inout T` usa o único `get` com `set` e
-executa writeback. O resultado de `get` é determinado pelo mode da declaration.
+permitida pelo borrow checker. Para a regra específica de uma property computed
+`inout`, consulte o requisito de `T` owned property-safe acima. Uma property
+`mut ref T` projeta um place exclusivo sem copiar. Uma property `inout T` usa o
+único `get` com `set` e executa writeback. O resultado de `get` é determinado
+pelo mode da declaration.
 
 Um protocol pode exigir uma propriedade:
 
@@ -6072,6 +6156,13 @@ Uma declaration não combina behavior e accessors explícitos. O behavior possui
 o storage e gera o único `get` e, quando aplicável, `set`. A inicialização do
 field chama `init` do behavior; ela não chama `set`. Um behavior publica seu
 contrato adicional de custo conforme a seção 10.
+
+Quando um behavior apoia uma property, seus accessors gerados seguem a
+capability computed e o mode declarados pela property. O backing storage não
+concede `inout` arbitrário: uma property com behavior não vira place direto só
+porque possui storage. Somente um stored `var p: T` plain é um place elegível
+para `inout p`; a propriedade apoiada por behavior exige a regra de
+value-in/value-out e de valor owned property-safe de [§8.4](#84-propriedades-computadas).
 
 Um behavior definido pelo programa continua sob o teto property-safe. `Lazy`
 é um behavior padrão reconhecido pelo compiler. Ele acrescenta somente os
@@ -9145,7 +9236,9 @@ annotations de lifetime. Quando a prova falha, o diagnostic mostra o owner, o
 borrow, o uso conflitante e a menor correção conhecida.
 
 `ref`, `mut ref` e `mut view` também podem qualificar um resultado ou um
-argumento de tipo. `inout` não qualifica results ou types.
+argumento de tipo. `inout` não qualifica results ou types nem um stored field;
+uma computed property `var p: inout T` é a capability de access definida em
+§8.4, não uma exceção de type identity.
 Eles continuam borrows; não criam reference counting:
 
 ```w
@@ -9282,8 +9375,10 @@ operação fornece ID ou origin, nunca ambos. Origin ambígua é rejeitada. A
 criação de um conjunto de edges é atômica: ID duplicado,
 owner ausente ou conflito não deixa payload parcial.
 
-Move transfere as edges. Copy duplica somente edges shared e exige `Copy` para a
-composição. Move ou drop do owner do referent falha enquanto uma edge dinâmica
+Move transfere as edges. Copy duplica somente borrow edges `shared` e exige
+`Copy` para a composição; isso não retém nem libera um owner `shared` por ARC.
+Handles `shared`/`weak` são move-first e `copy handle` explícito retém a mesma
+identity conforme §9.4, sem clonar payload. Move ou drop do owner do referent falha enquanto uma edge dinâmica
 estiver ativa. Drop libera edges depois do `deinit`. `clear` e replace exigem cleanup
 concluído antes de liberar edges. Copy mantém o bloqueio até o drop de todas as
 cópias. Container possui owners separados para descriptor e storage. Insert e
@@ -9414,6 +9509,10 @@ Source comum não recebe annotation de placement.
 **Garantia vigente:** uma função síncrona não causa alocação no allocator geral
 somente para guardar um local de tamanho fixo que não escapa. Register pressure
 pode criar um stack spill. Ela não autoriza boxing no heap.
+
+O local value-in de uma computed `inout` segue o requisito de valor owned
+property-safe de §8.4; placement não adiciona uma allocation geral oculta nem
+cria um requisito global `Copy`.
 
 ```w
 fn scale(sample: Sample): Sample {
@@ -11211,9 +11310,11 @@ high-bit:       rejected; profile portable
 
 ## 10. Property behaviors
 
-Um `behavior` transforma um binding ou field em uma property lógica. Ele
-possui storage de backing, accessors e obrigações de `drop`. Reflection mostra
-a property lógica e não expõe o storage de backing.
+Um `behavior` transforma um binding ou field em uma property lógica. Um
+behavior de storage possui storage de backing, accessors e obrigações de
+`drop`; um behavior observer possui metadata, facets e hooks, mas não accessors
+ou storage lógico principal. Reflection mostra a property lógica e não expõe o
+storage de backing.
 
 Uma aplicação de `behavior` segue as fases normativas de
 [§8.4.1](#841-lifecycle-explícito-de-property): a inicialização escreve seu
@@ -11222,22 +11323,26 @@ mutação composta usa value get + set para uma property value/inout ou o `get`
 único de uma property `mut ref`,
 e `defer` retoma depois do borrow.
 Nenhum `behavior` adiciona observer implícito, tipo de backing ou `deinit`
-oculto. Hooks `willSet` e `didSet` só existem em um behavior observer nominal
-explicitamente aplicado ou composto conforme W-1516; não aparecem por
-inferência da property.
+oculto. Hooks `willSet` e `didSet` só existem em um behavior observer
+explicitamente aplicado, diretamente ou em composição nominal, conforme
+W-1516; não aparecem por inferência da property.
 
-**W-1501 — behavior convergente (forma vigente):** dentro de um `behavior`, uma
-declaração `var name: Type` é, por definição, um backing field lógico. O field
+**W-1501 — behavior convergente (forma vigente):** dentro de um behavior de
+storage, uma declaração `var name: Type` é, por definição, um backing field
+lógico. O field
 fica oculto de reflection: a property lógica, seus accessors e seu contrato de
 drop são a interface observável. A forma `storage var` não existe mais e o
 keyword global `storage` não é reservado.
 
-Um behavior definido pelo programa declara no máximo uma forma de initializer.
+Um behavior de storage definido pelo programa declara no máximo uma forma de
+initializer.
 `init()` é a forma zero-slot. `init(initialValue: fn(): Value)` é a única forma
 one-slot e recebe o RHS da aplicação como um thunk sem argumentos. Não existem
-outros parâmetros ou declarações `input`. Assim, a aplicação
+outros parâmetros ou declarações `input`. Assim, a aplicação de storage
 `var Behavior field = expression` fornece o thunk `initialValue`; a ausência de
-RHS seleciona somente um behavior com `init()`. Nome, aridade, tipo, `throws`,
+RHS seleciona somente um behavior de storage com `init()`. A aplicação direta
+de um behavior observer segue a regra específica de W-1536 e não transforma o
+RHS em argumento de seu `init()` zero-slot. Nome, aridade, tipo, `throws`,
 `await` ou effects incompatíveis produzem `W-BEHAVIOR-0001`.
 
 O initializer chama o thunk `initialValue` conforme as restrições de effects
@@ -11341,8 +11446,11 @@ export struct Attitude {
 ```
 
 Não há lista ad hoc na property, keywords `storage`/`input` ou uso de `|>` para
-composição. Não há observer implícito: hooks só existem em um behavior observer
-nominal explicitamente aplicado ou composto. A definição infere dois papéis.
+composição. Não há observer implícito por inferência ou pelo RHS: a aplicação
+direta precisa declarar o behavior observer explicitamente. Quando ele não
+declara `get`/`set`, essa aplicação sintetiza um único storage plain para a
+property e chama o `init()` zero-slot somente para sua metadata; o RHS inicializa
+o storage plain e não é passado ao observer. A definição infere dois papéis.
 Um behavior de storage declara um único `get` e, quando a property admite
 replacement ou writeback, `set`. O mode `T`, `ref T`, `mut ref T` ou `inout T`
 fica na declaração da property aplicada. O behavior possui o storage
@@ -11374,6 +11482,10 @@ export behavior Versioned<Value> for Value {
 }
 ```
 
+`PropertyAccessKind` vem somente do mode da projeção lógica declarada:
+`T` e `inout T` produzem `value`, `ref T` produz `borrowed`, e `mut ref T`
+produz `mutableBorrowed`. A value category, comparação, cópia escalar ou mode
+do caller não faz downgrade do getter, não pula hooks e não altera esse kind.
 O enum core `PropertyAccessKind` possui os cases `value`, `borrowed` e
 `mutableBorrowed`:
 
@@ -11385,17 +11497,29 @@ enum PropertyAccessKind {
 }
 ```
 
-`willGet` e `didGet` são hooks opt-in. Eles recebem esse
-kind e contam acessos lógicos observáveis. Para value get, `didGet` roda depois
-de o value ser produzido. Para ref e mut ref, `didGet` roda depois de o borrow
-fechar e o cleanup do accessor terminar. Hooks `will` seguem ordem lexical e
-hooks `did` seguem ordem inversa. O compiler não apaga nem reordena hooks. Sem
-hooks, o acesso não tem custo de observer.
+`willGet` e `didGet` são hooks opt-in. Eles recebem esse kind e contam acessos
+lógicos observáveis. Uma computed `let` não publica hooks de leitura `mut`. Se um
+hook de leitura executado é `mut`, uma property `var` exige reserva exclusiva do
+enclosing property/receiver desde `willGet` até o cleanup do getter e `didGet`,
+inclusive durante a vida do borrow. Mesmo quando o resultado é value ou `ref`,
+`ref self` ou owner read-only não satisfaz essa autoridade; a interface
+normalizada publica o receiver requirement efetivo. Essa reserva não adiciona
+lock, atomicidade ou mutation interior oculta. Para value get, `didGet` roda
+depois de o value ser produzido. Para ref e mut ref, `didGet` roda depois de o
+borrow fechar e o cleanup do accessor terminar, mantendo a reserva externa até
+depois de `didGet`; closes aninhados são LIFO e error/cancellation estruturados
+fecham o cleanup. Hooks `will` seguem ordem lexical e hooks `did` seguem ordem
+inversa. O compiler não apaga nem reordena hooks. Sem hooks, o acesso
+não tem custo de observer.
 
-Hooks que alteram backing exigem `mut` explícito. Hooks sem `mut` não alteram
-backing. Hooks são sync, nonthrows e property-safe. Eles não substituem, vetam,
-reentram ou adquirem authority. Assinatura, modifier, effect ou reentrância
-inválidos produzem `W-BEHAVIOR-0005`.
+Hooks que alteram seu metadata exigem `mut` explícito. Hooks sem `mut` não
+alteram metadata; authority extra do observer nunca autoriza write no logical
+storage, que segue o mode e o behavior de storage. Getters e hooks próprios
+nunca suspendem. Hooks são sync, nonthrows e property-safe; eles não substituem,
+vetam, reentram ou adquirem authority. Metadata ordinário não é atomic. A falta
+de exclusividade usa o diagnóstico existente de ownership/loan; não cria um
+diagnostic ID novo. Assinatura, modifier, effect ou reentrância inválidos
+produzem `W-BEHAVIOR-0005`.
 
 Uma composição possui no máximo um behavior de storage. Zero storage usa o
 storage plain sintetizado; todo componente restante precisa ser observer. Dois
@@ -11405,11 +11529,21 @@ automática. Alias duplicado, ciclo, path inexistente ou composição que não s
 a tuple declarada produzem `W-BEHAVIOR-0002`/`W-BEHAVIOR-0004`. Um facet path
 que viola ownership da composição ou uso imediato produz `W-BEHAVIOR-0006`.
 
+O body do getter de storage deve ser válido no mode declarado pela property. A
+interface normalizada publica o receiver requirement efetivo separadamente da
+projeção lógica. Um protocol witness não pode fortalecer um requirement
+read-only: ele não pode exigir `mut ref` adicional, e callers genéricos ou
+erased preservam a obrigação publicada. Se um hook `mut` exige receiver
+exclusivo, a property não pode satisfazer um witness read-only por downgrade
+silencioso.
+
 Storage/plain inicializa primeiro e observers inicializam depois, em ordem
 lexical. Uma composição nominal sem behavior de storage usa o storage plain
-sintetizado. A aplicação direta de um observer, como `var Versioned value =
-rhs`, é rejeitada porque a aplicação de property continua selecionando o
-initializer one-slot. Em uma atribuição simples, `willSet` roda em ordem
+sintetizado. Uma aplicação direta de observer, como `var Versioned value: T =
+rhs`, é aceita nesse mesmo caso de zero storage: ela sintetiza o plain storage,
+inicializa-o com o RHS uma vez e não passa o RHS ao `init()` do observer. O
+observer direto expõe facets sem alias; uma composição nominal continua sendo a
+forma para múltiplos behaviors ou aliases reutilizáveis. Em uma atribuição simples, `willSet` roda em ordem
 lexical com current e proposed, a operação de storage acontece uma vez e
 `didSet` roda em ordem inversa com o current final. Uma property passada a
 `inout` compõe value get + set e executa os observers de set no writeback.
@@ -11430,18 +11564,19 @@ Facets herdadas são qualificadas pelo alias: `yaw#degrees.reset()` e
 `#` é resolvido namespace-first pelo alias; para acessar um member do valor
 retornado, use `(yaw#version.mutationEpoch).member`. Guardar o prefixo
 `#degrees` continua rejeitado. Aplicação direta de um behavior de storage mantém
-`place#facet`; um observer só entra por composição nominal, inclusive quando
-essa composição usa storage plain sintetizado. Não há flatten ou reexport
-automático. Nested composites podem ser compostos recursivamente somente com
-path completo e rejeição de ciclo.
+`place#facet`; um observer direto mantém facets não qualificadas
+(`place#readCount`), enquanto um observer em composição usa o alias
+(`place#version.readCount`). Não há flatten ou reexport automático. Nested
+composites podem ser compostos recursivamente somente com path completo e
+rejeição de ciclo.
 
 A identidade composite, ABI e fingerprint incluem ordem, aliases, identities e
 specializations dos componentes e o schema de backing/drop/facets. `TypeInfo`
 continua uma property lógica; `w explain property` mostra a árvore, ordem dos
 hooks, facet paths e custo.
 
-O exemplo `VersionedDegrees` prova os dois benefícios: normalization pertence
-ao storage behavior/lifecycle e o epoch pertence à facet observer:
+O exemplo canônico `VersionedDegrees` mostra os dois benefícios: normalization
+pertence ao storage behavior/lifecycle e o epoch pertence à facet observer:
 
 ```w
 var attitude = Attitude()
@@ -11449,17 +11584,46 @@ attitude.yaw = 350
 attitude.yaw += 25
 expect attitude.yaw == 15
 let beforeReset = attitude.yaw#version.mutationEpoch
-expect beforeReset == 2
+expect beforeReset == 3
 attitude.yaw#version.resetMutationEpoch()
 expect attitude.yaw#version.mutationEpoch == 0
 attitude.yaw#degrees.reset()
 expect attitude.yaw == 0
-expect attitude.yaw#version.mutationEpoch == 1
+expect attitude.yaw#version.mutationEpoch == 2
 ```
+
+`mutationEpoch` é uma facet de metadata: acessá-la não executa o logical get de
+`yaw` nem altera seu `PropertyAccessKind`. O epoch conta admissions observáveis,
+não uma comparação de bits.
 
 O reset não apenas incrementa um campo invisível: ele demonstra que o mesmo
 property place conserva a normalização do storage behavior e publica a mutation
 observável no epoch do observer.
+
+**W-1536 — aplicação direta de observer com storage plain sintetizado (Forma
+vigente):** a aplicação direta exige `var`; um behavior é um observer direto
+quando sua declaração não possui
+`get`/`set`; além do `init()` zero-slot, declara somente metadata, facets e
+hooks. Uma aplicação direta de observer, como
+`var Versioned remainingCorrections: u16 = 8`, é aceita e sintetiza exatamente
+um storage lógico plain para a property. O RHS inicializa esse storage uma vez;
+ele nunca é argumento do `init()` zero-slot do observer, que inicializa somente
+sua metadata. Um observer direto não declara storage principal nem accessor.
+O tipo lógico da property infere os parâmetros do observer (`Versioned<Value>`
+infere `Value = u16` neste exemplo), e suas facets são paths diretos, como
+`remainingCorrections#readCount` e `remainingCorrections#mutationEpoch`.
+
+O initializer one-slot continua sendo a regra de um behavior de storage. Um
+observer direto exige zero-slot `init()` e não inventa valor default: sem RHS,
+a inicialização segue definite-init e o constructor normal. Uma aplicação
+direta de observer e seu storage sintetizado entram em ABI e fingerprint;
+`TypeInfo.Property` continua expondo somente o nome, tipo, mutabilidade,
+`accessMode` e `hasSetter` da property lógica, não a identidade de observer ou
+backing; `w explain property` mostra observer, storage, hooks e custo. Não são
+sugar sem identidade. Composições nominais continuam
+disponíveis para dois ou mais behaviors, aliases e nomes reutilizáveis, com
+facets qualificadas. Um hook de leitura `mut` mantém a exigência de receiver
+mutable/exclusivo; a aplicação direta não remove as regras de ownership.
 
 Uma policy estática pertence ao tipo lógico. Use refinement, newtype ou value
 parameter do tipo. Uma dependência runtime pertence ao owner e entra por método,

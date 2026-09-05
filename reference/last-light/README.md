@@ -1315,6 +1315,20 @@ Aceite:
 - `some PricingPolicy` converte para `any PricingPolicy` sem perder o valor;
 - falha após captura executa um refund idempotente uma vez;
 - retry mutante só ocorre com idempotency key.
+- a composição `Versioned` expõe trace de `readCount`, `mutationEpoch` e
+  `replacementCount`: a sequência canônica observa `epoch/read/replacement`
+  `3/2/1` antes do reset, `5/3/1` após reset do storage e leitura, e `7/5/1`
+  após `nudge` e leitura;
+- `PropertyAccessKind` segue o mode declarado de `yaw` mesmo quando o caller
+  compara o valor; facets de metadata não executam o logical get;
+- `sampleYaw` compara um epoch salvo, e `resetMutationEpoch` invalida epochs
+  salvos sem criar ticket global ou cache key persistente;
+- uma aplicação direta `var Versioned value: u16 = 0` sintetiza um storage plain,
+  inicializa metadata com `init()` zero-slot e publica facets sem alias;
+- uma composição nominal mantém aliases para múltiplos behaviors, e um read hook
+  `mut` mantém a autoridade efetiva mutable/exclusiva do receiver;
+- estes testes W são alvos de execução; o runtime W atual ainda não os executa,
+  portanto a lista não afirma implementação de compiler/runtime.
 
 ### 3.8 Oráculo de Mesas
 
@@ -1635,9 +1649,23 @@ Aceite:
   `willSet`/`didSet`;
 - `willSet`/`didSet` observam writeback pela modalidade `inout`/`set`, não pelo
   acesso direto `mut ref`;
+- uma aplicação direta de observer usa `var`, infere o parâmetro do tipo lógico,
+  sintetiza exatamente um storage plain e não passa o RHS ao `init()` zero-slot;
+- esse storage e a aplicação têm identidade em ABI e fingerprint; `TypeInfo.Property`
+  expõe somente o contrato da property lógica, e `w explain property` mostra
+  observer, storage, hooks e custo; a composição nominal continua disponível;
 - uma storage facet mutável chama `didSet` depois do cleanup, sem
   `proposed`/`willSet`;
 - `PropertyAccessKind` é o enum core real `value | borrowed | mutableBorrowed`.
+- a tabela de receivers é o mínimo do getter; um read hook `mut` publica uma
+  exigência efetiva de reserva exclusiva desde `willGet` até `didGet`, inclusive
+  a vida do borrow, sem lock/atomic/interior mutation oculta;
+- protocol witness, caller genérico ou interface erased preserva a exigência
+  efetiva e não fortalece um requirement read-only por downgrade silencioso;
+- traces de epoch contam mutation admissions, não mudanças de bits, e a ordem
+  lexical/inversa dos hooks e o cleanup são observáveis;
+- estes testes W são alvos de execução; o runtime W atual ainda não os executa,
+  portanto a lista não afirma implementação de compiler/runtime.
 
 O ensaio deve rejeitar `async init`, getter com service call e uso de `self`
 antes da inicialização completa.

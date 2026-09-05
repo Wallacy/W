@@ -24,7 +24,7 @@
         "reference/syntax-atlas/rejected.w-rejected.txt",
         "reference/syntax-atlas/reserved.w-reserved.txt"
       ],
-      "artifactsDigest": "sha256:9afb83ce12939e90e82eb67cb3c17b4e45db9089b47ab7ece2b9b03b4671acb4"
+      "artifactsDigest": "sha256:f6903788828f6621ef051a5a0fbec75b1c8cbc91c47310a1543edc8dd004fcf6"
     },
     {
       "id": "drc0",
@@ -466,7 +466,7 @@
         "RATIONALE.md",
         "tooling/studies/w1504-pipeline-transaction/task-ledger.json"
       ],
-      "artifactsDigest": "sha256:8f5deae84b5ea0b5ef3c4c81910d078517a14285eed5e11d891147b2c28bc321"
+      "artifactsDigest": "sha256:dee116ab110dc61ec281414589772e29633aa86943f18219bbe82ca647d01786"
     }
   ]
 }
