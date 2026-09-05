@@ -765,6 +765,56 @@ prose rules on hidden reasoning or turn every chat reply into a formal report.
 
 ## Proposed finite work queue
 
+### Remediation status
+
+The project owner requested prioritized remediation after this review. The
+review findings remain recorded above. Their implementation status is tracked
+here rather than in another task catalog.
+
+The economic workflow uses one Luna Max worker for a closed implementation
+bundle. The coordinator owns the contract, prioritization, and diff review.
+Existing NCFG0/W-1535 changes remain separate and must not enter a maintenance
+commit by accident. No broader design recommendation is ratified merely by
+its inclusion in this queue.
+
+| Findings | State | Next bounded action |
+|---|---|---|
+| 7 — build publication | Fixed, bounded filesystem evidence | Pre-commit restoration and post-commit partial-cleanup tests pass. Crash recovery remains outside this fix |
+| 8 — reproducibility | Recipe and probe fixed; full-build comparison deferred | Space-separated flags, strict option handling, complete mappings and scoped receipt validation pass. Compare complete W builds after NCFG0 closure |
+| 1–4 — properties and ownership | Queued, semantic priority | Reconcile approved syntax, explicit retain rules, and observer mutation authority before general property lowering |
+| 9 — native CI | Queued | Require pinned native execution and distinguish unavailable local tools from failed CI prerequisites |
+| 5–6, 11–12 — documentation and navigation | Queued | Consolidate doctest rules, repair examples and readers, and update capability-specific status |
+| 10 — test quality | Queued, applied to new fixes now | Use behavior and known-bad mutations for changed tooling, then remove measured redundant checks |
+
+The first maintenance bundle changes
+[`build-w-windows.mjs`](tooling/build-w-windows.mjs), its
+[behavior tests](tooling/build-w-windows.test.mjs), and the
+[seed build instructions](compiler/seed-c/README.md). Publication returns the
+installed path after commit, even when backup cleanup fails. It reports the
+remaining backup separately and never restores a partially removed backup.
+The recovery diagnostic distinguishes that backup from caller-owned staging.
+
+Validation completed on 2026-09-04:
+
+- `bun test tooling/build-w-windows.test.mjs`: 19 tests passed.
+- `bun run check:mlir0-windows`: 24 tests passed, followed by the offline
+  structural check. The total includes the builder tests, not 24 extra tests.
+- A small real CL/link/CMake/Ninja smoke passed with directory names containing
+  spaces. MSVC rejected an invalid option with D8043 and exit code 2.
+- `git diff --check` passed. Test-owned temporary files were removed.
+
+The native smoke is local evidence, not a mandatory CI lane or a complete W
+build. No process-interruption test or real locked-file test was performed.
+The implementation was reviewed by the coordinator, not an independent human.
+
+The build-safety bundle has `benchmarkDisposition: deferred`. The follow-up
+task `windows-build-reproducibility` requires a clean, reviewed source baseline
+after NCFG0 closure. It ends with two complete W builds under equivalent
+recipes, compared artifacts, and retained receipts. Filesystem fault tests and
+small compiler probes do not satisfy that follow-up or establish performance.
+
+### Ordered bundles
+
 Effort is relative: S means a narrow correction; M means a cross-file bundle;
 L means a capability requiring implementation and platform evidence. These are
 not elapsed-time promises. Each row should become one bounded task only when
