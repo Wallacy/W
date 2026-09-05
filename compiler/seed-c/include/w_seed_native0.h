@@ -38,20 +38,96 @@ enum {
   W_SEED_NATIVE0_FUNCTIONS = 8,
   W_SEED_NATIVE0_PARAMETERS = 16,
   W_SEED_NATIVE0_ENTRIES = 8,
-  W_SEED_NATIVE0_STATEMENTS = 64,
-  W_SEED_NATIVE0_EXPRESSIONS = 128,
-  W_SEED_NATIVE0_ARGUMENTS = 64,
+  /* 64 nested IF records plus a leaf and post-join statement fit here. */
+  W_SEED_NATIVE0_STATEMENTS = 128,
+  W_SEED_NATIVE0_EXPRESSIONS = 256,
+  W_SEED_NATIVE0_ARGUMENTS = 128,
   W_SEED_NATIVE0_INTERPOLATION_SEGMENTS = 128,
   W_SEED_NATIVE0_SYMBOLS = 64,
   W_SEED_NATIVE0_FACTS = 64,
   W_SEED_NATIVE0_DIAGNOSTICS = 32,
+  W_SEED_NATIVE0_HIR_MODULES = W_SEED_NATIVE0_MODULES,
   W_SEED_NATIVE0_HIR_IDENTITIES = 32,
-  W_SEED_NATIVE0_HIR_RECORDS = 32,
+  W_SEED_NATIVE0_HIR_TYPES = W_SEED_NATIVE0_TYPES,
+  W_SEED_NATIVE0_HIR_FUNCTIONS = W_SEED_NATIVE0_FUNCTIONS,
+  W_SEED_NATIVE0_HIR_PARAMETERS = W_SEED_NATIVE0_PARAMETERS,
+  W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION =
+      1 + 3 * W_SEED_HIR0_MAX_NESTING,
+  /* The frontend statement ceiling bounds total IF records across functions. */
+  W_SEED_NATIVE0_HIR_BLOCKS =
+      W_SEED_NATIVE0_FUNCTIONS + 3 * W_SEED_NATIVE0_STATEMENTS,
+  W_SEED_NATIVE0_HIR_TERMINATORS = W_SEED_NATIVE0_HIR_BLOCKS,
+  W_SEED_NATIVE0_HIR_INSTRUCTIONS = 128,
+  W_SEED_NATIVE0_HIR_BINDINGS = 128,
+  W_SEED_NATIVE0_HIR_CALLS = 128,
+  W_SEED_NATIVE0_HIR_HOST_PARAMETERS = 16,
+  W_SEED_NATIVE0_HIR_ARGUMENTS = 256,
+  W_SEED_NATIVE0_HIR_REQUIREMENTS = 16,
+  W_SEED_NATIVE0_HIR_VALUE_RECORDS = 256,
+  W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS = 128,
+  W_SEED_NATIVE0_HIR_ENTRIES = W_SEED_NATIVE0_ENTRIES,
   W_SEED_NATIVE0_HIR_TEXT = 4096,
-  W_SEED_NATIVE0_HIR_VALUES = 4096,
+  W_SEED_NATIVE0_HIR_VALUE_BYTES = 4096,
   W_SEED_NATIVE0_HIR_RECEIPT = 256,
   W_SEED_NATIVE0_FRONTEND_RECEIPT = 65536,
 };
+
+_Static_assert(W_SEED_NATIVE0_STATEMENTS >=
+                   W_SEED_HIR0_MAX_NESTING + 1u,
+               "Native0 statements cover the HIR0 nesting witness");
+_Static_assert(W_SEED_NATIVE0_HIR_BLOCKS >=
+                   W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION,
+               "Native0 HIR blocks cover one maximum-depth function");
+_Static_assert(W_SEED_NATIVE0_HIR_TERMINATORS >=
+                   W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION,
+               "Native0 HIR terminators cover one maximum-depth function");
+_Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
+                   W_SEED_HIR0_MAX_NESTING <= UINT32_MAX &&
+                   W_SEED_NATIVE0_LEXER_FRAMES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_TOKENS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_NODES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_PARSE_FRAMES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ISSUES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_MODULES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_IMPORTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_IMPORT_ITEMS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_STRUCTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_FIELDS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_TYPES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_FUNCTIONS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_PARAMETERS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENTRIES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_EXPRESSIONS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ARGUMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_INTERPOLATION_SEGMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_SYMBOLS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_FACTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_DIAGNOSTICS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_MODULES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_IDENTITIES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_TYPES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_FUNCTIONS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_PARAMETERS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_BLOCKS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_INSTRUCTIONS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_BINDINGS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_CALLS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_HOST_PARAMETERS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_ARGUMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_REQUIREMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_VALUE_RECORDS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_TERMINATORS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_ENTRIES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_TEXT <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_VALUE_BYTES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_RECEIPT <= UINT32_MAX &&
+                   W_SEED_NATIVE0_FRONTEND_RECEIPT <= UINT32_MAX &&
+                   W_SEED_NATIVE0_MAX_SOURCE_BYTES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_MAX_PATH_BYTES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES <= UINT32_MAX,
+               "Native0 capacities fit HIR0 u32 record fields");
 
 typedef enum {
   W_SEED_NATIVE0_OK = 0,
@@ -134,30 +210,34 @@ typedef struct {
   uint8_t frontend_receipt[W_SEED_NATIVE0_FRONTEND_RECEIPT];
   w_seed_frontend_output output;
   w_seed_frontend_result frontend_result;
-  w_seed_hir0_module hir_modules[W_SEED_NATIVE0_HIR_RECORDS];
+  w_seed_hir0_module hir_modules[W_SEED_NATIVE0_HIR_MODULES];
   w_seed_hir0_identity hir_identities[W_SEED_NATIVE0_HIR_IDENTITIES];
-  w_seed_hir0_type hir_types[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_function hir_functions[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_parameter hir_parameters[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_block hir_blocks[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_instruction hir_instructions[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_binding hir_bindings[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_call hir_calls[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_host_parameter hir_host_parameters[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_argument hir_arguments[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_requirement hir_requirements[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_value hir_values[W_SEED_NATIVE0_HIR_RECORDS];
+  w_seed_hir0_type hir_types[W_SEED_NATIVE0_HIR_TYPES];
+  w_seed_hir0_function hir_functions[W_SEED_NATIVE0_HIR_FUNCTIONS];
+  w_seed_hir0_parameter hir_parameters[W_SEED_NATIVE0_HIR_PARAMETERS];
+  w_seed_hir0_block hir_blocks[W_SEED_NATIVE0_HIR_BLOCKS];
+  w_seed_hir0_instruction hir_instructions[W_SEED_NATIVE0_HIR_INSTRUCTIONS];
+  w_seed_hir0_binding hir_bindings[W_SEED_NATIVE0_HIR_BINDINGS];
+  w_seed_hir0_call hir_calls[W_SEED_NATIVE0_HIR_CALLS];
+  w_seed_hir0_host_parameter
+      hir_host_parameters[W_SEED_NATIVE0_HIR_HOST_PARAMETERS];
+  w_seed_hir0_argument hir_arguments[W_SEED_NATIVE0_HIR_ARGUMENTS];
+  w_seed_hir0_requirement hir_requirements[W_SEED_NATIVE0_HIR_REQUIREMENTS];
+  w_seed_hir0_value hir_values[W_SEED_NATIVE0_HIR_VALUE_RECORDS];
   w_seed_hir0_interpolation_segment
-      hir_interpolation_segments[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_terminator hir_terminators[W_SEED_NATIVE0_HIR_RECORDS];
-  w_seed_hir0_entry hir_entries[W_SEED_NATIVE0_HIR_RECORDS];
+      hir_interpolation_segments[W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS];
+  w_seed_hir0_terminator hir_terminators[W_SEED_NATIVE0_HIR_TERMINATORS];
+  w_seed_hir0_entry hir_entries[W_SEED_NATIVE0_HIR_ENTRIES];
   uint8_t hir_text[W_SEED_NATIVE0_HIR_TEXT];
-  uint8_t hir_value_bytes[W_SEED_NATIVE0_HIR_VALUES];
+  uint8_t hir_value_bytes[W_SEED_NATIVE0_HIR_VALUE_BYTES];
   uint8_t hir_receipt[W_SEED_NATIVE0_HIR_RECEIPT];
   w_seed_hir0_output hir_output;
   w_seed_hir0_result hir_result;
   w_seed_hir0_program hir_program;
 } w_seed_native0_storage;
+
+_Static_assert(sizeof(w_seed_native0_storage) <= 768u * 1024u,
+               "Native0 storage remains within the fixed local ceiling");
 
 /* Run source acquisition, parsing, frontend normalization, verified HIR0
  * lowering, and direct MLIR0 emission. No HLO0/HLO1 stage is called. */

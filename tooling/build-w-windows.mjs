@@ -101,6 +101,16 @@ export const SMOKE_CASES = Object.freeze([
     absoluteFixture: resolve(seedDirectory, "fixtures", "restaurant-if.w"),
     expectedStdout: "Kitchen open\nAfter service\nKitchen closed\nAfter service\n",
   }),
+  Object.freeze({
+    id: "restaurant-nested-if",
+    fixture: "compiler/seed-c/fixtures/restaurant-nested-if.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures", "restaurant-nested-if.w"),
+    expectedStdout:
+      "Restaurant open\nKitchen ready\nOpen branch joined\nPost-join service\n" +
+      "Restaurant open\nKitchen closed\nOpen branch joined\nPost-join service\n" +
+      "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
+      "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
+  }),
 ])
 
 function fail(message) {

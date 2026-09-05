@@ -3,8 +3,8 @@
   "version": 1,
   "status": "pinned",
   "artifact": {
-    "schema": "w-seed-mlir0-10",
-    "scope": "unit-cfg-diamond"
+    "schema": "w-seed-mlir0-11",
+    "scope": "unit-cfg-nested-diamond"
   },
   "target": {
     "triple": "x86_64-unknown-linux-gnu",

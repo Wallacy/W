@@ -16,11 +16,12 @@ extern "C" {
 #define W_SEED_NATIVE_SUBSET0_MAX_CALLS 32u
 #define W_SEED_NATIVE_SUBSET0_MAX_BINDINGS 32u
 #define W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES 4096u
-#define W_SEED_NATIVE_SUBSET0_MAX_VALUES 64u
+#define W_SEED_NATIVE_SUBSET0_MAX_VALUES 128u
 #define W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS 64u
 #define W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS 8u
 #define W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS 16u
-#define W_SEED_NATIVE_SUBSET0_MAX_BLOCKS 32u
+/* Matches Native0's statement-derived HIR block capacity. */
+#define W_SEED_NATIVE_SUBSET0_MAX_BLOCKS 392u
 
 typedef enum {
   W_SEED_NATIVE_SUBSET0_OK = 0,
@@ -76,8 +77,9 @@ typedef struct {
 
 /* Bounded multi-function native subset. Source argument order remains in HIR;
  * parameter_ordinal supplies the declaration/ABI mapping. Unit functions may
- * contain the verified sequence of acyclic diamonds. The call graph is
- * acyclic and branch output uses the maximum mutually-exclusive path. */
+ * contain the verified forward-only structured CFG, including nested
+ * diamonds. The call graph is acyclic and branch output uses the maximum
+ * mutually-exclusive path. */
 typedef struct {
   const w_seed_hir0_entry *entry;
   size_t function_count;

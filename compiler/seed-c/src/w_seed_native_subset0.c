@@ -768,159 +768,10 @@ static bool program_host_print_maximum(
 }
 
 
-static bool program_function_maximum(
-    const w_seed_hir0_program *program, size_t function_index,
-    const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
-    uint8_t *state, size_t *cached, bool *has_interpolation,
-    bool *has_local_calls);
-
-static bool program_block_maximum(
-    const w_seed_hir0_program *program, size_t function_index,
-    uint32_t block_index, const w_seed_hir0_binding *const *bindings,
-    size_t *binding_reads, uint8_t *state, size_t *cached,
-    bool *has_interpolation, bool *has_local_calls, size_t depth,
-    size_t *maximum) {
-  if (program == NULL || bindings == NULL || binding_reads == NULL ||
-      state == NULL || cached == NULL || has_interpolation == NULL ||
-      has_local_calls == NULL || maximum == NULL || depth > program->block_count ||
-      depth > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
-      block_index >= program->block_count)
-    return false;
-  const w_seed_hir0_block *block = &program->blocks[block_index];
-  if (block->owner_function != function_index ||
-      block->terminator_index >= program->terminator_count)
-    return false;
-  size_t total = 0u;
-  for (size_t ordinal = 0u; ordinal < block->instruction_count;
-       ordinal += 1u) {
-    const size_t instruction_index =
-        (size_t)block->first_instruction + ordinal;
-    if (instruction_index >= program->instruction_count) return false;
-    const w_seed_hir0_instruction *instruction =
-        &program->instructions[instruction_index];
-    if (instruction->owner_block != block_index ||
-        instruction->ordinal != ordinal)
-      return false;
-    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
-      if (instruction->binding_index >= program->binding_count ||
-          !program_value_lowerable(
-              program, program->bindings[instruction->binding_index]
-                         .initializer_value,
-              (uint32_t)function_index, true, 0u))
-        return false;
-      continue;
-    }
-    if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
-        instruction->call_index >= program->call_count)
-      return false;
-    const w_seed_hir0_call *call = &program->calls[instruction->call_index];
-    if (call->owner_block != block_index || call->owner_instruction !=
-                                                instruction_index ||
-        call->callee_identity >= program->identity_count)
-      return false;
-    const w_seed_hir0_identity *callee =
-        &program->identities[call->callee_identity];
-    size_t addition = 0u;
-    if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
-      if (!program_host_print_maximum(program, call, bindings, binding_reads,
-                                      &addition, has_interpolation))
-        return false;
-    } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
-      if (callee->target_index >= program->function_count ||
-          call->argument_count != callee->parameter_count)
-        return false;
-      for (size_t argument = 0u; argument < call->argument_count;
-           argument += 1u) {
-        const w_seed_hir0_argument *item =
-            &program->arguments[(size_t)call->first_argument + argument];
-        if (!program_value_lowerable(program, item->value_index,
-                                     (uint32_t)function_index, false, 0u))
-          return false;
-      }
-      if (!program_function_maximum(
-              program, callee->target_index, bindings, binding_reads, state,
-              cached, has_interpolation, has_local_calls))
-        return false;
-      addition = cached[callee->target_index];
-      *has_local_calls = true;
-    } else {
-      return false;
-    }
-    if (total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
-        addition > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - total)
-      return false;
-    total += addition;
-  }
-  const w_seed_hir0_terminator *terminator =
-      &program->terminators[block->terminator_index];
-  if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
-    if (program->functions[function_index].return_type != 0u ||
-        terminator->target_block != W_SEED_HIR0_NONE ||
-        terminator->else_block != W_SEED_HIR0_NONE)
-      return false;
-    *maximum = total;
-    return true;
-  }
-  if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
-    if (program->functions[function_index].return_type == 0u ||
-        program->functions[function_index].block_count != 1u ||
-        !program_value_lowerable(program, terminator->value_index,
-                                 (uint32_t)function_index, false, 0u))
-      return false;
-    *maximum = total;
-    return true;
-  }
-  if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
-    size_t continuation = 0u;
-    if (terminator->target_block == W_SEED_HIR0_NONE ||
-        terminator->target_block >= program->block_count ||
-        terminator->else_block != W_SEED_HIR0_NONE ||
-        !program_block_maximum(
-            program, function_index, terminator->target_block, bindings,
-            binding_reads, state, cached, has_interpolation, has_local_calls,
-            depth + 1u, &continuation) ||
-        continuation > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
-        total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - continuation)
-      return false;
-    *maximum = total + continuation;
-    return true;
-  }
-  if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-    size_t then_maximum = 0u;
-    size_t else_maximum = 0u;
-    if (program->functions[function_index].return_type != 0u ||
-        terminator->target_block == W_SEED_HIR0_NONE ||
-        terminator->else_block == W_SEED_HIR0_NONE ||
-        terminator->target_block >= program->block_count ||
-        terminator->else_block >= program->block_count ||
-        terminator->value_index == W_SEED_HIR0_NONE ||
-        terminator->value_index >= program->value_count ||
-        program->values[terminator->value_index].type_index >=
-            program->type_count ||
-        program->types[program->values[terminator->value_index].type_index]
-                .kind != W_SEED_HIR0_TYPE_BOOL ||
-        !program_value_lowerable(program, terminator->value_index,
-                                 (uint32_t)function_index, false, 0u) ||
-        !program_block_maximum(
-            program, function_index, terminator->target_block, bindings,
-            binding_reads, state, cached, has_interpolation, has_local_calls,
-            depth + 1u, &then_maximum) ||
-        !program_block_maximum(
-            program, function_index, terminator->else_block, bindings,
-            binding_reads, state, cached, has_interpolation, has_local_calls,
-            depth + 1u, &else_maximum))
-      return false;
-    const size_t branch_maximum =
-        then_maximum > else_maximum ? then_maximum : else_maximum;
-    if (branch_maximum > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
-        total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - branch_maximum)
-      return false;
-    *maximum = total + branch_maximum;
-    return true;
-  }
-  return false;
-}
-
+/* HIR0 verification proves that each function has a dense, forward-only
+ * block order. Reverse topological dynamic programming computes each block
+ * exactly once. A shared continuation is therefore read from the cache once,
+ * while a branch combines mutually-exclusive arm maxima with max(). */
 static bool program_function_maximum(
     const w_seed_hir0_program *program, size_t function_index,
     const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
@@ -931,8 +782,10 @@ static bool program_function_maximum(
       has_local_calls == NULL || function_index >= program->function_count)
     return false;
   if (state[function_index] == 2u) return true;
+  /* Preserve call-cycle detection for the function graph. */
   if (state[function_index] == 1u) return false;
   state[function_index] = 1u;
+
   const w_seed_hir0_function *function = &program->functions[function_index];
   if (function->return_type >= program->type_count ||
       (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
@@ -940,6 +793,7 @@ static bool program_function_maximum(
        program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL) ||
       function->is_async || function->is_throws || function->is_unsafe ||
       function->has_borrow_clause || function->block_count == 0u ||
+      function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
       function->first_block >= program->block_count ||
       function->block_count > program->block_count - function->first_block)
     return false;
@@ -954,13 +808,156 @@ static bool program_function_maximum(
          program->types[type_index].kind != W_SEED_HIR0_TYPE_BOOL))
       return false;
   }
-  size_t maximum = 0u;
-  if (!program_block_maximum(
-          program, function_index, function->first_block, bindings,
-          binding_reads, state, cached, has_interpolation, has_local_calls, 0u,
-          &maximum))
+
+  const size_t start = function->first_block;
+  const size_t end = start + function->block_count;
+  size_t block_maximum[W_SEED_NATIVE_SUBSET0_MAX_BLOCKS] = {0u};
+  for (size_t offset = function->block_count; offset != 0u; offset -= 1u) {
+    const size_t local_block = offset - 1u;
+    const size_t block_index = start + local_block;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->owner_function != function_index ||
+        block->terminator_index >= program->terminator_count ||
+        (size_t)block->first_instruction > program->instruction_count ||
+        block->instruction_count >
+            program->instruction_count - block->first_instruction)
+      return false;
+
+    size_t total = 0u;
+    for (size_t ordinal = 0u; ordinal < block->instruction_count;
+         ordinal += 1u) {
+      const size_t instruction_index =
+          (size_t)block->first_instruction + ordinal;
+      const w_seed_hir0_instruction *instruction =
+          &program->instructions[instruction_index];
+      if (instruction->owner_block != block_index ||
+          instruction->ordinal != ordinal)
+        return false;
+      if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+        if (instruction->binding_index >= program->binding_count ||
+            bindings[instruction->binding_index] == NULL ||
+            !program_value_lowerable(
+                program, program->bindings[instruction->binding_index]
+                           .initializer_value,
+                (uint32_t)function_index, true, 0u))
+          return false;
+        continue;
+      }
+      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+          instruction->call_index >= program->call_count)
+        return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->owner_block != block_index ||
+          call->owner_instruction != instruction_index ||
+          call->callee_identity >= program->identity_count ||
+          call->first_argument > program->argument_count ||
+          call->argument_count >
+              program->argument_count - call->first_argument)
+        return false;
+      const w_seed_hir0_identity *callee =
+          &program->identities[call->callee_identity];
+      size_t addition = 0u;
+      if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
+        if (!program_host_print_maximum(program, call, bindings, binding_reads,
+                                        &addition, has_interpolation))
+          return false;
+      } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
+        if (callee->target_index >= program->function_count ||
+            call->argument_count != callee->parameter_count)
+          return false;
+        for (size_t argument = 0u; argument < call->argument_count;
+             argument += 1u) {
+          const w_seed_hir0_argument *item =
+              &program->arguments[(size_t)call->first_argument + argument];
+          if (!program_value_lowerable(program, item->value_index,
+                                       (uint32_t)function_index, false, 0u))
+            return false;
+        }
+        if (!program_function_maximum(
+                program, callee->target_index, bindings, binding_reads, state,
+                cached, has_interpolation, has_local_calls))
+          return false;
+        addition = cached[callee->target_index];
+        *has_local_calls = true;
+      } else {
+        return false;
+      }
+      if (total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+          addition > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - total)
+        return false;
+      total += addition;
+    }
+
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
+      if (function->return_type != 0u ||
+          terminator->target_block != W_SEED_HIR0_NONE ||
+          terminator->else_block != W_SEED_HIR0_NONE) {
+        return false;
+      }
+      block_maximum[local_block] = total;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      if (function->return_type == 0u || function->block_count != 1u ||
+          !program_value_lowerable(program, terminator->value_index,
+                                    (uint32_t)function_index, false, 0u)) {
+        return false;
+      }
+      block_maximum[local_block] = total;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      if (terminator->target_block == W_SEED_HIR0_NONE ||
+          terminator->target_block < start ||
+          terminator->target_block >= end ||
+          terminator->target_block <= block_index ||
+          terminator->else_block != W_SEED_HIR0_NONE)
+        return false;
+      const size_t continuation =
+          block_maximum[(size_t)terminator->target_block - start];
+      if (continuation > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+          total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - continuation)
+        return false;
+      block_maximum[local_block] = total + continuation;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (function->return_type != 0u ||
+          terminator->target_block == W_SEED_HIR0_NONE ||
+          terminator->else_block == W_SEED_HIR0_NONE ||
+          terminator->target_block < start ||
+          terminator->target_block >= end ||
+          terminator->else_block < start ||
+          terminator->else_block >= end ||
+          terminator->target_block <= block_index ||
+          terminator->else_block <= block_index ||
+          terminator->value_index == W_SEED_HIR0_NONE ||
+          terminator->value_index >= program->value_count ||
+          program->values[terminator->value_index].type_index >=
+              program->type_count ||
+          program->types[program->values[terminator->value_index].type_index]
+                  .kind != W_SEED_HIR0_TYPE_BOOL ||
+          !program_value_lowerable(program, terminator->value_index,
+                                   (uint32_t)function_index, false, 0u))
+        return false;
+      const size_t then_maximum =
+          block_maximum[(size_t)terminator->target_block - start];
+      const size_t else_maximum =
+          block_maximum[(size_t)terminator->else_block - start];
+      const size_t branch_maximum =
+          then_maximum > else_maximum ? then_maximum : else_maximum;
+      if (branch_maximum > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+          total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - branch_maximum)
+        return false;
+      block_maximum[local_block] = total + branch_maximum;
+      continue;
+    }
     return false;
-  cached[function_index] = maximum;
+  }
+
+  cached[function_index] = block_maximum[0u];
   state[function_index] = 2u;
   return true;
 }

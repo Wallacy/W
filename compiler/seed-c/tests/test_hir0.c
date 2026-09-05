@@ -31,8 +31,8 @@ enum {
   TEST_FUNCTIONS = 8,
   TEST_PARAMETERS = 8,
   TEST_ENTRIES = 4,
-  TEST_STATEMENTS = 32,
-  TEST_EXPRESSIONS = 64,
+  TEST_STATEMENTS = 256,
+  TEST_EXPRESSIONS = 256,
   TEST_ARGUMENTS = 32,
   TEST_INTERPOLATION_SEGMENTS = 16,
   TEST_SYMBOLS = 32,
@@ -40,7 +40,7 @@ enum {
   TEST_DIAGNOSTICS = 8,
   TEST_RECEIPT = 65536,
   TEST_HIR_IDENTITIES = 32,
-  TEST_HIR_RECORDS = 32,
+  TEST_HIR_RECORDS = 512,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
   TEST_HIR_RECEIPT = 256,
@@ -1506,6 +1506,109 @@ static bool test_sequential_if_diamonds(void) {
   return true;
 }
 
+static bool test_nested_if_diamonds(void) {
+  static const char SOURCE[] =
+      "fn serve(isOpen: Bool, isKitchen: Bool) { "
+      "if isOpen { print(message: \"outer open\", suffix: \"\") "
+      "if isKitchen { print(message: \"inner open\", suffix: \"\") } "
+      "else { print(message: \"inner closed\", suffix: \"\") } "
+      "print(message: \"outer open after\", suffix: \"\") } "
+      "else { print(message: \"outer closed\", suffix: \"\") "
+      "if isKitchen { print(message: \"inner open closed\", suffix: \"\") } "
+      "else { print(message: \"inner closed closed\", suffix: \"\") } "
+      "print(message: \"outer closed after\", suffix: \"\") } "
+      "print(message: \"post join\", suffix: \"\") }\n"
+      "fn main() { serve(isOpen: true, isKitchen: true) "
+      "serve(isOpen: true, isKitchen: false) "
+      "serve(isOpen: false, isKitchen: true) "
+      "serve(isOpen: false, isKitchen: false) }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->functions[0].block_count == 10u &&
+        program->functions[1].block_count == 1u &&
+        program->block_count == 11u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 5u);
+  CHECK(program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].target_block == 2u &&
+        program->terminators[1].else_block == 3u);
+  CHECK(program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 4u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].target_block == 4u &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[4].target_block == 9u);
+  CHECK(program->terminators[5].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[5].target_block == 6u &&
+        program->terminators[5].else_block == 7u);
+  CHECK(program->terminators[6].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[6].target_block == 8u &&
+        program->terminators[7].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[7].target_block == 8u &&
+        program->terminators[8].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[8].target_block == 9u &&
+        program->terminators[9].kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved = fixture.hir_terminators[1];
+  fixture.hir_terminators[1].else_block = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved;
+  fixture.hir_terminators[4].target_block = 5u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[4].target_block = 9u;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool append_source(char *buffer, size_t capacity, size_t *offset,
+                          const char *text) {
+  if (buffer == NULL || offset == NULL || text == NULL || *offset > capacity)
+    return false;
+  const size_t count = strlen(text);
+  if (count > capacity - *offset) return false;
+  (void)memcpy(buffer + *offset, text, count);
+  *offset += count;
+  buffer[*offset] = '\0';
+  return true;
+}
+
+static bool make_nested_if_source(char *buffer, size_t capacity, size_t depth) {
+  size_t offset = 0u;
+  if (!append_source(buffer, capacity, &offset, "fn main() { ")) return false;
+  for (size_t level = 0u; level < depth; level += 1u)
+    if (!append_source(buffer, capacity, &offset, "if true { ")) return false;
+  if (!append_source(buffer, capacity, &offset,
+                     "print(message: \"nested\", suffix: \"\") "))
+    return false;
+  for (size_t level = 0u; level < depth; level += 1u)
+    if (!append_source(buffer, capacity, &offset, "} ")) return false;
+  return append_source(buffer, capacity, &offset, "}\nentry(main)\n");
+}
+
+static bool test_nested_if_depth_boundary(void) {
+  char source[TEST_SOURCE];
+  CHECK(make_nested_if_source(source, sizeof(source) - 1u,
+                              W_SEED_HIR0_MAX_NESTING));
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  CHECK(counts.blocks == 1u + W_SEED_HIR0_MAX_NESTING * 3u);
+
+  CHECK(make_nested_if_source(source, sizeof(source) - 1u,
+                              W_SEED_HIR0_MAX_NESTING + 1u));
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  return true;
+}
+
 int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
@@ -1524,6 +1627,8 @@ int main(void) {
   if (!test_if_diamond_cfg()) return 1;
   if (!test_if_without_else_cfg()) return 1;
   if (!test_sequential_if_diamonds()) return 1;
+  if (!test_nested_if_diamonds()) return 1;
+  if (!test_nested_if_depth_boundary()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

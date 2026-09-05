@@ -22,10 +22,12 @@ imutáveis `i64`, Bool e String no mesmo bloco. W-1529 adiciona chamadas diretas
 `Unit` com parâmetros `i64`/Bool e uma `llvm.call` real. W-1530 adiciona
 retornos escalares `i64`/Bool, inferência do binding no caller e SSA real entre
 `llvm.return` e a call. W-1520 registra a forma
-schema-v2 histórica. W-1531 adiciona `if` top-level não aninhado em funções
-`Unit`: HIR0 `w-seed-hir0-7` publica diamonds bounded com `BRANCH`/`JUMP`, e
-MLIR0 `w-seed-mlir0-10` emite `llvm.cond_br`, blocos rotulados e um join real.
-O witness Restaurant executa os dois caminhos e o corpo pós-join. Native0
+schema-v2 histórica. W-1531 adiciona `if` top-level e W-1535 estende a forma
+para `if` aninhado em funções `Unit`: HIR0 `w-seed-hir0-8` publica CFG
+estruturada bounded com `BRANCH`/`JUMP`, e MLIR0 `w-seed-mlir0-11` emite
+`llvm.cond_br`, blocos rotulados e joins forward (limite de 64 níveis).
+O witness Restaurant [aninhado](compiler/seed-c/fixtures/restaurant-nested-if.w)
+executa os quatro caminhos e o corpo pós-join. Native0
 permanece v6 porque seu contrato público de bytes/records não mudou.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
@@ -88,9 +90,9 @@ compile-time-known String values. W-1528 adds typed immutable binding
 initializers and later reads for `i64`, Bool, and String. W-1529 adds bounded
 direct Unit calls with `i64`/Bool parameters. W-1530 advances HIR0 to
 `w-seed-hir0-6` and MLIR0 to `w-seed-mlir0-9` for final scalar returns and
-direct call-result binding initializers. W-1531 advances HIR0 to
-`w-seed-hir0-7` and MLIR0 to `w-seed-mlir0-10` for bounded top-level Unit
-diamonds. Other value domains and general CFG remain gaps.
+direct call-result binding initializers. W-1535 advances HIR0 to
+`w-seed-hir0-8` and MLIR0 to `w-seed-mlir0-11` for bounded nested Unit
+structured CFG. Other value domains and general CFG remain gaps.
 The runner also keeps minimal/no-else microproofs and equivalent learner,
 idiomatic, and frontier source-style candidates for correctness only; frontier
 is exploratory, with no timing, result, or ranking claim.
@@ -105,7 +107,7 @@ frontend normativo completo continuam gaps.
 W-1519 is `source-backed-current` for the first bounded immutable local String
 path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-7` gives each binding one typed initializer root in the common
+`w-seed-hir0-8` gives each binding one typed initializer root in the common
 postorder value graph. It verifies owners, order, types, spans, dense ranges,
 alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
 direct `CONST_STRING` or single `BINDING → CALL` recovery subset.

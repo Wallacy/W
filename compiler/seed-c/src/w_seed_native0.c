@@ -1,7 +1,11 @@
 #include "w_seed_native0.h"
+#include "w_seed_native_subset0.h"
 
 #include <stdio.h>
 #include <string.h>
+
+_Static_assert(W_SEED_NATIVE_SUBSET0_MAX_BLOCKS >= W_SEED_NATIVE0_HIR_BLOCKS,
+               "Native subset block cache covers Native0 HIR blocks");
 
 static bool range_end(uintptr_t start, size_t length, uintptr_t *end) {
   if (end == NULL || length > UINTPTR_MAX - start) return false;
@@ -228,37 +232,37 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
   if (storage == NULL) return W_SEED_NATIVE0_INVALID;
   storage->hir_output = (w_seed_hir0_output){
       .modules = storage->hir_modules,
-      .module_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .module_capacity = W_SEED_NATIVE0_HIR_MODULES,
       .identities = storage->hir_identities,
       .identity_capacity = W_SEED_NATIVE0_HIR_IDENTITIES,
       .types = storage->hir_types,
-      .type_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .type_capacity = W_SEED_NATIVE0_HIR_TYPES,
       .functions = storage->hir_functions,
-      .function_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .function_capacity = W_SEED_NATIVE0_HIR_FUNCTIONS,
       .parameters = storage->hir_parameters,
-      .parameter_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .parameter_capacity = W_SEED_NATIVE0_HIR_PARAMETERS,
       .blocks = storage->hir_blocks,
-      .block_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .block_capacity = W_SEED_NATIVE0_HIR_BLOCKS,
       .instructions = storage->hir_instructions,
-      .instruction_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .instruction_capacity = W_SEED_NATIVE0_HIR_INSTRUCTIONS,
       .bindings = storage->hir_bindings,
-      .binding_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .binding_capacity = W_SEED_NATIVE0_HIR_BINDINGS,
       .calls = storage->hir_calls,
-      .call_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .call_capacity = W_SEED_NATIVE0_HIR_CALLS,
       .host_parameters = storage->hir_host_parameters,
-      .host_parameter_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .host_parameter_capacity = W_SEED_NATIVE0_HIR_HOST_PARAMETERS,
       .arguments = storage->hir_arguments,
-      .argument_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .argument_capacity = W_SEED_NATIVE0_HIR_ARGUMENTS,
       .requirements = storage->hir_requirements,
-      .requirement_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .requirement_capacity = W_SEED_NATIVE0_HIR_REQUIREMENTS,
       .values = storage->hir_values,
-      .value_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .value_capacity = W_SEED_NATIVE0_HIR_VALUE_RECORDS,
       .interpolation_segments = storage->hir_interpolation_segments,
-      .interpolation_segment_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .interpolation_segment_capacity = W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS,
       .terminators = storage->hir_terminators,
-      .terminator_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .terminator_capacity = W_SEED_NATIVE0_HIR_TERMINATORS,
       .entries = storage->hir_entries,
-      .entry_capacity = W_SEED_NATIVE0_HIR_RECORDS,
+      .entry_capacity = W_SEED_NATIVE0_HIR_ENTRIES,
       .text_bytes = storage->hir_text,
       .text_byte_capacity = sizeof(storage->hir_text),
       .value_bytes = storage->hir_value_bytes,

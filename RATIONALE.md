@@ -182,6 +182,7 @@ O corpus compara, no mínimo:
 - typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.
 - scalar function results against precomputed output, erased call results, unchecked return types, and downstream name lookup.
 - bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.
+- bounded nested if diamonds against shared-continuation revisits, implicit joins, and premature general CFG.
 - bounded native Windows x86_64 MLIR route against WSL-only execution, PATH discovery, POSIX write, and Clang/CRT coupling.
 - compact cross-target distribution layers against shipping the heavy CLI toolchain, silent downloads, and unmeasured package-budget exceptions.
 - bounded native Windows builder profiles and local receipt against a public W profile option, manifest-only smoke, and non-atomic output replacement.
@@ -7778,10 +7779,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1529 | typed direct Unit calls through native MLIR | HIR0 schema `w-seed-hir0-5` distinguishes source-evaluation `ordinal` from declaration/ABI `parameter_ordinal`, retains function signatures, and adds typed `PARAMETER_READ`. MLIR0 schema `w-seed-mlir0-8` emits distinct internal functions and real `llvm.call` operations for an acyclic bounded graph. Named arguments reorder globally while positional-only arguments remain fixed. The Restaurant witness evaluates `isOpen: true` before `table: 6 * 7`, passes ABI operands as `(table, isOpen)`, retains `llvm.mul`, and executes exact `Table 42; open: true\n`. | `source-backed-current` only for bounded direct Unit calls with `i64`/Bool parameters on the Linux x86_64 GNU seed route. Runtime String parameters, recursion, indirect calls, returns, overload dispatch, generic specialization, CFG, stable ABI, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1530 | scalar function results through verified HIR and native MLIR | HIR0 schema `w-seed-hir0-6` adds `RETURN_VALUE`, terminator-owned scalar value trees, and indexed `CALL_RESULT`; MLIR0 schema `w-seed-mlir0-9` emits typed signed-`i64`/Bool returns and result-producing direct calls. The frontend infers an immutable binding type from the local call signature. HIR verification proves dense owner partitions, prior same-block call identity, and exact function/call/terminator/result type agreement. The Restaurant witness retains `llvm.mul`, a typed `llvm.return`, a result-producing `llvm.call`, and executes exact `Table 42\n`. | `source-backed-current` only for bounded final scalar returns and direct binding initializers on the Linux x86_64 GNU seed route. Return-call expressions, nested calls, runtime String results, multiple exits, CFG, recursion, indirect calls, stable ABI, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
-| W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The Restaurant witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` only for the bounded Unit diamond route. Conditional values/if expressions, block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch, multiple exits, ownership/effects/tasks, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
+| W-1531 | bounded top-level `if` diamonds through native MLIR | HIR0 schema `w-seed-hir0-7` adds explicit `BRANCH`/`JUMP` terminators with same-function `target_block`/`else_block` edges and terminator-owned Bool conditions. Sequential nonnested Unit conditionals lower to dense entry/then/else/join diamonds; absent `else` uses an empty arm. The frontend relation walk and HIR verifier prove exact statement reachability, monotonic ranges, ownership, spans, digests, reachability, topology, and acyclicity. MLIR0 schema `w-seed-mlir0-10` emits labeled blocks, `llvm.cond_br`, `llvm.br`, and one join continuation. Native selection computes prefix + max arm + join, while Native0 remains v6 because its public artifact contract is unchanged. The Restaurant witness and separate minimal/no-else microproofs plus equivalent learner, idiomatic, and frontier source-style candidates execute the same exact stdout correctness-only on Linux x86_64 GNU through WSL; frontier is an exploration role only. | `source-backed-current` for the bounded top-level Unit diamond subset; W-1535 replaces the nonnested restriction and advances the HIR0/MLIR0 schemas for bounded nested structured Unit CFG, while the W-1531 subset remains current. General CFG beyond that bounded form, conditional values, loops, branch-carried bindings, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, or ranking |
 | W-1532 | bounded native Windows x86_64 seed route through MLIR/LLVM/LLD | Native Windows evidence runs `w run <explicit-path.w>` with target `x86_64-pc-windows-msvc` and the direct `mlir-opt.exe` → `mlir-translate.exe` → `llc.exe` → `lld-link.exe` + `kernel32.lib` pipeline. The emitted runtime uses `GetStdHandle`, `WriteFile`, and `ExitProcess`, with `mainCRTStartup`, console subsystem, and `nodefaultlib`; the external development cache is validated and never bundled with W. The gate proves Hello, Restaurant/if, interpolation, linear output, empty forwarded argument, invalid-source silence, and an x64 PE. | Candidate evidence only, not general Windows support. General W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, other targets, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1533 | compact hermetic cross-target distribution contract | Three layers separate the heavy external development/release cache, a future in-process hermetic release builder, and a compact end-user package. The future route is verified HIR → MLIR APIs/pass subset → LLVM target machine/object → LLD library → executable, with X86/AArch64 packs across Windows/Linux/macOS, explicit SDK/import/runtime/signing/provenance, no silent downloads, and visible measured budget review. Performance has priority over bundle or executable size: Release is the default, size optimizations require benchmark no-regression evidence, and MinSizeRel is experimental only. W program profiles are debug for iteration and diagnostics, release for performance-first output, and benchmark for reproducible pinned work; toolchain profiles are a separate namespace with development, release, benchmark, and opt-in size-experimental. The informal dev name is only a naming opportunity, not an alias. The Hello PE below 1 KiB is an opportunity backlog item, not a gate. Required metrics include compressed artifact, footprint, main executable, target packs, cold Hello build, cold and warm compilation/throughput, toolchain startup, artifact runtime, file/container/section/code/import bytes, benchmark versus baseline, unexpected dependencies, and SBOM; Zig 0.16 is context only. | `source-backed-current` for the manifest policy and offline checker only. Release builder, end-user package, cross-compilation, performance evidence, and budget evidence remain gaps; Apple SDK/license is a blocker. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1534 | bounded native Windows builder profiles and local receipt | The tooling-only Windows builder accepts one strict `--profile` value. `development` maps to CMake Debug, `release` maps to Release and is the default, `benchmark` maps to a constrained, probed Release recipe with a clean Git worktree and recorded HEAD, and `size-experimental` maps to MinSizeRel for size comparison only. C23 remains primary and C11 remains explicit recovery. The builder reads fixture bytes before execution, records their SHA-256 identities, runs exact Hello and Restaurant smokes from a staged `w.exe`, writes deterministic `receipt.json`, and atomically swaps a dedicated output directory containing only `w.exe` and the receipt. | `source-backed-current` for the script, focused tests, machine manifests, and one real release C11-recovery build on the current Windows host. The four-profile execution matrix, package/release claims, cross-compilation, Unicode source paths, and performance remain gaps. The receipt is local evidence only and not package, budget, or performance proof. Benchmark recipe evidence is constrained/probed only; no reproducible-binary or double-build claim is made. `benchmarkDisposition: compiler-lifecycle`, correctness and recipe evidence only, no timing or result |
+| W-1535 | nested structured `if` through verified HIR0 and linear native maximum analysis | HIR0 schema `w-seed-hir0-8` keeps the existing `if` syntax and admits nested IF records only in Unit-returning ordinary functions. A single bound of 64 IF depth is checked before recursion or emission. Each IF contributes exactly three blocks; layout is branch, complete true subregion, complete false subregion, join, then sibling continuation. `next_block` stays reserved and BRANCH keeps only generic true/false successors. The verifier proves dense ownership/ranges, structural reachability exactly once, arm regions, common join/postdominator, forward acyclicity, condition ownership/type, and no forged or orphan records. Native selection uses one reverse-topological DP over verified blocks and edges, with checked `max(then, else)` and cached shared continuations; call-cycle and binding-read checks remain. | `source-backed-current` for the bounded nested Unit route and exact Restaurant fixture on Linux/WSL plus native Windows Release C11 recovery. The Native0 unit accepts depth 64 and emits it as MLIR; its depth-65 case returns `UNSUPPORTED` with unchanged output/result snapshots. The HIR unit proves only acceptance of depth 64 and rejection of depth 65. Real LLVM/native execution is the Restaurant four-case witness on Linux/WSL and Windows. Full binary depth-7 is a structural stress witness, not timing evidence. HIR/Native0 capacity expansion is private: the local `w_seed_native0_storage` observation is 458448 bytes before and 570576 bytes after, with a 768 KiB ceiling; these are recipe-local layout observations, not ABI, stack, package, or performance claims. MLIR0 advances to `w-seed-mlir0-11` (Windows `w-seed-mlir0-windows-2`); Native0 remains v6 because public bytes and receipt semantics do not change. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, ranking, or measured-performance claim |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -9068,8 +9070,9 @@ child records exactly once and consumes expression, argument, constant, value,
 and segment ranges monotonically. The verifier checks dense ownership, spans,
 digests, same-function targets, reachability, diamond topology, acyclicity, and
 the Bool condition. Branch bodies retain only the existing linear let/call
-forms. Nested CFG, scalar-return CFG, branch-carried bindings, and phi/block
-arguments remain rejected.
+forms. W-1531's schema boundary rejected nested CFG; W-1535 replaces that
+restriction for the bounded structured Unit route. Scalar-return CFG,
+branch-carried bindings, and phi/block arguments remain rejected.
 
 MLIR0 advances to `w-seed-mlir0-10` and renders labeled LLVM-dialect blocks with
 `llvm.cond_br` and `llvm.br`. The cursor and text base dominate both arms, and
@@ -9087,8 +9090,9 @@ calls distinct service helpers from two sequential diamonds. Each candidate
 must produce the same exact Restaurant stdout. These are compiler-lifecycle
 correctness evidence only; `frontier` is an exploration role, not a ranking,
 timing, or result claim. Explicit gaps are conditional values/if expressions,
-block arguments/phi, branch-carried bindings, nested CFG, loops, guard/switch,
-multiple exits, ownership/effects/tasks, other targets, and performance.
+block arguments/phi, branch-carried bindings, general CFG beyond W-1535's
+bounded structured Unit form, loops, guard/switch, multiple exits,
+ownership/effects/tasks, other targets, and performance.
 
 #### W-1532 — bounded native Windows x86_64 seed route
 
@@ -9216,6 +9220,60 @@ This byte count is a local observation. It is not a performance result, package
 budget, or portable minimum. The other profile builds remain unclaimed until
 their recipes execute. The Hello PE target below 1 KiB remains an opportunity
 and this bundle does not act on it.
+
+#### W-1535 — bounded nested structured `if` through verified HIR0 and MLIR0
+
+W-1531 deliberately stopped at top-level diamonds. The frontend already
+publishes child and sibling relations for nested IF records, so this bundle
+extends the existing cut without adding grammar or public semantics. The
+accepted body remains the existing `let`, call, and Bool-condition subset in
+an ordinary Unit function. Branch `return`, `var`, guard/switch/loop,
+conditional values, phi/block arguments, branch-carried bindings,
+effects/tasks, and ownership expansion remain explicit barriers.
+
+The chosen HIR0 nesting limit is 64. The relation walk rejects depth 65 before
+emission, and the emitter uses the same bounded recursive helpers only after
+all fallible checks pass. Each IF contributes three blocks. A deterministic
+topological layout places the branch block, the complete true region, the
+complete false region, the common join, and then the sibling continuation.
+This keeps `next_block` reserved and avoids adding a misleading generic join
+field to BRANCH. The verifier's range and arm proof rejects forged targets,
+joins, order, owners, duplicate blocks, or backedges.
+
+The previous native maximum routine could revisit shared continuation regions
+through recursive arm traversal. It is replaced by a reverse-topological DP.
+The DP visits each verified block and terminator once and each CFG edge once.
+It does not revisit shared continuation regions. It uses `max` for mutually
+exclusive arms, checks overflow, and keeps the existing call-cycle and static
+binding-read validation. A full binary depth-7 source (127 IF records, 382
+blocks, 128 condition values) is a structural stress witness. It is not timing
+evidence.
+
+The canonical product witness is `restaurant-nested-if.w`. It executes all
+four outer/inner Bool combinations and one post-join print. The HIR unit proves
+only acceptance of depth 64 and rejection of depth 65. The Native0 unit accepts
+depth 64 and emits it as MLIR; its depth-65 case checks `UNSUPPORTED` with
+unchanged output and result snapshots. Real LLVM/native execution is limited
+to the Restaurant four-case witness on Linux/WSL and native Windows Release
+C11-recovery gates, which use the same source artifact.
+
+Separate Native0 HIR capacities are implementation limits derived from the
+frontend ceilings. They allow the depth-64 witness without enlarging the
+single legacy record family: blocks/terminators cover the per-function
+`1 + 3 * 64` shape, values cover conditions and leaf arguments, and the
+remaining instruction/binding/call/argument/segment families retain their
+own limits. `_Static_assert` checks cover the formulas, u32 fields, the
+private Native0 block maximum, and a 768 KiB caller-owned storage ceiling.
+On this x64 recipe, storage was observed at 458448 bytes before the capacity
+split and 570576 bytes after it. These numbers describe this layout only; they
+are not ABI, stack, package-size, or performance claims. Native0 remains v6,
+while HIR0 and MLIR0 move to schemas 8 and 11 (Windows MLIR label 2).
+
+The bundle is `compiler-lifecycle` evidence only. It publishes no timing,
+throughput, ranking, or performance result. The CFG DP is bounded by verified
+blocks, terminators, and edges. Native selection also traverses instructions
+and calls and validates value trees. The structural stress witness exercises
+the verified forward layout.
 
 #### W-1507 — catálogo operacional de hosts e targets
 
