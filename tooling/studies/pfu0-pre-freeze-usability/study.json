@@ -12,7 +12,7 @@
   "question": "Does the bounded host oracle close the three decisions without changing ownership, stream, service, or property contracts?",
   "corpus": {
     "path": "../../pfu0-pre-freeze-usability-cases.json",
-    "digest": "sha256:7817dbf292c9fb5d21eda23a468c43922d976518f560acdc235eacaf467224ec"
+    "digest": "sha256:d6327c771035aed9aca6a688bb49187c86a8e0ce2a6332080439e041e7c76df3"
   },
   "machine": {
     "path": "../../pfu0-pre-freeze-usability-machine.mjs",
@@ -34,13 +34,13 @@
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "serveOneByOne",
-      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
+      "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997",
       "claim": "Current pull stream."
     },
     {
       "path": "../../../reference/last-light/streams.w",
       "symbol": "runBoundedOrderWindow",
-      "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79",
+      "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997",
       "claim": "Explicit channel capacity and endpoints."
     },
     {

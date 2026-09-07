@@ -87,7 +87,7 @@
       "id": "ipc-study",
       "role": "ipc-study",
       "path": "tooling/studies/ipc1-mapped-ipc/study.json",
-      "digest": "sha256:f73db8ee94c98140296ac3d4f5379b4ca72c03371500800b12c0ff19e38050d2"
+      "digest": "sha256:81d7cf44cf39e7311b3fce9489e027e81e0db8abb3bbdfcf3f99c6c9d18dabad"
     },
     {
       "id": "ipc-corpus",

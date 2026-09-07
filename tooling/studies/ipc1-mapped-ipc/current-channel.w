@@ -13,6 +13,6 @@ export async fn Ipc1MappedIpc(
   _ channel: take Ipc1MappedIpcChannel,
   _ payload: take Bytes,
 ): Bytes throws ChannelSendError<Bytes><[.closed]> {
-  try await channel.requests.send(take payload)
+  try await channel.requests.send(value: take payload)
   return await channel.replies.receive()
 }

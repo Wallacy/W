@@ -108,7 +108,7 @@ async fn submit(
   output: ref Channel<send: Order>,
   order: take Order,
 ): () throws ChannelSendError<Order><[.closed]> {
-  try await output.send(take order)
+  try await output.send(value: take order)
 }
 
 async fn drain(
@@ -169,6 +169,7 @@ async fn drain(
                 (identifier))
               (argument_list
                 (argument
+                  (identifier)
                   (unary_expression
                     (identifier))))))))))
   (function_declaration

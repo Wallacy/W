@@ -18,7 +18,7 @@ export async fn submitOrder(
   output: Channel<send: Order>,
   order: take Order,
 ): () throws ChannelSendError<Order><[.closed]> {
-  try await output.send(take order)
+  try await output.send(value: take order)
 }
 
 export fn trySubmitOrder(
@@ -26,7 +26,7 @@ export fn trySubmitOrder(
   order: take Order,
 ): Order? {
   do {
-    try output.trySend(take order)
+    try output.trySend(value: take order)
     return .none
   } catch .full(let returnedOrder) {
     return .some(returnedOrder)
@@ -40,7 +40,7 @@ export async fn submitAfterAdmission(
   order: take Order,
 ): () throws QueueError {
   let permit = try await output.reserve()
-  try (take permit).send(take order)
+  try (take permit).send(value: take order)
 }
 
 export async fn acceptOrders(
@@ -215,7 +215,7 @@ export async fn handOffAtRendezvous(
   let (output, input) = Channel<Order>.open(capacity: 0)
 
   let received = async (take input).receive()
-  try await output.send(take order)
+  try await output.send(value: take order)
 
   guard let receivedOrder = await received else {
     panic("rendezvous ended before its accepted order")
@@ -229,7 +229,7 @@ export async fn closeAfterReservedOrder(
   let (output, input) = Channel<Order>.open(capacity: 1)
   let permit = try await output.reserve()
   input.close()
-  try (take permit).send(take order)
+  try (take permit).send(value: take order)
 
   guard let receivedOrder = await input.receive() else {
     panic("graceful close revoked an accepted permit")
@@ -244,7 +244,7 @@ export async fn recoverAfterReceiverAbort(
   let _ = take input
 
   do {
-    try await output.send(take order)
+    try await output.send(value: take order)
   } catch .closed(let returnedOrder) {
     return returnedOrder
   }

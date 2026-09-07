@@ -1,7 +1,7 @@
 // atlas:begin module-run-root
 module atlas_execution
 import std.runtime.task
-import { Stream, Channel } from std.stream
+import { Stream, Channel, ChannelSendError } from std.stream
 // atlas:end module-run-root
 
 enum AtlasError: Error {
@@ -206,8 +206,8 @@ async fn consume(_ source: Stream<view String, AtlasError>, _ channel: Channel<r
   return result
 }
 
-async fn send(_ channel: Channel<send: String>, _ value: String): String throws AtlasError {
-  await channel.send(take value)
+async fn send(_ channel: Channel<send: String>, _ value: String): String throws ChannelSendError<String><[.closed]> {
+  try await channel.send(value: take value)
   return "sent"
 }
 

@@ -960,9 +960,9 @@ fn captures(
   _ moved: take String,
   _ sharedValue: shared CaptureBox,
 ): (String, String, String, String?, usize, String) {
-  let copyClosure: some fn(): String = <[copy copied]>() => copied
-  let refClosure: some fn(): String = <[ref borrowed]>() => borrowed
-  let takeClosure: some take fn(): String = <[take moved]>() => moved
+  let copyClosure: some fn(): String = <[copy copied]>() => copy copied
+  let refClosure: some fn(): String = <[ref borrowed]>() => copy borrowed
+  let takeClosure: some take fn(): String = <[take moved]>() => take moved
   let weakClosure = <[weak sharedValue]>() => if let owner = sharedValue {
     .some(copy owner.value)
   } else {
@@ -974,15 +974,22 @@ fn captures(
     return next
   }
   let erased: any fn(String): String =
-    <[copy copied]>(value) => value + copied
+    <[copy copied]>(value) => (take value) + copied
+
+  let copiedResult = copyClosure()
+  let borrowedResult = refClosure()
+  let erasedResult = erased("erased:")
+  expect copyClosure() == copiedResult
+  expect refClosure() == borrowedResult
+  expect erased("erased:") == erasedResult
 
   return (
-    copyClosure(),
-    refClosure(),
+    copiedResult,
+    borrowedResult,
     (take takeClosure)(),
     weakClosure(),
     sequence(),
-    erased("erased:"),
+    erasedResult,
   )
 }
 
@@ -1088,35 +1095,47 @@ task to completion.
 
 ## Allocator scopes
 
+These fixed scopes assume statically proven, infallible admission in the selected
+profile. Dynamic admission requires `try allocator`.
+
 <!-- w-example role=executable use=stage,prepare,edit observable=value -->
 ```w
-fn stage(city: String, allocator destination: ref Allocator): String {
-  return city
+fn stage(city: ref String, allocator destination: ref Allocator): String {
+  var staged = String(allocator: destination)
+  staged.append(city)
+  return staged
 }
 
 fn edit(value: inout String) { value.append("!") }
 
-fn prepare(city: String): (String, usize) {
-  var result = city
+fn prepare(city: ref String): (String, usize) {
+  var result = copy city
+  edit(value: inout result)
   var bytes: usize = 0
 
   allocator scratch: .fixed<capacity: 256> {
-    var copyOfCity = city
-    edit(value: inout copyOfCity)
-    result = stage(city: copyOfCity, allocator: ref scratch)
+    var staged = stage(city: city, allocator: ref scratch)
+    edit(value: inout staged)
+    bytes = staged.bytes.count
   }
 
   allocator .fixed<capacity: 128> {
-    bytes = result.bytes.count
+    let staged = stage(city: city) // The contextual slot uses this allocator.
+    expect staged == city
   }
 
   return (result, bytes)
 }
 
 test "allocator scopes bound temporary work" for prepare {
-  expect prepare("city") == ("city!", 5)
+  let city = "city"
+  expect prepare(city: ref city) == ("city!", 5)
+  expect city == "city"
 }
 ```
+
+Each `staged` owner ends inside its allocator scope. Only the byte count leaves
+the scratch scope. The returned `result` was created outside both scopes.
 
 ## Unsafe, addresses, and bit operations
 
@@ -1281,46 +1300,93 @@ test "bounded task pipeline preserves input order" for processAll {
 
 ## Service and transaction pipelines
 
+The service graphs require linked bindings. `checkLinkedOven` assumes
+`acquire(temperature: 220)` returns a lease whose `preheat()` result is `220`.
+The transaction example requires a `StoreApi` provider with serializable,
+read-only transactions. `checkSeededStore` assumes that provider contains
+`"north"`. The parameterized examples do not implement their providers.
+
 <!-- w-example role=logical-contract -->
 ```w
-struct OvenLease {
-  let temperature: u16
-  fn preheat(): u16 { return temperature }
-}
+import { Isolation, TransactionAccess } from std.database
+import { TransactionFailure, Transactional } from std.runtime.transaction
 
 protocol OvenApi {
-  fn acquire(temperature: u16): OvenLease
+  fn requestedTemperature(): u16
+  fn preheat(temperature: u16): u16
 }
 
 service ovens<key: String>: OvenApi {
-  fn acquire(temperature: u16): OvenLease {
-    return OvenLease(temperature: temperature)
+  fn requestedTemperature(): u16 { return 220 }
+  fn preheat(temperature: u16): u16 { return temperature }
+}
+
+async fn prepare(): u16 throws ServiceFailure {
+  let oven = ovens.at("primary")
+  return try await pipeline {
+    let temperature = oven.requestedTemperature()
+    let ready = oven.preheat(temperature: temperature)
+    commit ready
   }
 }
 
-protocol StoreApi {
-  fn read(): String
+test "dependent service calls commit the terminal value" for prepare {
+  expect try await prepare() == 220
 }
 
-service stores<key: String>: StoreApi {
-  fn read(): String { return "north" }
+protocol OvenLeaseApi {
+  fn preheat(): u16
 }
 
-async fn prepare(): (u16, String) {
-  let oven = ovens.at("primary")
-  let store = stores.at("menu")
-  let ready = await pipeline oven.acquire(temperature: 220).preheat()
-  let value = try await pipeline<transaction: {
+protocol LeasedOvenApi {
+  fn acquire(temperature: u16): ServiceRef<OvenLeaseApi>
+}
+
+async fn prepareViaLease(
+  oven: ref ServiceRef<LeasedOvenApi>,
+): u16 throws ServiceFailure {
+  return try await pipeline oven.acquire(temperature: 220).preheat()
+}
+
+async fn checkLinkedOven(
+  oven: ref ServiceRef<LeasedOvenApi>,
+): () throws ServiceFailure {
+  expect try await prepareViaLease(oven: oven) == 220
+}
+
+enum StoreError: Error {
+  unavailable
+  service(ServiceFailure)
+}
+
+struct StoreContract {
+  let isolation: Isolation
+  let access: TransactionAccess
+}
+
+protocol StoreTransaction {
+  async fn read(): String throws StoreError
+}
+
+protocol StoreApi: Transactional<StoreTransaction, StoreContract, StoreError> {}
+
+async fn readStoredValue(
+  store: ref ServiceRef<StoreApi>,
+): String throws TransactionFailure<StoreError, StoreError> {
+  return try await pipeline<transaction: {
     isolation: .serializable,
     access: .readOnly,
   }> tx = store {
-    commit tx.read()
+    let value = try await tx.read()
+    commit value
   }
-  return (ready, value)
 }
 
-test "pipeline commits the terminal value" for prepare {
-  expect await prepare() == (220, "north")
+async fn checkSeededStore(
+  store: ref ServiceRef<StoreApi>,
+): () throws TransactionFailure<StoreError, StoreError> {
+  let value = try await readStoredValue(store: store)
+  expect value == "north"
 }
 ```
 
@@ -1357,45 +1423,87 @@ products: [
 
 ## Streams and channels
 
-<!-- w-example role=executable use=StreamError,project,relay observable=value -->
+<!-- w-example role=executable use=RelayError,words,project,relay observable=value -->
 ```w
-enum StreamError: Error { closed }
+enum RelayError<Failure: Error>: Error {
+  source(Failure)
+  send(ChannelSendError<String><[.closed]>)
+}
 
-fn project(_ source: take Stream<String, Never>): some Stream<String, Never> {
+fn words(_ values: take Array<String>): some Stream<String, Never> {
+  return stream <[take values]> {
+    for value in take values { yield take value }
+  }
+}
+
+fn project<Failure: Error>(
+  _ source: take some Stream<String, Failure>,
+): some Stream<String, Failure> {
   return stream <[take source]> {
-    var cursor = take source
-    while let item = await cursor.next() {
-      yield copy item
+    for try await item in take source {
+      yield take item
     }
   }
 }
 
-async fn relay(
-  _ source: take Stream<String, StreamError>,
+async fn relay<Failure: Error>(
+  _ source: take some Stream<String, Failure>,
   _ sender: take Channel<send: String>,
-): usize throws StreamError {
+): usize throws RelayError<Failure> {
+  var cursor = take source
   var count: usize = 0
-  for try await item in take source {
-    await sender.send(take item)
+  while true {
+    var next: String? = .none
+    do {
+      next = try await cursor.next()
+    } catch failure {
+      throw .source(take failure)
+    }
+    // Returning ends this sender owner and closes admission if it is last.
+    guard let item = take next else { return count }
+    do {
+      try await sender.send(value: take item)
+    } catch failure {
+      throw .send(take failure)
+    }
     count += 1
   }
-  await sender.close()
-  return count
 }
 
 test "stream projection remains lazy" for project {
-  let error: StreamError = .closed
-  let source = Stream.from(["north", "south"])
-  let projected = project(take source)
+  let source = words(["north", "south"])
+  var projected = project(take source)
+  expect await projected.next() == .some("north")
+  expect await projected.next() == .some("south")
+  expect await projected.next() == .none
+}
+
+test "relay drains after the last sender ends" for relay {
   let (sender, receiver) = Channel<String>.open(capacity: 2)
-  let received = async receiver.receive()
-  let relayed = async relay(Stream.from(["east"]), take sender)
-  expect error == .closed
-  expect await projected.collect() == ["north", "south"]
+  let relayed = async relay(words(["east"]), take sender)
   expect try await relayed == 1
-  expect await received == "east"
+  expect await receiver.receive() == .some("east")
+  expect await receiver.receive() == .none
+}
+
+test "relay returns the item after receiver abort" for relay {
+  let (sender, receiver) = Channel<String>.open(capacity: 1)
+  let _ = take receiver // Destroying the receiver aborts the channel.
+  do {
+    let _ = try await relay(words(["held"]), take sender)
+    panic("an aborted receiver accepted an item")
+  } catch failure {
+    let error: RelayError<Never> = take failure
+    switch error {
+      case .send(.closed(let returnedItem)): expect returnedItem == "held"
+      case .source(_): panic("a nonthrowing source failed")
+    }
+  }
 }
 ```
+
+`RelayError` preserves the rejected payload in its `send` case. Source failures
+use a separate case. Cancellation remains a control outcome, not an error case.
 
 ## Shared state, atomics, and locks
 
