@@ -22,17 +22,17 @@
     "source": {
       "path": "reference/last-light/checker_bootstrap.w",
       "symbol": "export fn canAcceptOrder(",
-      "digest": "sha256:06a1d29ebac7e2b80e0c37d0a7cfced8a5d1ce35fed3d945146a46f7fdca43bc"
+      "digest": "sha256:0591ca0e9fb59907ff8c851d5a6074c0d400b61c6ccb4ecaa8668b3a705428f6"
     },
     "graph": {
       "id": "last-light-checker-bootstrap-graph",
       "path": "benchmarks/seed-check-graph.json",
-      "digest": "sha256:ff78805c96c17e617106c27af1007ac3fc0e0327e2d87c1bfa36e3d5f23160f5"
+      "digest": "sha256:3162b06e1cf2945c9e26bbdcd35de7b7ab3fd6857789a50ffed6cf7edcd44899"
     },
     "input": {
       "id": "last-light-checker-bootstrap-input",
       "path": "benchmarks/seed-check-input.json",
-      "digest": "sha256:c202dd03968c1a9a2999e81eb6bfbb633e8d53cb33e12e62adeb65e3fa4a2020"
+      "digest": "sha256:125fe229385ce015ede3f1752d78b1ec9a9565e90186a37ae0a5b47178ac4364"
     }
   },
   "command": {
