@@ -10,6 +10,8 @@
 
 #if defined(_WIN32)
 #include "w_seed_windows_config.h"
+#elif defined(__linux__)
+#include "w_seed_linux_config.h"
 #endif
 
 bool w_seed_run_parse(int argc, char **argv, w_seed_run_request *request) {
@@ -38,7 +40,8 @@ bool w_seed_run_parse(int argc, char **argv, w_seed_run_request *request) {
   return true;
 }
 
-#if defined(__linux__) || (defined(_WIN32) && W_SEED_WINDOWS_NATIVE_RUN_ENABLED)
+#if (defined(__linux__) && W_SEED_LINUX_NATIVE_RUN_ENABLED) || \
+    (defined(_WIN32) && W_SEED_WINDOWS_NATIVE_RUN_ENABLED)
 /* Run accepts a source basename as an opaque logical identity. The argv path
  * has already been NUL-terminated by the host, so this helper only derives
  * the final basename and preserves the public .w extension check. */
@@ -58,7 +61,7 @@ static bool run_logical_source_id(const char *path, size_t length,
 }
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) && W_SEED_LINUX_NATIVE_RUN_ENABLED
 
 #include <errno.h>
 #include <fcntl.h>
@@ -72,9 +75,10 @@ static bool run_logical_source_id(const char *path, size_t length,
 
 static w_seed_native0_storage native_storage;
 
-static const char MLIR_OPT[] = "/usr/bin/mlir-opt-20";
-static const char MLIR_TRANSLATE[] = "/usr/bin/mlir-translate-20";
-static const char CLANG[] = "/usr/bin/clang-20";
+static const char MLIR_OPT[] = W_SEED_LINUX_MLIR_OPT_PATH;
+static const char MLIR_TRANSLATE[] = W_SEED_LINUX_MLIR_TRANSLATE_PATH;
+static const char LLC[] = W_SEED_LINUX_LLC_PATH;
+static const char LINK_DRIVER[] = W_SEED_LINUX_LINK_DRIVER_PATH;
 
 static bool path_join(char *buffer, size_t capacity, const char *directory,
                       const char *name) {
@@ -125,10 +129,12 @@ static bool remove_file(const char *path) {
 
 static bool cleanup_directory(const char *directory, const char *input_path,
                               const char *verified_path, const char *ll_path,
+                              const char *object_path,
                               const char *program_path) {
   bool clean = remove_file(input_path);
   clean = remove_file(verified_path) && clean;
   clean = remove_file(ll_path) && clean;
+  clean = remove_file(object_path) && clean;
   clean = remove_file(program_path) && clean;
   if (directory != NULL && directory[0] != '\0' && rmdir(directory) != 0 &&
       errno != ENOENT)
@@ -243,17 +249,20 @@ int w_seed_run_execute(const w_seed_run_request *request) {
   char input_path[PATH_MAX] = {0};
   char verified_path[PATH_MAX] = {0};
   char ll_path[PATH_MAX] = {0};
+  char object_path[PATH_MAX] = {0};
   char program_path[PATH_MAX] = {0};
   int exit_code = 3;
   if (!path_join(input_path, sizeof(input_path), directory, "input.mlir") ||
       !path_join(verified_path, sizeof(verified_path), directory,
                  "verified.mlir") ||
       !path_join(ll_path, sizeof(ll_path), directory, "output.ll") ||
+      !path_join(object_path, sizeof(object_path), directory, "output.o") ||
       !path_join(program_path, sizeof(program_path), directory, "program") ||
       !write_private_file(input_path, artifact,
                           native_result.mlir.written.mlir_bytes) ||
       !create_private_file(verified_path, (mode_t)0600) ||
       !create_private_file(ll_path, (mode_t)0600) ||
+      !create_private_file(object_path, (mode_t)0600) ||
       !create_private_file(program_path, (mode_t)0700))
     goto cleanup;
 
@@ -271,15 +280,21 @@ int w_seed_run_execute(const w_seed_run_request *request) {
   if (exit_code != 0) goto cleanup;
   {
     char *arguments[] = {
-        (char *)CLANG,
-        (char *)"-x",
-        (char *)"ir",
-        (char *)"--target=x86_64-unknown-linux-gnu",
+        (char *)LLC,
+        (char *)"-mtriple=x86_64-unknown-linux-gnu",
+        (char *)"-filetype=obj",
+        (char *)"-relocation-model=pic",
         ll_path,
         (char *)"-o",
-        program_path,
+        object_path,
         NULL};
-    exit_code = run_tool(CLANG, arguments);
+    exit_code = run_tool(LLC, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    char *arguments[] = {(char *)LINK_DRIVER, (char *)"-pie", object_path,
+                         (char *)"-o", program_path, NULL};
+    exit_code = run_tool(LINK_DRIVER, arguments);
   }
   if (exit_code != 0) goto cleanup;
   if (chmod(program_path, (mode_t)0700) != 0) goto cleanup;
@@ -287,7 +302,7 @@ int w_seed_run_execute(const w_seed_run_request *request) {
 
 cleanup:
   if (!cleanup_directory(directory, input_path, verified_path, ll_path,
-                          program_path))
+                          object_path, program_path))
     return 3;
   return exit_code;
 }
@@ -764,6 +779,13 @@ int w_seed_run_execute(const w_seed_run_request *request) {
 }
 
 #endif
+
+#elif defined(__linux__) /* W_SEED_LINUX_NATIVE_RUN_ENABLED */
+
+int w_seed_run_execute(const w_seed_run_request *request) {
+  (void)request;
+  return 2;
+}
 
 #else /* unsupported host */
 

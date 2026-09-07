@@ -31,8 +31,25 @@ function fail(message) {
   throw new Error(`W RUN Windows: ${message}`)
 }
 
+function parseArguments(argv) {
+  let ci = false
+  for (const argument of argv) {
+    if (argument === "--ci" && !ci) ci = true
+    else throw new Error(`unknown option: ${String(argument)}`)
+  }
+  return { ci }
+}
+
+const { ci: ciMode } = parseArguments(process.argv.slice(2))
+
 function assert(condition, message) {
   if (!condition) fail(message)
+}
+
+function unavailable(message) {
+  if (ciMode) fail(`${message}; mandatory native CI prerequisite is unavailable`)
+  console.log(`W RUN Windows: SKIP ${message}`)
+  process.exit(0)
 }
 
 function spawn(command, args, cwd = root) {
@@ -150,8 +167,7 @@ function assertPeX64(bytes, label) {
 }
 
 if (process.platform !== "win32" || process.arch !== "x64") {
-  console.log(`W RUN Windows: SKIP ${process.platform}/${process.arch}`)
-  process.exit(0)
+  unavailable(`${process.platform}/${process.arch}`)
 }
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"))

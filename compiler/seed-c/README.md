@@ -1187,18 +1187,41 @@ and no-heap; the logical source id is the opaque basename supplied by the
 caller, including hyphens and the terminal `.w`, rather than a W identifier or
 module name. The direct route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
-mlir-translate → clang/native`; HLO0, HLO1 and RUN0 are not prerequisites.
+mlir-translate → llc → native host link`. HLO0, HLO1 and RUN0 are not
+prerequisites. `llc` emits a position-independent object. The absolute host
+C driver links it with `-pie` and the native CRT/libc. This path generates
+no C source and does not require Clang.
 
-The gate checks the absolute pinned tool paths and factual version 20.1.2. A
-private `/tmp/w-run-XXXXXX` directory uses mode 0700 and fixed files use modes
-0600/0700. The runner uses `execv` without a shell and cleans every path on
-all returns. Arguments after `--` are forwarded byte-for-byte, and the child
-inherits stdout/stderr. Normal exit is propagated; signal exit is `128 +
-signal`. Invocation, source, unsupported and missing-tool errors return 2;
-internal, I/O and cleanup errors return 3. `--entry` and `--offline` are
+The gate checks LLVM versions separately from host link-driver provenance. A
+Linux native run is compile-time opt-in. The default `OFF` build returns 2 from
+`w run` without launching a tool. An `ON` build requires five existing absolute
+executable paths and a native x86_64 GNU target. The host link driver's
+`-dumpmachine` result must identify that target. CMake accepts spaces and rejects quotes,
+backslashes, semicolons, and control characters before generating the header.
+A private `/tmp/w-run-XXXXXX` directory uses mode 0700 and fixed files use modes
+0600/0700. The runner uses `execv` without a shell and cleans every path
+on all returns. Arguments after `--` are forwarded byte-for-byte, and the
+child inherits stdout/stderr. Normal exit is propagated; signal exit is
+`128 + signal`. Invocation, source, unsupported and missing-tool errors return
+2; internal, I/O or cleanup errors return 3. `--entry` and `--offline` are
 rejected. The bounded native Windows route is a separate W-1532 candidate;
 macOS, the general runner and performance remain gaps. The gate is
 compiler-lifecycle correctness evidence only.
+
+The NCI1 Linux 23.1.0 archive passed local size, SHA-256, and extraction checks.
+Extraction uses Zstandard long-window support. The archive's missing Clang
+driver does not block the public runner's separate object and link stages.
+The CI workflow adds mandatory native Linux and Windows jobs. Neither remote
+job has run. These jobs do not promote general platform or cross-target support.
+The recorded 20.1.2 `check:mlir0` recipe remains separate and unchanged.
+
+Local WSL gates passed with LLVM 20.1.2 and, separately, LLVM 23.1.0.
+Both used host GCC/cc 13.3.0 and target `x86_64-linux-gnu`. These gates
+checked exact output, stage failures, missing tools, restored execution, and cleanup.
+The local Linux harness used Bun 1.3.4, not the planned CI Bun 1.4.0.
+The host compiler builds the C seed separately from LLVM object generation.
+Run `bun run check:w-run --ci` only on Linux x64 with the acquired CI tools.
+Mandatory mode fails when prerequisites are absent. It cannot pass through SKIP.
 
 On Linux x86_64, run:
 
@@ -1214,8 +1237,8 @@ bounded candidate gate is:
 bun run check:w-run-windows
 ```
 
-The versioned fixtures can be run directly from the repository root after the
-build:
+The versioned fixtures can be run directly from the repository root after an
+enabled Linux build:
 
 ```text
 ./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
@@ -1238,7 +1261,13 @@ For a manual Linux or WSL smoke from the repository root:
 
 ```sh
 cmake -S compiler/seed-c -B build/seed-c-run -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=/usr/bin/gcc
+  -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc \
+  -DW_SEED_ENABLE_LINUX_NATIVE_RUN=ON \
+  -DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=/usr/bin/mlir-opt-20 \
+  -DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/usr/bin/mlir-translate-20 \
+  -DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/usr/bin/llvm-config-20 \
+  -DW_MLIR0_LINUX_LLC:FILEPATH=/usr/bin/llc-20 \
+  -DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/cc
 cmake --build build/seed-c-run --target w
 ./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
 # Hello, world!

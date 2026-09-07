@@ -35615,15 +35615,25 @@ non-empty, valid UTF-8 and at most 4096 bytes.
 
 ```text
 w run compiler/seed-c/fixtures/hlo0-hello.w
+# Hello, world!
 ```
 
 The command uses caller-owned, no-heap Native0. The logical source id is the
 caller-supplied basename. The route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
-mlir-translate → clang/native`, directly, without HLO0 or HLO1. The recipe
-uses only the verified absolute pinned paths for `mlir-opt-20`,
-`mlir-translate-20` and `clang-20`, with factual version 20.1.2. Execution
-uses a private `/tmp/w-run-XXXXXX` directory with mode 0700 and fixed files
+mlir-translate → llc → native host link`, directly, without HLO0 or HLO1.
+`llc` emits a position-independent object. An absolute host C link driver
+links that object with `-pie` and the native CRT/libc. This route generates
+no C source and does not require Clang.
+
+The explicit build configuration
+validates absolute executable tool paths and the native x86_64 GNU target.
+The runner does not resolve these tools through PATH at runtime. LLVM tool
+versions and host link-driver provenance remain separate evidence.
+The Linux runner is compile-time opt-in. A default `OFF` build returns 2
+without launching tools. This gate does not establish cross-target support.
+
+Execution uses a private `/tmp/w-run-XXXXXX` directory with mode 0700 and fixed files
 with modes 0600/0700, uses `execv` without a shell, and cleans every file and
 directory on every return.
 
@@ -35631,8 +35641,9 @@ Arguments after `--` are forwarded byte-for-byte to the generated program.
 The child inherits stdout and stderr. A normal exit is propagated; a child
 terminated by a signal returns `128 + signal`. Invocation, source,
 unsupported and missing-tool errors return 2; internal, I/O and cleanup errors
-return 3. `--entry` and `--offline` are rejected in this cut. Native Windows,
-macOS and the general public runner remain gaps. The evidence covers compiler
+return 3. `--entry` and `--offline` are rejected in this cut. W-1532 owns the
+separate bounded native Windows candidate. macOS and the general public
+runner remain gaps. The evidence covers compiler
 lifecycle correctness only; it makes no performance, timing or result claim.
 
 W-1521 remains current for this CLI contract. W-1522 defines the static NAT1
@@ -35656,7 +35667,8 @@ widening the NAT1 selector. W-1524 later introduced HIR0
 `w-seed-hir0-3`. W-1528 advances HIR0 to v4 and the native adapter to typed
 immutable bindings. The primary route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate →
-clang/native`, directly and without HLO0, HLO1, or RUN0.
+llc → native host link`, directly and without HLO0, HLO1, or RUN0.
+W-1521 owns the Linux object-generation and host-link boundary.
 
 The accepted HIR shape is exactly one module, one function, one `.default`
 entry, and one block. The function is linear, returns Unit, has no parameters,

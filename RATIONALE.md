@@ -7767,7 +7767,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1519 | verified immutable local String binding through the native seed pipeline | Frontend schema `w-seed-frontend-11` separates `statement.effective_type` from source `declared_type` and publishes `expression.resolved_binding_statement` as an indexed lexical relation. Resolution accepts only one unambiguous prior binding in source order. HIR0 schema `w-seed-hir0-2` adds caller-owned `w_seed_hir0_binding` with `owner_instruction`, `owner_block`, `ordinal`, `type_index`, `name`, initializer `byte_offset/count`, `source_span`, and `is_mutable=false`. `BINDING` carries the binding index. `CALL` carries none. `BINDING_READ` carries a valid prior binding index, zero byte count, and canonical offset zero. Bindings occur in program, output, counts, capacities, alias tables, `program_from_output`, receipt, semantic digest, and provenance digest. Verification requires owners, order, types, spans, dense ranges, contiguous bytes without gap or overlap, and alias barriers. Lowering accepts only one immutable prior `let` String literal and a later `print` read. HLO0 schema `w-seed-hlo0-2` accepts direct `CONST_STRING` or exactly one immutable binding with `BINDING → CALL` in one block and a binding-index read. Equivalent literal and binding forms produce byte-identical HLO0 plans and receipts. HLO0 independently proves its binding plan; MLIR0 consumes the same verified HIR directly. The Restaurant witness traverses parser, frontend, verified HIR, direct MLIR0, verification, translation, native link, and execution with exact stdout `Table 42 remains open\n`. Hello and empty remain direct literals. General locals, `var`, assignment, nested or shadowing scopes, multiple HLO bindings or values, CFG, general SSA, ownership, borrows, DCE, optimization, W dialect, additional hosts or targets, the general public `w run` surface, and performance remain out of scope; W-1521 covers only the bounded public seed subset. | `source-backed-current`, strictly bounded. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. W-1505 and W-1519 remain current for the HLO0 and binding contracts; W-1522 supersedes W-1520 for the native route |
 | W-1520 | verified-HIR direct MLIR0 native route (historical; superseded by W-1522) | W-1520 recorded the schema-v2 direct verified-HIR0 route with `w-seed-mlir0-2`. It replaced W-1506 before W 1.0 and removed HLO0 from the native prerequisite chain. W-1522 later superseded this contract in place with MLIR0 schema `w-seed-mlir0-3` and the bounded linear-print sequence. The historical evidence remains valid for provenance, but W-1520 no longer defines the current MLIR0 API. | `source-backed-historical`, superseded by W-1522. `benchmarkDisposition: compiler-lifecycle`, correctness-only, with no timing or result. |
 
-| W-1521 | bounded public seed `w run` on Linux x86_64 (WSL Linux evidence) | W-1521 is `source-backed-current` only for the public seed command `w run <explicit-path.w> [-- <args...>]` on Linux x86_64; on a Windows host, the evidence runs the Linux binary through WSL Ubuntu. The command accepts one explicit `.w` path and does not discover sources recursively, from cwd or PATH, or through imports, packages, workspaces, registries or network. Source is non-empty, valid UTF-8 and at most 4096 bytes. Native0 is caller-owned and no-heap; the logical source id is the basename treated as an opaque identity, not as a W identifier or module name. The direct route is source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → clang/native, without HLO0 or HLO1. Absolute pinned tool paths and factual version 20.1.2 are checked. A private `/tmp/w-run-XXXXXX` directory uses mode 0700, fixed files use modes 0600/0700, execv uses no shell, and every return cleans all files and directories. Arguments after `--` are forwarded byte-for-byte; the child inherits stdout/stderr. Normal exit is propagated and signal exit is `128 + signal`; invocation, source, unsupported or missing-tool errors return 2, while internal, I/O or cleanup failures return 3. `--entry` and `--offline` are rejected. Native Windows, macOS and the general public runner remain gaps. The evidence is compiler-lifecycle correctness only; it has no performance, timing or result claim. HLO0, HLO1 and RUN0 are not native prerequisites. W-1522 adds the static NAT1 sequence, W-1525 adds bounded signed-`i64` interpolation, and W-1527 adds bounded built-in Bool and compile-time-known String values | `source-backed-current`, strictly bounded; implementation evidence is `compiler/seed-c/cli/run.c`, `compiler/seed-c/cli/w.c`, `compiler/seed-c/include/w_seed_native0.h`, `compiler/seed-c/src/w_seed_native0.c`, `tooling/check-w-run.mjs` and `tooling/mlir0-toolchain.json`; `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
+| W-1521 | bounded public seed `w run` on Linux x86_64 (separate local LLVM evidence) | W-1521 is `source-backed-current` only for the public seed command `w run <explicit-path.w> [-- <args...>]` on Linux x86_64; on a Windows host, the evidence runs the Linux binary through WSL Ubuntu. The command accepts one explicit `.w` path and does not discover sources recursively, from cwd or PATH, or through imports, packages, workspaces, registries or network. Source is non-empty, valid UTF-8 and at most 4096 bytes. Native0 is caller-owned and no-heap; the logical source id is the basename treated as an opaque identity, not as a W identifier or module name. The direct route is source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt → mlir-translate → llc → native host link, without HLO0 or HLO1. The opt-in Linux build validates absolute executable paths and the native x86_64 GNU target. `llc` emits a PIC object. The absolute host C driver links it with `-pie` and native CRT/libc, without generated C source or a Clang dependency. Local WSL gates passed with LLVM 20.1.2 and separately 23.1.0. Host link-driver provenance is independent of LLVM. Native hosted CI has not run. A private `/tmp/w-run-XXXXXX` directory uses mode 0700, fixed files use modes 0600/0700, execv uses no shell, and every return cleans all files and directories. Arguments after `--` are forwarded byte-for-byte; the child inherits stdout/stderr. Normal exit is propagated and signal exit is `128 + signal`; invocation, source, unsupported or missing-tool errors return 2, while internal, I/O or cleanup failures return 3. `--entry` and `--offline` are rejected. W-1532 owns the separate bounded native Windows candidate. macOS and the general public runner remain gaps. The evidence is compiler-lifecycle correctness only; it has no performance, timing or result claim. HLO0, HLO1 and RUN0 are not native prerequisites. W-1522 adds the static NAT1 sequence, W-1525 adds bounded signed-`i64` interpolation, and W-1527 adds bounded built-in Bool and compile-time-known String values | `source-backed-current`, strictly bounded; implementation evidence is `compiler/seed-c/cli/run.c`, `compiler/seed-c/cli/w.c`, `compiler/seed-c/include/w_seed_native0.h`, `compiler/seed-c/src/w_seed_native0.c`, `tooling/check-w-run.mjs`, `tooling/mlir0-toolchain.json` and the separate `tooling/mlir0-ci-toolchain.json`; `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 
 | W-1522 | bounded linear print sequence on direct verified HIR0 | W-1522 is the retained `source-backed-current` static NAT1 selector. It introduced MLIR0 schema `w-seed-mlir0-3` and Native0 schema `w-seed-native0-2`; later adapters retain this static shape. Verified HIR0 has one module, function, `.default` entry and block. The block has 1..32 instructions made only of immutable String bindings and ordered `print` calls. Each payload is at most 256 bytes and ordered stdout is at most 4096 bytes. MLIR0 may coalesce the pure calls into one global and one `write` without promising syscall boundaries. The static artifact retains its derived 13190-byte bound inside the larger current adapter capacity. | `source-backed-current`, strictly bounded; W-1528 owns the current adapter schemas. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
 | W-1523 | structured interpolation in the seed frontend | Frontend schema `w-seed-frontend-12` preserves lexer literal-event identity in CST leaves, parses interpolation bodies as nested expressions, and publishes a dense caller-owned sequence of text or expression segments. Text segments own `const_bytes` slices; expression segments own normalized expression indices. Unconstrained integer interpolation defaults to canonical signed `i64`, and dry/emit use dedicated stable inferred type identities. Capacity is measured and failure is all-or-nothing. At this decision boundary, HIR0 validated the new array shape but did not lower interpolation; W-1524 later adds that bounded HIR cut. | `source-backed-current` only for parser/frontend records and focused tests; MLIR/native execution and performance remain gaps, while HIR evidence is classified separately by W-1524. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result |
@@ -8718,9 +8718,18 @@ access. The logical source identity is the basename supplied to Native0,
 treated as opaque rather than as a W identifier or module name.
 
 The Linux x86_64 pipeline is source → parser/frontend → verified HIR0 → MLIR0
-→ mlir-opt → mlir-translate → clang/native. Native0 remains caller-owned and
-no-heap. HLO0, HLO1 and RUN0 are not prerequisites. The gate checks the exact
-absolute tools and factual 20.1.2 pin. It creates only a private
+→ mlir-opt → mlir-translate → llc → native host link. Native0 remains
+caller-owned and no-heap. HLO0, HLO1 and RUN0 are not prerequisites.
+The pinned Linux LLVM package supplies `llc`, but does not supply Clang.
+The public runner therefore separates LLVM object generation from the host
+link driver. `llc` emits a position-independent object. The absolute host
+driver links it with `-pie` and native CRT/libc, without generating C source.
+
+Build configuration checks the native x86_64 GNU target and explicit
+executable paths. The runner does not search PATH for these tools at runtime.
+The host driver has separate version provenance, not the LLVM package version.
+The default Linux build disables native execution and returns 2 without tools.
+The enabled runner creates only a private
 `/tmp/w-run-XXXXXX` directory with mode 0700 and fixed 0600/0700 files, uses
 `execv` without a shell, inherits child stdout/stderr, and cleans every path on
 all returns. Arguments after `--` are byte-preserving. Normal child exits are
@@ -8728,10 +8737,21 @@ propagated; signal exits use `128 + signal`. Invocation, source, unsupported
 and missing-tool errors use exit 2; internal, I/O and cleanup errors use exit
 3. `--entry` and `--offline` are rejected.
 
-The evidence runs natively on Linux x86_64 and as a Linux binary under WSL
-Ubuntu on a Windows host. Native Windows, macOS, the general runner, imports,
-packages, workspaces, registry, network and performance remain gaps. This is
+The Linux evidence runs as a Linux binary under WSL Ubuntu on a Windows host.
+The separate native Windows candidate belongs to W-1532. macOS, the general
+runner, imports, packages, workspaces, registry, network and performance remain gaps. This is
 compiler-lifecycle correctness evidence only, not a timing or result claim.
+
+NCI1 local WSL gates passed separately with LLVM 20.1.2 and 23.1.0.
+Both used Ubuntu GCC/cc 13.3.0, package `13.3.0-6ubuntu2~24.04.1`, with
+`-dumpmachine` reporting `x86_64-linux-gnu`. Both checked exact output,
+stage failures, missing tools, restored execution, and temporary-file cleanup.
+The local Linux harness used Bun 1.3.4, not the planned CI Bun 1.4.0.
+
+The 23.1.0 archive passed size, SHA-256, and long-window extraction checks.
+The older `check:mlir0` Clang recipe remains unchanged as separate evidence.
+The mandatory Linux and Windows hosted CI jobs have not run. Local WSL
+execution does not establish hosted CI success or general cross-target support.
 
 W-1521 remains current for the bounded CLI contract. W-1522 defines static
 NAT1, and W-1525 adds bounded signed-`i64` interpolation. The runner's explicit path basename is an opaque logical source
@@ -8752,8 +8772,8 @@ advances the frontend schema without widening static NAT1; HIR0 schema
 HIR0 schema `w-seed-hir0-2` remained unchanged in W-1522. W-1524 later
 advances it to schema v3 without changing this NAT1 selector.
 The direct route is `source → parser/frontend → verified HIR0 → MLIR0 →
-mlir-opt → mlir-translate → clang/native`, without HLO0, HLO1 or RUN0 as a
-requirement.
+mlir-opt → mlir-translate → llc → native host link`, without HLO0, HLO1 or
+RUN0 as a requirement. W-1521 owns the Linux tool and host-link boundary.
 
 The accepted HIR shape is exactly one module, one function, one `.default`
 entry and one block. The function is linear, returns Unit, has no parameters

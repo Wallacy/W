@@ -1,11 +1,12 @@
 import { existsSync } from "node:fs"
-import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises"
+import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
-import { join, resolve } from "node:path"
+import { isAbsolute, join, resolve } from "node:path"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
-const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
+const localManifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
+const ciManifestPath = resolve(root, "tooling", "mlir0-ci-toolchain.json")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
@@ -17,7 +18,6 @@ const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner
 const w1531IdiomaticFixture = resolve(seedDirectory, "fixtures", "w1531-if-idiomatic.w")
 const w1531FrontierFixture = resolve(seedDirectory, "fixtures", "w1531-if-frontier.w")
 const targetTriple = "x86_64-unknown-linux-gnu"
-const expectedVersion = "20.1.2"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n"
@@ -31,8 +31,29 @@ function fail(message) {
   throw new Error(`W RUN: ${message}`)
 }
 
+export function parseArguments(argv) {
+  let ci = false
+  for (const argument of argv) {
+    if (argument === "--ci" && !ci) ci = true
+    else throw new Error(`unknown option: ${String(argument)}`)
+  }
+  return { ci }
+}
+
+const { ci: ciMode } = import.meta.main
+  ? parseArguments(process.argv.slice(2))
+  : { ci: false }
+const expectedVersion = ciMode ? "23.1.0" : "20.1.2"
+const manifestPath = ciMode ? ciManifestPath : localManifestPath
+
 function assert(condition, message) {
   if (!condition) fail(message)
+}
+
+function unavailable(message) {
+  if (ciMode) fail(`${message}; mandatory native CI prerequisite is unavailable`)
+  console.log(`W RUN: SKIP ${message}`)
+  process.exit(0)
 }
 
 function spawn(command, args, cwd = root) {
@@ -67,33 +88,40 @@ function escapedVersion(value) {
   return value.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&")
 }
 
-function validateManifest(manifest) {
-  assert(manifest?.$schema === "w-seed-mlir0-toolchain-1" &&
+export function validateManifest(manifest, mode = ciMode) {
+  const manifestVersion = mode ? "23.1.0" : "20.1.2"
+  const expectedSchema = mode
+    ? "w-seed-mlir0-ci-toolchain-1"
+    : "w-seed-mlir0-toolchain-1"
+  assert(manifest?.$schema === expectedSchema &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is not pinned")
+  if (mode)
+    assert(manifest.purpose === "mandatory-native-ci",
+      "CI toolchain manifest purpose is invalid")
   assert(manifest.artifact?.schema === "w-seed-mlir0-11" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
   "toolchain target is not the closed Linux GNU target")
-  for (const role of ["mlir", "llvm", "clang"])
-    assert(manifest.toolchain?.[role] === expectedVersion,
-      `toolchain ${role} version is not ${expectedVersion}`)
+  for (const role of mode ? ["mlir", "llvm"] : ["mlir", "llvm", "clang"])
+    assert(manifest.toolchain?.[role] === manifestVersion,
+      `toolchain ${role} version is not ${manifestVersion}`)
   const commands = manifest.commands
-  const expectedCommands = {
-    mlirOpt: "/usr/bin/mlir-opt-20",
-    mlirTranslate: "/usr/bin/mlir-translate-20",
-    llvmConfig: "/usr/bin/llvm-config-20",
-    clang: "/usr/bin/clang-20",
-  }
+  const expectedCommands = mode
+    ? { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
+        llvmConfig: "llvm-config", llc: "llc", linkDriver: "/usr/bin/cc" }
+    : { mlirOpt: "/usr/bin/mlir-opt-20",
+        mlirTranslate: "/usr/bin/mlir-translate-20",
+        llvmConfig: "/usr/bin/llvm-config-20", clang: "/usr/bin/clang-20" }
   for (const [role, expected] of Object.entries(expectedCommands)) {
     const command = commands?.[role]
-    assert(command?.linux === expected && command?.wsl === expected &&
+    assert(command?.linux === expected && (mode || command?.wsl === expected) &&
       JSON.stringify(command.versionArgs) === JSON.stringify(["--version"]),
     `toolchain command ${role} is not the pinned absolute command`)
   }
-  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === 3,
+  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === (mode ? 4 : 3),
     "toolchain pipeline is invalid")
   const pipeline = manifest.pipeline
   assert(pipeline[0]?.tool === "mlir-opt" &&
@@ -104,19 +132,39 @@ function validateManifest(manifest) {
     JSON.stringify(pipeline[1].args) === JSON.stringify([
       "--mlir-to-llvmir", "<verified.mlir>", "-o", "<output.ll>",
     ]), "mlir-translate recipe changed")
-  assert(pipeline[2]?.tool === "clang" &&
+  if (mode) {
+    assert(manifest.hostLink?.driver === "/usr/bin/cc" &&
+      manifest.hostLink?.targetFamily === "x86_64-linux-gnu" &&
+      JSON.stringify(manifest.hostLink?.targetProbe) === JSON.stringify(["-dumpmachine"]),
+    "host link-driver contract changed")
+    assert(pipeline[2]?.tool === "llc" &&
+      JSON.stringify(pipeline[2].args) === JSON.stringify([
+        `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
+        "<output.ll>", "-o", "<output.o>",
+      ]), "llc recipe changed")
+    assert(pipeline[3]?.tool === "link-driver" &&
+      JSON.stringify(pipeline[3].args) === JSON.stringify([
+        "-pie", "<output.o>", "-o", "<executable>",
+      ]), "native link-driver recipe changed")
+  } else assert(pipeline[2]?.tool === "clang" &&
     JSON.stringify(pipeline[2].args) === JSON.stringify([
       "-x", "ir", `--target=${targetTriple}`, "<output.ll>", "-o",
       "<executable>",
     ]), "clang recipe changed")
   assert(manifest.hostModes?.linux === "direct" &&
-    manifest.hostModes?.windows === "wsl:Ubuntu" &&
+    (mode ? manifest.hostModes?.windows === "unsupported"
+      : manifest.hostModes?.windows === "wsl:Ubuntu") &&
     manifest.windowsNative === false,
   "toolchain host mode is not the pinned Linux/WSL mode")
   assert(manifest.execution?.stdout === "ordered payloads + LF per print" &&
     manifest.execution?.stderr === "empty" && manifest.execution?.exit === 0,
   "toolchain execution contract changed")
-  return expectedCommands
+  if (mode) return expectedCommands
+  // The shared manifest retains the older check:mlir0 recipe, not this runner.
+  return { mlirOpt: expectedCommands.mlirOpt,
+    mlirTranslate: expectedCommands.mlirTranslate,
+    llvmConfig: expectedCommands.llvmConfig,
+    llc: "/usr/bin/llc-20", linkDriver: "/usr/bin/cc" }
 }
 
 function wslRun(command, args) {
@@ -211,47 +259,61 @@ function expectUnsupportedOption(binary, args, label) {
   `${label} did not reject with exact usage: ${resultSummary(result)}`)
 }
 
-if (isMacos) {
-  console.log("W RUN: SKIP macOS has no pinned MLIR/LLVM/Clang evidence")
-  process.exit(0)
-}
-if (!isWindows && !isLinux) {
-  console.log(`W RUN: SKIP unsupported host ${process.platform}`)
-  process.exit(0)
-}
-if (isWindows && !Bun.which("wsl.exe")) {
-  console.log("W RUN: SKIP pinned Linux toolchain requires WSL Ubuntu")
-  process.exit(0)
-}
+if (import.meta.main) {
+if (isMacos) unavailable("macOS has no pinned MLIR/LLVM/native-link evidence")
+if (!isWindows && !isLinux) unavailable(`unsupported host ${process.platform}`)
+if (ciMode && (!isLinux || process.arch !== "x64"))
+  unavailable(`Linux native CI requires linux/x64, got ${process.platform}/${process.arch}`)
+if (isWindows && !Bun.which("wsl.exe"))
+  unavailable("pinned Linux toolchain requires WSL Ubuntu")
 
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
 const commands = validateManifest(manifest)
 const runSource = await readFile(resolve(seedDirectory, "cli", "run.c"), "utf8")
-for (const [role, symbol] of Object.entries({
-  mlirOpt: "MLIR_OPT",
-  mlirTranslate: "MLIR_TRANSLATE",
-  clang: "CLANG",
-})) {
-  assert(runSource.includes(`static const char ${symbol}[] = "${commands[role]}";`),
-    `cli/run.c ${symbol} path differs from the pinned manifest`)
-}
-const roles = ["mlirOpt", "mlirTranslate", "llvmConfig", "clang"]
-const probes = roles.map((role) => [role,
-  versionProbe(commands[role], manifest.commands[role].versionArgs)])
+for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
+  "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
+  "W_SEED_LINUX_LINK_DRIVER_PATH"])
+  assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
+const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llc"]
+const roles = [...llvmRoles, "linkDriver"]
+const resolvedCommands = Object.fromEntries(roles.map((role) => {
+  if (!ciMode || role === "linkDriver") return [role, commands[role]]
+  const resolved = Bun.which(commands[role])
+  assert(resolved && isAbsolute(resolved) && existsSync(resolved),
+    `CI tool ${role} basename did not resolve to an absolute executable`)
+  return [role, resolved]
+}))
+const probes = llvmRoles.map((role) => [role,
+  versionProbe(resolvedCommands[role] ?? commands[role],
+    manifest.commands[role]?.versionArgs ?? ["--version"])])
 if (!probes.some(([, probe]) => probe.present)) {
-  console.log("W RUN: SKIP pinned MLIR/LLVM/Clang toolchain unavailable")
-  process.exit(0)
+  unavailable("pinned MLIR/LLVM toolchain unavailable")
 }
 for (const [role, probe] of probes)
   if (!probe.present) fail(`pinned toolchain is incomplete: ${role} is absent`)
 for (const [role, probe] of probes)
   if (!probe.valid) fail(`${role} version is not ${expectedVersion}: ${probe.output.trim()}`)
 
+const hostProbe = (command, args) => isWindows ? wslRun(command, args) : spawn(command, args)
+const linkTarget = hostProbe(resolvedCommands.linkDriver, ["-dumpmachine"])
+assert(linkTarget.exitCode === 0 && linkTarget.stderrBytes.length === 0 &&
+  /^x86_64-(?:[A-Za-z0-9_]+-)?linux-gnu$/u.test(linkTarget.stdoutBytes.toString().trim()),
+"host link driver does not report a compatible Linux x86_64 GNU target")
+const linkVersion = hostProbe(resolvedCommands.linkDriver, ["--version"])
+assert(linkVersion.exitCode === 0, "host link-driver version probe failed")
+console.log(`W RUN: LLVM tools ${expectedVersion}; host link driver ${resolvedCommands.linkDriver}: ` +
+  `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target ${linkTarget.stdoutBytes.toString().trim()}`)
+console.log("W RUN: stages MLIR → LLVM IR → llc PIC object → host C driver PIE link (no C source)")
+
 const cmake = isWindows ? "cmake" : Bun.which("cmake")
 const ninja = isWindows ? "ninja" : Bun.which("ninja")
-const compiler = isWindows ? "/usr/bin/gcc" : Bun.which("gcc")
-if (!isWindows && (!cmake || !ninja || !compiler))
+const compiler = "/usr/bin/gcc"
+if (!isWindows && (!cmake || !ninja || !existsSync(compiler)))
   fail("Linux CMake/Ninja/GCC build tools are unavailable")
+const bootstrapVersion = hostProbe(compiler, ["--version"])
+assert(bootstrapVersion.exitCode === 0, "seed bootstrap compiler probe failed")
+console.log(`W RUN: seed bootstrap ${compiler}: ` +
+  bootstrapVersion.stdoutBytes.toString().split(/\r?\n/u)[0])
 if (isWindows) {
   for (const [label, command, args] of [
     ["WSL CMake", "cmake", ["--version"]],
@@ -274,9 +336,42 @@ try {
   fixtureDirectory = await mkdtemp(join(tmpdir(), "w-run-product-fixtures-"))
   const buildPath = isWindows ? wslPath(buildDirectory) : buildDirectory
   const sourcePath = isWindows ? wslPath(seedDirectory) : seedDirectory
+  const toolDirectory = join(fixtureDirectory, "tool links")
+  const toolPath = isWindows ? wslPath(toolDirectory) : toolDirectory
+  const toolNames = {
+    mlirOpt: "mlir-opt",
+    mlirTranslate: "mlir-translate",
+    llvmConfig: "llvm-config",
+    llc: "llc",
+    linkDriver: "cc",
+  }
+  if (isWindows) {
+    runRequired("WSL tool-link directory", "wsl.exe", [
+      "-d", "Ubuntu", "--", "mkdir", "-p", toolPath,
+    ])
+    for (const role of roles)
+      runRequired(`WSL ${role} tool link`, "wsl.exe", [
+        "-d", "Ubuntu", "--", "ln", "-s", resolvedCommands[role],
+        `${toolPath}/${toolNames[role]}`,
+      ])
+  } else {
+    await mkdir(toolDirectory)
+    for (const role of roles)
+      await symlink(resolvedCommands[role],
+        join(toolDirectory, toolNames[role]))
+  }
+  const configuredCommands = Object.fromEntries(roles.map((role) => [
+    role, `${toolPath}/${toolNames[role]}`,
+  ]))
   const configureArgs = [
     "-S", sourcePath, "-B", buildPath, "-G", "Ninja",
-    "-DCMAKE_BUILD_TYPE=Release", `-DCMAKE_C_COMPILER=${compiler}`,
+    "-DCMAKE_BUILD_TYPE=Release", `-DCMAKE_C_COMPILER:FILEPATH=${compiler}`,
+    "-DW_SEED_ENABLE_LINUX_NATIVE_RUN=ON",
+    `-DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${configuredCommands.mlirOpt}`,
+    `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${configuredCommands.mlirTranslate}`,
+    `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${configuredCommands.llvmConfig}`,
+    `-DW_MLIR0_LINUX_LLC:FILEPATH=${configuredCommands.llc}`,
+    `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${configuredCommands.linkDriver}`,
   ]
   if (isWindows) {
     runRequired("WSL seed configure", "wsl.exe", [
@@ -463,6 +558,34 @@ try {
   expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloFixture)],
     "unsupported --offline option")
 
+  // Replace only this gate's private links. Failures must clean every stage.
+  async function replaceToolLink(role, destination) {
+    const linkPath = configuredCommands[role]
+    if (isWindows) {
+      runRequired("WSL private tool-link removal", "wsl.exe", [
+        "-d", "Ubuntu", "--", "rm", "--", linkPath,
+      ])
+      runRequired("WSL private tool-link replacement", "wsl.exe", [
+        "-d", "Ubuntu", "--", "ln", "-s", destination, linkPath,
+      ])
+    } else {
+      await rm(linkPath)
+      await symlink(destination, linkPath)
+    }
+  }
+  for (const role of ["mlirOpt", "mlirTranslate", "llc", "linkDriver"]) {
+    try {
+      await replaceToolLink(role, "/usr/bin/false")
+      expectSourceFailure(binary, toWsl(helloFixture), `${role} stage failure`)
+      await replaceToolLink(role, `${toolPath}/missing-executable`)
+      expectSourceFailure(binary, toWsl(helloFixture), `${role} missing at runtime`)
+    } finally {
+      await replaceToolLink(role, resolvedCommands[role])
+    }
+  }
+  expectSuccess(binary, ["run", toWsl(helloFixture)], expectedHello,
+    "native pipeline after restoring tools")
+
   const residueAfter = await snapshotRunResidue()
   assertNoNewResidue(residueBefore, residueAfter)
   console.log("W RUN: public source → verified HIR0 → MLIR0 → MLIR/LLVM/native E2E passed")
@@ -471,4 +594,5 @@ try {
     await rm(buildDirectory, { recursive: true, force: true })
   if (fixtureDirectory !== undefined)
     await rm(fixtureDirectory, { recursive: true, force: true })
+}
 }
