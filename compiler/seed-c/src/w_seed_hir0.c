@@ -661,6 +661,19 @@ static bool frontend_value_has_no_resolution(
          value->member_name.length == 0u && text_valid(value->member_name);
 }
 
+static w_seed_hir0_binary_operator hir_binary_operator(
+    w_seed_frontend_text text);
+
+/* The caller has already validated each expression's type-arena range. */
+static bool frontend_expression_is_i64(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_expression *expression) {
+  if (expression->inferred_type == W_SEED_FRONTEND_NONE) return false;
+  const w_seed_frontend_type *type = &output->types[expression->inferred_type];
+  return type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+         type->bit_width == 64u && type->is_signed;
+}
+
 /* Frontend expressions are append-only postorder records. This walk consumes
  * exactly one dense subtree and measures the normalized HIR value tree. A
  * finite depth bound keeps validation stack use independent of hostile input. */
@@ -685,6 +698,10 @@ static bool frontend_value_tree_ok(
     return false;
 
   if (value->kind == W_SEED_FRONTEND_EXPR_BINARY) {
+    const w_seed_hir0_binary_operator operation =
+        hir_binary_operator(value->operator_text);
+    const bool comparison = operation >= W_SEED_HIR0_BINARY_EQUAL &&
+                            operation <= W_SEED_HIR0_BINARY_GREATER_EQUAL;
     if (value->left == W_SEED_FRONTEND_NONE ||
         value->right == W_SEED_FRONTEND_NONE ||
         !frontend_value_tree_ok(input, module_index, function_index,
@@ -701,20 +718,18 @@ static bool frontend_value_tree_ok(
                                 value_bytes) ||
         (size_t)root_index != *expression_cursor ||
         value->inferred_type == W_SEED_FRONTEND_NONE ||
-        output->types[value->inferred_type].kind !=
-            W_SEED_FRONTEND_TYPE_INTEGER ||
-        output->types[value->inferred_type].bit_width != 64u ||
-        !output->types[value->inferred_type].is_signed ||
+        (comparison
+             ? output->types[value->inferred_type].kind !=
+                   W_SEED_FRONTEND_TYPE_BOOL
+             : !frontend_expression_is_i64(output, value)) ||
+        !frontend_expression_is_i64(output, &output->expressions[value->left]) ||
+        !frontend_expression_is_i64(output, &output->expressions[value->right]) ||
         !frontend_value_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
         value->const_byte_count != 0u || value->has_bool_value ||
         value->has_integer_value ||
-        !(text_is(value->operator_text, "+") ||
-          text_is(value->operator_text, "-") ||
-          text_is(value->operator_text, "*") ||
-          text_is(value->operator_text, "/") ||
-          text_is(value->operator_text, "%")) ||
+        (uint32_t)operation > (uint32_t)W_SEED_HIR0_BINARY_GREATER_EQUAL ||
         !add_size(*value_total, 1u, value_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
       return false;
@@ -2092,7 +2107,14 @@ static w_seed_hir0_binary_operator hir_binary_operator(
   if (text_is(text, "-")) return W_SEED_HIR0_BINARY_SUBTRACT;
   if (text_is(text, "*")) return W_SEED_HIR0_BINARY_MULTIPLY;
   if (text_is(text, "/")) return W_SEED_HIR0_BINARY_DIVIDE;
-  return W_SEED_HIR0_BINARY_REMAINDER;
+  if (text_is(text, "%")) return W_SEED_HIR0_BINARY_REMAINDER;
+  if (text_is(text, "==")) return W_SEED_HIR0_BINARY_EQUAL;
+  if (text_is(text, "!=")) return W_SEED_HIR0_BINARY_NOT_EQUAL;
+  if (text_is(text, "<")) return W_SEED_HIR0_BINARY_LESS;
+  if (text_is(text, "<=")) return W_SEED_HIR0_BINARY_LESS_EQUAL;
+  if (text_is(text, ">")) return W_SEED_HIR0_BINARY_GREATER;
+  if (text_is(text, ">=")) return W_SEED_HIR0_BINARY_GREATER_EQUAL;
+  return (w_seed_hir0_binary_operator)UINT32_MAX;
 }
 
 /* collect() proves every branch and capacity. Emission therefore has no
@@ -2220,7 +2242,8 @@ static uint32_t emit_value_tree_unchecked(
     target->bool_value = source->bool_value;
   } else if (source->kind == W_SEED_FRONTEND_EXPR_BINARY) {
     target->kind = W_SEED_HIR0_VALUE_BINARY_I64;
-    target->type_index = 2u;
+    target->type_index = hir_type_from_frontend(
+        frontend, frontend_result, source->inferred_type);
     target->left_value = left;
     target->right_value = right;
     target->binary_operator = hir_binary_operator(source->operator_text);
@@ -3444,7 +3467,9 @@ static bool verify_value_tree(
     return false;
 
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-    if (value->left_value == W_SEED_HIR0_NONE ||
+    if ((uint32_t)value->binary_operator >
+            (uint32_t)W_SEED_HIR0_BINARY_GREATER_EQUAL ||
+        value->left_value == W_SEED_HIR0_NONE ||
         value->right_value == W_SEED_HIR0_NONE ||
         !verify_value_tree(program, value->left_value,
                            W_SEED_HIR0_VALUE_OWNER_BINARY, root_index, 0u,
@@ -3456,12 +3481,15 @@ static bool verify_value_tree(
                            current_block, current_instruction, source_length,
                            depth + 1u, value_cursor, segment_cursor,
                            byte_cursor) ||
-        (size_t)root_index != *value_cursor || value->type_index != 2u ||
+        (size_t)root_index != *value_cursor ||
+        program->values[value->left_value].type_index != 2u ||
+        program->values[value->right_value].type_index != 2u ||
+        value->type_index !=
+            (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL ? 3u : 2u) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
         value->interpolation_segment_count != 0u ||
-        value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u)
       return false;

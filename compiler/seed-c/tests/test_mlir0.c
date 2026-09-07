@@ -1259,7 +1259,59 @@ static bool test_valid_hir_outside_subset(void) {
   return true;
 }
 
+static bool test_signed_comparison_artifacts(void) {
+  static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
+  static const char *const predicates[] = {"eq", "ne", "slt", "sle", "sgt", "sge"};
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  for (size_t operation = 0u; operation < 6u; operation += 1u) {
+    char source[1024];
+    const int length = snprintf(source, sizeof(source),
+        "fn fits(left: i64, right: i64): Bool { return left %s right }\n"
+        "fn main() { let fits = fits(left: 0 - 9223372036854775807 - 1, "
+        "right: 9223372036854775807) print(\"Fits: ${fits}\") }\nentry(main)\n",
+        operators[operation]);
+    CHECK(length > 0 && (size_t)length < sizeof(source));
+    CHECK(lower_hir((const uint8_t *)source, (size_t)length));
+    char expected[80];
+    const int expected_length = snprintf(expected, sizeof(expected),
+        "llvm.icmp \"%s\" %%p0, %%p1 : i64", predicates[operation]);
+    CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected));
+    const w_seed_mlir0_input input = mlir_input();
+    for (size_t host = 0u; host < 2u; host += 1u) {
+      w_seed_mlir0_result result;
+      CHECK(w_seed_mlir0_emit(&input, host == 0u ? &TARGET : &WINDOWS_TARGET,
+                &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+            W_SEED_MLIR0_OK);
+      CHECK(contains_bytes(artifact, result.written.mlir_bytes, expected));
+      CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.return %v"));
+      CHECK(contains_bytes(artifact, result.written.mlir_bytes, " : i1"));
+      CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.sub"));
+    }
+  }
+  static const uint8_t linear[] =
+      "fn main() { let guests = 3 let seats = 4 let fits = guests <= seats "
+      "print(\"Fits: ${fits}; equal: ${3 == 3}\") }\nentry(main)\n";
+  CHECK(lower_hir(linear, sizeof(linear) - 1u));
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.icmp \"sle\" %v0, %v1"));
+  CHECK(contains_bytes(artifact, result.written.mlir_bytes, "llvm.icmp \"eq\""));
+  const w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_result rejected;
+  (void)memset(&rejected, 0x71, sizeof(rejected));
+  const w_seed_mlir0_result snapshot = rejected;
+  (void)memset(artifact, 0x72, sizeof(artifact));
+  CHECK(w_seed_mlir0_emit(&input, &TARGET,
+            &(w_seed_mlir0_output){artifact, result.written.mlir_bytes - 1u},
+            &rejected) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(artifact); index += 1u)
+    CHECK(artifact[index] == 0x72u);
+  CHECK(memcmp(&rejected, &snapshot, sizeof(rejected)) == 0);
+  return true;
+}
+
 int main(void) {
+  if (!test_signed_comparison_artifacts()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;

@@ -597,7 +597,8 @@ static bool build_dynamic_plan(
           if (!dynamic_plan_append_i64(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
-          if (effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL ||
+          if ((effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64) ||
               !dynamic_plan_append_bool(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_STRING) {
@@ -633,9 +634,26 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
       return "llvm.sdiv";
     case W_SEED_HIR0_BINARY_REMAINDER:
       return "llvm.srem";
+    case W_SEED_HIR0_BINARY_EQUAL:
+      return "llvm.icmp \"eq\"";
+    case W_SEED_HIR0_BINARY_NOT_EQUAL:
+      return "llvm.icmp \"ne\"";
+    case W_SEED_HIR0_BINARY_LESS:
+      return "llvm.icmp \"slt\"";
+    case W_SEED_HIR0_BINARY_LESS_EQUAL:
+      return "llvm.icmp \"sle\"";
+    case W_SEED_HIR0_BINARY_GREATER:
+      return "llvm.icmp \"sgt\"";
+    case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+      return "llvm.icmp \"sge\"";
   }
   return NULL;
 }
+
+static bool append_program_value_operand(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset);
 
 static bool append_value_operations(const w_seed_hir0_program *program,
                                     uint8_t *artifact, size_t capacity,
@@ -666,10 +684,12 @@ static bool append_value_operations(const w_seed_hir0_program *program,
           !append_size(artifact, capacity, offset, index) ||
           !append_literal(artifact, capacity, offset, " = ") ||
           !append_literal(artifact, capacity, offset, operation) ||
-          !append_literal(artifact, capacity, offset, " %v") ||
-          !append_size(artifact, capacity, offset, value->left_value) ||
-          !append_literal(artifact, capacity, offset, ", %v") ||
-          !append_size(artifact, capacity, offset, value->right_value) ||
+          !append_literal(artifact, capacity, offset, " ") ||
+          !append_program_value_operand(program, value->left_value, 0u,
+                                         artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, ", ") ||
+          !append_program_value_operand(program, value->right_value, 0u,
+                                         artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, " : i64\n"))
         return false;
     }

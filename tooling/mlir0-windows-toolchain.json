@@ -3,7 +3,7 @@
   "version": 1,
   "status": "external-evaluation",
   "artifact": {
-    "schema": "w-seed-mlir0-11",
+    "schema": "w-seed-mlir0-12",
     "scope": "unit-cfg-nested-diamond"
   },
   "host": {

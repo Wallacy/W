@@ -280,8 +280,9 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
       if (right == 0) return false;
       *result = left == INT64_MIN && right == -1 ? 0 : left % right;
       return true;
+    default:
+      return false;
   }
-  return false;
 }
 
 static bool resolve_binding_value(
@@ -340,6 +341,11 @@ static bool interpolation_string_bytes(
   return true;
 }
 
+static bool program_value_lowerable(const w_seed_hir0_program *program,
+                                    uint32_t value_index,
+                                    uint32_t owner_function,
+                                    bool allow_string, size_t depth);
+
 static bool interpolation_maximum_bytes(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value,
     const w_seed_hir0_binding *const *bindings, size_t binding_count,
@@ -376,7 +382,10 @@ static bool interpolation_maximum_bytes(
                                  &effective))
         return false;
       const bool runtime_value =
-          parameter_read || effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT;
+          parameter_read || effective->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
+          effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
+          (effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+           effective->type_index == 3u);
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
           if (!runtime_value) {
@@ -390,6 +399,12 @@ static bool interpolation_maximum_bytes(
           break;
         }
         case W_SEED_HIR0_TYPE_BOOL:
+          if (runtime_value && !program_value_lowerable(
+                  program, (uint32_t)(effective - program->values),
+                  program->blocks[program->instructions[current_instruction]
+                                      .owner_block].owner_function,
+                  false, 0u))
+            return false;
           if (!runtime_value &&
               effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
             return false;
@@ -655,6 +670,13 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
   if (binding_cursor != program->binding_count ||
       call_cursor != program->call_count)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    const w_seed_hir0_value *value = &program->values[index];
+    if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINARY &&
+        value->binding_index < binding_cursor)
+      binding_reads[value->binding_index] += 1u;
+  }
   for (size_t binding = 0u; binding < binding_cursor; binding += 1u)
     if (binding_reads[binding] == 0u) return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   candidate.instruction_count = program->instruction_count;
@@ -712,6 +734,13 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                    owner_function, allow_string, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL)
+      return type == W_SEED_HIR0_TYPE_BOOL &&
+             program_value_lowerable(program, value->left_value,
+                                      owner_function, false, depth + 1u) &&
+             program_value_lowerable(program, value->right_value,
+                                      owner_function, false, depth + 1u);
     int64_t ignored = 0;
     return type == W_SEED_HIR0_TYPE_I64 &&
            evaluate_i64(program, value_index, 0u, &ignored);

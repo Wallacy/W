@@ -54,7 +54,7 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-11" &&
+  assert(manifest.artifact?.schema === "w-seed-mlir0-12" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,

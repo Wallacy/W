@@ -866,7 +866,7 @@ Labels host required copiam o nome público, positional usa label vazio e
 qualquer outra policy permanece fora deste subset.
 
 W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
-Current schema `w-seed-hir0-7` generalizes that contract. The caller-owned
+Current schema `w-seed-hir0-9` generalizes that contract. The caller-owned
 `w_seed_hir0_binding` record contains `owner_instruction`, `owner_block`,
 `ordinal`, `type_index`, `name`, `initializer_value`, `source_span`, and
 `is_mutable=false`. `BINDING` carries its binding index. `CALL` carries none.
@@ -881,7 +881,7 @@ fail-closed. Lowering copies binding names and the initializer graph. It never
 performs downstream textual lookup.
 
 W-1524 introduced the postorder value graph in schema `w-seed-hir0-3`. Current
-schema `w-seed-hir0-7` gives binding initializers explicit roots in that graph,
+schema `w-seed-hir0-9` gives binding initializers explicit roots in that graph,
 adds indexed parameter reads, and carries scalar terminator and call results.
 The canonical type table contains Unit, String, signed `i64`, and Bool.
 `w_seed_hir0_value` is a typed
@@ -1033,7 +1033,9 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
 HIR0 e a implementação não inclui, chama ou cria HLO0. W-1530 advances MLIR0
 to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
-`w-seed-native0-6`. MLIR0 re-verifies HIR
+`w-seed-native0-6`. W-1537 advances HIR0 to `w-seed-hir0-9`, MLIR0 to
+`w-seed-mlir0-12`, and the Windows label to `w-seed-mlir0-windows-3`.
+MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
 top-level Unit `if` diamonds using `llvm.cond_br`/`llvm.br`. It accepts bounded
@@ -1060,6 +1062,33 @@ and signed-`i64` decimal helpers, an on-demand Bool helper, and one checked
 `write`. Its generated MLIR contains no `snprintf`, `%ld`, or variadic call.
 There is no W-level `printInt`, C source generation, custom W dialect,
 TableGen, or object cache.
+
+### ICMP0 signed-`i64` comparisons (W-1537)
+
+The bounded comparison cut uses existing `==`, `!=`, `<`, `<=`, `>`, and `>=`
+syntax. Both operands are signed `i64`, and the result is Bool.
+`BINARY_I64` names the operand domain. The verifier distinguishes arithmetic
+results from comparison results. MLIR emits the corresponding `llvm.icmp`
+predicate: `eq`, `ne`, `slt`, `sle`, `sgt`, or `sge`.
+
+The existing binding, Bool argument/return, interpolation, and Unit `if` paths
+consume comparison results. This cut does not extend runtime arithmetic or
+add logical operators, String/Bool comparisons, mixed operands, mutation, or loops.
+Native0 remains v6 with no new record-layout or capacity fields.
+Ownership, 64-IF nesting, stdout bounds, and native linking recipes remain unchanged.
+
+`fixtures/restaurant-comparisons.w` requires exact stdout
+`Seat party\nSeat party\nWaitlist\n`. The companion composition fixture
+checks six predicates, signed boundaries, and Bool result composition.
+Six focused C23 suites passed: frontend, HIR0, MLIR0, Native0, ConstIR,
+and generic validation. Native Linux/WSL LLVM 20.1.2 and Windows LLVM 23.1.0
+gates passed, including exact outputs and type rejection.
+The frontend fixes align contextual type interning across dry/emit passes,
+retain canonical integer-literal `let` typing, and resolve prior bindings within
+expression descendants. Existing function, direct-block, and declaration-order guards remain.
+The bounded lookup scans do not establish linear-time complexity.
+This is compiler-lifecycle correctness
+work, not timing, performance, ABI, or cross-compilation evidence.
 
 O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →

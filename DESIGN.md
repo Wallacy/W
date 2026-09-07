@@ -36443,6 +36443,70 @@ result claim. The CFG DP is bounded by verified blocks, terminators, and edges.
 Native selection also traverses instructions and calls and validates value
 trees.
 
+#### 26.4.1.20 W-1537 — bounded signed-`i64` comparisons through verified HIR0 and MLIR0 (Forma vigente)
+
+W-1537 defines ICMP0, the bounded signed-`i64` comparison implementation cut.
+It uses the existing `==`, `!=`, `<`, `<=`, `>`, and `>=` syntax.
+Both operands must be signed `i64`. Every comparison produces Bool.
+Ordering is signed, including negative values and the `i64` minimum and maximum.
+The cut does not add syntax, implicit conversions, or new value domains.
+
+**Example:** `compiler/seed-c/fixtures/restaurant-comparisons.w`:
+
+```w
+fn admit(guests: i64, seats: i64) {
+  if guests <= seats { print("Seat party") } else { print("Waitlist") }
+}
+fn main() {
+  admit(guests: 3, seats: 4)
+  admit(guests: 4, seats: 4)
+  admit(guests: 5, seats: 4)
+}
+entry(main)
+```
+
+The required stdout is `Seat party\nSeat party\nWaitlist\n`.
+The Linux/WSL and native Windows gates produce these exact bytes.
+
+HIR0 advances to `w-seed-hir0-9`. The existing `BINARY_I64` value tag
+identifies the operand domain, not the result type. Arithmetic operators
+retain their signed-`i64` result. The six comparison operators require Bool
+results and two signed-`i64` children. Verification retains postorder ownership,
+typed edges, source spans, digest checks, and all-or-nothing output.
+
+Comparisons compose with the existing immutable bindings, Bool arguments,
+final Bool returns, interpolation, and bounded Unit `if` conditions.
+Operands remain inside the existing native subset. This cut does not expand
+runtime arithmetic. Accepted operands include literals, parameters, prior immutable
+bindings, prior bound scalar-call results, and already-proven arithmetic.
+Bool or String comparison operands, mixed operand types,
+logical operators, and a comparison result used as `i64` arithmetic remain unsupported.
+Mutation, loops, scalar-return CFG, ownership expansion, and additional targets remain outside this cut.
+
+MLIR0 advances to `w-seed-mlir0-12`, with Windows label
+`w-seed-mlir0-windows-3`. It emits `llvm.icmp` with `eq`, `ne`, `slt`,
+`sle`, `sgt`, or `sge` for the corresponding operator. Signed-`i64` operands
+produce an `i1` result. Parameter-based emission must retain the actual comparison
+operation instead of substituting precomputed fixture output.
+
+Native0 remains `w-seed-native0-6`. This cut adds no record-layout or capacity
+fields. Existing ownership rules, the 64-IF nesting bound, and the 4096-byte
+stdout bound remain unchanged. Linux and Windows retain their existing object
+and link recipes. No ABI, cross-compilation, or general platform support is promoted.
+
+The frontend preserves identical contextual type interning in dry and emit passes.
+Unannotated integer-literal `let` bindings retain canonical integer typing.
+Statement ownership lookup includes expression descendants while preserving function,
+direct-block, earlier-binding, and call-callee exclusions.
+Its bounded statement-root scans and recursive walks carry no linear-time claim.
+
+Six focused C23 suites and the Linux/WSL and native Windows gates have passed.
+They cover real comparison operations, signed boundaries, exact stdout, Bool
+composition, type rejection, and unchanged-output failure boundaries.
+W-1537 is `source-backed-current` only for this proven subset.
+`benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no timing,
+throughput, ranking, or benchmark result.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

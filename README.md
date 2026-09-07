@@ -102,6 +102,13 @@ direct Unit calls with `i64`/Bool parameters. W-1530 advances HIR0 to
 direct call-result binding initializers. W-1535 advances HIR0 to
 `w-seed-hir0-8` and MLIR0 to `w-seed-mlir0-11` for bounded nested Unit
 structured CFG. Other value domains and general CFG remain gaps.
+W-1537 adds the ICMP0 signed-`i64` comparison cut using the six existing
+comparison operators. HIR9 and MLIR12 produce Bool values through real
+`llvm.icmp` operations. Windows uses artifact label3, and Native0 remains v6.
+Six focused C23 suites and native Linux/Windows comparison gates have passed.
+The Restaurant fixtures verify admission, signed boundaries, and Bool composition.
+No broader runtime arithmetic,
+logical operators, String comparisons, CFG, or platform support is promoted.
 The runner also keeps minimal/no-else microproofs and equivalent learner,
 idiomatic, and frontier source-style candidates for correctness only; frontier
 is exploratory, with no timing, result, or ranking claim.
@@ -116,7 +123,7 @@ frontend normativo completo continuam gaps.
 W-1519 is `source-backed-current` for the first bounded immutable local String
 path. Frontend schema version 11 introduced an indexed lexical binding
 relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
-`w-seed-hir0-8` gives each binding one typed initializer root in the common
+`w-seed-hir0-9` gives each binding one typed initializer root in the common
 postorder value graph. It verifies owners, order, types, spans, dense ranges,
 alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
 direct `CONST_STRING` or single `BINDING → CALL` recovery subset.

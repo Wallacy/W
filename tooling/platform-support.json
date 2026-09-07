@@ -88,10 +88,10 @@
       "toolchainRoles": ["mlir", "llvm", "clang", "llvm-config"],
       "sdkCapabilities": ["posix-write"],
       "compilerVersionSource": "tooling/mlir0-toolchain.json",
-      "runtimeVersion": "w-seed-mlir0-11",
+      "runtimeVersion": "w-seed-mlir0-12",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-11-unit-cfg-nested-diamond",
+      "scope": "w-seed-mlir0-12-unit-cfg-nested-diamond",
       "claim": null,
       "axes": {
         "backend": {

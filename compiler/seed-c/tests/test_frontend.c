@@ -4185,7 +4185,55 @@ static bool test_barrier_and_capacity(void) {
   return true;
 }
 
+static bool test_scalar_type_measure_emit_parity(void) {
+  static const char *const sources[] = {
+      "fn main() { print(\"${3 == 3}\") }\nentry(main)\n",
+      "fn main() { let guests = 3 print(\"${guests}\") }\nentry(main)\n",
+      "fn main() { let fits = 3 <= 4 print(\"${fits}\") }\nentry(main)\n",
+      "fn main() { let guests = 3 let seats = 4 let fits = guests <= seats "
+      "print(\"${fits}\") if guests <= seats { print(\"Seat party\") } "
+      "else { print(\"Waitlist\") } }\nentry(main)\n",
+  };
+  fixture *value = &fixture_literal;
+  for (size_t source = 0u; source < sizeof(sources) / sizeof(sources[0]); source += 1u) {
+    CHECK(fixture_parse(value, sources[source]));
+    fixture_configure_print_host(value);
+    CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+          W_SEED_FRONTEND_OK);
+    CHECK(counts_equal(&value->result.required, &value->result.written));
+    CHECK(value->result.receipt_bytes == value->result.required.receipt_bytes);
+    for (size_t index = 0u; index < value->result.written.expressions; index += 1u) {
+      const w_seed_frontend_expression *expression = &value->expressions[index];
+      if (source == 3u && expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+          (frontend_text_is(expression->spelling, "guests") ||
+           frontend_text_is(expression->spelling, "seats"))) {
+        CHECK(expression->supported && expression->resolved_binding_statement < 2u);
+        CHECK(frontend_text_is(expression->spelling, "guests")
+                  ? expression->resolved_binding_statement == 0u
+                  : expression->resolved_binding_statement == 1u);
+      }
+      if (expression->kind != W_SEED_FRONTEND_EXPR_INTEGER) continue;
+      CHECK(expression->inferred_type != W_SEED_FRONTEND_NONE &&
+            expression->inferred_type < value->result.written.types);
+      const w_seed_frontend_type *type = &value->types[expression->inferred_type];
+      CHECK(type->kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            type->bit_width == 64u && type->is_signed);
+    }
+    const size_t required_types = value->result.required.types;
+    CHECK(required_types > 0u);
+    CHECK(fixture_parse(value, sources[source]));
+    fixture_configure_print_host(value);
+    fixture_fill_output(value, 0xa5u);
+    value->output.type_capacity = required_types - 1u;
+    CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+          W_SEED_FRONTEND_CAPACITY);
+    CHECK(fixture_output_is(value, 0xa5u, true));
+  }
+  return true;
+}
+
 int main(void) {
+  if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;
   if (!test_enum_subsets()) return 1;

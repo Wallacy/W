@@ -3355,6 +3355,107 @@
         "bun run check:w-run — public runner executes the nested Restaurant four-case fixture"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-native-i64-comparisons",
+      "reviewItem": "bounded signed-i64 comparisons against precomputed output, unsigned ordering, and runtime-arithmetic expansion.",
+      "decisions": [
+        "W-1537"
+      ],
+      "task": "Compile the existing signed-i64 comparisons to Bool through verified HIR and real LLVM operations, then execute exact Restaurant admission output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn admit(guests: i64, seats: i64) {",
+          "  if guests <= seats { print(\"Seat party\") } else { print(\"Waitlist\") }",
+          "}",
+          "fn main() {",
+          "  admit(guests: 3, seats: 4)",
+          "  admit(guests: 4, seats: 4)",
+          "  admit(guests: 5, seats: 4)",
+          "}",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "precomputed-admission",
+          "language": "w-rejected",
+          "source": [
+            "Substitute known Restaurant output without executing the comparison"
+          ],
+          "expectedDifference": "The native route retains parameter-based llvm.icmp and Bool control flow."
+        },
+        {
+          "name": "unsigned-ordering",
+          "language": "w-rejected",
+          "source": [
+            "Use unsigned ordering predicates for signed i64 operands"
+          ],
+          "expectedDifference": "Negative and signed-endpoint witnesses require slt, sle, sgt, and sge."
+        },
+        {
+          "name": "runtime-arithmetic-expansion",
+          "language": "w-rejected",
+          "source": [
+            "Accept data-dependent a + 1 as a comparison operand"
+          ],
+          "expectedDifference": "The cut retains the existing proven-arithmetic boundary and rejects runtime arithmetic expansion."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "Verified binary values require two i64 operands and the operator-specific result type."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "binary_operation",
+          "claim": "The six operators emit real LLVM comparison predicates with signed ordering."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "statement_for_expression",
+          "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_signed_comparison_artifacts",
+          "claim": "Parameter-based emission and branchless prior-binding cases retain comparison SSA."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_scalar_type_measure_emit_parity",
+          "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
+          "symbol": "admit",
+          "claim": "The source compares party size with available seats and prints admission results."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurant-comparison-composition",
+          "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurant-comparison-composition",
+          "claim": "The Windows gate checks the same bounded native comparison behavior."
+        }
+      ],
+      "checks": [
+        "Focused C23 frontend, HIR0, MLIR0, Native0, ConstIR, and generic-validation suites passed",
+        "bun run check:w-run — Linux/WSL LLVM 20.1.2 native fixtures and type rejections passed",
+        "bun run check:w-run-windows --ci — Windows LLVM 23.1.0 native fixtures and type rejections passed"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
