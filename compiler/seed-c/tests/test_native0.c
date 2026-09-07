@@ -118,7 +118,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-11") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-12") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -571,10 +571,49 @@ static bool test_aliases(void) {
   return true;
 }
 
+static bool test_signed_comparison_products(void) {
+  static const uint8_t source[] =
+      "fn admit(guests: i64, seats: i64) { "
+      "if guests <= seats { print(\"Seat party\") } "
+      "else { print(\"Waitlist\") } }\n"
+      "fn main() { admit(guests: 3, seats: 4) admit(guests: 4, seats: 4) "
+      "admit(guests: 5, seats: 4) }\nentry(main)\n";
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "comparison", 10u,
+                    output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "llvm.icmp \"sle\" %p0, %p1 : i64"));
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.cond_br %v"));
+  static const char *const rejected[] = {
+      "fn main() { print(\"${true == false}\") }\nentry(main)\n",
+      "fn main() { let same = \"a\" == \"b\" print(\"${same}\") }\nentry(main)\n",
+      "fn main() { let same = 3 == true print(\"${same}\") }\nentry(main)\n",
+      "fn test(a: i64) { if a + 1 > 0 { print(\"unsafe arithmetic\") } }\n"
+      "fn main() { test(a: 1) }\nentry(main)\n",
+      "fn main() { let x = 9223372036854775807 + 1 "
+      "print(\"${x > 0}\") }\nentry(main)\n",
+      "fn main() { let x = 1 / 0 print(\"${x > 0}\") }\nentry(main)\n",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]); index += 1u) {
+    (void)memset(output, 0x51, sizeof(output));
+    (void)memset(&result, 0x52, sizeof(result));
+    const w_seed_native0_result snapshot = result;
+    const w_seed_native0_status status = run_source(
+        (const uint8_t *)rejected[index], strlen(rejected[index]), "comparison",
+        10u, output, sizeof(output), &result);
+    CHECK(status != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0x51u);
+  }
+  return true;
+}
+
 int main(void) {
   (void)fprintf(stderr, "native0 storage bytes: %llu\n",
                 (unsigned long long)sizeof(w_seed_native0_storage));
-  const bool products = test_products();
+  const bool products = test_signed_comparison_products() && test_products();
   const bool nested = products && test_nested_depth_and_linear_analysis();
   const bool failures = nested && test_failures_and_capacity();
   const bool aliases = failures && test_aliases();

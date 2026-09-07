@@ -10558,20 +10558,18 @@ static bool expression_append(frontend_expression_parser *parser,
 /* Apply contextual integer typing without reparsing source.  Unsuffixed
  * integer literals remain signed/width-zero until an enclosing range supplies
  * the usize context.  The frontend record must receive the same canonical
- * type in emit mode so downstream const lowering sees the contextual type,
- * while dry mode only carries the value metadata. */
+ * type in both passes. Only emit mode updates the expression record. */
 static bool expression_value_set_type(frontend_expression_parser *parser,
                                       frontend_expr_value *value,
                                       frontend_simple_type type) {
   if (parser == NULL || parser->context == NULL || value == NULL) return false;
   value->type = type;
+  uint32_t type_index = W_SEED_FRONTEND_NONE;
+  if (!output_type_index_for_simple(parser->context, type, &type_index))
+    return false;
   if (parser->context->emit && parser->context->output != NULL &&
       value->index != W_SEED_FRONTEND_NONE &&
       value->index < parser->context->output->expression_capacity) {
-    uint32_t type_index = W_SEED_FRONTEND_NONE;
-    if (!output_type_index_for_simple(parser->context, type, &type_index)) {
-      return false;
-    }
     parser->context->output->expressions[value->index].inferred_type =
         type_index;
   }
@@ -12792,6 +12790,10 @@ static bool normalize_statement_depth(frontend_context *context,
        node->kind == W_SEED_CST_VAR_STATEMENT) &&
       expression_node != W_SEED_CST_NONE) {
     frontend_simple_type effective = normalized_actual;
+    if (node->kind == W_SEED_CST_LET_STATEMENT &&
+        type_node == W_SEED_CST_NONE &&
+        expression_value_is_unsuffixed_integer(&expression_value))
+      effective = const_default_integer_type();
     if (effective.kind == W_SEED_FRONTEND_TYPE_UNKNOWN &&
         expected_outer.kind != W_SEED_FRONTEND_TYPE_UNKNOWN) {
       effective = expected_outer;
@@ -13580,31 +13582,11 @@ static bool statement_for_expression(const frontend_context *context,
     const uint32_t index = (uint32_t)(first + offset);
     const w_seed_frontend_statement *statement =
         &context->output->statements[index];
-    if (statement->expression_index == expression_index) {
+    if (statement->expression_index != W_SEED_FRONTEND_NONE &&
+        expression_tree_contains(context, statement->expression_index,
+                                  expression_index, 0u)) {
       *statement_index = index;
       return true;
-    }
-    if (statement->expression_index == W_SEED_FRONTEND_NONE ||
-        (size_t)statement->expression_index >= context->count.expressions)
-      continue;
-    const w_seed_frontend_expression *root =
-        &context->output->expressions[statement->expression_index];
-    if (root->kind != W_SEED_FRONTEND_EXPR_CALL ||
-        root->first_argument == W_SEED_FRONTEND_NONE ||
-        (size_t)root->first_argument > context->count.arguments ||
-        root->argument_count >
-            context->count.arguments - root->first_argument)
-      continue;
-    for (size_t argument = 0u; argument < root->argument_count;
-         argument += 1u) {
-      const w_seed_frontend_argument *item =
-          &context->output->arguments[(size_t)root->first_argument + argument];
-      if (item->expression_index != W_SEED_FRONTEND_NONE &&
-          expression_tree_contains(context, item->expression_index,
-                                   expression_index, 0u)) {
-        *statement_index = index;
-        return true;
-      }
     }
   }
   return false;

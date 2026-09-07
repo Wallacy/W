@@ -183,6 +183,7 @@ O corpus compara, no mínimo:
 - scalar function results against precomputed output, erased call results, unchecked return types, and downstream name lookup.
 - bounded if diamonds against flattened output, sum-of-arms bounds, implicit fall-through, and duplicated post-join bodies.
 - bounded nested if diamonds against shared-continuation revisits, implicit joins, and premature general CFG.
+- bounded signed-i64 comparisons against precomputed output, unsigned ordering, and runtime-arithmetic expansion.
 - bounded native Windows x86_64 MLIR route against WSL-only execution, PATH discovery, POSIX write, and Clang/CRT coupling.
 - compact cross-target distribution layers against shipping the heavy CLI toolchain, silent downloads, and unmeasured package-budget exceptions.
 - bounded native Windows builder profiles and local receipt against a public W profile option, manifest-only smoke, and non-atomic output replacement.
@@ -7785,6 +7786,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1534 | bounded native Windows builder profiles and local receipt | The tooling-only Windows builder accepts one strict `--profile` value. `development` maps to CMake Debug, `release` maps to Release and is the default, `benchmark` maps to a constrained, probed Release recipe with a clean Git worktree and recorded HEAD, and `size-experimental` maps to MinSizeRel for size comparison only. C23 remains primary and C11 remains explicit recovery. The builder reads fixture bytes before execution, records their SHA-256 identities, runs exact Hello and Restaurant smokes from a staged `w.exe`, writes deterministic `receipt.json`, and atomically swaps a dedicated output directory containing only `w.exe` and the receipt. | `source-backed-current` for the script, focused tests, machine manifests, and one real release C11-recovery build on the current Windows host. The four-profile execution matrix, package/release claims, cross-compilation, Unicode source paths, and performance remain gaps. The receipt is local evidence only and not package, budget, or performance proof. Benchmark recipe evidence is constrained/probed only; no reproducible-binary or double-build claim is made. `benchmarkDisposition: compiler-lifecycle`, correctness and recipe evidence only, no timing or result |
 | W-1535 | nested structured `if` through verified HIR0 and linear native maximum analysis | HIR0 schema `w-seed-hir0-8` keeps the existing `if` syntax and admits nested IF records only in Unit-returning ordinary functions. A single bound of 64 IF depth is checked before recursion or emission. Each IF contributes exactly three blocks; layout is branch, complete true subregion, complete false subregion, join, then sibling continuation. `next_block` stays reserved and BRANCH keeps only generic true/false successors. The verifier proves dense ownership/ranges, structural reachability exactly once, arm regions, common join/postdominator, forward acyclicity, condition ownership/type, and no forged or orphan records. Native selection uses one reverse-topological DP over verified blocks and edges, with checked `max(then, else)` and cached shared continuations; call-cycle and binding-read checks remain. | `source-backed-current` for the bounded nested Unit route and exact Restaurant fixture on Linux/WSL plus native Windows Release C11 recovery. The Native0 unit accepts depth 64 and emits it as MLIR; its depth-65 case returns `UNSUPPORTED` with unchanged output/result snapshots. The HIR unit proves only acceptance of depth 64 and rejection of depth 65. Real LLVM/native execution is the Restaurant four-case witness on Linux/WSL and Windows. Full binary depth-7 is a structural stress witness, not timing evidence. HIR/Native0 capacity expansion is private: the local `w_seed_native0_storage` observation is 458448 bytes before and 570576 bytes after, with a 768 KiB ceiling; these are recipe-local layout observations, not ABI, stack, package, or performance claims. MLIR0 advances to `w-seed-mlir0-11` (Windows `w-seed-mlir0-windows-2`); Native0 remains v6 because public bytes and receipt semantics do not change. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, result, ranking, or measured-performance claim |
 | W-1536 | direct observer application with synthesized plain storage | A behavior with no `get`/`set`, beyond its zero-slot `init()`, declares only metadata, facets and hooks and is an observer. Explicit `var Versioned p: T = rhs` is current and synthesizes one plain logical storage slot; `Versioned<Value>` infers `Value` from `T`. The RHS initializes that plain storage once and is never passed to the observer's zero-slot `init()`. A direct observer requires that zero-slot initializer, has unqualified facet paths and no main storage or accessor; a storage behavior keeps its one-slot initializer. Two or more behaviors or reusable aliases remain a nominal composition. Synthesized storage and the direct observer identity enter ABI and fingerprint; `TypeInfo.Property` exposes only the logical property name/type/mutability/accessMode/hasSetter, not observer or backing identity; `w explain property` shows observer, storage, hooks and cost; mut read hooks retain mutable/exclusive receiver authority. | `implementation-evidence-gap` for the DESIGN contract, fixtures, syntax-atlas and substitution parse/provenance only; these sources do not prove checker, lowering, runtime ownership or native behavior. Existing blockers remain checker/lowering, property access lowering, runtime ownership, native backend and language benchmark runner. `benchmarkDisposition: deferred`, task `property-access-ownership-benchmark`; no timing or result. W-1536 revises only the direct-observer subrule recorded in W-1501, W-1512 and W-1516; it does not supersede those decisions. Rejected alternatives are a mandatory nominal wrapper, passing the RHS to observer init, synthetic `#version` aliases, RHS-based inference instead of logical type, and an observer that declares storage/accessors. |
+| W-1537 | bounded signed-`i64` comparisons through verified HIR0 and MLIR0 | ICMP0 uses existing `==`, `!=`, `<`, `<=`, `>`, and `>=` syntax with two signed-`i64` operands and a Bool result. HIR0 `w-seed-hir0-9` retains `BINARY_I64` as the operand-domain tag and verifies result types by operator. MLIR0 `w-seed-mlir0-12`, with Windows label `w-seed-mlir0-windows-3`, emits real `llvm.icmp` operations with signed ordering predicates. Comparisons compose with existing bindings, Bool arguments/returns, interpolation, and bounded Unit conditions. Native0 stays v6 without new layout or capacity fields. Existing ownership, 64-IF depth, stdout limits, target recipes, and runtime-arithmetic restrictions remain unchanged. | `source-backed-current` only for the bounded comparison subset. Six focused GNU 13.3 C23 Release suites and real Windows LLVM 23.1.0 plus Linux/WSL LLVM 20.1.2 native gates passed. Evidence covers exact Restaurant admission, all six signed predicates and boundaries, Bool composition, and four type rejections. Frontend dry/emit type interning and prior-binding descendant lookup retain validation and scope guards. No logical operators, String/Bool comparisons, mixed operands, mutation, loops, scalar-return CFG, ABI, cross-compilation, or linear-time promotion. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10515,3 +10517,57 @@ atlas e substitution são apenas source/provenance/parse-only; checker,
 lowering, runtime ownership, backend nativo e benchmark runner permanecem
 gaps. O backlog `property-access-ownership-benchmark` continua deferred com
 os blockers existentes; nenhuma execução, medição ou timing é afirmada.
+
+#### W-1537 — bounded signed-`i64` comparisons through native MLIR
+
+The Restaurant admission witness needs to compare party size with available
+seats. Both values already use signed `i64` parameters. ICMP0 implements the
+existing comparison syntax through typed HIR and LLVM operations.
+It does not introduce a wrapper, a special comparison function, or a new domain.
+
+`BINARY_I64` identifies the two operand types. An operator-specific result
+rule permits Bool comparisons without another value record or capacity field.
+The verifier still rejects mismatched operand or result types.
+The emitter uses `llvm.icmp` predicates `eq`, `ne`, `slt`, `sle`, `sgt`, and `sge`.
+Parameter-based emission checks distinguish real signed comparisons from fixture specialization.
+
+The primary witness is `compiler/seed-c/fixtures/restaurant-comparisons.w`.
+Its required output is `Seat party\nSeat party\nWaitlist\n`.
+The companion `restaurant-comparison-composition.w` covers six predicates,
+signed boundaries, and Bool return, binding, call, and interpolation composition.
+Both fixtures passed real Linux/WSL and native Windows execution with exact stdout.
+The composition gate tests `-1/0`, `0/0`, `1/0`, minimum/maximum, and maximum/minimum.
+Bool results pass through bindings, returns, calls, and interpolation with both truth values.
+Four invalid operand/result-type cases reject with exit 2 and empty output.
+
+Six GNU 13.3 C23 Release suites passed: frontend, HIR0, MLIR0, Native0,
+ConstIR, and generic validation. HIR mutation cases retain their original digests.
+Their rejection proves the combined verifier gate, not isolated structural predicates.
+Source rejection tests, parameter-based emission checks, and native execution provide complementary evidence.
+
+The Linux gate used LLVM 20.1.2 and the explicit GCC 13.3 host link driver.
+The Windows gate used LLVM 23.1.0, MSVC 14.51 C11 recovery, and SDK 10.0.26100.0.
+MSVC `/WX` remained enabled after removing an unreachable trailing return.
+Actual MLIR parsing rejected an extra comma after the predicate during review.
+The corrected emitter retains the grammar `llvm.icmp "sle" %p0, %p1 : i64`.
+ICMP0 did not rerun Linux LLVM 23 or hosted jobs.
+
+Literal comparisons exposed different type-arena interning between dry and emit passes.
+Both passes now intern contextual types before the emit-only expression-record update.
+Unannotated integer-literal `let` bindings retain canonical integer typing.
+Prior-binding operands also exposed statement lookup that skipped binary descendants.
+The existing bounded expression-tree walk now locates descendants from each statement root.
+Function ownership, direct-block scope, earlier declarations, and callee exclusions remain enforced.
+The scans and recursive walks have no linear-time claim.
+
+The changed labels are HIR9, MLIR12, and Windows3. Native0 stays v6.
+No timing, ranking, performance, ABI, or cross-target claim follows.
+`benchmarkDisposition` is `compiler-lifecycle`, correctness-only.
+
+The Windows acquisition cache currently binds its receipt to the whole
+toolchain manifest. Changing only the compiler artifact schema invalidates
+that metadata even when archive and tool bytes are unchanged.
+Cache identity separation is deferred. This cut does not authorize another
+multi-gigabyte extraction or change cache trust rules to avoid validation.
+The native gate reused the verified asset with its existing asset-identity checks.
+It did not rerun acquisition, download, extract, or modify the cache.

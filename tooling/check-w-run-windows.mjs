@@ -19,6 +19,8 @@ const materializedPath = join(defaultCacheDirectory(), MATERIALIZED_MANIFEST)
 const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
+const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
@@ -262,8 +264,20 @@ try {
 
   const invalidSource = join(fixtureDirectory, "invalid.w")
   const unsupportedSource = join(fixtureDirectory, "unsupported.w")
+  const invalidComparisons = [
+    ["Bool operands", "true == false"],
+    ["String operands", '"a" != "b"'],
+    ["mixed operands", "1 <= true"],
+    ["comparison used as i64", "(1 < 2) + 3"],
+  ]
   await writeFile(invalidSource, Buffer.from([0xc3]))
   await writeFile(unsupportedSource, "fn main() { noop(\"Other\") }\nentry(main)\n")
+  for (const [index, [label, expression]] of invalidComparisons.entries()) {
+    const path = join(fixtureDirectory, `invalid_comparison_${index}.w`)
+    await writeFile(path,
+      `fn main() { let result = ${expression} print("\${result}") }\nentry(main)\n`)
+    invalidComparisons[index] = [label, path]
+  }
   const expectedIf = Buffer.from(
     "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8")
   expectExact(binary, ["--help"], 0, Buffer.from(expectedHelp), "w --help")
@@ -271,6 +285,17 @@ try {
     Buffer.from("Hello, world!\n", "utf8"), "Hello fixture")
   expectExact(binary, ["run", restaurantIfFixture], 0, expectedIf,
     "Restaurant if fixture")
+  expectExact(binary, ["run", restaurantComparisonsFixture], 0,
+    Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
+    "Restaurant signed-i64 admission comparison")
+  expectExact(binary, ["run", restaurantComparisonCompositionFixture], 0,
+    Buffer.from(
+      "false/true/true/true/false/false\n" +
+      "true/false/false/true/false/true\n" +
+      "false/true/false/false/true/true\n" +
+      "false/true/true/true/false/false\n" +
+      "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
+    "Restaurant comparison operators, signed endpoints, and Bool composition")
   expectExact(binary, ["run", restaurantInterpolationFixture], 0,
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant interpolation fixture")
@@ -281,6 +306,8 @@ try {
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
   expectSourceFailure(binary, invalidSource, "invalid UTF-8 source")
   expectSourceFailure(binary, unsupportedSource, "unsupported source")
+  for (const [label, path] of invalidComparisons)
+    expectSourceFailure(binary, path, `comparison rejects ${label}`)
   const unsupportedOption = spawn(binary, ["run", "--entry", helloFixture])
   assert(unsupportedOption.exitCode === 2 && unsupportedOption.stdout.length === 0 &&
     unsupportedOption.stderr.toString() === expectedWindowsErrorHelp,

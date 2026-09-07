@@ -1609,7 +1609,78 @@ static bool test_nested_if_depth_boundary(void) {
   return true;
 }
 
+static bool test_signed_comparison_values(void) {
+  static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
+  static const w_seed_hir0_binary_operator opcodes[] = {
+      W_SEED_HIR0_BINARY_EQUAL, W_SEED_HIR0_BINARY_NOT_EQUAL,
+      W_SEED_HIR0_BINARY_LESS, W_SEED_HIR0_BINARY_LESS_EQUAL,
+      W_SEED_HIR0_BINARY_GREATER, W_SEED_HIR0_BINARY_GREATER_EQUAL};
+  for (size_t operation = 0u; operation < 6u; operation += 1u) {
+    char source[1024];
+    const int written = snprintf(source, sizeof(source),
+        "fn fits(left: i64, right: i64): Bool { return left %s right }\n"
+        "fn main() { let fits = fits(left: 0 - 9223372036854775807 - 1, "
+        "right: 9223372036854775807) "
+        "print(message: \"${fits}\", suffix: \"\") }\nentry(main)\n",
+        operators[operation]);
+    CHECK(written > 0 && (size_t)written < sizeof(source));
+    CHECK(lower(source));
+    size_t comparison = SIZE_MAX;
+    for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+      if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+          fixture.hir_values[index].binary_operator == opcodes[operation])
+        comparison = index;
+    CHECK(comparison != SIZE_MAX);
+    const w_seed_hir0_value saved = fixture.hir_values[comparison];
+    CHECK(saved.type_index == 3u &&
+          saved.owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR &&
+          fixture.hir_values[saved.left_value].type_index == 2u &&
+          fixture.hir_values[saved.right_value].type_index == 2u &&
+          fixture.hir_values[saved.left_value].kind ==
+              W_SEED_HIR0_VALUE_PARAMETER_READ &&
+          fixture.hir_values[saved.right_value].kind ==
+              W_SEED_HIR0_VALUE_PARAMETER_READ);
+    /* Original digests remain unchanged: these exercise the combined verifier. */
+    for (size_t mutation = 0u; mutation < 7u; mutation += 1u) {
+      const w_seed_hir0_value saved_left = fixture.hir_values[saved.left_value];
+      switch (mutation) {
+        case 0u: fixture.hir_values[comparison].type_index = 2u; break;
+        case 1u: fixture.hir_values[saved.left_value].type_index = 3u; break;
+        case 2u:
+          fixture.hir_values[comparison].binary_operator =
+              (w_seed_hir0_binary_operator)UINT32_MAX;
+          break;
+        case 3u:
+          fixture.hir_values[comparison].binary_operator =
+              (w_seed_hir0_binary_operator)(W_SEED_HIR0_BINARY_GREATER_EQUAL + 1);
+          break;
+        case 4u: fixture.hir_values[comparison].left_value = (uint32_t)comparison; break;
+        case 5u: fixture.hir_values[saved.left_value].owner_index = 0u; break;
+        default: fixture.hir_values[comparison].right_value = saved.left_value; break;
+      }
+      CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+      fixture.hir_values[comparison] = saved;
+      fixture.hir_values[saved.left_value] = saved_left;
+      CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+    }
+  }
+
+  const w_seed_hir0_input input = hir_input();
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  fixture.hir_output.value_capacity = 0u;
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result snapshot = rejected;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&rejected, &snapshot, sizeof(rejected)) == 0);
+  return true;
+}
+
 int main(void) {
+  if (!test_signed_comparison_values()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;

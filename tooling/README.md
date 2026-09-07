@@ -178,6 +178,16 @@ driver provenance. The older `check:mlir0` recipe is unchanged.
 passed with LLVM 20.1.2 and 23.1.0, host GCC/cc 13.3.0, and Bun 1.3.4.
 The mandatory Linux and Windows hosted jobs use Bun 1.4.0 and have not run.
 
+ICMP0/W-1537 extends the comparison fixtures for six signed-`i64` operators.
+The HIR9/MLIR12/Windows3 labels describe Bool-producing comparisons through
+real `llvm.icmp` operations. Native0 stays v6. Six focused C23 suites passed.
+The Windows LLVM 23.1.0 gate passed with MSVC C11 recovery and `/WX` intact.
+The Linux/WSL LLVM 20.1.2 gate passed with the explicit GCC 13.3 host link driver.
+Both verify exact admission output, signed boundaries, Bool composition, and type rejection.
+ICMP0 did not rerun Linux LLVM 23 or the hosted jobs.
+Existing syntax, ownership, nesting, stdout limits, and native
+recipes remain unchanged. The gates make no timing or cross-target claim.
+
 Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
 owner selection, backend, linker, runtime ou o runner `w run` geral.

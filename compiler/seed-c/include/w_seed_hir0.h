@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-8"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-9"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -60,6 +60,7 @@ typedef enum {
   W_SEED_HIR0_VALUE_PARAMETER_READ,
   W_SEED_HIR0_VALUE_CONST_I64,
   W_SEED_HIR0_VALUE_CONST_BOOL,
+  /* Both operands are i64. Arithmetic returns i64; comparisons return Bool. */
   W_SEED_HIR0_VALUE_BINARY_I64,
   W_SEED_HIR0_VALUE_INTERPOLATED_STRING,
   /* Result of one prior local CALL instruction in the same block. */
@@ -80,6 +81,12 @@ typedef enum {
   W_SEED_HIR0_BINARY_MULTIPLY,
   W_SEED_HIR0_BINARY_DIVIDE,
   W_SEED_HIR0_BINARY_REMAINDER,
+  W_SEED_HIR0_BINARY_EQUAL,
+  W_SEED_HIR0_BINARY_NOT_EQUAL,
+  W_SEED_HIR0_BINARY_LESS,
+  W_SEED_HIR0_BINARY_LESS_EQUAL,
+  W_SEED_HIR0_BINARY_GREATER,
+  W_SEED_HIR0_BINARY_GREATER_EQUAL,
 } w_seed_hir0_binary_operator;
 
 typedef enum {

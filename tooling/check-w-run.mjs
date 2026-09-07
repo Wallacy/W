@@ -11,6 +11,8 @@ const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
+const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
@@ -99,7 +101,7 @@ export function validateManifest(manifest, mode = ciMode) {
   if (mode)
     assert(manifest.purpose === "mandatory-native-ci",
       "CI toolchain manifest purpose is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-11" &&
+  assert(manifest.artifact?.schema === "w-seed-mlir0-12" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
@@ -416,6 +418,12 @@ try {
   const missingScalarReturn = join(fixtureDirectory,
     "missing_scalar_return.w")
   const nestedReturnCall = join(fixtureDirectory, "nested_return_call.w")
+  const invalidComparisons = [
+    ["Bool operands", "true == false"],
+    ["String operands", '"a" != "b"'],
+    ["mixed operands", "1 <= true"],
+    ["comparison used as i64", "(1 < 2) + 3"],
+  ]
   await writeFile(restaurantBinding,
     "fn serve() { let message = \"Table 42 remains open\" print(message) }\n" +
     "entry(serve)\n")
@@ -469,6 +477,12 @@ try {
     "fn value(): i64 { return 42 }\n" +
     "fn relay(): i64 { return value() }\n" +
     "fn main() { let result = relay() print(\"${result}\") }\nentry(main)\n")
+  for (const [index, [label, expression]] of invalidComparisons.entries()) {
+    const path = join(fixtureDirectory, `invalid_comparison_${index}.w`)
+    await writeFile(path,
+      `fn main() { let result = ${expression} print("\${result}") }\nentry(main)\n`)
+    invalidComparisons[index] = [label, path]
+  }
   const toWsl = (path) => isWindows ? wslPath(path) : path
   residueBefore = await snapshotRunResidue()
 
@@ -498,6 +512,17 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantIfFixture)],
     expectedRestaurantIf,
     "Restaurant if diamond")
+  expectSuccess(binary, ["run", toWsl(restaurantComparisonsFixture)],
+    Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
+    "Restaurant signed-i64 admission comparison")
+  expectSuccess(binary, ["run", toWsl(restaurantComparisonCompositionFixture)],
+    Buffer.from(
+      "false/true/true/true/false/false\n" +
+      "true/false/false/true/false/true\n" +
+      "false/true/false/false/true/true\n" +
+      "false/true/true/true/false/false\n" +
+      "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
+    "Restaurant comparison operators, signed endpoints, and Bool composition")
   expectSuccess(binary, ["run", toWsl(restaurantNestedIfFixture)],
     expectedRestaurantNestedIf,
     "Restaurant nested if")
@@ -553,6 +578,8 @@ try {
     "missing scalar return source")
   expectSourceFailure(binary, toWsl(nestedReturnCall),
     "nested return call source")
+  for (const [label, path] of invalidComparisons)
+    expectSourceFailure(binary, toWsl(path), `comparison rejects ${label}`)
   expectUnsupportedOption(binary, ["run", "--entry", toWsl(helloFixture)],
     "unsupported --entry option")
   expectUnsupportedOption(binary, ["run", "--offline", toWsl(helloFixture)],
