@@ -52,8 +52,9 @@ decision. If current artifacts conflict, fix `DESIGN.md` first, then update
   alternative.
 - One concept has one canonical home. Link to `DESIGN.md` for behavior and to
   `RATIONALE.md` for evidence instead of copying either explanation.
-- Do not read `tooling/tree-sitter-w/src/` during language work. It is
-  generated. Inspect it only for a parser-generation or distribution problem.
+- Do not read generated files in `tooling/tree-sitter-w/src/` during language
+  work. `scanner.c` is authored and versioned. Inspect generated files only for
+  a parser-generation or distribution problem.
 - Search the file table in `reference/last-light/README.md`. Open only the
   affected `.w` source and its local documentation range.
 - Update the grammar, reference product, and tests when the visible surface
@@ -63,10 +64,10 @@ decision. If current artifacts conflict, fix `DESIGN.md` first, then update
   residual language-lock contracts. Add a wrapper, primitive, or design
   pattern only when composition cannot express the case or measured evidence
   shows a material loss. A precedent in another language is not sufficient.
-- Verify the smallest changed surface first. Run broader link, app, and diff
-  checks once at the end.
-- For every substantive task, follow the coordinator-worker protocol in
-  `.codex/W-WORKFLOW.md`.
+- Verify the smallest changed surface first. Extend validation at the
+  integration boundary when the contracts or risk require it.
+- For long or delegated work, follow the applicable coordinator-worker sections
+  in `.codex/W-WORKFLOW.md`.
 
 ## Definition of done
 

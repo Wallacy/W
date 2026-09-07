@@ -1,69 +1,123 @@
-# Orientações do repositório
+# Repository guidance
 
-W é uma linguagem experimental em fase de projeto. Este repositório é a fonte
-de trabalho do W.
+W is an experimental language and compiler project. Do not present a proposal
+as implemented behavior. Do not start a broad compiler implementation without
+a request.
 
-Antes de uma tarefa sobre W, leia `.codex/W.md`. Leia `CONTRIBUTING.md` para
-mudança pública, preparação de pull request ou política de contribuição. Para
-revisão ou merge, leia `MAINTAINERS.md`. `GOVERNANCE.md` define autoridade e
-decisão.
+## Agent policy
 
-Para trabalho longo, leia `.codex/W-WORKFLOW.md`. Para texto novo ou revisado,
-leia `.codex/WRITING.md`. Use ASD-STE100 Issue 9 no texto técnico em inglês e
-as regras equivalentes para português.
+The manager is the principal model selected by the user. The default executor
+for substantive work is Luna Max. This split preserves the principal model's
+available quota and accounts for rework, context, tools, and review. Do not
+replace useful delegation with direct manager execution only because the
+manager is more capable.
 
-## Orquestração padrão
+The manager interprets the objective, closes decisions, and defines scope,
+risks, permissions, and completion evidence. The manager reviews critical
+diffs and results and reports the real state. Luna reads and investigates in
+detail, implements the package, validates the affected surface, fixes its own
+issues, and returns a verifiable summary. Luna may reason technically within
+the accepted scope. The manager ratifies material product, architecture,
+syntax, semantic, or API decisions.
 
-Toda tarefa substantiva segue `.codex/W-WORKFLOW.md`. A tarefa principal usa
-Sol High ou superior para design e revisão. O Sol delega a execução fechada a
-um único `w_luna_worker` com Luna Max. Não crie agentes paralelos.
+For substantive work, Luna performs detailed inventory and preparation when
+delegation is useful. The manager inspects critical boundaries without
+repeating the full investigation.
 
-Mantenha o Sol principal durante a jornada contínua. Reuse o mesmo Luna somente
-no bundle corrente. Use um Luna novo para um bundle independente. Confirme o
-modelo nos metadados do filho. O nome da tarefa não comprova o modelo. Não
-substitua modelo ou effort silenciosamente.
+When the user pauses work, stop safely and preserve the worktree. An explicit
+continuation or explicit resumption of the active objective ends the pause
+without another confirmation or repeated discovery. Do not resume a paused
+scope for a new task.
 
-Uma pausa termina quando o usuário pede para continuar ou quando o objetivo
-ativo retoma a execução. Retome o bundle imediatamente nesse caso. Não repita
-mensagens de espera sem mudança. Um timeout não é progresso e não justifica uma
-mensagem ao usuário. Siga os limites de espera e checkpoint de
-`.codex/W-WORKFLOW.md`.
+Small tasks, conversations, and bounded decisions may stay with the manager
+when delegation costs more work than it saves. Do not create a subagent for
+ritual.
 
-Toda tarefa de subagente deve ser finita. O pacote define milestones e uma
-cadência de status. O subagente responde a um pedido de status antes de continuar
-a execução. Um trabalho pode durar horas quando seus checkpoints mostram
-progresso verificável.
+Use one persistent Luna Max executor per related line of work when delegation
+is useful. Reuse it while its context remains valid. When changing executor,
+send only the objective, confirmed facts, scope, restrictions, acceptance,
+checks, and pending decisions. Do not require percentage targets, irrelevant
+fields, fixed review rounds, or a universal status cadence.
 
-## Artefatos canônicos
+Set a status cadence that fits the package. At a status boundary or manager
+request, the executor answers before more work. If the expected response is
+absent, check liveness once. Do not poll or start a recovery loop. If context
+is lost, use one compact recovery handoff to a confirmed Luna Max and report a
+remaining blocker.
 
-- `DESIGN.md` é a autoridade normativa para contratos correntes, estado,
-  pesquisas que mudam o contrato e ordem de implementação.
-- `RATIONALE.md` é complementar e não normativa: guarda justificativas,
-  evidência, alternativas e proveniência histórica.
-- `DESIGN-INDEX.md` é uma projeção gerada para navegação e leitura seletiva.
-- `reference/last-light/` é o produto de referência e o alvo da especificação
-  executável.
-- `portal/` e `tooling/` são projeções e ferramentas. Não definem a semântica.
-- `ABOUT.md` preserva a narrativa pública. O Git preserva material removido.
-  Não use commits antigos como decisão corrente.
-- `REPOSITORY.md` descreve o mapa e as regras da infraestrutura.
-- `STUDIES.md` é a projeção humana gerada de `tooling/study-registry.json`.
+Use Luna Max according to the tool's actual selection. Do not invent model
+identifiers, parameters, or metadata. Verify the model when the tool allows
+it. Report unavailability, an unconfirmed selection, or a fallback. Do not
+silently move a heavy package to the manager or claim that Luna performed work
+without confirmation. A model mismatch is not a reason to discard useful
+changes. Preserve the patch and assess execution policy separately from patch
+quality.
 
-Não apresente uma proposta como comportamento implementado. Antes do W 1.0,
-não preserve compatibilidade por inércia. Depois do 1.0, toda compatibilidade
-temporária precisa de depreciação, substituição, data de remoção e caminho de
-migração.
+Do not create recursive agents. Use parallelism only for independent work with
+a clear benefit and no conflicting writes. Prefer completion events and
+available notifications to status or transcript polling. A task must have an
+observable result and a finite stop condition.
 
-## Execução eficiente
+## Sources and scope
 
-Use Bun para tooling JavaScript, scripts e lockfiles. Não crie um lockfile npm.
-Comece por `DESIGN-INDEX.md` e use `tooling/design-slice.mjs` para ler apenas o
-trecho necessário. Não leia fontes geradas em
-`tooling/tree-sitter-w/src/` durante o trabalho normal. Mantenha uma única
-fonte para cada conceito e atualize suas projeções somente depois de estabilizar
-a decisão canônica.
+This file is the canonical source for general agent policy. Local instructions
+may add only area-specific restrictions. They do not replace product contracts
+or expand permissions.
 
-Antes de editar, verifique `git status --short`. Use saídas de comandos curtas,
-não repita leituras ou testes cujas entradas não mudaram e valide apenas a
-superfície afetada antes da revisão final. Termine com `git diff --check`, um
-diff resumido e os checks relevantes.
+Before a W task, read [`.codex/W.md`](.codex/W.md) and follow its routing. Read
+only the additional policy needed:
+
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) for public contribution and pull requests;
+- [`MAINTAINERS.md`](MAINTAINERS.md) for review, merge, and maintenance;
+- [`GOVERNANCE.md`](GOVERNANCE.md) for authority and governance decisions;
+- [`.codex/WRITING.md`](.codex/WRITING.md) for technical text;
+- [`.codex/W-WORKFLOW.md`](.codex/W-WORKFLOW.md) for W-specific gates in long or
+  delegated work, including the applicable cleanup and benchmark contracts.
+
+`DESIGN.md`, `RATIONALE.md`, Last Light, grammar, tooling, security, ownership,
+and other domain contracts remain in their canonical sources. Do not copy
+their content into this policy. If sources conflict, fix the source of record
+or state the real configuration limit.
+
+Agent-instruction loading depends on the tool. A precedence statement here
+cannot prevent another loaded instruction from applying. Inspect and fix the
+source file when that conflict matters.
+
+Use the repository instructions and available tools. Do not create or install
+skills for this workflow.
+
+## Execution and validation
+
+Confirm the repository, branch, and `git status --short` before editing.
+Preserve pre-existing changes. For design work, start with the index and read
+only the required slices. Keep one canonical home for each concept and update
+projections after the decision is stable.
+
+Use Bun for repository tooling, scripts, and lockfiles. Do not create an npm
+lockfile.
+
+Do not read generated files without a task need. In
+`tooling/tree-sitter-w/src/`, generated files remain out of normal language
+work. `scanner.c` is authored and versioned. Follow the exceptions in
+`.codex/W.md` and `MAINTAINERS.md`.
+
+Run focused checks during implementation. Expand validation for affected
+contracts, risk, existing requirements, or observed failures. Reuse a result
+when the relevant input and environment have not changed. A green check proves
+only what it measures.
+
+Review correctness, security, ownership, complexity, and relevant cost. Do not
+make cosmetic changes or measurements unrelated to the task. Visual, integration,
+hardware, and production changes require their corresponding evidence.
+
+## Authority and delivery
+
+Simplified instructions do not grant access to credentials, production, data,
+equipment, or publication. Keep local editing, commit, push, pull request, and
+publication distinct. Perform each step only under existing authorization and
+report only confirmed results.
+
+Complete the authorized objective. Confirm that requested files exist, contain
+the expected result, and remain in scope. Record checks as passed, failed,
+blocked, or not run. Finish with `git diff --check` and a risk-proportionate
+diff review.
