@@ -2298,8 +2298,8 @@
         "3.5.3"
       ],
       "sourceRefs": [],
-      "snippetDigest": "sha256:d6b3681913cf265ea1fd949f733315ab9b8e0c28778f44cc5c1d4eedb35ceec3",
-      "snippetBytes": 90
+      "snippetDigest": "sha256:4684669a8d12b95e1b733a019717380645efd8199d549219f4a648e459f61434",
+      "snippetBytes": 108
     },
     {
       "id": "source-roots-imports",
@@ -2785,11 +2785,11 @@
         {
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn serveOneByOne",
-          "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
+          "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997"
         }
       ],
-      "snippetDigest": "sha256:4f225b7776b8e54a997a889ad4e2916199d38771f46091866a9692fda2d88103",
-      "snippetBytes": 618
+      "snippetDigest": "sha256:376065174dbdef34a29fbbcb7c0b88c2fffae5e97e7512f98700ce90bc95f4a0",
+      "snippetBytes": 654
     },
     {
       "id": "entry-declaration",
@@ -2915,6 +2915,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:1a6686f55fa59d24d7ba1dbe09b00f65b88b54c848c78bc71988e6f437d9b813"
+    "coverageDigest": "sha256:f3b90ebd70341cfac5a6d5287cbcbf5d19ad3d60e199c0aab4553b28ad52671c"
   }
 }

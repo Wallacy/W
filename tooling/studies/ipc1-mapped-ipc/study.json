@@ -34,7 +34,7 @@
         "status": "tree-sitter-parse",
         "note": "Current typed channel source shape."
       },
-      "digest": "sha256:7bf73c49a2bd8e787c6d0ab16550c65a804979fc17c2ee5d1d47fca91f943414"
+      "digest": "sha256:de931a1c2331d9da938be6f2d63f52ca24783f88206b26b62f0f829500818a99"
     },
     {
       "id": "mapped-immutable",

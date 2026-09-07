@@ -24,7 +24,7 @@
         "reference/syntax-atlas/rejected.w-rejected.txt",
         "reference/syntax-atlas/reserved.w-reserved.txt"
       ],
-      "artifactsDigest": "sha256:f6903788828f6621ef051a5a0fbec75b1c8cbc91c47310a1543edc8dd004fcf6"
+      "artifactsDigest": "sha256:ea3cbafd11aafe7ff62fdcb0ef175143d7e3997edff945aaeb8e69dbde24659a"
     },
     {
       "id": "drc0",
@@ -143,7 +143,7 @@
         "tooling/studies/ipc1-mapped-ipc/reserved-native-pointer.txt",
         "tooling/studies/ipc1-mapped-ipc/study.json"
       ],
-      "artifactsDigest": "sha256:59f3ef7024969ed562be28b9af49467659a751bbb9c414f19197895e5aabfffe"
+      "artifactsDigest": "sha256:0fc00c55709bfd1e7085beefa5b0108b2a0a55bca2474cafe6371c573442f2f8"
     },
     {
       "id": "gen1",
@@ -170,7 +170,7 @@
         "tooling/studies/gen1-incremental-suspension/bundle.json",
         "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt"
       ],
-      "artifactsDigest": "sha256:133925a68e311ac75c5f4100ea9e230fa6603bc70db4e2bea390a053c9d9a7d3"
+      "artifactsDigest": "sha256:cb0edeef1dc8198c189872760992914973bc23aab68696f4ae2a3682109e9d11"
     },
     {
       "id": "syn1",
@@ -250,7 +250,7 @@
         "tooling/studies/hrd0-hot-reload-dev/split-runner.w",
         "tooling/studies/hrd0-hot-reload-dev/study.json"
       ],
-      "artifactsDigest": "sha256:2d45936446c7a9edf67d0ca8e707785d5df0f0f22940b094e8ee69fad68b9826"
+      "artifactsDigest": "sha256:2b0b1cd7b8283a1918f64497c886b85d81967f5728c48c2ed4051c88e17fea56"
     },
     {
       "id": "dyn1",
@@ -278,7 +278,7 @@
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
         "tooling/studies/dyn1-versioned-behavior/study.json"
       ],
-      "artifactsDigest": "sha256:1c5817cb8f2309ed90a4ea033c830555518d92e57a7fd693647a21d6ed0b0a99"
+      "artifactsDigest": "sha256:5723745f785440082024201336250e08b0bdcdb10b021f915d25f4289dbbe405"
     },
     {
       "id": "atom1",

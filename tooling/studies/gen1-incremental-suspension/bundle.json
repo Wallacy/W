@@ -4,7 +4,10 @@
   "id": "R1-gen1-incremental-suspension",
   "researchState": "historical",
   "supersededBy": "W-1437",
-  "implementationEvidenceGaps": ["W-1438", "W-1440"],
+  "implementationEvidenceGaps": [
+    "W-1438",
+    "W-1440"
+  ],
   "title": "Incremental suspension ergonomics and lowering at the Last Light restaurant",
   "r0Cases": [
     "R0-consuming-call",
@@ -14,7 +17,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/streams.w",
     "symbol": "serveOneByOne",
-    "digest": "sha256:e7076f2dfdf83510c41e5a823641ba0c3e8496ff43e5cd2cdd303860c7bffd79"
+    "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997"
   },
   "sourceRefs": [
     {
@@ -105,7 +108,7 @@
       "disposition": "current-composable",
       "language": "w",
       "path": "dual-bounded-channels.w",
-      "digest": "sha256:bcb27c6a04fdb80759e04f20bbb63768167e0b8458755c1dc8cb40f2a6290e12",
+      "digest": "sha256:61521fda24dee047221a684da9dbb1384f6f2db6f9448c6099ee85c3791e3a9d",
       "changedConstructs": [
         "request channel",
         "response channel",
@@ -198,7 +201,7 @@
         {
           "variant": "dual-bounded-channels",
           "symbol": "observeDialogue",
-          "digest": "sha256:ab367494c37e5f1bc29596687f076b775d1161bbac43ba77507b412401b2f17b",
+          "digest": "sha256:db67b88ecf0de0b4ad8d30178a75052d8c07ccc852edca00ef4c8b2a34178047",
           "applicability": "dual bounded channels"
         },
         {

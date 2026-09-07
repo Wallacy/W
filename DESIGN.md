@@ -14006,7 +14006,7 @@ Um caller materializa a projeção ou envia um owner:
 
 ```w
 let (textOut, _) = Channel<String>.open(capacity: 1)
-try await textOut.send(line.materialize())
+try await textOut.send(value: line.materialize())
 ```
 
 Separar endpoints fecha authority de close e evita que um valor bidirecional
@@ -14018,7 +14018,7 @@ Um envio normal suspende até obter admission. Ele move o item somente no ponto
 de commit:
 
 ```w
-try await ordersOut.send(take order)
+try await ordersOut.send(value: take order)
 let received: Order? = await ordersIn.receive()
 ```
 
@@ -14054,7 +14054,7 @@ O error devolve ownership ao caller:
 
 ```w
 do {
-  try await ordersOut.send(take order)
+  try await ordersOut.send(value: take order)
 } catch .closed(let returnedOrder) {
   storeForTomorrow(take returnedOrder)
 }
@@ -14090,7 +14090,7 @@ a task terminar.
 ```w
 let permit = try await ordersOut.reserve()
 let order = prepareSynchronously()
-try (take permit).send(take order)
+try (take permit).send(value: take order)
 ```
 
 As assinaturas são:
@@ -14490,7 +14490,7 @@ ownership, e o receiver recebe o owner depois do edge.
 
 ```w
 let (ordersOut, ordersIn) = Channel<Order>.open(capacity: 1)
-try await ordersOut.send(take order)
+try await ordersOut.send(value: take order)
 let ownedOrder = await ordersIn.receive()
 ```
 

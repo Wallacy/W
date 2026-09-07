@@ -44,7 +44,7 @@
     {
       "id": "DYN1",
       "path": "../dyn1-versioned-behavior/study.json",
-      "digest": "sha256:32db0be8f116f0d4e0352d33a407db59716652266ac61524b328c2db1fb52db3",
+      "digest": "sha256:e52f5027e17419fcaa28eac59787c7194648fa7c970e425bc76302415710a5e7",
       "claim": "typed generations, drain, stale rejection, export/import, and rejected mechanisms"
     },
     {
