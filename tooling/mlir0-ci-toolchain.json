@@ -1,0 +1,102 @@
+{
+  "$schema": "w-seed-mlir0-ci-toolchain-1",
+  "version": 1,
+  "status": "pinned",
+  "purpose": "mandatory-native-ci",
+  "artifact": {
+    "schema": "w-seed-mlir0-11",
+    "scope": "unit-cfg-nested-diamond"
+  },
+  "target": {
+    "triple": "x86_64-unknown-linux-gnu",
+    "arch": "x86_64",
+    "os": "linux",
+    "abi": "gnu"
+  },
+  "toolchain": {
+    "mlir": "23.1.0",
+    "llvm": "23.1.0"
+  },
+  "hostLink": {
+    "driver": "/usr/bin/cc",
+    "targetProbe": ["-dumpmachine"],
+    "targetFamily": "x86_64-linux-gnu",
+    "provenance": "host GCC, CRT and libc are separate from the LLVM archive"
+  },
+  "commands": {
+    "mlirOpt": {
+      "linux": "mlir-opt",
+      "versionArgs": ["--version"]
+    },
+    "mlirTranslate": {
+      "linux": "mlir-translate",
+      "versionArgs": ["--version"]
+    },
+    "llvmConfig": {
+      "linux": "llvm-config",
+      "versionArgs": ["--version"]
+    },
+    "llc": {
+      "linux": "llc",
+      "versionArgs": ["--version"]
+    },
+    "linkDriver": {
+      "linux": "/usr/bin/cc",
+      "versionArgs": ["--version"]
+    }
+  },
+  "pipeline": [
+    {
+      "tool": "mlir-opt",
+      "args": ["<input.mlir>", "-o", "<verified.mlir>", "--verify-each"]
+    },
+    {
+      "tool": "mlir-translate",
+      "args": ["--mlir-to-llvmir", "<verified.mlir>", "-o", "<output.ll>"]
+    },
+    {
+      "tool": "llc",
+      "args": [
+        "-mtriple=x86_64-unknown-linux-gnu",
+        "-filetype=obj",
+        "-relocation-model=pic",
+        "<output.ll>",
+        "-o",
+        "<output.o>"
+      ]
+    },
+    {
+      "tool": "link-driver",
+      "args": ["-pie", "<output.o>", "-o", "<executable>"]
+    }
+  ],
+  "hostModes": {
+    "linux": "direct",
+    "windows": "unsupported",
+    "macos": "unsupported"
+  },
+  "plannedHost": "github-actions-ubuntu-24.04",
+  "hostEvidence": "not-run",
+  "windowsNative": false,
+  "hostMatrix": {
+    "linux": "mandatory-ci",
+    "windows": "gap",
+    "macos": "gap"
+  },
+  "distribution": {
+    "release": "2026.08.31",
+    "filename": "llvm-mlir_llvmorg-23.1.0_x86_64-unknown-linux-gnu.tar.zst",
+    "sizeBytes": 399908080,
+    "sha256": "ccb1db5ba59d1821cf1c631ec03daafc5cbefaf335e28ac2f6c7a55884b30d67",
+    "source": "munich-quantum-software/setup-mlir",
+    "setupAction": "munich-quantum-software/setup-mlir@133a0142a45c69adfe3fe3bd1a15e57381d3ed37",
+    "windowsNativeMlir": "gap",
+    "macosMlir": "gap",
+    "packaging": "gap"
+  },
+  "execution": {
+    "stdout": "ordered payloads + LF per print",
+    "stderr": "empty",
+    "exit": 0
+  }
+}

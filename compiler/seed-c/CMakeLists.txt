@@ -361,6 +361,159 @@ if(WIN32)
   endif()
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  option(W_SEED_ENABLE_LINUX_NATIVE_RUN
+    "Enable the explicit local MLIR/LLVM/object/native-link Linux run pipeline" OFF)
+  set(W_MLIR0_LINUX_MLIR_OPT_RAW "${W_MLIR0_LINUX_MLIR_OPT}")
+  set(W_MLIR0_LINUX_MLIR_TRANSLATE_RAW "${W_MLIR0_LINUX_MLIR_TRANSLATE}")
+  set(W_MLIR0_LINUX_LLVM_CONFIG_RAW "${W_MLIR0_LINUX_LLVM_CONFIG}")
+  set(W_MLIR0_LINUX_LLC_RAW "${W_MLIR0_LINUX_LLC}")
+  set(W_MLIR0_LINUX_LINK_DRIVER_RAW "${W_MLIR0_LINUX_LINK_DRIVER}")
+  set(W_MLIR0_LINUX_MLIR_OPT "/usr/bin/mlir-opt-20" CACHE FILEPATH
+    "Explicit MLIR opt executable for the Linux evidence build")
+  set(W_MLIR0_LINUX_MLIR_TRANSLATE "/usr/bin/mlir-translate-20" CACHE FILEPATH
+    "Explicit MLIR translate executable for the Linux evidence build")
+  set(W_MLIR0_LINUX_LLVM_CONFIG "/usr/bin/llvm-config-20" CACHE FILEPATH
+    "Explicit llvm-config executable for the Linux evidence build")
+  set(W_MLIR0_LINUX_LLC "/usr/bin/llc-20" CACHE FILEPATH
+    "Explicit LLVM object compiler for the Linux evidence build")
+  set(W_MLIR0_LINUX_LINK_DRIVER "/usr/bin/cc" CACHE FILEPATH
+    "Explicit native Linux x86_64 GNU C link driver for host CRT/libc")
+  set(W_SEED_LINUX_MLIR_OPT_HEADER_PATH "")
+  set(W_SEED_LINUX_MLIR_TRANSLATE_HEADER_PATH "")
+  set(W_SEED_LINUX_LLVM_CONFIG_HEADER_PATH "")
+  set(W_SEED_LINUX_LLC_HEADER_PATH "")
+  set(W_SEED_LINUX_LINK_DRIVER_HEADER_PATH "")
+  if(W_SEED_ENABLE_LINUX_NATIVE_RUN)
+    if(CMAKE_CROSSCOMPILING OR NOT CMAKE_SIZEOF_VOID_P EQUAL 8 OR
+       NOT CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64|AMD64)$")
+      message(FATAL_ERROR
+        "W_SEED_ENABLE_LINUX_NATIVE_RUN requires a native Linux x86_64 host build")
+    endif()
+    foreach(W_MLIR0_LINUX_RAW IN ITEMS
+        W_MLIR0_LINUX_MLIR_OPT_RAW
+        W_MLIR0_LINUX_MLIR_TRANSLATE_RAW
+        W_MLIR0_LINUX_LLVM_CONFIG_RAW
+        W_MLIR0_LINUX_LLC_RAW
+        W_MLIR0_LINUX_LINK_DRIVER_RAW)
+      if(NOT "${${W_MLIR0_LINUX_RAW}}" STREQUAL "")
+        if(IS_ABSOLUTE "${${W_MLIR0_LINUX_RAW}}")
+        else()
+          message(FATAL_ERROR
+            "${W_MLIR0_LINUX_RAW} must be supplied as an absolute path")
+        endif()
+      endif()
+    endforeach()
+    foreach(W_MLIR0_LINUX_PATH IN ITEMS
+        W_MLIR0_LINUX_MLIR_OPT
+        W_MLIR0_LINUX_MLIR_TRANSLATE
+        W_MLIR0_LINUX_LLVM_CONFIG
+        W_MLIR0_LINUX_LLC
+        W_MLIR0_LINUX_LINK_DRIVER)
+      get_property(W_MLIR0_LINUX_PATH_TYPE CACHE ${W_MLIR0_LINUX_PATH}
+        PROPERTY TYPE)
+      if(NOT W_MLIR0_LINUX_PATH_TYPE STREQUAL "FILEPATH")
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} must use the FILEPATH cache type")
+      endif()
+      set(W_MLIR0_LINUX_PATH_VALUE "${${W_MLIR0_LINUX_PATH}}")
+      if("${W_MLIR0_LINUX_PATH_VALUE}" STREQUAL "")
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+      endif()
+      if(NOT IS_ABSOLUTE "${W_MLIR0_LINUX_PATH_VALUE}")
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+      endif()
+      if(NOT EXISTS "${W_MLIR0_LINUX_PATH_VALUE}")
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+      endif()
+      if(IS_DIRECTORY "${W_MLIR0_LINUX_PATH_VALUE}")
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+      endif()
+      if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.29")
+        if(NOT IS_EXECUTABLE "${W_MLIR0_LINUX_PATH_VALUE}")
+          message(FATAL_ERROR
+            "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+        endif()
+      else()
+        execute_process(
+          COMMAND test -x "${W_MLIR0_LINUX_PATH_VALUE}"
+          RESULT_VARIABLE W_MLIR0_LINUX_EXECUTABLE_RESULT
+          OUTPUT_QUIET
+          ERROR_QUIET)
+        if(NOT W_MLIR0_LINUX_EXECUTABLE_RESULT EQUAL 0)
+          message(FATAL_ERROR
+            "${W_MLIR0_LINUX_PATH} must be an existing absolute executable file")
+        endif()
+      endif()
+      string(FIND "${W_MLIR0_LINUX_PATH_VALUE}" "\"" W_MLIR0_LINUX_QUOTE)
+      if(NOT W_MLIR0_LINUX_QUOTE EQUAL -1)
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} contains a character unsafe for the generated C header")
+      endif()
+      string(FIND "${W_MLIR0_LINUX_PATH_VALUE}" "\\" W_MLIR0_LINUX_BACKSLASH)
+      if(NOT W_MLIR0_LINUX_BACKSLASH EQUAL -1)
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} contains a character unsafe for the generated C header")
+      endif()
+      string(FIND "${W_MLIR0_LINUX_PATH_VALUE}" ";" W_MLIR0_LINUX_SEMICOLON)
+      if(NOT W_MLIR0_LINUX_SEMICOLON EQUAL -1)
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} contains a character unsafe for the generated C header")
+      endif()
+      foreach(W_MLIR0_LINUX_CONTROL_CODE RANGE 1 31)
+        string(ASCII ${W_MLIR0_LINUX_CONTROL_CODE} W_MLIR0_LINUX_CONTROL)
+        string(FIND "${W_MLIR0_LINUX_PATH_VALUE}" "${W_MLIR0_LINUX_CONTROL}"
+          W_MLIR0_LINUX_CONTROL_POSITION)
+        if(NOT W_MLIR0_LINUX_CONTROL_POSITION EQUAL -1)
+          message(FATAL_ERROR
+            "${W_MLIR0_LINUX_PATH} contains a character unsafe for the generated C header")
+        endif()
+      endforeach()
+      string(ASCII 127 W_MLIR0_LINUX_DEL)
+      string(FIND "${W_MLIR0_LINUX_PATH_VALUE}" "${W_MLIR0_LINUX_DEL}"
+        W_MLIR0_LINUX_DEL_POSITION)
+      if(NOT W_MLIR0_LINUX_DEL_POSITION EQUAL -1)
+        message(FATAL_ERROR
+          "${W_MLIR0_LINUX_PATH} contains a character unsafe for the generated C header")
+      endif()
+    endforeach()
+    execute_process(
+      COMMAND "${W_MLIR0_LINUX_LINK_DRIVER}" -dumpmachine
+      RESULT_VARIABLE W_MLIR0_LINUX_LINK_TARGET_RESULT
+      OUTPUT_VARIABLE W_MLIR0_LINUX_LINK_TARGET
+      ERROR_VARIABLE W_MLIR0_LINUX_LINK_TARGET_ERROR
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+      TIMEOUT 10)
+    if(NOT W_MLIR0_LINUX_LINK_TARGET_RESULT STREQUAL "0" OR
+       NOT W_MLIR0_LINUX_LINK_TARGET MATCHES "^x86_64-([A-Za-z0-9_]+-)?linux-gnu$" OR
+       NOT W_MLIR0_LINUX_LINK_TARGET_ERROR STREQUAL "")
+      message(FATAL_ERROR
+        "W_MLIR0_LINUX_LINK_DRIVER must report a native x86_64 Linux GNU target with -dumpmachine")
+    endif()
+    set(W_SEED_LINUX_MLIR_OPT_HEADER_PATH
+      "${W_MLIR0_LINUX_MLIR_OPT}")
+    set(W_SEED_LINUX_MLIR_TRANSLATE_HEADER_PATH
+      "${W_MLIR0_LINUX_MLIR_TRANSLATE}")
+    set(W_SEED_LINUX_LLVM_CONFIG_HEADER_PATH
+      "${W_MLIR0_LINUX_LLVM_CONFIG}")
+    set(W_SEED_LINUX_LLC_HEADER_PATH "${W_MLIR0_LINUX_LLC}")
+    set(W_SEED_LINUX_LINK_DRIVER_HEADER_PATH "${W_MLIR0_LINUX_LINK_DRIVER}")
+  endif()
+  set(W_SEED_LINUX_NATIVE_RUN_ENABLED ${W_SEED_ENABLE_LINUX_NATIVE_RUN})
+  set(W_SEED_LINUX_GENERATED_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/generated")
+  file(MAKE_DIRECTORY "${W_SEED_LINUX_GENERATED_INCLUDE}")
+  configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/include/w_seed_linux_config.h.in"
+    "${W_SEED_LINUX_GENERATED_INCLUDE}/w_seed_linux_config.h" @ONLY)
+  target_include_directories(w PRIVATE "${W_SEED_LINUX_GENERATED_INCLUDE}")
+  target_include_directories(w_seed_run_cli_tests PRIVATE
+    "${W_SEED_LINUX_GENERATED_INCLUDE}")
+endif()
+
 add_executable(w_seed_constir_probe
   tests/constir_probe.c
 )

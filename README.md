@@ -16,7 +16,7 @@ no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
 O seed também executa o subset print-literal input-driven verified-HLO0 por
 HLO1/RUN0 em gates internos bounded e test-only. W-1522 define a rota nativa
 real corrente: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect
-→ LLVM IR → clang/native, sem passar por C source ou depender de HLO0. A forma
+→ LLVM IR → llc → native host link, sem passar por C source ou depender de HLO0. A forma
 NAT1 aceita uma sequência linear bounded de `print`. W-1528 adiciona bindings
 imutáveis `i64`, Bool e String no mesmo bloco. W-1529 adiciona chamadas diretas
 `Unit` com parâmetros `i64`/Bool e uma `llvm.call` real. W-1530 adiciona
@@ -42,8 +42,18 @@ toolchain, and the future runtime does not download or search for tools. The
 Windows route uses MLIR → LLVM IR → `llc` → `lld-link` and does not promote
 general support. The heavy cache is never the user package; see
 [`TOOLCHAIN.md`](TOOLCHAIN.md) for the compact cross-target direction. Unicode
-source paths are not proven. Linux/WSL 20.1.2 remains `update-required`.
-The primary command is `bun run build:w-windows`; it selects the `release`
+source paths are not proven. The older `check:mlir0` Linux/WSL 20.1.2
+profile remains `update-required`.
+
+The public Linux runner now separates LLVM object generation from native
+linking. `llc` emits a PIC object. An absolute host C driver links it with
+`-pie` and native CRT/libc, without generated C source or a Clang dependency.
+Local WSL gates passed with LLVM 20.1.2 and, separately, 23.1.0 using
+host GCC/cc 13.3.0. The local Linux harness used Bun 1.3.4.
+The mandatory Linux and Windows CI jobs use Bun 1.4.0 and have not run.
+This evidence does not establish hosted CI success or general cross-target support.
+
+The primary Windows build command is `bun run build:w-windows`. It selects the `release`
 toolchain profile by default. It tries C23 and fails closed when this host's
 MSVC/CMake rejects that dialect. To reproduce the current evidence, use
 exactly `bun run build:w-windows --c11-recovery`.
@@ -67,10 +77,9 @@ during the build is rejected, and there is no implicit C standard fallback.
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
 de desenvolvimento fica fora da matriz nativa e não promove Windows. A
-evidência factual MLIR0 usa 20.1.2 e está marcada `update-required`; planos
-futuros pinam `llvmorg-23.1.0`, mas permanecem bloqueados por build, aquisição,
-proveniência, outputs, CI e smoke evidence. O pin sucessor não promove a
-evidência corrente.
+evidência histórica de `check:mlir0` usa 20.1.2 e está marcada `update-required`.
+The separate public-runner 23.1.0 local evidence does not promote the catalog's
+native host-to-target edges. Remote CI, packaging, and general support remain gaps.
 [`DEPENDENCIES.md`](DEPENDENCIES.md) publica o catálogo gerado de currency,
 compatibility floors, evidence snapshots e external evaluations.
 HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o

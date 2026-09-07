@@ -12,7 +12,7 @@
   "question": "Does the bounded host oracle close the three decisions without changing ownership, stream, service, or property contracts?",
   "corpus": {
     "path": "../../pfu0-pre-freeze-usability-cases.json",
-    "digest": "sha256:142093704a69efc68eb30b1d683fda79b1fae74d376f5a4086796ce00e9a4960"
+    "digest": "sha256:7817dbf292c9fb5d21eda23a468c43922d976518f560acdc235eacaf467224ec"
   },
   "machine": {
     "path": "../../pfu0-pre-freeze-usability-machine.mjs",

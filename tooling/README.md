@@ -147,7 +147,7 @@ local. Execute `bun run check:compiler` para os gates do bundle.
 O caminho C23 `source → parser → frontend → HIR0 verificada → HLO0 → HLO1`
 continua limitado aos subset e witnesses documentados. A rota nativa primária
 W-1522 é independente: `source → parser/frontend → HIR0 verificada → MLIR0 →
-mlir-opt → mlir-translate → clang/native`; HLO0, HLO1 e RUN0 são bootstrap,
+mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1 e RUN0 são bootstrap,
 auditoria e recovery, não pré-requisitos dessa rota. MLIR0 v3 aceita somente a
 sequência NAT1 linear bounded como contrato histórico de W-1522. O adapter
 MLIR0 v5 corrente também aceita interpolação signed-`i64` com helpers
@@ -163,10 +163,21 @@ bundle; seus probes são somente diagnósticos. Execute
 `bun run check:owner-guard`. RUN0 consome o plano
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
 Execute `bun run check:run0` para esse gate. O subset público W-1521 usa
-`w run <explicit-path.w> [-- <args...>]` em Linux x86_64, ou o binário Linux
-por WSL Ubuntu no host Windows; o basename explícito é uma source identity
+`w run <explicit-path.w> [-- <args...>]` em Linux x86_64 com a rota nativa
+explicitamente habilitada, ou o binário Linux por WSL Ubuntu no host Windows;
+o basename explícito é uma source identity
 opaca, não um identifier de módulo. Execute `bun run check:w-run` para o
 produto; a extensão NAT1 é definida por W-1522.
+
+The public Linux gate uses `llc` for a PIC object and an absolute host C
+driver for `-pie` linking with native CRT/libc. It generates no C source
+and does not require Clang. LLVM version checks remain separate from host
+driver provenance. The older `check:mlir0` recipe is unchanged.
+`bun run check:w-run --ci` requires Linux x64 and the separately acquired
+23.1.0 toolchain. Missing prerequisites fail instead of SKIP. Local WSL gates
+passed with LLVM 20.1.2 and 23.1.0, host GCC/cc 13.3.0, and Bun 1.3.4.
+The mandatory Linux and Windows hosted jobs use Bun 1.4.0 and have not run.
+
 Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
 owner selection, backend, linker, runtime ou o runner `w run` geral.
