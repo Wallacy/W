@@ -44,6 +44,11 @@
       "id": "restaurant-branch-rust-7dc01230fb5b",
       "path": "74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json",
       "digest": "sha256:74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2"
+    },
+    {
+      "id": "restaurant-branch-w-0a9862a58747",
+      "path": "02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4.json",
+      "digest": "sha256:02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4"
     }
   ]
 }
