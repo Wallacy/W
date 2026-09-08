@@ -17,12 +17,9 @@ Best-known status: **not-established** (0 promoted records).
 
 ## Current recorded evidence
 
-No clean-HEAD executable result is tracked yet.
+### hello
 
-The local W Hello command is bounded candidate evidence only: private Native0/MLIR0 Windows source-to-PE, contextual/non-ranking until the public `w run` route is benchmarkable.
-
-Local outputs stay ignored under `benchmarks/results/`; the immutable index is
-[benchmarks/history/executables/index.json](./history/executables/index.json).
+- w — contextual-non-ranking-until-public-run; compile median 193.5199 ms; run median 19.0794 ms; CPU median 0 µs; peak RSS 3715072 B (3.543 MiB); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 
 ## W Hello boundary
 
