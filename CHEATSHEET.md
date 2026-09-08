@@ -1665,3 +1665,9 @@ w run last-light-native -- --tui
 ```
 
 The normative contract and implementation status remain in [DESIGN.md](DESIGN.md).
+The seed compiler has bounded BOOL0 evidence for the existing `!`, `&&`, and
+`||` operators: verified HIR join block arguments and incoming Bool edges lower
+to `llvm.xor`, `llvm.cond_br`, and `llvm.br ^join(%operand : i1)`. The Restaurant
+short-circuit fixture passed the Linux/WSL and native Windows gates with exact
+stdout; this is compiler-lifecycle correctness evidence, not general CFG or
+performance evidence.

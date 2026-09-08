@@ -4,7 +4,7 @@
   "status": "pinned",
   "purpose": "mandatory-native-ci",
   "artifact": {
-    "schema": "w-seed-mlir0-12",
+    "schema": "w-seed-mlir0-13",
     "scope": "unit-cfg-nested-diamond"
   },
   "target": {

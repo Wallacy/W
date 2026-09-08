@@ -36507,6 +36507,68 @@ W-1537 is `source-backed-current` only for this proven subset.
 `benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no timing,
 throughput, ranking, or benchmark result.
 
+#### 26.4.1.21 W-1538 — bounded Bool short-circuit through verified HIR0 and MLIR0 (Forma vigente)
+
+W-1538 defines BOOL0, the bounded implementation cut for the existing `!`,
+`&&`, and `||` operators. It does not add syntax or change the language's
+left-to-right short-circuit semantics. `!` accepts only Bool and produces one
+typed Bool value. `&&` evaluates its RHS only after a true lhs; `||` evaluates
+its RHS only after a false lhs. Each RHS is evaluated once.
+
+**Example:** `compiler/seed-c/fixtures/restaurant-bool-short-circuit.w`:
+
+```w
+fn allowed(isOpen: Bool, guests: i64, seats: i64, blocked: Bool): Bool {
+  return (isOpen && fits(guests: guests, seats: seats)) ||
+    overrideAllowed(blocked: blocked)
+}
+```
+
+The required stdout is `Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n`.
+The retained Linux/WSL and native Windows gates produce these exact bytes.
+The closed case skips `fits` and calls `overrideAllowed`; the open case calls
+`fits` and skips `overrideAllowed`.
+
+HIR0 `w-seed-hir0-10` represents every logical operator in the verified
+postorder graph. `!` is `VALUE_UNARY_BOOL` with the canonical `!` operator.
+Each `&&` or `||` is a structured Bool diamond: the condition is a Bool
+`BRANCH`; `&&` sends literal false from its lhs-false skip arm and evaluates
+the RHS from the lhs-true arm, while `||` sends literal true from its lhs-true
+skip arm and evaluates the RHS from the lhs-false arm. Both arms `JUMP` to the
+same join and carry exactly one Bool incoming. The join owns exactly one Bool
+block argument, and `VALUE_BLOCK_ARGUMENT_READ` is local to that join. Nested
+logical expressions compose by nesting these diamonds. Named arguments on an
+RHS call retain one dense caller-owned argument range; `false || rhs(arg: true)`
+does not interleave the outer call's range.
+
+The HIR verifier admits only this logical diamond shape in this cut. It proves
+dense block-argument ownership and ranges, same-function predecessors and
+ordinals, logical metadata and incoming type/owner, join/read dominance,
+source spans, capacity, alias barriers, receipts, and digests before any
+publication. Entry, RHS, skip, and general-CFG blocks do not gain arguments;
+ordinary branches and jumps do not carry logical metadata or incoming values.
+Invalid operator/type, edge, skip literal, incoming, owner, range, dominance,
+capacity, or alias records fail transactionally without changing output or
+result.
+
+MLIR0 advances to `w-seed-mlir0-13`, with Windows label
+`w-seed-mlir0-windows-4`. A unary `!` emits a real LLVM-dialect `llvm.xor`
+against a true `i1` mask. Logical branches emit `llvm.cond_br`; a carried
+incoming emits `llvm.br ^join(%operand : i1)`, and the join label declares its
+single `i1` block argument. The RHS call is emitted only in the RHS block, not
+in the skip block. Normal jumps and the prior nonlogical MLIR forms retain
+their existing bytes. Native0 remains `w-seed-native0-6`: BOOL0 adds no
+published Native0 record, receipt, or capacity field.
+
+Focused HIR0, MLIR0, and Native0 units cover `!`, AND/OR skip and evaluate
+paths, nesting, RHS calls with Bool arguments, malformed logical records,
+capacity, alias, and all-or-nothing boundaries. The Linux/WSL and native
+Windows Restaurant gates cover the same fixture and exact stdout. This is
+compiler-lifecycle correctness evidence only. General scalar CFG, arbitrary
+user `if` value flow, loops, additional value domains or targets, ABI, and
+performance remain outside the cut; no timing, throughput, ranking, or
+performance result is claimed.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

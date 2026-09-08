@@ -1035,6 +1035,8 @@ HIR0 e a implementação não inclui, chama ou cria HLO0. W-1530 advances MLIR0
 to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
 `w-seed-native0-6`. W-1537 advances HIR0 to `w-seed-hir0-9`, MLIR0 to
 `w-seed-mlir0-12`, and the Windows label to `w-seed-mlir0-windows-3`.
+W-1538 advances HIR0 to `w-seed-hir0-10`, MLIR0 to `w-seed-mlir0-13`, and the
+Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1089,6 +1091,32 @@ expression descendants. Existing function, direct-block, and declaration-order g
 The bounded lookup scans do not establish linear-time complexity.
 This is compiler-lifecycle correctness
 work, not timing, performance, ABI, or cross-compilation evidence.
+
+### BOOL0 short-circuit logical values (W-1538)
+
+The bounded logical cut accepts the existing `!`, `&&`, and `||` operators.
+HIR0 `w-seed-hir0-10` verifies typed `VALUE_UNARY_BOOL` and structured logical
+diamonds with one Bool block argument at the join. AND carries literal false
+from the lhs-false skip arm and evaluates the RHS only on lhs-true; OR carries
+literal true from lhs-true and evaluates the RHS only on lhs-false. Incoming
+values are explicit Bool operands on the two jumps to the same join. Nested
+logic and RHS direct calls with named Bool arguments retain left-to-right,
+once-only evaluation and dense caller-owned call-argument ranges.
+
+MLIR0 `w-seed-mlir0-13` emits `llvm.xor` for `!`, `llvm.cond_br` for the
+logical branch, and `llvm.br ^join(%operand : i1)` for carried incoming values.
+The join declares one `i1` block argument and reads it directly; no stack
+temporary or eager RHS is introduced. The logical verifier retains owner,
+range, dominance, capacity, alias, receipt, and digest barriers, while normal
+CFG and general scalar `if` value flow remain outside this cut. Native0 stays
+`w-seed-native0-6` because its published record/receipt interface is unchanged.
+
+`fixtures/restaurant-bool-short-circuit.w` requires exact stdout
+`Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n`.
+Focused HIR0, MLIR0, and Native0 units plus Linux/WSL and native Windows gates
+passed the skip/evaluate, nested, RHS-call, and malformed-record boundaries.
+This is compiler-lifecycle correctness evidence only: it makes no general CFG,
+ABI, cross-target, timing, or performance claim.
 
 O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
