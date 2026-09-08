@@ -6,6 +6,11 @@
   "recordsPath": "benchmarks/history/executables",
   "records": [
     {
+      "id": "hello-c-602aa1924f28",
+      "path": "d4877afa6cde5fd552a72b03199e76a83289162077ac33407d955ffe18ee831e.json",
+      "digest": "sha256:d4877afa6cde5fd552a72b03199e76a83289162077ac33407d955ffe18ee831e"
+    },
+    {
       "id": "hello-c-861b4afff72c",
       "path": "2d5867abc5c4640fd0b023d5401a55773cf067cba296fb700e4529df61f15fbf.json",
       "digest": "sha256:2d5867abc5c4640fd0b023d5401a55773cf067cba296fb700e4529df61f15fbf"
