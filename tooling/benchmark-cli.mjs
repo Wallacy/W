@@ -6,6 +6,7 @@ import {
   readFile,
   rename,
   rm,
+  rmdir,
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
@@ -124,7 +125,7 @@ export function benchmarkUsage() {
     "  list",
     "  run --target hello --language w [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
-    "  record <result.json>    (content-addressed immutable history publication)",
+    "  record <result.json>    (content-addressed history publication; consumes a local result on success)",
     "  check",
     "",
     "W run is private Native0/MLIR0 Windows source-to-PE candidate evidence only; no public w-run timing is claimed.",
@@ -144,6 +145,20 @@ async function readResultInput(input) {
   let value;
   try { value = JSON.parse((await readFile(candidate, "utf8"))); } catch { fail("result path must contain valid JSON"); }
   return { candidate, value };
+}
+
+export async function consumeRecordedLocalResult(candidate, resultsRoot = path.resolve(ROOT, RESULTS_PATH)) {
+  const resolved = path.resolve(candidate);
+  const root = path.resolve(resultsRoot);
+  if (!isContained(root, resolved)) return false;
+  await regularFile(resolved, "recorded local result");
+  await rm(resolved);
+  try {
+    await rmdir(root);
+  } catch (error) {
+    if (error?.code !== "ENOENT" && error?.code !== "ENOTEMPTY" && error?.code !== "EEXIST") throw error;
+  }
+  return true;
 }
 
 function digestBytes(bytes) {
@@ -314,6 +329,7 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
     if (errors.length > 0) fail(errors.join("; "));
     if (options.command === "record") {
       const published = await publishHistoryRecord(value);
+      await consumeRecordedLocalResult(candidate);
       console.log(`recorded ${published.path} (${published.digest})`);
     } else {
       console.log(`valid executable result: ${options.input}`);

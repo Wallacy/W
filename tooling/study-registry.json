@@ -203,7 +203,7 @@
     {
       "path": "tooling/studies/final-research-closure/manifest.json",
       "kind": "manifest",
-      "digest": "sha256:50e0f37fd853696e059f6ba940a2f8fee16615f0550187903e26d8d7121eb621",
+      "digest": "sha256:af91b63cdb924bbd31fa3253cfc77e3d8c1d4164dabedf4bb60fbcfb7b38c96b",
       "status": "design-oracle-input",
       "id": "FRC0"
     },
@@ -8657,7 +8657,7 @@
       "pointer": "artifacts.31.path",
       "path": "DESIGN-INDEX.md",
       "resolved": "DESIGN-INDEX.md",
-      "declaredDigest": "sha256:e7d3025c84f815572e53601a14bf6b0619de743c2eb9129026507358ec4ce763",
+      "declaredDigest": "sha256:74a3758e1e58150f9a1c78886f78bcf12fdb12a87a9e3bd3857081245fa871fb",
       "status": "resolved",
       "source": "tooling/studies/final-research-closure/manifest.json"
     },
