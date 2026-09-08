@@ -33,11 +33,16 @@ Small tasks, conversations, and bounded decisions may stay with the manager
 when delegation costs more work than it saves. Do not create a subagent for
 ritual.
 
-Use one persistent Luna Max executor per related line of work when delegation
-is useful. Reuse it while its context remains valid. When changing executor,
-send only the objective, confirmed facts, scope, restrictions, acceptance,
-checks, and pending decisions. Do not require percentage targets, irrelevant
-fields, fixed review rounds, or a universal status cadence.
+The normal substantive workflow may use a pool of up to four Luna Max
+executors. Use fewer executors when the work does not have independent bounded
+packages. The tool's lower concurrency limit takes precedence. Do not create
+conflicting writers only to fill the pool.
+
+Keep one persistent Luna Max executor per related line of work. Reuse each
+executor while its context remains valid. When changing an executor, send only
+the objective, confirmed facts, scope, restrictions, acceptance, checks, and
+pending decisions. Do not require percentage targets, irrelevant fields,
+fixed review rounds, or a universal status cadence.
 
 Set a status cadence that fits the package. At a status boundary or manager
 request, the executor answers before more work. If the expected response is
