@@ -2632,7 +2632,7 @@ static size_t hir0_region_logical_count(const hir0_emit_context *context,
     const w_seed_frontend_statement *statement =
         &context->frontend->statements[cursor];
     const size_t expression = hir0_expression_logical_count(
-        context, statement->expression_index, depth + 1u);
+        context, statement->expression_index, 0u);
     if (total > SIZE_MAX - expression) return 0u;
     total += expression;
     if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
@@ -3058,23 +3058,20 @@ static void hir0_emit_chain_values_m2(hir0_emit_context *context,
         &context->frontend->statements[cursor];
     if (statement->kind == W_SEED_FRONTEND_STMT_LET) {
       const size_t end = hir0_emit_expression_values_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
       context->output->bindings[*binding_cursor].initializer_value =
           hir0_emit_value_m2(
               context, statement->expression_index,
               W_SEED_HIR0_VALUE_OWNER_BINDING, (uint32_t)*binding_cursor, 0u,
-              end, depth + 1u);
+              end, 0u);
       *binding_cursor += 1u;
       current_block = end;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
       current_block = hir0_emit_expression_values_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
       const size_t condition_end = hir0_emit_expression_values_m2(
-          context, statement->condition_expression, current_block, cursor,
-          depth + 1u);
+          context, statement->condition_expression, current_block, cursor, 0u);
       const size_t then_block = condition_end + 1u;
       const size_t then_count = hir0_region_block_count(
           context, statement->first_child, depth + 1u);
@@ -3088,8 +3085,7 @@ static void hir0_emit_chain_values_m2(hir0_emit_context *context,
       current_block = else_block + else_count;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
       current_block = hir0_emit_expression_values_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
       return;
     }
     cursor = statement->next_sibling;
@@ -3199,17 +3195,15 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
     if (statement->kind == W_SEED_FRONTEND_STMT_LET ||
         statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
       current_block = hir0_emit_expression_terms_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
       const size_t condition_end = hir0_emit_expression_terms_m2(
-          context, statement->condition_expression, current_block, cursor,
-          depth + 1u);
+          context, statement->condition_expression, current_block, cursor, 0u);
       context->output->terminators[condition_end].value_index =
           hir0_emit_value_m2(
               context, statement->condition_expression,
               W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)condition_end, 0u,
-              condition_end, depth + 1u);
+              condition_end, 0u);
       const size_t then_block = condition_end + 1u;
       const size_t then_count = hir0_region_block_count(
           context, statement->first_child, depth + 1u);
@@ -3223,12 +3217,11 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
       current_block = else_block + else_count;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
       const size_t end = hir0_emit_expression_terms_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
       context->output->terminators[end].value_index = hir0_emit_value_m2(
           context, statement->expression_index,
           W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)end, 0u, end,
-          depth + 1u);
+          0u);
       return;
     }
     cursor = statement->next_sibling;
@@ -3504,14 +3497,12 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
     if (statement->kind == W_SEED_FRONTEND_STMT_LET ||
         statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
       current_block = hir0_emit_expression_layout_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
       if (statement->kind == W_SEED_FRONTEND_STMT_LET)
         hir0_emit_binding_layout_m2(context, cursor, current_block);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
       current_block = hir0_emit_expression_layout_m2(
-          context, statement->condition_expression, current_block, cursor,
-          depth + 1u);
+          context, statement->condition_expression, current_block, cursor, 0u);
       const size_t then_block = current_block + 1u;
       const size_t then_count = hir0_region_block_count(
           context, statement->first_child, depth + 1u);
@@ -3539,8 +3530,7 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
       hir0_begin_block_m2(context, current_block);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
       current_block = hir0_emit_expression_layout_m2(
-          context, statement->expression_index, current_block, cursor,
-          depth + 1u);
+          context, statement->expression_index, current_block, cursor, 0u);
       hir0_finish_block_m2(context, current_block);
       const w_seed_hir0_block *block = &context->output->blocks[current_block];
       context->output->terminators[current_block] = (w_seed_hir0_terminator){

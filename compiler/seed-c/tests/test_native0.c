@@ -1,4 +1,5 @@
 #include "w_seed_native0.h"
+#include "../src/w_seed_native_subset0.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -216,6 +217,124 @@ static bool test_products(void) {
                        "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
         count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
                     "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
+  return true;
+}
+
+static bool test_logical_native_selector(void) {
+  static const uint8_t source[] =
+      "fn rhs(flag: Bool): Bool { return !flag }\n"
+      "fn both(left: Bool): Bool { return left && rhs(flag: false) }\n"
+      "fn either(left: Bool): Bool { return left || rhs(flag: true) }\n"
+      "fn main() { print(\"logical\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  (void)memset(output, 0xa5u, sizeof(output));
+  uint8_t output_snapshot[W_SEED_MLIR0_MAX_BYTES];
+  (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
+  (void)memset(&result, 0x5au, sizeof(result));
+  const w_seed_native0_result result_snapshot = result;
+  const w_seed_native0_status status = run_source(
+      source, sizeof(source) - 1u, "logical-id", 10u, output, sizeof(output),
+      &result);
+  /* MLIR0 does not consume logical records yet; Native0 still leaves the
+   * fully lowered HIR available so this test can exercise its selector. */
+  CHECK(status == W_SEED_NATIVE0_MLIR);
+  CHECK(memcmp(output, output_snapshot, sizeof(output_snapshot)) == 0);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  CHECK(storage.hir_output.block_arguments == storage.hir_block_arguments &&
+        storage.hir_output.block_argument_capacity ==
+            W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS &&
+        storage.hir_program.block_arguments == storage.hir_block_arguments &&
+        storage.hir_program.block_argument_capacity ==
+            W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS);
+
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->function_count == 4u && program->call_count == 3u &&
+        program->block_arguments == storage.hir_block_arguments &&
+        program->block_argument_count == 2u &&
+        program->functions[0].block_count == 1u &&
+        program->functions[1].block_count == 4u &&
+        program->functions[2].block_count == 4u);
+  const size_t both_start = program->functions[1].first_block;
+  const size_t either_start = program->functions[2].first_block;
+  CHECK(program->terminators[both_start].logical_operator ==
+            W_SEED_HIR0_LOGICAL_AND &&
+        program->terminators[either_start].logical_operator ==
+            W_SEED_HIR0_LOGICAL_OR &&
+        program->blocks[both_start + 3u].block_argument_count == 1u &&
+        program->blocks[either_start + 3u].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == both_start + 3u &&
+        program->block_arguments[1].owner_block == either_start + 3u);
+  CHECK(program->terminators[both_start + 1u].incoming_value !=
+            W_SEED_HIR0_NONE &&
+        program->terminators[both_start + 2u].incoming_value !=
+            W_SEED_HIR0_NONE &&
+        program->terminators[either_start + 1u].incoming_value !=
+            W_SEED_HIR0_NONE &&
+        program->terminators[either_start + 2u].incoming_value !=
+            W_SEED_HIR0_NONE);
+
+  size_t unary_count = 0u;
+  size_t bool_call_count = 0u;
+  for (size_t value = 0u; value < program->value_count; value += 1u) {
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
+        program->values[value].unary_operator == W_SEED_HIR0_UNARY_NOT)
+      unary_count += 1u;
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[value].type_index == W_SEED_HIR0_TYPE_BOOL)
+      bool_call_count += 1u;
+  }
+  CHECK(unary_count == 1u && bool_call_count == 2u);
+  CHECK(program->calls[0].argument_count == 1u &&
+        program->calls[1].argument_count == 1u &&
+        program->arguments[0].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->arguments[1].type_index == W_SEED_HIR0_TYPE_BOOL);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.has_local_calls && selection.has_bool &&
+        selection.maximum_stdout_bytes != 0u);
+  return true;
+}
+
+static bool test_scalar_if_remains_unsupported(void) {
+  static const uint8_t source[] =
+      "fn invalid(left: Bool): Bool { if left { return true } else { "
+      "return false } }\n"
+      "fn main() { print(\"invalid\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  (void)memset(output, 0x6au, sizeof(output));
+  (void)memset(&result, 0x7bu, sizeof(result));
+  const w_seed_native0_result snapshot = result;
+  CHECK(run_source(source, sizeof(source) - 1u, "scalar-if", 9u, output,
+                   sizeof(output), &result) != W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0x6au);
+  return true;
+}
+
+static bool test_direct_scalar_call_return_remains_unsupported(void) {
+  static const uint8_t source[] =
+      "fn value(): i64 { return 42 }\n"
+      "fn relay(): i64 { return value() }\n"
+      "fn main() { print(\"relay\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  (void)memset(output, 0x4cu, sizeof(output));
+  (void)memset(&result, 0x5du, sizeof(result));
+  const w_seed_native0_result snapshot = result;
+  CHECK(run_source(source, sizeof(source) - 1u, "direct-call-return", 18u,
+                   output, sizeof(output), &result) != W_SEED_NATIVE0_OK);
+  CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+  for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+    CHECK(output[byte] == 0x4cu);
   return true;
 }
 
@@ -614,7 +733,10 @@ int main(void) {
   (void)fprintf(stderr, "native0 storage bytes: %llu\n",
                 (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_signed_comparison_products() && test_products();
-  const bool nested = products && test_nested_depth_and_linear_analysis();
+  const bool logical = products && test_logical_native_selector() &&
+                       test_scalar_if_remains_unsupported() &&
+                       test_direct_scalar_call_return_remains_unsupported();
+  const bool nested = logical && test_nested_depth_and_linear_analysis();
   const bool failures = nested && test_failures_and_capacity();
   const bool aliases = failures && test_aliases();
   (void)remove(TEST_PATH);

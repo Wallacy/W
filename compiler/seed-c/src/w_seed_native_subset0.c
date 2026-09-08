@@ -708,6 +708,36 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            program->parameters[value->parameter_index].owner_function ==
                owner_function;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
+    return type == W_SEED_HIR0_TYPE_BOOL &&
+           value->unary_operator == W_SEED_HIR0_UNARY_NOT &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           value->binding_index == W_SEED_HIR0_NONE &&
+           value->parameter_index == W_SEED_HIR0_NONE &&
+           value->call_index == W_SEED_HIR0_NONE &&
+           value->first_interpolation_segment == W_SEED_HIR0_NONE &&
+           value->interpolation_segment_count == 0u &&
+           value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+           value->block_argument_index == W_SEED_HIR0_NONE &&
+           program_value_lowerable(program, value->left_value,
+                                   owner_function, false, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (type != W_SEED_HIR0_TYPE_BOOL ||
+        value->block_argument_index == W_SEED_HIR0_NONE ||
+        value->block_argument_index >= program->block_argument_count)
+      return false;
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[value->block_argument_index];
+    if (argument->owner_block >= program->block_count ||
+        argument->type_index != value->type_index || argument->ordinal != 0u)
+      return false;
+    const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
+    return block->owner_function == owner_function &&
+           block->block_argument_count == 1u &&
+           block->first_block_argument == value->block_argument_index;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||
         value->call_index >= program->call_count)
@@ -746,6 +776,37 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            evaluate_i64(program, value_index, 0u, &ignored);
   }
   return false;
+}
+
+/* HIR0 verification proves each logical branch is a structured diamond. A
+ * scalar function may therefore use multiple blocks only when every branch
+ * in its block range is one of those logical branches. Unit-return CFG keeps
+ * the pre-existing general structured-if subset. */
+static bool program_scalar_cfg_is_logical(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count) return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count <= 1u) return true;
+  if (function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const size_t start = function->first_block;
+  const size_t end = start + function->block_count;
+  bool has_branch = false;
+  for (size_t block_index = start; block_index < end; block_index += 1u) {
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->owner_function != function_index ||
+        block->terminator_index >= program->terminator_count)
+      return false;
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      has_branch = true;
+      if (terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE)
+        return false;
+    }
+  }
+  return has_branch;
 }
 
 static bool program_host_print_maximum(
@@ -825,6 +886,10 @@ static bool program_function_maximum(
       function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
       function->first_block >= program->block_count ||
       function->block_count > program->block_count - function->first_block)
+    return false;
+  if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
+      function->block_count > 1u &&
+      !program_scalar_cfg_is_logical(program, function_index))
     return false;
   for (size_t parameter = 0u; parameter < function->parameter_count;
        parameter += 1u) {
@@ -929,7 +994,10 @@ static bool program_function_maximum(
       continue;
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
-      if (function->return_type == 0u || function->block_count != 1u ||
+      if (function->return_type == 0u ||
+          (terminator->value_index < program->value_count &&
+           program->values[terminator->value_index].kind ==
+               W_SEED_HIR0_VALUE_CALL_RESULT) ||
           !program_value_lowerable(program, terminator->value_index,
                                     (uint32_t)function_index, false, 0u)) {
         return false;
@@ -953,7 +1021,8 @@ static bool program_function_maximum(
       continue;
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-      if (function->return_type != 0u ||
+      if ((function->return_type != 0u &&
+           terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE) ||
           terminator->target_block == W_SEED_HIR0_NONE ||
           terminator->else_block == W_SEED_HIR0_NONE ||
           terminator->target_block < start ||
