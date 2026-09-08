@@ -95,6 +95,7 @@ typedef struct {
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
+  w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -269,6 +270,8 @@ static void setup_hir_output(void) {
       .parameter_capacity = TEST_HIR_RECORDS,
       .blocks = fixture.hir_blocks,
       .block_capacity = TEST_HIR_RECORDS,
+      .block_arguments = fixture.hir_block_arguments,
+      .block_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -526,6 +529,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_functions, value, sizeof(fixture.hir_functions));
   (void)memset(fixture.hir_parameters, value, sizeof(fixture.hir_parameters));
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
+  (void)memset(fixture.hir_block_arguments, value,
+               sizeof(fixture.hir_block_arguments));
   (void)memset(fixture.hir_instructions, value,
                sizeof(fixture.hir_instructions));
   (void)memset(fixture.hir_bindings, value, sizeof(fixture.hir_bindings));
@@ -560,6 +565,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_functions,
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
+      (const uint8_t *)fixture.hir_block_arguments,
       (const uint8_t *)fixture.hir_instructions,
       (const uint8_t *)fixture.hir_bindings,
       (const uint8_t *)fixture.hir_calls,
@@ -577,6 +583,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_modules), sizeof(fixture.hir_identities),
       sizeof(fixture.hir_types), sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
+      sizeof(fixture.hir_block_arguments),
       sizeof(fixture.hir_instructions), sizeof(fixture.hir_bindings),
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
@@ -1609,6 +1616,370 @@ static bool test_nested_if_depth_boundary(void) {
   return true;
 }
 
+static bool test_logical_and_diamond_positive(void) {
+  static const char SOURCE[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn allowed(left: Bool): Bool { return left && rhs() }\n"
+      "entry(allowed)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 5u &&
+        program->block_argument_count == 1u && program->call_count == 1u &&
+        program->value_count == 5u);
+  const w_seed_hir0_terminator *branch = &program->terminators[1];
+  CHECK(branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch->logical_operator == W_SEED_HIR0_LOGICAL_AND &&
+        branch->target_block == 2u && branch->else_block == 3u &&
+        branch->incoming_value == W_SEED_HIR0_NONE);
+  CHECK(program->blocks[4].block_argument_count == 1u &&
+        program->blocks[4].first_block_argument == 0u &&
+        program->block_arguments[0].owner_block == 4u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_BOOL);
+  CHECK(program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 4u &&
+        program->terminators[2].incoming_value == 2u &&
+        program->values[2].kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[2].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->calls[0].owner_block == 2u);
+  CHECK(program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].target_block == 4u &&
+        program->terminators[3].incoming_value == 3u &&
+        program->values[3].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        !program->values[3].bool_value);
+  CHECK(program->values[4].kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[4].block_argument_index == 0u &&
+        program->terminators[4].value_index == 4u);
+  return true;
+}
+
+static bool test_logical_unary_not_positive(void) {
+  static const char SOURCE[] =
+      "fn allowed(left: Bool): Bool { return !left }\n"
+      "entry(allowed)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 1u &&
+        program->block_argument_count == 0u && program->value_count == 2u);
+  const w_seed_hir0_terminator *return_term = &program->terminators[0];
+  CHECK(return_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        return_term->value_index == 1u);
+  CHECK(program->values[0].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[0].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->values[0].owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY &&
+        program->values[0].owner_index == 1u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
+        program->values[1].unary_operator == W_SEED_HIR0_UNARY_NOT &&
+        program->values[1].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->values[1].left_value == 0u);
+  return true;
+}
+
+static bool test_logical_or_diamond_positive(void) {
+  static const char SOURCE[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn allowed(left: Bool): Bool { return left || rhs() }\n"
+      "entry(allowed)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 5u &&
+        program->block_argument_count == 1u && program->call_count == 1u);
+  const w_seed_hir0_terminator *branch = &program->terminators[1];
+  const w_seed_hir0_terminator *skip = &program->terminators[2];
+  const w_seed_hir0_terminator *rhs = &program->terminators[3];
+  CHECK(branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch->logical_operator == W_SEED_HIR0_LOGICAL_OR &&
+        branch->target_block == 2u && branch->else_block == 3u &&
+        skip->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        skip->target_block == 4u &&
+        rhs->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        rhs->target_block == 4u &&
+        skip->incoming_value != W_SEED_HIR0_NONE &&
+        rhs->incoming_value != W_SEED_HIR0_NONE);
+  CHECK(program->values[skip->incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[skip->incoming_value].bool_value &&
+        program->values[rhs->incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[rhs->incoming_value].type_index ==
+            W_SEED_HIR0_TYPE_BOOL &&
+        program->calls[0].owner_block == 3u);
+  CHECK(program->blocks[4].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == 4u &&
+        program->terminators[4].value_index != W_SEED_HIR0_NONE &&
+        program->values[program->terminators[4].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ);
+  return true;
+}
+
+static bool test_nested_logical_positive(void) {
+  static const char SOURCE[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn allowed(left: Bool): Bool { return left && (false || rhs()) }\n"
+      "entry(allowed)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_argument_count == 2u && program->call_count == 1u);
+  CHECK(program->terminators[1].logical_operator ==
+            W_SEED_HIR0_LOGICAL_AND &&
+        program->terminators[1].target_block == 2u &&
+        program->terminators[1].else_block == 6u &&
+        program->terminators[2].logical_operator == W_SEED_HIR0_LOGICAL_OR &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[2].else_block == 4u);
+  CHECK(program->terminators[3].target_block == 5u &&
+        program->terminators[3].incoming_value != W_SEED_HIR0_NONE &&
+        program->values[program->terminators[3].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[program->terminators[3].incoming_value].bool_value &&
+        program->terminators[4].target_block == 5u &&
+        program->terminators[4].incoming_value != W_SEED_HIR0_NONE &&
+        program->values[program->terminators[4].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CALL_RESULT);
+  CHECK(program->terminators[5].target_block == 7u &&
+        program->terminators[5].incoming_value != W_SEED_HIR0_NONE &&
+        program->values[program->terminators[5].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->terminators[6].target_block == 7u &&
+        program->terminators[6].incoming_value != W_SEED_HIR0_NONE &&
+        !program->values[program->terminators[6].incoming_value].bool_value &&
+        program->blocks[5].block_argument_count == 1u &&
+        program->blocks[7].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == 5u &&
+        program->block_arguments[1].owner_block == 7u);
+  return true;
+}
+
+static bool test_logical_rhs_call_argument_positive(void) {
+  static const char SOURCE[] =
+      "fn rhs(flag: Bool): Bool { return flag }\n"
+      "fn allowed(): Bool { return false || rhs(flag: true) }\n"
+      "entry(allowed)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 5u &&
+        program->block_argument_count == 1u && program->call_count == 1u &&
+        program->argument_count == 1u);
+  const w_seed_hir0_terminator *branch = &program->terminators[1];
+  const w_seed_hir0_terminator *skip = &program->terminators[2];
+  const w_seed_hir0_terminator *rhs = &program->terminators[3];
+  CHECK(branch->logical_operator == W_SEED_HIR0_LOGICAL_OR &&
+        branch->target_block == 2u && branch->else_block == 3u &&
+        skip->incoming_value != W_SEED_HIR0_NONE &&
+        program->values[skip->incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[skip->incoming_value].bool_value &&
+        rhs->incoming_value != W_SEED_HIR0_NONE &&
+        program->values[rhs->incoming_value].kind ==
+            W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->calls[0].owner_block == 3u &&
+        program->calls[0].argument_count == 1u);
+  const w_seed_hir0_argument *argument = &program->arguments[0];
+  CHECK(argument->owner_call == 0u && argument->ordinal == 0u &&
+        argument->type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->values[argument->value_index].kind ==
+            W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[argument->value_index].bool_value);
+  CHECK(program->blocks[4].block_argument_count == 1u &&
+        program->terminators[4].value_index != W_SEED_HIR0_NONE &&
+        program->values[program->terminators[4].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ);
+  return true;
+}
+
+static bool test_logical_adversarial_barriers(void) {
+  static const char LOGICAL_SOURCE[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn allowed(left: Bool): Bool { return !((left && rhs()) || rhs()) }\n"
+      "entry(allowed)\n";
+  CHECK(lower(LOGICAL_SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  w_seed_hir0_result *result = &fixture.hir_result;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_argument_count == 2u && program->value_count == 9u);
+  const size_t inner_branch = 1u;
+  const size_t inner_rhs_jump = 2u;
+  const size_t inner_skip_jump = 3u;
+  const size_t inner_join = 4u;
+  const size_t outer_branch = 4u;
+  const size_t outer_join = 7u;
+  size_t unary = SIZE_MAX;
+  size_t inner_read = SIZE_MAX;
+  size_t outer_read = SIZE_MAX;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
+      unary = index;
+    if (program->values[index].kind ==
+        W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+      if (program->values[index].block_argument_index == 0u)
+        inner_read = index;
+      if (program->values[index].block_argument_index == 1u)
+        outer_read = index;
+    }
+  }
+  CHECK(unary != SIZE_MAX && inner_read != SIZE_MAX &&
+        outer_read != SIZE_MAX &&
+        program->terminators[inner_branch].logical_operator ==
+            W_SEED_HIR0_LOGICAL_AND &&
+        program->terminators[outer_branch].logical_operator ==
+            W_SEED_HIR0_LOGICAL_OR &&
+        program->blocks[inner_join].block_argument_count == 1u &&
+        program->blocks[outer_join].block_argument_count == 1u);
+  const w_seed_hir0_value saved_unary = fixture.hir_values[unary];
+  const w_seed_hir0_value saved_inner_read = fixture.hir_values[inner_read];
+  const w_seed_hir0_value saved_outer_read = fixture.hir_values[outer_read];
+  const w_seed_hir0_value saved_inner_incoming =
+      fixture.hir_values[fixture.hir_terminators[inner_rhs_jump].incoming_value];
+  const w_seed_hir0_value saved_inner_skip =
+      fixture.hir_values[fixture.hir_terminators[inner_skip_jump].incoming_value];
+  const w_seed_hir0_terminator saved_inner_branch =
+      fixture.hir_terminators[inner_branch];
+  const w_seed_hir0_terminator saved_inner_rhs =
+      fixture.hir_terminators[inner_rhs_jump];
+  const w_seed_hir0_block saved_inner_join = fixture.hir_blocks[inner_join];
+  const w_seed_hir0_block_argument saved_inner_argument =
+      fixture.hir_block_arguments[0];
+
+  fixture.hir_values[unary].unary_operator =
+      (w_seed_hir0_unary_operator)(W_SEED_HIR0_UNARY_NOT + 1);
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[unary] = saved_unary;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[unary].type_index = W_SEED_HIR0_TYPE_I64;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[unary] = saved_unary;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_branch].logical_operator =
+      W_SEED_HIR0_LOGICAL_OR;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_branch] = saved_inner_branch;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_branch].target_block = (uint32_t)inner_skip_jump;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_branch] = saved_inner_branch;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_rhs_jump].target_block = (uint32_t)outer_join;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_rhs_jump].incoming_value =
+      W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  const uint32_t inner_incoming_index = saved_inner_rhs.incoming_value;
+  fixture.hir_values[inner_incoming_index].owner_index = (uint32_t)inner_skip_jump;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[inner_incoming_index].owner_ordinal = 0u;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[inner_incoming_index].type_index =
+      W_SEED_HIR0_TYPE_I64;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  const uint32_t inner_skip_index =
+      fixture.hir_terminators[inner_skip_jump].incoming_value;
+  fixture.hir_values[inner_skip_index].bool_value = true;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[inner_skip_index] = saved_inner_skip;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_block_arguments[0].owner_block = (uint32_t)outer_join;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_block_arguments[0] = saved_inner_argument;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_block_arguments[0].type_index = W_SEED_HIR0_TYPE_I64;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_block_arguments[0] = saved_inner_argument;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_blocks[inner_join].first_block_argument =
+      (uint32_t)program->block_argument_count;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_blocks[inner_join] = saved_inner_join;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[outer_read].block_argument_index = 0u;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[outer_read] = saved_outer_read;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[outer_read].block_argument_index =
+      (uint32_t)program->block_argument_count;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[outer_read] = saved_outer_read;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_values[outer_read].block_argument_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_values[outer_read] = saved_outer_read;
+  CHECK(w_seed_hir0_verify(program, result));
+  fixture.hir_values[inner_read] = saved_inner_read;
+
+  const w_seed_hir0_input input = hir_input();
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+  fixture.hir_output.block_argument_capacity =
+      fixture.hir_counts.block_arguments - 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.block_arguments =
+      (w_seed_hir0_block_argument *)(void *)alias.blocks;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  static const char NORMAL_SOURCE[] =
+      "fn main() { if true { print(message: \"yes\", suffix: \"\") } "
+      "else { print(message: \"no\", suffix: \"\") } }\n"
+      "entry(main)\n";
+  CHECK(lower(NORMAL_SOURCE));
+  program = &fixture.hir_program;
+  result = &fixture.hir_result;
+  CHECK(program->block_argument_count == 0u &&
+        program->terminators[0].logical_operator ==
+            W_SEED_HIR0_LOGICAL_NONE &&
+        program->terminators[1].incoming_value == W_SEED_HIR0_NONE);
+  const w_seed_hir0_terminator saved_normal_branch =
+      fixture.hir_terminators[0];
+  const w_seed_hir0_terminator saved_normal_jump = fixture.hir_terminators[1];
+  fixture.hir_terminators[0].logical_operator = W_SEED_HIR0_LOGICAL_AND;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[0] = saved_normal_branch;
+  CHECK(w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[1].incoming_value =
+      fixture.hir_terminators[0].value_index;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[1] = saved_normal_jump;
+  CHECK(w_seed_hir0_verify(program, result));
+  return true;
+}
+
 static bool test_signed_comparison_values(void) {
   static const char *const operators[] = {"==", "!=", "<", "<=", ">", ">="};
   static const w_seed_hir0_binary_operator opcodes[] = {
@@ -1700,6 +2071,12 @@ int main(void) {
   if (!test_sequential_if_diamonds()) return 1;
   if (!test_nested_if_diamonds()) return 1;
   if (!test_nested_if_depth_boundary()) return 1;
+  if (!test_logical_and_diamond_positive()) return 1;
+  if (!test_logical_unary_not_positive()) return 1;
+  if (!test_logical_or_diamond_positive()) return 1;
+  if (!test_nested_logical_positive()) return 1;
+  if (!test_logical_rhs_call_argument_positive()) return 1;
+  if (!test_logical_adversarial_barriers()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }
