@@ -42,10 +42,17 @@ export function formatNanoseconds(value) {
   return `${ns} ns`;
 }
 
-function formatBytes(value) {
+function formatScaledInteger(value, divisor, unit) {
+  const scaled = (value * 1_000n + divisor / 2n) / divisor;
+  const whole = scaled / 1_000n;
+  const fraction = String(scaled % 1_000n).padStart(3, "0").replace(/0+$/u, "");
+  return fraction.length === 0 ? `${whole} ${unit}` : `${whole}.${fraction} ${unit}`;
+}
+
+export function formatBytes(value) {
   const bytes = BigInt(value);
-  if (bytes >= 1_048_576n) return `${bytes} B (${bytes / 1_048_576n} MiB)`;
-  if (bytes >= 1_024n) return `${bytes} B (${bytes / 1_024n} KiB)`;
+  if (bytes >= 1_048_576n) return `${bytes} B (${formatScaledInteger(bytes, 1_048_576n, "MiB")})`;
+  if (bytes >= 1_024n) return `${bytes} B (${formatScaledInteger(bytes, 1_024n, "KiB")})`;
   return `${bytes} B`;
 }
 
@@ -68,7 +75,7 @@ function recordedLines(workload, history, root) {
     if (!record || record.workloadId !== workload.id) continue;
     const source = workload.sources?.find((item) => item.language === record.language);
     const comparability = source?.comparability ?? "unclassified";
-    lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)}; run median ${formatNanoseconds(record.run.summary.wallNs.median)}; peak RSS ${formatBytes(record.run.summary.peakRssBytes.median)}; artifact ${formatBytes(record.artifact.sizeBytes)}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
+    lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)}; run median ${formatNanoseconds(record.run.summary.wallNs.median)}; CPU median ${record.run.summary.cpuTotalUs.median} µs; peak RSS ${formatBytes(record.run.summary.peakRssBytes.median)}; artifact ${formatBytes(record.artifact.sizeBytes)}; commit ${record.provenance.commit.slice(0, 12)}; toolchain ${record.identity.toolchain}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
   }
   return lines;
 }
