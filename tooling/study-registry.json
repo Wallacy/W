@@ -1065,7 +1065,7 @@
     {
       "path": "package.json",
       "kind": "script-package",
-      "digest": "sha256:c652e2650e2e80b9d6d789d2738a071434dd7cd8292a256ac0511faf9b896b7c"
+      "digest": "sha256:02a64b9a7951c7f975e5e3e3ff0601b6ce9c9f2f06bb368a7961497f9fd05072"
     },
     {
       "path": "reference/last-light/borrow_relations_brx3.w",
