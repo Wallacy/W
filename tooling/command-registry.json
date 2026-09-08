@@ -1,0 +1,2988 @@
+{
+  "$schema": "w-command-registry-1",
+  "version": 1,
+  "commands": {
+    "check:cleanup": {
+      "description": "Internal check:cleanup command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/cleanup-workspace.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:design-freeze": {
+      "description": "Internal check:design-freeze command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-design-freeze-audit.mjs",
+            "--require-complete"
+          ]
+        }
+      ]
+    },
+    "design:refresh-evidence": {
+      "description": "Internal design:refresh-evidence command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/refresh-design-freeze-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    "hum0:refresh-evidence": {
+      "description": "Internal hum0:refresh-evidence command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/refresh-hum0-evidence.mjs"
+          ]
+        }
+      ]
+    },
+    "check:frc0": {
+      "description": "Internal check:frc0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/final-research-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/tree-sitter-w/check-frc0.mjs"
+          ]
+        }
+      ]
+    },
+    "check:pfu0": {
+      "description": "Internal check:pfu0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/pfu0-pre-freeze-usability/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-pfu0-pre-freeze-usability.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:pfu0"
+          ]
+        }
+      ]
+    },
+    "check:aeg0": {
+      "description": "Internal check:aeg0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/aeg0-app-essentials-gate/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-aeg0-app-essentials-gate.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:aeg0"
+          ]
+        }
+      ]
+    },
+    "check:mem0": {
+      "description": "Internal check:mem0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/mem0-virtual-memory-data-movement/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/mem0-virtual-memory-data-movement/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:svc0": {
+      "description": "Internal check:svc0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/svc0-service-stream-directions/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/svc0-service-stream-directions/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:fst0": {
+      "description": "Internal check:fst0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/fst0-first-settled-task/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/fst0-first-settled-task/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:tgm0": {
+      "description": "Internal check:tgm0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/tgm0-task-group-map-collect/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:qos0": {
+      "description": "Internal check:qos0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/qos0-scheduling-boundary/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/qos0-scheduling-boundary/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:sea0": {
+      "description": "Internal check:sea0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/sea0-simulated-effects-approval/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/sea0-simulated-effects-approval/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:rdx0": {
+      "description": "Internal check:rdx0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/rdx0-binary-registry-execution/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:llm0": {
+      "description": "Internal check:llm0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/llm0-training-inference/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/llm0-training-inference/check.mjs"
+          ]
+        }
+      ]
+    },
+    "check:drc0": {
+      "description": "Internal check:drc0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/drc0-design-research-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-design-research-closure.mjs"
+          ]
+        }
+      ]
+    },
+    "check:study-registry": {
+      "description": "Internal check:study-registry command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/study-registry.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/study-registry.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:study-bundles": {
+      "description": "Internal check:study-bundles command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-study-bundles.mjs"
+          ]
+        }
+      ]
+    },
+    "check:generated-policy": {
+      "description": "Internal check:generated-policy command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-generated-policy.mjs"
+          ]
+        }
+      ]
+    },
+    "check:diagnostic-catalog": {
+      "description": "Internal check:diagnostic-catalog command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/diagnostic-catalog.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/diagnostic-catalog.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:study-oracles": {
+      "description": "Internal check:study-oracles command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/svc0-service-stream-directions/check.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/fst0-first-settled-task/check.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/tgm0-task-group-map-collect/check.mjs"
+          ]
+        },
+        {
+          "kind": "command",
+          "command": "check:qos0"
+        },
+        {
+          "kind": "command",
+          "command": "check:brx2"
+        }
+      ]
+    },
+    "check:suite-manifest": {
+      "description": "Internal check:suite-manifest command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/check-suite.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-suite.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:quick": {
+      "description": "Internal check:quick command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-suite.mjs",
+            "--suite",
+            "root-quick"
+          ]
+        }
+      ]
+    },
+    "check:compiler": {
+      "description": "Internal check:compiler command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-suite.mjs",
+            "--suite",
+            "root-compiler"
+          ]
+        }
+      ]
+    },
+    "check:abi": {
+      "description": "Internal check:abi command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-layout-abi-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:allocation": {
+      "description": "Internal check:allocation command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/allocation-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-allocation-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:w1517": {
+      "description": "Internal check:w1517 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/w1517-memory-contract-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-w1517-memory-contract.mjs"
+          ]
+        }
+      ]
+    },
+    "check:allocator-scope": {
+      "description": "Internal check:allocator-scope command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/allocator-scope-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-allocator-scope-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:boundary": {
+      "description": "Internal check:boundary command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-boundary-effect-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:syntax-atlas": {
+      "description": "Internal check:syntax-atlas command.",
+      "steps": [
+        {
+          "kind": "command",
+          "command": "check:generated-policy"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/syntax-atlas.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/syntax-atlas.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:operator-surface": {
+      "description": "Internal check:operator-surface command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-operator-surface.mjs"
+          ]
+        }
+      ]
+    },
+    "check:type-queries": {
+      "description": "Internal check:type-queries command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-type-query-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:type-query-highlighting": {
+      "description": "Internal check:type-query-highlighting command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-type-query-highlighting.mjs"
+          ]
+        }
+      ]
+    },
+    "check:simd": {
+      "description": "Internal check:simd command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/simd-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:bmd": {
+      "description": "Internal check:bmd command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/benchmark-driven-development-reference.test.mjs",
+            "tooling/benchmark-driven-development-runner.test.mjs",
+            "tooling/executable-benchmark.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-benchmark-driven-development.mjs"
+          ]
+        }
+      ]
+    },
+    "check:bmd:executable": {
+      "description": "Internal check:bmd:executable command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/executable-benchmark-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    "check:bmd:byte-scan": {
+      "description": "Internal check:bmd:byte-scan command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/byte-scan-view-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    "check:bmd:parse": {
+      "description": "Internal check:bmd:parse command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:bmd3-byte-scan"
+          ]
+        }
+      ]
+    },
+    "check:bmd:smoke": {
+      "description": "Internal check:bmd:smoke command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/benchmark-driven-development-runner-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    "check:bmd:comparison-smoke": {
+      "description": "Internal check:bmd:comparison-smoke command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/benchmark-driven-development-comparison-runner-smoke.mjs"
+          ]
+        }
+      ]
+    },
+    "check:cheatsheet": {
+      "description": "Internal check:cheatsheet command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/cheatsheet-snippets.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-cheatsheet-snippets.mjs"
+          ]
+        }
+      ]
+    },
+    "check:service-recovery": {
+      "description": "Internal check:service-recovery command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/service-recovery-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-service-recovery-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:docs": {
+      "description": "Internal check:docs command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-suite.mjs",
+            "--suite",
+            "root-docs"
+          ]
+        }
+      ]
+    },
+    "check:borrow-expressivity": {
+      "description": "Internal check:borrow-expressivity command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/borrow-expressivity-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-borrow-expressivity-cases.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/r1-borrow-expressivity/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:borrow-expressivity"
+          ]
+        }
+      ]
+    },
+    "check:brx2": {
+      "description": "Internal check:brx2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/brx2-borrow-relations-reference.test.mjs",
+            "tooling/studies/brx2-borrow-relations/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-brx2-borrow-relations.mjs"
+          ]
+        }
+      ]
+    },
+    "check:brx3": {
+      "description": "Internal check:brx3 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/brx3-borrow-relations-reference.test.mjs",
+            "tooling/studies/brx3-borrow-relations/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-brx3-borrow-relations.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:brx3"
+          ]
+        }
+      ]
+    },
+    "check:frontend-freeze": {
+      "description": "Internal check:frontend-freeze command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/frontend-freeze-guards.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-frontend-freeze.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-source-reader": {
+      "description": "Internal check:seed-source-reader command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-source-reader.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-test-exits": {
+      "description": "Internal check:seed-test-exits command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/check-seed-test-exits.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-test-exits.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-lexer": {
+      "description": "Internal check:seed-lexer command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-lexer.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-parser": {
+      "description": "Internal check:seed-parser command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-parser.mjs"
+          ]
+        }
+      ]
+    },
+    "check:surface-migration": {
+      "description": "Internal check:surface-migration command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-surface-migration.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-module-scan": {
+      "description": "Internal check:seed-module-scan command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-module-scan.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-ephemeral-graph": {
+      "description": "Internal check:seed-ephemeral-graph command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-ephemeral-graph.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-ephemeral-provider": {
+      "description": "Internal check:seed-ephemeral-provider command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-ephemeral-provider.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-ephemeral-driver": {
+      "description": "Internal check:seed-ephemeral-driver command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-ephemeral-driver.mjs"
+          ]
+        }
+      ]
+    },
+    "check:acquisition": {
+      "description": "Internal check:acquisition command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-acquisition.mjs"
+          ]
+        }
+      ]
+    },
+    "check:owner-guard": {
+      "description": "Internal check:owner-guard command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-owner-guard.mjs"
+          ]
+        }
+      ]
+    },
+    "check:source-binding": {
+      "description": "Internal check:source-binding command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-source-binding.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-manifest": {
+      "description": "Internal check:seed-manifest command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-manifest.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-formatter": {
+      "description": "Internal check:seed-formatter command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-formatter.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-diagnostic": {
+      "description": "Internal check:seed-diagnostic command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-diagnostic.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-check-driver": {
+      "description": "Internal check:seed-check-driver command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-check-driver.mjs"
+          ]
+        }
+      ]
+    },
+    "check:maintained-parse": {
+      "description": "Internal check:maintained-parse command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-maintained-parse.mjs"
+          ]
+        }
+      ]
+    },
+    "check:w-cli": {
+      "description": "Internal check:w-cli command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-w-check-cli.mjs"
+          ]
+        }
+      ]
+    },
+    "check:w-run": {
+      "description": "Internal check:w-run command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-w-run.mjs"
+          ]
+        }
+      ]
+    },
+    "check:w-run-windows": {
+      "description": "Internal check:w-run-windows command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-w-run-windows.mjs"
+          ]
+        }
+      ]
+    },
+    "acquire:mlir0-windows": {
+      "description": "Internal acquire:mlir0-windows command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/acquire-mlir0-windows.mjs",
+            "--download"
+          ]
+        }
+      ]
+    },
+    "build:w-windows": {
+      "description": "Internal build:w-windows command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/build-w-windows.mjs"
+          ]
+        }
+      ]
+    },
+    "check:run0": {
+      "description": "Internal check:run0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-run0.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-foreign": {
+      "description": "Internal check:seed-foreign command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-foreign.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-frontend": {
+      "description": "Internal check:seed-frontend command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-frontend.mjs"
+          ]
+        }
+      ]
+    },
+    "check:hir0": {
+      "description": "Internal check:hir0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-hir0.mjs"
+          ]
+        }
+      ]
+    },
+    "check:hlo0": {
+      "description": "Internal check:hlo0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-hlo0.mjs"
+          ]
+        }
+      ]
+    },
+    "check:hlo1": {
+      "description": "Internal check:hlo1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-hlo1.mjs"
+          ]
+        }
+      ]
+    },
+    "check:mlir0": {
+      "description": "Internal check:mlir0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-mlir0.mjs"
+          ]
+        }
+      ]
+    },
+    "check:mlir0-windows": {
+      "description": "Internal check:mlir0-windows command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/acquire-mlir0-windows.test.mjs",
+            "tooling/build-w-windows.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-mlir0-windows.mjs"
+          ]
+        }
+      ]
+    },
+    "smoke:mlir0-windows": {
+      "description": "Internal smoke:mlir0-windows command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/smoke-mlir0-windows.mjs"
+          ]
+        }
+      ]
+    },
+    "check:platform-support": {
+      "description": "Internal check:platform-support command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/platform-support.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/platform-support.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:dependency-currency": {
+      "description": "Internal check:dependency-currency command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/dependency-currency.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/dependency-currency.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:toolchain-distribution": {
+      "description": "Internal check:toolchain-distribution command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/toolchain-distribution.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:seed-c11-recovery": {
+      "description": "Internal check:seed-c11-recovery command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-c11-recovery.mjs"
+          ]
+        }
+      ]
+    },
+    "demo:seed-hello": {
+      "description": "Internal demo:seed-hello command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/demo-seed-hello.mjs"
+          ]
+        }
+      ]
+    },
+    "parse:hlo0": {
+      "description": "Internal parse:hlo0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:hlo0"
+          ]
+        }
+      ]
+    },
+    "check:seed-constir": {
+      "description": "Internal check:seed-constir command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-constir.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-generic-validation": {
+      "description": "Internal check:seed-generic-validation command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-generic-validation.mjs"
+          ]
+        }
+      ]
+    },
+    "check:authority-registry": {
+      "description": "Internal check:authority-registry command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/authority-registry-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-authority-registry.mjs"
+          ]
+        }
+      ]
+    },
+    "check:seed-unicode": {
+      "description": "Internal check:seed-unicode command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-seed-unicode.mjs"
+          ]
+        }
+      ]
+    },
+    "check:semantic-matrix": {
+      "description": "Internal check:semantic-matrix command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-semantic-diagnostic-matrix.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/semantic-diagnostic-matrix-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:execution": {
+      "description": "Internal check:execution command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-execution-concurrency-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:execution-ergonomics": {
+      "description": "Internal check:execution-ergonomics command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/execution-ergonomics-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-execution-ergonomics-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:process-root": {
+      "description": "Internal check:process-root command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/process-root-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-process-root-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:filesystem": {
+      "description": "Internal check:filesystem command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/filesystem-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-filesystem-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:io-error": {
+      "description": "Internal check:io-error command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/io-error-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-io-error-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:time": {
+      "description": "Internal check:time command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/operational-time-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-operational-time-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:source-calls": {
+      "description": "Internal check:source-calls command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-source-call-shapes.mjs"
+          ]
+        }
+      ]
+    },
+    "check:web-bodies": {
+      "description": "Internal check:web-bodies command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/web-body-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-web-body-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:foreign-bodies": {
+      "description": "Internal check:foreign-bodies command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/foreign-body-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-foreign-body-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:ownership-execution": {
+      "description": "Internal check:ownership-execution command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/ownership-execution-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-ownership-execution-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:channel": {
+      "description": "Internal check:channel command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/channel-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-channel-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:context-local": {
+      "description": "Internal check:context-local command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/context-local-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-context-local-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:interference-layout": {
+      "description": "Internal check:interference-layout command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/interference-layout-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-interference-layout-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:liveness": {
+      "description": "Internal check:liveness command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/runtime-liveness-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-runtime-liveness-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:lazy": {
+      "description": "Internal check:lazy command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/lazy-behavior-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-lazy-behavior-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:locks": {
+      "description": "Internal check:locks command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/scoped-lock-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-scoped-lock-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:links": {
+      "description": "Internal check:links command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-markdown-links.mjs"
+          ]
+        }
+      ]
+    },
+    "check:memory": {
+      "description": "Internal check:memory command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-memory-transition-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:shared-control": {
+      "description": "Internal check:shared-control command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/shared-control-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-shared-control-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:packages": {
+      "description": "Internal check:packages command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-package-release-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:pkg1": {
+      "description": "Internal check:pkg1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/pkg1-project-transaction-reference.test.mjs",
+            "tooling/studies/pkg1-project-transaction/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-pkg1-project-transaction.mjs"
+          ]
+        }
+      ]
+    },
+    "check:std": {
+      "description": "Internal check:std command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-std-api-contracts.mjs"
+          ]
+        }
+      ]
+    },
+    "check:module-run": {
+      "description": "Internal check:module-run command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/module-run-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-module-run-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:snapshot-cell": {
+      "description": "Internal check:snapshot-cell command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/snapshot-cell-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-snapshot-cell-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:repl-session": {
+      "description": "Internal check:repl-session command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/repl-session-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-repl-session-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:presentation": {
+      "description": "Internal check:presentation command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/presentation-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-presentation-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:jupyter": {
+      "description": "Internal check:jupyter command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/jupyter-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-jupyter-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:notebook-export": {
+      "description": "Internal check:notebook-export command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/notebook-export-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-notebook-export-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:dlpack": {
+      "description": "Internal check:dlpack command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/dlpack-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-dlpack-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:device-execution": {
+      "description": "Internal check:device-execution command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/device-execution-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-device-execution-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:kernel-modules": {
+      "description": "Internal check:kernel-modules command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/kernel-module-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-kernel-module-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:substitutions": {
+      "description": "Internal check:substitutions command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-substitution-cases.mjs",
+            "--require-complete"
+          ]
+        }
+      ]
+    },
+    "check:substitution-surface": {
+      "description": "Internal check:substitution-surface command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/substitution-surface.mjs"
+          ]
+        }
+      ]
+    },
+    "check:tabular-carrier": {
+      "description": "Internal check:tabular-carrier command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/tabular-carrier-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-tabular-carrier-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:tabular-adapters": {
+      "description": "Internal check:tabular-adapters command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/tabular-adapter-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-tabular-adapter-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:wlo1": {
+      "description": "Internal check:wlo1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/r1c0-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-wlo1-closure.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:r1c0"
+          ]
+        }
+      ]
+    },
+    "check:r1c0": {
+      "description": "Internal check:r1c0 command.",
+      "steps": [
+        {
+          "kind": "command",
+          "command": "check:wlo1"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-r1c0-closure.mjs"
+          ]
+        }
+      ]
+    },
+    "check:prc0": {
+      "description": "Internal check:prc0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/tree-sitter-w/check-prc0.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-quantity-source-contract.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:prc0"
+          ]
+        }
+      ]
+    },
+    "check:asic0": {
+      "description": "Internal check:asic0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-asic0-evidence-gap-closure.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:asic0"
+          ]
+        }
+      ]
+    },
+    "parse:asic0": {
+      "description": "Internal parse:asic0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:asic0"
+          ]
+        }
+      ]
+    },
+    "check:studies": {
+      "description": "Internal check:studies command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-suite.mjs",
+            "--suite",
+            "root-studies"
+          ]
+        }
+      ]
+    },
+    "check:syn2-dyn2": {
+      "description": "Internal check:syn2-dyn2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/syn2-dyn2-closure/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-syn2-dyn2-closure.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/studies/syn2-dyn2-closure/check.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:syn2-dyn2"
+          ]
+        }
+      ]
+    },
+    "check:avf0": {
+      "description": "Internal check:avf0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/avf0-availability-feature-reference.test.mjs",
+            "tooling/studies/avf0-availability-feature/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-avf0-availability-feature.mjs"
+          ]
+        }
+      ]
+    },
+    "check:sec0": {
+      "description": "Internal check:sec0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/sec0-security-model-reference.test.mjs",
+            "tooling/studies/sec0-security-model/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-sec0-security-model.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:sec0"
+          ]
+        }
+      ]
+    },
+    "check:hum0": {
+      "description": "Internal check:hum0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/hum0-human-review-reference.test.mjs",
+            "tooling/studies/hum0-human-review/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-hum0-human-review.mjs"
+          ]
+        }
+      ]
+    },
+    "check:cyc1": {
+      "description": "Internal check:cyc1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/cyc1-explicit-cycle-reference.test.mjs",
+            "tooling/studies/cyc1-explicit-cycle-lifecycle/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-cyc1-explicit-cycle.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:cyc1"
+          ]
+        }
+      ]
+    },
+    "check:cyc2": {
+      "description": "Internal check:cyc2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/cyc2-conditional-liveness-reference.test.mjs",
+            "tooling/studies/cyc2-conditional-liveness/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-cyc2-conditional-liveness.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:cyc2"
+          ]
+        }
+      ]
+    },
+    "check:gen1": {
+      "description": "Internal check:gen1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/gen1-incremental-suspension-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-gen1-incremental-suspension.mjs"
+          ]
+        }
+      ]
+    },
+    "check:gen2": {
+      "description": "Internal check:gen2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/gen2-stream-yield-reference.test.mjs",
+            "tooling/studies/gen2-stream-yield/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-gen2-stream-yield.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:gen2"
+          ]
+        }
+      ]
+    },
+    "parse:gen2": {
+      "description": "Internal parse:gen2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:gen2"
+          ]
+        }
+      ]
+    },
+    "check:capability-matrix": {
+      "description": "Internal check:capability-matrix command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-capability-matrix.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/capability-matrix-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:atom1": {
+      "description": "Internal check:atom1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/atom1-atomic-extensibility/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-atom1-atomic-extensibility.mjs"
+          ]
+        }
+      ]
+    },
+    "check:atom2": {
+      "description": "Internal check:atom2 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/atom2-atomic-contract/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-atom2-atomic-contract.mjs"
+          ]
+        }
+      ]
+    },
+    "check:ipc1": {
+      "description": "Internal check:ipc1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/ipc1-mapped-ipc-reference.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/ipc1-mapped-ipc/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-ipc1-mapped-ipc.mjs"
+          ]
+        }
+      ]
+    },
+    "check:syn1": {
+      "description": "Internal check:syn1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/syn1-typed-generation-reference.test.mjs",
+            "tooling/studies/syn1-typed-generation/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-syn1-typed-generation.mjs"
+          ]
+        }
+      ]
+    },
+    "check:syn1-typed-generation": {
+      "description": "Internal check:syn1-typed-generation command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/syn1-typed-generation-reference.test.mjs",
+            "tooling/studies/syn1-typed-generation/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-syn1-typed-generation.mjs"
+          ]
+        }
+      ]
+    },
+    "check:dyn1": {
+      "description": "Internal check:dyn1 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/dyn1-versioned-behavior-reference.test.mjs",
+            "tooling/studies/dyn1-versioned-behavior/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-dyn1-versioned-behavior.mjs"
+          ]
+        }
+      ]
+    },
+    "check:hrd0": {
+      "description": "Internal check:hrd0 command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-hot-reload-dev.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": "tooling/tree-sitter-w",
+          "args": [
+            "run",
+            "parse:hrd0"
+          ]
+        }
+      ]
+    },
+    "check:wmeta": {
+      "description": "Internal check:wmeta command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-wmeta-cases.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/wmeta-reference-c.test.mjs"
+          ]
+        }
+      ]
+    },
+    "measure:substitutions": {
+      "description": "Internal measure:substitutions command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/substitution-surface.mjs",
+            "--write"
+          ]
+        }
+      ]
+    },
+    "measure:std": {
+      "description": "Internal measure:std command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-std-api-contracts.mjs",
+            "--write"
+          ]
+        }
+      ]
+    },
+    "docs:check": {
+      "description": "Internal docs:check command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/diagnostic-catalog.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/diagnostic-catalog.mjs",
+            "--check"
+          ]
+        },
+        {
+          "kind": "command",
+          "command": "check:platform-support"
+        },
+        {
+          "kind": "command",
+          "command": "check:dependency-currency"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/syntax-atlas.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/syntax-atlas.mjs",
+            "--check"
+          ]
+        },
+        {
+          "kind": "command",
+          "command": "check:cheatsheet"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-operator-surface.mjs"
+          ]
+        },
+        {
+          "kind": "command",
+          "command": "check:study-registry"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-markdown-links.mjs"
+          ]
+        },
+        {
+          "kind": "command",
+          "command": "design:index:check"
+        }
+      ]
+    },
+    "design:index:check": {
+      "description": "Internal design:index:check command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/design-index.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
+    "check:wire": {
+      "description": "Internal check:wire command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/wire-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:wire:c": {
+      "description": "Internal check:wire:c command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/wire-reference-c.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:hir": {
+      "description": "Internal check:hir command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/hir-memory-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:memory-transitions": {
+      "description": "Internal check:memory-transitions command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-memory-transition-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:layout-abi-model": {
+      "description": "Internal check:layout-abi-model command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/layout-abi-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:layout-abi": {
+      "description": "Internal check:layout-abi command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-layout-abi-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:execution-model": {
+      "description": "Internal check:execution-model command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/execution-concurrency-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:execution-concurrency": {
+      "description": "Internal check:execution-concurrency command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-execution-concurrency-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:runtime-liveness-model": {
+      "description": "Internal check:runtime-liveness-model command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/runtime-liveness-reference.test.mjs"
+          ]
+        }
+      ]
+    },
+    "check:runtime-liveness": {
+      "description": "Internal check:runtime-liveness command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-runtime-liveness-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:boundary-effects": {
+      "description": "Internal check:boundary-effects command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-boundary-effect-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:package-releases": {
+      "description": "Internal check:package-releases command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-package-release-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:root-unification": {
+      "description": "Internal check:root-unification command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-root-unification.mjs"
+          ]
+        }
+      ]
+    },
+    "check:std-api": {
+      "description": "Internal check:std-api command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-std-api-contracts.mjs"
+          ]
+        }
+      ]
+    },
+    "check:semantic-cases": {
+      "description": "Internal check:semantic-cases command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-semantic-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:formatter-cases": {
+      "description": "Internal check:formatter-cases command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-formatter-cases.mjs"
+          ]
+        }
+      ]
+    },
+    "check:freeze-audit": {
+      "description": "Internal check:freeze-audit command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-design-freeze-audit.mjs"
+          ]
+        }
+      ]
+    },
+    "update:substitution-surface": {
+      "description": "Internal update:substitution-surface command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/substitution-surface.mjs",
+            "--write"
+          ]
+        }
+      ]
+    },
+    "check:reader": {
+      "description": "Internal check:reader command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "-e",
+            "const source = await Bun.file('tooling/design-slice.mjs').text(); new Bun.Transpiler({ loader: 'js' }).transformSync(source);"
+          ]
+        }
+      ]
+    },
+    "check:design": {
+      "description": "Internal check:design command.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-design-examples.mjs"
+          ]
+        }
+      ]
+    },
+    "check:executable": {
+      "description": "Structural executable benchmark catalog checks without executing workloads.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "test",
+            "tooling/executable-benchmark.test.mjs"
+          ]
+        }
+      ]
+    }
+  }
+}

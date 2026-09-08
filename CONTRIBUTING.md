@@ -100,7 +100,7 @@ corpus e produto de referência na mesma mudança ou explique a ordem planejada.
 Não edite `DESIGN-INDEX.md` nem os outputs de `tooling/tree-sitter-w/src/`
 manualmente. Execute `bun run tooling:install` para instalar o tooling e recriar
 os outputs. Preserve `src/scanner.c`, que é authored e versionado. Execute
-`bun run check:generated-policy` para validar a política.
+`bun tooling/command-runner.mjs --command check:generated-policy` para validar a política.
 
 ## Escrita e idiomas
 
@@ -142,31 +142,31 @@ Use Bun 1.4.0 ou uma versão compatível. Instale o tooling local uma vez:
 bun run tooling:install
 ```
 
-Valide o inventário das suítes agregadas com `bun run check:suite-manifest`.
-Use os aliases individuais para um check focal. Use `bun run check:quick` para
-a validação rápida, `bun run check:compiler` para os gates seed e `bun run check`
+Valide o inventário das suítes agregadas com `bun check --target quick --dry-run`.
+Use os targets da fachada para um check focal: `bun check --target quick` para
+a validação rápida, `bun check --target compiler` para os gates seed e `bun check`
 para a suíte integrada.
 
 Para documentação e decisões:
 
 ```powershell
-bun run check:docs
+bun check --target docs
 ```
 
 Depois de alterar metadata de estudo, regenere o catálogo humano e o registry
-com `bun run study:registry` e valide ambos com `bun run check:study-registry`.
+com `bun run study:registry` e valide ambos com `bun tooling/command-runner.mjs --command check:study-registry`.
 
 Para grammar, corpus, std, tooling ou qualquer source `.w`:
 
 ```powershell
-bun run check
+bun check
 ```
 
 Para atualizar o índice depois de alterar `DESIGN.md` ou `RATIONALE.md`:
 
 ```powershell
 bun run design:index
-bun run check:docs
+bun check --target docs
 ```
 
 O CI executa o check integrado. Um check aprovado não substitui revisão

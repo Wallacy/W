@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, test } from "bun:test";
 import {
   CHECK_SUITE_SCHEMA,
+  COMMAND_REGISTRY_SCHEMA,
   flattenCheckSuite,
   loadCheckSuites,
   parseCheckSuiteArguments,
@@ -18,11 +19,25 @@ function writeJson(file, value) {
   fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-function makeRoot({ scripts = { test: "node -e 0" }, manifest } = {}) {
+function registryFromScripts(scripts) {
+  const commands = {};
+  for (const [name, source] of Object.entries(scripts)) {
+    const tokens = String(source).trim().split(/\s+/u);
+    const args = tokens[0] === "bun" ? tokens.slice(1) : ["-e", "0"];
+    commands[name] = {
+      description: `test ${name}`,
+      steps: [{ kind: "bun", cwd: ".", args }],
+    };
+  }
+  return { $schema: COMMAND_REGISTRY_SCHEMA, version: 1, commands };
+}
+
+function makeRoot({ scripts = { test: "bun -e 0" }, manifest, commandRegistry = null } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "w-check-suite-"));
   temporaryRoots.push(root);
-  writeJson(path.join(root, "package.json"), { scripts });
+  writeJson(path.join(root, "package.json"), { scripts: {} });
   writeJson(path.join(root, "tooling", "tree-sitter-w", "package.json"), { scripts });
+  writeJson(path.join(root, "tooling", "command-registry.json"), commandRegistry ?? registryFromScripts(scripts));
   writeJson(path.join(root, "tooling", "check-suites.json"), manifest);
   return root;
 }
@@ -62,6 +77,8 @@ describe("check-suite manifest", () => {
       "root-studies",
       "root-quick",
       "root-compiler",
+      "root-bmd",
+      "root-executable",
       "tree-check",
       "tree-docs",
     ]);
@@ -70,6 +87,8 @@ describe("check-suite manifest", () => {
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(25);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(26);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-bmd" })).toHaveLength(1);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-executable" })).toHaveLength(1);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(112);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
 
@@ -186,7 +205,7 @@ describe("check-suite manifest", () => {
     });
     const result = validateCheckSuites({ manifest, root: makeRoot({ manifest }) });
     expect(result.errors.join("\n")).toContain("references an unknown package");
-    expect(result.errors.join("\n")).toContain("references missing script");
+    expect(result.errors.join("\n")).toContain("references missing command");
     expect(result.errors.join("\n")).toContain("references an unknown suite");
     expect(result.errors.join("\n")).toContain("exactly package and script, or suite");
   });
@@ -197,7 +216,7 @@ describe("check-suite manifest", () => {
     expect(result.errors.join("\n")).toContain("escapes repository root");
 
     const noScriptsRoot = makeRoot({ manifest: baseManifest() });
-    writeJson(path.join(noScriptsRoot, "package.json"), {});
+    writeJson(path.join(noScriptsRoot, "tooling", "tree-sitter-w", "package.json"), {});
     const noScripts = validateCheckSuites({ manifest: baseManifest(), root: noScriptsRoot });
     expect(noScripts.errors.join("\n")).toContain("must define scripts");
   });
@@ -287,6 +306,7 @@ describe("check-suite manifest", () => {
     const status = runCheckSuite({
       root,
       packageRecords: loaded.packages,
+      commandRecords: loaded.commands,
       suites: loaded.suites,
       suiteName: "failure",
       dryRun: false,

@@ -79,9 +79,11 @@ bun run --cwd tooling/tree-sitter-w parse:fixture
 bun run --cwd tooling/tree-sitter-w check:injections
 ```
 
-Os checks repo-wide usam os aliases da raiz, por exemplo `bun run check:wire`,
-`bun run check:hir` e `bun run check:design`. Para a suíte rápida use
-`bun run check:quick`; para a suíte integrada use `bun run check`. O CLI está fixado em
+Os checks repo-wide usam o command registry, por exemplo
+`bun tooling/command-runner.mjs --command check:wire`,
+`bun tooling/command-runner.mjs --command check:hir` e
+`bun tooling/command-runner.mjs --command check:design`. Para a suíte rápida use
+`bun check --target quick`; para a suíte integrada use `bun check`. O CLI está fixado em
 `tree-sitter-cli` 0.27.0.
 
 Após `generate`, os outputs gerados em `src/` tornam a gramática consumível sem

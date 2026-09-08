@@ -335,6 +335,15 @@ function commandTargets(command) {
     .sort(comparePath);
 }
 
+function registryCommandText(command) {
+  if (!command || !Array.isArray(command.steps)) return "";
+  return command.steps.map((step) => {
+    if (step?.kind === "command") return String(step.command ?? "");
+    if (step?.kind === "bun") return (step.args ?? []).join(" ");
+    return "";
+  }).join(" ");
+}
+
 function scriptRelated(entry, name, command) {
   const value = `${name} ${command}`.toLowerCase();
   const directory = entry.directory.toLowerCase();
@@ -409,6 +418,81 @@ function collectEntrypoints(root, entries, issues) {
           .map(({ studyIndex, reason }) => ({ study: studyIndex, reason }))
           .sort((left, right) => left.study - right.study || left.reason.localeCompare(right.reason)),
       });
+    }
+  }
+  const rootPackage = packages.find((packageInfo) => packageInfo.scope === "root");
+  const registryFile = path.join(root, "tooling", "command-registry.json");
+  if (!rootPackage || !fs.existsSync(registryFile) || !fs.statSync(registryFile).isFile()) {
+    addIssue(issues.missing, {
+      source: relativePath(root, registryFile),
+      pointer: "commands",
+      path: relativePath(root, registryFile),
+      reason: "missing-command-registry",
+    });
+  } else {
+    const registryPath = relativePath(root, registryFile);
+    const loaded = loadJson(registryFile);
+    if (loaded.error) {
+      addIssue(issues.invalidJson, {
+        source: registryPath,
+        pointer: "",
+        path: registryPath,
+        reason: "invalid-json",
+        message: loaded.error,
+      });
+    } else {
+      const commands = loaded.value?.commands;
+      if (!commands || typeof commands !== "object" || Array.isArray(commands)) {
+        addIssue(issues.missing, {
+          source: registryPath,
+          pointer: "commands",
+          path: registryPath,
+          reason: "missing-command-registry-commands",
+        });
+      } else {
+        const scriptPath = addScript(rootPackage.file, "script-package");
+        for (const [name, commandRecord] of Object.entries(commands).sort(([left], [right]) => left.localeCompare(right))) {
+          const command = registryCommandText(commandRecord);
+          const targets = commandTargets(command);
+          const applicable = entries
+            .map((entry, studyIndex) => ({ studyIndex, reason: scriptRelated(entry, name, command) }))
+            .filter(({ reason }) => reason);
+          if (applicable.length === 0) continue;
+          const targetPaths = [];
+          const patterns = [];
+          for (const target of targets) {
+            if (target.includes("*") || target.includes("?")) {
+              patterns.push(target);
+              continue;
+            }
+            const resolved = resolveReference(root, rootPackage.file, target);
+            if (resolved.resolved) {
+              const targetPath = addScript(resolved.resolved, "script-target");
+              targetPaths.push(targetPath);
+            } else {
+              addIssue(issues.missing, {
+                source: registryPath,
+                pointer: `commands.${name}`,
+                path: target,
+                resolved: null,
+                reason: resolved.status,
+              });
+            }
+          }
+          rows.push({
+            scope: "root",
+            scriptPath,
+            name,
+            command: `bun tooling/command-runner.mjs --command ${name}`,
+            targetPaths,
+            patterns,
+            studies: [...new Set(applicable.map(({ studyIndex }) => studyIndex))].sort((left, right) => left - right),
+            appliesTo: applicable
+              .map(({ studyIndex, reason }) => ({ study: studyIndex, reason }))
+              .sort((left, right) => left.study - right.study || left.reason.localeCompare(right.reason)),
+          });
+        }
+      }
     }
   }
   const scripts = [...scriptMap.values()].sort((left, right) => comparePath(left.path, right.path));
@@ -686,9 +770,9 @@ function principalEntrypoint(registry, study) {
   const rootChecks = candidates
     .filter((entrypoint) => entrypoint.scope === "root" && entrypoint.name.startsWith("check:") && !GENERIC_ENTRYPOINTS.has(entrypoint.name))
     .sort((left, right) => left.name.localeCompare(right.name));
-  if (rootChecks.length > 0) return `bun run ${rootChecks[0].name}`;
+  if (rootChecks.length > 0) return `bun tooling/command-runner.mjs --command ${rootChecks[0].name}`;
   if (candidates.some((entrypoint) => entrypoint.scope === "root" && entrypoint.name === "check:study-bundles")) {
-    return "bun run check:study-bundles";
+    return "bun tooling/command-runner.mjs --command check:study-bundles";
   }
   return null;
 }
@@ -721,7 +805,7 @@ export function serializeStudyMarkdown(registry) {
   }
   lines.push(`| **Total** | **${studies.length}** |`);
   lines.push("", "O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.");
-  lines.push("Use `bun run study:registry` para regenerar as duas projeções e `bun run check:study-registry` para validá-las.");
+  lines.push("Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/command-runner.mjs --command check:study-registry` para validá-las.");
   lines.push("");
 
   for (const status of [...groups.keys()].sort(comparePath)) {

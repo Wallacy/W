@@ -14,7 +14,7 @@
     "generator": {
       "path": "tooling/study-registry.mjs",
       "kind": "generator",
-      "digest": "sha256:92f95d5256dbe6eaa50ad0999d5b82a20add8e831e55594f6192ab4e9fe3cc2d"
+      "digest": "sha256:c3454c56378e0570d50f7f77914e6489d365168d372a3296822dd86ce2fadbd3"
     },
     "excludes": [
       "**/node_modules/**"
@@ -1065,7 +1065,7 @@
     {
       "path": "package.json",
       "kind": "script-package",
-      "digest": "sha256:86d3fe65a6ed8e2ef46c6b709ad0a165e304160e9ba1222979d7ca7a31cd9b0b"
+      "digest": "sha256:bbc02ee903f80b75f3e49c14c74af14fa8234418cec9680206b767704a278a60"
     },
     {
       "path": "reference/last-light/borrow_relations_brx3.w",
@@ -1230,7 +1230,7 @@
     {
       "path": "tooling/check-suite.mjs",
       "kind": "script-target",
-      "digest": "sha256:5b59744052e5989d905d2f997411309d20e775269174f202146a6a878ba6ef3e"
+      "digest": "sha256:3e49a37a3056878bc1e923c292d7014e829c971dfdb54b4cc0c68a7ba6b5e1e3"
     },
     {
       "path": "tooling/check-syn1-typed-generation.mjs",
@@ -1570,7 +1570,7 @@
     {
       "path": "tooling/study-registry.mjs",
       "kind": "script-target",
-      "digest": "sha256:92f95d5256dbe6eaa50ad0999d5b82a20add8e831e55594f6192ab4e9fe3cc2d"
+      "digest": "sha256:c3454c56378e0570d50f7f77914e6489d365168d372a3296822dd86ce2fadbd3"
     },
     {
       "path": "tooling/study-registry.test.mjs",
@@ -15017,7 +15017,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:aeg0",
-      "command": "bun test tooling/studies/aeg0-app-essentials-gate/oracle.test.mjs && bun tooling/check-aeg0-app-essentials-gate.mjs && bun run --cwd tooling/tree-sitter-w parse:aeg0",
+      "command": "bun tooling/command-runner.mjs --command check:aeg0",
       "targets": [
         10,
         49
@@ -15037,7 +15037,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:asic0",
-      "command": "bun test tooling/studies/asic0-evidence-gap-closure/oracle.test.mjs && bun tooling/check-asic0-evidence-gap-closure.mjs && bun run --cwd tooling/tree-sitter-w parse:asic0",
+      "command": "bun tooling/command-runner.mjs --command check:asic0",
       "targets": [
         11,
         52
@@ -15057,7 +15057,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:atom1",
-      "command": "bun test tooling/studies/atom1-atomic-extensibility/oracle.test.mjs && bun tooling/check-atom1-atomic-extensibility.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:atom1",
       "targets": [
         12,
         53
@@ -15077,7 +15077,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:atom2",
-      "command": "bun test tooling/studies/atom2-atomic-contract/oracle.test.mjs && bun tooling/check-atom2-atomic-contract.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:atom2",
       "targets": [
         13,
         54
@@ -15097,7 +15097,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:avf0",
-      "command": "bun test tooling/avf0-availability-feature-reference.test.mjs tooling/studies/avf0-availability-feature/oracle.test.mjs && bun tooling/check-avf0-availability-feature.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:avf0",
       "targets": [
         6,
         14,
@@ -15118,7 +15118,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:borrow-expressivity",
-      "command": "bun test tooling/borrow-expressivity-reference.test.mjs && bun tooling/check-borrow-expressivity-cases.mjs && bun test tooling/studies/r1-borrow-expressivity/oracle.test.mjs && bun run --cwd tooling/tree-sitter-w parse:borrow-expressivity",
+      "command": "bun tooling/command-runner.mjs --command check:borrow-expressivity",
       "targets": [
         7,
         15,
@@ -15139,7 +15139,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:brx2",
-      "command": "bun test tooling/brx2-borrow-relations-reference.test.mjs tooling/studies/brx2-borrow-relations/oracle.test.mjs && bun tooling/check-brx2-borrow-relations.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:brx2",
       "targets": [
         8,
         16,
@@ -15160,7 +15160,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:brx3",
-      "command": "bun test tooling/brx3-borrow-relations-reference.test.mjs tooling/studies/brx3-borrow-relations/oracle.test.mjs && bun tooling/check-brx3-borrow-relations.mjs && bun run --cwd tooling/tree-sitter-w parse:brx3",
+      "command": "bun tooling/command-runner.mjs --command check:brx3",
       "targets": [
         9,
         17,
@@ -15181,7 +15181,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:cyc1",
-      "command": "bun test tooling/cyc1-explicit-cycle-reference.test.mjs tooling/studies/cyc1-explicit-cycle-lifecycle/oracle.test.mjs && bun tooling/check-cyc1-explicit-cycle.mjs && bun run --cwd tooling/tree-sitter-w parse:cyc1",
+      "command": "bun tooling/command-runner.mjs --command check:cyc1",
       "targets": [
         18,
         37,
@@ -15202,7 +15202,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:cyc2",
-      "command": "bun test tooling/cyc2-conditional-liveness-reference.test.mjs tooling/studies/cyc2-conditional-liveness/oracle.test.mjs && bun tooling/check-cyc2-conditional-liveness.mjs && bun run --cwd tooling/tree-sitter-w parse:cyc2",
+      "command": "bun tooling/command-runner.mjs --command check:cyc2",
       "targets": [
         19,
         38,
@@ -15223,7 +15223,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:drc0",
-      "command": "bun test tooling/studies/drc0-design-research-closure/oracle.test.mjs && bun tooling/check-design-research-closure.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:drc0",
       "targets": [
         20,
         60
@@ -15243,7 +15243,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:dyn1",
-      "command": "bun test tooling/dyn1-versioned-behavior-reference.test.mjs tooling/studies/dyn1-versioned-behavior/oracle.test.mjs && bun tooling/check-dyn1-versioned-behavior.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:dyn1",
       "targets": [
         21,
         39,
@@ -15264,7 +15264,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:frc0",
-      "command": "bun test tooling/studies/final-research-closure/oracle.test.mjs && bun tooling/tree-sitter-w/check-frc0.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:frc0",
       "targets": [
         62,
         104
@@ -15284,7 +15284,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:fst0",
-      "command": "bun test tooling/studies/fst0-first-settled-task/oracle.test.mjs && bun tooling/studies/fst0-first-settled-task/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:fst0",
       "targets": [
         63,
         64
@@ -15304,7 +15304,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:gen1",
-      "command": "bun test tooling/gen1-incremental-suspension-reference.test.mjs && bun tooling/check-gen1-incremental-suspension.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:gen1",
       "targets": [
         22,
         40
@@ -15324,7 +15324,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:gen2",
-      "command": "bun test tooling/gen2-stream-yield-reference.test.mjs tooling/studies/gen2-stream-yield/oracle.test.mjs && bun tooling/check-gen2-stream-yield.mjs && bun run --cwd tooling/tree-sitter-w parse:gen2",
+      "command": "bun tooling/command-runner.mjs --command check:gen2",
       "targets": [
         23,
         41,
@@ -15345,7 +15345,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:hrd0",
-      "command": "bun test tooling/studies/hrd0-hot-reload-dev/oracle.test.mjs && bun tooling/check-hot-reload-dev.mjs && bun run --cwd tooling/tree-sitter-w parse:hrd0",
+      "command": "bun tooling/command-runner.mjs --command check:hrd0",
       "targets": [
         24,
         66
@@ -15365,7 +15365,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:hum0",
-      "command": "bun test tooling/hum0-human-review-reference.test.mjs tooling/studies/hum0-human-review/oracle.test.mjs && bun tooling/check-hum0-human-review.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:hum0",
       "targets": [
         25,
         42,
@@ -15386,7 +15386,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:ipc1",
-      "command": "bun test tooling/ipc1-mapped-ipc-reference.test.mjs && bun test tooling/studies/ipc1-mapped-ipc/oracle.test.mjs && bun tooling/check-ipc1-mapped-ipc.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:ipc1",
       "targets": [
         26,
         43,
@@ -15407,7 +15407,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:llm0",
-      "command": "bun test tooling/studies/llm0-training-inference/oracle.test.mjs && bun tooling/studies/llm0-training-inference/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:llm0",
       "targets": [
         69,
         70
@@ -15427,7 +15427,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:mem0",
-      "command": "bun test tooling/studies/mem0-virtual-memory-data-movement/oracle.test.mjs && bun tooling/studies/mem0-virtual-memory-data-movement/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:mem0",
       "targets": [
         71,
         72
@@ -15447,7 +15447,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:pfu0",
-      "command": "bun test tooling/studies/pfu0-pre-freeze-usability/oracle.test.mjs && bun tooling/check-pfu0-pre-freeze-usability.mjs && bun run --cwd tooling/tree-sitter-w parse:pfu0",
+      "command": "bun tooling/command-runner.mjs --command check:pfu0",
       "targets": [
         27,
         75
@@ -15467,7 +15467,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:pkg1",
-      "command": "bun test tooling/pkg1-project-transaction-reference.test.mjs tooling/studies/pkg1-project-transaction/oracle.test.mjs && bun tooling/check-pkg1-project-transaction.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:pkg1",
       "targets": [
         28,
         44,
@@ -15488,7 +15488,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:prc0",
-      "command": "bun test tooling/studies/prc0-provider-runtime-closure/oracle.test.mjs && bun tooling/tree-sitter-w/check-prc0.mjs && bun tooling/check-quantity-source-contract.mjs && bun run --cwd tooling/tree-sitter-w parse:prc0",
+      "command": "bun tooling/command-runner.mjs --command check:prc0",
       "targets": [
         29,
         78,
@@ -15509,7 +15509,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:qos0",
-      "command": "bun test tooling/studies/qos0-scheduling-boundary/oracle.test.mjs && bun tooling/studies/qos0-scheduling-boundary/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:qos0",
       "targets": [
         80,
         81
@@ -15529,7 +15529,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:r1c0",
-      "command": "bun run check:wlo1 && bun tooling/check-r1c0-closure.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:r1c0",
       "targets": [
         30
       ],
@@ -15548,7 +15548,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:rdx0",
-      "command": "bun tooling/studies/rdx0-binary-registry-execution/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:rdx0",
       "targets": [
         86
       ],
@@ -15567,7 +15567,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:sea0",
-      "command": "bun test tooling/studies/sea0-simulated-effects-approval/oracle.test.mjs && bun tooling/studies/sea0-simulated-effects-approval/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:sea0",
       "targets": [
         87,
         88
@@ -15587,7 +15587,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:sec0",
-      "command": "bun test tooling/sec0-security-model-reference.test.mjs tooling/studies/sec0-security-model/oracle.test.mjs && bun tooling/check-sec0-security-model.mjs && bun run --cwd tooling/tree-sitter-w parse:sec0",
+      "command": "bun tooling/command-runner.mjs --command check:sec0",
       "targets": [
         31,
         46,
@@ -15608,7 +15608,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:studies",
-      "command": "bun tooling/check-suite.mjs --suite root-studies",
+      "command": "bun tooling/command-runner.mjs --command check:studies",
       "targets": [
         33
       ],
@@ -15992,7 +15992,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:study-bundles",
-      "command": "bun tooling/check-study-bundles.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:study-bundles",
       "targets": [
         32
       ],
@@ -16376,7 +16376,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:study-oracles",
-      "command": "bun test tooling/studies && bun tooling/studies/svc0-service-stream-directions/check.mjs && bun tooling/studies/fst0-first-settled-task/check.mjs && bun tooling/studies/tgm0-task-group-map-collect/check.mjs && bun run check:qos0 && bun run check:brx2",
+      "command": "bun tooling/command-runner.mjs --command check:study-oracles",
       "targets": [
         63,
         90,
@@ -16762,7 +16762,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:study-registry",
-      "command": "bun test tooling/study-registry.test.mjs && bun tooling/study-registry.mjs --check",
+      "command": "bun tooling/command-runner.mjs --command check:study-registry",
       "targets": [
         101,
         102
@@ -17147,7 +17147,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:svc0",
-      "command": "bun test tooling/studies/svc0-service-stream-directions/oracle.test.mjs && bun tooling/studies/svc0-service-stream-directions/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:svc0",
       "targets": [
         90,
         91
@@ -17167,7 +17167,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:syn1",
-      "command": "bun test tooling/syn1-typed-generation-reference.test.mjs tooling/studies/syn1-typed-generation/oracle.test.mjs && bun tooling/check-syn1-typed-generation.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:syn1",
       "targets": [
         34,
         92,
@@ -17188,7 +17188,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:syn1-typed-generation",
-      "command": "bun test tooling/syn1-typed-generation-reference.test.mjs tooling/studies/syn1-typed-generation/oracle.test.mjs && bun tooling/check-syn1-typed-generation.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:syn1-typed-generation",
       "targets": [
         34,
         92,
@@ -17209,7 +17209,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:syn2-dyn2",
-      "command": "bun test tooling/studies/syn2-dyn2-closure/oracle.test.mjs && bun tooling/check-syn2-dyn2-closure.mjs && bun tooling/studies/syn2-dyn2-closure/check.mjs && bun run --cwd tooling/tree-sitter-w parse:syn2-dyn2",
+      "command": "bun tooling/command-runner.mjs --command check:syn2-dyn2",
       "targets": [
         35,
         93,
@@ -17230,7 +17230,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:tgm0",
-      "command": "bun test tooling/studies/tgm0-task-group-map-collect/oracle.test.mjs && bun tooling/studies/tgm0-task-group-map-collect/check.mjs",
+      "command": "bun tooling/command-runner.mjs --command check:tgm0",
       "targets": [
         99,
         100
@@ -17250,7 +17250,7 @@
       "scope": "root",
       "script": 0,
       "name": "check:wlo1",
-      "command": "bun test tooling/studies/r1c0-closure/oracle.test.mjs && bun tooling/check-wlo1-closure.mjs && bun run --cwd tooling/tree-sitter-w parse:r1c0",
+      "command": "bun tooling/command-runner.mjs --command check:wlo1",
       "targets": [
         36,
         84
@@ -17270,7 +17270,7 @@
       "scope": "root",
       "script": 0,
       "name": "hum0:refresh-evidence",
-      "command": "bun tooling/refresh-hum0-evidence.mjs",
+      "command": "bun tooling/command-runner.mjs --command hum0:refresh-evidence",
       "targets": [
         45
       ],
@@ -17289,7 +17289,7 @@
       "scope": "root",
       "script": 0,
       "name": "parse:asic0",
-      "command": "bun run --cwd tooling/tree-sitter-w parse:asic0",
+      "command": "bun tooling/command-runner.mjs --command parse:asic0",
       "targets": [],
       "patterns": [],
       "studies": [

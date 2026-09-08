@@ -21,15 +21,16 @@ bun check
 bun check --target compiler
 bun check --target docs
 bun check --target studies
+bun check --target bmd
+bun check --target executable
 bun check --target all
 bun check --list
 bun check --target quick --dry-run
 bun demo --list
 bun bootstrap --target host
 bun dev run compiler/seed-c/fixtures/hlo0-hello.w
-bun run check:suite-manifest
-bun run check:bmd:executable
-bun run check:study-registry
+bun tooling/command-runner.mjs --list
+bun tooling/command-runner.mjs --command check:study-registry
 bun run study:registry
 ```
 
@@ -40,7 +41,7 @@ The short facade in [`dev-cli.mjs`](dev-cli.mjs) reads the small catalog in
 `--list` only lists and `--dry-run` only expands the plan.
 
 `bun demo` executes a named fixture with the public `w run` binary through the
-current MLIR route; it does not call `demo:seed-hello` or HLO1 C. `bun bootstrap --target host`
+current MLIR route; it does not use the removed `demo:seed-hello` alias or HLO1 C. `bun bootstrap --target host`
 uses the local development recipe, validates `w.exe` and
 `receipt.json`, and never downloads a toolchain. In this first cut, bootstrap,
 demo, and `dev run` are native Windows x64 operations; Linux is explicitly
@@ -48,9 +49,12 @@ unsupported. `dev run` requires an explicit existing regular `.w` path and may
 accept one outside the checkout, while catalog, fixture, binary, and receipt
 paths remain contained. Only arguments after `--` are forwarded.
 Timers appear on stderr as non-benchmark DX metadata. The earlier
-`check:quick`, `check:compiler`, `check:docs`, `check:studies`, and
-`demo:seed-hello` aliases remain internal compatibility aliases during this
-transition.
+Root package scripts intentionally expose only this facade and a small set of
+projection/installation maintenance commands. Internal leaves are stored as
+shell-free argv plans in [`command-registry.json`](command-registry.json).
+Use [`command-runner.mjs`](command-runner.mjs) for a named internal leaf when
+the public target facade does not provide a narrower scope. The old colon
+aliases are no longer root package commands.
 
 Use o runner para inspecionar uma suíte antes de executá-la:
 
@@ -60,7 +64,7 @@ bun tooling/check-suite.mjs --dry-run --suite root-quick
 bun tooling/check-suite.mjs --dry-run --suite root-compiler
 ```
 
-`check:quick` validates manifests, the BMD/executable catalogs, projections,
+`bun check --target quick` validates manifests, the BMD/executable catalogs, projections,
 documentation, and maintained parsing without heavy C builds.
 `check:bmd:executable` is a separate Hello correctness smoke: it never runs W,
 records no timing, and compiles C23/c2x and Rust when toolchains are available.
@@ -74,7 +78,7 @@ be zero at their disclosed microsecond resolution, and arithmetic means use
 integer-floor rounding. Result host identities are derived from normalized
 redacted environment classes, never from hostnames, users, or paths. The
 best-known contract is defined even while its empty index is not-established.
-`check:compiler` executa uma vez os gates do compilador seed,
+`bun check --target compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
 interno permanece um gate focal separado (`bun run check:run0`). Os leaves
 `root/check:acquisition`, `root/check:owner-guard` e
@@ -84,8 +88,8 @@ mas não repete a suíte OWN0 inteira. `tree-check` e `root-check` recebem os
 mesmos leaves por composição. `check:w-cli` continua depois deles como
 regressão pública.
 `check --target all` mantém a suíte integrada histórica. Use os targets
-`docs` e `studies` para escopos menores; os aliases com dois-pontos acima são
-compatibilidade interna.
+`docs`, `studies`, `bmd` e `executable` para escopos menores; os leaves
+internos com dois-pontos são resolvidos pelo command registry.
 
 Não crie um alias equivalente em `tooling/tree-sitter-w/package.json`. O pacote
 Tree-sitter mantém apenas comandos locais da gramática:
@@ -97,7 +101,7 @@ bun run --cwd tooling/tree-sitter-w parse:reference
 bun run --cwd tooling/tree-sitter-w parse:std
 ```
 
-Os aliases repo-wide ficam na raiz. Um comando `parse:*` pode permanecer local
+Os comandos repo-wide ficam no command registry. Um comando `parse:*` pode permanecer local
 quando o CLI precisa do diretório da gramática.
 
 ## Projeções humanas e de máquina
@@ -112,7 +116,7 @@ O registro de estudos tem duas superfícies sincronizadas:
 Ambos são gerados por `bun run study:registry`. O writer prepara as duas
 saídas e tenta instalá-las transacionalmente, com rollback diante de erros
 comuns do sistema de arquivos; isso não promete atomicidade entre arquivos
-depois de crash ou perda de energia. `bun run check:study-registry` rejeita
+depois de crash ou perda de energia. `bun tooling/command-runner.mjs --command check:study-registry` rejeita
 JSON ou Markdown stale. Detalhes de cada estudo ficam no `README.md` local
 quando existir e no catálogo gerado. Não mantenha uma segunda tabela manual
 neste arquivo.
@@ -172,8 +176,10 @@ bun run --cwd tooling/tree-sitter-w parse:std
 ```
 
 Os checks de integração permanecem na raiz, por exemplo:
-`bun run check:syntax-atlas`, `bun run check:maintained-parse`,
-`bun run check:cheatsheet` e `bun run check:links`.
+`bun tooling/command-runner.mjs --command check:syntax-atlas`,
+`bun tooling/command-runner.mjs --command check:maintained-parse`,
+`bun tooling/command-runner.mjs --command check:cheatsheet` e
+`bun tooling/command-runner.mjs --command check:links`.
 
 ## Compiler seed
 
@@ -181,7 +187,7 @@ O seed C é uma implementação caller-owned e incremental de validação. Ele
 contém source reader, lexer lossless, scanner C, parser, formatter, frontend
 seed, adapter D0, ACQ0, OWN0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consulte
 [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) para a superfície
-local. Execute `bun run check:compiler` para os gates do bundle.
+local. Execute `bun check --target compiler` para os gates do bundle.
 
 O caminho C23 `source → parser → frontend → HIR0 verificada → HLO0 → HLO1`
 continua limitado aos subset e witnesses documentados. A rota nativa primária
@@ -193,26 +199,26 @@ MLIR0 v5 corrente também aceita interpolação signed-`i64` com helpers
 internos de Display e texto counted; os HLO0/HLO1/RUN0 continuam single-print.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
-CLI. Execute `bun run check:acquisition` para compilar os cinco targets focais,
+CLI. Execute `bun tooling/command-runner.mjs --command check:acquisition` para compilar os cinco targets focais,
 rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. OWN0 observa e
 reconfirma candidates `build.w` em uma sessão guarded sem selecionar owner ou
 autorizar fallback; o gate executa Linux nativo e, em host Windows, exige WSL
 Ubuntu. O adapter Windows permanece incondicionalmente fail-closed neste
 bundle; seus probes são somente diagnósticos. Execute
-`bun run check:owner-guard`. RUN0 consome o plano
+`bun tooling/command-runner.mjs --command check:owner-guard`. RUN0 consome o plano
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
-Execute `bun run check:run0` para esse gate. O subset público W-1521 usa
+Execute `bun tooling/command-runner.mjs --command check:run0` para esse gate. O subset público W-1521 usa
 `w run <explicit-path.w> [-- <args...>]` em Linux x86_64 com a rota nativa
 explicitamente habilitada, ou o binário Linux por WSL Ubuntu no host Windows;
 o basename explícito é uma source identity
-opaca, não um identifier de módulo. Execute `bun run check:w-run` para o
+opaca, não um identifier de módulo. Execute `bun tooling/command-runner.mjs --command check:w-run` para o
 produto; a extensão NAT1 é definida por W-1522.
 
 The public Linux gate uses `llc` for a PIC object and an absolute host C
 driver for `-pie` linking with native CRT/libc. It generates no C source
 and does not require Clang. LLVM version checks remain separate from host
 driver provenance. The older `check:mlir0` recipe is unchanged.
-`bun run check:w-run --ci` requires Linux x64 and the separately acquired
+`bun tooling/command-runner.mjs --command check:w-run -- --ci` requires Linux x64 and the separately acquired
 23.1.0 toolchain. Missing prerequisites fail instead of SKIP. Local WSL gates
 passed with LLVM 20.1.2 and 23.1.0, host GCC/cc 13.3.0, and Bun 1.3.4.
 The mandatory Linux and Windows hosted jobs use Bun 1.4.0 and have not run.
@@ -235,7 +241,7 @@ owner selection, backend, linker, runtime ou o runner `w run` geral.
 
 Leia [`STUDIES.md`](../STUDIES.md) para o inventário dos 71 estudos, seus
 status e entrypoints. Cada diretório em `studies/` pode conter corpus, máquina,
-oracle, snapshot e documentação local. `bun run check:studies` executa a suíte
+oracle, snapshot e documentação local. `bun check --target studies` executa a suíte
 agregada; um estudo também pode ter um alias focal na raiz.
 
 Os estudos preservam a separação entre:
@@ -256,8 +262,8 @@ Antes de uma mudança, leia `.codex/W.md`, `.codex/W-WORKFLOW.md` e
 1. altere a fonte canônica;
 2. regenere somente as projeções afetadas;
 3. execute o menor gate relevante;
-4. execute `bun run check:quick` ou `bun run check:compiler` conforme a área;
-5. termine com `bun run check:links` e `git diff --check`.
+4. execute `bun check --target quick` ou `bun check --target compiler` conforme a área;
+5. termine com `bun tooling/command-runner.mjs --command check:links` e `git diff --check`.
 
 Não edite projeções geradas manualmente, não copie o catálogo de estudos para
-outro README e não mantenha aliases duplicados entre raiz e Tree-sitter.
+outro README e não mantenha aliases duplicados entre o registry e Tree-sitter.

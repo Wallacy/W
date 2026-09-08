@@ -88,8 +88,9 @@ unsupported here. The facade validates the canonical receipt and artifact
 hash, requires a development profile and matching HEAD, and labels dirty
 source identities as non-strong DX evidence. `dev run` accepts an explicit,
 existing regular `.w` source outside the checkout; its catalog, fixture,
-binary, and receipt paths remain repository-contained. Legacy colon aliases
-remain internal compatibility paths for now.
+binary, and receipt paths remain repository-contained. Internal colon-named
+leaves are resolved through the shell-free command registry; they are not root
+package scripts.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
@@ -285,18 +286,17 @@ bun tooling/design-slice.mjs --rationale-heading 1.1
 O leitor recorta `DESIGN.md` para contratos e `RATIONALE.md` para evidência e
 ledger; ele não cria uma segunda fonte de autoridade.
 
-`docs:check` é o gate focal para as projeções documentais, dependency currency e
-o índice.
-`check:docs` permanece o gate completo, com BMD e a cadeia do Tree-sitter.
+`bun check --target docs` é o gate focal para as projeções documentais,
+dependency currency, o índice, BMD e a cadeia do Tree-sitter.
 
 Para validar somente documentação e índice:
 
 ```powershell
-bun run docs:check
+bun check --target docs
 ```
 
-Para a manutenção diária, use `bun run check:quick`; para os gates do
-compilador seed use `bun run check:compiler`.
+Para a manutenção diária, use `bun check --target quick`; para os gates do
+compilador seed use `bun check --target compiler`.
 
 Para regenerar somente as projeções de documentação:
 
@@ -308,7 +308,7 @@ Para validar também BMD e toda a cadeia documental do Tree-sitter:
 
 ```powershell
 bun run tooling:install
-bun run check:docs
+bun check --target docs
 ```
 
 Use `bun check --target all` quando grammar, corpus, std ou sources `.w`

@@ -2,6 +2,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { loadCommandRegistry } from "./check-suite.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const treeRoot = resolve(root, "tooling", "tree-sitter-w");
@@ -70,16 +71,15 @@ if (scannerIgnored.status === 0) {
 
 let rootPackage;
 let treePackage;
+let commandRegistry;
 try {
   rootPackage = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
   treePackage = JSON.parse(readFileSync(resolve(treeRoot, "package.json"), "utf8"));
+  commandRegistry = loadCommandRegistry(root).registry;
 } catch (error) {
   errors.push(`package metadata is not valid JSON: ${error.message}`);
 }
 
-if (rootPackage && rootPackage.scripts?.["check:generated-policy"] !== "bun tooling/check-generated-policy.mjs") {
-  errors.push("root check:generated-policy must call tooling/check-generated-policy.mjs");
-}
 if (
   rootPackage?.scripts?.["tooling:install"] !==
   "bun ci --cwd tooling/tree-sitter-w && bun run --cwd tooling/tree-sitter-w generate"
@@ -111,20 +111,18 @@ for (const [name, expected] of [
     errors.push(`root ${name} must use the declarative dev CLI facade`);
   }
 }
-if (rootPackage?.scripts?.["check:docs"] !== "bun tooling/check-suite.mjs --suite root-docs") {
-  errors.push("root check:docs must use the declarative root-docs suite");
+const publicRootScripts = new Set([
+  "check", "demo", "bootstrap", "dev", "cleanup", "tooling:install",
+  "study:registry", "study:refresh-digests", "docs:write", "design:index",
+  "platform:support", "capability:refresh-evidence", "benchmark",
+]);
+for (const name of Object.keys(rootPackage?.scripts ?? {})) {
+  if (!publicRootScripts.has(name)) {
+    errors.push(`root package exposes internal script ${JSON.stringify(name)}; use tooling/command-registry.json`);
+  }
 }
-if (rootPackage?.scripts?.["check:studies"] !== "bun tooling/check-suite.mjs --suite root-studies") {
-  errors.push("root check:studies must use the declarative root-studies suite");
-}
-if (rootPackage?.scripts?.["check:suite-manifest"] !== "bun test tooling/check-suite.test.mjs && bun tooling/check-suite.mjs --check") {
-  errors.push("root check:suite-manifest must test and validate the declarative suite manifest");
-}
-if (rootPackage?.scripts?.["check:quick"] !== "bun tooling/check-suite.mjs --suite root-quick") {
-  errors.push("root check:quick must use the declarative root-quick suite");
-}
-if (rootPackage?.scripts?.["check:compiler"] !== "bun tooling/check-suite.mjs --suite root-compiler") {
-  errors.push("root check:compiler must use the declarative root-compiler suite");
+if (!commandRegistry?.commands?.["check:generated-policy"]) {
+  errors.push("command registry must own check:generated-policy");
 }
 
 const workflowPath = resolve(root, ".github", "workflows", "validate.yml");

@@ -124,6 +124,18 @@
         { "package": "root", "script": "check:hlo1" }
       ]
     },
+    "root-bmd": {
+      "description": "Benchmark-driven-development structure and immutable catalog contracts without workload execution.",
+      "steps": [
+        { "package": "root", "script": "check:bmd" }
+      ]
+    },
+    "root-executable": {
+      "description": "Executable benchmark catalog structure without compiling or executing workloads.",
+      "steps": [
+        { "package": "root", "script": "check:executable" }
+      ]
+    },
     "tree-check": {
       "description": "Generated parser, language evidence, studies, and full parse checks.",
       "steps": [
