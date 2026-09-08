@@ -42,6 +42,10 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 - w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 - w — contextual-non-ranking-until-public-run; compile median 171.9469 ms (CPU 109.375 ms, RSS 24862720 B (23.711 MiB)); run median 15.8529 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit d834927505d5; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/7c140903cbaae00c89356a9c8743a724b58af213bd102036d4dbe4b15420cc1a.json)
 
+### restaurant-branch
+
+- c — contextual-non-ranking-across-abi; compile median 291.4917 ms (CPU 31.25 ms, RSS 6074368 B (5.793 MiB)); run median 16.4601 ms (CPU 0 µs, RSS 4673536 B (4.457 MiB)); artifact 19456 B (19 KiB); commit 90ff03d3ba04; toolchain gcc-13.2.0-c2x-preview-x86_64-w64-mingw32; [history record](./history/executables/df6ad2507a190be183593e1076339603b9f58aa38a8469aceaecea8f3eba9032.json)
+
 ## Workload language boundary
 
 The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.
