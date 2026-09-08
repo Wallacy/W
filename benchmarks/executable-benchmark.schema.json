@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "w-executable-benchmark/3",
+  "title": "W executable benchmark catalog and result contracts",
+  "oneOf": [
+    { "$ref": "#/$defs/catalog" },
+    { "$ref": "#/$defs/result" },
+    { "$ref": "#/$defs/bestKnown" },
+    { "$ref": "#/$defs/bestKnownIndex" }
+  ],
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "decimal": {
+      "type": "string",
+      "pattern": "^(?:0|[1-9][0-9]*)$"
+    },
+    "positiveDecimal": {
+      "type": "string",
+      "pattern": "^[1-9][0-9]*$"
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "unit", "kind", "status"],
+      "properties": {
+        "id": { "type": "string" },
+        "unit": { "type": "string" },
+        "kind": { "enum": ["duration", "size", "exit", "output"] },
+        "status": { "const": "declared" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["language", "path", "digest", "entry", "status", "profile", "quality", "recipe", "recipeClass", "platformTarget", "artifactTarget", "comparability", "eligibility"],
+      "properties": {
+        "language": { "enum": ["w", "c", "rust"] },
+        "path": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" },
+        "entry": { "type": "string" },
+        "status": { "const": "source-oracle-ready" },
+        "profile": { "enum": ["release", "size-experimental"] },
+        "quality": { "const": "correctness-gate" },
+        "recipe": { "type": "string" },
+        "recipeClass": { "type": "string" },
+        "platformTarget": { "const": "windows-x64" },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-across-abi", "promotable-after-equivalence"] },
+        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "deferred-to-M3b"] }
+      }
+    },
+    "oracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "status", "exitCode", "stdout", "stderr"],
+      "properties": {
+        "kind": { "const": "exact-output" },
+        "status": { "enum": ["declared", "source-backed"] },
+        "exitCode": { "type": ["integer", "null"] },
+        "stdout": { "type": ["string", "null"] },
+        "stderr": { "type": ["string", "null"] }
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"],
+      "properties": {
+        "id": { "type": "string" },
+        "status": { "enum": ["source-oracle-ready", "planned", "blocked"] },
+        "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
+        "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
+        "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "planned"] },
+        "lane": { "const": "equivalent" },
+        "scope": { "type": "string" },
+        "oracle": { "$ref": "#/$defs/oracle" },
+        "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
+        "blockedLanguages": { "type": "array", "items": { "enum": ["w", "c", "rust"] } },
+        "blockers": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "resultContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "immutability"],
+      "properties": {
+        "schema": { "const": "w-executable-benchmark-result/3" },
+        "status": { "const": "contract-only" },
+        "recordsPath": { "const": "benchmarks/history/executables" },
+        "requiredIdentity": {
+          "const": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "equivalenceKey"]
+        },
+        "provenance": {
+          "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"]
+        },
+        "sampling": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["warmupMinimum", "rawMinimum", "rawParity", "sampleFields", "cpuUnits", "zeroCpuDisclosure"],
+          "properties": {
+            "warmupMinimum": { "const": 1 },
+            "rawMinimum": { "const": 9 },
+            "rawParity": { "const": "odd" },
+            "sampleFields": { "const": ["wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes"] },
+            "cpuUnits": { "const": "microseconds" },
+            "zeroCpuDisclosure": { "type": "string" }
+          }
+        },
+        "protocolFields": {
+          "const": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure"]
+        },
+        "environmentFields": {
+          "const": ["os", "kernel", "cpuModel", "logicalCores", "ramBytes"]
+        },
+        "artifact": { "type": "string" },
+        "metrics": {
+          "const": ["compile-latency", "run-wall-time", "cpu-user-time", "cpu-system-time", "cpu-time", "peak-working-set", "artifact-size", "exit-code", "stdout", "stderr"]
+        },
+        "immutability": { "type": "string" }
+      }
+    },
+    "bestKnownContract": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema", "status", "path", "derivation", "optimizableMetrics", "forbiddenMetrics", "rule"],
+      "properties": {
+        "schema": { "const": "w-executable-benchmark-best/3" },
+        "status": { "const": "defined" },
+        "path": { "const": "benchmarks/executable-best-known.json" },
+        "derivation": { "type": "string" },
+        "optimizableMetrics": { "const": ["compile-latency", "run-wall-time", "cpu-time", "peak-working-set", "artifact-size"] },
+        "forbiddenMetrics": { "const": ["exit-code", "stdout", "stderr"] },
+        "rule": { "type": "string" }
+      }
+    },
+    "catalog": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestKnownContract"],
+      "properties": {
+        "$schema": { "const": "./executable-benchmark.schema.json" },
+        "schema": { "const": "w-executable-benchmark/3" },
+        "kind": { "const": "executable-benchmark-catalog" },
+        "id": { "const": "w-executable-benchmark-catalog" },
+        "status": { "const": "catalog-ready" },
+        "metrics": { "type": "array", "items": { "$ref": "#/$defs/metric" } },
+        "comparabilityAxes": { "type": "array", "items": { "type": "string" } },
+        "workloads": { "type": "array", "items": { "$ref": "#/$defs/workload" } },
+        "resultContract": { "$ref": "#/$defs/resultContract" },
+        "bestKnownContract": { "$ref": "#/$defs/bestKnownContract" }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceDigest", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "eligibility"],
+      "properties": {
+        "sourceDigest": { "$ref": "#/$defs/digest" },
+        "platformTarget": { "const": "windows-x64" },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "profile": { "const": "release" },
+        "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "recipe": { "type": "string" },
+        "recipeClass": { "type": "string" },
+        "recipeDigest": { "$ref": "#/$defs/digest" },
+        "eligibility": { "type": "string" }
+      }
+    },
+    "correctness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"],
+      "properties": {
+        "oracleId": { "type": "string" },
+        "exitCode": { "type": "integer" },
+        "stdoutDigest": { "$ref": "#/$defs/digest" },
+        "stderrDigest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["digest", "sizeBytes"],
+      "properties": {
+        "digest": { "$ref": "#/$defs/digest" },
+        "sizeBytes": { "$ref": "#/$defs/positiveDecimal" }
+      }
+    },
+    "sample": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes"],
+      "properties": {
+        "wallNs": { "$ref": "#/$defs/positiveDecimal" },
+        "cpuUserUs": { "$ref": "#/$defs/decimal" },
+        "cpuSystemUs": { "$ref": "#/$defs/decimal" },
+        "cpuTotalUs": { "$ref": "#/$defs/decimal" },
+        "peakRssBytes": { "$ref": "#/$defs/positiveDecimal" }
+      }
+    },
+    "summaryStats": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "median", "max", "arithmeticMean", "mad"],
+      "properties": {
+        "min": { "$ref": "#/$defs/decimal" },
+        "median": { "$ref": "#/$defs/decimal" },
+        "max": { "$ref": "#/$defs/decimal" },
+        "arithmeticMean": { "$ref": "#/$defs/decimal" },
+        "mad": { "$ref": "#/$defs/decimal" }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes"],
+      "properties": {
+        "wallNs": { "$ref": "#/$defs/summaryStats" },
+        "cpuUserUs": { "$ref": "#/$defs/summaryStats" },
+        "cpuSystemUs": { "$ref": "#/$defs/summaryStats" },
+        "cpuTotalUs": { "$ref": "#/$defs/summaryStats" },
+        "peakRssBytes": { "$ref": "#/$defs/summaryStats" }
+      }
+    },
+    "sampleSeries": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmup", "raw", "summary", "cpuResolution"],
+      "properties": {
+        "warmup": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/sample" } },
+        "raw": { "type": "array", "minItems": 9, "items": { "$ref": "#/$defs/sample" } },
+        "summary": { "$ref": "#/$defs/summary" },
+        "cpuResolution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["unit", "zeroAllowed", "disclosure"],
+          "properties": {
+            "unit": { "const": "microseconds" },
+            "zeroAllowed": { "const": true },
+            "disclosure": { "type": "string" }
+          }
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"],
+      "properties": {
+        "sourceDigest": { "$ref": "#/$defs/digest" },
+        "artifactDigest": { "$ref": "#/$defs/digest" },
+        "recipeDigest": { "$ref": "#/$defs/digest" },
+        "toolchainDigest": { "$ref": "#/$defs/digest" },
+        "runnerDigest": { "$ref": "#/$defs/digest" },
+        "observedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$" }
+      }
+    },
+    "protocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure"],
+      "properties": {
+        "warmupMinimum": { "const": 1 },
+        "rawMinimum": { "const": 9 },
+        "rawParity": { "const": "odd" },
+        "arithmeticMeanRounding": { "const": "floor-integer" },
+        "stopRule": { "const": "fixed-count" },
+        "wallClock": { "const": "monotonic-nanoseconds" },
+        "processIsolation": { "const": "fresh-process-per-sample" },
+        "order": { "const": "deterministic-interleaved" },
+        "resourceScope": { "type": "string" },
+        "knownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "unknownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
+        "directProcessDisclosure": { "type": "string" }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os", "kernel", "cpuModel", "logicalCores", "ramBytes"],
+      "properties": {
+        "os": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "kernel": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "cpuModel": { "type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[A-Za-z0-9][A-Za-z0-9 ._()+,:#\\[\\]{}=@-]*$" },
+        "logicalCores": { "$ref": "#/$defs/decimal" },
+        "ramBytes": { "$ref": "#/$defs/decimal" }
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"],
+      "properties": {
+        "$schema": { "const": "./executable-benchmark.schema.json" },
+        "schema": { "const": "w-executable-benchmark-result/3" },
+        "kind": { "const": "executable-result" },
+        "id": { "type": "string" },
+        "status": { "const": "recorded" },
+        "workloadId": { "type": "string" },
+        "language": { "enum": ["w", "c", "rust"] },
+        "platformTarget": { "const": "windows-x64" },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "profile": { "const": "release" },
+        "quality": { "const": "exploratory" },
+        "claim": { "const": "measurement-only" },
+        "verdict": { "const": "not-evaluated" },
+        "equivalenceKey": { "$ref": "#/$defs/digest" },
+        "identity": { "$ref": "#/$defs/identity" },
+        "correctness": { "$ref": "#/$defs/correctness" },
+        "artifact": { "$ref": "#/$defs/artifact" },
+        "protocol": { "$ref": "#/$defs/protocol" },
+        "environment": { "$ref": "#/$defs/environment" },
+        "compile": { "$ref": "#/$defs/sampleSeries" },
+        "run": { "$ref": "#/$defs/sampleSeries" },
+        "provenance": { "$ref": "#/$defs/provenance" }
+      }
+    },
+    "bestKnown": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "id", "status", "workloadId", "metric", "language", "platformTarget", "artifactTarget", "profile", "statistic", "equivalenceKey", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "value", "derivedFrom"],
+      "properties": {
+        "$schema": { "const": "./executable-benchmark.schema.json" },
+        "schema": { "const": "w-executable-benchmark-best/3" },
+        "kind": { "const": "executable-best-known" },
+        "id": { "type": "string" },
+        "status": { "const": "derived" },
+        "workloadId": { "type": "string" },
+        "metric": { "enum": ["compile-latency", "run-wall-time", "cpu-time", "peak-working-set", "artifact-size"] },
+        "language": { "enum": ["w", "c", "rust"] },
+        "platformTarget": { "const": "windows-x64" },
+        "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
+        "profile": { "const": "release" },
+        "statistic": { "enum": ["median", "single-artifact"] },
+        "equivalenceKey": { "$ref": "#/$defs/digest" },
+        "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "host": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
+        "recipe": { "type": "string" },
+        "recipeClass": { "type": "string" },
+        "recipeDigest": { "$ref": "#/$defs/digest" },
+        "value": { "$ref": "#/$defs/decimal" },
+        "derivedFrom": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+      }
+    },
+    "bestKnownIndex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "status", "records"],
+      "properties": {
+        "$schema": { "const": "./executable-benchmark.schema.json" },
+        "schema": { "const": "w-executable-benchmark-best/3" },
+        "kind": { "const": "executable-best-known-index" },
+        "status": { "enum": ["not-established", "established"] },
+        "records": { "type": "array", "items": { "$ref": "#/$defs/bestKnown" } }
+      }
+    }
+  }
+}

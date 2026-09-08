@@ -7,6 +7,41 @@ lifecycle como série única. BMD2 adiciona comparação source-backed entre doi
 commits locais do mesmo seed. Nenhum bundle produz result de language ou de
 product-runtime.
 
+### Executable benchmark catalog (M3a)
+
+[`executable-catalog.json`](executable-catalog.json) is the machine-readable
+catalog of executable workloads. It keeps stable IDs for `hello`, the four
+source-backed Restaurant witnesses, and the future full Restaurant
+composition. Hello has W, C, and Rust sources; C is contextual and non-ranking
+across its MinGW ABI, while the Restaurant witnesses are currently W-only with
+explicit C/Rust blockers. Equivalent Hello sources live in
+[`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
+oracle. The shared platform target is `windows-x64`; W and Rust use
+`x86_64-pc-windows-msvc`, while GCC C uses `x86_64-w64-mingw32`.
+The C c2x fallback is correctness-only and cannot enter promoted C23 ranking;
+the current Rust baseline uses edition 2024.
+
+The catalog declares compile latency, run wall time, user/system/total CPU
+time, peak working set, artifact size, exit code, and stdout/stderr without
+collecting measurements. An immutable `executable-result` records correctness
+artifact facts plus at least one warmup and an odd set of at least nine raw
+compile/run samples; summaries are derived from those raw samples. Bun's
+native CPU microseconds and RSS bytes are preserved, including an explicit
+disclosure when CPU samples are zero. Each result freezes a fixed-count,
+monotonic-clock, fresh-process protocol and a redacted environment; direct
+Bun-process CPU/RSS counters do not aggregate descendants. The
+arithmetic mean is an integer floor, and the safe host identity is derived from
+the normalized redacted environment rather than a hostname or user identity.
+`executable-best-known` index is
+derived only from validated results, ranks only optimizable metrics, and its
+contract is defined while the empty index remains `not-established` (it becomes
+`established` only when validated records are present). W execution and timing remain
+deferred to M3b. Recorded measurement evidence is `exploratory`,
+`measurement-only`, and `not-evaluated`; it is not a correctness gate.
+`catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
+`bounded-w-demo`, and `deferred-to-M3b` are separate workload states and do
+not claim that a W benchmark is performance-ready.
+
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em
 [`seed-check-lifecycle.manifest.json`](seed-check-lifecycle.manifest.json).
@@ -170,6 +205,7 @@ Execute os checks focais com:
 
 ```text
 bun run check:bmd
+bun run check:bmd:executable
 bun run check:bmd:byte-scan
 bun run check:bmd:parse
 bun run check:bmd:smoke

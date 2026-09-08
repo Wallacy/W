@@ -18,9 +18,14 @@ import {
   validateManifest,
   validateProgram,
 } from "./benchmark-driven-development-machine.mjs";
+import {
+  loadExecutableDocuments,
+  validateExecutableCatalog,
+} from "./executable-benchmark-machine.mjs";
 
 const root = path.resolve(import.meta.dir, "..");
 const documents = loadBmdDocuments();
+const executableDocuments = loadExecutableDocuments();
 const errors = [];
 
 function fail(message) {
@@ -39,6 +44,7 @@ checkErrors("manifest", validateManifest(documents.manifest));
 checkErrors("corpus", validateCorpus(documents.corpus));
 checkErrors("language catalog", validateLanguageCatalog(documents.languageCatalog));
 checkErrors("byte-scan manifest", validateByteScanManifest(documents.byteScanManifest, documents.languageCatalog));
+checkErrors("executable catalog", validateExecutableCatalog(executableDocuments.catalog, executableDocuments));
 
 const preciseBackendFlags = [
   "compilerLifecycleResultsAllowed",
@@ -61,6 +67,14 @@ for (const [name, backend] of [["program", documents.program.backend], ["manifes
 if (documents.schema?.$id !== SCHEMA_VERSION) fail("schema id must be wbench/1.");
 if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result")) {
   fail("WBench/1 root must expose kind result.");
+}
+
+if (executableDocuments.schema?.$id !== "w-executable-benchmark/3" ||
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/catalog") ||
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result") ||
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestKnown") ||
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestKnownIndex")) {
+  fail("executable benchmark schema must expose catalog, immutable result and derived best-known contracts plus its generated index.");
 }
 if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageCatalog") ||
     !documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageWorkloadManifest")) {
@@ -262,7 +276,7 @@ if (errors.length > 0) {
   for (const error of errors) console.error(error);
   process.exitCode = 1;
 } else {
-  console.log("BMD1/BMD2/BMD3 benchmark protocol: " + LANGUAGE_PROFILES.length +
+  console.log("BMD1/BMD2/BMD3 + executable benchmark protocol: " + LANGUAGE_PROFILES.length +
     " language profiles, 2 lanes, " + LIFECYCLE_SCENARIOS.length +
     " scenarios, " + LIFECYCLE_STAGES.length + " stages, " +
     matrix.points.length + " matrix points, " + cases.length +

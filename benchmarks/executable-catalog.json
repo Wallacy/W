@@ -1,0 +1,285 @@
+{
+  "$schema": "./executable-benchmark.schema.json",
+  "schema": "w-executable-benchmark/3",
+  "kind": "executable-benchmark-catalog",
+  "id": "w-executable-benchmark-catalog",
+  "status": "catalog-ready",
+  "metrics": [
+    { "id": "compile-latency", "unit": "nanoseconds", "kind": "duration", "status": "declared" },
+    { "id": "run-wall-time", "unit": "nanoseconds", "kind": "duration", "status": "declared" },
+    { "id": "cpu-user-time", "unit": "microseconds", "kind": "duration", "status": "declared" },
+    { "id": "cpu-system-time", "unit": "microseconds", "kind": "duration", "status": "declared" },
+    { "id": "cpu-time", "unit": "microseconds", "kind": "duration", "status": "declared" },
+    { "id": "peak-working-set", "unit": "bytes", "kind": "size", "status": "declared" },
+    { "id": "artifact-size", "unit": "bytes", "kind": "size", "status": "declared" },
+    { "id": "exit-code", "unit": "integer", "kind": "exit", "status": "declared" },
+    { "id": "stdout", "unit": "utf8-bytes", "kind": "output", "status": "declared" },
+    { "id": "stderr", "unit": "utf8-bytes", "kind": "output", "status": "declared" }
+  ],
+  "comparabilityAxes": [
+    "source-semantics",
+    "platform-target",
+    "artifact-target",
+    "profile",
+    "toolchain",
+    "host",
+    "recipe",
+    "provenance",
+    "equivalence-key"
+  ],
+  "workloads": [
+    {
+      "id": "hello",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "not-run",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Print one canonical greeting and exit successfully.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Hello, world!\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "benchmarks/executable/hello.w",
+          "digest": "sha256:267fa83d08a74316feffaea140f92fa93f47794b7a04b5647a151cdf1700c397",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "hello-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/hello.c",
+          "digest": "sha256:09bb64051ed8d77e7bde44ebcc2487864123296c236daf7ed671dd5aa0bb1472",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "gcc-c23-or-c2x",
+          "recipeClass": "hello-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-across-abi",
+          "eligibility": "correctness-only-until-c23"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/hello.rs",
+          "digest": "sha256:c8e0583694bb1e0188dbe28fe0d65ac1130723c55f968b6262b906c147f72549",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "hello-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": ["w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
+      "id": "restaurant-branch",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Run the source-backed Restaurant branch witness and preserve its exact observable output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Kitchen open\nAfter service\nKitchen closed\nAfter service\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-if.w",
+          "digest": "sha256:41254b1f1d9e2838d5c5e21b36dcff44cbeea4dc400a3f26b3dc716bd722f719",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "restaurant-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
+      "id": "restaurant-nested-branch",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Run the nested Restaurant branch witness with an exact oracle for both branch levels.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Restaurant open\nKitchen ready\nOpen branch joined\nPost-join service\nRestaurant open\nKitchen closed\nOpen branch joined\nPost-join service\nRestaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\nRestaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-nested-if.w",
+          "digest": "sha256:f9b5e7a9388d97c92886245530f271af81d6f1bb5ad26427b12f0ea95a07e920",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "restaurant-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
+      "id": "bool-short-circuit",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Evaluate !, && and || once, preserving observable short-circuit calls.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+          "digest": "sha256:65bf5d119d5c9dea3597e4fa3215960fd62479f97ffc378f907667d498d3cf56",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "bool-short-circuit-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
+      "id": "restaurant-interpolation",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Interpolate a bounded Restaurant value and preserve exact text output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Table 42 remains open\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-interpolation.w",
+          "digest": "sha256:bfd3d564e79c5b8f5ad9c1b54eb71a049c4264e9ef1ffacf9c5b275e97ce8f13",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "restaurant-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
+      "id": "restaurant-composition",
+      "status": "planned",
+      "sourceReadiness": "not-materialized",
+      "demoEvidence": "not-run",
+      "benchmarkStatus": "planned",
+      "lane": "equivalent",
+      "scope": "Compose the full Restaurant application after runtime, provider and cross-language closure.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "declared",
+        "exitCode": null,
+        "stdout": null,
+        "stderr": null
+      },
+      "sources": [],
+      "blockedLanguages": ["w", "c", "rust"],
+      "blockers": ["runtime", "provider", "cross-language-source-variants"]
+    }
+  ],
+  "resultContract": {
+    "schema": "w-executable-benchmark-result/3",
+    "status": "contract-only",
+    "recordsPath": "benchmarks/history/executables",
+    "requiredIdentity": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "equivalenceKey"],
+    "provenance": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"],
+    "sampling": {
+      "warmupMinimum": 1,
+      "rawMinimum": 9,
+      "rawParity": "odd",
+      "sampleFields": ["wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes"],
+      "cpuUnits": "microseconds",
+      "zeroCpuDisclosure": "OS/process CPU counters are microsecond resolution; zero-valued samples remain valid and do not imply nanosecond precision."
+    },
+    "protocolFields": ["warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock", "processIsolation", "order", "resourceScope", "knownNoiseControls", "unknownNoiseControls", "directProcessDisclosure"],
+    "environmentFields": ["os", "kernel", "cpuModel", "logicalCores", "ramBytes"],
+    "artifact": "Artifact digest and sizeBytes are correctness-build facts, not repeated samples.",
+    "metrics": ["compile-latency", "run-wall-time", "cpu-user-time", "cpu-system-time", "cpu-time", "peak-working-set", "artifact-size", "exit-code", "stdout", "stderr"],
+    "immutability": "A recorded result is append-only; raw samples, derived summaries, identity, correctness and provenance are never overwritten."
+  },
+  "bestKnownContract": {
+    "schema": "w-executable-benchmark-best/3",
+    "status": "defined",
+    "path": "benchmarks/executable-best-known.json",
+    "derivation": "Derived only from validated immutable executable-result records and their recomputed workload equivalence keys.",
+    "optimizableMetrics": ["compile-latency", "run-wall-time", "cpu-time", "peak-working-set", "artifact-size"],
+    "forbiddenMetrics": ["exit-code", "stdout", "stderr"],
+    "rule": "Best-known records contain only the minimum validated median for sampled metrics or one correctness artifact size within one exact workload, platform target, artifact target, release profile, recipe class, toolchain and host identity; correctness outputs never rank."
+  }
+}

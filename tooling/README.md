@@ -28,28 +28,29 @@ bun demo --list
 bun bootstrap --target host
 bun dev run compiler/seed-c/fixtures/hlo0-hello.w
 bun run check:suite-manifest
+bun run check:bmd:executable
 bun run check:study-registry
 bun run study:registry
 ```
 
-A fachada curta em [`dev-cli.mjs`](dev-cli.mjs) lê o catálogo pequeno em
-[`dev-cli.json`](dev-cli.json). `bun check` escolhe `quick` por padrão;
-`compiler`, `docs`, `studies` e `all` apontam para as suítes já ordenadas em
-[`check-suites.json`](check-suites.json), sem manter uma segunda ordem. `--list`
-somente lista e `--dry-run` somente expande o plano.
+The short facade in [`dev-cli.mjs`](dev-cli.mjs) reads the small catalog in
+[`dev-cli.json`](dev-cli.json). `bun check` selects `quick` by default;
+`compiler`, `docs`, `studies`, and `all` point to the already ordered suites in
+[`check-suites.json`](check-suites.json), without maintaining a second order.
+`--list` only lists and `--dry-run` only expands the plan.
 
-`bun demo` executa uma fixture nomeada com o binário público `w run` pela rota
-MLIR atual; não chama `demo:seed-hello` nem HLO1 C. `bun bootstrap --target host`
-usa a recipe local de desenvolvimento, valida `w.exe`/`receipt.json` e nunca
-baixa a toolchain. Nesta primeira fatia, bootstrap, demo e `dev run` são
-Windows x64 nativos; Linux é explicitamente unsupported. `dev run` exige um
-path `.w` explícito, existente e regular; ele pode estar fora do checkout,
-enquanto catálogo, fixture, binário e receipt permanecem contidos. Encaminha
-somente os argumentos após `--`.
-Timers aparecem em stderr como metadata DX non-benchmark. Os aliases
-`check:quick`, `check:compiler`, `check:docs`, `check:studies` e
-`demo:seed-hello` anteriores permanecem como compatibilidade interna durante
-esta transição.
+`bun demo` executes a named fixture with the public `w run` binary through the
+current MLIR route; it does not call `demo:seed-hello` or HLO1 C. `bun bootstrap --target host`
+uses the local development recipe, validates `w.exe` and
+`receipt.json`, and never downloads a toolchain. In this first cut, bootstrap,
+demo, and `dev run` are native Windows x64 operations; Linux is explicitly
+unsupported. `dev run` requires an explicit existing regular `.w` path and may
+accept one outside the checkout, while catalog, fixture, binary, and receipt
+paths remain contained. Only arguments after `--` are forwarded.
+Timers appear on stderr as non-benchmark DX metadata. The earlier
+`check:quick`, `check:compiler`, `check:docs`, `check:studies`, and
+`demo:seed-hello` aliases remain internal compatibility aliases during this
+transition.
 
 Use o runner para inspecionar uma suíte antes de executá-la:
 
@@ -59,8 +60,21 @@ bun tooling/check-suite.mjs --dry-run --suite root-quick
 bun tooling/check-suite.mjs --dry-run --suite root-compiler
 ```
 
-`check:quick` valida manifests, projeções, documentação e parsing mantido sem
-builds C pesados. `check:compiler` executa uma vez os gates do compilador seed,
+`check:quick` validates manifests, the BMD/executable catalogs, projections,
+documentation, and maintained parsing without heavy C builds.
+`check:bmd:executable` is a separate Hello correctness smoke: it never runs W,
+records no timing, and compiles C23/c2x and Rust when toolchains are available.
+The executable catalog uses `windows-x64` as the shared platform class; GCC C
+is recorded as `x86_64-w64-mingw32` and remains contextual/non-ranking across
+ABI, while W and Rust use `x86_64-pc-windows-msvc`. Rust uses edition 2024.
+Future measured records are exploratory, measurement-only, and not-evaluated;
+the catalog's source/oracle readiness does not make W performance-ready.
+Raw wall/RSS samples and artifact sizes are strictly positive; CPU counters may
+be zero at their disclosed microsecond resolution, and arithmetic means use
+integer-floor rounding. Result host identities are derived from normalized
+redacted environment classes, never from hostnames, users, or paths. The
+best-known contract is defined even while its empty index is not-established.
+`check:compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
 interno permanece um gate focal separado (`bun run check:run0`). Os leaves
 `root/check:acquisition`, `root/check:owner-guard` e

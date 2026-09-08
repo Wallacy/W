@@ -64,7 +64,7 @@
       ]
     },
     "root-quick": {
-      "description": "Fast manifests, projections, documentation, and maintained-source parse checks without seed C builds.",
+      "description": "Fast manifests, BMD executable catalog, projections, documentation, and maintained-source parse checks without seed C builds.",
       "steps": [
         { "package": "root", "script": "check:suite-manifest" },
         { "package": "root", "script": "check:platform-support" },
@@ -84,6 +84,7 @@
         { "package": "root", "script": "check:capability-matrix" },
         { "package": "root", "script": "check:maintained-parse" },
         { "package": "root", "script": "check:links" },
+        { "package": "root", "script": "check:bmd" },
         { "package": "root", "script": "design:index:check" },
         { "package": "tree", "script": "generate" },
         { "package": "tree", "script": "test" },
