@@ -9,7 +9,7 @@ Best-known status: **established** (4 promoted records).
 | Workload | Source/oracle readiness | Benchmark status |
 | --- | --- | --- |
 | hello | source-and-oracle-ready; w: [./executable/hello.w](./executable/hello.w); c: [./executable/hello.c](./executable/hello.c); rust: [./executable/hello.rs](./executable/hello.rs); oracle source-backed | not-performance-ready |
-| restaurant-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-if.w](../compiler/seed-c/fixtures/restaurant-if.w); oracle source-backed | deferred-to-M3b |
+| restaurant-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-if.w](../compiler/seed-c/fixtures/restaurant-if.w); c: [./executable/restaurant_branch.c](./executable/restaurant_branch.c); rust: [./executable/restaurant_branch.rs](./executable/restaurant_branch.rs); oracle source-backed | deferred-to-M3b |
 | restaurant-nested-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-nested-if.w](../compiler/seed-c/fixtures/restaurant-nested-if.w); oracle source-backed | deferred-to-M3b |
 | bool-short-circuit | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w); oracle source-backed | deferred-to-M3b |
 | restaurant-interpolation | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-interpolation.w](../compiler/seed-c/fixtures/restaurant-interpolation.w); oracle source-backed | deferred-to-M3b |

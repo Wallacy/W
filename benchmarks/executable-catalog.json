@@ -123,10 +123,40 @@
           "artifactTarget": "x86_64-pc-windows-msvc",
           "comparability": "deferred-until-M3b",
           "eligibility": "deferred-to-M3b"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_branch.c",
+          "digest": "sha256:145a2ab95363c74d471888ee1ddada5bbafe601d70d74a726cea7b95b367ca0a",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "gcc-c23-or-c2x",
+          "recipeClass": "restaurant-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-across-abi",
+          "eligibility": "correctness-only-until-c23"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_branch.rs",
+          "digest": "sha256:0494a6de4a22f3ee93da5a0c7133d1b968d4c1ae7ab950f240fb06cda66aee74",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+      "blockedLanguages": [],
+      "blockers": ["w-executable-runner-and-timing-deferred-to-M3b"]
     },
     {
       "id": "restaurant-nested-branch",

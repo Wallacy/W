@@ -41,33 +41,47 @@ function text(bytes) {
   return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
 }
 
-function sourcePath(language) {
-  return path.resolve(root, documents.catalog.workloads[0].sources.find((item) => item.language === language).path);
+const CORRECTNESS_WORKLOAD_IDS = Object.freeze(["hello", "restaurant-branch"]);
+
+function workloadFor(id) {
+  const workload = documents.catalog.workloads.find((item) => item.id === id);
+  if (!workload) throw new Error("missing correctness workload: " + id);
+  return workload;
 }
 
-async function checkExecutable(language, executable, compileArgs, directory) {
+function sourcePath(workloadId, language) {
+  const source = workloadFor(workloadId).sources.find((item) => item.language === language);
+  if (!source) throw new Error(`missing ${language} source for ${workloadId}`);
+  return path.resolve(root, source.path);
+}
+
+function executablePath(directory, workloadId, language) {
+  return path.join(directory, `${workloadId}-${language}${process.platform === "win32" ? ".exe" : ""}`);
+}
+
+async function checkExecutable(workloadId, language, executable, compileArgs, directory) {
   const compile = await capture(executable, compileArgs, root);
   if (compile.exitCode !== 0) {
     let detail = "";
     try { detail = text(compile.stderr).trim().slice(0, 1200); } catch { detail = "non-UTF-8 diagnostics"; }
-    fail(language + " compile failed with an available toolchain: " + detail);
+    fail(`${language} ${workloadId} compile failed with an available toolchain: ${detail}`);
     return;
   }
-  const run = await capture(path.join(directory, language + (process.platform === "win32" ? ".exe" : "")), [], root);
+  const run = await capture(executablePath(directory, workloadId, language), [], root);
   let output;
   let errorOutput;
   try {
     output = text(run.stdout);
     errorOutput = text(run.stderr);
   } catch {
-    fail(language + " emitted non-UTF-8 stdout or stderr.");
+    fail(`${language} ${workloadId} emitted non-UTF-8 stdout or stderr.`);
     return;
   }
-  const oracle = documents.catalog.workloads[0].oracle;
-  if (run.exitCode !== oracle.exitCode) fail(language + " exit code does not match the Hello oracle.");
-  if (output !== oracle.stdout) fail(language + " stdout does not match the Hello oracle.");
-  if (errorOutput !== oracle.stderr) fail(language + " stderr does not match the Hello oracle.");
-  report(language + " exact output/exit check passed");
+  const oracle = workloadFor(workloadId).oracle;
+  if (run.exitCode !== oracle.exitCode) fail(`${language} ${workloadId} exit code does not match the exact-output oracle.`);
+  if (output !== oracle.stdout) fail(`${language} ${workloadId} stdout does not match the exact-output oracle.`);
+  if (errorOutput !== oracle.stderr) fail(`${language} ${workloadId} stderr does not match the exact-output oracle.`);
+  report(`${language} ${workloadId} exact output/exit check passed`);
 }
 
 async function main() {
@@ -79,7 +93,7 @@ async function main() {
     return;
   }
   report("W source/oracle is declared; execution and timing remain deferred to M3b");
-  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "w-executable-hello-"));
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), "w-executable-correctness-"));
   try {
     const cCandidates = ["gcc", "clang", "cc"].map((name) => Bun.which(name)).filter(Boolean);
     if (cCandidates.length === 0) {
@@ -102,8 +116,10 @@ async function main() {
       if (!c || !dialect) {
         report("C SKIP (x86_64-w64-mingw32 C23/c2x compiler unavailable; no ABI or compiler claim made)");
       } else {
-        const executable = path.join(directory, "c" + (process.platform === "win32" ? ".exe" : ""));
-        await checkExecutable("c", c, [...dialectArgs(dialect), sourcePath("c"), "-o", executable], directory);
+        for (const workloadId of CORRECTNESS_WORKLOAD_IDS) {
+          const executable = executablePath(directory, workloadId, "c");
+          await checkExecutable(workloadId, "c", c, [...dialectArgs(dialect), sourcePath(workloadId, "c"), "-o", executable], directory);
+        }
         report("C dialect: " + dialectDisclosure(dialect));
       }
     }
@@ -111,8 +127,10 @@ async function main() {
     if (!rustc) {
       report("Rust SKIP (rustc unavailable; no compiler claim made)");
     } else {
-      const executable = path.join(directory, "rust" + (process.platform === "win32" ? ".exe" : ""));
-      await checkExecutable("rust", rustc, [sourcePath("rust"), "--edition=2024", "-C", "opt-level=2", "-o", executable], directory);
+      for (const workloadId of CORRECTNESS_WORKLOAD_IDS) {
+        const executable = executablePath(directory, workloadId, "rust");
+        await checkExecutable(workloadId, "rust", rustc, [sourcePath(workloadId, "rust"), "--edition=2024", "-C", "opt-level=2", "-o", executable], directory);
+      }
       report("Rust recipe: rustc --edition=2024 -C opt-level=2");
     }
   } finally {
