@@ -96,6 +96,7 @@ typedef struct {
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
+  w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -255,6 +256,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .parameter_capacity = TEST_HIR_RECORDS,
       .blocks = fixture.hir_blocks,
       .block_capacity = TEST_HIR_RECORDS,
+      .block_arguments = fixture.hir_block_arguments,
+      .block_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -333,6 +336,16 @@ static size_t count_bytes(const uint8_t *bytes, size_t length,
   for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
     if (memcmp(bytes + offset, needle, needle_length) == 0) count += 1u;
   return count;
+}
+
+static size_t find_bytes(const uint8_t *bytes, size_t length,
+                         const char *needle, size_t start) {
+  if (bytes == NULL || needle == NULL || start > length) return SIZE_MAX;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length - start) return SIZE_MAX;
+  for (size_t offset = start; offset + needle_length <= length; offset += 1u)
+    if (memcmp(bytes + offset, needle, needle_length) == 0) return offset;
+  return SIZE_MAX;
 }
 
 static bool append_text(char *buffer, size_t capacity, size_t *offset,
@@ -824,6 +837,611 @@ static bool test_if_diamond_cfg(void) {
   return true;
 }
 
+static bool test_logical_and_diamond(void) {
+  static const uint8_t source[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn allowed(left: Bool): Bool { return left && rhs() }\n"
+      "fn main() { print(\"logical\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.block_count == 6u &&
+        fixture.hir_program.call_count == 2u &&
+        fixture.hir_program.block_argument_count == 1u);
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t function_index = 1u;
+  const w_seed_hir0_terminator *branch = &program->terminators[1];
+  CHECK(branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        branch->logical_operator == W_SEED_HIR0_LOGICAL_AND &&
+        branch->target_block < program->block_count &&
+        branch->else_block < program->block_count);
+  const w_seed_hir0_block *rhs_block_record =
+      &program->blocks[branch->target_block];
+  const w_seed_hir0_block *skip_block_record =
+      &program->blocks[branch->else_block];
+  CHECK(rhs_block_record->owner_function == function_index &&
+        skip_block_record->owner_function == function_index &&
+        rhs_block_record->terminator_index < program->terminator_count &&
+        skip_block_record->terminator_index < program->terminator_count);
+  const w_seed_hir0_terminator *rhs_jump =
+      &program->terminators[rhs_block_record->terminator_index];
+  const w_seed_hir0_terminator *skip_jump =
+      &program->terminators[skip_block_record->terminator_index];
+  CHECK(rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        skip_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        rhs_jump->target_block == skip_jump->target_block &&
+        rhs_jump->target_block < program->block_count &&
+        rhs_jump->incoming_value < program->value_count &&
+        skip_jump->incoming_value < program->value_count);
+  const uint32_t join_block_index = rhs_jump->target_block;
+  const w_seed_hir0_block *join_block_record =
+      &program->blocks[join_block_index];
+  const uint32_t join_argument_index = join_block_record->first_block_argument;
+  CHECK(join_block_record->block_argument_count == 1u &&
+        join_argument_index < program->block_argument_count &&
+        program->block_arguments[join_argument_index].owner_block ==
+            join_block_index &&
+        program->block_arguments[join_argument_index].type_index ==
+            W_SEED_HIR0_TYPE_BOOL);
+  const w_seed_hir0_value *rhs_incoming =
+      &program->values[rhs_jump->incoming_value];
+  const w_seed_hir0_value *skip_incoming =
+      &program->values[skip_jump->incoming_value];
+  CHECK(rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        rhs_incoming->call_index < program->call_count &&
+        skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        !skip_incoming->bool_value);
+  const w_seed_hir0_call *rhs_call_record =
+      &program->calls[rhs_incoming->call_index];
+  CHECK(rhs_call_record->callee_identity < program->identity_count &&
+        program->identities[rhs_call_record->callee_identity].kind ==
+            W_SEED_HIR0_IDENTITY_FUNCTION &&
+        rhs_call_record->owner_block == branch->target_block);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  const size_t artifact_length = emitted.written.mlir_bytes;
+  char branch_text[160];
+  char rhs_label[64];
+  char skip_label[64];
+  char join_label[80];
+  char rhs_call_text[64];
+  char rhs_jump_text[96];
+  char skip_jump_text[96];
+  const int branch_length =
+      snprintf(branch_text, sizeof(branch_text),
+               "llvm.cond_br %%p0, ^w_fn_%u_b_%u, ^w_fn_%u_b_%u",
+               function_index, branch->target_block, function_index,
+               branch->else_block);
+  const int rhs_label_length =
+      snprintf(rhs_label, sizeof(rhs_label), "^w_fn_%u_b_%u:", function_index,
+               branch->target_block);
+  const int skip_label_length =
+      snprintf(skip_label, sizeof(skip_label), "^w_fn_%u_b_%u:", function_index,
+               branch->else_block);
+  const int join_label_length =
+      snprintf(join_label, sizeof(join_label), "^w_fn_%u_b_%u(%%arg%u: i1):",
+               function_index, join_block_index, join_argument_index);
+  const int rhs_call_length = snprintf(
+      rhs_call_text, sizeof(rhs_call_text), "llvm.call @w_fn_%u",
+      program->identities[rhs_call_record->callee_identity].target_index);
+  const int rhs_jump_length = snprintf(
+      rhs_jump_text, sizeof(rhs_jump_text), "llvm.br ^w_fn_%u_b_%u(%%call%u : i1)",
+      function_index, join_block_index, rhs_incoming->call_index);
+  const int skip_jump_length = snprintf(
+      skip_jump_text, sizeof(skip_jump_text), "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)",
+      function_index, join_block_index, skip_jump->incoming_value);
+  CHECK(branch_length > 0 && (size_t)branch_length < sizeof(branch_text) &&
+        rhs_label_length > 0 && (size_t)rhs_label_length < sizeof(rhs_label) &&
+        skip_label_length > 0 && (size_t)skip_label_length < sizeof(skip_label) &&
+        join_label_length > 0 && (size_t)join_label_length < sizeof(join_label) &&
+        rhs_call_length > 0 && (size_t)rhs_call_length < sizeof(rhs_call_text) &&
+        rhs_jump_length > 0 && (size_t)rhs_jump_length < sizeof(rhs_jump_text) &&
+        skip_jump_length > 0 && (size_t)skip_jump_length < sizeof(skip_jump_text));
+  CHECK(contains_bytes(artifact, artifact_length, branch_text));
+  CHECK(contains_bytes(artifact, artifact_length, join_label));
+  CHECK(count_bytes(artifact, artifact_length, "llvm.br ^w_fn_1_b_4(") == 2u);
+  const size_t rhs_block =
+      find_bytes(artifact, artifact_length, rhs_label, 0u);
+  const size_t skip_block =
+      find_bytes(artifact, artifact_length, skip_label, rhs_block);
+  const size_t join_block =
+      find_bytes(artifact, artifact_length, join_label, 0u);
+  const size_t rhs_call =
+      find_bytes(artifact, artifact_length, rhs_call_text, rhs_block);
+  CHECK(rhs_block != SIZE_MAX && skip_block != SIZE_MAX &&
+        join_block != SIZE_MAX && rhs_call != SIZE_MAX &&
+        rhs_call > rhs_block && rhs_call < skip_block &&
+        find_bytes(artifact, artifact_length, rhs_call_text, skip_block) ==
+            SIZE_MAX &&
+        find_bytes(artifact, artifact_length, rhs_call_text, join_block) ==
+            SIZE_MAX && contains_bytes(artifact, artifact_length, rhs_jump_text) &&
+        contains_bytes(artifact, artifact_length, skip_jump_text));
+  return true;
+}
+
+static bool test_logical_unary_not(void) {
+  static const uint8_t source[] =
+      "fn negate(flag: Bool): Bool { return !flag }\n"
+      "fn main() { let negated = negate(flag: true) "
+      "print(\"Unary: ${negated}\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t unary_index = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
+      unary_index = (uint32_t)index;
+      break;
+    }
+  CHECK(unary_index != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value *unary = &program->values[unary_index];
+  CHECK(unary->type_index < program->type_count &&
+        program->types[unary->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+        unary->unary_operator == W_SEED_HIR0_UNARY_NOT &&
+        unary->left_value < program->value_count &&
+        unary->right_value == W_SEED_HIR0_NONE);
+  uint32_t local_call_index = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->call_count; index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[index];
+    if (call->callee_identity < program->identity_count &&
+        program->identities[call->callee_identity].kind ==
+            W_SEED_HIR0_IDENTITY_FUNCTION) {
+      local_call_index = (uint32_t)index;
+      break;
+    }
+  }
+  CHECK(local_call_index != W_SEED_HIR0_NONE &&
+        program->calls[local_call_index].argument_count == 1u &&
+        program->calls[local_call_index].first_argument <
+            program->argument_count &&
+        program->arguments[program->calls[local_call_index].first_argument]
+                .value_index < program->value_count &&
+        program->values[program->arguments[program->calls[local_call_index]
+                                                .first_argument]
+                            .value_index]
+                .kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[program->arguments[program->calls[local_call_index]
+                                                .first_argument]
+                            .value_index]
+                .bool_value);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  char xor_prefix[48];
+  char call_prefix[64];
+  const int xor_length =
+      snprintf(xor_prefix, sizeof(xor_prefix), "%%v%u = llvm.xor ",
+               unary_index);
+  const int call_length = snprintf(
+      call_prefix, sizeof(call_prefix), "llvm.call @w_fn_%u",
+      program->identities[program->calls[local_call_index].callee_identity]
+          .target_index);
+  CHECK(xor_length > 0 && (size_t)xor_length < sizeof(xor_prefix) &&
+        call_length > 0 && (size_t)call_length < sizeof(call_prefix) &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, xor_prefix) &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.mlir.constant(true) : i1") &&
+        count_bytes(artifact, emitted.written.mlir_bytes, call_prefix) == 1u);
+  return true;
+}
+
+static bool test_logical_or_diamond(void) {
+  static const uint8_t source[] =
+      "fn rhs(): Bool { return true }\n"
+      "fn either(left: Bool): Bool { return left || rhs() }\n"
+      "fn main() { print(\"or\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t function_index = 1u;
+  CHECK(function_index < program->function_count);
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  CHECK(function->first_block < program->block_count &&
+        function->block_count <= program->block_count - function->first_block);
+  const w_seed_hir0_terminator *branch = NULL;
+  for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
+    const size_t block_index = (size_t)function->first_block + ordinal;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->terminator_index < program->terminator_count &&
+        program->terminators[block->terminator_index].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH) {
+      branch = &program->terminators[block->terminator_index];
+      break;
+    }
+  }
+  CHECK(branch != NULL && branch->logical_operator == W_SEED_HIR0_LOGICAL_OR &&
+        branch->target_block < program->block_count &&
+        branch->else_block < program->block_count);
+  const w_seed_hir0_block *skip_block_record =
+      &program->blocks[branch->target_block];
+  const w_seed_hir0_block *rhs_block_record =
+      &program->blocks[branch->else_block];
+  CHECK(skip_block_record->terminator_index < program->terminator_count &&
+        rhs_block_record->terminator_index < program->terminator_count);
+  const w_seed_hir0_terminator *skip_jump =
+      &program->terminators[skip_block_record->terminator_index];
+  const w_seed_hir0_terminator *rhs_jump =
+      &program->terminators[rhs_block_record->terminator_index];
+  CHECK(skip_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        skip_jump->target_block == rhs_jump->target_block &&
+        skip_jump->target_block < program->block_count &&
+        skip_jump->incoming_value < program->value_count &&
+        rhs_jump->incoming_value < program->value_count);
+  const w_seed_hir0_block *join_block_record =
+      &program->blocks[skip_jump->target_block];
+  const uint32_t join_argument_index = join_block_record->first_block_argument;
+  CHECK(join_block_record->block_argument_count == 1u &&
+        join_argument_index < program->block_argument_count &&
+        program->block_arguments[join_argument_index].owner_block ==
+            skip_jump->target_block &&
+        program->block_arguments[join_argument_index].type_index ==
+            W_SEED_HIR0_TYPE_BOOL);
+  const w_seed_hir0_value *skip_incoming =
+      &program->values[skip_jump->incoming_value];
+  const w_seed_hir0_value *rhs_incoming =
+      &program->values[rhs_jump->incoming_value];
+  CHECK(skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        skip_incoming->bool_value &&
+        rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        rhs_incoming->call_index < program->call_count);
+  const w_seed_hir0_call *rhs_call_record =
+      &program->calls[rhs_incoming->call_index];
+  CHECK(rhs_call_record->owner_block == branch->else_block &&
+        rhs_call_record->callee_identity < program->identity_count &&
+        program->identities[rhs_call_record->callee_identity].kind ==
+            W_SEED_HIR0_IDENTITY_FUNCTION);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  char branch_text[160];
+  char rhs_label[64];
+  char skip_label[64];
+  char join_label[80];
+  char call_text[64];
+  char skip_jump_text[96];
+  char rhs_jump_text[96];
+  const int branch_length = snprintf(
+      branch_text, sizeof(branch_text),
+      "llvm.cond_br %%p0, ^w_fn_%u_b_%u, ^w_fn_%u_b_%u", function_index,
+      branch->target_block, function_index, branch->else_block);
+  const int rhs_label_length =
+      snprintf(rhs_label, sizeof(rhs_label), "^w_fn_%u_b_%u:", function_index,
+               branch->else_block);
+  const int skip_label_length =
+      snprintf(skip_label, sizeof(skip_label), "^w_fn_%u_b_%u:", function_index,
+               branch->target_block);
+  const int join_label_length =
+      snprintf(join_label, sizeof(join_label), "^w_fn_%u_b_%u(%%arg%u: i1):",
+               function_index, skip_jump->target_block, join_argument_index);
+  const int call_length = snprintf(
+      call_text, sizeof(call_text), "llvm.call @w_fn_%u",
+      program->identities[rhs_call_record->callee_identity].target_index);
+  const int skip_jump_length = snprintf(
+      skip_jump_text, sizeof(skip_jump_text), "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)",
+      function_index, skip_jump->target_block, skip_jump->incoming_value);
+  const int rhs_jump_length = snprintf(
+      rhs_jump_text, sizeof(rhs_jump_text), "llvm.br ^w_fn_%u_b_%u(%%call%u : i1)",
+      function_index, rhs_jump->target_block, rhs_incoming->call_index);
+  CHECK(branch_length > 0 && (size_t)branch_length < sizeof(branch_text) &&
+        rhs_label_length > 0 && (size_t)rhs_label_length < sizeof(rhs_label) &&
+        skip_label_length > 0 && (size_t)skip_label_length < sizeof(skip_label) &&
+        join_label_length > 0 && (size_t)join_label_length < sizeof(join_label) &&
+        call_length > 0 && (size_t)call_length < sizeof(call_text) &&
+        skip_jump_length > 0 && (size_t)skip_jump_length < sizeof(skip_jump_text) &&
+        rhs_jump_length > 0 && (size_t)rhs_jump_length < sizeof(rhs_jump_text));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes, branch_text) &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, join_label) &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, skip_jump_text) &&
+        contains_bytes(artifact, emitted.written.mlir_bytes, rhs_jump_text));
+  const size_t skip_block =
+      find_bytes(artifact, emitted.written.mlir_bytes, skip_label, 0u);
+  const size_t rhs_block =
+      find_bytes(artifact, emitted.written.mlir_bytes, rhs_label, 0u);
+  const size_t join_block =
+      find_bytes(artifact, emitted.written.mlir_bytes, join_label, 0u);
+  const size_t rhs_call =
+      find_bytes(artifact, emitted.written.mlir_bytes, call_text, rhs_block);
+  CHECK(rhs_block != SIZE_MAX && skip_block != SIZE_MAX &&
+        join_block != SIZE_MAX && rhs_call != SIZE_MAX &&
+        skip_block < rhs_block &&
+        rhs_call > rhs_block && rhs_call < join_block &&
+        find_bytes(artifact, emitted.written.mlir_bytes, call_text, join_block) ==
+            SIZE_MAX);
+  return true;
+}
+
+static bool test_logical_nested_diamond(void) {
+  static const uint8_t source[] =
+      "fn rhs(flag: Bool): Bool { return flag }\n"
+      "fn nested(left: Bool): Bool { return left && (false || rhs(flag: true)) }\n"
+      "fn main() { print(\"nested\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const uint32_t function_index = 1u;
+  CHECK(function_index < program->function_count);
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  CHECK(function->first_block < program->block_count &&
+        function->block_count <= program->block_count - function->first_block);
+  const w_seed_hir0_terminator *branches[2] = {NULL, NULL};
+  size_t branch_count = 0u;
+  for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
+    const size_t block_index = (size_t)function->first_block + ordinal;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->terminator_index < program->terminator_count &&
+        program->terminators[block->terminator_index].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (branch_count < 2u)
+        branches[branch_count] = &program->terminators[block->terminator_index];
+      branch_count += 1u;
+    }
+  }
+  CHECK(branch_count == 2u && branches[0] != NULL && branches[1] != NULL &&
+        branches[0]->logical_operator == W_SEED_HIR0_LOGICAL_AND &&
+        branches[1]->logical_operator == W_SEED_HIR0_LOGICAL_OR &&
+        branches[0]->target_block == branches[1]->owner_block &&
+        branches[0]->target_block != branches[0]->else_block);
+  const w_seed_hir0_terminator *outer_branch = branches[0];
+  const w_seed_hir0_terminator *inner_branch = branches[1];
+  const w_seed_hir0_block *inner_skip_block =
+      &program->blocks[inner_branch->target_block];
+  const w_seed_hir0_block *inner_rhs_block =
+      &program->blocks[inner_branch->else_block];
+  const w_seed_hir0_block *outer_skip_block =
+      &program->blocks[outer_branch->else_block];
+  CHECK(inner_skip_block->terminator_index < program->terminator_count &&
+        inner_rhs_block->terminator_index < program->terminator_count &&
+        outer_skip_block->terminator_index < program->terminator_count);
+  const w_seed_hir0_terminator *inner_skip_jump =
+      &program->terminators[inner_skip_block->terminator_index];
+  const w_seed_hir0_terminator *inner_rhs_jump =
+      &program->terminators[inner_rhs_block->terminator_index];
+  const w_seed_hir0_terminator *outer_skip_jump =
+      &program->terminators[outer_skip_block->terminator_index];
+  CHECK(inner_skip_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        inner_rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        outer_skip_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        inner_skip_jump->target_block == inner_rhs_jump->target_block &&
+        inner_skip_jump->target_block < program->block_count &&
+        outer_skip_jump->target_block < program->block_count &&
+        inner_skip_jump->incoming_value < program->value_count &&
+        inner_rhs_jump->incoming_value < program->value_count &&
+        outer_skip_jump->incoming_value < program->value_count);
+  const uint32_t inner_join_index = inner_skip_jump->target_block;
+  const uint32_t outer_join_index = outer_skip_jump->target_block;
+  const w_seed_hir0_block *inner_join = &program->blocks[inner_join_index];
+  const w_seed_hir0_block *outer_join = &program->blocks[outer_join_index];
+  CHECK(inner_join->block_argument_count == 1u &&
+        outer_join->block_argument_count == 1u &&
+        inner_join->first_block_argument < program->block_argument_count &&
+        outer_join->first_block_argument < program->block_argument_count &&
+        program->block_arguments[inner_join->first_block_argument].owner_block ==
+            inner_join_index &&
+        program->block_arguments[outer_join->first_block_argument].owner_block ==
+            outer_join_index);
+  CHECK(inner_join->terminator_index < program->terminator_count);
+  const w_seed_hir0_terminator *outer_rhs_jump =
+      &program->terminators[inner_join->terminator_index];
+  CHECK(outer_rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        outer_rhs_jump->target_block == outer_join_index &&
+        outer_rhs_jump->incoming_value < program->value_count);
+  const w_seed_hir0_value *inner_skip_incoming =
+      &program->values[inner_skip_jump->incoming_value];
+  const w_seed_hir0_value *inner_rhs_incoming =
+      &program->values[inner_rhs_jump->incoming_value];
+  const w_seed_hir0_value *outer_skip_incoming =
+      &program->values[outer_skip_jump->incoming_value];
+  const w_seed_hir0_value *outer_rhs_incoming =
+      &program->values[outer_rhs_jump->incoming_value];
+  CHECK(inner_skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        inner_skip_incoming->bool_value &&
+        inner_rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
+        inner_rhs_incoming->call_index < program->call_count &&
+        outer_skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        !outer_skip_incoming->bool_value &&
+        outer_rhs_incoming->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        outer_rhs_incoming->block_argument_index ==
+            inner_join->first_block_argument);
+  const w_seed_hir0_call *rhs_call_record =
+      &program->calls[inner_rhs_incoming->call_index];
+  CHECK(rhs_call_record->owner_block == inner_branch->else_block &&
+        rhs_call_record->argument_count == 1u &&
+        rhs_call_record->first_argument < program->argument_count &&
+        program->arguments[rhs_call_record->first_argument].value_index <
+            program->value_count &&
+        program->values[program->arguments[rhs_call_record->first_argument]
+                            .value_index]
+                .kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        program->values[program->arguments[rhs_call_record->first_argument]
+                            .value_index]
+                .bool_value &&
+        rhs_call_record->callee_identity < program->identity_count &&
+        program->identities[rhs_call_record->callee_identity].kind ==
+            W_SEED_HIR0_IDENTITY_FUNCTION);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes);
+  char inner_rhs_label[64];
+  char inner_skip_label[64];
+  char inner_join_label[80];
+  char outer_rhs_label[64];
+  char outer_skip_label[64];
+  char outer_join_label[80];
+  char call_text[64];
+  char inner_skip_jump_text[96];
+  char inner_rhs_jump_text[96];
+  char outer_skip_jump_text[96];
+  char outer_rhs_jump_text[96];
+  int length = snprintf(inner_rhs_label, sizeof(inner_rhs_label),
+                        "^w_fn_%u_b_%u:", function_index,
+                        inner_branch->else_block);
+  CHECK(length > 0 && (size_t)length < sizeof(inner_rhs_label));
+  length = snprintf(inner_skip_label, sizeof(inner_skip_label),
+                    "^w_fn_%u_b_%u:", function_index,
+                    inner_branch->target_block);
+  CHECK(length > 0 && (size_t)length < sizeof(inner_skip_label));
+  length = snprintf(inner_join_label, sizeof(inner_join_label),
+                    "^w_fn_%u_b_%u(%%arg%u: i1):", function_index,
+                    inner_join_index, inner_join->first_block_argument);
+  CHECK(length > 0 && (size_t)length < sizeof(inner_join_label));
+  length = snprintf(outer_rhs_label, sizeof(outer_rhs_label),
+                    "^w_fn_%u_b_%u:", function_index,
+                    outer_branch->target_block);
+  CHECK(length > 0 && (size_t)length < sizeof(outer_rhs_label));
+  length = snprintf(outer_skip_label, sizeof(outer_skip_label),
+                    "^w_fn_%u_b_%u:", function_index,
+                    outer_branch->else_block);
+  CHECK(length > 0 && (size_t)length < sizeof(outer_skip_label));
+  length = snprintf(outer_join_label, sizeof(outer_join_label),
+                    "^w_fn_%u_b_%u(%%arg%u: i1):", function_index,
+                    outer_join_index, outer_join->first_block_argument);
+  CHECK(length > 0 && (size_t)length < sizeof(outer_join_label));
+  length = snprintf(
+      call_text, sizeof(call_text), "llvm.call @w_fn_%u",
+      program->identities[rhs_call_record->callee_identity].target_index);
+  CHECK(length > 0 && (size_t)length < sizeof(call_text));
+  length = snprintf(inner_skip_jump_text, sizeof(inner_skip_jump_text),
+                    "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)", function_index,
+                    inner_join_index, inner_skip_jump->incoming_value);
+  CHECK(length > 0 && (size_t)length < sizeof(inner_skip_jump_text));
+  length = snprintf(inner_rhs_jump_text, sizeof(inner_rhs_jump_text),
+                    "llvm.br ^w_fn_%u_b_%u(%%call%u : i1)", function_index,
+                    inner_join_index, inner_rhs_incoming->call_index);
+  CHECK(length > 0 && (size_t)length < sizeof(inner_rhs_jump_text));
+  length = snprintf(outer_skip_jump_text, sizeof(outer_skip_jump_text),
+                    "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)", function_index,
+                    outer_join_index, outer_skip_jump->incoming_value);
+  CHECK(length > 0 && (size_t)length < sizeof(outer_skip_jump_text));
+  length = snprintf(outer_rhs_jump_text, sizeof(outer_rhs_jump_text),
+                    "llvm.br ^w_fn_%u_b_%u(%%arg%u : i1)", function_index,
+                    outer_join_index, inner_join->first_block_argument);
+  CHECK(length > 0 && (size_t)length < sizeof(outer_rhs_jump_text));
+  const size_t artifact_length = emitted.written.mlir_bytes;
+  CHECK(contains_bytes(artifact, artifact_length, inner_skip_jump_text) &&
+        contains_bytes(artifact, artifact_length, inner_rhs_jump_text) &&
+        contains_bytes(artifact, artifact_length, outer_skip_jump_text) &&
+        contains_bytes(artifact, artifact_length, outer_rhs_jump_text) &&
+        count_bytes(artifact, artifact_length, call_text) == 1u);
+  const size_t outer_rhs_position =
+      find_bytes(artifact, artifact_length, outer_rhs_label, 0u);
+  const size_t inner_skip_position =
+      find_bytes(artifact, artifact_length, inner_skip_label, outer_rhs_position);
+  const size_t inner_rhs_position =
+      find_bytes(artifact, artifact_length, inner_rhs_label, inner_skip_position);
+  const size_t inner_join_position =
+      find_bytes(artifact, artifact_length, inner_join_label, inner_rhs_position);
+  const size_t outer_skip_position =
+      find_bytes(artifact, artifact_length, outer_skip_label, inner_join_position);
+  const size_t outer_join_position =
+      find_bytes(artifact, artifact_length, outer_join_label, outer_skip_position);
+  const size_t call_position =
+      find_bytes(artifact, artifact_length, call_text, inner_rhs_position);
+  CHECK(outer_rhs_position != SIZE_MAX && inner_skip_position != SIZE_MAX &&
+        inner_rhs_position != SIZE_MAX && inner_join_position != SIZE_MAX &&
+        outer_skip_position != SIZE_MAX && outer_join_position != SIZE_MAX &&
+        call_position != SIZE_MAX && outer_rhs_position < inner_skip_position &&
+        inner_skip_position < inner_rhs_position &&
+        inner_rhs_position < call_position && call_position < inner_join_position &&
+        inner_join_position < outer_skip_position &&
+        outer_skip_position < outer_join_position &&
+        find_bytes(artifact, artifact_length, call_text, inner_join_position) ==
+            SIZE_MAX);
+  return true;
+}
+
+static bool expect_logical_mlir_invalid(void) {
+  const w_seed_mlir0_input input = mlir_input();
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(output, 0x6au, sizeof(output));
+  w_seed_mlir0_result result;
+  (void)memset(&result, 0x7bu, sizeof(result));
+  const w_seed_mlir0_result snapshot = result;
+  CHECK(w_seed_mlir0_emit(&input, &TARGET,
+                          &(w_seed_mlir0_output){output, sizeof(output)},
+                          &result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0x6au);
+  CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
+  return true;
+}
+
+static bool test_logical_mlir_adversarial(void) {
+  static const uint8_t source[] =
+      "fn rhs(flag: Bool): Bool { return !flag }\n"
+      "fn allowed(left: Bool): Bool { return left && rhs(flag: false) }\n"
+      "fn main() { print(\"invalid\") }\n"
+      "entry(main)\n";
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t unary_index = W_SEED_HIR0_NONE;
+  uint32_t read_index = W_SEED_HIR0_NONE;
+  uint32_t logical_jump_index = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
+        unary_index == W_SEED_HIR0_NONE)
+      unary_index = (uint32_t)index;
+    if (program->values[index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        read_index == W_SEED_HIR0_NONE)
+      read_index = (uint32_t)index;
+  }
+  for (size_t index = 0u; index < program->terminator_count; index += 1u)
+    if (program->terminators[index].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[index].incoming_value != W_SEED_HIR0_NONE) {
+      logical_jump_index = (uint32_t)index;
+      break;
+    }
+  CHECK(unary_index != W_SEED_HIR0_NONE && read_index != W_SEED_HIR0_NONE &&
+        logical_jump_index != W_SEED_HIR0_NONE &&
+        program->block_argument_count > 0u);
+  const w_seed_hir0_value saved_unary = program->values[unary_index];
+  fixture.hir_values[unary_index].unary_operator =
+      (w_seed_hir0_unary_operator)1;
+  CHECK(expect_logical_mlir_invalid());
+  fixture.hir_values[unary_index] = saved_unary;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_block_argument saved_argument =
+      program->block_arguments[0];
+  fixture.hir_block_arguments[0].type_index = W_SEED_HIR0_TYPE_I64;
+  CHECK(expect_logical_mlir_invalid());
+  fixture.hir_block_arguments[0] = saved_argument;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_read = program->values[read_index];
+  fixture.hir_values[read_index].block_argument_index = W_SEED_HIR0_NONE;
+  CHECK(expect_logical_mlir_invalid());
+  fixture.hir_values[read_index] = saved_read;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_jump =
+      program->terminators[logical_jump_index];
+  fixture.hir_terminators[logical_jump_index].incoming_value =
+      W_SEED_HIR0_NONE;
+  CHECK(expect_logical_mlir_invalid());
+  fixture.hir_terminators[logical_jump_index] = saved_jump;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool expect_sequence_unsupported(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
@@ -1101,6 +1719,8 @@ static bool test_aliases(void) {
       {(void *)fixture.hir_functions, sizeof(fixture.hir_functions)},
       {(void *)fixture.hir_parameters, sizeof(fixture.hir_parameters)},
       {(void *)fixture.hir_blocks, sizeof(fixture.hir_blocks)},
+      {(void *)fixture.hir_block_arguments,
+       sizeof(fixture.hir_block_arguments)},
       {(void *)fixture.hir_instructions, sizeof(fixture.hir_instructions)},
       {(void *)fixture.hir_bindings, sizeof(fixture.hir_bindings)},
       {(void *)fixture.hir_calls, sizeof(fixture.hir_calls)},
@@ -1319,6 +1939,11 @@ int main(void) {
   if (!test_direct_unit_call()) return 1;
   if (!test_scalar_return_call_result()) return 1;
   if (!test_if_diamond_cfg()) return 1;
+  if (!test_logical_and_diamond()) return 1;
+  if (!test_logical_unary_not()) return 1;
+  if (!test_logical_or_diamond()) return 1;
+  if (!test_logical_nested_diamond()) return 1;
+  if (!test_logical_mlir_adversarial()) return 1;
   if (!test_interpolation_semantic_barriers()) return 1;
   if (!test_linear_sequence()) return 1;
   if (!test_capacity_and_all_or_nothing()) return 1;

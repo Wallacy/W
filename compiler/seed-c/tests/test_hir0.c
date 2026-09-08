@@ -480,6 +480,27 @@ static bool test_local_binding_lowering(void) {
   return true;
 }
 
+static bool test_bindings_across_functions(void) {
+  static const char SOURCE[] =
+      "fn first() { let first = true }\n"
+      "fn second() { let second = false }\n"
+      "entry(second)\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.binding_count == 2u &&
+        fixture.hir_program.instruction_count == 2u &&
+        fixture.hir_program.value_count == 2u);
+  CHECK(fixture.hir_program.bindings[0].owner_block == 0u &&
+        fixture.hir_program.bindings[0].initializer_value == 0u &&
+        fixture.hir_program.bindings[1].owner_block == 1u &&
+        fixture.hir_program.bindings[1].initializer_value == 1u);
+  CHECK(fixture.hir_program.values[0].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        fixture.hir_program.values[0].bool_value &&
+        fixture.hir_program.values[1].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
+        !fixture.hir_program.values[1].bool_value);
+  return true;
+}
+
 static bool test_local_binding_verify_mutations(void) {
   static const char SOURCE[] =
       "fn main() { let message = \"Table 42 remains open\" "
@@ -2057,6 +2078,7 @@ int main(void) {
   if (!test_function_parameter_records()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
+  if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;
   if (!test_verify_mutations()) return 1;

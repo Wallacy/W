@@ -4213,6 +4213,7 @@ static void emit_records(const w_seed_hir0_input *input,
         &context, frontend->functions[function].first_statement,
         target_function->first_block, W_SEED_HIR0_NONE, true, 0u);
   }
+  size_t binding_cursor = 0u;
   for (size_t function = 0u; function < counts->functions; function += 1u) {
     const w_seed_hir0_function *target_function = &output->functions[function];
     hir0_emit_context context = {
@@ -4231,7 +4232,6 @@ static void emit_records(const w_seed_hir0_input *input,
         .value_index = &value_index,
         .interpolation_segment_index = &interpolation_segment_index,
         .block_argument_index = &block_argument_index};
-    size_t binding_cursor = 0u;
     hir0_emit_chain_values_m2(
         &context, frontend->functions[function].first_statement,
         target_function->first_block, 0u, &binding_cursor);

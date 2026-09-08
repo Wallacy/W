@@ -13,6 +13,7 @@ const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "resta
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
+const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
@@ -523,6 +524,11 @@ try {
       "false/true/true/true/false/false\n" +
       "false/true/false/false/true/true\nAllowed true\nAllowed false\n", "utf8"),
     "Restaurant comparison operators, signed endpoints, and Bool composition")
+  expectSuccess(binary, ["run", toWsl(restaurantBoolShortCircuitFixture)],
+    Buffer.from(
+      "Override checked\nClosed allowed true\nCapacity checked\n" +
+      "Open allowed true\n", "utf8"),
+    "Restaurant Bool short-circuit")
   expectSuccess(binary, ["run", toWsl(restaurantNestedIfFixture)],
     expectedRestaurantNestedIf,
     "Restaurant nested if")

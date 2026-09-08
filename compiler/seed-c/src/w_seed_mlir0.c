@@ -655,6 +655,29 @@ static bool append_program_value_operand(
     uint32_t function_index, uint8_t *artifact, size_t capacity,
     size_t *offset);
 
+static bool append_program_block_argument_name(
+    const w_seed_hir0_program *program, uint32_t block_argument_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      block_argument_index >= program->block_argument_count ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_block_argument *argument =
+      &program->block_arguments[block_argument_index];
+  if (argument->owner_block >= program->block_count || argument->ordinal != 0u ||
+      argument->type_index >= program->type_count ||
+      program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_BOOL)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
+  if (block->owner_function != function_index ||
+      block->block_argument_count != 1u ||
+      block->first_block_argument != block_argument_index)
+    return false;
+  return append_literal(artifact, capacity, offset, "%arg") &&
+         append_size(artifact, capacity, offset, block_argument_index);
+}
+
 static bool append_value_operations(const w_seed_hir0_program *program,
                                     uint8_t *artifact, size_t capacity,
                                     size_t *offset) {
@@ -1039,6 +1062,15 @@ static bool append_program_value_operand(
     return value->call_index < program->call_count &&
            append_literal(artifact, capacity, offset, "%call") &&
            append_size(artifact, capacity, offset, value->call_index);
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
+    return value->type_index < program->type_count &&
+           program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+           append_literal(artifact, capacity, offset, "%v") &&
+           append_size(artifact, capacity, offset, value_index);
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ)
+    return append_program_block_argument_name(
+        program, value->block_argument_index, function_index, artifact,
+        capacity, offset);
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64) &&
@@ -1058,7 +1090,38 @@ static bool append_program_value_tree(
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
       value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
-      value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
+      value->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
+      value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   emitted, artifact, capacity, offset,
+                                   depth + 1u) ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_not_mask = llvm.mlir.constant(true) : i1\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.xor ") ||
+        !append_program_value_operand(program, value->left_value,
+                                      function_index, artifact, capacity,
+                                      offset) ||
+        !append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_not_mask : i1\n"))
+      return false;
     emitted[value_index] = true;
     return true;
   }
@@ -1415,6 +1478,30 @@ static bool append_program_block_label(uint8_t *artifact, size_t capacity,
          (!definition || append_literal(artifact, capacity, offset, ":"));
 }
 
+static bool append_program_block_definition(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t block_index, const w_seed_hir0_block *block, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || block == NULL || artifact == NULL || offset == NULL ||
+      block->block_argument_count > 1u ||
+      (block->block_argument_count == 0u &&
+       block->first_block_argument != W_SEED_HIR0_NONE) ||
+      (block->block_argument_count != 0u &&
+       block->first_block_argument == W_SEED_HIR0_NONE))
+    return false;
+  if (!append_program_block_label(artifact, capacity, offset, function_index,
+                                 block_index, false))
+    return false;
+  if (block->block_argument_count == 1u &&
+      (!append_literal(artifact, capacity, offset, "(") ||
+       !append_program_block_argument_name(
+           program, block->first_block_argument, function_index, artifact,
+           capacity, offset) ||
+       !append_literal(artifact, capacity, offset, ": i1)")))
+    return false;
+  return append_literal(artifact, capacity, offset, ":");
+}
+
 static bool append_program_function(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
     size_t function_index, uint8_t *artifact, size_t capacity,
@@ -1464,11 +1551,12 @@ static bool append_program_function(
     if (block->owner_function != function_index ||
         block->terminator_index >= program->terminator_count)
       return false;
+    if (ordinal == 0u && block->block_argument_count != 0u) return false;
     if (ordinal != 0u &&
         (!append_literal(artifact, capacity, offset, "  ") ||
-         !append_program_block_label(artifact, capacity, offset,
-                                     (uint32_t)function_index,
-                                     (uint32_t)block_index, true) ||
+         !append_program_block_definition(
+             program, (uint32_t)function_index, (uint32_t)block_index, block,
+             artifact, capacity, offset) ||
          !append_literal(artifact, capacity, offset, "\n")))
       return false;
     for (size_t instruction_ordinal = 0u;
@@ -1541,12 +1629,24 @@ static bool append_program_function(
           !append_literal(artifact, capacity, offset, "\n"))
         return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      if (terminator->incoming_value != W_SEED_HIR0_NONE &&
+          !append_program_value_tree(
+              program, terminator->incoming_value, (uint32_t)function_index,
+              emitted, artifact, capacity, offset, 0u))
+        return false;
       if (!append_literal(artifact, capacity, offset, "    llvm.br ") ||
           !append_program_block_label(
               artifact, capacity, offset, (uint32_t)function_index,
-              terminator->target_block, false) ||
-          !append_literal(artifact, capacity, offset, "\n"))
+              terminator->target_block, false))
         return false;
+      if (terminator->incoming_value != W_SEED_HIR0_NONE &&
+          (!append_literal(artifact, capacity, offset, "(") ||
+           !append_program_value_operand(
+               program, terminator->incoming_value,
+               (uint32_t)function_index, artifact, capacity, offset) ||
+           !append_literal(artifact, capacity, offset, " : i1)")))
+        return false;
+      if (!append_literal(artifact, capacity, offset, "\n")) return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
       if (!append_literal(artifact, capacity, offset, "    llvm.return\n"))
         return false;
@@ -1757,6 +1857,8 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
       {program->parameters, program->parameter_capacity,
        sizeof(*program->parameters)},
       {program->blocks, program->block_capacity, sizeof(*program->blocks)},
+      {program->block_arguments, program->block_argument_capacity,
+       sizeof(*program->block_arguments)},
       {program->instructions, program->instruction_capacity,
        sizeof(*program->instructions)},
       {program->bindings, program->binding_capacity,
