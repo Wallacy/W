@@ -4,7 +4,7 @@
 This projection is generated from the executable catalog, immutable history index, and best-known index.
 It records evidence status, not a claim of general Windows support or performance.
 
-Best-known status: **established** (8 promoted records).
+Best-known status: **established** (12 promoted records).
 
 | Workload | Source/oracle readiness | Benchmark status |
 | --- | --- | --- |
@@ -31,6 +31,13 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 - rust — compile-latency 237.4533 ms (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - rust — peak-working-set 4796416 B (4.574 MiB) (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 
+### restaurant-branch
+
+- rust — run-wall-time 21.4716 ms (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
+- rust — artifact-size 115200 B (112.5 KiB) (single-artifact); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
+- rust — compile-latency 1.4367235 s (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
+- rust — peak-working-set 4763648 B (4.543 MiB) (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
+
 ## Current recorded evidence
 
 ### hello
@@ -45,6 +52,7 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 ### restaurant-branch
 
 - c — contextual-non-ranking-across-abi; compile median 291.4917 ms (CPU 31.25 ms, RSS 6074368 B (5.793 MiB)); run median 16.4601 ms (CPU 0 µs, RSS 4673536 B (4.457 MiB)); artifact 19456 B (19 KiB); commit 90ff03d3ba04; toolchain gcc-13.2.0-c2x-preview-x86_64-w64-mingw32; [history record](./history/executables/df6ad2507a190be183593e1076339603b9f58aa38a8469aceaecea8f3eba9032.json)
+- rust — promotable-after-equivalence; compile median 1.4367235 s (CPU 31.25 ms, RSS 12726272 B (12.137 MiB)); run median 21.4716 ms (CPU 0 µs, RSS 4763648 B (4.543 MiB)); artifact 115200 B (112.5 KiB); commit 7dc01230fb5b; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
 
 ## Workload language boundary
 
