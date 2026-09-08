@@ -27,4 +27,3 @@ Local outputs stay ignored under `benchmarks/results/`; the immutable index is
 ## W Hello boundary
 
 The first W executable candidate uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. It is exploratory, measurement-only, and not a public `w run` timing result. W remains contextual/non-ranking until the public route is benchmarkable.
-

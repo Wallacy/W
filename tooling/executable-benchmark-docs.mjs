@@ -102,7 +102,7 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
   if (recorded === 0) {
     lines.push("No clean-HEAD executable result is tracked yet.", "", "The local W Hello command is bounded candidate evidence only: private Native0/MLIR0 Windows source-to-PE, contextual/non-ranking until the public `w run` route is benchmarkable.", "", "Local outputs stay ignored under `benchmarks/results/`; the immutable index is", `${jsonPathLink(projectionPath(EXECUTABLE_HISTORY_INDEX_PATH), "benchmarks/history/executables/index.json")}.`, "");
   }
-  lines.push("## W Hello boundary", "", "The first W executable candidate uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. It is exploratory, measurement-only, and not a public `w run` timing result. W remains contextual/non-ranking until the public route is benchmarkable.", "");
+  lines.push("## W Hello boundary", "", "The first W executable candidate uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. It is exploratory, measurement-only, and not a public `w run` timing result. W remains contextual/non-ranking until the public route is benchmarkable.");
   return lines.join("\n");
 }
 
