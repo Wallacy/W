@@ -2,6 +2,103 @@
   "$schema": "./executable-benchmark.schema.json",
   "schema": "w-executable-benchmark-best/3",
   "kind": "executable-best-known-index",
-  "status": "not-established",
-  "records": []
+  "status": "established",
+  "records": [
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-49705f3398183adeeb4d54d3d4f4308019e32ccda4f12f915ef3bf87d75e52cf",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "artifact-size",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "single-artifact",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:a5d05ddbd4fd4a1318f5f49caf3edb27cf2e2d8472c0e7f6dd306b85dbc95a0d",
+      "value": "130048",
+      "derivedFrom": [
+        "hello-rust-5667ee42e006"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-70fe852a5dcf64f7d6a07b7ea060926a159a95306bdb6bf9b88ce0b45b00a38d",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "run-wall-time",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:a5d05ddbd4fd4a1318f5f49caf3edb27cf2e2d8472c0e7f6dd306b85dbc95a0d",
+      "value": "20346600",
+      "derivedFrom": [
+        "hello-rust-5667ee42e006"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-b23ee6494d30668823f9629515b24bf684ec7a67c7acfa2e15e77508895acda5",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "compile-latency",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:a5d05ddbd4fd4a1318f5f49caf3edb27cf2e2d8472c0e7f6dd306b85dbc95a0d",
+      "value": "237453300",
+      "derivedFrom": [
+        "hello-rust-5667ee42e006"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-ddeeb38d7c86607982ce9c98f8b23efb5ffed0ac23851eef38a3fb1a1b9ca8d0",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "peak-working-set",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:a5d05ddbd4fd4a1318f5f49caf3edb27cf2e2d8472c0e7f6dd306b85dbc95a0d",
+      "value": "4796416",
+      "derivedFrom": [
+        "hello-rust-5667ee42e006"
+      ]
+    }
+  ]
 }

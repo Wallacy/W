@@ -24,7 +24,7 @@ import {
   validateExecutableHistory,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
-import { renderExecutableProjection, renderFromDisk, PROJECTION_PATH, writeAtomicFile } from "./executable-benchmark-docs.mjs";
+import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./executable-benchmark-docs.mjs";
 import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = "benchmarks/results";
@@ -143,8 +143,9 @@ function safeJsonPath(input, label, allowedRoots) {
   return candidate;
 }
 
-async function readResultInput(input) {
-  const candidate = safeJsonPath(input, "result path", [path.resolve(ROOT, RESULTS_PATH), HISTORY_ROOT]);
+async function readResultInput(input, root = ROOT) {
+  const rootPath = path.resolve(root);
+  const candidate = safeJsonPath(input, "result path", [path.resolve(rootPath, RESULTS_PATH), path.resolve(rootPath, RESULT_HISTORY_PATH)]);
   await regularFile(candidate, "result path");
   let value;
   try { value = JSON.parse((await readFile(candidate, "utf8"))); } catch { fail("result path must contain valid JSON"); }
@@ -307,9 +308,9 @@ export async function publishHistoryRecord(record, { root = ROOT, gitState } = {
   }
 }
 
-async function listCommand() {
-  const documents = loadExecutableDocuments();
-  const errors = validateExecutableCatalog(documents.catalog, documents, ROOT);
+async function listCommand(root = ROOT) {
+  const documents = loadExecutableDocuments(root);
+  const errors = validateExecutableCatalog(documents.catalog, documents, root);
   if (errors.length > 0) fail(errors.join("; "));
   console.log(JSON.stringify({
     catalog: documents.catalog.id,
@@ -323,46 +324,48 @@ async function listCommand() {
   }, null, 2));
 }
 
-async function checkCommand() {
-  const documents = loadExecutableDocuments();
-  const historyErrors = validateExecutableHistory(documents.history, documents.catalog, ROOT);
+async function checkCommand(root = ROOT) {
+  const documents = loadExecutableDocuments(root);
+  const historyErrors = validateExecutableHistory(documents.history, documents.catalog, root);
   if (historyErrors.length > 0) fail(historyErrors.join("; "));
-  const historyResults = loadExecutableHistoryResults(documents.history, ROOT);
+  const historyResults = loadExecutableHistoryResults(documents.history, root);
   const resultRecords = historyResults.map((item) => item.record);
   const errors = [
-    ...validateExecutableCatalog(documents.catalog, { ...documents, historyResults: resultRecords }, ROOT),
+    ...validateExecutableCatalog(documents.catalog, { ...documents, historyResults: resultRecords }, root),
     ...validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, resultRecords),
     ...validateExecutableBestKnownFreshness(documents.bestKnown, documents.catalog, resultRecords),
   ];
   if (errors.length > 0) fail(errors.join("; "));
-  const rendered = `${await renderFromDisk(ROOT)}\n`;
-  const current = await readFile(PROJECTION_PATH, "utf8").catch((error) => error?.code === "ENOENT" ? undefined : Promise.reject(error));
-  if (current !== rendered) fail(`generated projection is stale: ${path.relative(ROOT, PROJECTION_PATH).replaceAll(path.sep, "/")}`);
+  const rendered = `${await renderFromDisk(root)}\n`;
+  const projection = path.resolve(root, "benchmarks", "EXECUTABLES.md");
+  const current = await readFile(projection, "utf8").catch((error) => error?.code === "ENOENT" ? undefined : Promise.reject(error));
+  if (current !== rendered) fail(`generated projection is stale: ${path.relative(root, projection).replaceAll(path.sep, "/")}`);
   console.log("benchmark catalog/history/projection: current");
 }
 
-async function runCommand(options) {
-  const output = path.resolve(process.cwd(), options.output);
+async function runCommand(options, root = ROOT) {
+  const output = path.resolve(root, options.output);
   await runBenchmark({ target: options.target, language: options.language, warmup: options.warmup, samples: options.samples, output });
 }
 
 export async function main(argv = process.argv.slice(2), dependencies = {}) {
   const options = parseBenchmarkCliArguments(argv);
+  const root = dependencies.root ?? ROOT;
   if (options.command === "help") {
     console.log(benchmarkUsage());
     return 0;
   }
-  if (options.command === "list") await listCommand();
-  else if (options.command === "check") await checkCommand();
-  else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options);
+  if (options.command === "list") await listCommand(root);
+  else if (options.command === "check") await checkCommand(root);
+  else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options, root);
   else {
-    const { candidate, value } = await readResultInput(options.input);
-    const documents = loadExecutableDocuments();
+    const { candidate, value } = await readResultInput(options.input, root);
+    const documents = loadExecutableDocuments(root);
     const errors = validateExecutableResult(value, documents.catalog);
     if (errors.length > 0) fail(errors.join("; "));
     if (options.command === "record") {
-      const published = await publishHistoryRecord(value);
-      await consumeRecordedLocalResult(candidate);
+      const published = await (dependencies.publishHistoryRecord ?? publishHistoryRecord)(value, { root, gitState: dependencies.gitState });
+      await (dependencies.consumeRecordedLocalResult ?? consumeRecordedLocalResult)(candidate, path.resolve(root, RESULTS_PATH));
       console.log(`recorded ${published.path} (${published.digest})`);
     } else {
       console.log(`valid executable result: ${options.input}`);

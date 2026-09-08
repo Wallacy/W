@@ -4,6 +4,10 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  ROOT,
+  loadExecutableDocuments,
+} from "./executable-benchmark-machine.mjs";
+import {
   benchmarkUsage,
   consumeRecordedLocalResult,
   main,
@@ -82,4 +86,58 @@ test("history boundary rejects dirty and stale provenance before mutation", asyn
     validateRecordBoundary(record, { gitState: { commit: "1".repeat(40), dirty: false } }),
     /does not match current HEAD/,
   );
+});
+
+test("CLI record consumes its candidate only after isolated publication succeeds", async () => {
+  const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "w-benchmark-cli-record-test-"));
+  const files = [
+    "benchmarks/executable-benchmark.schema.json",
+    "benchmarks/executable-catalog.json",
+    "benchmarks/executable-best-known.json",
+    "benchmarks/EXECUTABLES.md",
+    "benchmarks/executable/hello.w",
+    "benchmarks/executable/hello.c",
+    "benchmarks/executable/hello.rs",
+    "compiler/seed-c/fixtures/restaurant-if.w",
+    "compiler/seed-c/fixtures/restaurant-nested-if.w",
+    "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+    "compiler/seed-c/fixtures/restaurant-interpolation.w",
+    "tooling/executable-benchmark-runner.mjs",
+  ];
+  try {
+    for (const relative of files) {
+      const source = path.join(ROOT, relative);
+      const destination = path.join(fixture, relative);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(source, destination);
+    }
+    const sourceHistory = path.join(ROOT, "benchmarks", "history", "executables");
+    const destinationHistory = path.join(fixture, "benchmarks", "history", "executables");
+    fs.mkdirSync(destinationHistory, { recursive: true });
+    for (const name of fs.readdirSync(sourceHistory)) {
+      if (!name.endsWith(".json")) continue;
+      fs.copyFileSync(path.join(sourceHistory, name), path.join(destinationHistory, name));
+    }
+
+    const fixtureDocuments = loadExecutableDocuments(fixture);
+    const rustReference = fixtureDocuments.history.records.find((reference) => reference.id.startsWith("hello-rust-"));
+    const rustRecord = JSON.parse(fs.readFileSync(path.join(destinationHistory, rustReference.path), "utf8"));
+    rustRecord.id = "hello-rust-cli-fixture";
+    rustRecord.provenance.observedAt = "2026-09-08T00:00:01.000Z";
+    const resultsRoot = path.join(fixture, "benchmarks", "results");
+    fs.mkdirSync(resultsRoot, { recursive: true });
+    const candidate = path.join(resultsRoot, "candidate.json");
+    fs.writeFileSync(candidate, JSON.stringify(rustRecord, null, 2) + "\n");
+
+    assert.equal(await main(["record", candidate], {
+      root: fixture,
+      gitState: { commit: rustRecord.provenance.commit, dirty: false },
+    }), 0);
+    assert.equal(fs.existsSync(candidate), false, "successful record must consume the local candidate");
+    assert.equal(fs.existsSync(resultsRoot), false, "successful record must remove an empty local results directory");
+    const published = loadExecutableDocuments(fixture);
+    assert.ok(published.history.records.some((reference) => reference.id === rustRecord.id));
+  } finally {
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
 });

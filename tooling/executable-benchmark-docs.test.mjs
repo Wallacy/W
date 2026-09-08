@@ -56,7 +56,7 @@ test("projection formatting and root-relative record lookup are deterministic", 
       history: { records: [{ id: "record", path: "record.json", digest: "sha256:" + "0".repeat(64) }] },
       root: temporaryRoot,
     });
-    assert.match(rendered, /compile median 1 ms \(CPU .*?, RSS .*?\); run median 2 ms \(CPU 0 ns, RSS 4096 B \(4 KiB\)\); artifact 2048 B \(2 KiB\)/u);
+    assert.match(rendered, /compile median 1 ms \(CPU .*?, RSS .*?\); run median 2 ms \(CPU 0 µs, RSS 4096 B \(4 KiB\)\); artifact 2048 B \(2 KiB\)/u);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
