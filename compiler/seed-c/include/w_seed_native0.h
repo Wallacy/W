@@ -56,6 +56,8 @@ enum {
   /* The frontend statement ceiling bounds total IF records across functions. */
   W_SEED_NATIVE0_HIR_BLOCKS =
       W_SEED_NATIVE0_FUNCTIONS + 3 * W_SEED_NATIVE0_STATEMENTS,
+  /* Logical HIR diamonds own one Bool argument at their join. */
+  W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_TERMINATORS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_INSTRUCTIONS = 128,
   W_SEED_NATIVE0_HIR_BINDINGS = 128,
@@ -110,6 +112,7 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_PARAMETERS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BLOCKS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_INSTRUCTIONS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BINDINGS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_CALLS <= UINT32_MAX &&
@@ -216,6 +219,8 @@ typedef struct {
   w_seed_hir0_function hir_functions[W_SEED_NATIVE0_HIR_FUNCTIONS];
   w_seed_hir0_parameter hir_parameters[W_SEED_NATIVE0_HIR_PARAMETERS];
   w_seed_hir0_block hir_blocks[W_SEED_NATIVE0_HIR_BLOCKS];
+  w_seed_hir0_block_argument
+      hir_block_arguments[W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS];
   w_seed_hir0_instruction hir_instructions[W_SEED_NATIVE0_HIR_INSTRUCTIONS];
   w_seed_hir0_binding hir_bindings[W_SEED_NATIVE0_HIR_BINDINGS];
   w_seed_hir0_call hir_calls[W_SEED_NATIVE0_HIR_CALLS];
