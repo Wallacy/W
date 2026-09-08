@@ -98,7 +98,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Run the source-backed Restaurant branch witness and preserve its exact observable output.",
       "oracle": {
@@ -117,12 +117,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "private-native0-mlir0-source-to-pe-candidate",
           "recipeClass": "restaurant-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "contextual-non-ranking-until-public-run",
+          "eligibility": "contextual-only-until-public-run"
         },
         {
           "language": "c",
@@ -156,7 +156,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": ["w-executable-runner-and-timing-deferred-to-M3b"]
+      "blockers": ["public-w-run-benchmark-route"]
     },
     {
       "id": "restaurant-nested-branch",

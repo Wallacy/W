@@ -7,6 +7,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  readdir,
   realpath,
   rm,
   stat,
@@ -190,7 +191,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target hello|restaurant-branch (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses private Native0/MLIR0 only for the Hello candidate; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the private Native0/MLIR0 source-to-PE candidate for workloads that declare that recipe; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -655,6 +656,10 @@ async function compileRust(context, retain) {
     requireSuccess(step, "Rust compiler");
     const stats = await regularFile(artifact, "Rust PE artifact");
     if (stats.size <= 0) fail("Rust PE artifact is empty");
+    const produced = (await readdir(sampleDirectory)).sort();
+    if (produced.length !== 1 || produced[0] !== path.basename(artifact)) {
+      fail(`Rust compiler produced unexpected release sidecars: ${produced.join(", ")}`);
+    }
     const end = process.hrtime.bigint();
     const sample = chainSample([step], start, end, "Rust compile");
     if (retain) return { sampleDirectory, artifact, sample };
@@ -945,8 +950,11 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const catalogErrors = validateExecutableCatalog(catalog, documents);
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
   const source = await sourcePath(catalog, target, language);
-  if (target === "restaurant-branch" && language === "w" && source.source.recipe === "public-w-run") {
-    fail("restaurant-branch W cannot run: catalog recipe public-w-run has no retained artifact or separate compile-run support; private Native0/MLIR0 is not a route for this target");
+  if (language === "w" && source.source.recipe === "public-w-run") {
+    fail(`${target} W cannot run: catalog recipe public-w-run has no retained artifact or separate compile-run support; private Native0/MLIR0 is not a route for this target`);
+  }
+  if (language === "w" && source.source.recipe !== "private-native0-mlir0-source-to-pe-candidate") {
+    fail(`${target} W has no executable benchmark implementation for catalog recipe ${source.source.recipe}`);
   }
   const runnerDigest = dependencies.runnerDigest ?? await sha256File(path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"));
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);

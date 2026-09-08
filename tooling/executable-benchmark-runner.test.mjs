@@ -56,7 +56,7 @@ test("default executor enforces the Bun child timeout and preserves termination 
 
 test("release recipes prioritize runtime and strip distributable symbols", () => {
   assert.deepEqual(C_RELEASE_FLAGS, ["-O3", "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", "-s"]);
-  assert.deepEqual(RUST_RELEASE_FLAGS, ["-C", "opt-level=3", "-C", "lto=fat", "-C", "codegen-units=1", "-C", "panic=abort", "-C", "debuginfo=0", "-C", "strip=symbols"]);
+  assert.deepEqual(RUST_RELEASE_FLAGS, ["-C", "opt-level=3", "-C", "lto=fat", "-C", "codegen-units=1", "-C", "panic=abort", "-C", "debuginfo=0", "-C", "strip=symbols", "-C", "link-arg=/DEBUG:NONE"]);
   assert.equal(RUST_RELEASE_FLAGS.includes("incremental=off"), false, "rustc treats this as an output directory rather than disabling incremental compilation");
   assert.deepEqual(W_MLIR_OPT_FLAGS, ["--verify-each", "--canonicalize", "--cse"]);
   assert.ok(W_LLC_FLAGS.includes("-O3"));
@@ -106,7 +106,7 @@ function fakeResourceUsage() {
   return { cpuTime: { user: 1, system: 1 }, maxRSS: 4096 };
 }
 
-function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined }) {
+function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined, symbolSidecar = false }) {
   const compiler = path.resolve(`fake-${language === "c" ? "gcc" : "rustc"}.exe`);
   const calls = [];
   const sampleDirectories = new Set();
@@ -149,6 +149,9 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
       const artifact = args[outputIndex + 1];
       sampleDirectories.add(options.cwd);
       await writeFile(artifact, fakePeX64());
+      if (language === "rust" && symbolSidecar) {
+        await writeFile(artifact.replace(/\.exe$/iu, ".pdb"), Buffer.from("debug symbols", "utf8"));
+      }
       return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), resourceUsage: fakeResourceUsage() };
     }
     if (args.length === 0) {
@@ -163,6 +166,55 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
     throw new Error(`unexpected fake executor invocation: ${command} ${args.join(" ")}`);
   };
   return { compiler, calls, sampleDirectories, executor };
+}
+
+function fakeWRunnerExecutor(target) {
+  const calls = [];
+  const sampleDirectories = new Set();
+  const gate = { executable: path.resolve("fake-w-seed-mlir0-gate.exe"), compilerVersion: "19.51.36256.0" };
+  const toolNames = ["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"];
+  const windowsToolchain = {
+    manifestDigest: TEST_DIGEST,
+    materialized: {
+      tools: Object.fromEntries(toolNames.map((name) => [name, {
+        relativePath: `fake/${name}`,
+        sizeBytes: "1",
+        sha256: TEST_DIGEST,
+        version: "23.1.0",
+      }])),
+    },
+    tools: Object.fromEntries(toolNames.map((name) => [name, path.resolve(`fake-${name}`)])),
+    sdk: { path: path.resolve("fake-kernel32.lib") },
+  };
+  const executor = async (command, args, options = {}) => {
+    calls.push({ command, args: [...args], cwd: options.cwd, timeout: options.timeout, killSignal: options.killSignal });
+    const result = (exitCode, stdout = Buffer.alloc(0), stderr = Buffer.alloc(0)) => ({
+      exitCode, stdout, stderr, resourceUsage: fakeResourceUsage(),
+    });
+    if (args.length === 0) {
+      return result(0, Buffer.from(target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
+    }
+    if (command === gate.executable) {
+      if (args.includes("--target=unsupported")) return result(2);
+      return result(0, Buffer.from("x86_64-pc-windows-msvc\n", "utf8"));
+    }
+    const outputIndex = args.indexOf("-o");
+    if (outputIndex >= 0) {
+      const output = args[outputIndex + 1];
+      sampleDirectories.add(options.cwd);
+      await writeFile(output, Buffer.from("generated\n", "utf8"));
+      return result(0);
+    }
+    const linkOutput = args.find((argument) => argument.startsWith("/out:"));
+    if (linkOutput !== undefined) {
+      const output = linkOutput.slice("/out:".length);
+      sampleDirectories.add(options.cwd);
+      await writeFile(output, fakePeX64());
+      return result(0);
+    }
+    throw new Error(`unexpected fake W executor invocation: ${command} ${args.join(" ")}`);
+  };
+  return { calls, sampleDirectories, executor, gate, windowsToolchain };
 }
 
 function fakeRunnerDependencies(language, fake) {
@@ -240,21 +292,37 @@ test("restaurant-branch C and Rust records use target-specific source, oracle an
   }
 });
 
-test("restaurant-branch W fails before any compilation because public-w-run lacks an executable route", async () => {
-  let calls = 0;
+test("Rust release measurement rejects an unexpected PDB sidecar", async () => {
+  const fake = fakeRunnerExecutor({ language: "rust", symbolSidecar: true });
   await assert.rejects(
-    () => runBenchmark({ target: "restaurant-branch", language: "w", warmup: 1, samples: 9, publish: false }, {
-      executor: async () => { calls += 1; throw new Error("unexpected child invocation"); },
-      testOnly: true,
-      testOnlyPlatform: { platform: "win32", arch: "x64" },
-      commit: TEST_COMMIT,
-      environment: TEST_ENVIRONMENT,
-      runnerDigest: TEST_DIGEST,
-      catalogDigest: TEST_DIGEST,
-    }),
-    /restaurant-branch W.*public-w-run.*retained artifact.*separate compile-run.*Native0/iu,
+    () => runBenchmark({ language: "rust", warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies("rust", fake)),
+    /Rust compiler produced unexpected release sidecars: .*\.exe, .*\.pdb/iu,
   );
-  assert.equal(calls, 0);
+  assertNoFakeSampleDirectories(fake);
+});
+
+test("restaurant-branch W uses the private route with a retained correctness artifact and separate run series", async () => {
+  const fake = fakeWRunnerExecutor("restaurant-branch");
+  const { record } = await runBenchmark({ target: "restaurant-branch", language: "w", warmup: 1, samples: 9, publish: false }, {
+    executor: fake.executor,
+    commit: TEST_COMMIT,
+    environment: TEST_ENVIRONMENT,
+    runnerDigest: TEST_DIGEST,
+    catalogDigest: TEST_DIGEST,
+    testOnly: true,
+    testOnlyPlatform: { platform: "win32", arch: "x64" },
+    windowsToolchain: fake.windowsToolchain,
+    gate: fake.gate,
+  });
+  assert.equal(record.workloadId, "restaurant-branch");
+  assert.equal(record.language, "w");
+  assert.equal(record.identity.recipe, "private-native0-mlir0-source-to-pe-candidate");
+  assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
+  assert.equal(record.compile.raw.length, 9);
+  assert.equal(record.run.raw.length, 9);
+  assert.equal(fake.calls.filter((call) => call.args.includes("--target=x86_64-pc-windows-msvc")).length, 12);
+  assert.equal(fake.calls.filter((call) => call.args.length === 0).length, 11);
+  assertNoFakeSampleDirectories(fake);
 });
 
 test("timed-out compiler probes abort before a measurement directory or result exists", async () => {

@@ -9,7 +9,7 @@ Best-known status: **established** (12 promoted records).
 | Workload | Source/oracle readiness | Benchmark status |
 | --- | --- | --- |
 | hello | source-and-oracle-ready; w: [./executable/hello.w](./executable/hello.w); c: [./executable/hello.c](./executable/hello.c); rust: [./executable/hello.rs](./executable/hello.rs); oracle source-backed | not-performance-ready |
-| restaurant-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-if.w](../compiler/seed-c/fixtures/restaurant-if.w); c: [./executable/restaurant_branch.c](./executable/restaurant_branch.c); rust: [./executable/restaurant_branch.rs](./executable/restaurant_branch.rs); oracle source-backed | deferred-to-M3b |
+| restaurant-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-if.w](../compiler/seed-c/fixtures/restaurant-if.w); c: [./executable/restaurant_branch.c](./executable/restaurant_branch.c); rust: [./executable/restaurant_branch.rs](./executable/restaurant_branch.rs); oracle source-backed | not-performance-ready |
 | restaurant-nested-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-nested-if.w](../compiler/seed-c/fixtures/restaurant-nested-if.w); oracle source-backed | deferred-to-M3b |
 | bool-short-circuit | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w); oracle source-backed | deferred-to-M3b |
 | restaurant-interpolation | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-interpolation.w](../compiler/seed-c/fixtures/restaurant-interpolation.w); oracle source-backed | deferred-to-M3b |
@@ -58,10 +58,10 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 
 The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.
 C and Rust routes currently cover `hello`, `restaurant-branch` and preserve each workload's declared artifact ABI.
-W uses the private Native0/MLIR0 gate for `hello` and the pinned Windows MLIR/LLVM/LLD chain.
-Routes for `restaurant-branch`, `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
+W uses the private Native0/MLIR0 gate for `hello`, `restaurant-branch` and the pinned Windows MLIR/LLVM/LLD chain.
+Routes for `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
 Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.
 C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.
-Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort and stripped symbols with the `x86_64-pc-windows-msvc` ABI.
+Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols and `/DEBUG:NONE` to suppress the linker PDB sidecar with the `x86_64-pc-windows-msvc` ABI.
 The private W route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, and links without the CRT.
 All records remain exploratory, measurement-only and not-evaluated.

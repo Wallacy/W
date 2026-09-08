@@ -17,6 +17,7 @@ export const RUST_RELEASE_FLAGS = Object.freeze([
   "-C", "panic=abort",
   "-C", "debuginfo=0",
   "-C", "strip=symbols",
+  "-C", "link-arg=/DEBUG:NONE",
 ]);
 
 export const W_MLIR_OPT_FLAGS = Object.freeze([

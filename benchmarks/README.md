@@ -12,7 +12,8 @@ Neither bundle produces a language or product-runtime result.
 catalog of executable workloads. It keeps stable IDs for `hello`, the four
 source-backed Restaurant witnesses, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
-also has C and Rust sources verified against its exact oracle. The other
+also has a private W Native0/MLIR0 source-to-PE candidate plus C and Rust
+sources verified against its exact oracle. The other
 Restaurant witnesses remain W-only with explicit C/Rust blockers. C is
 contextual and non-ranking across its MinGW ABI. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
