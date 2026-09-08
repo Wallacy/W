@@ -68,6 +68,16 @@ async function checkExecutable(workloadId, language, executable, compileArgs, di
     fail(`${language} ${workloadId} compile failed with an available toolchain: ${detail}`);
     return;
   }
+  if (language === "rust") {
+    const pdb = executablePath(directory, workloadId, language).replace(/\.exe$/iu, ".pdb");
+    try {
+      await fs.stat(pdb);
+      fail(`rust ${workloadId} produced an unexpected PDB sidecar.`);
+      return;
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+  }
   const run = await capture(executablePath(directory, workloadId, language), [], root);
   let output;
   let errorOutput;
@@ -93,7 +103,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  report("W source/oracle is declared; execution and timing remain deferred to M3b");
+  report("W source/oracle is declared; private executable evidence remains contextual/non-ranking until public w run");
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "w-executable-correctness-"));
   try {
     const cCandidates = ["gcc", "clang", "cc"].map((name) => Bun.which(name)).filter(Boolean);
@@ -132,7 +142,7 @@ async function main() {
         const executable = executablePath(directory, workloadId, "rust");
           await checkExecutable(workloadId, "rust", rustc, [sourcePath(workloadId, "rust"), "--edition=2024", ...RUST_RELEASE_FLAGS, "-o", executable], directory);
       }
-      report("Rust release recipe: edition 2024, O3, fat LTO, one codegen unit, panic abort, and stripped symbols");
+      report("Rust release recipe: edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols, and no PDB sidecar");
     }
   } finally {
     await fs.rm(directory, { recursive: true, force: true });

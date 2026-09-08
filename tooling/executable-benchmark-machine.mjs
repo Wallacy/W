@@ -77,7 +77,7 @@ export const CATALOG_STATUS = "catalog-ready";
 export const BEST_KNOWN_CONTRACT_STATUS = "defined";
 
 const SOURCE_ELIGIBILITY = Object.freeze({
-  wHello: Object.freeze({
+  wPrivate: Object.freeze({
     comparability: "contextual-non-ranking-until-public-run",
     eligibility: "contextual-only-until-public-run",
   }),
@@ -93,6 +93,12 @@ const SOURCE_ELIGIBILITY = Object.freeze({
     comparability: "promotable-after-equivalence",
     eligibility: "promotable-after-equivalence",
   }),
+});
+
+const SOURCE_RECIPES = Object.freeze({
+  w: Object.freeze(["private-native0-mlir0-source-to-pe-candidate", "public-w-run"]),
+  c: Object.freeze(["gcc-c23-or-c2x"]),
+  rust: Object.freeze(["rustc-edition-2024"]),
 });
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
@@ -230,6 +236,9 @@ function checkSource(source, location, workload, root, errors) {
   if (!EXECUTABLE_LANGUAGES.includes(source.language)) push(errors, location + ".language is invalid.");
   requiredString(source.entry, location + ".entry", errors);
   requiredString(source.recipe, location + ".recipe", errors);
+  if (SOURCE_RECIPES[source.language] !== undefined && !SOURCE_RECIPES[source.language].includes(source.recipe)) {
+    push(errors, location + ".recipe is not a supported recipe for " + source.language + ".");
+  }
   requiredString(source.recipeClass, location + ".recipeClass", errors);
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
@@ -237,7 +246,7 @@ function checkSource(source, location, workload, root, errors) {
   if (source.platformTarget !== EXECUTABLE_PLATFORM_TARGET) push(errors, location + ".platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + ".");
   const expectedArtifactTarget = source.language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
   if (source.artifactTarget !== expectedArtifactTarget) push(errors, location + ".artifactTarget must be " + expectedArtifactTarget + ".");
-  const expectedPolicy = sourcePolicy(workload, source.language);
+  const expectedPolicy = sourcePolicy(workload, source.language, source.recipe);
   if (source.comparability !== expectedPolicy.comparability) push(errors, location + ".comparability does not match the language ABI and benchmark readiness.");
   if (source.eligibility !== expectedPolicy.eligibility) push(errors, location + ".eligibility does not match the source comparability policy.");
   const expectedExtension = { w: ".w", c: ".c", rust: ".rs" }[source.language];
@@ -384,10 +393,12 @@ function sourceFor(workload, language) {
   return Array.isArray(workload?.sources) ? workload.sources.find((item) => item.language === language) : undefined;
 }
 
-function sourcePolicy(workload, language) {
+function sourcePolicy(workload, language, recipe) {
   if (language === "c") return SOURCE_ELIGIBILITY.c;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
-  return workload?.id === "hello" ? SOURCE_ELIGIBILITY.wHello : SOURCE_ELIGIBILITY.wDeferred;
+  return recipe === "private-native0-mlir0-source-to-pe-candidate"
+    ? SOURCE_ELIGIBILITY.wPrivate
+    : SOURCE_ELIGIBILITY.wDeferred;
 }
 
 function canonicalEquivalencePayload(workload, platformTarget, profile, recipeClass) {
@@ -583,7 +594,7 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   const source = sourceFor(workload, result.language);
   if (!source) push(errors, "executable result language must identify a materialized source.");
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) push(errors, "executable result.language is invalid.");
-  const expectedPolicy = sourcePolicy(workload, result.language);
+  const expectedPolicy = sourcePolicy(workload, result.language, source?.recipe);
   if (source && (source.comparability !== expectedPolicy.comparability || source.eligibility !== expectedPolicy.eligibility)) {
     push(errors, "executable result source comparability and eligibility must match the exact catalog policy.");
   }

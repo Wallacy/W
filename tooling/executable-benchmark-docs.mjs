@@ -147,7 +147,7 @@ function languageBoundaryLines(catalog) {
     `Routes for ${formatWorkloadIds(publicWTargets)} use catalog recipe \`public-w-run\`; the runner fails before compilation until retained-artifact and separate compile-run support exists.`,
     "Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.",
     "C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.",
-    "Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort and stripped symbols with the `x86_64-pc-windows-msvc` ABI.",
+    "Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols and `/DEBUG:NONE` to suppress the linker PDB sidecar with the `x86_64-pc-windows-msvc` ABI.",
     "The private W route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, and links without the CRT.",
     "All records remain exploratory, measurement-only and not-evaluated.",
   ];

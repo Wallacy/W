@@ -65,10 +65,13 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   const restaurant = documents.catalog.workloads.find((item) => item.id === "restaurant-branch");
   assert.equal(restaurant.status, "source-oracle-ready");
   assert.equal(restaurant.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(restaurant.benchmarkStatus, "deferred-to-M3b");
+  assert.equal(restaurant.benchmarkStatus, "not-performance-ready");
   assert.deepEqual(restaurant.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
   assert.deepEqual(restaurant.blockedLanguages, []);
-  assert.deepEqual(restaurant.blockers, ["w-executable-runner-and-timing-deferred-to-M3b"]);
+  assert.deepEqual(restaurant.blockers, ["public-w-run-benchmark-route"]);
+  assert.equal(restaurant.sources.find((item) => item.language === "w").recipe, "private-native0-mlir0-source-to-pe-candidate");
+  assert.equal(restaurant.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-public-run");
+  assert.equal(restaurant.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-public-run");
   assert.equal(restaurant.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
   assert.equal(restaurant.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
   assert.equal(restaurant.sources.find((item) => item.language === "c").eligibility, "correctness-only-until-c23");
@@ -111,6 +114,10 @@ test("catalog rejects stale, escaped, duplicate and partition-drifting records",
   const drifted = clone(documents.catalog);
   drifted.metrics[0].id = "timing-percent";
   assert.match(validateExecutableCatalog(drifted, documents).join("\n"), /metric/);
+
+  const wrongRecipe = clone(documents.catalog);
+  wrongRecipe.workloads[0].sources.find((item) => item.language === "w").recipe = "unscoped-private-route";
+  assert.match(validateExecutableCatalog(wrongRecipe, documents).join("\n"), /recipe is not a supported recipe for w/);
 });
 
 test("history is content-addressed and rejects unindexed entries", () => {
