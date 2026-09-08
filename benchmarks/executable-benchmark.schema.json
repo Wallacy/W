@@ -274,7 +274,7 @@
         "stopRule": { "const": "fixed-count" },
         "wallClock": { "const": "monotonic-nanoseconds" },
         "processIsolation": { "const": "fresh-process-per-sample" },
-        "order": { "const": "deterministic-interleaved" },
+        "order": { "enum": ["deterministic-interleaved", "compile-series-then-run-series"] },
         "resourceScope": { "type": "string" },
         "knownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },
         "unknownNoiseControls": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "uniqueItems": true },

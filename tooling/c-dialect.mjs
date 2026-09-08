@@ -13,15 +13,28 @@ function commandParts(command) {
 }
 
 async function probe(command, dialect, options) {
-  const child = Bun.spawn([
-    ...commandParts(command),
+  const parts = commandParts(command)
+  const args = [
+    ...parts.slice(1),
     ...(options.args ?? []),
     dialect.flag,
     "-x",
     "c",
     "-fsyntax-only",
     "-",
-  ], {
+  ]
+  if (options.executor) {
+    const result = await options.executor(parts[0], args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdin: dialect.source,
+      stdout: "pipe",
+      stderr: "pipe",
+      windowsHide: true,
+    })
+    return result?.exitCode === 0
+  }
+  const child = Bun.spawn([parts[0], ...args], {
     cwd: options.cwd,
     env: options.env,
     stdin: "pipe",

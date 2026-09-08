@@ -12,19 +12,22 @@ import {
 import path from "node:path";
 import {
   EXECUTABLE_HISTORY_INDEX_PATH,
+  BEST_KNOWN_PATH,
   ROOT,
   RESULT_HISTORY_PATH,
+  deriveExecutableBestKnown,
+  loadExecutableHistoryResults,
   loadExecutableDocuments,
   validateExecutableBestKnownIndex,
+  validateExecutableBestKnownFreshness,
   validateExecutableCatalog,
   validateExecutableHistory,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
-import { renderFromDisk, PROJECTION_PATH } from "./executable-benchmark-docs.mjs";
+import { renderExecutableProjection, renderFromDisk, PROJECTION_PATH, writeAtomicFile } from "./executable-benchmark-docs.mjs";
 import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = "benchmarks/results";
-const DEFAULT_OUTPUT = "benchmarks/results/hello-w.local.json";
 const HISTORY_ROOT = path.resolve(ROOT, RESULT_HISTORY_PATH);
 
 function fail(message) {
@@ -94,7 +97,7 @@ export function parseBenchmarkCliArguments(argv) {
     command,
     target: "hello",
     language: "w",
-    output: DEFAULT_OUTPUT,
+    output: undefined,
     warmup: 1,
     samples: 9,
   };
@@ -113,8 +116,9 @@ export function parseBenchmarkCliArguments(argv) {
     else fail(`unknown run option: ${argument}`);
   }
   if (result.target !== "hello") fail(`unsupported target: ${result.target}`);
-  if (result.language !== "w") fail(`unsupported language: ${result.language}`);
+  if (!['w', 'c', 'rust'].includes(result.language)) fail(`unsupported language: ${result.language}`);
   if (result.samples < 9 || result.samples % 2 === 0) fail("--samples must be odd and at least nine");
+  result.output ??= `benchmarks/results/hello-${result.language}.local.json`;
   return result;
 }
 
@@ -123,12 +127,12 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|record|check>",
     "",
     "  list",
-    "  run --target hello --language w [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target hello --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
     "  record <result.json>    (content-addressed history publication; consumes a local result on success)",
     "  check",
     "",
-    "W run is private Native0/MLIR0 Windows source-to-PE candidate evidence only; no public w-run timing is claimed.",
+    "Run measures one Hello source with exact output. W uses private Native0/MLIR0, C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI.",
   ].join("\n");
 }
 
@@ -173,6 +177,14 @@ function outputText(value) {
   return Buffer.from(value ?? "").toString("utf8");
 }
 
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
+function historyReferenceSort(left, right) {
+  return compareText(String(left?.id ?? ""), String(right?.id ?? "")) || compareText(String(left?.path ?? ""), String(right?.path ?? ""));
+}
+
 export async function currentGitState(root = ROOT) {
   const git = Bun.which("git");
   if (!git) fail("git is required for history provenance");
@@ -203,35 +215,26 @@ export async function validateRecordBoundary(record, { root = ROOT, gitState } =
 async function refreshProjection(root) {
   const rendered = `${await renderFromDisk(root)}\n`;
   const projection = path.resolve(root, "benchmarks", "EXECUTABLES.md");
-  await assertNoReparseAncestors(projection, path.resolve(root, "benchmarks"));
-  try {
-    const stats = await lstat(projection);
-    if (!stats.isFile() || stats.isSymbolicLink()) fail("generated projection must be a regular non-link file");
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-  }
-  const temporary = path.join(path.dirname(projection), `.${path.basename(projection)}.${process.pid}-${crypto.randomUUID()}.tmp`);
-  try {
-    await writeFile(temporary, rendered, { flag: "wx" });
-    await rename(temporary, projection);
-  } catch (error) {
-    await rm(temporary, { force: true });
-    throw error;
-  }
+  await writeAtomicFile(projection, rendered, path.resolve(root, "benchmarks"));
 }
 
 export async function publishHistoryRecord(record, { root = ROOT, gitState } = {}) {
   const documents = loadExecutableDocuments(root);
-  const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root);
   const historyErrors = validateExecutableHistory(documents.history, documents.catalog, root);
-  if (catalogErrors.length > 0 || historyErrors.length > 0) fail([...catalogErrors, ...historyErrors].join("; "));
+  if (historyErrors.length > 0) fail(historyErrors.join("; "));
+  const currentResults = loadExecutableHistoryResults(documents.history, root).map((item) => item.record);
+  const catalogErrors = validateExecutableCatalog(documents.catalog, { ...documents, historyResults: currentResults }, root);
+  if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
   const resultErrors = validateExecutableResult(record, documents.catalog);
   if (resultErrors.length > 0) fail(resultErrors.join("; "));
   await validateRecordBoundary(record, { root, gitState });
   const historyRoot = path.resolve(root, RESULT_HISTORY_PATH);
   const historyIndex = path.resolve(root, EXECUTABLE_HISTORY_INDEX_PATH);
+  const bestKnownPath = path.resolve(root, BEST_KNOWN_PATH);
+  const projection = path.resolve(root, "benchmarks", "EXECUTABLES.md");
+  const benchmarksRoot = path.resolve(root, "benchmarks");
   await mkdir(historyRoot, { recursive: true });
-  await assertNoReparseAncestors(historyRoot, path.resolve(root, "benchmarks"));
+  await assertNoReparseAncestors(historyRoot, benchmarksRoot);
   const bytes = jsonBytes(record);
   const digestHex = digestBytes(bytes);
   const digest = `sha256:${digestHex}`;
@@ -247,6 +250,8 @@ export async function publishHistoryRecord(record, { root = ROOT, gitState } = {
   if (documents.history.records.some((reference) => reference.id === record.id)) fail(`history already contains result id: ${record.id}`);
   const temporaryRecord = path.join(historyRoot, `.record-${process.pid}-${crypto.randomUUID()}.tmp`);
   const temporaryIndex = path.join(historyRoot, `.index-${process.pid}-${crypto.randomUUID()}.tmp`);
+  const temporaryBestKnown = path.join(path.dirname(bestKnownPath), `.${path.basename(bestKnownPath)}.${process.pid}-${crypto.randomUUID()}.tmp`);
+  const temporaryProjection = path.join(path.dirname(projection), `.${path.basename(projection)}.${process.pid}-${crypto.randomUUID()}.tmp`);
   let linked = false;
   let indexPublished = false;
   try {
@@ -259,20 +264,44 @@ export async function publishHistoryRecord(record, { root = ROOT, gitState } = {
       ...documents.history,
       status: "recorded",
       records: [...documents.history.records, { id: record.id, path: recordName, digest }]
-        .sort((left, right) => left.id.localeCompare(right.id)),
+        .sort(historyReferenceSort),
     };
     const nextErrors = validateExecutableHistory(nextIndex, documents.catalog, root);
     if (nextErrors.length > 0) fail(nextErrors.join("; "));
+    const nextResults = [...currentResults, record];
+    const nextBestKnown = deriveExecutableBestKnown(documents.catalog, nextResults);
+    const bestKnownErrors = validateExecutableBestKnownIndex(nextBestKnown, documents.catalog, nextResults);
+    if (bestKnownErrors.length > 0) fail(bestKnownErrors.join("; "));
+    await assertNoReparseAncestors(temporaryBestKnown, benchmarksRoot);
+    await assertNoReparseAncestors(temporaryProjection, benchmarksRoot);
     await writeFile(temporaryIndex, `${JSON.stringify(nextIndex, null, 2)}\n`, { flag: "wx" });
     await assertNoReparseAncestors(temporaryIndex, historyRoot);
     await regularFile(historyIndex, "history index");
+    await writeFile(temporaryBestKnown, `${JSON.stringify(nextBestKnown, null, 2)}\n`, { flag: "wx" });
+    await writeFile(temporaryProjection, `${renderExecutableProjection({ catalog: documents.catalog, history: nextIndex, bestKnown: nextBestKnown, root })}\n`, { flag: "wx" });
+    await assertNoReparseAncestors(temporaryIndex, historyRoot);
+    await assertNoReparseAncestors(temporaryBestKnown, benchmarksRoot);
+    await assertNoReparseAncestors(temporaryProjection, benchmarksRoot);
+    try {
+      await regularFile(bestKnownPath, "best-known index");
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    try {
+      await regularFile(projection, "generated projection");
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
     await rename(temporaryIndex, historyIndex);
     indexPublished = true;
-    await refreshProjection(root);
+    await rename(temporaryBestKnown, bestKnownPath);
+    await rename(temporaryProjection, projection);
     return { path: path.relative(root, recordPath).replaceAll(path.sep, "/"), digest };
   } catch (error) {
     await rm(temporaryRecord, { force: true });
     await rm(temporaryIndex, { force: true });
+    await rm(temporaryBestKnown, { force: true });
+    await rm(temporaryProjection, { force: true });
     if (linked && !indexPublished) await rm(recordPath, { force: true });
     throw error;
   }
@@ -296,10 +325,14 @@ async function listCommand() {
 
 async function checkCommand() {
   const documents = loadExecutableDocuments();
+  const historyErrors = validateExecutableHistory(documents.history, documents.catalog, ROOT);
+  if (historyErrors.length > 0) fail(historyErrors.join("; "));
+  const historyResults = loadExecutableHistoryResults(documents.history, ROOT);
+  const resultRecords = historyResults.map((item) => item.record);
   const errors = [
-    ...validateExecutableCatalog(documents.catalog, documents, ROOT),
-    ...validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog),
-    ...validateExecutableHistory(documents.history, documents.catalog, ROOT),
+    ...validateExecutableCatalog(documents.catalog, { ...documents, historyResults: resultRecords }, ROOT),
+    ...validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, resultRecords),
+    ...validateExecutableBestKnownFreshness(documents.bestKnown, documents.catalog, resultRecords),
   ];
   if (errors.length > 0) fail(errors.join("; "));
   const rendered = `${await renderFromDisk(ROOT)}\n`;
@@ -310,7 +343,7 @@ async function checkCommand() {
 
 async function runCommand(options) {
   const output = path.resolve(process.cwd(), options.output);
-  await runBenchmark({ target: options.target, warmup: options.warmup, samples: options.samples, output });
+  await runBenchmark({ target: options.target, language: options.language, warmup: options.warmup, samples: options.samples, output });
 }
 
 export async function main(argv = process.argv.slice(2), dependencies = {}) {
@@ -323,7 +356,7 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
   else if (options.command === "check") await checkCommand();
   else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options);
   else {
-    const { value } = await readResultInput(options.input);
+    const { candidate, value } = await readResultInput(options.input);
     const documents = loadExecutableDocuments();
     const errors = validateExecutableResult(value, documents.catalog);
     if (errors.length > 0) fail(errors.join("; "));

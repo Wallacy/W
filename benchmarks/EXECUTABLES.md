@@ -15,12 +15,21 @@ Best-known status: **not-established** (0 promoted records).
 | restaurant-interpolation | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-interpolation.w](../compiler/seed-c/fixtures/restaurant-interpolation.w); oracle source-backed | deferred-to-M3b |
 | restaurant-composition | not-materialized; no materialized source; oracle declared | planned |
 
+## Best-known validated records
+
+Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.
+
+No promotable executable result is tracked yet.
+
 ## Current recorded evidence
 
 ### hello
 
 - w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 ns, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 
-## W Hello boundary
+## Hello language boundary
 
-The first W executable candidate uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. It is exploratory, measurement-only, and not a public `w run` timing result. W remains contextual/non-ranking until the public route is benchmarkable.
+The runner accepts W, C and Rust Hello sources and checks the same exact-output oracle before warmup and raw samples.
+C probes `-std=c23` and then `-std=c2x`, records the accepted standard honestly, and uses the `x86_64-w64-mingw32` MinGW ABI.
+Rust records its rustc release and uses edition 2024 with the `x86_64-pc-windows-msvc` ABI.
+W uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. All records remain exploratory, measurement-only and not-evaluated.
