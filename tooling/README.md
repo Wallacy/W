@@ -17,15 +17,39 @@ limites das suítes.
 
 ```sh
 bun run tooling:install
-bun run check:quick
-bun run check:compiler
-bun run check:docs
-bun run check:studies
-bun run check
+bun check
+bun check --target compiler
+bun check --target docs
+bun check --target studies
+bun check --target all
+bun check --list
+bun check --target quick --dry-run
+bun demo --list
+bun bootstrap --target host
+bun dev run compiler/seed-c/fixtures/hlo0-hello.w
 bun run check:suite-manifest
 bun run check:study-registry
 bun run study:registry
 ```
+
+A fachada curta em [`dev-cli.mjs`](dev-cli.mjs) lê o catálogo pequeno em
+[`dev-cli.json`](dev-cli.json). `bun check` escolhe `quick` por padrão;
+`compiler`, `docs`, `studies` e `all` apontam para as suítes já ordenadas em
+[`check-suites.json`](check-suites.json), sem manter uma segunda ordem. `--list`
+somente lista e `--dry-run` somente expande o plano.
+
+`bun demo` executa uma fixture nomeada com o binário público `w run` pela rota
+MLIR atual; não chama `demo:seed-hello` nem HLO1 C. `bun bootstrap --target host`
+usa a recipe local de desenvolvimento, valida `w.exe`/`receipt.json` e nunca
+baixa a toolchain. Nesta primeira fatia, bootstrap, demo e `dev run` são
+Windows x64 nativos; Linux é explicitamente unsupported. `dev run` exige um
+path `.w` explícito, existente e regular; ele pode estar fora do checkout,
+enquanto catálogo, fixture, binário e receipt permanecem contidos. Encaminha
+somente os argumentos após `--`.
+Timers aparecem em stderr como metadata DX non-benchmark. Os aliases
+`check:quick`, `check:compiler`, `check:docs`, `check:studies` e
+`demo:seed-hello` anteriores permanecem como compatibilidade interna durante
+esta transição.
 
 Use o runner para inspecionar uma suíte antes de executá-la:
 
@@ -45,8 +69,9 @@ imediatamente depois de OWN0. O gate MAN0 atravessa o caminho OWN0 que consome,
 mas não repete a suíte OWN0 inteira. `tree-check` e `root-check` recebem os
 mesmos leaves por composição. `check:w-cli` continua depois deles como
 regressão pública.
-`check` mantém a suíte integrada histórica. Use `check:docs` e `check:studies`
-para escopos menores.
+`check --target all` mantém a suíte integrada histórica. Use os targets
+`docs` e `studies` para escopos menores; os aliases com dois-pontos acima são
+compatibilidade interna.
 
 Não crie um alias equivalente em `tooling/tree-sitter-w/package.json`. O pacote
 Tree-sitter mantém apenas comandos locais da gramática:

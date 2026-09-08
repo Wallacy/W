@@ -1,0 +1,45 @@
+{
+  "$schema": "w-dev-cli-1",
+  "version": 1,
+  "checks": {
+    "quick": {
+      "suite": "root-quick",
+      "description": "fast manifests, projections, maintained parsing, and cleanup"
+    },
+    "compiler": {
+      "suite": "root-compiler",
+      "description": "seed compiler and bounded native compiler gates"
+    },
+    "docs": {
+      "suite": "root-docs",
+      "description": "documentation projections and link checks"
+    },
+    "studies": {
+      "suite": "root-studies",
+      "description": "registered study oracles and evidence"
+    },
+    "all": {
+      "suite": "root-check",
+      "description": "the integrated repository check"
+    }
+  },
+  "demos": {
+    "hello": {
+      "fixture": "compiler/seed-c/fixtures/hlo0-hello.w",
+      "description": "the smallest public w run"
+    },
+    "bool-short-circuit": {
+      "fixture": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+      "description": "observable Bool short-circuit through the MLIR route"
+    }
+  },
+  "host": {
+    "platform": "win32",
+    "arch": "x64",
+    "binary": "build/w-windows/w.exe",
+    "receipt": "build/w-windows/receipt.json",
+    "recipe": "tooling/build-w-windows.mjs",
+    "profile": "development",
+    "c11Recovery": true
+  }
+}

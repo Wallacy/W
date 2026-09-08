@@ -99,8 +99,17 @@ const nonLocalTreeScripts = treeScriptNames.filter((name) =>
 if (nonLocalTreeScripts.length > 0) {
   errors.push(`Tree-sitter package contains repo-wide scripts: ${nonLocalTreeScripts.join(", ")}`);
 }
-if (rootPackage?.scripts?.check !== "bun tooling/check-suite.mjs --suite root-check") {
-  errors.push("root check must use the declarative root-check suite");
+if (rootPackage?.scripts?.check !== "bun tooling/dev-cli.mjs check") {
+  errors.push("root check must use the declarative dev CLI facade");
+}
+for (const [name, expected] of [
+  ["demo", "bun tooling/dev-cli.mjs demo"],
+  ["bootstrap", "bun tooling/dev-cli.mjs bootstrap"],
+  ["dev", "bun tooling/dev-cli.mjs dev"],
+]) {
+  if (rootPackage?.scripts?.[name] !== expected) {
+    errors.push(`root ${name} must use the declarative dev CLI facade`);
+  }
 }
 if (rootPackage?.scripts?.["check:docs"] !== "bun tooling/check-suite.mjs --suite root-docs") {
   errors.push("root check:docs must use the declarative root-docs suite");
