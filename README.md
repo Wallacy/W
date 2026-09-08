@@ -29,6 +29,12 @@ estruturada bounded com `BRANCH`/`JUMP`, e MLIR0 `w-seed-mlir0-11` emite
 O witness Restaurant [aninhado](compiler/seed-c/fixtures/restaurant-nested-if.w)
 executa os quatro caminhos e o corpo pós-join. Native0
 permanece v6 porque seu contrato público de bytes/records não mudou.
+W-1538 adiciona BOOL0: HIR0 `w-seed-hir0-10` verifica `!`, `&&` e `||` como
+valores Bool e diamonds estruturados com argumentos no join; MLIR0
+`w-seed-mlir0-13` emite `llvm.xor`, `llvm.cond_br` e branches com incoming
+`i1`, com Windows label `w-seed-mlir0-windows-4`. A fixture Restaurant de
+short-circuit passou nos gates Linux/WSL e Windows nativo com stdout exato;
+isso não promove CFG geral ou suporte de plataforma geral.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -107,8 +113,12 @@ comparison operators. HIR9 and MLIR12 produce Bool values through real
 `llvm.icmp` operations. Windows uses artifact label3, and Native0 remains v6.
 Six focused C23 suites and native Linux/Windows comparison gates have passed.
 The Restaurant fixtures verify admission, signed boundaries, and Bool composition.
-No broader runtime arithmetic,
-logical operators, String comparisons, CFG, or platform support is promoted.
+W-1538 adds BOOL0 short-circuit values: HIR10 and MLIR13/Windows4 preserve
+`!`, `&&`, and `||` through join block arguments and incoming `i1` edges, with
+RHS calls confined to the evaluated arm. The Restaurant short-circuit fixture
+passed the Linux/WSL and native Windows gates with exact output. Neither cut
+promotes general runtime arithmetic, scalar CFG, String comparisons, general
+platform support, or performance.
 The runner also keeps minimal/no-else microproofs and equivalent learner,
 idiomatic, and frontier source-style candidates for correctness only; frontier
 is exploratory, with no timing, result, or ranking claim.
@@ -301,7 +311,7 @@ Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v5 LLVM-dialect terminal para um target com NAT1 linear-print e Display signed-`i64` interno bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v13 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64` e BOOL0 short-circuit bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

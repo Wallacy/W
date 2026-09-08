@@ -3456,6 +3456,103 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-mlir0-bool-short-circuit",
+      "reviewItem": "bounded Bool short-circuit lowering against eager RHS evaluation, duplicated calls, and general CFG.",
+      "decisions": [
+        "W-1538"
+      ],
+      "task": "Lower existing Bool negation and short-circuit operators through verified HIR block arguments and real LLVM branch edges, then execute the Restaurant witness.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn rhs(flag: Bool): Bool { return !flag }",
+          "fn allowed(left: Bool, flag: Bool): Bool {",
+          "  return left && (false || rhs(flag: flag))",
+          "}",
+          "fn main() {",
+          "  let result = allowed(left: true, flag: false)",
+          "  print(\"result ${result}\")",
+          "}",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "eager-rhs",
+          "language": "w-rejected",
+          "source": [
+            "let result = eagerAnd(left, rhs(flag))"
+          ],
+          "expectedDifference": "The RHS call executes even when the lhs decides the logical result, so it cannot preserve short-circuit observation."
+        },
+        {
+          "name": "duplicated-call",
+          "language": "w-rejected",
+          "source": [
+            "if left { rhs(flag) } else { rhs(flag) }"
+          ],
+          "expectedDifference": "Duplicating the RHS in arms does not prove once-only evaluation or a single join value."
+        },
+        {
+          "name": "general-cfg",
+          "language": "w-rejected",
+          "source": [
+            "goto join",
+            "join: result = phi(left, rhs(flag))"
+          ],
+          "expectedDifference": "BOOL0 admits only verified structured logical diamonds, not arbitrary user CFG or implicit phi construction."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "HIR verification proves logical diamond edges, incoming Bool values, join block arguments, ownership, ranges, and dominance."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_function",
+          "claim": "MLIR emits llvm.cond_br, branch-carried i1 incoming values, llvm.xor for negation, and RHS calls only in the RHS block."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_logical_adversarial_barriers",
+          "claim": "HIR units cover logical positives and malformed owner, range, edge, dominance, capacity, alias, and transaction boundaries."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_logical_nested_diamond",
+          "claim": "MLIR units inspect nested labels, incoming block arguments, llvm.xor, and RHS call placement."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
+          "symbol": "allowed",
+          "claim": "The Restaurant witness observes that the closed path skips capacity checking and the open path skips the override call."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantBoolShortCircuitFixture",
+          "claim": "The Linux gate checks exact short-circuit stdout through the public native route."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantBoolShortCircuitFixture",
+          "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route."
+        }
+      ],
+      "checks": [
+        "Focused HIR0, MLIR0, and Native0 C23 units passed",
+        "bun run check:w-run — Linux/WSL LLVM native short-circuit fixture passed",
+        "bun run check:w-run-windows --ci — native Windows LLVM short-circuit fixture passed"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

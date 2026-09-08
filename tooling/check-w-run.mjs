@@ -102,7 +102,7 @@ export function validateManifest(manifest, mode = ciMode) {
   if (mode)
     assert(manifest.purpose === "mandatory-native-ci",
       "CI toolchain manifest purpose is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-12" &&
+  assert(manifest.artifact?.schema === "w-seed-mlir0-13" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
