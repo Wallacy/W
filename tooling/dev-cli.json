@@ -18,6 +18,14 @@
       "suite": "root-studies",
       "description": "registered study oracles and evidence"
     },
+    "bmd": {
+      "suite": "root-bmd",
+      "description": "benchmark-driven-development structure and catalog contracts"
+    },
+    "executable": {
+      "suite": "root-executable",
+      "description": "executable benchmark catalog structure without workload execution"
+    },
     "all": {
       "suite": "root-check",
       "description": "the integrated repository check"

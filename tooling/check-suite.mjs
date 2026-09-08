@@ -11,7 +11,12 @@ export const suiteManifestPath = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
   "check-suites.json",
 );
+export const commandRegistryPath = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "command-registry.json",
+);
 export const CHECK_SUITE_SCHEMA = "w-check-suites-1";
+export const COMMAND_REGISTRY_SCHEMA = "w-command-registry-1";
 
 const NAME_PATTERN = /^[A-Za-z][A-Za-z0-9:_-]*$/u;
 
@@ -40,21 +45,160 @@ function readPackage(root, packagePath) {
   }
 }
 
+function readJson(file) {
+  try {
+    return { value: JSON.parse(fs.readFileSync(file, "utf8")), error: null };
+  } catch (error) {
+    return { value: null, error: `${file}: ${error.message}` };
+  }
+}
+
 function validateName(value, label, errors) {
   if (typeof value !== "string" || !NAME_PATTERN.test(value)) {
     errors.push(`${label} must be a non-empty package or script name`);
   }
 }
 
+function exactKeys(value, keys) {
+  return isObject(value) &&
+    JSON.stringify(Object.keys(value).sort()) === JSON.stringify([...keys].sort());
+}
+
+function validateRelativeDirectory(value, label, root, errors) {
+  if (typeof value !== "string" || value.length === 0 || path.isAbsolute(value)) {
+    errors.push(`${label} must be a repository-relative directory`);
+    return null;
+  }
+  const resolved = path.resolve(root, value);
+  if (!isContained(root, resolved)) {
+    errors.push(`${label} escapes the repository root`);
+    return null;
+  }
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+    errors.push(`${label} must name an existing directory`);
+    return null;
+  }
+  return resolved;
+}
+
+function validateArgumentVector(value, label, errors) {
+  if (!Array.isArray(value) || value.length === 0 || value.some((item) => typeof item !== "string")) {
+    errors.push(`${label} must be a non-empty array of strings`);
+    return false;
+  }
+  if (value.some((item) => item.includes("\u0000"))) {
+    errors.push(`${label} must not contain NUL bytes`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Validate the shell-free command registry used by root check leaves.
+ * A command is an ordered list of Bun argv invocations or references to
+ * another command. The registry never stores executable shell text.
+ */
+export function validateCommandRegistry({ registry, root = repositoryRoot } = {}) {
+  const errors = [];
+  if (!isObject(registry)) {
+    return { errors: ["command registry must be an object"], commands: {} };
+  }
+  if (!exactKeys(registry, ["$schema", "version", "commands"])) {
+    errors.push("command registry keys are invalid");
+  }
+  if (registry.$schema !== COMMAND_REGISTRY_SCHEMA) {
+    errors.push(`command registry.$schema must be ${COMMAND_REGISTRY_SCHEMA}`);
+  }
+  if (registry.version !== 1) errors.push("command registry.version must be 1");
+  if (!isObject(registry.commands)) {
+    errors.push("command registry.commands must be an object");
+    return { errors, commands: {} };
+  }
+
+  const commands = registry.commands;
+  for (const [name, command] of Object.entries(commands)) {
+    validateName(name, `command ${JSON.stringify(name)}`, errors);
+    const label = `command ${JSON.stringify(name)}`;
+    if (!isObject(command)) {
+      errors.push(`${label} must be an object`);
+      continue;
+    }
+    if (!exactKeys(command, ["description", "steps"])) {
+      errors.push(`${label} keys are invalid`);
+    }
+    if (typeof command.description !== "string" || command.description.length === 0) {
+      errors.push(`${label} must have a description`);
+    }
+    if (!Array.isArray(command.steps) || command.steps.length === 0) {
+      errors.push(`${label}.steps must be a non-empty array`);
+      continue;
+    }
+    command.steps.forEach((step, index) => {
+      const stepLabel = `${label}.steps[${index}]`;
+      if (!isObject(step)) {
+        errors.push(`${stepLabel} must be an object`);
+        return;
+      }
+      if (step.kind === "command") {
+        if (!exactKeys(step, ["kind", "command"])) {
+          errors.push(`${stepLabel} command reference keys are invalid`);
+        }
+        if (typeof step.command !== "string" || !Object.hasOwn(commands, step.command)) {
+          errors.push(`${stepLabel} references an unknown command`);
+        }
+        return;
+      }
+      if (step.kind !== "bun" || !exactKeys(step, ["kind", "cwd", "args"])) {
+        errors.push(`${stepLabel} must be a bun invocation or command reference`);
+        return;
+      }
+      validateRelativeDirectory(step.cwd, `${stepLabel}.cwd`, root, errors);
+      validateArgumentVector(step.args, `${stepLabel}.args`, errors);
+    });
+  }
+
+  const visiting = new Set();
+  const visited = new Set();
+  function detectCycles(name, trail) {
+    if (visiting.has(name)) {
+      errors.push(`command cycle: ${[...trail, name].join(" -> ")}`);
+      return;
+    }
+    if (visited.has(name) || !Object.hasOwn(commands, name)) return;
+    visiting.add(name);
+    const steps = Array.isArray(commands[name]?.steps) ? commands[name].steps : [];
+    for (const step of steps) {
+      if (isObject(step) && step.kind === "command" && typeof step.command === "string") {
+        detectCycles(step.command, [...trail, name]);
+      }
+    }
+    visiting.delete(name);
+    visited.add(name);
+  }
+  for (const name of Object.keys(commands)) detectCycles(name, []);
+  return { errors, commands };
+}
+
+export function loadCommandRegistry(root = repositoryRoot) {
+  const file = path.join(root, "tooling", "command-registry.json");
+  const loaded = readJson(file);
+  if (loaded.error) throw new Error(`cannot load ${file}: ${loaded.error}`);
+  const validation = validateCommandRegistry({ registry: loaded.value, root });
+  if (validation.errors.length > 0) throw new Error(validation.errors.join("\n"));
+  return { registry: loaded.value, commands: validation.commands };
+}
+
 /**
  * Validate a check-suite manifest without running any child process.
  *
  * The manifest is intentionally small. A leaf step names a package and one
- * script from that package. A suite step names another suite. This keeps the
- * package scripts as stable user-facing aliases while moving aggregate order
- * into one inspectable projection.
+ * command from that package. Root commands resolve through the shell-free
+ * command registry; Tree-sitter leaves remain package-local because their
+ * cwd-sensitive scripts are owned by that package. A suite step names another
+ * suite. This keeps aggregate order in one inspectable projection without
+ * requiring every root leaf to remain in package.json.
  */
-export function validateCheckSuites({ manifest, root = repositoryRoot } = {}) {
+export function validateCheckSuites({ manifest, registry = null, root = repositoryRoot } = {}) {
   const errors = [];
   if (!isObject(manifest)) {
     return { errors: ["manifest must be an object"], packages: {}, suites: {} };
@@ -69,6 +213,19 @@ export function validateCheckSuites({ manifest, root = repositoryRoot } = {}) {
   if (!isObject(manifest.suites)) {
     errors.push("manifest.suites must be an object");
   }
+  let commandRegistry = registry;
+  if (commandRegistry === null) {
+    const loaded = readJson(path.join(root, "tooling", "command-registry.json"));
+    if (loaded.error) {
+      errors.push(loaded.error);
+      commandRegistry = {};
+    } else {
+      commandRegistry = loaded.value;
+    }
+  }
+  const commandValidation = validateCommandRegistry({ registry: commandRegistry, root });
+  errors.push(...commandValidation.errors);
+  const commands = commandValidation.commands;
   const packageRecords = {};
   const suites = isObject(manifest.suites) ? manifest.suites : {};
   const packages = isObject(manifest.packages) ? manifest.packages : {};
@@ -89,7 +246,7 @@ export function validateCheckSuites({ manifest, root = repositoryRoot } = {}) {
       errors.push(metadata.__error);
       continue;
     }
-    if (!isObject(metadata.scripts)) {
+    if (name !== "root" && !isObject(metadata.scripts)) {
       errors.push(`package ${JSON.stringify(name)} must define scripts`);
     }
     packageRecords[name] = { path: packagePath, metadata };
@@ -131,6 +288,12 @@ export function validateCheckSuites({ manifest, root = repositoryRoot } = {}) {
       }
       if (typeof step.script !== "string" || !NAME_PATTERN.test(step.script)) {
         errors.push(`${label}.script must be a valid script name`);
+        return;
+      }
+      if (step.package === "root") {
+        if (!Object.hasOwn(commands, step.script)) {
+          errors.push(`${label} references missing command ${JSON.stringify(step.script)}`);
+        }
         return;
       }
       const scripts = isObject(packageRecords[step.package].metadata.scripts)
@@ -192,7 +355,7 @@ export function validateCheckSuites({ manifest, root = repositoryRoot } = {}) {
     }
   }
 
-  return { errors, packages: packageRecords, suites };
+  return { errors, packages: packageRecords, commands, registry: commandRegistry, suites };
 }
 
 export function flattenCheckSuite({ suites, suiteName } = {}) {
@@ -216,12 +379,15 @@ export function flattenCheckSuite({ suites, suiteName } = {}) {
 
 export function loadCheckSuites(root = repositoryRoot) {
   const manifestPath = path.join(root, "tooling", "check-suites.json");
-  const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  const validation = validateCheckSuites({ manifest, root });
+  const loadedManifest = readJson(manifestPath);
+  if (loadedManifest.error) throw new Error(`cannot load ${manifestPath}: ${loadedManifest.error}`);
+  const manifest = loadedManifest.value;
+  const loadedRegistry = loadCommandRegistry(root);
+  const validation = validateCheckSuites({ manifest, registry: loadedRegistry.registry, root });
   if (validation.errors.length > 0) {
     throw new Error(validation.errors.join("\n"));
   }
-  return { manifest, ...validation };
+  return { manifest, ...validation, registry: loadedRegistry.registry, commands: loadedRegistry.commands };
 }
 
 export function parseCheckSuiteArguments(argv) {
@@ -271,7 +437,101 @@ export function parseCheckSuiteArguments(argv) {
   return options;
 }
 
-export function runCheckSuite({ root, packageRecords, suites, suiteName, dryRun }) {
+export function flattenCommand({ commands, commandName } = {}) {
+  if (!isObject(commands) || typeof commandName !== "string" || !Object.hasOwn(commands, commandName)) {
+    throw new Error(`unknown command ${JSON.stringify(commandName)}`);
+  }
+  const steps = [];
+  const visiting = new Set();
+  function visit(name) {
+    if (visiting.has(name)) throw new Error(`command cycle at ${name}`);
+    const command = commands[name];
+    if (!isObject(command) || !Array.isArray(command.steps)) {
+      throw new Error(`command ${JSON.stringify(name)} is malformed`);
+    }
+    visiting.add(name);
+    for (const step of command.steps) {
+      if (step.kind === "command") visit(step.command);
+      else steps.push({ command: name, cwd: step.cwd, args: step.args });
+    }
+    visiting.delete(name);
+  }
+  visit(commandName);
+  return steps;
+}
+
+function childStatus(result) {
+  if (result?.error) return null;
+  if (Number.isInteger(result?.status)) return result.status;
+  if (Number.isInteger(result?.exitCode)) return result.exitCode;
+  return 1;
+}
+
+function runInvocation({ root, invocation, spawn = spawnSync }) {
+  let result;
+  try {
+    result = spawn(process.execPath, invocation.args, {
+      cwd: path.resolve(root, invocation.cwd),
+      stdio: "inherit",
+      windowsHide: true,
+      shell: false,
+    });
+  } catch (error) {
+    process.stderr.write(`command-runner: child process failed: ${error.message}\n`);
+    return 1;
+  }
+  if (result?.error) {
+    process.stderr.write(`command-runner: child process failed: ${result.error.message}\n`);
+    return 1;
+  }
+  return childStatus(result);
+}
+
+export function runCommand({
+  root = repositoryRoot,
+  commandRecords,
+  commandName,
+  dryRun = false,
+  spawn = spawnSync,
+  log = true,
+  prefix = "command-runner",
+  forwardArgs = [],
+} = {}) {
+  let invocations;
+  try {
+    invocations = flattenCommand({ commands: commandRecords, commandName });
+  } catch (error) {
+    process.stderr.write(`${prefix}: ${error.message}\n`);
+    return 2;
+  }
+  if (!Array.isArray(forwardArgs) || forwardArgs.some((argument) => typeof argument !== "string")) {
+    process.stderr.write(`${prefix}: forwarded arguments must be an array of strings\n`);
+    return 2;
+  }
+  if (forwardArgs.length > 0) {
+    const last = invocations.at(-1);
+    last.args = [...last.args, ...forwardArgs];
+  }
+  for (const [index, invocation] of invocations.entries()) {
+    const label = `${prefix}: ${commandName} ${index + 1}/${invocations.length}`;
+    if (dryRun) {
+      process.stdout.write(`${label} bun ${invocation.args.join(" ")} (dry-run)\n`);
+      continue;
+    }
+    if (log) process.stderr.write(`${label} start\n`);
+    const startedAt = process.hrtime.bigint();
+    const status = runInvocation({ root, invocation, spawn });
+    const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+    if (status !== 0) {
+      if (log) process.stderr.write(`${label} failed after ${durationMs.toFixed(1)} ms: exit ${status}\n`);
+      return status;
+    }
+    if (log) process.stderr.write(`${label} ok after ${durationMs.toFixed(1)} ms\n`);
+  }
+  return 0;
+}
+
+export function runCheckSuite({ root, packageRecords, commandRecords = {}, suites, suiteName, dryRun, spawn = spawnSync }) {
   const steps = flattenCheckSuite({ suites, suiteName });
   for (const [index, step] of steps.entries()) {
     const packageRecord = packageRecords[step.package];
@@ -283,19 +543,26 @@ export function runCheckSuite({ root, packageRecords, suites, suiteName, dryRun 
     }
     process.stderr.write(`check-suite: ${label} start\n`);
     const startedAt = process.hrtime.bigint();
-    const result = spawnSync(process.execPath, ["run", step.script], {
-      cwd,
-      stdio: "inherit",
-      windowsHide: true,
-    });
+    const status = step.package === "root"
+      ? runCommand({
+        root,
+        commandRecords,
+        commandName: step.script,
+        spawn,
+        log: false,
+        prefix: "check-suite",
+      })
+      : childStatus(spawn(process.execPath, ["run", step.script], {
+        cwd,
+        stdio: "inherit",
+        windowsHide: true,
+        shell: false,
+      }));
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
     const duration = `${durationMs.toFixed(1)} ms`;
-    if (result.error || result.status !== 0) {
-      const status = result.error ? result.error.message : `exit ${result.status ?? "unknown"}`;
-      process.stderr.write(
-        `check-suite: ${label} failed after ${duration}: ${status}\n`,
-      );
-      return result.status === null ? 1 : (result.status ?? 1);
+    if (status !== 0) {
+      process.stderr.write(`check-suite: ${label} failed after ${duration}: exit ${status}\n`);
+      return status;
     }
     process.stderr.write(`check-suite: ${label} ok after ${duration}\n`);
   }
@@ -344,6 +611,7 @@ export function main(argv = process.argv.slice(2)) {
   return runCheckSuite({
     root: repositoryRoot,
     packageRecords: loaded.packages,
+    commandRecords: loaded.commands,
     suites: loaded.suites,
     suiteName: options.suite,
     dryRun: options.dryRun,

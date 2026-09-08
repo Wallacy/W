@@ -128,21 +128,19 @@ bun run tooling:install
 Comandos públicos:
 
 ```sh
-bun run check:quick
-bun run check:compiler
-bun run check:docs
-bun run check:studies
-bun run check
-bun run check:suite-manifest
-bun run check:platform-support
-bun run check:dependency-currency
-bun run check:study-registry
+bun check --target quick
+bun check --target compiler
+bun check --target docs
+bun check --target studies
+bun check --target bmd
+bun check --target executable
+bun check
 bun run study:registry
 ```
 
-`check:quick` é a validação rápida de manifests, docs, projeções e parsing
-mantido. `check:compiler` executa os gates do compilador seed uma vez. O
-manifesto e a ordem podem ser inspecionados com:
+`bun check --target quick` é a validação rápida de manifests, docs, projeções e
+parsing mantido. `bun check --target compiler` executa os gates do compilador
+seed uma vez. O manifesto e a ordem podem ser inspecionados com:
 
 ```sh
 bun tooling/check-suite.mjs --list
@@ -161,13 +159,14 @@ Edite `tooling/dependency-currency.json` e regenere sua projeção com:
 bun tooling/dependency-currency.mjs --write
 ```
 
-## Regra de aliases
+## Regra de comandos
 
-O `package.json` da raiz é a superfície pública para checks em todo o repositório. O
-`tooling/tree-sitter-w/package.json` mantém somente `generate`, `test`,
-`check:injections` e `parse:*` locais. Não adicione o mesmo check nas duas
-superfícies. Um `parse:*` pode usar `--cwd tooling/tree-sitter-w` quando o CLI
-precisar do diretório da grammar.
+O `package.json` da raiz expõe somente a fachada pública e a manutenção
+necessária. Os leaves internos vivem em `tooling/command-registry.json` e são
+executados sem shell por `tooling/command-runner.mjs` ou pela fachada `bun check`.
+O `tooling/tree-sitter-w/package.json` mantém somente `generate`, `test`,
+`check:injections` e `parse:*` locais. Um `parse:*` pode usar `--cwd
+tooling/tree-sitter-w` quando o CLI precisar do diretório da grammar.
 
 ## Fluxo de manutenção
 
