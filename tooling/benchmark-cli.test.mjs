@@ -27,7 +27,22 @@ test("benchmark facade parses bounded commands without shell syntax", () => {
     samples: 9,
   });
   assert.throws(() => parseBenchmarkCliArguments(["list", "--target", "hello"]), /does not accept/);
-  assert.throws(() => parseBenchmarkCliArguments(["run", "--language", "c"]), /unsupported language/);
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--language", "c"]), {
+    command: "run",
+    target: "hello",
+    language: "c",
+    output: "benchmarks/results/hello-c.local.json",
+    warmup: 1,
+    samples: 9,
+  });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--language", "rust"]), {
+    command: "run",
+    target: "hello",
+    language: "rust",
+    output: "benchmarks/results/hello-rust.local.json",
+    warmup: 1,
+    samples: 9,
+  });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--samples", "10"]), /odd/);
   assert.match(benchmarkUsage(), /private Native0\/MLIR0/u);
 });

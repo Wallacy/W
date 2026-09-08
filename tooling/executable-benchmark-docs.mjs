@@ -1,12 +1,16 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
   EXECUTABLE_HISTORY_INDEX_PATH,
   RESULT_HISTORY_PATH,
   ROOT,
+  loadExecutableHistoryResults,
   loadExecutableDocuments,
   validateExecutableCatalog,
+  validateExecutableBestKnownFreshness,
+  validateExecutableBestKnownIndex,
   validateExecutableHistory,
 } from "./executable-benchmark-machine.mjs";
 
@@ -16,9 +20,56 @@ function slash(value) {
   return String(value).replaceAll("\\", "/");
 }
 
+function compareText(left, right) {
+  return left < right ? -1 : left > right ? 1 : 0;
+}
+
 export function projectionPath(repositoryPath) {
   const normalized = slash(repositoryPath);
   return normalized.startsWith("benchmarks/") ? `./${normalized.slice("benchmarks/".length)}` : `../${normalized}`;
+}
+
+function isContained(parent, candidate) {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
+}
+
+async function assertNoReparseAncestors(candidate, stopAt) {
+  let current = path.resolve(candidate);
+  const stop = path.resolve(stopAt);
+  while (isContained(stop, current)) {
+    try {
+      const stats = await lstat(current);
+      if (stats.isSymbolicLink()) throw new Error(`generated path contains a symbolic link: ${current}`);
+    } catch (error) {
+      if (error?.code !== "ENOENT") throw error;
+    }
+    if (current === stop) break;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+}
+
+export async function writeAtomicFile(filePath, contents, stopAt = path.dirname(filePath)) {
+  const parent = path.dirname(filePath);
+  await mkdir(parent, { recursive: true });
+  await assertNoReparseAncestors(filePath, stopAt);
+  try {
+    const stats = await lstat(filePath);
+    if (!stats.isFile() || stats.isSymbolicLink()) throw new Error(`generated target must be a regular non-link file: ${filePath}`);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+  const temporary = path.join(parent, `.${path.basename(filePath)}.${process.pid}-${randomUUID()}.tmp`);
+  try {
+    await writeFile(temporary, contents, { flag: "wx" });
+    await assertNoReparseAncestors(temporary, stopAt);
+    await rename(temporary, filePath);
+  } catch (error) {
+    await rm(temporary, { force: true });
+    throw error;
+  }
 }
 
 function jsonPathLink(relativePath, label = relativePath) {
@@ -74,7 +125,8 @@ function readRecordSync(root, reference) {
 
 function recordedLines(workload, history, root) {
   const lines = [];
-  for (const reference of history?.records ?? []) {
+  const references = [...(history?.records ?? [])].sort((left, right) => compareText(String(left?.id ?? ""), String(right?.id ?? "")) || compareText(String(left?.path ?? ""), String(right?.path ?? "")));
+  for (const reference of references) {
     const record = readRecordSync(root, reference);
     if (!record || record.workloadId !== workload.id) continue;
     const source = workload.sources?.find((item) => item.language === record.language);
@@ -82,6 +134,26 @@ function recordedLines(workload, history, root) {
     lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)} (CPU ${formatMicroseconds(record.compile.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.compile.summary.peakRssBytes.median)}); run median ${formatNanoseconds(record.run.summary.wallNs.median)} (CPU ${formatMicroseconds(record.run.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.run.summary.peakRssBytes.median)}); artifact ${formatBytes(record.artifact.sizeBytes)}; commit ${record.provenance.commit.slice(0, 12)}; toolchain ${record.identity.toolchain}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
   }
   return lines;
+}
+
+function formatBestKnownValue(record) {
+  if (record.metric === "compile-latency" || record.metric === "run-wall-time") return formatNanoseconds(record.value);
+  if (record.metric === "cpu-time") return formatMicroseconds(record.value);
+  return formatBytes(record.value);
+}
+
+function bestKnownLines(workload, bestKnown, history) {
+  const references = new Map((history?.records ?? []).map((reference) => [reference.id, reference]));
+  return (bestKnown?.records ?? [])
+    .filter((record) => record.workloadId === workload.id)
+    .sort((left, right) => compareText(String(left.id), String(right.id)))
+    .map((record) => {
+      const links = (record.derivedFrom ?? []).map((id) => {
+        const reference = references.get(id);
+        return reference ? jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record") : id;
+      }).join(", ");
+      return `- ${record.language} — ${record.metric} ${formatBestKnownValue(record)} (${record.statistic}); toolchain ${record.toolchain}; host ${record.host}; derived from ${links}`;
+    });
 }
 
 export function renderExecutableProjection({ catalog, history, bestKnown, root = ROOT } = {}) {
@@ -102,6 +174,15 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
     const sources = workload.sources?.map(sourceLink).join("; ") || "no materialized source";
     lines.push(`| ${workload.id} | ${workload.sourceReadiness}; ${sources}; oracle ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
+  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.");
+  let bestRecorded = 0;
+  for (const workload of catalog.workloads) {
+    const evidence = bestKnownLines(workload, bestKnown, history);
+    if (evidence.length === 0) continue;
+    bestRecorded += evidence.length;
+    lines.push("", `### ${workload.id}`, "", ...evidence);
+  }
+  if (bestRecorded === 0) lines.push("", "No promotable executable result is tracked yet.");
   lines.push("", "## Current recorded evidence", "");
   let recorded = 0;
   for (const workload of catalog.workloads) {
@@ -113,15 +194,26 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
   if (recorded === 0) {
     lines.push("No clean-HEAD executable result is tracked yet.", "", "The local W Hello command is bounded candidate evidence only: private Native0/MLIR0 Windows source-to-PE, contextual/non-ranking until the public `w run` route is benchmarkable.", "", "Local outputs stay ignored under `benchmarks/results/`; the immutable index is", `${jsonPathLink(projectionPath(EXECUTABLE_HISTORY_INDEX_PATH), "benchmarks/history/executables/index.json")}.`, "");
   }
-  lines.push("## W Hello boundary", "", "The first W executable candidate uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. It is exploratory, measurement-only, and not a public `w run` timing result. W remains contextual/non-ranking until the public route is benchmarkable.");
+  lines.push(
+    "## Hello language boundary",
+    "",
+    "The runner accepts W, C and Rust Hello sources and checks the same exact-output oracle before warmup and raw samples.",
+    "C probes `-std=c23` and then `-std=c2x`, records the accepted standard honestly, and uses the `x86_64-w64-mingw32` MinGW ABI.",
+    "Rust records its rustc release and uses edition 2024 with the `x86_64-pc-windows-msvc` ABI.",
+    "W uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. All records remain exploratory, measurement-only and not-evaluated.",
+  );
   return lines.join("\n");
 }
 
 export async function renderFromDisk(root = ROOT) {
   const documents = loadExecutableDocuments(root);
+  const historyResults = loadExecutableHistoryResults(documents.history, root);
+  const resultRecords = historyResults.map((item) => item.record);
   const errors = [
-    ...validateExecutableCatalog(documents.catalog, documents, root),
     ...validateExecutableHistory(documents.history, documents.catalog, root),
+    ...validateExecutableCatalog(documents.catalog, { ...documents, historyResults: resultRecords }, root),
+    ...validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, resultRecords),
+    ...validateExecutableBestKnownFreshness(documents.bestKnown, documents.catalog, resultRecords),
   ];
   if (errors.length > 0) throw new Error(errors.join("\n"));
   return renderExecutableProjection({ ...documents, root });
@@ -142,7 +234,7 @@ export async function main(argv = process.argv.slice(2)) {
     console.log("executable benchmark projection: current");
     return 0;
   }
-  await writeFile(PROJECTION_PATH, rendered, "utf8");
+  await writeAtomicFile(PROJECTION_PATH, rendered, path.resolve(ROOT, "benchmarks"));
   console.log(`executable benchmark projection: wrote ${PROJECTION_PATH}`);
   return 0;
 }

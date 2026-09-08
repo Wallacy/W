@@ -42,25 +42,29 @@ currently private candidate evidence, not public `w run` timing. Recorded measur
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
 
-### M3b W candidate evidence
+### M3b executable candidate evidence
 
 [`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection
 of the executable catalog, immutable history index, and best-known index. The
-first W Hello route is a private Native0/MLIR0 Windows source-to-PE candidate,
-exploratory and contextual/non-ranking until the public `w run` route is
-benchmarkable. Local measurements remain ignored under `benchmarks/results/`;
+W Hello route is a private Native0/MLIR0 Windows source-to-PE candidate.
+C and Rust use direct compiler recipes with their declared ABIs. Every route
+remains exploratory and measurement-only. W remains contextual/non-ranking
+until the public `w run` route is benchmarkable. Local measurements remain ignored under `benchmarks/results/`;
 only a rerun from a clean committed HEAD may add a content-addressed history
 record. The history index rejects records whose filename is not the SHA-256
 digest of their canonical bytes, and rejects unindexed entries.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
-`run --target hello --language w --output benchmarks/results/<new>.json` for a
-local private candidate measurement, `validate <json>` for a contained result,
+`run --target hello --language w|c|rust --output benchmarks/results/<new>.json`
+for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/history/projection consistency, and `record <json>` only
-from a clean committed HEAD. Publication creates a content-addressed record
-and updates the index and generated projection; an interrupted multi-file
-publication remains detectable as an unindexed entry and must be repaired
-before `benchmark check` can pass.
+from a clean committed HEAD. The runner uses the exact oracle before one
+warmup and at least nine odd raw samples for every language. C probes `-std=c23`
+then `-std=c2x` and records the accepted standard plus MinGW ABI. Rust records
+its rustc release, edition 2024 and MSVC ABI. Publication creates a
+content-addressed record and updates the index and generated projection. An
+interrupted multi-file publication remains detectable as an unindexed entry
+and must be repaired before `benchmark check` can pass.
 
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em

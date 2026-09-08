@@ -80,9 +80,11 @@ be zero at their disclosed microsecond resolution, and arithmetic means use
 integer-floor rounding. Result host identities are derived from normalized
 redacted environment classes, never from hostnames, users, or paths. The
 best-known contract is defined even while its empty index is not-established.
-The executable facade's W `run` command measures only the private Native0/MLIR0
-Windows source-to-PE candidate route; it does not benchmark public `w run` or
-claim general Windows support. `benchmark record` is intentionally stricter:
+The executable facade's `run` command measures one W, C or Rust Hello source.
+W uses the private Native0/MLIR0 Windows source-to-PE candidate route. C probes
+`-std=c23` and `-std=c2x`, then records the accepted standard and MinGW ABI.
+Rust records its rustc release, edition 2024 and MSVC ABI. The facade does not
+benchmark public `w run` or claim general Windows support. `benchmark record` is intentionally stricter:
 it requires clean-HEAD commit/catalog/runner provenance and writes only a
 content-addressed history record plus its index/projection. A crash between
 those files is detectable by `benchmark check`, not silently treated as an
