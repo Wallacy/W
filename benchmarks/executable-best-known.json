@@ -176,6 +176,30 @@
       "$schema": "./executable-benchmark.schema.json",
       "schema": "w-executable-benchmark-best/3",
       "kind": "executable-best-known",
+      "id": "best-6947f9e9d3afa4dfbbbfb680e231972ce26df8c557df8df451ecaaf95cbf1343",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "peak-working-set",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "4763648",
+      "derivedFrom": [
+        "hello-rust-f621c7a8a503"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
       "id": "best-70fe852a5dcf64f7d6a07b7ea060926a159a95306bdb6bf9b88ce0b45b00a38d",
       "status": "derived",
       "workloadId": "hello",
@@ -248,6 +272,30 @@
       "$schema": "./executable-benchmark.schema.json",
       "schema": "w-executable-benchmark-best/3",
       "kind": "executable-best-known",
+      "id": "best-a1e222707929b9388922d2a15c713f0b2e09b2e70e01d82ac748b2f2b0974d0c",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "compile-latency",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "1429427400",
+      "derivedFrom": [
+        "hello-rust-f621c7a8a503"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
       "id": "best-b23ee6494d30668823f9629515b24bf684ec7a67c7acfa2e15e77508895acda5",
       "status": "derived",
       "workloadId": "hello",
@@ -272,6 +320,30 @@
       "$schema": "./executable-benchmark.schema.json",
       "schema": "w-executable-benchmark-best/3",
       "kind": "executable-best-known",
+      "id": "best-db708f7dd1bfc81da0ac6a01c1ceca0e44e3724894f7f8c882aab2f0948a5f74",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "artifact-size",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "single-artifact",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "113152",
+      "derivedFrom": [
+        "hello-rust-f621c7a8a503"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
       "id": "best-ddeeb38d7c86607982ce9c98f8b23efb5ffed0ac23851eef38a3fb1a1b9ca8d0",
       "status": "derived",
       "workloadId": "hello",
@@ -290,6 +362,30 @@
       "value": "4796416",
       "derivedFrom": [
         "hello-rust-5667ee42e006"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-f61f9d2a5cec5ab1899b2bf8c5666fa5923694dc84a2223523ba619a9a44be25",
+      "status": "derived",
+      "workloadId": "hello",
+      "metric": "run-wall-time",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "hello-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "19793400",
+      "derivedFrom": [
+        "hello-rust-f621c7a8a503"
       ]
     }
   ]
