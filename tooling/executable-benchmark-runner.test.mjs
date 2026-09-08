@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, rmdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -39,6 +39,7 @@ test("summary arithmetic means use integer floor and preserve zero CPU", () => {
 });
 
 test("publication is contained, atomic and refuses overwrite", async () => {
+  await mkdir(RESULTS_DIRECTORY, { recursive: true });
   const directory = await mkdtemp(path.join(RESULTS_DIRECTORY, "w-executable-result-test-"));
   const output = path.join(directory, "record.json");
   try {
@@ -50,5 +51,8 @@ test("publication is contained, atomic and refuses overwrite", async () => {
     await assert.rejects(() => resolveResultPath(path.join(RESULTS_DIRECTORY, "..", "outside.json")), /contained/);
   } finally {
     await rm(directory, { recursive: true, force: true });
+    await rmdir(RESULTS_DIRECTORY).catch((error) => {
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTEMPTY" && error?.code !== "EEXIST") throw error;
+    });
   }
 });

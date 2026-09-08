@@ -32,8 +32,8 @@
 | decisões com evidência legada de fonte/oráculo | 568/1538 (204 source + 412 oracle + 8 explícitas; 56 overlaps) |
 | decisões ainda sem classe de freeze | 0 |
 | decisões com múltiplos eixos obrigatórios | 2 |
-| formas R0 com baseline estática | 307 |
-| surface lexemes das formas vigentes R0 | 3091 total; mediana 22.5; máximo 151 |
+| formas R0 com baseline estática | 311 |
+| surface lexemes das formas vigentes R0 | 3162 total; mediana 23; máximo 151 |
 | bundles executáveis R1 | 57 |
 | variantes/tarefas R1 | 162/228 |
 | casos R0 promovidos a R1 | 69/103 |
