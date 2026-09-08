@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import test from "node:test";
+import os from "node:os";
+import path from "node:path";
 import {
   EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
@@ -16,6 +19,7 @@ import {
   validateExecutableBestKnown,
   validateExecutableBestKnownIndex,
   validateExecutableCatalog,
+  validateExecutableHistory,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 
@@ -27,9 +31,9 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
   assert.equal(documents.schema.$id, "w-executable-benchmark/3");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
-    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestKnown", "#/$defs/bestKnownIndex",
+    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestKnown", "#/$defs/bestKnownIndex", "#/$defs/historyIndex",
   ]);
-  for (const definition of ["catalog", "result", "bestKnown", "bestKnownIndex", "sample", "sampleSeries"]) {
+  for (const definition of ["catalog", "result", "bestKnown", "bestKnownIndex", "historyIndex", "historyReference", "sample", "sampleSeries"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.schema.$defs.sampleSeries.properties.raw.minItems, 9);
@@ -45,7 +49,10 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   const hello = documents.catalog.workloads.find((item) => item.id === "hello");
   assert.equal(hello.status, "source-oracle-ready");
   assert.equal(hello.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(hello.benchmarkStatus, "deferred-to-M3b");
+  assert.equal(hello.benchmarkStatus, "not-performance-ready");
+  assert.equal(hello.sources.find((item) => item.language === "w").recipe, "private-native0-mlir0-source-to-pe-candidate");
+  assert.equal(hello.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-public-run");
+  assert.equal(hello.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-public-run");
   assert.deepEqual(hello.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
   assert.equal(hello.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
   assert.equal(hello.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
@@ -61,6 +68,7 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(documents.catalog.bestKnownContract.status, "defined");
   assert.equal(documents.catalog.status, "catalog-ready");
   assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog), []);
+  assert.deepEqual(validateExecutableHistory(documents.history, documents.catalog), []);
 });
 
 test("catalog rejects stale, escaped, duplicate and partition-drifting records", () => {
@@ -83,6 +91,29 @@ test("catalog rejects stale, escaped, duplicate and partition-drifting records",
   const drifted = clone(documents.catalog);
   drifted.metrics[0].id = "timing-percent";
   assert.match(validateExecutableCatalog(drifted, documents).join("\n"), /metric/);
+});
+
+test("history is content-addressed and rejects unindexed entries", () => {
+  const invalidName = clone(documents.history);
+  invalidName.records = [{ id: "forged", path: "forged.json", digest }];
+  invalidName.status = "recorded";
+  assert.match(validateExecutableHistory(invalidName, documents.catalog).join("\n"), /lowercase sha256 hex digest filename/);
+  const mismatchedDigest = clone(documents.history);
+  mismatchedDigest.records = [{ id: "forged", path: "0".repeat(64) + ".json", digest }];
+  mismatchedDigest.status = "recorded";
+  assert.match(validateExecutableHistory(mismatchedDigest, documents.catalog).join("\n"), /match its sha256 digest filename/);
+
+  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "w-executable-history-test-"));
+  const historyRoot = path.join(temporaryRoot, "benchmarks", "history", "executables");
+  fs.mkdirSync(historyRoot, { recursive: true });
+  fs.writeFileSync(path.join(historyRoot, "index.json"), JSON.stringify(documents.history, null, 2) + "\n");
+  fs.writeFileSync(path.join(historyRoot, "README.md"), "history\n");
+  fs.writeFileSync(path.join(historyRoot, "unexpected.json"), "{}\n");
+  try {
+    assert.match(validateExecutableHistory(documents.history, documents.catalog, temporaryRoot).join("\n"), /unindexed entry: unexpected\.json/);
+  } finally {
+    fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
 });
 
 function sample(index) {
@@ -190,6 +221,8 @@ function validResult(language = "rust") {
       recipeDigest,
       toolchainDigest: digest,
       runnerDigest: digest,
+      catalogDigest: digest,
+      commit: "1111111111111111111111111111111111111111",
       observedAt: "2026-09-08T00:00:00.000Z",
     },
   };

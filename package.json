@@ -10,6 +10,7 @@
   },
   "scripts": {
     "check": "bun tooling/dev-cli.mjs check",
+    "benchmark": "bun tooling/benchmark-cli.mjs",
     "demo": "bun tooling/dev-cli.mjs demo",
     "bootstrap": "bun tooling/dev-cli.mjs bootstrap",
     "dev": "bun tooling/dev-cli.mjs dev",
@@ -17,7 +18,7 @@
     "tooling:install": "bun ci --cwd tooling/tree-sitter-w && bun run --cwd tooling/tree-sitter-w generate",
     "study:registry": "bun tooling/study-registry.mjs --write",
     "study:refresh-digests": "bun tooling/study-registry.mjs --refresh-digests",
-    "docs:write": "bun tooling/diagnostic-catalog.mjs --write && bun tooling/syntax-atlas.mjs --write && bun tooling/platform-support.mjs --write && bun tooling/dependency-currency.mjs --write && bun tooling/design-index.mjs --write && bun tooling/study-registry.mjs --write",
+    "docs:write": "bun tooling/diagnostic-catalog.mjs --write && bun tooling/syntax-atlas.mjs --write && bun tooling/platform-support.mjs --write && bun tooling/dependency-currency.mjs --write && bun tooling/design-index.mjs --write && bun tooling/study-registry.mjs --write && bun tooling/executable-benchmark-docs.mjs --write",
     "design:index": "bun tooling/design-index.mjs --write",
     "platform:support": "bun tooling/platform-support.mjs --write",
     "capability:refresh-evidence": "bun tooling/check-capability-matrix.mjs --refresh-evidence --write"

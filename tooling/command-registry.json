@@ -2972,14 +2972,25 @@
       ]
     },
     "check:executable": {
-      "description": "Structural executable benchmark catalog checks without executing workloads.",
+      "description": "Executable benchmark catalog, runner, history, and human projection checks without executing workloads.",
       "steps": [
         {
           "kind": "bun",
           "cwd": ".",
           "args": [
             "test",
-            "tooling/executable-benchmark.test.mjs"
+            "tooling/executable-benchmark.test.mjs",
+            "tooling/executable-benchmark-runner.test.mjs",
+            "tooling/executable-benchmark-docs.test.mjs",
+            "tooling/benchmark-cli.test.mjs"
+          ]
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/benchmark-cli.mjs",
+            "check"
           ]
         }
       ]

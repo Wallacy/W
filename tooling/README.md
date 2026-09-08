@@ -30,8 +30,10 @@ bun demo --list
 bun bootstrap --target host
 bun dev run compiler/seed-c/fixtures/hlo0-hello.w
 bun tooling/command-runner.mjs --list
-bun tooling/command-runner.mjs --command check:study-registry
+bun check --target study-registry
 bun run study:registry
+bun benchmark list
+bun benchmark check
 ```
 
 The short facade in [`dev-cli.mjs`](dev-cli.mjs) reads the small catalog in
@@ -78,9 +80,16 @@ be zero at their disclosed microsecond resolution, and arithmetic means use
 integer-floor rounding. Result host identities are derived from normalized
 redacted environment classes, never from hostnames, users, or paths. The
 best-known contract is defined even while its empty index is not-established.
+The executable facade's W `run` command measures only the private Native0/MLIR0
+Windows source-to-PE candidate route; it does not benchmark public `w run` or
+claim general Windows support. `benchmark record` is intentionally stricter:
+it requires clean-HEAD commit/catalog/runner provenance and writes only a
+content-addressed history record plus its index/projection. A crash between
+those files is detectable by `benchmark check`, not silently treated as an
+atomic multi-file transaction.
 `bun check --target compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
-interno permanece um gate focal separado (`bun run check:run0`). Os leaves
+interno permanece um gate focal separado (`bun check --target run0`). Os leaves
 `root/check:acquisition`, `root/check:owner-guard` e
 `root/check:seed-manifest` aparecem uma vez em `root-compiler`; MAN0 fica
 imediatamente depois de OWN0. O gate MAN0 atravessa o caminho OWN0 que consome,
@@ -89,7 +98,10 @@ mesmos leaves por composição. `check:w-cli` continua depois deles como
 regressão pública.
 `check --target all` mantém a suíte integrada histórica. Use os targets
 `docs`, `studies`, `bmd` e `executable` para escopos menores; os leaves
-internos com dois-pontos são resolvidos pelo command registry.
+internos com dois-pontos são resolvidos pelo command registry. `--target`
+prioriza esses nomes de suíte; um leaf sem o prefixo, como `hlo0` ou `w-run`,
+resolve `check:<leaf>` no registro. `bun check --list` mostra as suítes e os
+leaves disponíveis.
 
 Não crie um alias equivalente em `tooling/tree-sitter-w/package.json`. O pacote
 Tree-sitter mantém apenas comandos locais da gramática:
@@ -116,7 +128,7 @@ O registro de estudos tem duas superfícies sincronizadas:
 Ambos são gerados por `bun run study:registry`. O writer prepara as duas
 saídas e tenta instalá-las transacionalmente, com rollback diante de erros
 comuns do sistema de arquivos; isso não promete atomicidade entre arquivos
-depois de crash ou perda de energia. `bun tooling/command-runner.mjs --command check:study-registry` rejeita
+depois de crash ou perda de energia. `bun check --target study-registry` rejeita
 JSON ou Markdown stale. Detalhes de cada estudo ficam no `README.md` local
 quando existir e no catálogo gerado. Não mantenha uma segunda tabela manual
 neste arquivo.
@@ -176,10 +188,10 @@ bun run --cwd tooling/tree-sitter-w parse:std
 ```
 
 Os checks de integração permanecem na raiz, por exemplo:
-`bun tooling/command-runner.mjs --command check:syntax-atlas`,
-`bun tooling/command-runner.mjs --command check:maintained-parse`,
-`bun tooling/command-runner.mjs --command check:cheatsheet` e
-`bun tooling/command-runner.mjs --command check:links`.
+`bun check --target syntax-atlas`,
+`bun check --target maintained-parse`,
+`bun check --target cheatsheet` e
+`bun check --target links`.
 
 ## Compiler seed
 
@@ -199,19 +211,19 @@ MLIR0 v5 corrente também aceita interpolação signed-`i64` com helpers
 internos de Display e texto counted; os HLO0/HLO1/RUN0 continuam single-print.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
-CLI. Execute `bun tooling/command-runner.mjs --command check:acquisition` para compilar os cinco targets focais,
+CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,
 rodar o CTest ancorado e exigir duas saídas ACQ0 exatas. OWN0 observa e
 reconfirma candidates `build.w` em uma sessão guarded sem selecionar owner ou
 autorizar fallback; o gate executa Linux nativo e, em host Windows, exige WSL
 Ubuntu. O adapter Windows permanece incondicionalmente fail-closed neste
 bundle; seus probes são somente diagnósticos. Execute
-`bun tooling/command-runner.mjs --command check:owner-guard`. RUN0 consome o plano
+`bun check --target owner-guard`. RUN0 consome o plano
 HLO0 pelo verifier compartilhado em um gate interno, bounded e test-only.
-Execute `bun tooling/command-runner.mjs --command check:run0` para esse gate. O subset público W-1521 usa
+Execute `bun check --target run0` para esse gate. O subset público W-1521 usa
 `w run <explicit-path.w> [-- <args...>]` em Linux x86_64 com a rota nativa
 explicitamente habilitada, ou o binário Linux por WSL Ubuntu no host Windows;
 o basename explícito é uma source identity
-opaca, não um identifier de módulo. Execute `bun tooling/command-runner.mjs --command check:w-run` para o
+opaca, não um identifier de módulo. Execute `bun check --target w-run` para o
 produto; a extensão NAT1 é definida por W-1522.
 
 The public Linux gate uses `llc` for a PIC object and an absolute host C
@@ -263,7 +275,7 @@ Antes de uma mudança, leia `.codex/W.md`, `.codex/W-WORKFLOW.md` e
 2. regenere somente as projeções afetadas;
 3. execute o menor gate relevante;
 4. execute `bun check --target quick` ou `bun check --target compiler` conforme a área;
-5. termine com `bun tooling/command-runner.mjs --command check:links` e `git diff --check`.
+5. termine com `bun check --target links` e `git diff --check`.
 
 Não edite projeções geradas manualmente, não copie o catálogo de estudos para
 outro README e não mantenha aliases duplicados entre o registry e Tree-sitter.
