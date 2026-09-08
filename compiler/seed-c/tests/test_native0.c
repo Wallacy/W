@@ -229,19 +229,17 @@ static bool test_logical_native_selector(void) {
       "entry(main)\n";
   static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
-  (void)memset(output, 0xa5u, sizeof(output));
-  uint8_t output_snapshot[W_SEED_MLIR0_MAX_BYTES];
-  (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
-  (void)memset(&result, 0x5au, sizeof(result));
-  const w_seed_native0_result result_snapshot = result;
+  (void)memset(output, 0, sizeof(output));
+  (void)memset(&result, 0, sizeof(result));
   const w_seed_native0_status status = run_source(
       source, sizeof(source) - 1u, "logical-id", 10u, output, sizeof(output),
       &result);
-  /* MLIR0 does not consume logical records yet; Native0 still leaves the
-   * fully lowered HIR available so this test can exercise its selector. */
-  CHECK(status == W_SEED_NATIVE0_MLIR);
-  CHECK(memcmp(output, output_snapshot, sizeof(output_snapshot)) == 0);
-  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+  CHECK(status == W_SEED_NATIVE0_OK && result.status == W_SEED_NATIVE0_OK &&
+        result.source_bytes == sizeof(source) - 1u &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br"));
   CHECK(storage.hir_output.block_arguments == storage.hir_block_arguments &&
         storage.hir_output.block_argument_capacity ==
             W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS &&
