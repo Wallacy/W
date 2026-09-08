@@ -70,7 +70,7 @@ bun tooling/design-slice.mjs --id W-724 --context 2
 Valide somente o contrato documental com:
 
 ```powershell
-bun run check:docs
+bun check --target docs
 ```
 
 Use `bun run check` quando alterar grammar,
@@ -35457,7 +35457,7 @@ exit zero. Comentário contendo `print`, noop, duas calls e forma fora do subset
 falham sem stdout MLIR parcial. O manifest versionado fixa MLIR/LLVM/Clang
 20.1.2, os comandos, o target e a recipe; Linux usa ferramentas diretas e
 Windows usa WSL Ubuntu. Toolchain inteira ausente é SKIP; presença parcial,
-versão divergente ou falha de execução é FAIL. `bun run check:mlir0` é um gate
+versão divergente ou falha de execução é FAIL. `bun check --target mlir0` é um gate
 focal/pinned, não parte da suite padrão.
 
 `hostEvidence` do manifest é `wsl-linux`: a prova atual é Linux x86_64
@@ -36238,8 +36238,8 @@ command tries C23 and fails closed when this host rejects it; the exact current
 evidence recipe is an explicit C11 recovery:
 
 ```text
-bun run build:w-windows
-bun run build:w-windows --c11-recovery
+bun tooling/command-runner.mjs --command build:w-windows
+bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery
 build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
 ```
 
@@ -36359,7 +36359,7 @@ not acted on by this bundle.
 installed output is checked by real execution:
 
 ```text
-bun run build:w-windows --profile release --c11-recovery
+bun tooling/command-runner.mjs --command build:w-windows -- --profile release --c11-recovery
 build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
 build/w-windows/w.exe run compiler/seed-c/fixtures/restaurant-if.w
 ```
@@ -36831,7 +36831,7 @@ decisão não o substitui.
 
 `benchmarkDisposition` do seed é `compiler-lifecycle`. A receita C23 do BMD é
 somente correctness/estrutura nesta fase; não há novo timing ou result. O
-comando `bun run demo:seed-hello` usa a rota real do seed e do artefato gerado e
+comando `bun tooling/command-runner.mjs --command demo:seed-hello` usa a rota real do seed e do artefato gerado e
 publica exatamente `Hello, world!` no stdout. O nome e a documentação dizem
 seed demo, não `w run`.
 

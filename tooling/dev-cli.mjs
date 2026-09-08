@@ -4,7 +4,9 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import {
   flattenCheckSuite,
+  flattenCommand,
   loadCheckSuites,
+  runCommand,
   runCheckSuite,
 } from "./check-suite.mjs";
 import {
@@ -33,6 +35,7 @@ export const DEMO_TARGETS = Object.freeze(["hello", "bool-short-circuit"]);
 const HOST_BINARY_ERROR =
   "development w.exe is unavailable; run bun bootstrap --target host " +
   "after materializing the pinned Windows toolchain (no download is performed)";
+const CHECK_TARGET_PATTERN = /^[A-Za-z][A-Za-z0-9:_-]*$/u;
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -184,8 +187,8 @@ export function parseCheckArguments(argv) {
       targetCount += 1;
       options.target = readOptionValue(argv, index, "--target");
       index += 1;
-      if (!CHECK_TARGETS.includes(options.target))
-        throw new Error(`unknown check target: ${options.target}`);
+      if (!CHECK_TARGET_PATTERN.test(options.target))
+        throw new Error(`invalid check target: ${options.target}`);
     } else if (argument === "--list") {
       if (options.list) throw new Error("--list may be used only once");
       options.list = true;
@@ -283,12 +286,24 @@ export function parseDevRunArguments(argv) {
   };
 }
 
-export function formatCheckList({ catalog, suites } = {}) {
-  return CHECK_TARGETS.map((target) => {
+export function formatCheckList({ catalog, suites, commands = {} } = {}) {
+  const suiteRows = CHECK_TARGETS.map((target) => {
     const record = catalog.checks[target];
     const count = checkPlan({ catalog, suites, target }).steps.length;
     return `${target}\t${record.suite}\t${count}\t${record.description}`;
-  }).join("\n") + "\n";
+  });
+  const leafRows = Object.keys(commands)
+    .filter((commandName) => commandName.startsWith("check:"))
+    .map((commandName) => commandName.slice("check:".length))
+    .filter((target) => target.length > 0 && !CHECK_TARGETS.includes(target))
+    .sort()
+    .map((target) => {
+      const commandName = `check:${target}`;
+      const command = commands[commandName];
+      const count = flattenCommand({ commands, commandName }).length;
+      return `${target}\t${commandName}\t${count}\t${command.description}`;
+    });
+  return [...suiteRows, ...leafRows].join("\n") + "\n";
 }
 
 export function formatDemoList(catalog) {
@@ -309,6 +324,19 @@ export function checkPlan({ catalog, suites, target = "quick" } = {}) {
     suite: record.suite,
     steps: flattenCheckSuite({ suites, suiteName: record.suite }),
   };
+}
+
+export function resolveCheckTarget({ catalog, commands, target = "quick" } = {}) {
+  if (CHECK_TARGETS.includes(target)) {
+    const record = catalog?.checks?.[target];
+    if (!isObject(record) || typeof record.suite !== "string")
+      throw new Error(`check target ${JSON.stringify(target)} is not configured`);
+    return { kind: "suite", target, suite: record.suite };
+  }
+  const commandName = target.startsWith("check:") ? target : `check:${target}`;
+  if (!isObject(commands) || !Object.hasOwn(commands, commandName))
+    throw new Error(`unknown check target: ${target}`);
+  return { kind: "command", target, commandName };
 }
 
 export function resolveContainedFile(root, value, label, extension = null) {
@@ -587,12 +615,14 @@ export async function runDevRun({
 }
 
 const HELP = `usage:
-  bun check [--target quick|compiler|docs|studies|bmd|executable|all] [--list] [--dry-run]
+  bun check [--target quick|compiler|docs|studies|bmd|executable|all|<leaf>] [--list] [--dry-run]
   bun demo [--target hello|bool-short-circuit] [--list]
   bun bootstrap --target host
   bun dev run <explicit .w path> [-- args]
 
-check defaults to quick and reads tooling/check-suites.json.
+check defaults to quick. Named suite targets take precedence; other targets
+resolve to check:<target> in tooling/command-registry.json.
+check reads tooling/check-suites.json and the command registry.
 demo and dev run use the public w run route through the current MLIR native host build.
 bootstrap is local-only and never downloads a toolchain; the current host is Windows x64.
 `;
@@ -619,17 +649,34 @@ export async function main(argv = process.argv.slice(2)) {
       const catalog = loadCatalog();
       const loaded = loadCheckSuites();
       if (options.list) {
-        process.stdout.write(formatCheckList({ catalog, suites: loaded.suites }));
+        process.stdout.write(formatCheckList({
+          catalog,
+          suites: loaded.suites,
+          commands: loaded.commands,
+        }));
         return 0;
       }
-      const suite = catalog.checks[options.target].suite;
-      return runCheckSuite({
+      const resolved = resolveCheckTarget({
+        catalog,
+        commands: loaded.commands,
+        target: options.target,
+      });
+      if (resolved.kind === "suite") {
+        return runCheckSuite({
+          root: repositoryRoot,
+          packageRecords: loaded.packages,
+          commandRecords: loaded.commands,
+          suites: loaded.suites,
+          suiteName: resolved.suite,
+          dryRun: options.dryRun,
+        });
+      }
+      return runCommand({
         root: repositoryRoot,
-        packageRecords: loaded.packages,
         commandRecords: loaded.commands,
-        suites: loaded.suites,
-        suiteName: suite,
+        commandName: resolved.commandName,
         dryRun: options.dryRun,
+        prefix: "check",
       });
     }
     if (command === "demo") {

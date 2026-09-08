@@ -17,7 +17,7 @@
 | Métrica | Valor |
 |---|---:|
 | linhas de `DESIGN.md` | 37083 |
-| tokens aproximados de `DESIGN.md` | 424600 |
+| tokens aproximados de `DESIGN.md` | 424700 |
 | linhas de `RATIONALE.md` | 10576 |
 | tokens aproximados de `RATIONALE.md` | 259400 |
 | seções numeradas | 27 |

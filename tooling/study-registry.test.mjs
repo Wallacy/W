@@ -31,6 +31,11 @@ function makeRoot(studies) {
   fs.mkdirSync(path.join(root, "tooling", "tree-sitter-w"), { recursive: true });
   writeJson(path.join(root, "package.json"), { scripts: {} });
   writeJson(path.join(root, "tooling", "tree-sitter-w", "package.json"), { scripts: {} });
+  writeJson(path.join(root, "tooling", "command-registry.json"), {
+    $schema: "w-command-registry-1",
+    version: 1,
+    commands: {},
+  });
   for (const study of studies) {
     const directory = path.join(root, "tooling", "studies", study.directory);
     fs.mkdirSync(directory, { recursive: true });
@@ -105,7 +110,7 @@ describe("study registry integrity", () => {
     const markdown = serializeStudyMarkdown(registry);
     expect(markdown).toContain("# Estudos do W\n");
     expect(markdown).toContain("| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |");
-    expect(markdown.split("\n").find((line) => line.startsWith("| `CAP0` |"))).toContain("`bun run check:study-bundles`");
+    expect(markdown.split("\n").find((line) => line.startsWith("| `CAP0` |"))).toContain("`bun tooling/command-runner.mjs --command check:study-bundles`");
     expect(markdown).toContain("| **Total** | **");
     expect(markdown).toContain("Status: `design-oracle-input`");
     expect(markdown).not.toMatch(/\r\n/u);

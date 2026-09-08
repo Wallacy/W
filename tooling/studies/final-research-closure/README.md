@@ -53,5 +53,5 @@ Checks scoped:
 ```sh
 bun test tooling/studies/final-research-closure/oracle.test.mjs
 bun tooling/check-final-research-closure.mjs
-bun run check:frc0
+bun check --target frc0
 ```

@@ -527,7 +527,7 @@ export function renderDependencyCurrency(value) {
     "",
     "## Verification",
     "",
-    "Run `bun run check:dependency-currency` after changing a catalog entry, a managed selector, or this projection.",
+    "Run `bun check --target dependency-currency` after changing a catalog entry, a managed selector, or this projection.",
     "The checker verifies repository pins, exact selectors, evidence preservation, and projection freshness.",
     "",
   );
