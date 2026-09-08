@@ -1,20 +1,20 @@
-# WBench/1 e desenvolvimento orientado por benchmark
+# WBench/1 and benchmark-driven development
 
-`WBench/1` define o protocolo de desenvolvimento orientado por benchmark para
-W. O protocolo separa workloads de linguagem, compiler lifecycle e
-product-runtime. BMD1 executa somente o ponto source-backed ready do compiler
-lifecycle como série única. BMD2 adiciona comparação source-backed entre dois
-commits locais do mesmo seed. Nenhum bundle produz result de language ou de
-product-runtime.
+`WBench/1` defines W's benchmark-driven development protocol. It separates
+language workloads, compiler lifecycle, and product runtime. BMD1 runs only the
+source-backed ready point of the compiler lifecycle as a single series. BMD2
+adds a source-backed comparison between two local commits of the same seed.
+Neither bundle produces a language or product-runtime result.
 
 ### Executable benchmark catalog (M3a)
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`, the four
 source-backed Restaurant witnesses, and the future full Restaurant
-composition. Hello has W, C, and Rust sources; C is contextual and non-ranking
-across its MinGW ABI, while the Restaurant witnesses are currently W-only with
-explicit C/Rust blockers. Equivalent Hello sources live in
+composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
+also has C and Rust sources verified against its exact oracle. The other
+Restaurant witnesses remain W-only with explicit C/Rust blockers. C is
+contextual and non-ranking across its MinGW ABI. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
 oracle. The shared platform target is `windows-x64`; W and Rust use
 `x86_64-pc-windows-msvc`, while GCC C uses `x86_64-w64-mingw32`.

@@ -22,6 +22,8 @@ test("generated executable projection is current and uses projection-relative li
   assert.match(rendered, /\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[history record\]\(\.\/history\/executables\/[0-9a-f]{64}\.json\)/u);
   assert.match(rendered, /\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
+  assert.match(rendered, /\]\(\.\/executable\/restaurant_branch\.c\)/u);
+  assert.match(rendered, /\]\(\.\/executable\/restaurant_branch\.rs\)/u);
   assert.match(rendered, /runner accepts W, C and Rust Hello sources/u);
   assert.match(rendered, /probes `-std=c23` and then `-std=c2x`/u);
   assert.match(rendered, /private Native0\/MLIR0 gate/u);

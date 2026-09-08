@@ -62,7 +62,23 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(hello.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
   assert.equal(hello.sources.find((item) => item.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   assert.equal(hello.oracle.stdout, "Hello, world!\n");
-  for (const id of ["restaurant-branch", "restaurant-nested-branch", "bool-short-circuit", "restaurant-interpolation"]) {
+  const restaurant = documents.catalog.workloads.find((item) => item.id === "restaurant-branch");
+  assert.equal(restaurant.status, "source-oracle-ready");
+  assert.equal(restaurant.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(restaurant.benchmarkStatus, "deferred-to-M3b");
+  assert.deepEqual(restaurant.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
+  assert.deepEqual(restaurant.blockedLanguages, []);
+  assert.deepEqual(restaurant.blockers, ["w-executable-runner-and-timing-deferred-to-M3b"]);
+  assert.equal(restaurant.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
+  assert.equal(restaurant.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
+  assert.equal(restaurant.sources.find((item) => item.language === "c").eligibility, "correctness-only-until-c23");
+  assert.equal(restaurant.sources.find((item) => item.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
+  assert.equal(restaurant.sources.find((item) => item.language === "rust").comparability, "promotable-after-equivalence");
+  assert.equal(restaurant.sources.find((item) => item.language === "rust").eligibility, "promotable-after-equivalence");
+  assert.equal(restaurant.oracle.exitCode, 0);
+  assert.equal(restaurant.oracle.stdout, "Kitchen open\nAfter service\nKitchen closed\nAfter service\n");
+  assert.equal(restaurant.oracle.stderr, "");
+  for (const id of ["restaurant-nested-branch", "bool-short-circuit", "restaurant-interpolation"]) {
     const workload = documents.catalog.workloads.find((item) => item.id === id);
     assert.equal(workload.status, "source-oracle-ready");
     assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
@@ -85,11 +101,11 @@ test("catalog rejects stale, escaped, duplicate and partition-drifting records",
   assert.match(validateExecutableCatalog(escaped, documents).join("\n"), /escapes/);
 
   const duplicate = clone(documents.catalog);
-  duplicate.workloads[1].blockedLanguages.push("rust");
+  duplicate.workloads[2].blockedLanguages.push("rust");
   assert.match(validateExecutableCatalog(duplicate, documents).join("\n"), /duplicates/);
 
   const forgedPartition = clone(documents.catalog);
-  forgedPartition.workloads[1].blockedLanguages = ["c"];
+  forgedPartition.workloads[2].blockedLanguages = ["c"];
   assert.match(validateExecutableCatalog(forgedPartition, documents).join("\n"), /must account for language rust/);
 
   const drifted = clone(documents.catalog);
