@@ -82,18 +82,22 @@ describe("DEVCLI1 catalog and parsing", () => {
 
   test("parses public defaults, targets, list, and dry-run without execution", () => {
     expect(parseCheckArguments([])).toEqual({
-      target: "quick", list: false, dryRun: false, help: false,
+      target: "quick", list: false, listAll: false, dryRun: false, help: false,
     });
     expect(parseCheckArguments(["--target", "compiler", "--dry-run"])).toEqual({
-      target: "compiler", list: false, dryRun: true, help: false,
+      target: "compiler", list: false, listAll: false, dryRun: true, help: false,
     });
     expect(parseCheckArguments(["--list"])).toEqual({
-      target: "quick", list: true, dryRun: false, help: false,
+      target: "quick", list: true, listAll: false, dryRun: false, help: false,
+    });
+    expect(parseCheckArguments(["--list-all"])).toEqual({
+      target: "quick", list: false, listAll: true, dryRun: false, help: false,
     });
     expect(() => parseCheckArguments(["--list", "--target", "all"])).toThrow();
     expect(() => parseCheckArguments(["--list", "--dry-run"])).toThrow();
+    expect(() => parseCheckArguments(["--list", "--list-all"])).toThrow();
     expect(parseCheckArguments(["--target", "hlo0"])).toEqual({
-      target: "hlo0", list: false, dryRun: false, help: false,
+      target: "hlo0", list: false, listAll: false, dryRun: false, help: false,
     });
     expect(() => parseCheckArguments(["--target", "not a target"])).toThrow();
 
@@ -132,8 +136,15 @@ describe("DEVCLI1 plans and contained process boundaries", () => {
     });
     expect(list).toContain("quick\troot-quick\t");
     expect(list).toContain("all\troot-check\t");
-    expect(list).toContain("hlo0\tcheck:hlo0\t1\t");
-    expect(list).toContain("w-run\tcheck:w-run\t1\t");
+    expect(list).not.toContain("hlo0\tcheck:hlo0\t1\t");
+    const completeList = formatCheckList({
+      catalog,
+      suites: loaded.suites,
+      commands: loaded.commands,
+      includeLeaves: true,
+    });
+    expect(completeList).toContain("hlo0\tcheck:hlo0\t1\t");
+    expect(completeList).toContain("w-run\tcheck:w-run\t1\t");
     expect(formatDemoList(catalog)).toContain("bool-short-circuit\t");
     const plan = checkPlan({ catalog, suites: loaded.suites, target: "quick" });
     expect(plan.suite).toBe("root-quick");

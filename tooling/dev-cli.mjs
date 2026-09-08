@@ -179,7 +179,7 @@ function assertArray(argv, label) {
 
 export function parseCheckArguments(argv) {
   assertArray(argv, "check arguments");
-  const options = { target: "quick", list: false, dryRun: false, help: false };
+  const options = { target: "quick", list: false, listAll: false, dryRun: false, help: false };
   let targetCount = 0;
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -192,6 +192,9 @@ export function parseCheckArguments(argv) {
     } else if (argument === "--list") {
       if (options.list) throw new Error("--list may be used only once");
       options.list = true;
+    } else if (argument === "--list-all") {
+      if (options.listAll) throw new Error("--list-all may be used only once");
+      options.listAll = true;
     } else if (argument === "--dry-run") {
       if (options.dryRun) throw new Error("--dry-run may be used only once");
       options.dryRun = true;
@@ -203,12 +206,14 @@ export function parseCheckArguments(argv) {
     }
   }
   if (targetCount > 1) throw new Error("--target may be used only once");
-  if (options.help && (options.list || options.dryRun || targetCount > 0))
+  if (options.help && (options.list || options.listAll || options.dryRun || targetCount > 0))
     throw new Error("--help cannot be combined with another option");
-  if (options.list && targetCount > 0)
-    throw new Error("--list cannot be combined with --target");
-  if (options.list && options.dryRun)
-    throw new Error("--list cannot be combined with --dry-run");
+  if ((options.list || options.listAll) && targetCount > 0)
+    throw new Error("list options cannot be combined with --target");
+  if ((options.list || options.listAll) && options.dryRun)
+    throw new Error("list options cannot be combined with --dry-run");
+  if (options.list && options.listAll)
+    throw new Error("--list and --list-all are mutually exclusive");
   return options;
 }
 
@@ -286,13 +291,13 @@ export function parseDevRunArguments(argv) {
   };
 }
 
-export function formatCheckList({ catalog, suites, commands = {} } = {}) {
+export function formatCheckList({ catalog, suites, commands = {}, includeLeaves = false } = {}) {
   const suiteRows = CHECK_TARGETS.map((target) => {
     const record = catalog.checks[target];
     const count = checkPlan({ catalog, suites, target }).steps.length;
     return `${target}\t${record.suite}\t${count}\t${record.description}`;
   });
-  const leafRows = Object.keys(commands)
+  const leafRows = includeLeaves ? Object.keys(commands)
     .filter((commandName) => commandName.startsWith("check:"))
     .map((commandName) => commandName.slice("check:".length))
     .filter((target) => target.length > 0 && !CHECK_TARGETS.includes(target))
@@ -302,7 +307,7 @@ export function formatCheckList({ catalog, suites, commands = {} } = {}) {
       const command = commands[commandName];
       const count = flattenCommand({ commands, commandName }).length;
       return `${target}\t${commandName}\t${count}\t${command.description}`;
-    });
+    }) : [];
   return [...suiteRows, ...leafRows].join("\n") + "\n";
 }
 
@@ -615,7 +620,7 @@ export async function runDevRun({
 }
 
 const HELP = `usage:
-  bun check [--target quick|compiler|docs|studies|bmd|executable|all|<leaf>] [--list] [--dry-run]
+  bun check [--target quick|compiler|docs|studies|bmd|executable|all|<leaf>] [--list|--list-all] [--dry-run]
   bun demo [--target hello|bool-short-circuit] [--list]
   bun bootstrap --target host
   bun dev run <explicit .w path> [-- args]
@@ -648,11 +653,12 @@ export async function main(argv = process.argv.slice(2)) {
       }
       const catalog = loadCatalog();
       const loaded = loadCheckSuites();
-      if (options.list) {
+      if (options.list || options.listAll) {
         process.stdout.write(formatCheckList({
           catalog,
           suites: loaded.suites,
           commands: loaded.commands,
+          includeLeaves: options.listAll,
         }));
         return 0;
       }

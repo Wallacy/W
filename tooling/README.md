@@ -25,6 +25,7 @@ bun check --target bmd
 bun check --target executable
 bun check --target all
 bun check --list
+bun check --list-all
 bun check --target quick --dry-run
 bun demo --list
 bun bootstrap --target host
@@ -40,7 +41,8 @@ The short facade in [`dev-cli.mjs`](dev-cli.mjs) reads the small catalog in
 [`dev-cli.json`](dev-cli.json). `bun check` selects `quick` by default;
 `compiler`, `docs`, `studies`, and `all` point to the already ordered suites in
 [`check-suites.json`](check-suites.json), without maintaining a second order.
-`--list` only lists and `--dry-run` only expands the plan.
+`--list` shows only the small public surface, `--list-all` includes internal
+leaf checks, and `--dry-run` only expands the selected plan.
 
 `bun demo` executes a named fixture with the public `w run` binary through the
 current MLIR route; it does not use the removed `demo:seed-hello` alias or HLO1 C. `bun bootstrap --target host`
@@ -102,8 +104,9 @@ regressão pública.
 `docs`, `studies`, `bmd` e `executable` para escopos menores; os leaves
 internos com dois-pontos são resolvidos pelo command registry. `--target`
 prioriza esses nomes de suíte; um leaf sem o prefixo, como `hlo0` ou `w-run`,
-resolve `check:<leaf>` no registro. `bun check --list` mostra as suítes e os
-leaves disponíveis.
+resolve `check:<leaf>` no registro. `bun check --list` shows only the public
+suites; `bun check --list-all` is the maintenance inventory of every internal
+leaf.
 
 Não crie um alias equivalente em `tooling/tree-sitter-w/package.json`. O pacote
 Tree-sitter mantém apenas comandos locais da gramática:
