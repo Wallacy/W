@@ -1,0 +1,313 @@
+{
+  "$schema": "./executable-benchmark.schema.json",
+  "schema": "w-executable-benchmark-result/3",
+  "kind": "executable-result",
+  "id": "hello-w-d834927505d5",
+  "status": "recorded",
+  "workloadId": "hello",
+  "language": "w",
+  "platformTarget": "windows-x64",
+  "artifactTarget": "x86_64-pc-windows-msvc",
+  "profile": "release",
+  "quality": "exploratory",
+  "claim": "measurement-only",
+  "verdict": "not-evaluated",
+  "equivalenceKey": "sha256:7d1305319a1a0f9ec99498bed93e0c2e652b8bae10527c636f222afcda8773d3",
+  "identity": {
+    "sourceDigest": "sha256:267fa83d08a74316feffaea140f92fa93f47794b7a04b5647a151cdf1700c397",
+    "platformTarget": "windows-x64",
+    "artifactTarget": "x86_64-pc-windows-msvc",
+    "profile": "release",
+    "toolchain": "msvc-19.51.36256.0-mlir-23.1.0",
+    "host": "windows-windows-nt-42f9d519186ea6d6",
+    "recipe": "private-native0-mlir0-source-to-pe-candidate",
+    "recipeClass": "hello-release",
+    "recipeDigest": "sha256:475cb72631b6df52b7813cad0b90d5ad9827cb5874305d4c25b95eab50a5cf3c",
+    "eligibility": "contextual-only-until-public-run"
+  },
+  "correctness": {
+    "oracleId": "hello:exact-output",
+    "exitCode": 0,
+    "stdoutDigest": "sha256:d9014c4624844aa5bac314773d6b689ad467fa4e1d1a50a1b8a99d5a95f72ff5",
+    "stderrDigest": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "artifact": {
+    "digest": "sha256:1eb06948e18ff4b410837e06fcd2fe02d14c7821f1b8308c2147ab5334214fc3",
+    "sizeBytes": "2560"
+  },
+  "protocol": {
+    "warmupMinimum": 1,
+    "rawMinimum": 9,
+    "rawParity": "odd",
+    "arithmeticMeanRounding": "floor-integer",
+    "stopRule": "fixed-count",
+    "wallClock": "monotonic-nanoseconds",
+    "processIsolation": "fresh-process-per-sample",
+    "order": "compile-series-then-run-series",
+    "resourceScope": "W compile aggregates the five direct children (Native0 gate, mlir-opt, mlir-translate, llc and lld-link). Run is the direct target process only; descendants are not aggregated.",
+    "knownNoiseControls": [
+      "warmup-discarded",
+      "fresh-process-per-sample",
+      "fixed-variant-order"
+    ],
+    "unknownNoiseControls": [
+      "host-scheduler",
+      "filesystem-cache",
+      "thermal-state"
+    ],
+    "directProcessDisclosure": "Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. Bun.spawnSync enforces a 120000 ms per-direct-child timeout and sends SIGKILL; descendant termination is not guaranteed without a Windows Job Object, and timed-out children abort the run without publishing a partial result."
+  },
+  "environment": {
+    "os": "windows",
+    "kernel": "windows-nt",
+    "cpuModel": "Intel(R) Xeon(R) E E-2488",
+    "logicalCores": "16",
+    "ramBytes": "34180030464"
+  },
+  "compile": {
+    "warmup": [
+      {
+        "wallNs": "186299900",
+        "cpuUserUs": "62500",
+        "cpuSystemUs": "31250",
+        "cpuTotalUs": "93750",
+        "peakRssBytes": "24858624"
+      }
+    ],
+    "raw": [
+      {
+        "wallNs": "181012400",
+        "cpuUserUs": "46875",
+        "cpuSystemUs": "46875",
+        "cpuTotalUs": "93750",
+        "peakRssBytes": "24858624"
+      },
+      {
+        "wallNs": "168984100",
+        "cpuUserUs": "78125",
+        "cpuSystemUs": "31250",
+        "cpuTotalUs": "109375",
+        "peakRssBytes": "24862720"
+      },
+      {
+        "wallNs": "171946900",
+        "cpuUserUs": "78125",
+        "cpuSystemUs": "46875",
+        "cpuTotalUs": "125000",
+        "peakRssBytes": "24862720"
+      },
+      {
+        "wallNs": "168692300",
+        "cpuUserUs": "15625",
+        "cpuSystemUs": "109375",
+        "cpuTotalUs": "125000",
+        "peakRssBytes": "24858624"
+      },
+      {
+        "wallNs": "171311300",
+        "cpuUserUs": "62500",
+        "cpuSystemUs": "31250",
+        "cpuTotalUs": "93750",
+        "peakRssBytes": "24862720"
+      },
+      {
+        "wallNs": "171160500",
+        "cpuUserUs": "15625",
+        "cpuSystemUs": "62500",
+        "cpuTotalUs": "78125",
+        "peakRssBytes": "24862720"
+      },
+      {
+        "wallNs": "181063400",
+        "cpuUserUs": "46875",
+        "cpuSystemUs": "125000",
+        "cpuTotalUs": "171875",
+        "peakRssBytes": "24866816"
+      },
+      {
+        "wallNs": "176732600",
+        "cpuUserUs": "62500",
+        "cpuSystemUs": "62500",
+        "cpuTotalUs": "125000",
+        "peakRssBytes": "24850432"
+      },
+      {
+        "wallNs": "189236600",
+        "cpuUserUs": "15625",
+        "cpuSystemUs": "78125",
+        "cpuTotalUs": "93750",
+        "peakRssBytes": "24875008"
+      }
+    ],
+    "summary": {
+      "wallNs": {
+        "min": "168692300",
+        "median": "171946900",
+        "max": "189236600",
+        "arithmeticMean": "175571122",
+        "mad": "3254600"
+      },
+      "cpuUserUs": {
+        "min": "15625",
+        "median": "46875",
+        "max": "78125",
+        "arithmeticMean": "46875",
+        "mad": "31250"
+      },
+      "cpuSystemUs": {
+        "min": "31250",
+        "median": "62500",
+        "max": "125000",
+        "arithmeticMean": "65972",
+        "mad": "15625"
+      },
+      "cpuTotalUs": {
+        "min": "78125",
+        "median": "109375",
+        "max": "171875",
+        "arithmeticMean": "112847",
+        "mad": "15625"
+      },
+      "peakRssBytes": {
+        "min": "24850432",
+        "median": "24862720",
+        "max": "24875008",
+        "arithmeticMean": "24862264",
+        "mad": "4096"
+      }
+    },
+    "cpuResolution": {
+      "unit": "microseconds",
+      "zeroAllowed": true,
+      "disclosure": "Bun resourceUsage reports CPU counters in microseconds; zero-valued samples are preserved and do not imply nanosecond precision."
+    }
+  },
+  "run": {
+    "warmup": [
+      {
+        "wallNs": "27032000",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3719168"
+      }
+    ],
+    "raw": [
+      {
+        "wallNs": "14448200",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3719168"
+      },
+      {
+        "wallNs": "16508100",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      },
+      {
+        "wallNs": "14430700",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      },
+      {
+        "wallNs": "16605800",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3719168"
+      },
+      {
+        "wallNs": "15852900",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      },
+      {
+        "wallNs": "15240700",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      },
+      {
+        "wallNs": "15705600",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "15625",
+        "cpuTotalUs": "15625",
+        "peakRssBytes": "3719168"
+      },
+      {
+        "wallNs": "15883800",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      },
+      {
+        "wallNs": "16082000",
+        "cpuUserUs": "0",
+        "cpuSystemUs": "0",
+        "cpuTotalUs": "0",
+        "peakRssBytes": "3715072"
+      }
+    ],
+    "summary": {
+      "wallNs": {
+        "min": "14430700",
+        "median": "15852900",
+        "max": "16605800",
+        "arithmeticMean": "15639755",
+        "mad": "612200"
+      },
+      "cpuUserUs": {
+        "min": "0",
+        "median": "0",
+        "max": "0",
+        "arithmeticMean": "0",
+        "mad": "0"
+      },
+      "cpuSystemUs": {
+        "min": "0",
+        "median": "0",
+        "max": "15625",
+        "arithmeticMean": "1736",
+        "mad": "0"
+      },
+      "cpuTotalUs": {
+        "min": "0",
+        "median": "0",
+        "max": "15625",
+        "arithmeticMean": "1736",
+        "mad": "0"
+      },
+      "peakRssBytes": {
+        "min": "3715072",
+        "median": "3715072",
+        "max": "3719168",
+        "arithmeticMean": "3716437",
+        "mad": "0"
+      }
+    },
+    "cpuResolution": {
+      "unit": "microseconds",
+      "zeroAllowed": true,
+      "disclosure": "Bun resourceUsage reports CPU counters in microseconds; zero-valued samples are preserved and do not imply nanosecond precision."
+    }
+  },
+  "provenance": {
+    "sourceDigest": "sha256:267fa83d08a74316feffaea140f92fa93f47794b7a04b5647a151cdf1700c397",
+    "artifactDigest": "sha256:1eb06948e18ff4b410837e06fcd2fe02d14c7821f1b8308c2147ab5334214fc3",
+    "recipeDigest": "sha256:475cb72631b6df52b7813cad0b90d5ad9827cb5874305d4c25b95eab50a5cf3c",
+    "toolchainDigest": "sha256:66c5c1728933f5282de17463cd30b79b0e5de3013ddd50eb1e2f7b3c5008ef61",
+    "runnerDigest": "sha256:516f601830d0d9af38f6f849cc2a99e1d16bc8d9337971996c1f783c46910813",
+    "catalogDigest": "sha256:c1c358f4381e9327062bec851fa34a364a305ec1d04131eefcb3e0bc3ae297bc",
+    "commit": "d834927505d531b09deb52dd555dd7bcc51d8c36",
+    "observedAt": "2026-09-08T22:29:02.041Z"
+  }
+}
