@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-12"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-13"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -191,6 +191,9 @@ typedef struct {
   w_seed_frontend_text return_type;
   /* Append-only const capability flag. The default is false. */
   bool is_const;
+  /* Empty for a free external symbol. A non-empty value names the exact
+   * nominal receiver that owns this external member. */
+  w_seed_frontend_text receiver_type;
 } w_seed_frontend_external_symbol;
 
 typedef struct {
