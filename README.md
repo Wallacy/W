@@ -79,6 +79,17 @@ exact Hello and Restaurant staged-smoke evidence, including each fixture's
 SHA-256. It is not a package, budget, or performance proof. A failed
 pre-commit validation preserves the previous output directory. A HEAD change
 during the build is rejected, and there is no implicit C standard fallback.
+DEVCLI1 adds a short declarative facade: `bun check` defaults to the manifest's
+quick suite, `bun demo` names public `w run` fixtures, `bun bootstrap
+--target host` builds the local development artifact, and `bun dev run
+<explicit .w path> [-- args]` forwards a source invocation without a shell.
+Bootstrap/demo/dev are an explicitly Windows x64-only first cut; Linux is
+unsupported here. The facade validates the canonical receipt and artifact
+hash, requires a development profile and matching HEAD, and labels dirty
+source identities as non-strong DX evidence. `dev run` accepts an explicit,
+existing regular `.w` source outside the checkout; its catalog, fixture,
+binary, and receipt paths remain repository-contained. Legacy colon aliases
+remain internal compatibility paths for now.
 [`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
 targets, compiler hosts e cross-compilation. O baseline primário tem nove
 edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
@@ -300,7 +311,8 @@ bun run tooling:install
 bun run check:docs
 ```
 
-Use `bun run check` quando grammar, corpus, std ou sources `.w` mudarem.
+Use `bun check --target all` quando grammar, corpus, std ou sources `.w`
+mudarem; `bun check` é a seleção rápida.
 
 ## Estado atual
 
