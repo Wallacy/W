@@ -19,7 +19,7 @@ Best-known status: **not-established** (0 promoted records).
 
 ### hello
 
-- w — contextual-non-ranking-until-public-run; compile median 193.5199 ms; run median 19.0794 ms; CPU median 0 µs; peak RSS 3715072 B (3.543 MiB); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
+- w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 ns, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 
 ## W Hello boundary
 

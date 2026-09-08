@@ -42,6 +42,10 @@ export function formatNanoseconds(value) {
   return `${ns} ns`;
 }
 
+function formatMicroseconds(value) {
+  return formatNanoseconds(BigInt(value) * 1_000n);
+}
+
 function formatScaledInteger(value, divisor, unit) {
   const scaled = (value * 1_000n + divisor / 2n) / divisor;
   const whole = scaled / 1_000n;
@@ -75,7 +79,7 @@ function recordedLines(workload, history, root) {
     if (!record || record.workloadId !== workload.id) continue;
     const source = workload.sources?.find((item) => item.language === record.language);
     const comparability = source?.comparability ?? "unclassified";
-    lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)}; run median ${formatNanoseconds(record.run.summary.wallNs.median)}; CPU median ${record.run.summary.cpuTotalUs.median} µs; peak RSS ${formatBytes(record.run.summary.peakRssBytes.median)}; artifact ${formatBytes(record.artifact.sizeBytes)}; commit ${record.provenance.commit.slice(0, 12)}; toolchain ${record.identity.toolchain}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
+    lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)} (CPU ${formatMicroseconds(record.compile.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.compile.summary.peakRssBytes.median)}); run median ${formatNanoseconds(record.run.summary.wallNs.median)} (CPU ${formatMicroseconds(record.run.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.run.summary.peakRssBytes.median)}); artifact ${formatBytes(record.artifact.sizeBytes)}; commit ${record.provenance.commit.slice(0, 12)}; toolchain ${record.identity.toolchain}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
   }
   return lines;
 }

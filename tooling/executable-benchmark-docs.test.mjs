@@ -42,7 +42,7 @@ test("projection formatting and root-relative record lookup are deterministic", 
   fs.writeFileSync(path.join(recordPath, "record.json"), JSON.stringify({
     workloadId: "hello",
     language: "w",
-    compile: { summary: { wallNs: { median: "1000000" } } },
+    compile: { summary: { wallNs: { median: "1000000" }, cpuTotalUs: { median: "500" }, peakRssBytes: { median: "8192" } } },
     run: { summary: { wallNs: { median: "2000000" }, cpuTotalUs: { median: "0" }, peakRssBytes: { median: "4096" } } },
     artifact: { sizeBytes: "2048" },
     provenance: { commit: "1".repeat(40) },
@@ -54,7 +54,7 @@ test("projection formatting and root-relative record lookup are deterministic", 
       history: { records: [{ id: "record", path: "record.json", digest: "sha256:" + "0".repeat(64) }] },
       root: temporaryRoot,
     });
-    assert.match(rendered, /compile median 1 ms; run median 2 ms; CPU median .* µs; peak RSS 4096 B \(4 KiB\); artifact 2048 B \(2 KiB\)/u);
+    assert.match(rendered, /compile median 1 ms \(CPU .*?, RSS .*?\); run median 2 ms \(CPU 0 ns, RSS 4096 B \(4 KiB\)\); artifact 2048 B \(2 KiB\)/u);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }
