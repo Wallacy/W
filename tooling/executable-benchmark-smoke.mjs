@@ -6,6 +6,7 @@ import {
   validateExecutableCatalog,
 } from "./executable-benchmark-machine.mjs";
 import { dialectArgs, dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
+import { C_RELEASE_FLAGS, RUST_RELEASE_FLAGS } from "./executable-release-recipes.mjs";
 
 const root = path.resolve(import.meta.dir, "..");
 const documents = loadExecutableDocuments();
@@ -118,9 +119,9 @@ async function main() {
       } else {
         for (const workloadId of CORRECTNESS_WORKLOAD_IDS) {
           const executable = executablePath(directory, workloadId, "c");
-          await checkExecutable(workloadId, "c", c, [...dialectArgs(dialect), sourcePath(workloadId, "c"), "-o", executable], directory);
+          await checkExecutable(workloadId, "c", c, [...dialectArgs(dialect), ...C_RELEASE_FLAGS, sourcePath(workloadId, "c"), "-o", executable], directory);
         }
-        report("C dialect: " + dialectDisclosure(dialect));
+        report("C release recipe: " + dialectDisclosure(dialect) + " with -O3, LTO, section GC, and stripped symbols");
       }
     }
     const rustc = Bun.which("rustc");
@@ -129,9 +130,9 @@ async function main() {
     } else {
       for (const workloadId of CORRECTNESS_WORKLOAD_IDS) {
         const executable = executablePath(directory, workloadId, "rust");
-        await checkExecutable(workloadId, "rust", rustc, [sourcePath(workloadId, "rust"), "--edition=2024", "-C", "opt-level=2", "-o", executable], directory);
+          await checkExecutable(workloadId, "rust", rustc, [sourcePath(workloadId, "rust"), "--edition=2024", ...RUST_RELEASE_FLAGS, "-o", executable], directory);
       }
-      report("Rust recipe: rustc --edition=2024 -C opt-level=2");
+      report("Rust release recipe: edition 2024, O3, fat LTO, one codegen unit, panic abort, and stripped symbols");
     }
   } finally {
     await fs.rm(directory, { recursive: true, force: true });

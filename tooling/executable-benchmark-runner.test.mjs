@@ -6,12 +6,22 @@ import os from "node:os";
 import path from "node:path";
 import {
   RESULTS_DIRECTORY,
+  defaultExecutor,
   deriveSummary,
+  EXECUTABLE_CHILD_KILL_SIGNAL,
+  EXECUTABLE_CHILD_TIMEOUT_MS,
   parseBenchmarkArguments,
   publishRecord,
   resolveResultPath,
   runBenchmark,
 } from "./executable-benchmark-runner.mjs";
+import {
+  C_RELEASE_FLAGS,
+  RUST_RELEASE_FLAGS,
+  W_LLC_FLAGS,
+  W_LLD_LINK_FLAGS,
+  W_MLIR_OPT_FLAGS,
+} from "./executable-release-recipes.mjs";
 
 test("benchmark arguments select a language and keep the fixed raw count", () => {
   assert.deepEqual(parseBenchmarkArguments([]), {
@@ -26,6 +36,34 @@ test("benchmark arguments select a language and keep the fixed raw count", () =>
   assert.throws(() => parseBenchmarkArguments(["--language", "swift"]), /unsupported/);
   assert.throws(() => parseBenchmarkArguments(["--samples", "10"]), /odd/);
   assert.throws(() => parseBenchmarkArguments(["--warmup", "0"]), /between 1/);
+  assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
+    target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
+  });
+  assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
+});
+
+test("default executor enforces the Bun child timeout and preserves termination metadata", () => {
+  const result = defaultExecutor(process.execPath, [
+    "-e",
+    "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000)",
+  ], { timeout: 10 });
+  assert.equal(result.exitedDueToTimeout, true);
+  assert.equal(result.signalCode, EXECUTABLE_CHILD_KILL_SIGNAL);
+  assert.equal(result.exitCode, null);
+  assert.ok(result.resourceUsage);
+  assert.equal(EXECUTABLE_CHILD_TIMEOUT_MS, 120_000);
+});
+
+test("release recipes prioritize runtime and strip distributable symbols", () => {
+  assert.deepEqual(C_RELEASE_FLAGS, ["-O3", "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", "-s"]);
+  assert.deepEqual(RUST_RELEASE_FLAGS, ["-C", "opt-level=3", "-C", "lto=fat", "-C", "codegen-units=1", "-C", "panic=abort", "-C", "debuginfo=0", "-C", "strip=symbols"]);
+  assert.equal(RUST_RELEASE_FLAGS.includes("incremental=off"), false, "rustc treats this as an output directory rather than disabling incremental compilation");
+  assert.deepEqual(W_MLIR_OPT_FLAGS, ["--verify-each", "--canonicalize", "--cse"]);
+  assert.ok(W_LLC_FLAGS.includes("-O3"));
+  assert.ok(W_LLD_LINK_FLAGS.includes("/opt:ref"));
+  assert.ok(W_LLD_LINK_FLAGS.includes("/opt:icf"));
+  const all = [...C_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
+  assert.equal(all.some((flag) => /(?:^|=)(?:s|z)$|native/iu.test(flag)), false);
 });
 
 test("summary arithmetic means use integer floor and preserve zero CPU", () => {
@@ -68,12 +106,21 @@ function fakeResourceUsage() {
   return { cpuTime: { user: 1, system: 1 }, maxRSS: 4096 };
 }
 
-function fakeRunnerExecutor({ language, mismatch = false }) {
+function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined }) {
   const compiler = path.resolve(`fake-${language === "c" ? "gcc" : "rustc"}.exe`);
   const calls = [];
   const sampleDirectories = new Set();
   const executor = async (command, args, options = {}) => {
-    calls.push({ command, args: [...args], cwd: options.cwd, stdin: options.stdin });
+    calls.push({ command, args: [...args], cwd: options.cwd, stdin: options.stdin, timeout: options.timeout, killSignal: options.killSignal });
+    const timedOut = () => ({
+      exitCode: null,
+      signalCode: "SIGKILL",
+      exitedDueToTimeout: true,
+      stdout: Buffer.alloc(0),
+      stderr: Buffer.alloc(0),
+      resourceUsage: fakeResourceUsage(),
+    });
+    if (timeoutMode === "probe" && args.length === 1 && args[0] === "-dumpmachine") return timedOut();
     if (args.length === 1 && args[0] === "-dumpmachine") {
       return { exitCode: 0, stdout: "x86_64-w64-mingw32", stderr: Buffer.alloc(0) };
     }
@@ -105,9 +152,10 @@ function fakeRunnerExecutor({ language, mismatch = false }) {
       return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), resourceUsage: fakeResourceUsage() };
     }
     if (args.length === 0) {
+      if (timeoutMode === "run") return timedOut();
       return {
         exitCode: 0,
-        stdout: mismatch ? "Not the oracle\n" : "Hello, world!\n",
+        stdout: mismatch ? "Not the oracle\n" : target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n",
         stderr: Buffer.alloc(0),
         resourceUsage: fakeResourceUsage(),
       };
@@ -152,7 +200,7 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(record.correctness.oracleId, "hello:exact-output");
     assert.equal(record.artifactTarget, language === "c" ? "x86_64-w64-mingw32" : "x86_64-pc-windows-msvc");
     assert.match(record.protocol.resourceScope, /direct compiler process only/u);
-    assert.match(record.protocol.directProcessDisclosure, /deferred:.*timeout option/iu);
+    assert.match(record.protocol.directProcessDisclosure, /per-direct-child timeout.*SIGKILL.*descendant termination.*Job Object/iu);
     assert.equal(fake.calls.some((call) => /w_seed|mlir|cmake|ninja/iu.test([call.command, ...call.args].join(" "))), false);
     if (language === "c") {
       assert.equal(fake.calls.filter((call) => call.args.includes("-dumpmachine")).length, 1);
@@ -160,7 +208,7 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
       assert.ok(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).every((call) => typeof call.stdin === "string" && call.stdin.includes("int main")));
       assert.equal(fake.calls.filter((call) => call.args.length === 1 && call.args[0] === "--version").length, 1);
       assert.ok(compileCalls.every((call) => call.args.includes("-std=c2x")));
-      assert.ok(compileCalls.every((call) => call.args.includes("-O2")));
+      assert.ok(compileCalls.every((call) => C_RELEASE_FLAGS.every((flag) => call.args.includes(flag))));
       assert.match(record.identity.toolchain, /c2x-preview/u);
       assert.match(record.identity.toolchain, /x86_64-w64-mingw32/u);
       assert.equal(record.provenance.toolchainDigest.length, 71);
@@ -168,12 +216,79 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
       assert.equal(fake.calls.filter((call) => call.args.includes("target-libdir")).length, 1);
       assert.equal(fake.calls.filter((call) => call.args.includes("--verbose")).length, 1);
       assert.ok(compileCalls.every((call) => call.args.includes("--edition=2024")));
-      assert.ok(compileCalls.every((call) => call.args.includes("-C") && call.args.includes("opt-level=2") && call.args.includes("debuginfo=0") && call.args.includes("incremental=off")));
+      assert.ok(compileCalls.every((call) => RUST_RELEASE_FLAGS.every((flag) => call.args.includes(flag))));
       assert.ok(compileCalls.every((call) => call.args.includes("--target=x86_64-pc-windows-msvc")));
       assert.match(record.identity.toolchain, /edition-2024/u);
       assert.match(record.identity.toolchain, /x86_64-pc-windows-msvc/u);
     }
     assertNoFakeSampleDirectories(fake);
+  }
+});
+
+test("restaurant-branch C and Rust records use target-specific source, oracle and identity metadata", async () => {
+  for (const language of ["c", "rust"]) {
+    const fake = fakeRunnerExecutor({ language, target: "restaurant-branch" });
+    const { record } = await runBenchmark({ target: "restaurant-branch", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
+    const compileCalls = fake.calls.filter((call) => call.args.includes("-o"));
+    assert.equal(record.workloadId, "restaurant-branch");
+    assert.equal(record.id, `restaurant-branch-${language}-${TEST_COMMIT.slice(0, 12)}`);
+    assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
+    assert.ok(compileCalls.every((call) => call.args.some((argument) => argument.endsWith(`restaurant-branch-${language}.exe`))));
+    assert.equal(record.identity.recipeClass, "restaurant-release");
+    assert.match(record.identity.sourceDigest, /^sha256:[0-9a-f]{64}$/u);
+    assert.equal(record.compile.raw.length, 9);
+  }
+});
+
+test("restaurant-branch W fails before any compilation because public-w-run lacks an executable route", async () => {
+  let calls = 0;
+  await assert.rejects(
+    () => runBenchmark({ target: "restaurant-branch", language: "w", warmup: 1, samples: 9, publish: false }, {
+      executor: async () => { calls += 1; throw new Error("unexpected child invocation"); },
+      testOnly: true,
+      testOnlyPlatform: { platform: "win32", arch: "x64" },
+      commit: TEST_COMMIT,
+      environment: TEST_ENVIRONMENT,
+      runnerDigest: TEST_DIGEST,
+      catalogDigest: TEST_DIGEST,
+    }),
+    /restaurant-branch W.*public-w-run.*retained artifact.*separate compile-run.*Native0/iu,
+  );
+  assert.equal(calls, 0);
+});
+
+test("timed-out compiler probes abort before a measurement directory or result exists", async () => {
+  const fake = fakeRunnerExecutor({ language: "c", timeoutMode: "probe" });
+  await assert.rejects(
+    () => runBenchmark({ target: "hello", language: "c", warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies("c", fake)),
+    /hello C target probe.*child timeout.*SIGKILL/iu,
+  );
+  assert.equal(fake.calls.length, 1);
+  assert.equal(fake.calls[0].timeout, EXECUTABLE_CHILD_TIMEOUT_MS);
+  assert.equal(fake.calls[0].killSignal, EXECUTABLE_CHILD_KILL_SIGNAL);
+});
+
+test("timed-out executable runs abort without publishing a partial result or leaking temporary files", async () => {
+  const fake = fakeRunnerExecutor({ language: "c", timeoutMode: "run" });
+  await mkdir(RESULTS_DIRECTORY, { recursive: true });
+  const directory = await mkdtemp(path.join(RESULTS_DIRECTORY, "w-executable-timeout-test-"));
+  const output = path.join(directory, "timeout.json");
+  const before = await ownedRunDirectories();
+  try {
+    await assert.rejects(
+      () => runBenchmark({ target: "hello", language: "c", warmup: 1, samples: 9, output, publish: false }, fakeRunnerDependencies("c", fake)),
+      /c hello run.*child timeout.*SIGKILL/iu,
+    );
+    assert.equal(existsSync(output), false);
+    assertNoFakeSampleDirectories(fake);
+    assert.ok(fake.calls.some((call) => call.args.length === 0 && call.timeout === EXECUTABLE_CHILD_TIMEOUT_MS));
+  } finally {
+    const after = await ownedRunDirectories();
+    await rm(directory, { recursive: true, force: true });
+    await rmdir(RESULTS_DIRECTORY).catch((error) => {
+      if (error?.code !== "ENOENT" && error?.code !== "ENOTEMPTY" && error?.code !== "EEXIST") throw error;
+    });
+    assert.deepEqual(after, before, "owned benchmark run directory must be removed");
   }
 });
 
@@ -222,7 +337,7 @@ test("oracle mismatch stops before samples and leaves no result or owned tempora
   try {
     await assert.rejects(
       () => runBenchmark({ language: "c", warmup: 1, samples: 9, output, publish: false }, fakeRunnerDependencies("c", fake)),
-      /does not match the Hello oracle/u,
+      /does not match the hello exact-output oracle/u,
     );
     assert.equal(existsSync(output), false);
     assert.equal(fake.calls.filter((call) => call.args.includes("-o")).length, 1, "oracle must run before measured compile samples");
