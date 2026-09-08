@@ -40,9 +40,9 @@ em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
 não suporte Windows nativo.
 W-1532 records bounded candidate evidence for Windows x86_64: users can
-materialize the external development toolchain with `bun run
-acquire:mlir0-windows` (network is enabled only by this opt-in) and build a
-persistent `w.exe` with `bun run build:w-windows`. The build uses only the
+materialize the external development toolchain with `bun tooling/command-runner.mjs
+--command acquire:mlir0-windows` (network is enabled only by this opt-in) and build a
+persistent `w.exe` with `bun tooling/command-runner.mjs --command build:w-windows`. The build uses only the
 validated cache and explicit Visual Studio/SDK paths; it does not copy the
 toolchain, and the future runtime does not download or search for tools. The
 Windows route uses MLIR → LLVM IR → `llc` → `lld-link` and does not promote
@@ -59,10 +59,10 @@ host GCC/cc 13.3.0. The local Linux harness used Bun 1.3.4.
 The mandatory Linux and Windows CI jobs use Bun 1.4.0 and have not run.
 This evidence does not establish hosted CI success or general cross-target support.
 
-The primary Windows build command is `bun run build:w-windows`. It selects the `release`
+The primary Windows build command is `bun tooling/command-runner.mjs --command build:w-windows`. It selects the `release`
 toolchain profile by default. It tries C23 and fails closed when this host's
 MSVC/CMake rejects that dialect. To reproduce the current evidence, use
-exactly `bun run build:w-windows --c11-recovery`.
+exactly `bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery`.
 
 The builder also accepts exactly one `--profile` value: `development` maps to
 CMake `Debug`, `release` maps to `Release`, `benchmark` maps to a

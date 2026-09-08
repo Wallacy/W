@@ -16,6 +16,7 @@ import {
   parseDemoArguments,
   parseDevRunArguments,
   resolveContainedFile,
+  resolveCheckTarget,
   resolveExplicitSource,
   runDevRun,
   validateHostSourceIdentity,
@@ -91,7 +92,10 @@ describe("DEVCLI1 catalog and parsing", () => {
     });
     expect(() => parseCheckArguments(["--list", "--target", "all"])).toThrow();
     expect(() => parseCheckArguments(["--list", "--dry-run"])).toThrow();
-    expect(() => parseCheckArguments(["--target", "unknown"])).toThrow();
+    expect(parseCheckArguments(["--target", "hlo0"])).toEqual({
+      target: "hlo0", list: false, dryRun: false, help: false,
+    });
+    expect(() => parseCheckArguments(["--target", "not a target"])).toThrow();
 
     expect(parseDemoArguments([])).toEqual({ target: "hello", list: false, help: false });
     expect(parseDemoArguments(["--target", "bool-short-circuit"])).toEqual({
@@ -121,14 +125,35 @@ describe("DEVCLI1 plans and contained process boundaries", () => {
   test("lists manifest-backed suites and expands dry-run from the existing runner", () => {
     const catalog = loadCatalog();
     const loaded = loadCheckSuites();
-    const list = formatCheckList({ catalog, suites: loaded.suites });
+    const list = formatCheckList({
+      catalog,
+      suites: loaded.suites,
+      commands: loaded.commands,
+    });
     expect(list).toContain("quick\troot-quick\t");
     expect(list).toContain("all\troot-check\t");
+    expect(list).toContain("hlo0\tcheck:hlo0\t1\t");
+    expect(list).toContain("w-run\tcheck:w-run\t1\t");
     expect(formatDemoList(catalog)).toContain("bool-short-circuit\t");
     const plan = checkPlan({ catalog, suites: loaded.suites, target: "quick" });
     expect(plan.suite).toBe("root-quick");
     expect(plan.steps.length).toBeGreaterThan(0);
     expect(plan.steps[0]).toEqual({ package: "root", script: "check:suite-manifest" });
+    expect(resolveCheckTarget({
+      catalog,
+      commands: loaded.commands,
+      target: "docs",
+    })).toEqual({ kind: "suite", target: "docs", suite: "root-docs" });
+    expect(resolveCheckTarget({
+      catalog,
+      commands: loaded.commands,
+      target: "hlo0",
+    })).toEqual({ kind: "command", target: "hlo0", commandName: "check:hlo0" });
+    expect(() => resolveCheckTarget({
+      catalog,
+      commands: loaded.commands,
+      target: "missing-leaf",
+    })).toThrow("unknown check target");
   });
 
   test("contains catalog files but accepts an explicit external source", () => {

@@ -74,11 +74,29 @@ function validateRelativeDirectory(value, label, root, errors) {
     errors.push(`${label} escapes the repository root`);
     return null;
   }
-  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isDirectory()) {
+  let physicalRoot;
+  let physical;
+  try {
+    physicalRoot = fs.realpathSync.native(path.resolve(root));
+    physical = fs.realpathSync.native(resolved);
+  } catch {
     errors.push(`${label} must name an existing directory`);
     return null;
   }
-  return resolved;
+  if (!isContained(physicalRoot, physical)) {
+    errors.push(`${label} resolves outside the repository root`);
+    return null;
+  }
+  try {
+    if (!fs.statSync(physical).isDirectory()) {
+      errors.push(`${label} must name an existing directory`);
+      return null;
+    }
+  } catch {
+    errors.push(`${label} must name an existing directory`);
+    return null;
+  }
+  return physical;
 }
 
 function validateArgumentVector(value, label, errors) {
@@ -461,17 +479,24 @@ export function flattenCommand({ commands, commandName } = {}) {
 }
 
 function childStatus(result) {
-  if (result?.error) return null;
+  if (result?.error) return 1;
   if (Number.isInteger(result?.status)) return result.status;
   if (Number.isInteger(result?.exitCode)) return result.exitCode;
   return 1;
+}
+
+function resolveExecutableCwd(root, value) {
+  const errors = [];
+  const physical = validateRelativeDirectory(value, "command cwd", root, errors);
+  if (errors.length > 0 || physical === null) throw new Error(errors.join("\n"));
+  return physical;
 }
 
 function runInvocation({ root, invocation, spawn = spawnSync }) {
   let result;
   try {
     result = spawn(process.execPath, invocation.args, {
-      cwd: path.resolve(root, invocation.cwd),
+      cwd: resolveExecutableCwd(root, invocation.cwd),
       stdio: "inherit",
       windowsHide: true,
       shell: false,

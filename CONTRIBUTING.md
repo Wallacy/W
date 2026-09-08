@@ -100,7 +100,7 @@ corpus e produto de referência na mesma mudança ou explique a ordem planejada.
 Não edite `DESIGN-INDEX.md` nem os outputs de `tooling/tree-sitter-w/src/`
 manualmente. Execute `bun run tooling:install` para instalar o tooling e recriar
 os outputs. Preserve `src/scanner.c`, que é authored e versionado. Execute
-`bun tooling/command-runner.mjs --command check:generated-policy` para validar a política.
+`bun check --target generated-policy` para validar a política.
 
 ## Escrita e idiomas
 
@@ -154,7 +154,7 @@ bun check --target docs
 ```
 
 Depois de alterar metadata de estudo, regenere o catálogo humano e o registry
-com `bun run study:registry` e valide ambos com `bun tooling/command-runner.mjs --command check:study-registry`.
+com `bun run study:registry` e valide ambos com `bun check --target study-registry`.
 
 Para grammar, corpus, std, tooling ou qualquer source `.w`:
 

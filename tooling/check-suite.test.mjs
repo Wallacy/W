@@ -9,6 +9,7 @@ import {
   loadCheckSuites,
   parseCheckSuiteArguments,
   runCheckSuite,
+  validateCommandRegistry,
   validateCheckSuites,
 } from "./check-suite.mjs";
 
@@ -313,5 +314,52 @@ describe("check-suite manifest", () => {
     });
     expect(status).toBe(7);
     expect(fs.readFileSync(path.join(root, "marker.txt"), "utf8")).toBe("first\nfail\n");
+  });
+
+  test("turns a non-root child spawn error into a nonzero status", () => {
+    const manifest = baseManifest({
+      suites: {
+        failure: {
+          description: "spawn failure suite",
+          steps: [{ package: "tree", script: "test" }],
+        },
+      },
+    });
+    const root = makeRoot({ manifest });
+    const loaded = loadCheckSuites(root);
+    const status = runCheckSuite({
+      root,
+      packageRecords: loaded.packages,
+      commandRecords: loaded.commands,
+      suites: loaded.suites,
+      suiteName: "failure",
+      dryRun: false,
+      spawn: () => ({ error: new Error("child unavailable") }),
+    });
+    expect(status).toBe(1);
+  });
+
+  test("rejects a command cwd that resolves through a link outside the repository", () => {
+    const root = makeRoot({ manifest: baseManifest() });
+    const outside = fs.mkdtempSync(path.join(os.tmpdir(), "w-command-outside-"));
+    const link = path.join(root, "escape");
+    try {
+      fs.symlinkSync(outside, link, process.platform === "win32" ? "junction" : "dir");
+    } catch (error) {
+      if (error?.code === "EPERM" || error?.code === "EACCES") return;
+      throw error;
+    }
+    const registry = {
+      $schema: COMMAND_REGISTRY_SCHEMA,
+      version: 1,
+      commands: {
+        escape: {
+          description: "linked cwd",
+          steps: [{ kind: "bun", cwd: "escape", args: ["-e", "0"] }],
+        },
+      },
+    };
+    const result = validateCommandRegistry({ registry, root });
+    expect(result.errors.join("\n")).toContain("resolves outside the repository root");
   });
 });

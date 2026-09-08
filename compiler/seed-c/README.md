@@ -981,9 +981,9 @@ resultado publicado. Isso não é execução W. HLO0 não prova HIR geral, Conso
 provider W, w-linker, `w run` ou runtime.
 
 ```text
-bun run check:hlo0
-bun run check:seed-frontend
-bun run parse:hlo0
+bun check --target hlo0
+bun check --target seed-frontend
+bun tooling/command-runner.mjs --command parse:hlo0
 ```
 
 O `benchmarkDisposition` deste bundle é `compiler-lifecycle`: a evidência é
@@ -1019,7 +1019,7 @@ produzem C. CMake, Ninja ou compiler ausente produz `SKIP`; falha de toolchain
 presente produz `FAIL`.
 
 ```text
-bun run check:hlo1
+bun check --target hlo1
 ```
 
 Este gate é correctness-only e pertence à classificação
@@ -1118,7 +1118,7 @@ passed the skip/evaluate, nested, RHS-call, and malformed-record boundaries.
 This is compiler-lifecycle correctness evidence only: it makes no general CFG,
 ABI, cross-target, timing, or performance claim.
 
-O gate `bun run check:mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
+O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
 empty output, `restaurant-interpolation.w`, the Bool/String Restaurant witness,
@@ -1165,11 +1165,11 @@ manifest, `CreateProcessW`, `CREATE_NEW` temporaries, and all-or-nothing cleanup
 To keep the development cache outside the repository:
 
 ```text
-bun run acquire:mlir0-windows                                      # network is an explicit opt-in
-bun run build:w-windows                                           # release, primary C23
-bun run build:w-windows --c11-recovery                            # release, explicit C11 recovery
-bun run build:w-windows --profile development --c11-recovery      # Debug, explicit C11 recovery
-bun run build:w-windows --profile size-experimental --c11-recovery # MinSizeRel
+bun tooling/command-runner.mjs --command acquire:mlir0-windows                         # network is an explicit opt-in
+bun tooling/command-runner.mjs --command build:w-windows                               # release, primary C23
+bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery              # release, explicit C11 recovery
+bun tooling/command-runner.mjs --command build:w-windows -- --profile development --c11-recovery      # Debug, explicit C11 recovery
+bun tooling/command-runner.mjs --command build:w-windows -- --profile size-experimental --c11-recovery # MinSizeRel
 ```
 
 `build:w-windows` discovers Visual Studio through `vswhere`, probes the Windows
@@ -1185,7 +1185,7 @@ does not claim a reproducible binary or a double-build result. The
 `size-experimental` profile maps to `MinSizeRel` for size comparison only.
 These are toolchain profiles. They do not add a profile option to `w run`,
 `w check`, or another W command. The
-`bun run check:w-run-windows` gate proves Hello, Restaurant/if, interpolation,
+`bun check --target w-run-windows` gate proves Hello, Restaurant/if, interpolation,
 linear output, a forwarded empty argument, invalid source without stdout, and
 an x64 PE. The cache has role `development-and-release-only`,
 `bundledWithW: false`, and its extracted size is not a W package budget. This is
@@ -1226,7 +1226,7 @@ String values remain outside this implementation cut. This is not a language
 restriction.
 
 ```text
-bun run check:mlir0
+bun check --target mlir0
 ```
 
 ## Public bounded `w run` (W-1521, NAT1 extensions through W-1527)
@@ -1277,13 +1277,13 @@ Both used host GCC/cc 13.3.0 and target `x86_64-linux-gnu`. These gates
 checked exact output, stage failures, missing tools, restored execution, and cleanup.
 The local Linux harness used Bun 1.3.4, not the planned CI Bun 1.4.0.
 The host compiler builds the C seed separately from LLVM object generation.
-Run `bun run check:w-run --ci` only on Linux x64 with the acquired CI tools.
+Run `bun tooling/command-runner.mjs --command check:w-run -- --ci` only on Linux x64 with the acquired CI tools.
 Mandatory mode fails when prerequisites are absent. It cannot pass through SKIP.
 
 On Linux x86_64, run:
 
 ```text
-bun run check:w-run
+bun check --target w-run
 ```
 
 On a Windows host, the same gate builds and runs the Linux binary in WSL
@@ -1291,7 +1291,7 @@ Ubuntu. It does not claim general native Windows support. The separate
 bounded candidate gate is:
 
 ```text
-bun run check:w-run-windows
+bun check --target w-run-windows
 ```
 
 The versioned fixtures can be run directly from the repository root after an
@@ -1334,7 +1334,7 @@ cmake --build build/seed-c-run --target w
 rm -rf -- ./build/seed-c-run
 ```
 
-The automated reproduction remains `bun run check:w-run`; it also checks
+The automated reproduction remains `bun check --target w-run`; it also checks
 rejection cases and cleanup of its private build and fixture directories.
 
 ## RUN0 execução interna bounded verified-HLO0
@@ -1382,7 +1382,7 @@ público mantém o help, a rota `w check` e o subset bounded W-1521 de
 runner público geral.
 
 ```text
-bun run check:run0
+bun check --target run0
 ```
 
 RUN0 é source-backed-current somente para esse subset bounded. Aquisição pública

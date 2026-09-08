@@ -72,7 +72,7 @@ Quando o resultado puder mudar source, ABI ou runtime, exija um spike.
 - `tooling/tree-sitter-w/src/scanner.c` é authored e permanece versionado.
 - Um checkout limpo executa `bun run tooling:install` antes dos consumidores.
   Esse comando instala o tooling e gera os outputs locais.
-- `bun run check:generated-policy` valida essa fronteira sem editar arquivos.
+- `bun check --target generated-policy` valida essa fronteira sem editar arquivos.
 - O portal permanece congelado até o design freeze.
 - `ABOUT.md` preserva a narrativa pública. O Git preserva proveniência removida.
 
