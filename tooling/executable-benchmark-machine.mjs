@@ -60,6 +60,8 @@ export const OPTIMIZABLE_METRICS = Object.freeze([
   "artifact-size",
 ]);
 export const RESULT_HISTORY_PATH = "benchmarks/history/executables";
+export const EXECUTABLE_HISTORY_SCHEMA = "w-executable-benchmark-history/1";
+export const EXECUTABLE_HISTORY_INDEX_PATH = "benchmarks/history/executables/index.json";
 export const BEST_KNOWN_PATH = "benchmarks/executable-best-known.json";
 export const EXECUTABLE_PLATFORM_TARGET = "windows-x64";
 export const EXECUTABLE_ARTIFACT_TARGET_MSVC = "x86_64-pc-windows-msvc";
@@ -81,6 +83,12 @@ const CPU_MODEL_MAX_LENGTH = 128;
 
 function isObject(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function isContained(parent, candidate) {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return relative === "" ||
+    (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 function push(errors, message) {
@@ -196,9 +204,9 @@ function checkSource(source, location, workload, root, errors) {
   if (source.platformTarget !== EXECUTABLE_PLATFORM_TARGET) push(errors, location + ".platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + ".");
   const expectedArtifactTarget = source.language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
   if (source.artifactTarget !== expectedArtifactTarget) push(errors, location + ".artifactTarget must be " + expectedArtifactTarget + ".");
-  const expectedComparability = source.language === "c" ? "contextual-non-ranking-across-abi" : source.language === "w" ? "deferred-until-M3b" : "promotable-after-equivalence";
+  const expectedComparability = source.language === "c" ? "contextual-non-ranking-across-abi" : source.language === "w" && workload.id === "hello" ? "contextual-non-ranking-until-public-run" : source.language === "w" ? "deferred-until-M3b" : "promotable-after-equivalence";
   if (source.comparability !== expectedComparability) push(errors, location + ".comparability does not match the language ABI and benchmark readiness.");
-  if (!["promotable-after-equivalence", "correctness-only-until-c23", "deferred-to-M3b"].includes(source.eligibility)) push(errors, location + ".eligibility is invalid.");
+  if (!["promotable-after-equivalence", "correctness-only-until-c23", "contextual-only-until-public-run", "deferred-to-M3b"].includes(source.eligibility)) push(errors, location + ".eligibility is invalid.");
   const expectedExtension = { w: ".w", c: ".c", rust: ".rs" }[source.language];
   const physical = containedFile(root, source.path, location, errors);
   if (physical && path.extname(physical).toLowerCase() !== expectedExtension) push(errors, location + ".path extension does not match language.");
@@ -573,8 +581,9 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   if (expectedHost && result.identity?.host !== expectedHost) push(errors, "executable result.identity.host must be derived from the redacted environment.");
   checkSampleSeries(result.compile, "executable result.compile", errors);
   checkSampleSeries(result.run, "executable result.run", errors);
-  if (exactKeys(result.provenance, "executable result.provenance", ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"], errors)) {
-    for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest"]) digest(result.provenance[field], "executable result.provenance." + field, errors);
+  if (exactKeys(result.provenance, "executable result.provenance", ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"], errors)) {
+    for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest"]) digest(result.provenance[field], "executable result.provenance." + field, errors);
+    if (typeof result.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(result.provenance.commit)) push(errors, "executable result.provenance.commit must be the full lowercase Git commit identity.");
     checkObservedAt(result.provenance.observedAt, "executable result.provenance.observedAt", errors);
     if (result.provenance.sourceDigest !== result.identity?.sourceDigest || result.provenance.artifactDigest !== result.artifact?.digest || result.provenance.recipeDigest !== result.identity?.recipeDigest) push(errors, "executable result provenance must repeat source, artifact and recipe identity exactly.");
   }
@@ -650,12 +659,84 @@ export function validateExecutableBestKnownIndex(index, catalog = loadExecutable
   return errors;
 }
 
+export function validateExecutableHistory(index, catalog = loadExecutableDocuments().catalog, root = ROOT) {
+  const errors = [];
+  const keys = ["$schema", "schema", "kind", "status", "recordsPath", "records"];
+  if (!exactKeys(index, "executable history index", keys, errors)) return errors;
+  if (index.$schema !== "../../executable-benchmark.schema.json" || index.schema !== EXECUTABLE_HISTORY_SCHEMA || index.kind !== "executable-history-index") push(errors, "executable history index identity is invalid.");
+  if (!["empty-awaiting-clean-head-record", "recorded"].includes(index.status)) push(errors, "executable history index.status is invalid.");
+  if (index.recordsPath !== RESULT_HISTORY_PATH) push(errors, "executable history index.recordsPath must identify the immutable history directory.");
+  if (!Array.isArray(index.records)) {
+    push(errors, "executable history index.records must be an array.");
+    return errors;
+  }
+  if (index.records.length === 0 && index.status !== "empty-awaiting-clean-head-record") push(errors, "empty executable history must await a clean-head record.");
+  if (index.records.length > 0 && index.status !== "recorded") push(errors, "non-empty executable history must be recorded.");
+  const historyRoot = path.resolve(root, RESULT_HISTORY_PATH);
+  const ids = new Set();
+  const paths = new Set();
+  for (const [number, reference] of index.records.entries()) {
+    const location = "executable history index.records[" + number + "]";
+    if (!exactKeys(reference, location, ["id", "path", "digest"], errors)) continue;
+    requiredString(reference.id, location + ".id", errors);
+    if (ids.has(reference.id)) push(errors, location + ".id must be unique.");
+    ids.add(reference.id);
+    if (typeof reference.path !== "string" || !/^[0-9a-f]{64}\.json$/u.test(reference.path)) {
+      push(errors, location + ".path must be the lowercase sha256 hex digest filename.");
+      continue;
+    }
+    if (digest(reference.digest, location + ".digest", errors) && reference.path !== reference.digest.slice("sha256:".length) + ".json") {
+      push(errors, location + ".path must match its sha256 digest filename.");
+    }
+    const physical = path.resolve(historyRoot, reference.path);
+    if (!isContained(historyRoot, physical)) {
+      push(errors, location + ".path escapes immutable history.");
+      continue;
+    }
+    if (paths.has(physical)) push(errors, location + ".path must be unique.");
+    paths.add(physical);
+    if (!digest(reference.digest, location + ".digest", errors)) continue;
+    let bytes;
+    try {
+      const stats = fs.lstatSync(physical);
+      if (!stats.isFile() || stats.isSymbolicLink()) throw new Error();
+      bytes = fs.readFileSync(physical);
+    } catch {
+      push(errors, location + ".path must identify an existing regular history record.");
+      continue;
+    }
+    if (reference.digest !== "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex")) push(errors, location + ".digest is stale.");
+    let record;
+    try { record = JSON.parse(bytes.toString("utf8")); } catch { push(errors, location + ".path must contain valid JSON."); continue; }
+    errors.push(...validateExecutableResult(record, catalog).map((error) => location + ": " + error));
+    if (record?.id !== reference.id) push(errors, location + ".id must match the immutable result record.");
+  }
+  let entries;
+  try {
+    entries = fs.readdirSync(historyRoot, { withFileTypes: true });
+  } catch {
+    push(errors, "executable history directory must be readable.");
+    return errors;
+  }
+  const indexedNames = new Set([...paths].map((physical) => path.basename(physical)));
+  for (const entry of entries) {
+    if (!entry.isFile() || entry.isSymbolicLink()) {
+      push(errors, "executable history contains a non-regular or symbolic-link entry: " + entry.name + ".");
+      continue;
+    }
+    if (entry.name === "index.json" || entry.name === "README.md") continue;
+    if (!indexedNames.has(entry.name)) push(errors, "executable history contains an unindexed entry: " + entry.name + ".");
+  }
+  return errors;
+}
+
 export function loadExecutableDocuments(root = ROOT) {
   const read = (relativePath) => JSON.parse(fs.readFileSync(path.resolve(root, relativePath), "utf8"));
   return {
     catalog: read("benchmarks/executable-catalog.json"),
     schema: read("benchmarks/executable-benchmark.schema.json"),
     bestKnown: read(BEST_KNOWN_PATH),
+    history: read(EXECUTABLE_HISTORY_INDEX_PATH),
   };
 }
 

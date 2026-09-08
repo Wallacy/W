@@ -6,7 +6,8 @@
     { "$ref": "#/$defs/catalog" },
     { "$ref": "#/$defs/result" },
     { "$ref": "#/$defs/bestKnown" },
-    { "$ref": "#/$defs/bestKnownIndex" }
+    { "$ref": "#/$defs/bestKnownIndex" },
+    { "$ref": "#/$defs/historyIndex" }
   ],
   "$defs": {
     "digest": {
@@ -48,8 +49,8 @@
         "recipeClass": { "type": "string" },
         "platformTarget": { "const": "windows-x64" },
         "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
-        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-across-abi", "promotable-after-equivalence"] },
-        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "deferred-to-M3b"] }
+        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-until-public-run", "contextual-non-ranking-across-abi", "promotable-after-equivalence"] },
+        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "contextual-only-until-public-run", "deferred-to-M3b"] }
       }
     },
     "oracle": {
@@ -94,7 +95,7 @@
           "const": ["workloadId", "language", "platformTarget", "artifactTarget", "profile", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "equivalenceKey"]
         },
         "provenance": {
-          "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"]
+          "const": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"]
         },
         "sampling": {
           "type": "object",
@@ -249,13 +250,15 @@
     "provenance": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "observedAt"],
+      "required": ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "commit", "observedAt"],
       "properties": {
         "sourceDigest": { "$ref": "#/$defs/digest" },
         "artifactDigest": { "$ref": "#/$defs/digest" },
         "recipeDigest": { "$ref": "#/$defs/digest" },
         "toolchainDigest": { "$ref": "#/$defs/digest" },
         "runnerDigest": { "$ref": "#/$defs/digest" },
+        "catalogDigest": { "$ref": "#/$defs/digest" },
+        "commit": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
         "observedAt": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d{3}Z$" }
       }
     },
@@ -356,6 +359,29 @@
         "kind": { "const": "executable-best-known-index" },
         "status": { "enum": ["not-established", "established"] },
         "records": { "type": "array", "items": { "$ref": "#/$defs/bestKnown" } }
+      }
+    },
+    "historyReference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "path", "digest"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "pattern": "^[0-9a-f]{64}\\.json$" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "historyIndex": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["$schema", "schema", "kind", "status", "recordsPath", "records"],
+      "properties": {
+        "$schema": { "const": "../../executable-benchmark.schema.json" },
+        "schema": { "const": "w-executable-benchmark-history/1" },
+        "kind": { "const": "executable-history-index" },
+        "status": { "enum": ["empty-awaiting-clean-head-record", "recorded"] },
+        "recordsPath": { "const": "benchmarks/history/executables" },
+        "records": { "type": "array", "items": { "$ref": "#/$defs/historyReference" } }
       }
     }
   }

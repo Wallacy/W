@@ -35,12 +35,32 @@ the normalized redacted environment rather than a hostname or user identity.
 `executable-best-known` index is
 derived only from validated results, ranks only optimizable metrics, and its
 contract is defined while the empty index remains `not-established` (it becomes
-`established` only when validated records are present). W execution and timing remain
-deferred to M3b. Recorded measurement evidence is `exploratory`,
+`established` only when validated records are present). W execution and timing are
+currently private candidate evidence, not public `w run` timing. Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
-`bounded-w-demo`, and `deferred-to-M3b` are separate workload states and do
+`bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
+
+### M3b W candidate evidence
+
+[`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection
+of the executable catalog, immutable history index, and best-known index. The
+first W Hello route is a private Native0/MLIR0 Windows source-to-PE candidate,
+exploratory and contextual/non-ranking until the public `w run` route is
+benchmarkable. Local measurements remain ignored under `benchmarks/results/`;
+only a rerun from a clean committed HEAD may add a content-addressed history
+record. The history index rejects records whose filename is not the SHA-256
+digest of their canonical bytes, and rejects unindexed entries.
+
+The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
+`run --target hello --language w --output benchmarks/results/<new>.json` for a
+local private candidate measurement, `validate <json>` for a contained result,
+`check` for catalog/history/projection consistency, and `record <json>` only
+from a clean committed HEAD. Publication creates a content-addressed record
+and updates the index and generated projection; an interrupted multi-file
+publication remains detectable as an unindexed entry and must be repaired
+before `benchmark check` can pass.
 
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em
@@ -204,12 +224,12 @@ autoridade semântica para W:
 Execute os checks focais com:
 
 ```text
-bun run check:bmd
-bun run check:bmd:executable
-bun run check:bmd:byte-scan
-bun run check:bmd:parse
-bun run check:bmd:smoke
-bun run check:bmd:comparison-smoke
+bun check --target bmd
+bun check --target executable
+bun check --target bmd:byte-scan
+bun check --target bmd:parse
+bun check --target bmd:smoke
+bun check --target bmd:comparison-smoke
 ```
 
 O primeiro check é um gate estrutural rápido: valida protocolo, matriz, corpus,

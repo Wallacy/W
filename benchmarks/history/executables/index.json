@@ -1,0 +1,8 @@
+{
+  "$schema": "../../executable-benchmark.schema.json",
+  "schema": "w-executable-benchmark-history/1",
+  "kind": "executable-history-index",
+  "status": "empty-awaiting-clean-head-record",
+  "recordsPath": "benchmarks/history/executables",
+  "records": []
+}

@@ -1,6 +1,21 @@
 #if defined(W_SEED_MLIR0_GATE)
 #include "w_seed_native0.h"
 #define GATE_LABEL "MLIR0"
+
+static bool gate_logical_source_id(const char *path, size_t length,
+                                   w_seed_frontend_text *source_id) {
+  if (source_id != NULL) *source_id = (w_seed_frontend_text){NULL, 0u};
+  if (path == NULL || source_id == NULL || length < 3u || path[0] == '-' ||
+      path[length - 2u] != '.' || path[length - 1u] != 'w')
+    return false;
+  size_t basename_start = 0u;
+  for (size_t index = 0u; index < length; index += 1u)
+    if (path[index] == '/' || path[index] == '\\') basename_start = index + 1u;
+  if (basename_start >= length) return false;
+  *source_id = (w_seed_frontend_text){path + basename_start,
+                                      length - basename_start};
+  return true;
+}
 #else
 #include "w_seed_hlo1.h"
 #define GATE_LABEL "HLO1"
@@ -290,17 +305,27 @@ static bool read_fixture(gate_fixture *fixture, const char *path) {
 
 #if defined(W_SEED_MLIR0_GATE)
 int main(int argc, char **argv) {
-  if (argc != 2 || argv[1] == NULL) return 2;
+  if (argc < 2 || argc > 3 || argv[1] == NULL) return 2;
+  w_seed_mlir0_target_kind target_kind =
+      W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU;
+  if (argc == 3) {
+    if (argv[2] == NULL ||
+        strcmp(argv[2], "--target=x86_64-pc-windows-msvc") != 0)
+      return 2;
+    target_kind = W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC;
+  }
+  const size_t path_length = strlen(argv[1]);
+  w_seed_frontend_text source_id;
+  if (!gate_logical_source_id(argv[1], path_length, &source_id)) return 2;
 #if defined(_WIN32)
   if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 3;
 #endif
   w_seed_native0_storage storage;
   const w_seed_native0_input input = {
       .path = argv[1],
-      .path_length = strlen(argv[1]),
-      .logical_source_id = (w_seed_frontend_text){"hlo1-fixture", 12u},
-      .target =
-          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
+      .path_length = path_length,
+      .logical_source_id = source_id,
+      .target = (w_seed_mlir0_target){target_kind}};
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_output output = {artifact, sizeof(artifact)};
   w_seed_native0_result result;
