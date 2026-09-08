@@ -72,6 +72,13 @@ typedef struct {
   w_seed_frontend_text name;
   w_seed_frontend_text operator_text;
   w_seed_span span;
+  /* Internal-only identity carried from a receiver-aware MEMBER into its
+   * immediately following CALL. Public output uses the indexed MEMBER.left
+   * and CALL.left relations plus the existing external identity fields. */
+  bool is_external_member;
+  uint32_t external_member_module_index;
+  uint32_t external_member_symbol_index;
+  const w_seed_frontend_external_symbol *external_member_symbol;
 } frontend_expr_value;
 
 typedef struct {
@@ -526,6 +533,14 @@ static bool function_signature_for_name(
 static bool external_symbol_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     const w_seed_frontend_external_symbol **symbol);
+static bool external_type_identity_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *module_index, uint32_t *symbol_index,
+    const w_seed_frontend_external_symbol **symbol);
+static bool external_member_for_receiver(
+    const frontend_context *context, frontend_simple_type receiver_type,
+    w_seed_frontend_text member_name, uint32_t *module_index,
+    uint32_t *symbol_index, const w_seed_frontend_external_symbol **symbol);
 static frontend_simple_type function_return_type(
     const frontend_context *context, const w_seed_frontend_document *doc,
     uint32_t function_node);
@@ -3018,6 +3033,8 @@ static bool receipt_size_external_records(frontend_context *context) {
           !receipt_size_size(context, symbol->exported ? 1u : 0u) ||
           !receipt_size_literal(context, "|const=") ||
           !receipt_size_size(context, symbol->is_const ? 1u : 0u) ||
+          !receipt_size_literal(context, "|receiver=") ||
+          !receipt_size_text(context, symbol->receiver_type) ||
           !receipt_size_literal(context, "|return=") ||
           !receipt_size_text(context, symbol->return_type) ||
           !receipt_size_literal(context, "\n")) {
@@ -3783,11 +3800,28 @@ static bool external_input_ready(const w_seed_frontend_input *input) {
            symbol->kind != W_SEED_FRONTEND_EXTERNAL_TYPE) ||
           !external_text_valid(symbol->return_type) ||
           symbol->return_type.length == 0 ||
+          !external_text_valid(symbol->receiver_type) ||
+          ((symbol->receiver_type.length != 0u) &&
+           symbol->kind != W_SEED_FRONTEND_EXTERNAL_VALUE) ||
           (symbol->parameter_count != 0 && symbol->parameters == NULL) ||
-          symbol->parameter_count >
-              (size_t)W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS ||
-          symbol->parameter_count > (size_t)UINT32_MAX) {
+            symbol->parameter_count >
+                (size_t)W_SEED_FRONTEND_MAX_EXTERNAL_PARAMETERS ||
+            symbol->parameter_count > (size_t)UINT32_MAX) {
         return false;
+      }
+      if (symbol->receiver_type.length != 0u) {
+        size_t receiver_type_count = 0u;
+        for (size_t owner_index = 0u; owner_index < module->symbol_count;
+             owner_index += 1u) {
+          const w_seed_frontend_external_symbol *owner =
+              &module->symbols[owner_index];
+          if (owner->kind == W_SEED_FRONTEND_EXTERNAL_TYPE &&
+              owner->exported &&
+              text_equal_text(owner->name, symbol->receiver_type)) {
+            receiver_type_count += 1u;
+          }
+        }
+        if (receiver_type_count != 1u) return false;
       }
       for (size_t parameter_index = 0;
            parameter_index < symbol->parameter_count; parameter_index += 1) {
@@ -3814,7 +3848,9 @@ static bool external_input_ready(const w_seed_frontend_input *input) {
       for (size_t prior_symbol = 0; prior_symbol < symbol_index;
            prior_symbol += 1) {
         if (text_equal_text(module->symbols[symbol_index].name,
-                            module->symbols[prior_symbol].name)) {
+                            module->symbols[prior_symbol].name) &&
+            text_equal_text(module->symbols[symbol_index].receiver_type,
+                            module->symbols[prior_symbol].receiver_type)) {
           return false;
         }
       }
@@ -9533,6 +9569,168 @@ static bool imported_target_for_name(
   return false;
 }
 
+/* Bare external imports expose exported nominal type declarations by their
+ * exact name. Named imports expose the same exact imported/local spelling;
+ * aliases are outside this module-scan subset. Values are intentionally not
+ * handled here: an external member is only reachable through the
+ * receiver-aware helper below, never through a free-name lookup. */
+static bool external_type_identity_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    uint32_t *module_index, uint32_t *symbol_index,
+    const w_seed_frontend_external_symbol **symbol) {
+  if (module_index != NULL) *module_index = W_SEED_FRONTEND_NONE;
+  if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
+  if (symbol != NULL) *symbol = NULL;
+  if (context == NULL || name.length == 0u ||
+      !context->input.import_resolution_complete) {
+    return false;
+  }
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || doc->parse.root >= doc->parse.node_count) return false;
+  uint32_t cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  uint32_t direct_ordinal = 0u;
+  size_t guard = 0u;
+  bool found = false;
+  uint32_t found_module = W_SEED_FRONTEND_NONE;
+  uint32_t found_symbol = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_external_symbol *found_record = NULL;
+  while (next_child(doc, &cursor, &child) &&
+         guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind != W_SEED_CST_IMPORT) {
+      guard += 1u;
+      continue;
+    }
+    size_t edge_index = SIZE_MAX;
+    if (!resolved_import_index_for(context, context->module_index,
+                                   direct_ordinal, &edge_index)) {
+      direct_ordinal += 1u;
+      guard += 1u;
+      continue;
+    }
+    const w_seed_frontend_resolved_import *edge =
+        resolved_import_at(context, edge_index);
+    if (edge == NULL ||
+        edge->target_kind != W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE ||
+        (size_t)edge->target_index >= context->input.external_module_count) {
+      direct_ordinal += 1u;
+      guard += 1u;
+      continue;
+    }
+    const w_seed_frontend_external_module *module =
+        &context->input.external_modules[edge->target_index];
+    const bool named_import = import_has_from(doc, doc->nodes[child].raw_span);
+    if (named_import) {
+      uint32_t item_cursor = doc->nodes[child].first_child;
+      uint32_t item = W_SEED_CST_NONE;
+      size_t item_guard = 0u;
+      while (next_child(doc, &item_cursor, &item) &&
+             item_guard < doc->parse.node_count) {
+        if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
+          w_seed_frontend_text imported = {NULL, 0u};
+          const w_seed_frontend_text local = import_item_local_name(
+              doc, doc->nodes[item].raw_span, &imported);
+          if (imported.length != 0u && text_equal_text(local, imported) &&
+              text_equal_text(local, name)) {
+            for (size_t candidate_index = 0u;
+                 candidate_index < module->symbol_count; candidate_index += 1u) {
+              const w_seed_frontend_external_symbol *candidate =
+                  &module->symbols[candidate_index];
+              if (candidate->kind == W_SEED_FRONTEND_EXTERNAL_TYPE &&
+                  candidate->exported &&
+                  text_equal_text(candidate->name, imported)) {
+                if (found) return false;
+                if (candidate_index >= (size_t)UINT32_MAX) return false;
+                found = true;
+                found_module = edge->target_index;
+                found_symbol = (uint32_t)candidate_index;
+                found_record = candidate;
+              }
+            }
+          }
+        }
+        item_guard += 1u;
+      }
+    } else {
+      for (size_t candidate_index = 0u;
+           candidate_index < module->symbol_count; candidate_index += 1u) {
+        const w_seed_frontend_external_symbol *candidate =
+            &module->symbols[candidate_index];
+        if (candidate->kind == W_SEED_FRONTEND_EXTERNAL_TYPE &&
+            candidate->exported && text_equal_text(candidate->name, name)) {
+          if (found) return false;
+          if (candidate_index >= (size_t)UINT32_MAX) return false;
+          found = true;
+          found_module = edge->target_index;
+          found_symbol = (uint32_t)candidate_index;
+          found_record = candidate;
+        }
+      }
+    }
+    direct_ordinal += 1u;
+    guard += 1u;
+  }
+  if (!found || found_record == NULL) return false;
+  if (module_index != NULL) *module_index = found_module;
+  if (symbol_index != NULL) *symbol_index = found_symbol;
+  if (symbol != NULL) *symbol = found_record;
+  return true;
+}
+
+/* Resolve a member against the imported type identity and the receiver's
+ * exact nominal spelling. The current module-scan import subset does not
+ * define nominal aliases, so the local and imported type names must match.
+ * The member table is indexed by the external module and symbol ordinals,
+ * which are copied into the normalized MEMBER/CALL records downstream. */
+static bool external_member_for_receiver(
+    const frontend_context *context, frontend_simple_type receiver_type,
+    w_seed_frontend_text member_name, uint32_t *module_index,
+    uint32_t *symbol_index, const w_seed_frontend_external_symbol **symbol) {
+  if (module_index != NULL) *module_index = W_SEED_FRONTEND_NONE;
+  if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
+  if (symbol != NULL) *symbol = NULL;
+  if (context == NULL || receiver_type.kind != W_SEED_FRONTEND_TYPE_NOMINAL ||
+      receiver_type.spelling.length == 0u || member_name.length == 0u) {
+    return false;
+  }
+  uint32_t type_module = W_SEED_FRONTEND_NONE;
+  uint32_t type_symbol = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_external_symbol *type_record = NULL;
+  if (!external_type_identity_for_name(context, receiver_type.spelling,
+                                       &type_module, &type_symbol,
+                                       &type_record) ||
+      type_record == NULL ||
+      type_record->kind != W_SEED_FRONTEND_EXTERNAL_TYPE ||
+      (size_t)type_module >= context->input.external_module_count) {
+    return false;
+  }
+  const w_seed_frontend_external_module *module =
+      &context->input.external_modules[type_module];
+  bool found = false;
+  uint32_t found_index = W_SEED_FRONTEND_NONE;
+  const w_seed_frontend_external_symbol *found_record = NULL;
+  for (size_t candidate_index = 0u; candidate_index < module->symbol_count;
+       candidate_index += 1u) {
+    const w_seed_frontend_external_symbol *candidate =
+        &module->symbols[candidate_index];
+    if (candidate->kind == W_SEED_FRONTEND_EXTERNAL_VALUE &&
+        candidate->exported && candidate->receiver_type.length != 0u &&
+        text_equal_text(candidate->receiver_type, type_record->name) &&
+        text_equal_text(candidate->name, member_name)) {
+      if (found || candidate_index >= (size_t)UINT32_MAX) return false;
+      found = true;
+      found_index = (uint32_t)candidate_index;
+      found_record = candidate;
+    }
+  }
+  if (!found || found_record == NULL) return false;
+  if (module_index != NULL) *module_index = type_module;
+  if (symbol_index != NULL) *symbol_index = found_index;
+  if (symbol != NULL) *symbol = found_record;
+  (void)type_symbol;
+  return true;
+}
+
 static bool external_symbol_for_name(const frontend_context *context,
                                      w_seed_frontend_text name,
                                      const w_seed_frontend_external_symbol **symbol) {
@@ -9551,7 +9749,9 @@ static bool external_symbol_for_name(const frontend_context *context,
       &context->input.external_modules[target_index];
   for (size_t index = 0u; index < module->symbol_count; index += 1u) {
     const w_seed_frontend_external_symbol *candidate = &module->symbols[index];
-    if (candidate->exported && text_equal_text(candidate->name, target_name)) {
+    if (candidate->kind == W_SEED_FRONTEND_EXTERNAL_VALUE &&
+        candidate->receiver_type.length == 0u && candidate->exported &&
+        text_equal_text(candidate->name, target_name)) {
       *symbol = candidate;
       return true;
     }
@@ -9579,7 +9779,9 @@ static bool external_symbol_identity_for_name(
       &context->input.external_modules[target_index];
   for (size_t index = 0u; index < module->symbol_count; index += 1u) {
     const w_seed_frontend_external_symbol *candidate = &module->symbols[index];
-    if (candidate->exported && text_equal_text(candidate->name, target_name)) {
+    if (candidate->kind == W_SEED_FRONTEND_EXTERNAL_VALUE &&
+        candidate->receiver_type.length == 0u && candidate->exported &&
+        text_equal_text(candidate->name, target_name)) {
       if (module_index != NULL) *module_index = target_index;
       if (symbol_index != NULL) {
         if (index >= (size_t)UINT32_MAX) return false;
@@ -11166,10 +11368,23 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           text_from_span(parser->document, member.span);
       bool supported = false;
       frontend_simple_type result_type = simple_type_unknown();
+      uint32_t external_module_index = W_SEED_FRONTEND_NONE;
+      uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
+      const w_seed_frontend_external_symbol *external_member = NULL;
       if (value->type.kind == W_SEED_FRONTEND_TYPE_STATIC_LIST &&
           text_equal(member_name, "count")) {
         result_type = simple_type_from_view((w_seed_frontend_text){"usize", 5});
         supported = true;
+      }
+      if (!supported && value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+          value->supported &&
+          external_member_for_receiver(
+              parser->context, value->type, member_name,
+              &external_module_index, &external_symbol_index,
+              &external_member)) {
+        result_type = external_contextual_type(
+            parser->context, external_member->return_type);
+        supported = result_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
       }
       if (!supported) {
         (void)context_append_fact(
@@ -11190,7 +11405,29 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
           value->index < parser->context->count.expressions) {
         parser->context->output->expressions[value->index].member_name =
             member_name;
+        if (supported && external_member != NULL) {
+          parser->context->output->expressions[value->index]
+              .resolved_callee_kind =
+              W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+          parser->context->output->expressions[value->index]
+              .resolved_external_module_index = external_module_index;
+          parser->context->output->expressions[value->index]
+              .resolved_external_symbol_index = external_symbol_index;
+        }
       }
+      value->is_external_member = supported && external_member != NULL;
+      value->external_member_module_index =
+          value->is_external_member ? external_module_index
+                                    : W_SEED_FRONTEND_NONE;
+      value->external_member_symbol_index =
+          value->is_external_member ? external_symbol_index
+                                    : W_SEED_FRONTEND_NONE;
+      value->external_member_symbol =
+          value->is_external_member ? external_member : NULL;
+      value->has_name = value->is_external_member;
+      value->name = value->is_external_member
+                        ? member_name
+                        : (w_seed_frontend_text){NULL, 0u};
       value->is_integer_literal = false;
       continue;
     }
@@ -11244,14 +11481,16 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
     const bool local_signature =
-        value->has_name && function_signature_for_name(
+        !value->is_external_member && value->has_name && function_signature_for_name(
                                 parser->context, value->name, &signature_doc,
                                 &signature_node);
     const w_seed_frontend_external_symbol *external_signature = NULL;
     const bool external_signature_found =
-        !local_signature && value->has_name &&
-        external_symbol_for_name(parser->context, value->name,
-                                 &external_signature);
+        value->is_external_member
+            ? (external_signature = value->external_member_symbol) != NULL
+            : (!local_signature && value->has_name &&
+               external_symbol_for_name(parser->context, value->name,
+                                        &external_signature));
     const w_seed_frontend_host_prelude_symbol *host_signature = NULL;
     const bool host_signature_found =
         !local_signature && !external_signature_found && value->has_name &&
@@ -11272,15 +11511,35 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       }
       if (label.length != 0 && value->has_name) {
         bool resolved = false;
-        bool known = call_label_known(parser->context, value->name, label,
-                                      &resolved);
-        if (!resolved) {
-          known = external_label_known(parser->context, value->name, label,
-                                       &resolved);
-        }
-        if (!resolved) {
-          known = host_label_known(parser->context, value->name, label,
+        bool known = false;
+        if (value->is_external_member) {
+          resolved = external_signature_found;
+          if (resolved && external_signature != NULL) {
+            known = label.length == 0u;
+            for (size_t parameter_index = 0u;
+                 parameter_index < external_signature->parameter_count;
+                 parameter_index += 1u) {
+              const w_seed_frontend_external_parameter *parameter =
+                  &external_signature->parameters[parameter_index];
+              if (parameter->label_kind !=
+                      W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+                  text_equal_text(parameter->name, label)) {
+                known = true;
+                break;
+              }
+            }
+          }
+        } else {
+          known = call_label_known(parser->context, value->name, label,
                                    &resolved);
+          if (!resolved) {
+            known = external_label_known(parser->context, value->name, label,
+                                         &resolved);
+          }
+          if (!resolved) {
+            known = host_label_known(parser->context, value->name, label,
+                                     &resolved);
+          }
         }
         if (resolved && !known) {
           labels_valid = false;
@@ -11470,7 +11729,7 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                host_signature->parameter_count != argument_count) {
       labels_valid = false;
     }
-    if (value->has_name) {
+    if (value->has_name && !value->is_external_member) {
       bool resolved = false;
       (void)call_label_known(parser->context, value->name,
                              (w_seed_frontend_text){NULL, 0}, &resolved);
@@ -11495,7 +11754,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       return_type = function_return_type(parser->context, signature_doc,
                                           signature_node);
     } else if (external_signature_found) {
-      return_type = simple_type_from_view(external_signature->return_type);
+      return_type = external_contextual_type(parser->context,
+                                             external_signature->return_type);
     } else if (host_signature_found) {
       return_type = simple_type_from_view(host_signature->return_type);
     }
@@ -11562,6 +11822,10 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       uint32_t external_symbol_identity = W_SEED_FRONTEND_NONE;
       if (local_signature) {
         identity_kind = W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION;
+      } else if (external_signature_found && value->is_external_member) {
+        identity_kind = W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+        external_module_identity = value->external_member_module_index;
+        external_symbol_identity = value->external_member_symbol_index;
       } else if (external_signature_found &&
                  external_symbol_identity_for_name(
                      parser->context, callee_name, &external_module_identity,
@@ -13798,6 +14062,87 @@ static bool resolve_frontend_links(frontend_context *context) {
       continue;
     w_seed_frontend_expression *callee =
         &context->output->expressions[expression->left];
+    if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+      /* A receiver-aware external member is the only non-identifier callee
+       * accepted by this seed. Its receiver must already be a lexical
+       * parameter or local binding; a value-producing call, const, or
+       * arbitrary nominal expression cannot smuggle in member identity. */
+      if (!callee->supported ||
+          callee->resolved_callee_kind !=
+              W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL ||
+          callee->left == W_SEED_FRONTEND_NONE ||
+          (size_t)callee->left >= expression_index ||
+          callee->module_index != expression->module_index ||
+          callee->owner_function != expression->owner_function ||
+          callee->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+          callee->resolved_function_index != W_SEED_FRONTEND_NONE ||
+          callee->resolved_external_module_index ==
+              W_SEED_FRONTEND_NONE ||
+          callee->resolved_external_symbol_index ==
+              W_SEED_FRONTEND_NONE) {
+        expression->supported = false;
+        continue;
+      }
+      const w_seed_frontend_expression *receiver =
+          &context->output->expressions[callee->left];
+      if (receiver->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+          !receiver->supported ||
+          receiver->module_index != expression->module_index ||
+          receiver->owner_function != expression->owner_function ||
+          ((receiver->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) ==
+           (receiver->resolved_binding_statement == W_SEED_FRONTEND_NONE)) ||
+          receiver->inferred_type == W_SEED_FRONTEND_NONE ||
+          (size_t)receiver->inferred_type >= context->count.types) {
+        expression->supported = false;
+        continue;
+      }
+      const w_seed_frontend_type *receiver_type =
+          &context->output->types[receiver->inferred_type];
+      const frontend_simple_type receiver_simple =
+          simple_type_from_frontend_type(receiver_type);
+      uint32_t checked_module_index = W_SEED_FRONTEND_NONE;
+      uint32_t checked_symbol_index = W_SEED_FRONTEND_NONE;
+      const w_seed_frontend_external_symbol *checked_symbol = NULL;
+      if (receiver_type->kind != W_SEED_FRONTEND_TYPE_NOMINAL) {
+        /* The nominal spelling and imported type identity are checked by the
+         * receiver-aware helper below. */
+        expression->supported = false;
+        continue;
+      }
+      if (!external_member_for_receiver(
+              context, receiver_simple, callee->member_name,
+              &checked_module_index, &checked_symbol_index,
+              &checked_symbol) ||
+          checked_symbol == NULL ||
+          checked_module_index != callee->resolved_external_module_index ||
+          checked_symbol_index != callee->resolved_external_symbol_index) {
+        expression->supported = false;
+        continue;
+      }
+      (void)checked_symbol;
+      expression->resolved_function_index = W_SEED_FRONTEND_NONE;
+      expression->resolved_callee_kind =
+          W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+      expression->resolved_host_symbol_index = W_SEED_FRONTEND_NONE;
+      expression->resolved_external_module_index = checked_module_index;
+      expression->resolved_external_symbol_index = checked_symbol_index;
+      const w_seed_frontend_external_module *module =
+          &context->input.external_modules[checked_module_index];
+      const w_seed_frontend_external_symbol *symbol =
+          &module->symbols[checked_symbol_index];
+      for (uint32_t offset = 0; offset < expression->argument_count;
+           offset += 1u) {
+        const size_t argument_index =
+            (size_t)expression->first_argument + offset;
+        if (argument_index >= context->count.arguments) return false;
+        w_seed_frontend_argument *argument =
+            &context->output->arguments[argument_index];
+        argument->resolved_parameter_ordinal = external_argument_ordinal(
+            symbol->parameters, symbol->parameter_count, offset,
+            argument->label);
+      }
+      continue;
+    }
     if (callee->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER) continue;
     uint32_t target = W_SEED_FRONTEND_NONE;
     bool duplicate = false;
@@ -14128,6 +14473,7 @@ static bool resolve_imports(frontend_context *context) {
         return false;
       }
       const w_seed_frontend_text path = text_from_span(doc, path_span);
+      const bool named_import = import_has_from(doc, declaration_span);
       w_seed_frontend_import_target_kind target_kind =
           W_SEED_FRONTEND_IMPORT_UNRESOLVED;
       uint32_t target_index = W_SEED_FRONTEND_NONE;
@@ -14150,43 +14496,46 @@ static bool resolve_imports(frontend_context *context) {
             context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
             declaration_span, path);
       }
-      uint32_t item_cursor = doc->nodes[child].first_child;
-      uint32_t item = W_SEED_CST_NONE;
-      size_t item_guard = 0;
-      while (next_child(doc, &item_cursor, &item) &&
-             item_guard < doc->parse.node_count) {
-        if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
-          w_seed_frontend_text imported_name = {NULL, 0};
-          const w_seed_frontend_text local_name = import_item_local_name(
-              doc, doc->nodes[item].raw_span, &imported_name);
-          bool exported = true;
-          if (!context->input.import_resolution_complete) {
-            exported = false;
-          } else if (imported_name.length != 0u) {
-            if (target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT) {
-              exported = (size_t)target_index < context->input.document_count &&
-                         exported_symbol_in_document(
-                             &context->input.documents[target_index],
-                             imported_name);
-            } else if (target_kind ==
-                       W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE) {
-              exported = (size_t)target_index <
-                             context->input.external_module_count &&
-                         exported_symbol_in_external(
-                             &context->input.external_modules[target_index],
-                             imported_name);
-            } else {
+      if (named_import) {
+        uint32_t item_cursor = doc->nodes[child].first_child;
+        uint32_t item = W_SEED_CST_NONE;
+        size_t item_guard = 0;
+        while (next_child(doc, &item_cursor, &item) &&
+               item_guard < doc->parse.node_count) {
+          if (doc->nodes[item].kind == W_SEED_CST_IMPORT_ITEM) {
+            w_seed_frontend_text imported_name = {NULL, 0};
+            const w_seed_frontend_text local_name = import_item_local_name(
+                doc, doc->nodes[item].raw_span, &imported_name);
+            bool exported = true;
+            if (!context->input.import_resolution_complete) {
               exported = false;
+            } else if (imported_name.length != 0u) {
+              if (target_kind == W_SEED_FRONTEND_IMPORT_LOCAL_DOCUMENT) {
+                exported =
+                    (size_t)target_index < context->input.document_count &&
+                    exported_symbol_in_document(
+                        &context->input.documents[target_index],
+                        imported_name);
+              } else if (target_kind ==
+                         W_SEED_FRONTEND_IMPORT_EXTERNAL_MODULE) {
+                exported =
+                    (size_t)target_index < context->input.external_module_count &&
+                    exported_symbol_in_external(
+                        &context->input.external_modules[target_index],
+                        imported_name);
+              } else {
+                exported = false;
+              }
+            }
+            if (!exported) {
+              (void)context_append_fact(
+                  context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
+                  doc->nodes[item].raw_span,
+                  imported_name.length != 0u ? imported_name : local_name);
             }
           }
-          if (!exported) {
-            (void)context_append_fact(
-                context, W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
-                doc->nodes[item].raw_span,
-                imported_name.length != 0u ? imported_name : local_name);
-          }
+          item_guard += 1;
         }
-        item_guard += 1;
       }
       direct_ordinal += 1u;
     }
@@ -14335,6 +14684,8 @@ static void receipt_write_external_records(
       receipt_write_size(writer, symbol->exported ? 1u : 0u);
       receipt_write_literal(writer, "|const=");
       receipt_write_size(writer, symbol->is_const ? 1u : 0u);
+      receipt_write_literal(writer, "|receiver=");
+      receipt_write_text(writer, symbol->receiver_type);
       receipt_write_literal(writer, "|return=");
       receipt_write_text(writer, symbol->return_type);
       receipt_write_literal(writer, "\n");

@@ -467,6 +467,41 @@ static bool fixture_resolve_external_imports(fixture *fixture_value) {
   return true;
 }
 
+static void fixture_configure_arguments_external(fixture *fixture_value) {
+  fixture_value->external_parameters[0] =
+      (w_seed_frontend_external_parameter){
+          .name = (w_seed_frontend_text){"flag", 4u},
+          .type = (w_seed_frontend_text){"String", 6u},
+          .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  fixture_value->external_symbols[0] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"Arguments", 9u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"Arguments", 9u},
+          .is_const = false,
+          .receiver_type = (w_seed_frontend_text){NULL, 0u}};
+  fixture_value->external_symbols[1] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"contains", 8u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .parameters = fixture_value->external_parameters,
+          .parameter_count = 1u,
+          .return_type = (w_seed_frontend_text){"Bool", 4u},
+          .is_const = false,
+          .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture_value->external_modules[0] =
+      (w_seed_frontend_external_module){
+          .module_id = (w_seed_frontend_text){"std.process", 11u},
+          .symbols = fixture_value->external_symbols,
+          .symbol_count = 2u};
+  fixture_value->input.external_modules = fixture_value->external_modules;
+  fixture_value->input.external_module_count = 1u;
+}
+
 static bool counts_equal(const w_seed_frontend_counts *left,
                          const w_seed_frontend_counts *right) {
   return left->modules == right->modules && left->imports == right->imports &&
@@ -1868,6 +1903,183 @@ static bool test_host_scope_and_callee_identity(void) {
   return true;
 }
 
+static bool test_external_nominal_member_resolution(void) {
+  fixture *value = &fixture_external;
+  static const char positive[] =
+      "import std.process\n"
+      "fn run(args: Arguments): Bool { return args.contains(\"--closed\") }\n"
+      "entry(run)\n";
+  CHECK(fixture_parse(value, positive));
+  fixture_configure_arguments_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.imports == 1u &&
+        value->result.written.functions == 1u &&
+        value->result.written.parameters == 1u &&
+        value->result.written.arguments == 1u);
+
+  uint32_t receiver_index = W_SEED_FRONTEND_NONE;
+  uint32_t member_index = W_SEED_FRONTEND_NONE;
+  uint32_t call_index = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression =
+        &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
+      CHECK(member_index == W_SEED_FRONTEND_NONE);
+      member_index = (uint32_t)index;
+      receiver_index = expression->left;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_CALL) {
+      CHECK(call_index == W_SEED_FRONTEND_NONE);
+      call_index = (uint32_t)index;
+    }
+  }
+  CHECK(receiver_index != W_SEED_FRONTEND_NONE &&
+        member_index != W_SEED_FRONTEND_NONE &&
+        call_index != W_SEED_FRONTEND_NONE);
+  CHECK((size_t)receiver_index < value->result.written.expressions &&
+        (size_t)member_index < value->result.written.expressions &&
+        (size_t)call_index < value->result.written.expressions);
+  const w_seed_frontend_expression *receiver =
+      &value->expressions[receiver_index];
+  const w_seed_frontend_expression *member = &value->expressions[member_index];
+  const w_seed_frontend_expression *call = &value->expressions[call_index];
+  CHECK(receiver->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        receiver->supported && receiver->resolved_parameter_ordinal == 0u &&
+        receiver->resolved_binding_statement == W_SEED_FRONTEND_NONE &&
+        receiver->inferred_type != W_SEED_FRONTEND_NONE);
+  CHECK(value->types[receiver->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_NOMINAL &&
+        frontend_text_is(value->types[receiver->inferred_type].nominal_name,
+                          "Arguments"));
+  CHECK(member->left == receiver_index && member->supported &&
+        frontend_text_is(member->member_name, "contains") &&
+        member->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL &&
+        member->resolved_external_module_index == 0u &&
+        member->resolved_external_symbol_index == 1u);
+  CHECK(call->left == member_index && call->supported &&
+        call->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL &&
+        call->resolved_external_module_index == 0u &&
+        call->resolved_external_symbol_index == 1u &&
+        call->first_argument == 0u && call->argument_count == 1u);
+  CHECK(value->arguments[0].owner_expression == member_index &&
+        value->arguments[0].resolved_parameter_ordinal == 0u &&
+        value->arguments[0].expression_index != W_SEED_FRONTEND_NONE);
+  CHECK(receipt_contains(value, "|receiver=0:",
+                         strlen("|receiver=0:")));
+
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required) &&
+        measured_result.required.receipt_bytes == value->result.receipt_bytes);
+  const size_t receipt_bytes = value->result.receipt_bytes;
+  uint8_t receipt_copy[TEST_RECEIPT];
+  CHECK(receipt_bytes <= sizeof(receipt_copy));
+  (void)memcpy(receipt_copy, value->receipt, receipt_bytes);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.receipt_bytes == receipt_bytes &&
+        memcmp(value->receipt, receipt_copy, receipt_bytes) == 0);
+
+  /* A type/member must not become visible without the direct import. */
+  CHECK(fixture_parse(
+      value,
+      "fn run(args: Arguments): Bool { return args.contains(\"--closed\") }\n"
+      "entry(run)\n"));
+  fixture_configure_arguments_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  /* The member identity is not a free function in a bare import. */
+  CHECK(fixture_parse(
+      value,
+      "import std.process\n"
+      "fn run(args: Arguments): Bool { return contains(\"--closed\") }\n"
+      "entry(run)\n"));
+  fixture_configure_arguments_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+
+  CHECK(fixture_parse(
+      value,
+      "import std.process\n"
+      "fn run(text: String): Bool { return text.contains(\"--closed\") }\n"
+      "entry(run)\n"));
+  fixture_configure_arguments_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+
+  CHECK(fixture_parse(
+      value,
+      "import std.process\n"
+      "fn run(args: Arguments): Bool { return args.unknown(\"--closed\") }\n"
+      "entry(run)\n"));
+  fixture_configure_arguments_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+
+  static const char *const bad_calls[] = {
+      "args.contains(true)",
+      "args.contains()",
+      "args.contains(flag: \"--closed\")",
+  };
+  for (size_t case_index = 0u;
+       case_index < sizeof(bad_calls) / sizeof(bad_calls[0]);
+       case_index += 1u) {
+    char source[256];
+    const int written = snprintf(
+        source, sizeof(source),
+        "import std.process\n"
+        "fn run(args: Arguments): Bool { return %s }\n"
+        "entry(run)\n",
+        bad_calls[case_index]);
+    CHECK(written > 0 && (size_t)written < sizeof(source));
+    CHECK(fixture_parse(value, source));
+    fixture_configure_arguments_external(value);
+    CHECK(fixture_resolve_external_imports(value));
+    const w_seed_frontend_status bad_call_status =
+        w_seed_frontend_run(&value->input, &value->output, &value->result);
+    CHECK(bad_call_status ==
+          (case_index == 2u ? W_SEED_FRONTEND_DIAGNOSTICS
+                            : W_SEED_FRONTEND_UNSUPPORTED));
+  }
+
+  /* A forged owner spelling is invalid ABI, while malformed text is rejected
+   * before the caller-owned output can be touched. */
+  CHECK(fixture_parse(
+      value,
+      "import std.process\n"
+      "fn run(args: Arguments): Bool { return args.contains(\"--closed\") }\n"
+      "entry(run)\n"));
+  fixture_configure_arguments_external(value);
+  fixture_fill_output(value, 0xa5u);
+  value->external_symbols[1].receiver_type =
+      (w_seed_frontend_text){"Other", 5u};
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
+  CHECK(fixture_output_is(value, 0xa5u, true));
+  value->external_symbols[1].receiver_type =
+      (w_seed_frontend_text){"Arguments", 9u};
+  fixture_fill_output(value, 0xa5u);
+  value->external_symbols[1].receiver_type =
+      (w_seed_frontend_text){NULL, 1u};
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_INVALID);
+  CHECK(fixture_output_is(value, 0xa5u, true));
+  return true;
+}
+
 static bool test_module_named_consts(void) {
   static const char named_source[] =
       "export const ultimateAnswer: i64 = 6 * 7\n"
@@ -2074,7 +2286,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-12") &&
+                         "w-seed-frontend-13") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2113,8 +2325,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-12\n",
-                         strlen("schema=w-seed-frontend-12\n")));
+        receipt_contains(value, "schema=w-seed-frontend-13\n",
+                         strlen("schema=w-seed-frontend-13\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -4241,6 +4453,7 @@ int main(void) {
   if (!test_const_and_membership()) return 1;
   if (!test_module_named_consts()) return 1;
   if (!test_host_scope_and_callee_identity()) return 1;
+  if (!test_external_nominal_member_resolution()) return 1;
   if (!test_local_binding_resolution()) return 1;
   if (!test_multidocument_const_ordinals()) return 1;
   if (!test_multidocument_predicate_owner()) return 1;

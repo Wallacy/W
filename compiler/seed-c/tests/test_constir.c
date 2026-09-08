@@ -1599,7 +1599,7 @@ static bool test_direct_call_and_external_barrier(void) {
   CHECK(fixture_parse(value, external_source));
   value->external_symbols[0] = (w_seed_frontend_external_symbol){
       {"externalFn", 10}, W_SEED_FRONTEND_EXTERNAL_VALUE, true, NULL, 0u,
-      {"Bool", 4}, true};
+      {"Bool", 4}, true, {NULL, 0u}};
   value->external_modules[0] =
       (w_seed_frontend_external_module){{"external", 8},
                                         value->external_symbols, 1u};
