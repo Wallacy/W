@@ -35,9 +35,14 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 - rust — promotable-after-equivalence; compile median 237.4533 ms (CPU 31.25 ms, RSS 12910592 B (12.313 MiB)); run median 20.3466 ms (CPU 0 µs, RSS 4796416 B (4.574 MiB)); artifact 130048 B (127 KiB); commit 5667ee42e006; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 
-## Hello language boundary
+## Workload language boundary
 
-The runner accepts W, C and Rust Hello sources and checks the same exact-output oracle before warmup and raw samples.
-C probes `-std=c23` and then `-std=c2x`, records the accepted standard honestly, and uses the `x86_64-w64-mingw32` MinGW ABI.
-Rust records its rustc release and uses edition 2024 with the `x86_64-pc-windows-msvc` ABI.
-W uses a private Native0/MLIR0 gate and the pinned Windows MLIR/LLVM/LLD chain. All records remain exploratory, measurement-only and not-evaluated.
+The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.
+C and Rust routes currently cover `hello`, `restaurant-branch` and preserve each workload's declared artifact ABI.
+W uses the private Native0/MLIR0 gate for `hello` and the pinned Windows MLIR/LLVM/LLD chain.
+Routes for `restaurant-branch`, `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
+Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.
+C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.
+Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort and stripped symbols with the `x86_64-pc-windows-msvc` ABI.
+The private W route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, and links without the CRT.
+All records remain exploratory, measurement-only and not-evaluated.

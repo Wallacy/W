@@ -48,8 +48,17 @@ test("benchmark facade parses bounded commands without shell syntax", () => {
     warmup: 1,
     samples: 9,
   });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "restaurant-branch", "--language", "c"]), {
+    command: "run",
+    target: "restaurant-branch",
+    language: "c",
+    output: "benchmarks/results/restaurant-branch-c.local.json",
+    warmup: 1,
+    samples: 9,
+  });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--samples", "10"]), /odd/);
   assert.match(benchmarkUsage(), /private Native0\/MLIR0/u);
+  assert.match(benchmarkUsage(), /restaurant-branch/u);
 });
 
 test("successful history publication can consume its local result and empty directory", async () => {
@@ -129,6 +138,9 @@ test("CLI record consumes its candidate only after isolated publication succeeds
     rustRecord.provenance.observedAt = "2026-09-08T00:00:01.000Z";
     rustRecord.provenance.catalogDigest = "sha256:" + crypto.createHash("sha256")
       .update(fs.readFileSync(path.join(fixture, "benchmarks", "executable-catalog.json")))
+      .digest("hex");
+    rustRecord.provenance.runnerDigest = "sha256:" + crypto.createHash("sha256")
+      .update(fs.readFileSync(path.join(fixture, "tooling", "executable-benchmark-runner.mjs")))
       .digest("hex");
     const resultsRoot = path.join(fixture, "benchmarks", "results");
     fs.mkdirSync(resultsRoot, { recursive: true });

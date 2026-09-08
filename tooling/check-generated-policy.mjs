@@ -102,6 +102,13 @@ if (nonLocalTreeScripts.length > 0) {
 if (rootPackage?.scripts?.check !== "bun tooling/dev-cli.mjs check") {
   errors.push("root check must use the declarative dev CLI facade");
 }
+if (rootPackage?.scripts?.benchmark !== "bun tooling/benchmark-cli.mjs") {
+  errors.push("root benchmark must use the executable benchmark CLI facade");
+}
+if (!String(rootPackage?.scripts?.["docs:write"] ?? "")
+  .includes("bun tooling/executable-benchmark-docs.mjs --write")) {
+  errors.push("root docs:write must generate the human executable benchmark projection");
+}
 for (const [name, expected] of [
   ["demo", "bun tooling/dev-cli.mjs demo"],
   ["bootstrap", "bun tooling/dev-cli.mjs bootstrap"],

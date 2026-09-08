@@ -83,10 +83,10 @@ describe("check-suite manifest", () => {
       "tree-check",
       "tree-docs",
     ]);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(114);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(81);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(115);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(82);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(25);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(26);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(26);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-bmd" })).toHaveLength(1);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-executable" })).toHaveLength(1);
@@ -133,6 +133,12 @@ describe("check-suite manifest", () => {
       { package: "root", script: "check:platform-support" },
       { package: "root", script: "check:cleanup" },
     ]);
+    const isExecutable = (step) =>
+      step.package === "root" && step.script === "check:executable";
+    for (const suiteName of ["root-check", "root-docs", "root-quick"]) {
+      expect(flattenCheckSuite({ suites: loaded.suites, suiteName })
+        .filter(isExecutable)).toHaveLength(1);
+    }
 
     const isAcquisition = (step) =>
       step.package === "root" && step.script === "check:acquisition";

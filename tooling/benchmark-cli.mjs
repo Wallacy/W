@@ -29,6 +29,7 @@ import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = "benchmarks/results";
 const HISTORY_ROOT = path.resolve(ROOT, RESULT_HISTORY_PATH);
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch"]);
 
 function fail(message) {
   throw new Error(`benchmark: ${message}`);
@@ -115,10 +116,10 @@ export function parseBenchmarkCliArguments(argv) {
     else if (argument.startsWith("--samples=")) result.samples = integer(argument.slice("--samples=".length), "--samples", 9, true);
     else fail(`unknown run option: ${argument}`);
   }
-  if (result.target !== "hello") fail(`unsupported target: ${result.target}`);
+  if (!RUN_TARGETS.includes(result.target)) fail(`unsupported target: ${result.target}`);
   if (!['w', 'c', 'rust'].includes(result.language)) fail(`unsupported language: ${result.language}`);
   if (result.samples < 9 || result.samples % 2 === 0) fail("--samples must be odd and at least nine");
-  result.output ??= `benchmarks/results/hello-${result.language}.local.json`;
+  result.output ??= `benchmarks/results/${result.target}-${result.language}.local.json`;
   return result;
 }
 
@@ -127,12 +128,12 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|record|check>",
     "",
     "  list",
-    "  run --target hello --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target hello|restaurant-branch --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
     "  record <result.json>    (content-addressed history publication; consumes a local result on success)",
     "  check",
     "",
-    "Run measures one Hello source with exact output. W uses private Native0/MLIR0, C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI.",
+    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses private Native0/MLIR0 only for the Hello candidate; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 

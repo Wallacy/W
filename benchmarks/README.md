@@ -46,7 +46,8 @@ not claim that a W benchmark is performance-ready.
 
 [`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection
 of the executable catalog, immutable history index, and best-known index. The
-W Hello route is a private Native0/MLIR0 Windows source-to-PE candidate.
+W route for workloads declaring the private recipe is a private Native0/MLIR0
+Windows source-to-PE candidate.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
 remains exploratory and measurement-only. W remains contextual/non-ranking
 until the public `w run` route is benchmarkable. Local measurements remain ignored under `benchmarks/results/`;
@@ -55,13 +56,19 @@ record. The history index rejects records whose filename is not the SHA-256
 digest of their canonical bytes, and rejects unindexed entries.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
-`run --target hello --language w|c|rust --output benchmarks/results/<new>.json`
+`run --target hello|restaurant-branch --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/history/projection consistency, and `record <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one
 warmup and at least nine odd raw samples for every language. C probes `-std=c23`
-then `-std=c2x` and records the accepted standard plus MinGW ABI. Rust records
-its rustc release, edition 2024 and MSVC ABI. Publication creates a
+then `-std=c2x` and records the accepted standard plus MinGW ABI; its release
+recipe uses O3, LTO, section GC and stripped symbols. Rust records its rustc
+release, edition 2024 and MSVC ABI; its release recipe uses O3, fat LTO, one
+codegen unit, panic abort and stripped symbols. The private W release route uses
+MLIR canonicalization/CSE, llc O3, lld dead-code/identical-code folding and no
+CRT. These profiles prioritize runtime performance while removing distributable
+symbols; none selects a size-only optimization level or host-specific CPU.
+Publication creates a
 content-addressed record and updates the index and generated projection. An
 interrupted multi-file publication remains detectable as an unindexed entry
 and must be repaired before `benchmark check` can pass.

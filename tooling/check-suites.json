@@ -11,6 +11,7 @@
       "steps": [
         { "package": "root", "script": "check:suite-manifest" },
         { "package": "root", "script": "check:bmd" },
+        { "package": "root", "script": "check:executable" },
         { "suite": "tree-check" }
       ]
     },
@@ -22,6 +23,7 @@
         { "package": "root", "script": "check:study-registry" },
         { "package": "root", "script": "check:dependency-currency" },
         { "package": "root", "script": "check:bmd" },
+        { "package": "root", "script": "check:executable" },
         { "suite": "tree-docs" }
       ]
     },
@@ -85,6 +87,7 @@
         { "package": "root", "script": "check:maintained-parse" },
         { "package": "root", "script": "check:links" },
         { "package": "root", "script": "check:bmd" },
+        { "package": "root", "script": "check:executable" },
         { "package": "root", "script": "design:index:check" },
         { "package": "tree", "script": "generate" },
         { "package": "tree", "script": "test" },

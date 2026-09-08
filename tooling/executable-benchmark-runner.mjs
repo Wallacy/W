@@ -36,13 +36,20 @@ import {
 import { findVisualStudio, findWindowsSdkKernel32, runWithVisualStudio } from "./windows-build-support.mjs";
 import { parseMsvcCompilerVersion } from "./build-w-windows.mjs";
 import { dialectArgs, dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
+import {
+  C_RELEASE_FLAGS,
+  RUST_RELEASE_FLAGS,
+  W_LLC_FLAGS,
+  W_LLD_LINK_FLAGS,
+  W_MLIR_OPT_FLAGS,
+} from "./executable-release-recipes.mjs";
 
 export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const SEED_DIRECTORY = path.resolve(ROOT, "compiler", "seed-c");
 const DEFAULT_TARGET = "hello";
-const HELLO_ORACLE_ID = "hello:exact-output";
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch"]);
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
@@ -51,7 +58,9 @@ const GATE_DIRECTORY_PREFIX = "w-executable-gate-";
 const SAMPLE_DIRECTORY_PREFIX = "w-executable-sample-";
 const C_COMPILER_NAMES = ["gcc", "clang", "cc"];
 const RUST_TARGET = EXECUTABLE_ARTIFACT_TARGET_MSVC;
-const EXECUTABLE_TIMEOUT_STATUS = "deferred: Bun.spawnSync does not expose a supported child timeout option in Bun 1.4";
+export const EXECUTABLE_CHILD_TIMEOUT_MS = 120_000;
+export const EXECUTABLE_CHILD_KILL_SIGNAL = "SIGKILL";
+const EXECUTABLE_TIMEOUT_STATUS = `Bun.spawnSync enforces a ${EXECUTABLE_CHILD_TIMEOUT_MS} ms per-direct-child timeout and sends ${EXECUTABLE_CHILD_KILL_SIGNAL}; descendant termination is not guaranteed without a Windows Job Object, and timed-out children abort the run without publishing a partial result`;
 const textDecoder = new TextDecoder("utf-8", { fatal: true });
 
 function fail(message) {
@@ -169,7 +178,7 @@ export function parseBenchmarkArguments(argv) {
       fail(`unknown option: ${argument}`);
     }
   }
-  if (result.target !== DEFAULT_TARGET) fail(`unsupported benchmark target: ${result.target}`);
+  if (!RUN_TARGETS.includes(result.target)) fail(`unsupported benchmark target: ${result.target}`);
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) fail(`unsupported language: ${result.language}`);
   if (result.samples % 2 === 0) fail("--samples must be odd");
   return result;
@@ -179,9 +188,9 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target hello (default), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target hello|restaurant-branch (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory Hello evidence. W uses Native0/MLIR0, C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses private Native0/MLIR0 only for the Hello candidate; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -201,11 +210,17 @@ function sha256Json(value) {
 function commandResult(result) {
   if (!isObject(result)) fail("executor must return a result object");
   return {
-    exitCode: Number.isInteger(result.exitCode) ? result.exitCode : 3,
+    exitCode: result.exitCode === null || Number.isInteger(result.exitCode) ? result.exitCode : 3,
+    signalCode: result.signalCode ?? null,
+    exitedDueToTimeout: result.exitedDueToTimeout === true,
     stdout: bufferValue(result.stdout),
     stderr: bufferValue(result.stderr),
     resourceUsage: result.resourceUsage,
   };
+}
+
+function stdinValue(value) {
+  return typeof value === "string" ? Buffer.from(value, "utf8") : value;
 }
 
 export function defaultExecutor(command, args, options = {}) {
@@ -218,7 +233,27 @@ export function defaultExecutor(command, args, options = {}) {
     stdout: "pipe",
     stderr: "pipe",
     windowsHide: true,
+    stdin: stdinValue(options.stdin),
+    timeout: options.timeout ?? EXECUTABLE_CHILD_TIMEOUT_MS,
+    killSignal: options.killSignal ?? EXECUTABLE_CHILD_KILL_SIGNAL,
   }));
+}
+
+function timeoutFailure(result, label, timeout) {
+  if (!result.exitedDueToTimeout) return;
+  const signal = result.signalCode ?? EXECUTABLE_CHILD_KILL_SIGNAL;
+  fail(`${label} exceeded the ${timeout} ms child timeout and was terminated with ${signal}; no partial result was recorded`);
+}
+
+async function executeChild(executor, command, args, options, label) {
+  const timeout = options?.timeout ?? EXECUTABLE_CHILD_TIMEOUT_MS;
+  const result = commandResult(await executor(command, args, {
+    ...options,
+    timeout,
+    killSignal: options?.killSignal ?? EXECUTABLE_CHILD_KILL_SIGNAL,
+  }));
+  timeoutFailure(result, label, timeout);
+  return result;
 }
 
 function counter(value, label) {
@@ -263,7 +298,7 @@ function sampleFrom(start, end, usages, label) {
 
 async function timedStep(executor, command, args, cwd, label) {
   const start = process.hrtime.bigint();
-  const result = commandResult(await executor(command, args, { cwd, stdout: "pipe", stderr: "pipe", windowsHide: true }));
+  const result = await executeChild(executor, command, args, { cwd, stdout: "pipe", stderr: "pipe", windowsHide: true }, label);
   const end = process.hrtime.bigint();
   return {
     ...result,
@@ -354,7 +389,12 @@ async function buildPrivateGate() {
   console.error(`executable benchmark: private gate temp=${buildDirectory}`);
   try {
     const invoke = (command, args, label) => {
-      const result = commandResult(runWithVisualStudio(vs.devCommand, command, args, { cwd: ROOT }));
+      const result = commandResult(runWithVisualStudio(vs.devCommand, command, args, {
+        cwd: ROOT,
+        timeout: EXECUTABLE_CHILD_TIMEOUT_MS,
+        killSignal: EXECUTABLE_CHILD_KILL_SIGNAL,
+      }));
+      timeoutFailure(result, label, EXECUTABLE_CHILD_TIMEOUT_MS);
       requireSuccess(result, label);
     };
     invoke(cmake, [
@@ -370,7 +410,12 @@ async function buildPrivateGate() {
     invoke(cmake, ["--build", buildDirectory, "--target", "w_seed_mlir0_gate", "--", "-j", "2"], "private gate build");
     const executable = path.join(buildDirectory, "w_seed_mlir0_gate.exe");
     await regularFile(executable, "private gate executable");
-    const compilerProbe = runWithVisualStudio(vs.devCommand, "cl.exe", ["/Bv"], { cwd: ROOT });
+    const compilerProbe = commandResult(runWithVisualStudio(vs.devCommand, "cl.exe", ["/Bv"], {
+      cwd: ROOT,
+      timeout: EXECUTABLE_CHILD_TIMEOUT_MS,
+      killSignal: EXECUTABLE_CHILD_KILL_SIGNAL,
+    }));
+    timeoutFailure(compilerProbe, "private gate compiler probe", EXECUTABLE_CHILD_TIMEOUT_MS);
     const compilerOutput = Buffer.concat([bufferValue(compilerProbe.stdout), bufferValue(compilerProbe.stderr)]).toString("latin1");
     const compilerVersion = parseMsvcCompilerVersion(compilerOutput);
     return { buildDirectory, executable, compilerVersion };
@@ -416,7 +461,7 @@ function normalizeCompilerCommandOverride(override, language) {
   return { command: override.command };
 }
 
-async function resolveCCompiler(executor, dependencies = {}) {
+async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
   const override = dependencies.testOnlyToolchains?.c;
   const candidates = override === undefined
     ? C_COMPILER_NAMES.map((name) => Bun.which(name)).filter(Boolean)
@@ -426,14 +471,16 @@ async function resolveCCompiler(executor, dependencies = {}) {
     const info = typeof candidate === "string" ? { command: candidate } : candidate;
     if (seen.has(info.command)) continue;
     seen.add(info.command);
-    const targetProbe = commandResult(await executor(info.command, ["-dumpmachine"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }));
-    const target = targetProbe.exitCode === 0 ? outputText(targetProbe.stdout).trim() : "";
-    if (target !== EXECUTABLE_ARTIFACT_TARGET_MINGW) continue;
-    const dialectProbe = await probeCDialect(info.command, executor === defaultExecutor ? {} : { executor });
+    const targetProbe = await executeChild(executor, info.command, ["-dumpmachine"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C target probe`);
+    const targetTriple = targetProbe.exitCode === 0 ? outputText(targetProbe.stdout).trim() : "";
+    if (targetTriple !== EXECUTABLE_ARTIFACT_TARGET_MINGW) continue;
+    const dialectProbe = await probeCDialect(info.command, {
+      executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C dialect probe`),
+    });
     const dialect = dialectProbe ? normalizeCDialect(dialectProbe) : undefined;
     if (!dialect) continue;
-    const versionProbe = commandResult(await executor(info.command, ["--version"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }));
-    requireSuccess(versionProbe, "C compiler probe");
+    const versionProbe = await executeChild(executor, info.command, ["--version"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C compiler probe`);
+    requireSuccess(versionProbe, `${target} C compiler probe`);
     const version = parseGccVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
     const compilerName = path.basename(info.command).replace(/\.exe$/iu, "").toLowerCase();
     const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "C ABI")}`;
@@ -447,18 +494,18 @@ async function resolveCCompiler(executor, dependencies = {}) {
       identity,
     };
   }
-  fail("C Hello requires an available compiler targeting x86_64-w64-mingw32 that accepts -std=c23 or -std=c2x");
+  fail(`C ${target} requires an available compiler targeting x86_64-w64-mingw32 that accepts -std=c23 or -std=c2x`);
 }
 
-async function resolveRustCompiler(executor, dependencies = {}) {
+async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
   const override = dependencies.testOnlyToolchains?.rust;
   const command = override ?? Bun.which("rustc");
-  if (command === undefined) fail("Rust Hello requires rustc");
+  if (command === undefined) fail(`Rust ${target} requires rustc`);
   const info = normalizeCompilerCommandOverride(command, "Rust");
-  const targetProbe = commandResult(await executor(info.command, ["--print", "target-libdir", `--target=${RUST_TARGET}`], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }));
-  requireSuccess(targetProbe, "Rust target probe");
-  const versionProbe = commandResult(await executor(info.command, ["--version", "--verbose"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }));
-  requireSuccess(versionProbe, "Rust compiler probe");
+  const targetProbe = await executeChild(executor, info.command, ["--print", "target-libdir", `--target=${RUST_TARGET}`], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust target probe`);
+  requireSuccess(targetProbe, `${target} Rust target probe`);
+  const versionProbe = await executeChild(executor, info.command, ["--version", "--verbose"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} Rust compiler probe`);
+  requireSuccess(versionProbe, `${target} Rust compiler probe`);
   const version = parseRustVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
   if (version.host !== RUST_TARGET) {
     fail(`Rust compiler host must disclose ${RUST_TARGET}, got ${version.host}`);
@@ -514,14 +561,15 @@ function measurementPlatform(dependencies, publish) {
   return platform;
 }
 
-async function sourcePath(catalog, language) {
-  const workload = catalog.workloads?.find((item) => item.id === DEFAULT_TARGET);
+async function sourcePath(catalog, target, language) {
+  const workload = catalog.workloads?.find((item) => item.id === target);
+  if (!workload) fail(`catalog has no ${target} workload`);
   const source = workload?.sources?.find((item) => item.language === language);
-  if (!source) fail(`catalog has no ${language} Hello source`);
+  if (!source) fail(`catalog has no ${language} source for ${target}`);
   const filePath = path.resolve(ROOT, source.path);
-  if (!isContained(ROOT, filePath)) fail(`${language} Hello source escapes the repository`);
-  await regularFile(filePath, `${language} Hello source`);
-  if (await sha256File(filePath) !== source.digest) fail(`${language} Hello source digest is stale`);
+  if (!isContained(ROOT, filePath)) fail(`${language} ${target} source escapes the repository`);
+  await regularFile(filePath, `${language} ${target} source`);
+  if (await sha256File(filePath) !== source.digest) fail(`${language} ${target} source digest is stale`);
   return { workload, source, filePath };
 }
 
@@ -531,7 +579,7 @@ async function compileW(context, retain) {
   const verified = path.join(sampleDirectory, "verified.mlir");
   const llvm = path.join(sampleDirectory, "output.ll");
   const object = path.join(sampleDirectory, "output.obj");
-  const artifact = path.join(sampleDirectory, "hello.exe");
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
   try {
     const start = process.hrtime.bigint();
     const steps = [];
@@ -539,17 +587,17 @@ async function compileW(context, retain) {
     requireSuccess(gate, "W Native0 gate");
     await writeFile(input, gate.stdout);
     steps.push(gate);
-    const opt = await timedStep(context.executor, context.tools["mlir-opt.exe"], [input, "-o", verified, "--verify-each"], sampleDirectory, "mlir-opt");
+    const opt = await timedStep(context.executor, context.tools["mlir-opt.exe"], [input, "-o", verified, ...W_MLIR_OPT_FLAGS], sampleDirectory, "mlir-opt");
     requireSuccess(opt, "mlir-opt");
     steps.push(opt);
     const translate = await timedStep(context.executor, context.tools["mlir-translate.exe"], ["--mlir-to-llvmir", verified, "-o", llvm], sampleDirectory, "mlir-translate");
     requireSuccess(translate, "mlir-translate");
     steps.push(translate);
-    const llc = await timedStep(context.executor, context.tools["llc.exe"], ["-filetype=obj", "-mtriple=x86_64-pc-windows-msvc", llvm, "-o", object], sampleDirectory, "llc");
+    const llc = await timedStep(context.executor, context.tools["llc.exe"], [...W_LLC_FLAGS, llvm, "-o", object], sampleDirectory, "llc");
     requireSuccess(llc, "llc");
     steps.push(llc);
     const linkStep = await timedStep(context.executor, context.tools["lld-link.exe"], [
-      "/entry:mainCRTStartup", "/subsystem:console", "/nodefaultlib", "/machine:x64",
+      ...W_LLD_LINK_FLAGS,
       `/out:${artifact}`, object, context.windowsToolchain.sdk.path,
     ], sampleDirectory, "lld-link");
     requireSuccess(linkStep, "lld-link");
@@ -569,12 +617,12 @@ async function compileW(context, retain) {
 
 async function compileC(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const artifact = path.join(sampleDirectory, "hello.exe");
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
   try {
     const start = process.hrtime.bigint();
     const step = await timedStep(context.executor, context.languageToolchain.command, [
       ...dialectArgs(context.languageToolchain.dialect),
-      "-O2",
+      ...C_RELEASE_FLAGS,
       context.source.filePath,
       "-o", artifact,
     ], sampleDirectory, "C compiler");
@@ -594,15 +642,13 @@ async function compileC(context, retain) {
 
 async function compileRust(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const artifact = path.join(sampleDirectory, "hello.exe");
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
   try {
     const start = process.hrtime.bigint();
     const step = await timedStep(context.executor, context.languageToolchain.command, [
       context.source.filePath,
       "--edition=2024",
-      "-C", "opt-level=2",
-      "-C", "debuginfo=0",
-      "-C", "incremental=off",
+      ...RUST_RELEASE_FLAGS,
       `--target=${RUST_TARGET}`,
       "-o", artifact,
     ], sampleDirectory, "Rust compiler");
@@ -627,21 +673,21 @@ async function compileSource(context, retain) {
   fail(`unsupported language: ${context.language}`);
 }
 
-async function runArtifact(executor, artifact, language = "w") {
-  const step = await timedStep(executor, artifact, [], path.dirname(artifact), `${language} run`);
-  requireSuccess(step, `${language} executable`);
+async function runArtifact(executor, artifact, language = "w", target = DEFAULT_TARGET) {
+  const step = await timedStep(executor, artifact, [], path.dirname(artifact), `${language} ${target} run`);
+  requireSuccess(step, `${language} ${target} executable`);
   return {
-    sample: sampleFrom(step.start, step.end, [step.usage], `${language} run`),
+    sample: sampleFrom(step.start, step.end, [step.usage], `${language} ${target} run`),
     stdout: step.stdout,
     stderr: step.stderr,
     exitCode: step.exitCode,
   };
 }
 
-function assertOracle(execution, oracle, label) {
+function assertOracle(execution, oracle, target, label) {
   if (oracle?.status !== "source-backed" || oracle?.kind !== "exact-output") fail(`${label} requires a source-backed exact-output oracle`);
   if (execution.exitCode !== oracle.exitCode || !execution.stdout.equals(Buffer.from(oracle.stdout, "utf8")) || !execution.stderr.equals(Buffer.from(oracle.stderr, "utf8"))) {
-    fail(`${label} output does not match the Hello oracle`);
+    fail(`${label} output does not match the ${target} exact-output oracle`);
   }
 }
 
@@ -656,9 +702,9 @@ async function correctnessBuild(context) {
   try {
     const bytes = await readFile(compiled.artifact);
     validatePeX64(bytes, context.language);
-    const execution = await runArtifact(context.executor, compiled.artifact, context.language);
+    const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
     const oracle = context.source.workload.oracle;
-    assertOracle(execution, oracle, `${context.language} correctness`);
+    assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
     return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length) };
   } catch (error) {
     await rm(compiled.sampleDirectory, { recursive: true, force: true });
@@ -700,7 +746,7 @@ function recipeFor(context) {
       command: "w-seed-mlir0-gate",
       target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
       args: ["<source>", "--target=x86_64-pc-windows-msvc", "|", "mlir-opt", "|", "mlir-translate", "|", "llc", "|", "lld-link"],
-      flags: ["--verify-each", "-filetype=obj", "-mtriple=x86_64-pc-windows-msvc", "/entry:mainCRTStartup", "/subsystem:console", "/nodefaultlib", "/machine:x64"],
+      flags: [...W_MLIR_OPT_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS],
       cmakeBuildType: "Release",
       cStandard: "11-recovery",
     };
@@ -709,8 +755,8 @@ function recipeFor(context) {
     return {
       command: path.basename(context.languageToolchain.command).replace(/\.exe$/iu, ""),
       target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
-      args: [context.languageToolchain.dialect.flag, "-O2", "<source>", "-o", "<artifact>"],
-      flags: [context.languageToolchain.dialect.flag, "-O2"],
+      args: [context.languageToolchain.dialect.flag, ...C_RELEASE_FLAGS, "<source>", "-o", "<artifact>"],
+      flags: [context.languageToolchain.dialect.flag, ...C_RELEASE_FLAGS],
       cStandard: dialectDisclosure(context.languageToolchain.dialect),
       artifactAbi: EXECUTABLE_ARTIFACT_TARGET_MINGW,
     };
@@ -719,8 +765,8 @@ function recipeFor(context) {
     return {
       command: "rustc",
       target: RUST_TARGET,
-      args: ["<source>", "--edition=2024", "-C", "opt-level=2", "-C", "debuginfo=0", "-C", "incremental=off", `--target=${RUST_TARGET}`, "-o", "<artifact>"],
-      flags: ["--edition=2024", "-C", "opt-level=2", "-C", "debuginfo=0", "-C", "incremental=off", `--target=${RUST_TARGET}`],
+      args: ["<source>", "--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`, "-o", "<artifact>"],
+      flags: ["--edition=2024", ...RUST_RELEASE_FLAGS, `--target=${RUST_TARGET}`],
       edition: "2024",
       artifactAbi: RUST_TARGET,
     };
@@ -764,9 +810,9 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
     $schema: "./executable-benchmark.schema.json",
     schema: EXECUTABLE_RESULT_SCHEMA,
     kind: "executable-result",
-    id: `hello-${context.language}-${context.commit.slice(0, 12)}`,
+    id: `${context.target}-${context.language}-${context.commit.slice(0, 12)}`,
     status: "recorded",
-    workloadId: DEFAULT_TARGET,
+    workloadId: context.target,
     language: context.language,
     platformTarget: EXECUTABLE_PLATFORM_TARGET,
     artifactTarget,
@@ -774,7 +820,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
     quality: "exploratory",
     claim: "measurement-only",
     verdict: "not-evaluated",
-    equivalenceKey: executableEquivalenceKey(context.catalog, DEFAULT_TARGET, EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
+    equivalenceKey: executableEquivalenceKey(context.catalog, context.target, EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
     identity: {
       sourceDigest: source.digest,
       platformTarget: EXECUTABLE_PLATFORM_TARGET,
@@ -788,7 +834,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       eligibility: source.eligibility,
     },
     correctness: {
-      oracleId: HELLO_ORACLE_ID,
+      oracleId: `${context.target}:exact-output`,
       exitCode: workload.oracle.exitCode,
       stdoutDigest: exactOutputDigest(workload.oracle.stdout),
       stderrDigest: exactOutputDigest(workload.oracle.stderr),
@@ -886,7 +932,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const language = options.language ?? "w";
   const warmup = options.warmup ?? DEFAULT_WARMUP;
   const samples = options.samples ?? DEFAULT_SAMPLES;
-  if (target !== DEFAULT_TARGET) fail(`unsupported benchmark target: ${target}`);
+  if (!RUN_TARGETS.includes(target)) fail(`unsupported benchmark target: ${target}`);
   if (!EXECUTABLE_LANGUAGES.includes(language)) fail(`unsupported language: ${language}`);
   if (!Number.isSafeInteger(warmup) || warmup < 1) fail("warmup must be at least one");
   if (!Number.isSafeInteger(samples) || samples < 9 || samples % 2 === 0) fail("samples must be odd and at least nine");
@@ -898,6 +944,10 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const catalog = dependencies.catalog ?? documents.catalog;
   const catalogErrors = validateExecutableCatalog(catalog, documents);
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
+  const source = await sourcePath(catalog, target, language);
+  if (target === "restaurant-branch" && language === "w" && source.source.recipe === "public-w-run") {
+    fail("restaurant-branch W cannot run: catalog recipe public-w-run has no retained artifact or separate compile-run support; private Native0/MLIR0 is not a route for this target");
+  }
   const runnerDigest = dependencies.runnerDigest ?? await sha256File(path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"));
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);
   const commit = dependencies.commit ?? await currentCommit(executor);
@@ -907,9 +957,9 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     ? dependencies.windowsToolchain ?? await resolveWindowsToolchain()
     : undefined;
   const languageToolchain = language === "c"
-    ? await resolveCCompiler(executor, dependencies)
+    ? await resolveCCompiler(executor, dependencies, target)
     : language === "rust"
-      ? await resolveRustCompiler(executor, dependencies)
+      ? await resolveRustCompiler(executor, dependencies, target)
       : undefined;
   let gate;
   let tempRoot;
@@ -918,7 +968,6 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     gate = language === "w" ? dependencies.gate ?? await buildPrivateGate() : undefined;
     tempRoot = await mkdtemp(path.join(os.tmpdir(), RUN_DIRECTORY_PREFIX));
     console.error(`executable benchmark: measurement temp=${tempRoot}`);
-    const source = await sourcePath(catalog, language);
     const selectedToolchain = language === "w"
       ? {
         language: "w",
@@ -930,6 +979,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     const context = {
       executor,
       catalog,
+      target,
       source,
       windowsToolchain,
       tools: windowsToolchain?.tools,
@@ -953,13 +1003,13 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     const runRaw = [];
     const oracle = source.workload.oracle;
     for (let round = 0; round < warmup; round += 1) {
-      const execution = await runArtifact(executor, correctness.compiled.artifact, language);
-      assertOracle(execution, oracle, `${language} warmup`);
+      const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
+      assertOracle(execution, oracle, target, `${language} ${target} warmup`);
       runWarmup.push(execution.sample);
     }
     for (let round = 0; round < samples; round += 1) {
-      const execution = await runArtifact(executor, correctness.compiled.artifact, language);
-      assertOracle(execution, oracle, `${language} raw`);
+      const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
+      assertOracle(execution, oracle, target, `${language} ${target} raw`);
       runRaw.push(execution.sample);
     }
     const record = makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, runRaw, new Date().toISOString());

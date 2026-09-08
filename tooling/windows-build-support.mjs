@@ -21,6 +21,8 @@ function run(command, args, options = {}) {
     stdout: "pipe",
     stderr: "pipe",
     windowsHide: true,
+    timeout: options.timeout,
+    killSignal: options.killSignal,
   })
 }
 
