@@ -4,7 +4,7 @@
 This projection is generated from the executable catalog, immutable history index, and best-known index.
 It records evidence status, not a claim of general Windows support or performance.
 
-Best-known status: **established** (4 promoted records).
+Best-known status: **established** (8 promoted records).
 
 | Workload | Source/oracle readiness | Benchmark status |
 | --- | --- | --- |
@@ -22,7 +22,11 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 
 ### hello
 
+- rust — artifact-size 113152 B (110.5 KiB) (single-artifact); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
+- rust — peak-working-set 4763648 B (4.543 MiB) (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
+- rust — compile-latency 1.3664357 s (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
 - rust — artifact-size 130048 B (127 KiB) (single-artifact); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
+- rust — run-wall-time 18.5136 ms (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
 - rust — run-wall-time 20.3466 ms (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - rust — compile-latency 237.4533 ms (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - rust — peak-working-set 4796416 B (4.574 MiB) (median); toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; host windows-windows-nt-42f9d519186ea6d6; derived from [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
@@ -33,6 +37,7 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 
 - c — contextual-non-ranking-across-abi; compile median 458.3743 ms (CPU 31.25 ms, RSS 6070272 B (5.789 MiB)); run median 22.7378 ms (CPU 0 µs, RSS 4669440 B (4.453 MiB)); artifact 19456 B (19 KiB); commit 602aa1924f28; toolchain gcc-13.2.0-c2x-preview-x86_64-w64-mingw32; [history record](./history/executables/d4877afa6cde5fd552a72b03199e76a83289162077ac33407d955ffe18ee831e.json)
 - c — contextual-non-ranking-across-abi; compile median 209.0802 ms (CPU 15.625 ms, RSS 5984256 B (5.707 MiB)); run median 22.1156 ms (CPU 0 µs, RSS 4673536 B (4.457 MiB)); artifact 63926 B (62.428 KiB); commit 861b4afff72c; toolchain gcc-13.2.0-c2x-preview-x86_64-w64-mingw32; [history record](./history/executables/2d5867abc5c4640fd0b023d5401a55773cf067cba296fb700e4529df61f15fbf.json)
+- rust — promotable-after-equivalence; compile median 1.3664357 s (CPU 15.625 ms, RSS 12980224 B (12.379 MiB)); run median 18.5136 ms (CPU 0 µs, RSS 4763648 B (4.543 MiB)); artifact 113152 B (110.5 KiB); commit 4a7b86390bd8; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
 - rust — promotable-after-equivalence; compile median 237.4533 ms (CPU 31.25 ms, RSS 12910592 B (12.313 MiB)); run median 20.3466 ms (CPU 0 µs, RSS 4796416 B (4.574 MiB)); artifact 130048 B (127 KiB); commit 5667ee42e006; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
 
