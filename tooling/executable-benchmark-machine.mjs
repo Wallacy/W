@@ -237,11 +237,7 @@ function checkSource(source, location, workload, root, errors) {
   if (source.platformTarget !== EXECUTABLE_PLATFORM_TARGET) push(errors, location + ".platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + ".");
   const expectedArtifactTarget = source.language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
   if (source.artifactTarget !== expectedArtifactTarget) push(errors, location + ".artifactTarget must be " + expectedArtifactTarget + ".");
-  const expectedPolicy = source.language === "c"
-    ? SOURCE_ELIGIBILITY.c
-    : source.language === "rust"
-      ? SOURCE_ELIGIBILITY.rust
-      : workload.id === "hello" ? SOURCE_ELIGIBILITY.wHello : SOURCE_ELIGIBILITY.wDeferred;
+  const expectedPolicy = sourcePolicy(workload, source.language);
   if (source.comparability !== expectedPolicy.comparability) push(errors, location + ".comparability does not match the language ABI and benchmark readiness.");
   if (source.eligibility !== expectedPolicy.eligibility) push(errors, location + ".eligibility does not match the source comparability policy.");
   const expectedExtension = { w: ".w", c: ".c", rust: ".rs" }[source.language];
@@ -386,6 +382,12 @@ function workloadFor(catalog, id) {
 
 function sourceFor(workload, language) {
   return Array.isArray(workload?.sources) ? workload.sources.find((item) => item.language === language) : undefined;
+}
+
+function sourcePolicy(workload, language) {
+  if (language === "c") return SOURCE_ELIGIBILITY.c;
+  if (language === "rust") return SOURCE_ELIGIBILITY.rust;
+  return workload?.id === "hello" ? SOURCE_ELIGIBILITY.wHello : SOURCE_ELIGIBILITY.wDeferred;
 }
 
 function canonicalEquivalencePayload(workload, platformTarget, profile, recipeClass) {
@@ -581,6 +583,10 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   const source = sourceFor(workload, result.language);
   if (!source) push(errors, "executable result language must identify a materialized source.");
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) push(errors, "executable result.language is invalid.");
+  const expectedPolicy = sourcePolicy(workload, result.language);
+  if (source && (source.comparability !== expectedPolicy.comparability || source.eligibility !== expectedPolicy.eligibility)) {
+    push(errors, "executable result source comparability and eligibility must match the exact catalog policy.");
+  }
   if (result.platformTarget !== EXECUTABLE_PLATFORM_TARGET || (source && result.platformTarget !== source.platformTarget)) push(errors, "executable result.platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + " and match the source identity.");
   if (source && result.artifactTarget !== source.artifactTarget) push(errors, "executable result.artifactTarget must match the source ABI target.");
   if (result.language === "c" && result.artifactTarget !== EXECUTABLE_ARTIFACT_TARGET_MINGW) push(errors, "C executable results must use the x86_64-w64-mingw32 artifact target.");
@@ -699,6 +705,12 @@ function bestKnownStatistic(metric) {
   return metric === "artifact-size" ? "single-artifact" : "median";
 }
 
+function bestKnownMetricIsEligible(record, metric) {
+  // A zero run CPU median is a valid microsecond-resolution observation, but
+  // it cannot establish a useful CPU best-known value.
+  return metric !== "cpu-time" || record.run.summary.cpuTotalUs.median !== "0";
+}
+
 function bestKnownRecordId(groupKey, metric) {
   const digestHex = crypto.createHash("sha256").update(`${groupKey}\u0000${metric}`, "utf8").digest("hex");
   return `best-${digestHex}`;
@@ -722,7 +734,7 @@ export function deriveExecutableBestKnown(catalog, results) {
     ids.add(record.id);
     const workload = workloadFor(catalog, record.workloadId);
     const source = sourceFor(workload, record.language);
-    if (source?.eligibility !== "promotable-after-equivalence") continue;
+    if (source?.comparability !== "promotable-after-equivalence" || source?.eligibility !== "promotable-after-equivalence") continue;
     const key = bestKnownGroupKey(record);
     const group = groups.get(key) ?? { key, records: [] };
     group.records.push(record);
@@ -733,7 +745,10 @@ export function deriveExecutableBestKnown(catalog, results) {
   for (const group of [...groups.values()].sort((left, right) => compareText(left.key, right.key))) {
     const ordered = [...group.records].sort(compareResultForTie);
     for (const metric of BEST_KNOWN_METRIC_ORDER) {
-      const values = ordered.map((record) => ({ record, value: BigInt(bestKnownMetricValue(record, metric)) }));
+      const values = ordered
+        .filter((record) => bestKnownMetricIsEligible(record, metric))
+        .map((record) => ({ record, value: BigInt(bestKnownMetricValue(record, metric)) }));
+      if (values.length === 0) continue;
       const minimum = values.reduce((best, item) => item.value < best ? item.value : best, values[0].value);
       const selected = values.filter((item) => item.value === minimum).map((item) => item.record).sort(compareResultForTie);
       const primary = selected[0];
@@ -796,6 +811,9 @@ export function validateExecutableBestKnown(record, catalog = loadExecutableDocu
   requiredString(record.recipeClass, "executable best-known record.recipeClass", errors);
   digest(record.recipeDigest, "executable best-known record.recipeDigest", errors);
   decimal(record.value, "executable best-known record.value", errors);
+  if (record.metric === "cpu-time" && record.value === "0") {
+    push(errors, "executable best-known cpu-time cannot promote a zero microsecond run median.");
+  }
   stringArray(record.derivedFrom, "executable best-known record.derivedFrom", errors, 1);
   if (Array.isArray(record.derivedFrom) && !isCanonicalOrder(record.derivedFrom, (items) => [...items].sort(compareText))) {
     push(errors, "executable best-known record.derivedFrom must be sorted by result id.");
@@ -821,6 +839,9 @@ export function validateExecutableBestKnown(record, catalog = loadExecutableDocu
     if (values.length !== selected.length || values.length === 0) {
       push(errors, "executable best-known record metric values must be complete validated summaries.");
     } else {
+      if (record.metric === "cpu-time" && values.some((value) => value === "0")) {
+        push(errors, "executable best-known cpu-time cannot derive from a zero microsecond run median.");
+      }
       const minimum = values.reduce((best, value) => BigInt(value) < BigInt(best) ? value : best);
       if (record.value !== minimum) push(errors, "executable best-known record.value must be the derived minimum summary.");
     }

@@ -12,11 +12,14 @@ import {
   EXECUTABLE_METRICS,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
+  deriveExecutableBestKnown,
   executableEquivalenceKey,
   executableHostIdentity,
   exactOutputDigest,
   loadExecutableDocuments,
+  loadExecutableHistoryResults,
   validateExecutableBestKnown,
+  validateExecutableBestKnownFreshness,
   validateExecutableBestKnownIndex,
   validateExecutableCatalog,
   validateExecutableHistory,
@@ -24,6 +27,7 @@ import {
 } from "./executable-benchmark-machine.mjs";
 
 const documents = loadExecutableDocuments();
+const historyResults = loadExecutableHistoryResults(documents.history).map(({ record }) => record);
 const clone = (value) => structuredClone(value);
 const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
 
@@ -67,7 +71,7 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(documents.catalog.workloads.find((item) => item.id === "restaurant-composition").status, "planned");
   assert.equal(documents.catalog.bestKnownContract.status, "defined");
   assert.equal(documents.catalog.status, "catalog-ready");
-  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog), []);
+  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, historyResults), []);
   assert.deepEqual(validateExecutableHistory(documents.history, documents.catalog), []);
 });
 
@@ -253,6 +257,18 @@ function validBest(result, metric = "run-wall-time") {
   };
 }
 
+function zeroRunCpu(result) {
+  for (const sample of [...result.run.warmup, ...result.run.raw]) {
+    sample.cpuUserUs = "0";
+    sample.cpuSystemUs = "0";
+    sample.cpuTotalUs = "0";
+  }
+  for (const field of ["cpuUserUs", "cpuSystemUs", "cpuTotalUs"]) {
+    result.run.summary[field] = { min: "0", median: "0", max: "0", arithmeticMean: "0", mad: "0" };
+  }
+  return result;
+}
+
 test("result preserves raw samples and derives every summary", () => {
   const result = validResult();
   assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
@@ -400,18 +416,68 @@ test("best-known records rank only validated optimizable measurements", () => {
   assert.match(validateExecutableBestKnown(cBest, documents.catalog, [cResult]).join("\n"), /ineligible/);
 
   assert.match(validateExecutableBestKnown(best, documents.catalog).join("\n"), /validated result records/);
-  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog), []);
+  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, historyResults), []);
 
-  const establishedEmpty = clone(documents.bestKnown);
+  const emptyIndex = { ...clone(documents.bestKnown), status: "not-established", records: [] };
+  const establishedEmpty = clone(emptyIndex);
   establishedEmpty.status = "established";
   assert.match(validateExecutableBestKnownIndex(establishedEmpty, documents.catalog, [result]).join("\n"), /no records.*not-established/);
 
-  const nonEmptyNotEstablished = clone(documents.bestKnown);
+  const nonEmptyNotEstablished = clone(emptyIndex);
   nonEmptyNotEstablished.records = [best];
   assert.match(validateExecutableBestKnownIndex(nonEmptyNotEstablished, documents.catalog, [result]).join("\n"), /non-empty.*established/);
 
-  const established = clone(documents.bestKnown);
+  const established = clone(emptyIndex);
   established.status = "established";
   established.records = [best];
   assert.deepEqual(validateExecutableBestKnownIndex(established, documents.catalog, [result]), []);
+});
+
+test("best-known derivation is deterministic, excludes zero CPU and separates provenance", () => {
+  const zeroCpu = zeroRunCpu(validResult("rust"));
+  zeroCpu.id = "hello-rust-zero-cpu";
+  assert.deepEqual(validateExecutableResult(zeroCpu, documents.catalog), []);
+  const cResult = validResult("c");
+  const wResult = validResult("w");
+
+  const derived = deriveExecutableBestKnown(documents.catalog, [wResult, cResult, zeroCpu]);
+  assert.equal(derived.status, "established");
+  assert.equal(derived.records.length, 4, "zero CPU is recorded but cannot create a CPU best-known record");
+  assert.equal(derived.records.some((record) => record.metric === "cpu-time"), false);
+  assert.ok(derived.records.every((record) => record.language === "rust"));
+  assert.deepEqual(validateExecutableBestKnownFreshness(derived, documents.catalog, [wResult, cResult, zeroCpu]), []);
+
+  const reordered = deriveExecutableBestKnown(documents.catalog, [zeroCpu, cResult, wResult]);
+  assert.deepEqual(reordered, derived, "input order must not affect derived output");
+
+  const stale = clone(derived);
+  stale.records[0].value = stale.records[0].value === "1" ? "2" : "1";
+  assert.match(validateExecutableBestKnownFreshness(stale, documents.catalog, [wResult, cResult, zeroCpu]).join("\n"), /stale/);
+
+  const forbiddenCpu = validBest(zeroCpu, "cpu-time");
+  assert.match(validateExecutableBestKnown(forbiddenCpu, documents.catalog, [zeroCpu]).join("\n"), /zero microsecond/);
+
+  const provenanceVariant = clone(zeroCpu);
+  provenanceVariant.id = "hello-rust-zero-cpu-other-runner";
+  provenanceVariant.provenance.runnerDigest = "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+  const separated = deriveExecutableBestKnown(documents.catalog, [provenanceVariant, zeroCpu]);
+  assert.equal(separated.records.length, 8, "different runner provenance must not share a best-known group");
+  assert.ok(separated.records.every((record) => record.derivedFrom.length === 1));
+
+  const duplicate = clone(zeroCpu);
+  assert.throws(() => deriveExecutableBestKnown(documents.catalog, [zeroCpu, duplicate]), /duplicate id/);
+
+  const tieLeft = validResult("rust");
+  tieLeft.id = "hello-rust-tie-a";
+  const tieRight = clone(tieLeft);
+  tieRight.id = "hello-rust-tie-b";
+  const tied = deriveExecutableBestKnown(documents.catalog, [tieRight, tieLeft]);
+  assert.deepEqual(tied.records[0].derivedFrom, [tieLeft.id, tieRight.id]);
+
+  const reversedIndex = clone(tied);
+  reversedIndex.records.reverse();
+  assert.match(validateExecutableBestKnownIndex(reversedIndex, documents.catalog, [tieLeft, tieRight]).join("\n"), /sorted by id/);
+  const duplicateIndex = clone(tied);
+  duplicateIndex.records[1].id = duplicateIndex.records[0].id;
+  assert.match(validateExecutableBestKnownIndex(duplicateIndex, documents.catalog, [tieLeft, tieRight]).join("\n"), /ids must be unique/);
 });

@@ -94,7 +94,16 @@ export function formatNanoseconds(value) {
 }
 
 function formatMicroseconds(value) {
-  return formatNanoseconds(BigInt(value) * 1_000n);
+  const us = BigInt(value);
+  if (us >= 1_000_000n) {
+    const fraction = String(us % 1_000_000n).padStart(6, "0").replace(/0+$/u, "");
+    return fraction.length === 0 ? `${us / 1_000_000n} s` : `${us / 1_000_000n}.${fraction} s`;
+  }
+  if (us >= 1_000n) {
+    const fraction = String(us % 1_000n).padStart(3, "0").replace(/0+$/u, "");
+    return fraction.length === 0 ? `${us / 1_000n} ms` : `${us / 1_000n}.${fraction} ms`;
+  }
+  return `${us} µs`;
 }
 
 function formatScaledInteger(value, divisor, unit) {
@@ -174,7 +183,7 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
     const sources = workload.sources?.map(sourceLink).join("; ") || "no materialized source";
     lines.push(`| ${workload.id} | ${workload.sourceReadiness}; ${sources}; oracle ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.");
+  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.", "A zero-valued run CPU median remains recorded evidence but is excluded from promoted `cpu-time` rows because microsecond resolution cannot establish a positive measurement.");
   let bestRecorded = 0;
   for (const workload of catalog.workloads) {
     const evidence = bestKnownLines(workload, bestKnown, history);

@@ -11,6 +11,11 @@
       "digest": "sha256:2d5867abc5c4640fd0b023d5401a55773cf067cba296fb700e4529df61f15fbf"
     },
     {
+      "id": "hello-rust-5667ee42e006",
+      "path": "2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json",
+      "digest": "sha256:2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b"
+    },
+    {
       "id": "hello-w-cbc349985a26",
       "path": "35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json",
       "digest": "sha256:35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd"
