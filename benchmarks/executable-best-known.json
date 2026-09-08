@@ -200,6 +200,30 @@
       "$schema": "./executable-benchmark.schema.json",
       "schema": "w-executable-benchmark-best/3",
       "kind": "executable-best-known",
+      "id": "best-707f1c23a191c432b52e139383c90043d7f414ae8bf79a18e0c8411b0cfc4228",
+      "status": "derived",
+      "workloadId": "restaurant-branch",
+      "metric": "artifact-size",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "single-artifact",
+      "equivalenceKey": "sha256:dbe409c8643060f44af6787efd604f278d8a4ada5540047727bedbbb306ffe45",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "restaurant-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "114688",
+      "derivedFrom": [
+        "restaurant-branch-rust-d54108567a8d"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
       "id": "best-70fe852a5dcf64f7d6a07b7ea060926a159a95306bdb6bf9b88ce0b45b00a38d",
       "status": "derived",
       "workloadId": "hello",
@@ -272,6 +296,30 @@
       "$schema": "./executable-benchmark.schema.json",
       "schema": "w-executable-benchmark-best/3",
       "kind": "executable-best-known",
+      "id": "best-9a53ef014ac5be3d820ce969b97bd14aa96f1328ee556d93a257cd6dd50a4ff4",
+      "status": "derived",
+      "workloadId": "restaurant-branch",
+      "metric": "run-wall-time",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:dbe409c8643060f44af6787efd604f278d8a4ada5540047727bedbbb306ffe45",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "restaurant-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "22422400",
+      "derivedFrom": [
+        "restaurant-branch-rust-d54108567a8d"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
       "id": "best-a1e222707929b9388922d2a15c713f0b2e09b2e70e01d82ac748b2f2b0974d0c",
       "status": "derived",
       "workloadId": "hello",
@@ -290,6 +338,30 @@
       "value": "1429427400",
       "derivedFrom": [
         "hello-rust-f621c7a8a503"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-b00785e553a4afc0c25c8dc8a8de8c698274a2db1144cabb2d3ac8db1a26d449",
+      "status": "derived",
+      "workloadId": "restaurant-branch",
+      "metric": "compile-latency",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:dbe409c8643060f44af6787efd604f278d8a4ada5540047727bedbbb306ffe45",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "restaurant-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "1413656800",
+      "derivedFrom": [
+        "restaurant-branch-rust-d54108567a8d"
       ]
     },
     {
@@ -362,6 +434,30 @@
       "value": "4796416",
       "derivedFrom": [
         "hello-rust-5667ee42e006"
+      ]
+    },
+    {
+      "$schema": "./executable-benchmark.schema.json",
+      "schema": "w-executable-benchmark-best/3",
+      "kind": "executable-best-known",
+      "id": "best-f1d34c21f8e14d6fcb86fdea403264ef81cf8c67e00273f15bf0d716d1b77e37",
+      "status": "derived",
+      "workloadId": "restaurant-branch",
+      "metric": "peak-working-set",
+      "language": "rust",
+      "platformTarget": "windows-x64",
+      "artifactTarget": "x86_64-pc-windows-msvc",
+      "profile": "release",
+      "statistic": "median",
+      "equivalenceKey": "sha256:dbe409c8643060f44af6787efd604f278d8a4ada5540047727bedbbb306ffe45",
+      "toolchain": "rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc",
+      "host": "windows-windows-nt-42f9d519186ea6d6",
+      "recipe": "rustc-edition-2024",
+      "recipeClass": "restaurant-release",
+      "recipeDigest": "sha256:1b46163ea3039f7c56fa64f5c1981fa3ddad9e526938555b8b59284f98bc3213",
+      "value": "4767744",
+      "derivedFrom": [
+        "restaurant-branch-rust-d54108567a8d"
       ]
     },
     {

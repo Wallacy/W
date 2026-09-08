@@ -51,6 +51,11 @@
       "digest": "sha256:74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2"
     },
     {
+      "id": "restaurant-branch-rust-d54108567a8d",
+      "path": "c75e34886954e8912f3c12e276b93c262c4251985afe79d9af9376c11775a864.json",
+      "digest": "sha256:c75e34886954e8912f3c12e276b93c262c4251985afe79d9af9376c11775a864"
+    },
+    {
       "id": "restaurant-branch-w-0a9862a58747",
       "path": "02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4.json",
       "digest": "sha256:02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4"
