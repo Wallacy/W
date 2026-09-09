@@ -1967,8 +1967,9 @@ static bool test_host_scope_and_callee_identity(void) {
                          strlen("host-scope=16:6e61746976652d70726f636573734031")));
   CHECK(receipt_contains(value, "host-requirement=0|0|7:436f6e736f6c65",
                          strlen("host-requirement=0|0|7:436f6e736f6c65")));
-  CHECK(receipt_contains(value, "|async=0|throws=0|unsafe=0|borrows=0\n",
-                         strlen("|async=0|throws=0|unsafe=0|borrows=0\n")));
+  CHECK(receipt_contains(
+      value, "|async=0|throws=0|unsafe=0|borrows=0|anonymous=0\n",
+      strlen("|async=0|throws=0|unsafe=0|borrows=0|anonymous=0\n")));
   w_seed_frontend_counts measured;
   w_seed_frontend_result measured_result;
   CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
@@ -2434,6 +2435,52 @@ static void fixture_configure_print_host(fixture *value) {
   value->input.host_scope = &value->host_scope;
 }
 
+static bool test_short_entry_frontend(void) {
+  fixture *value = &fixture_literal;
+  CHECK(fixture_parse(value,
+                      "entry { let message = \"Hello\" print(message) }\n"));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.functions == 1u &&
+        value->result.written.entries == 1u &&
+        value->result.written.statements == 2u &&
+        value->result.written.symbols == 4u);
+  const w_seed_frontend_function *function = &value->functions[0];
+  const w_seed_frontend_entry *entry = &value->entries[0];
+  CHECK(function->is_anonymous_entry &&
+        frontend_text_is(function->name, "<entry.default>") &&
+        function->parameter_count == 0u &&
+        function->return_type < value->result.written.types &&
+        value->types[function->return_type].kind == W_SEED_FRONTEND_TYPE_UNIT);
+  CHECK(entry->valid && entry->is_body && entry->target.length == 0u &&
+        entry->target_function == 0u);
+  CHECK(value->symbols[1].kind == W_SEED_FRONTEND_SYMBOL_BINDING &&
+        value->symbols[2].kind == W_SEED_FRONTEND_SYMBOL_FUNCTION &&
+        value->symbols[3].kind == W_SEED_FRONTEND_SYMBOL_ENTRY &&
+        value->symbols[3].name.length == 0u);
+  CHECK(receipt_contains(value, "|anonymous=1\n",
+                         strlen("|anonymous=1\n")));
+
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required));
+  CHECK(counts_equal(&value->result.required, &value->result.written));
+
+  CHECK(fixture_parse(value, "fn run() { print(\"Hello\") }\nentry(run)\n"));
+  fixture_configure_print_host(value);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.functions == 1u &&
+        !value->functions[0].is_anonymous_entry &&
+        !value->entries[0].is_body && value->entries[0].target_function == 0u &&
+        frontend_text_is(value->entries[0].target, "run"));
+  return true;
+}
+
 static bool test_local_binding_resolution(void) {
   static const char source[] =
       "fn main() { let message = \"Table 42 remains open\" "
@@ -2445,7 +2492,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-14") &&
+                         "w-seed-frontend-15") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2484,8 +2531,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-14\n",
-                         strlen("schema=w-seed-frontend-14\n")));
+        receipt_contains(value, "schema=w-seed-frontend-15\n",
+                         strlen("schema=w-seed-frontend-15\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -4604,6 +4651,7 @@ static bool test_scalar_type_measure_emit_parity(void) {
 }
 
 int main(void) {
+  if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_declarations_and_determinism()) return 1;

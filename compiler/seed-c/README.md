@@ -1042,7 +1042,9 @@ Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6. W-1539 advances
 HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
 `w-seed-mlir0-windows-5`; Native0 remains v6. W-1540 advances HIR0 to
 `w-seed-hir0-12`, MLIR0 to `w-seed-mlir0-15`, and the Windows label to
-`w-seed-mlir0-windows-6`; Native0 remains v6.
+`w-seed-mlir0-windows-6`; Native0 remains v6. W-1541 advances frontend to
+`w-seed-frontend-15` and HIR0 to `w-seed-hir0-13`; MLIR0, its Windows label,
+and Native0 remain unchanged.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1166,7 +1168,7 @@ target-coverage or performance evidence.
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 
 ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded
-source → frontend → HIR0 → MLIR0 route. HIR0 is `w-seed-hir0-12`, MLIR0 is
+source → frontend → HIR0 → MLIR0 route. HIR0 is `w-seed-hir0-13`, MLIR0 is
 `w-seed-mlir0-15`, the Windows artifact label is
 `w-seed-mlir0-windows-6`, and Native0 remains v6. Runtime arithmetic calls
 LLVM signed-overflow intrinsics. An overflow edge calls the LLVM trap
@@ -1183,13 +1185,31 @@ and faulting constant `/` or `%` are rejected. A safe fully constant `/` or
 negation, power, other widths, named numeric APIs, and general numeric
 surfaces remain unsupported.
 
-`fixtures/restaurant-checked-arithmetic.w` uses named `entry(main)` and
+`fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 produces exact `Open 6; closed 1\n` on Linux/WSL with LLVM 20.1.2. No native
-Windows evidence is claimed. The specification recommends `entry {}`, but
-the seed parser currently accepts `entry(name)` only. Entry-block syntax is a
-separate gap. The bundle keeps caller-owned all-or-nothing, capacity, alias,
-receipt, and digest invariants. Its `benchmarkDisposition` is
+Windows evidence is claimed. The bundle keeps caller-owned all-or-nothing,
+capacity, alias, receipt, and digest invariants. Its `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+
+### Short default entry (W-1541)
+
+The seed parser accepts `entry { statements }` and `entry(functionName)`.
+Frontend15 represents the short form as one private zero-argument Unit function
+and one `.default` descriptor. The function carries `is_anonymous_entry`. The
+entry carries `is_body` and a direct `target_function` index. The internal
+`<entry.default>` identity is not source-addressable.
+
+HIR13 copies and verifies those facts. Its text measurement counts the private
+name used by both the function and entry target. Parser, frontend, and HIR tests
+cover the short shape, measure/emit parity, semantic/provenance digests, mode
+forgeries, and duplicate default rejection. The canonical Hello fixture passes
+HLO0, HLO1, MLIR0, and public Linux/WSL `w run`. The checked-arithmetic
+Restaurant fixture passes with exact `Open 6; closed 1\n`.
+
+This cut does not implement named entries, inline parameters, custom returns,
+typed errors, async short entries, native Windows execution, or general runtime
+entry adapters. Its `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only, with no timing or benchmark result.
 
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →

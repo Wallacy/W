@@ -51,20 +51,22 @@ This is a tool-build fact, not a baseline or benchmark of the produced
 executable.
 
 W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
-HIR0 `w-seed-hir0-12` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
+HIR0 `w-seed-hir0-13` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
 Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
 Helpers are emitted only for reachable operations, and existing HIR call
 evaluation remains left-to-right and once-only. Constant overflow and faulting
 constant `/` or `%` fail closed. Safe constant `/` and `%` emit `llvm.sdiv` and
 `llvm.srem`, while dynamic/runtime `/` and `%`, unary negation, power, other
 widths, named numeric APIs, and general panic runtime remain outside this cut.
-The named-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
+The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
 Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
 proves only bounded nonzero process/fault termination with no later success
 output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
-The seed parser still accepts `entry(main)` only. The specification's
-recommended `entry {}` form is a separate gap. This is compiler-lifecycle
-correctness-only evidence with no timing or benchmark result.
+W-1541 also closes the bounded `entry {}` path through frontend15 and HIR13.
+The canonical Hello and checked-arithmetic Restaurant fixtures use the short
+form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
+passes end to end. This is compiler-lifecycle correctness-only evidence with
+no timing or benchmark result.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -184,10 +186,11 @@ is exploratory, with no timing, result, or ranking claim.
 W-1540 is the current ARITH0 cut: checked runtime `+`, `-`, and `*` use
 signed-overflow intrinsics and a trap boundary in MLIR15/Windows6. Safe
 constant `/` and `%` retain `llvm.sdiv`/`llvm.srem`; dynamic/runtime forms and
-faulting constants fail closed. The Restaurant named-entry fixture produces
+faulting constants fail closed. The Restaurant short-entry fixture produces
 `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. Helpers are reachability-only,
 and no `PanicEvent`, runtime payload, cleanup, native Windows, timing, or
-benchmark result is claimed. `entry {}` remains a parser gap.
+benchmark result is claimed. W-1541 implements the bounded short default entry;
+named entries and parameterized inline entry bodies remain gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.

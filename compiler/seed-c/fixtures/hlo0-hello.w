@@ -1,2 +1,3 @@
-fn main() { print("Hello, world!") }
-entry(main)
+entry {
+  print("Hello, world!")
+}
