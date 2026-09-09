@@ -114,6 +114,7 @@ test("CLI record consumes its candidate only after isolated publication succeeds
     "compiler/seed-c/fixtures/restaurant-nested-if.w",
     "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
     "compiler/seed-c/fixtures/restaurant-interpolation.w",
+    "compiler/seed-c/fixtures/restaurant-scalar-if.w",
     "tooling/executable-benchmark-runner.mjs",
   ];
   try {

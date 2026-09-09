@@ -655,6 +655,9 @@ static bool append_program_value_operand(
     uint32_t function_index, uint8_t *artifact, size_t capacity,
     size_t *offset);
 
+static const char *program_type_name(const w_seed_hir0_program *program,
+                                     uint32_t type_index);
+
 static bool append_program_block_argument_name(
     const w_seed_hir0_program *program, uint32_t block_argument_index,
     uint32_t function_index, uint8_t *artifact, size_t capacity,
@@ -667,7 +670,8 @@ static bool append_program_block_argument_name(
       &program->block_arguments[block_argument_index];
   if (argument->owner_block >= program->block_count || argument->ordinal != 0u ||
       argument->type_index >= program->type_count ||
-      program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_BOOL)
+      (program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 &&
+       program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_BOOL))
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
@@ -1497,7 +1501,13 @@ static bool append_program_block_definition(
        !append_program_block_argument_name(
            program, block->first_block_argument, function_index, artifact,
            capacity, offset) ||
-       !append_literal(artifact, capacity, offset, ": i1)")))
+       !append_literal(artifact, capacity, offset, ": ") ||
+       !append_literal(
+           artifact, capacity, offset,
+           program_type_name(
+               program,
+               program->block_arguments[block->first_block_argument].type_index)) ||
+       !append_literal(artifact, capacity, offset, ")")))
     return false;
   return append_literal(artifact, capacity, offset, ":");
 }
@@ -1644,7 +1654,13 @@ static bool append_program_function(
            !append_program_value_operand(
                program, terminator->incoming_value,
                (uint32_t)function_index, artifact, capacity, offset) ||
-           !append_literal(artifact, capacity, offset, " : i1)")))
+           !append_literal(artifact, capacity, offset, " : ") ||
+           !append_literal(
+               artifact, capacity, offset,
+               program_type_name(
+                   program,
+                   program->values[terminator->incoming_value].type_index)) ||
+           !append_literal(artifact, capacity, offset, ")")))
         return false;
       if (!append_literal(artifact, capacity, offset, "\n")) return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {

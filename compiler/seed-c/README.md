@@ -1038,7 +1038,9 @@ to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
 `w-seed-native0-6`. W-1537 advances HIR0 to `w-seed-hir0-9`, MLIR0 to
 `w-seed-mlir0-12`, and the Windows label to `w-seed-mlir0-windows-3`.
 W-1538 advances HIR0 to `w-seed-hir0-10`, MLIR0 to `w-seed-mlir0-13`, and the
-Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6.
+Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6. W-1539 advances
+HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
+`w-seed-mlir0-windows-5`; Native0 remains v6.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1119,6 +1121,45 @@ Focused HIR0, MLIR0, and Native0 units plus Linux/WSL and native Windows gates
 passed the skip/evaluate, nested, RHS-call, and malformed-record boundaries.
 This is compiler-lifecycle correctness evidence only: it makes no general CFG,
 ABI, cross-target, timing, or performance claim.
+
+### SCALAR-IF0 bounded scalar values (W-1539)
+
+The first scalar-value cut accepts the existing
+`if condition { scalar } else { scalar }` form only in an immutable `let`
+initializer or a scalar `return`. The condition is Bool, each arm is one
+nonnested side-effect-free expression from the existing bounded literal,
+parameter or immutable-read subset, and both arms have the same type `i64` or
+Bool. Missing `else` retains `W-PARSE-0021`; a non-Bool condition is
+`W-SEM-0001`; mismatched arm types are `W-TYPE-0120`. String/enum/aggregate
+arms, declarations, calls/effects, nested or `else if` scalar values,
+mutation and loops remain unsupported. Runtime `+`/`-` remains behind W-390
+checked-overflow semantics and is not admitted by this cut.
+
+HIR0 `w-seed-hir0-11` gives the branch its yielded type: `result_type == 0`
+for Unit statement-if, `3` with logical metadata for BOOL0, and `2`/`3` for
+scalar `i64`/Bool with logical metadata unset. A scalar diamond has exactly one
+typed join argument and one typed incoming from each arm. Verification retains
+owner, ordinal, range, read-location, join-target, dominance, capacity, alias,
+receipt, digest and all-or-nothing barriers. Incoming spans identify their arm
+values, while the enclosing jump may keep the `if` span.
+
+MLIR0 `w-seed-mlir0-14` emits a real `llvm.cond_br`, arm-local operations and
+typed `llvm.br ^join(%operand : i64)`/`llvm.br ^join(%operand : i1)`. It does
+not emit `llvm.select`, precompute both arms or evaluate an unselected arm.
+Native0 remains `w-seed-native0-6`; its public record and receipt interface is
+unchanged. Focused frontend14, HIR11 and MLIR14 tests cover i64/Bool return and
+immutable-let positives plus malformed and forged-record rejection.
+
+`fixtures/restaurant-scalar-if.w` calls the scalar-returning service with both
+`true` and `false` and requires exact stdout `Open 5; closed 2\n`, exit zero
+and empty stderr. The public Windows Release route reused the pinned external
+cache and passed `bun check --target w-run-windows`; Linux/WSL and C/Rust
+scalar-if evidence is not claimed. A local Release build measured its
+`w.exe` at 10,078,208 B before post-validation cleanup; the generated tool
+artifact was discarded afterward. This is a tool-build fact only, not a
+baseline or benchmark of the produced Restaurant executable. This is
+compiler-lifecycle correctness evidence, not general scalar CFG, ABI,
+target-coverage or performance evidence.
 
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →

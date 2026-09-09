@@ -22,6 +22,7 @@ const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w"
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
+const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant-scalar-if.w")
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
@@ -334,6 +335,9 @@ try {
       "Override checked\nClosed allowed true\nCapacity checked\n" +
       "Open allowed true\n", "utf8"),
     "Restaurant Bool short-circuit fixture")
+  expectExact(binary, ["run", restaurantScalarIfFixture], 0,
+    Buffer.from("Open 5; closed 2\n", "utf8"),
+    "Restaurant scalar-if fixture")
   expectExact(binary, ["run", restaurantInterpolationFixture], 0,
     Buffer.from("Table 42 remains open\n", "utf8"),
     "Restaurant interpolation fixture")

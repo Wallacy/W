@@ -196,6 +196,7 @@ O corpus compara, no mínimo:
 - contratos core opaque e views estáveis contra declarations construtíveis, metadata universal e layout público
 - FPP0 facets, pipe-forward e pipeline unificada contra projeções implícitas, UFCS e grafo sem schema
 - bounded Bool short-circuit lowering against eager RHS evaluation, duplicated calls, and general CFG.
+- bounded scalar `if` value against eager arm evaluation, fake logical encoding, and general scalar CFG.
 
 ### 1.1 Cobertura de substituições
 
@@ -7790,6 +7791,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1537 | bounded signed-`i64` comparisons through verified HIR0 and MLIR0 | ICMP0 uses existing `==`, `!=`, `<`, `<=`, `>`, and `>=` syntax with two signed-`i64` operands and a Bool result. HIR0 `w-seed-hir0-9` retains `BINARY_I64` as the operand-domain tag and verifies result types by operator. MLIR0 `w-seed-mlir0-12`, with Windows label `w-seed-mlir0-windows-3`, emits real `llvm.icmp` operations with signed ordering predicates. Comparisons compose with existing bindings, Bool arguments/returns, interpolation, and bounded Unit conditions. Native0 stays v6 without new layout or capacity fields. Existing ownership, 64-IF depth, stdout limits, target recipes, and runtime-arithmetic restrictions remain unchanged. | `source-backed-current` only for the bounded comparison subset. Six focused GNU 13.3 C23 Release suites and real Windows LLVM 23.1.0 plus Linux/WSL LLVM 20.1.2 native gates passed. Evidence covers exact Restaurant admission, all six signed predicates and boundaries, Bool composition, and four type rejections. Frontend dry/emit type interning and prior-binding descendant lookup retain validation and scope guards. No logical operators, String/Bool comparisons, mixed operands, mutation, loops, scalar-return CFG, ABI, cross-compilation, or linear-time promotion. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 | W-1538 | bounded Bool short-circuit through verified HIR0 and MLIR0 | BOOL0 lowers the existing `!`, `&&`, and `||` syntax through HIR0 `w-seed-hir0-10`. `!` is a typed Bool unary value; each `&&`/`||` is a structured diamond whose skip arm contributes literal `false`/`true`, whose other arm evaluates the RHS once, and whose join has one Bool block argument read. HIR verification covers logical branch/jump metadata, incoming edge values, owner/range/dominance, capacities, aliases, receipts, and digests. MLIR0 `w-seed-mlir0-13`, with Windows label `w-seed-mlir0-windows-4`, emits `llvm.xor`, `llvm.cond_br`, and branch-carried `i1` values. Native0 stays v6 because its published records and receipt interface do not change. | `source-backed-current` only for the bounded logical-diamond subset. Focused HIR0, MLIR0, and Native0 units and the Linux/WSL plus native Windows Restaurant short-circuit gates passed with exact stdout `Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n`. Evidence includes nested logic, RHS Bool calls with named arguments, skip/evaluate paths, and malformed edge/value/alias/capacity rejection with transactional outputs. General scalar CFG, user `if` values beyond this logical form, mutation, loops, other value domains/targets, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 
+| W-1539 | bounded scalar `if` values through verified HIR0 and MLIR0 | SCALAR-IF0 accepts the existing `if condition { scalar } else { scalar }` only in an immutable `let` initializer or scalar `return`; the Bool condition and both same-typed `i64`/Bool, one-expression, side-effect-free arms are verified through frontend14/HIR11. HIR uses `BRANCH.result_type` `0` for Unit, `3` for logical Bool, and `2`/`3` for scalar `i64`/Bool with logical metadata unset; scalar diamonds carry exactly one typed join argument and one incoming from each arm. MLIR14/Windows5 emits real `llvm.cond_br` and typed `llvm.br` join edges, never `llvm.select` or eager arm evaluation. Native0 remains v6. W-390 checked-overflow arithmetic remains blocked, so the earlier `seats +/- 1` sketch is not a witness; the source-backed Restaurant fixture carries direct parameters. | `source-backed-current` only for the bounded scalar-if return/immutable-let subset. Focused frontend14/HIR11/MLIR14/Native0 checks and the native Windows Release public route passed both condition directions with exact stdout `Open 5; closed 2\n`, exit zero and empty stderr. A local Release build measured `w.exe` at 10,078,208 B before post-validation cleanup; the generated tool artifact was discarded afterward. This is a local tool build fact, not a historical baseline, benchmark sample, ranking or produced-workload measurement. Missing else (`W-PARSE-0021`), non-Bool condition (`W-SEM-0001`), mismatched arms (`W-TYPE-0120`), String/aggregate, calls/effects, nested/else-if, mutation and loops remain rejected or unsupported. Linux/WSL, C/Rust, general scalar CFG, ABI, targets and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
+
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -10603,3 +10606,50 @@ Cache identity separation is deferred. This cut does not authorize another
 multi-gigabyte extraction or change cache trust rules to avoid validation.
 The native gate reused the verified asset with its existing asset-identity checks.
 It did not rerun acquisition, download, extract, or modify the cache.
+
+#### W-1539 — bounded scalar `if` values through verified HIR0 and native MLIR
+
+SCALAR-IF0 closes the next observable gap after BOOL0 without opening general
+scalar control flow. The source form is the existing `if` expression, but the
+value context is deliberately limited to an immutable `let` initializer or a
+scalar `return`. A Bool condition selects exactly one arm; each arm contains
+one nonnested, side-effect-free scalar expression and both arm types are the
+same signed `i64` or Bool. The implementation reuses the existing bounded
+literal, parameter and immutable-read values. Calls, effects, declarations,
+String/enum/aggregate values, nesting, `else if`, mutation and loops remain
+outside the cut. The previous `seats + 1`/`seats - 1` sketch is not a valid
+witness because W-390 keeps runtime arithmetic checked for overflow.
+
+The representation change is intentional. `BRANCH.result_type` now means the
+type yielded at the join: zero for a Unit statement-if, Bool for logical
+diamonds when `logical_operator` is present, and signed `i64` or Bool for a
+scalar value-if when logical metadata is absent. A scalar branch has one join
+block argument and exactly one typed incoming from each arm. Incoming spans
+come from their arm expressions, while the enclosing jump may retain the if
+span. This keeps the existing ownership, ordinal, range, dominance, alias,
+capacity, receipt, digest and all-or-nothing checks meaningful instead of
+encoding scalar values as a fake logical operator.
+
+The focused frontend14/HIR11/MLIR14 tests cover return and immutable-let
+forms for both scalar domains, the Bool condition, typed join arguments and
+incoming values, and malformed result/mode/owner/ordinal/type/join/range/read
+records. HIR and MLIR paths preserve caller-owned buffers and digest/receipt
+parity. MLIR emits real `llvm.cond_br` and arm-local operations followed by a
+typed `llvm.br` join argument; no `llvm.select` or eager arm computation is
+introduced. Native0 remains v6 because its public record and receipt layout
+does not change.
+
+The source-backed witness is
+`compiler/seed-c/fixtures/restaurant-scalar-if.w`. `serve` returns
+`openCount` or `closedCount`, and `main` invokes it with both `true` and
+`false`, requiring exactly `Open 5; closed 2\n`. The native Windows Release
+route reused the external pinned cache, passed `bun check --target
+w-run-windows`, and captured exit zero, empty stderr and that exact UTF-8
+stdout. A local Release build measured `build/w-windows/w.exe` at 10,078,208
+bytes before post-validation cleanup; the generated tool artifact was discarded
+afterward. It is a local tool-build fact only, not a historical baseline,
+benchmark sample, ranking, or measurement of the Restaurant executable. Linux/WSL and C/Rust
+scalar-if evidence were not run or claimed. The decision is
+`source-backed-current` for this bounded witness and
+`benchmarkDisposition: compiler-lifecycle`, correctness-only with no timing,
+performance, ABI, target-coverage or general-CFG claim.

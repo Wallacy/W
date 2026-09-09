@@ -1414,6 +1414,95 @@ static bool test_scalar_return_and_call_result(void) {
   return true;
 }
 
+static bool test_scalar_if_value_diamond(void) {
+  static const char SOURCE[] =
+      "fn serve(isOpen: Bool, seats: i64): i64 { "
+      "let next = if isOpen { seats + 1 } else { seats - 1 } "
+      "return next }\n"
+      "fn flag(isOpen: Bool): Bool { return if isOpen { true } else { false } }\n"
+      "entry(serve)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_arguments == fixture.hir_block_arguments &&
+        program->block_argument_count == 2u &&
+        program->functions[0].block_count == 4u &&
+        program->functions[1].block_count == 4u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].logical_operator ==
+            W_SEED_HIR0_LOGICAL_NONE &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 2u &&
+        program->terminators[1].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[3].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
+  CHECK(program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == 3u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->blocks[7].block_argument_count == 1u &&
+        program->block_arguments[1].owner_block == 7u &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_BOOL);
+  CHECK(program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[4].result_type == W_SEED_HIR0_TYPE_BOOL &&
+        program->terminators[5].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[6].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[7].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].result_type = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_branch;
+  fixture.hir_terminators[0].logical_operator = W_SEED_HIR0_LOGICAL_AND;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_branch;
+
+  const uint32_t saved_incoming = fixture.hir_terminators[1].incoming_value;
+  fixture.hir_terminators[1].incoming_value = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1].incoming_value = saved_incoming;
+  const w_seed_hir0_value saved_incoming_value =
+      fixture.hir_values[saved_incoming];
+  fixture.hir_values[saved_incoming].owner_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[saved_incoming] = saved_incoming_value;
+  fixture.hir_values[saved_incoming].owner_ordinal = 0u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[saved_incoming] = saved_incoming_value;
+  fixture.hir_values[saved_incoming].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[saved_incoming] = saved_incoming_value;
+
+  const uint32_t saved_target = fixture.hir_terminators[1].target_block;
+  fixture.hir_terminators[1].target_block = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1].target_block = saved_target;
+  const w_seed_hir0_block saved_join = fixture.hir_blocks[3];
+  const w_seed_hir0_block_argument saved_argument = fixture.hir_block_arguments[0];
+  fixture.hir_block_arguments[0].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[0] = saved_argument;
+  fixture.hir_blocks[3].first_block_argument =
+      (uint32_t)program->block_argument_count;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[3] = saved_join;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t saved_read = program->values[program->bindings[0].initializer_value]
+                                  .block_argument_index;
+  fixture.hir_values[program->bindings[0].initializer_value].block_argument_index =
+      1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[program->bindings[0].initializer_value].block_argument_index =
+      saved_read;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_if_diamond_cfg(void) {
   static const char SOURCE[] =
       "fn serve(isOpen: Bool) { "
@@ -2088,6 +2177,7 @@ int main(void) {
   if (!test_typed_immutable_binding_values()) return 1;
   if (!test_local_unit_call_and_parameter_reads()) return 1;
   if (!test_scalar_return_and_call_result()) return 1;
+  if (!test_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
   if (!test_if_without_else_cfg()) return 1;
   if (!test_sequential_if_diamonds()) return 1;

@@ -36607,6 +36607,62 @@ user `if` value flow, loops, additional value domains or targets, ABI, and
 performance remain outside the cut; no timing, throughput, ranking, or
 performance result is claimed.
 
+#### 26.4.1.22 W-1539 — bounded scalar `if` values through verified HIR0 and MLIR0 (Forma vigente)
+
+W-1539 defines the first bounded scalar-value `if` cut. In value context, the
+existing syntax `if condition { scalar } else { scalar }` is accepted only as
+one immutable `let` initializer or as a scalar `return` value. `condition`
+must be Bool. Each arm is exactly one nonnested, side-effect-free expression
+from the already verified scalar subset; both arms must have the same type,
+either signed `i64` or Bool. The required `else` is part of the value form.
+The cut rejects String, enum and aggregate arms, declarations, calls or other
+effects, nested scalar `if`, `else if`, `var`, mutation and loops. Missing
+`else` retains `W-PARSE-0021`; a non-Bool condition uses `W-SEM-0001`; and
+incompatible arm types use `W-TYPE-0120`, each once.
+
+The scalar arm subset is deliberately narrower than general W expressions.
+Literals, parameters and already verified immutable scalar reads are eligible
+when the existing bounded value rules prove them. Runtime arithmetic is not
+opened by this decision: arbitrary `+`/`-` remains subject to W-390 checked
+overflow semantics and is not a scalar-if witness. In particular, the earlier
+`seats + 1`/`seats - 1` Restaurant sketch is rejected by the existing native
+arithmetic barrier; the executable witness carries direct `openCount` and
+`closedCount` parameters instead.
+
+HIR0 advances to `w-seed-hir0-11`. `BRANCH.result_type` is the produced join
+type: `0` means a Unit statement-if and has no join argument; `3` means the
+existing logical Bool form when `logical_operator` is set; and scalar value-if
+uses `2` for `i64` or `3` for Bool with `logical_operator` unset. A verified
+scalar diamond has exactly one typed join block argument and one typed incoming
+value from each arm, with the same type as the branch result. The verifier
+retains owner, ordinal, source-span, dominance, range, join-target,
+caller-owned capacity, alias, receipt, digest, malformed-input and
+all-or-nothing barriers. The incoming span is the arm value's source span;
+the jump may retain the enclosing `if` span.
+
+MLIR0 advances to `w-seed-mlir0-14`, with Windows label
+`w-seed-mlir0-windows-5`. It emits a real `llvm.cond_br`, arm-local value
+operations, and typed `llvm.br ^join(%operand : i64)` or
+`llvm.br ^join(%operand : i1)`. The join declares and reads that one typed
+argument. It does not use `llvm.select`, precompute both arms, or evaluate an
+unselected arm. Native0 remains `w-seed-native0-6` because its public record
+and receipt schema do not change. The focused frontend14, HIR11 and MLIR14
+units cover positive i64/Bool return and immutable-let forms plus the required
+negative and forged-record boundaries.
+
+The source-backed Restaurant witness is
+`compiler/seed-c/fixtures/restaurant-scalar-if.w`; its two calls exercise both
+conditions and require exact stdout `Open 5; closed 2\n`, exit zero and empty
+stderr. The native Windows Release route was built with the pinned external
+cache and passed `bun check --target w-run-windows`. A local Release build
+measured `build/w-windows/w.exe` at 10,078,208 bytes before post-validation
+cleanup; the generated tool artifact was discarded afterward. That byte count
+is a local build artifact fact, not a historical baseline, sample, ranking or
+measurement of the produced Restaurant executable. Linux/WSL, C and Rust
+scalar-if evidence is not claimed. `benchmarkDisposition` is `compiler-lifecycle`: this is
+correctness-only evidence with no timing, throughput, general scalar CFG,
+performance, ABI, cross-target or unsupported-form claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

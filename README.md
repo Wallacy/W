@@ -35,6 +35,20 @@ valores Bool e diamonds estruturados com argumentos no join; MLIR0
 `i1`, com Windows label `w-seed-mlir0-windows-4`. A fixture Restaurant de
 short-circuit passou nos gates Linux/WSL e Windows nativo com stdout exato;
 isso não promove CFG geral ou suporte de plataforma geral.
+W-1539 adds SCALAR-IF0 as the first bounded scalar-value cut: `if condition {
+scalar } else { scalar }` is accepted only in a scalar `return` or immutable
+`let` initializer, with a Bool condition and homogeneous `i64` or Bool arms.
+HIR0 `w-seed-hir0-11` uses a typed join and MLIR0
+`w-seed-mlir0-14`/Windows5 emits real CFG with `llvm.cond_br` and typed
+`llvm.br`; `llvm.select` and eager evaluation remain outside the cut. The
+Restaurant [scalar-if](compiler/seed-c/fixtures/restaurant-scalar-if.w)
+fixture passed the public Windows route with exact stdout `Open 5; closed 2\n`
+in both directions. Runtime `+/-` remains blocked by W-390 checked-overflow
+semantics; there is no claim for general scalar CFG, Linux/WSL, C/Rust or
+performance. A local Release build measured its `w.exe` at 10,078,208 B before
+post-validation cleanup; the generated tool artifact was discarded afterward.
+This is a tool-build fact, not a baseline or benchmark of the produced
+executable.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -141,6 +155,13 @@ RHS calls confined to the evaluated arm. The Restaurant short-circuit fixture
 passed the Linux/WSL and native Windows gates with exact output. Neither cut
 promotes general runtime arithmetic, scalar CFG, String comparisons, general
 platform support, or performance.
+W-1539 adds the bounded SCALAR-IF0 value cut: HIR11 and MLIR14/Windows5 accept
+only `if Bool { i64|Bool } else { i64|Bool }` with matching arm types in scalar
+`return` and immutable `let` initializer contexts. Real `llvm.cond_br` and
+typed `llvm.br` carry one join value, and the native Windows Restaurant
+fixture passed both conditions with exact `Open 5; closed 2\n`. W-390 checked
+overflow keeps runtime `+/-` outside the witness; this is compiler-lifecycle
+correctness evidence, with no general CFG, target, or performance claim.
 The runner also keeps minimal/no-else microproofs and equivalent learner,
 idiomatic, and frontier source-style candidates for correctness only; frontier
 is exploratory, with no timing, result, or ranking claim.
@@ -333,7 +354,7 @@ mudarem; `bun check` é a seleção rápida.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v13 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64` e BOOL0 short-circuit bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v14 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64`, BOOL0 short-circuit e SCALAR-IF0 bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

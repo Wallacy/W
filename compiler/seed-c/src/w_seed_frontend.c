@@ -394,6 +394,18 @@ static bool normalize_switch_expression(frontend_context *context,
                                          frontend_simple_type expected,
                                          frontend_simple_type *actual_out,
                                          frontend_expr_value *root_out);
+static bool normalize_if_expression(frontend_context *context,
+                                    uint32_t if_node,
+                                    uint32_t *expression_index,
+                                    frontend_simple_type expected,
+                                    frontend_simple_type *actual_out,
+                                    frontend_expr_value *root_out);
+static uint32_t first_direct_expression(const w_seed_frontend_document *doc,
+                                        uint32_t owner);
+static bool scalar_if_arm_expression_node(
+    const w_seed_frontend_document *doc, uint32_t block,
+    uint32_t *expression_node);
+static bool scalar_if_type(frontend_simple_type type);
 static frontend_simple_type simple_type_from_view(w_seed_frontend_text spelling);
 static frontend_simple_type infer_expression_span(frontend_context *context,
                                                    w_seed_span span);
@@ -10646,6 +10658,7 @@ static bool expression_append(frontend_expression_parser *parser,
   record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
   record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   record.interpolation_segment_count = 0u;
+  record.else_expression = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     record.resolved_local_ordinal = loop_local_ordinal_for_span(
         parser->context, spelling, span);
@@ -12324,6 +12337,19 @@ static bool normalize_expression_node(frontend_context *context,
       expression_node >= doc->parse.node_count) {
     return false;
   }
+  const uint32_t if_node =
+      first_direct_kind(doc, expression_node, W_SEED_CST_IF_EXPRESSION);
+  const bool if_owner_exact =
+      if_node != W_SEED_CST_NONE &&
+      count_direct_kind(doc, expression_node, W_SEED_CST_IF_EXPRESSION) == 1u &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).start_byte ==
+          trim_span(doc, doc->nodes[if_node].raw_span).start_byte &&
+      trim_span(doc, doc->nodes[expression_node].raw_span).end_byte ==
+          trim_span(doc, doc->nodes[if_node].raw_span).end_byte;
+  if (if_owner_exact) {
+    return normalize_if_expression(context, if_node, expression_index, expected,
+                                   actual_out, root_out);
+  }
   const uint32_t switch_node =
       first_direct_kind(doc, expression_node, W_SEED_CST_SWITCH_EXPRESSION);
   const bool switch_owner_exact =
@@ -12385,6 +12411,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
+    fallback.else_expression = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -12430,6 +12457,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
+    fallback.else_expression = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -12500,14 +12528,76 @@ static w_seed_frontend_text binding_name_after_keyword(
   return (w_seed_frontend_text){NULL, 0};
 }
 
-static frontend_simple_type infer_expression_span(frontend_context *context,
-                                                   w_seed_span span) {
+static bool cst_if_node_for_span(const w_seed_frontend_document *doc,
+                                 w_seed_span span, uint32_t *if_node) {
+  if (if_node != NULL) *if_node = W_SEED_CST_NONE;
+  if (doc == NULL || if_node == NULL) return false;
+  const w_seed_span target = trim_span(doc, span);
+  uint32_t found = W_SEED_CST_NONE;
+  for (size_t index = 0u; index < doc->parse.node_count; index += 1u) {
+    const w_seed_cst_node *candidate = &doc->nodes[index];
+    if (candidate->kind != W_SEED_CST_IF_EXPRESSION) continue;
+    const w_seed_span candidate_span = trim_span(doc, candidate->raw_span);
+    if (candidate_span.start_byte != target.start_byte ||
+        candidate_span.end_byte != target.end_byte)
+      continue;
+    if (found != W_SEED_CST_NONE) return false;
+    found = (uint32_t)index;
+  }
+  if (found == W_SEED_CST_NONE) return false;
+  *if_node = found;
+  return true;
+}
+
+static frontend_simple_type infer_expression_span_inner(
+    frontend_context *context, w_seed_span span, size_t depth) {
   const w_seed_frontend_document *doc = context_document(context);
-  if (doc == NULL) return simple_type_unknown();
+  if (doc == NULL || depth > 32u) return simple_type_unknown();
   frontend_token_cursor cursor = token_cursor_for(doc, span);
   frontend_token first;
   if (!cursor_peek(&cursor, &first)) return simple_type_unknown();
   const w_seed_frontend_text first_text = text_from_span(doc, first.span);
+  if (text_equal(first_text, "if")) {
+    uint32_t if_node = W_SEED_CST_NONE;
+    if (!cst_if_node_for_span(doc, span, &if_node))
+      return simple_type_unknown();
+    const uint32_t condition = first_direct_expression(doc, if_node);
+    uint32_t blocks[2] = {W_SEED_CST_NONE, W_SEED_CST_NONE};
+    size_t block_count = 0u;
+    uint32_t child_cursor = doc->nodes[if_node].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &child_cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_BLOCK && block_count < 2u)
+        blocks[block_count++] = child;
+      guard += 1u;
+    }
+    uint32_t then_node = W_SEED_CST_NONE;
+    uint32_t else_node = W_SEED_CST_NONE;
+    if (condition == W_SEED_CST_NONE || block_count != 2u ||
+        !scalar_if_arm_expression_node(doc, blocks[0], &then_node) ||
+        !scalar_if_arm_expression_node(doc, blocks[1], &else_node))
+      return simple_type_unknown();
+    const frontend_simple_type condition_type = infer_expression_span_inner(
+        context, doc->nodes[condition].raw_span, depth + 1u);
+    if (condition_type.kind != W_SEED_FRONTEND_TYPE_BOOL)
+      return simple_type_unknown();
+    frontend_simple_type then_type = infer_expression_span_inner(
+        context, doc->nodes[then_node].raw_span, depth + 1u);
+    frontend_simple_type else_type = infer_expression_span_inner(
+        context, doc->nodes[else_node].raw_span, depth + 1u);
+    if (then_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        then_type.is_signed && then_type.bit_width == 0u)
+      then_type = const_default_integer_type();
+    if (else_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        else_type.is_signed && else_type.bit_width == 0u)
+      else_type = const_default_integer_type();
+    if (!scalar_if_type(then_type) || !scalar_if_type(else_type) ||
+        !frontend_type_equal(context, then_type, else_type))
+      return simple_type_unknown();
+    return then_type;
+  }
   if (text_equal(first_text, "true") || text_equal(first_text, "false")) {
     return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
   }
@@ -12562,9 +12652,263 @@ static frontend_simple_type infer_expression_span(frontend_context *context,
   return simple_type_unknown();
 }
 
+static frontend_simple_type infer_expression_span(frontend_context *context,
+                                                   w_seed_span span) {
+  return infer_expression_span_inner(context, span, 0u);
+}
+
 static uint32_t first_direct_expression(const w_seed_frontend_document *doc,
                                         uint32_t owner) {
   return first_direct_kind(doc, owner, W_SEED_CST_EXPRESSION);
+}
+
+static bool cst_scalar_if_surface_ok(const w_seed_frontend_document *doc,
+                                     uint32_t node, size_t depth,
+                                     bool arm) {
+  if (doc == NULL || node == W_SEED_CST_NONE ||
+      (size_t)node >= doc->parse.node_count || depth > 256u)
+    return false;
+  const w_seed_cst_node *value = &doc->nodes[node];
+  if (value->kind == W_SEED_CST_IF_EXPRESSION ||
+      value->kind == W_SEED_CST_IF_STATEMENT ||
+      value->kind == W_SEED_CST_LET_STATEMENT ||
+      value->kind == W_SEED_CST_VAR_STATEMENT ||
+      value->kind == W_SEED_CST_RETURN_STATEMENT ||
+      value->kind == W_SEED_CST_FOR_STATEMENT ||
+      value->kind == W_SEED_CST_REPEAT_STATEMENT ||
+      value->kind == W_SEED_CST_GUARD_STATEMENT ||
+      value->kind == W_SEED_CST_COMMIT_STATEMENT ||
+      value->kind == W_SEED_CST_PIPELINE_EXPRESSION ||
+      value->kind == W_SEED_CST_LOCK_EXPRESSION ||
+      value->kind == W_SEED_CST_SPAWN_STATEMENT ||
+      value->kind == W_SEED_CST_ALLOCATOR_BLOCK ||
+      value->kind == W_SEED_CST_CLOSURE_EXPRESSION ||
+      value->kind == W_SEED_CST_CAPTURE_EXPRESSION ||
+      value->kind == W_SEED_CST_ARRAY ||
+      value->kind == W_SEED_CST_TUPLE_EXPRESSION ||
+      value->kind == W_SEED_CST_FOREIGN_BODY_OWNER)
+    return false;
+  frontend_token_cursor cursor = token_cursor_for(doc, value->raw_span);
+  frontend_token token;
+  frontend_token previous = {0};
+  bool have_previous = false;
+  while (cursor_take(&cursor, &token)) {
+    const w_seed_frontend_text text = text_from_span(doc, token.span);
+    if (have_previous && previous.kind == W_SEED_CST_WORD &&
+        token_text(doc, &token, "("))
+      return false;
+    if (arm && (text_equal(text, "&&") || text_equal(text, "||")))
+      return false;
+    if (text_equal(text, "=") || text_equal(text, "+=") ||
+        text_equal(text, "-=") || text_equal(text, "*=") ||
+        text_equal(text, "/=") || text_equal(text, "%=") ||
+        text_equal(text, "&=") || text_equal(text, "|=") ||
+        text_equal(text, "^=") || text_equal(text, "<<=") ||
+        text_equal(text, ">>="))
+      return false;
+    previous = token;
+    have_previous = true;
+  }
+  uint32_t child_cursor = value->first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &child_cursor, &child) &&
+         guard < doc->parse.node_count) {
+    if (!cst_scalar_if_surface_ok(doc, child, depth + 1u, arm)) return false;
+    guard += 1u;
+  }
+  return child_cursor == W_SEED_CST_NONE;
+}
+
+static bool scalar_if_type(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+          type.bit_width == 64u);
+}
+
+static bool scalar_if_arm_expression_node(
+    const w_seed_frontend_document *doc, uint32_t block,
+    uint32_t *expression_node) {
+  if (expression_node != NULL) *expression_node = W_SEED_CST_NONE;
+  if (doc == NULL || block == W_SEED_CST_NONE ||
+      (size_t)block >= doc->parse.node_count ||
+      count_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT) != 1u)
+    return false;
+  uint32_t statement =
+      first_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT);
+  if (statement == W_SEED_CST_NONE ||
+      count_direct_kind(doc, block, W_SEED_CST_LET_STATEMENT) != 0u ||
+      count_direct_kind(doc, block, W_SEED_CST_VAR_STATEMENT) != 0u ||
+      count_direct_kind(doc, block, W_SEED_CST_RETURN_STATEMENT) != 0u ||
+      count_direct_kind(doc, block, W_SEED_CST_IF_STATEMENT) != 0u ||
+      count_direct_kind(doc, block, W_SEED_CST_FOR_STATEMENT) != 0u ||
+      count_direct_kind(doc, block, W_SEED_CST_REPEAT_STATEMENT) != 0u)
+    return false;
+  uint32_t block_cursor = doc->nodes[block].first_child;
+  uint32_t block_child = W_SEED_CST_NONE;
+  size_t block_guard = 0u;
+  while (next_child(doc, &block_cursor, &block_child) &&
+         block_guard < doc->parse.node_count) {
+    if (doc->nodes[block_child].kind != W_SEED_CST_EXPRESSION_STATEMENT &&
+        kind_is_statement(doc->nodes[block_child].kind))
+      return false;
+    block_guard += 1u;
+  }
+  if (block_cursor != W_SEED_CST_NONE) return false;
+  const uint32_t expression = first_direct_expression(doc, statement);
+  if (expression == W_SEED_CST_NONE ||
+      count_direct_kind(doc, statement, W_SEED_CST_EXPRESSION) != 1u)
+    return false;
+  if (expression_node != NULL) *expression_node = expression;
+  return true;
+}
+
+static bool normalize_if_expression(
+    frontend_context *context, uint32_t if_node, uint32_t *expression_index,
+    frontend_simple_type expected, frontend_simple_type *actual_out,
+    frontend_expr_value *root_out) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (actual_out != NULL) *actual_out = simple_type_unknown();
+  if (root_out != NULL) (void)memset(root_out, 0, sizeof(*root_out));
+  if (doc == NULL || expression_index == NULL ||
+      if_node == W_SEED_CST_NONE || if_node >= doc->parse.node_count)
+    return false;
+  const w_seed_cst_node *if_cst = &doc->nodes[if_node];
+  const uint32_t condition_node = first_direct_expression(doc, if_node);
+  uint32_t blocks[2] = {W_SEED_CST_NONE, W_SEED_CST_NONE};
+  size_t block_count = 0u;
+  uint32_t child_cursor = if_cst->first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &child_cursor, &child) &&
+         guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_BLOCK && block_count < 2u)
+      blocks[block_count++] = child;
+    guard += 1u;
+  }
+  uint32_t then_node = W_SEED_CST_NONE;
+  uint32_t else_node = W_SEED_CST_NONE;
+  const bool shape_ok = condition_node != W_SEED_CST_NONE &&
+                        block_count == 2u &&
+                        scalar_if_arm_expression_node(doc, blocks[0],
+                                                      &then_node) &&
+                        scalar_if_arm_expression_node(doc, blocks[1],
+                                                      &else_node);
+  if (!shape_ok) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, if_cst->raw_span,
+        text_from_span(doc, if_cst->raw_span));
+    frontend_expression_parser parser = {0};
+    parser.context = context;
+    parser.document = doc;
+    frontend_expr_value value = {0};
+    value.index = W_SEED_FRONTEND_NONE;
+    value.type = simple_type_unknown();
+    value.supported = false;
+    if (!expression_append(
+            &parser, W_SEED_FRONTEND_EXPR_UNSUPPORTED, if_cst->raw_span,
+            text_from_span(doc, if_cst->raw_span),
+            (w_seed_frontend_text){NULL, 0u}, simple_type_unknown(), false,
+            (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
+            W_SEED_FRONTEND_NONE, 0u, &value))
+      return false;
+    *expression_index = (uint32_t)value.index;
+    if (root_out != NULL) *root_out = value;
+    return true;
+  }
+
+  frontend_simple_type condition_type = simple_type_unknown();
+  frontend_expr_value condition_value;
+  (void)memset(&condition_value, 0, sizeof(condition_value));
+  uint32_t condition_expression = W_SEED_FRONTEND_NONE;
+  if (!normalize_expression_node(context, condition_node, &condition_expression,
+                                 simple_type_from_view(
+                                     (w_seed_frontend_text){"Bool", 4u}),
+                                 &condition_type, &condition_value))
+    return false;
+
+  frontend_simple_type arm_expected =
+      scalar_if_type(expected) ? expected : const_default_integer_type();
+  frontend_simple_type then_type = simple_type_unknown();
+  frontend_simple_type else_type = simple_type_unknown();
+  frontend_expr_value then_value;
+  frontend_expr_value else_value;
+  (void)memset(&then_value, 0, sizeof(then_value));
+  (void)memset(&else_value, 0, sizeof(else_value));
+  uint32_t then_expression = W_SEED_FRONTEND_NONE;
+  uint32_t else_expression = W_SEED_FRONTEND_NONE;
+  if (!normalize_expression_node(context, then_node, &then_expression,
+                                 arm_expected, &then_type, &then_value) ||
+      !normalize_expression_node(context, else_node, &else_expression,
+                                 then_type.kind == W_SEED_FRONTEND_TYPE_UNKNOWN
+                                     ? arm_expected
+                                     : then_type,
+                                 &else_type, &else_value))
+    return false;
+
+  bool supported = condition_value.supported && type_is_bool(condition_type) &&
+                   then_value.supported && else_value.supported &&
+                   scalar_if_type(then_type) && scalar_if_type(else_type) &&
+                   frontend_type_equal(context, then_type, else_type) &&
+                   cst_scalar_if_surface_ok(doc, condition_node, 0u, false) &&
+                   cst_scalar_if_surface_ok(doc, then_node, 0u, true) &&
+                   cst_scalar_if_surface_ok(doc, else_node, 0u, true);
+  if (condition_type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
+      !type_is_bool(condition_type)) {
+    (void)append_sem0001_diagnostic(
+        context, doc->nodes[condition_node].raw_span,
+        text_from_span(doc, trim_span(doc, doc->nodes[condition_node].raw_span)),
+        (w_seed_frontend_text){"Bool", 4u});
+    supported = false;
+  }
+  if (scalar_if_type(then_type) && scalar_if_type(else_type) &&
+      !frontend_type_equal(context, then_type, else_type)) {
+    (void)append_type0120_diagnostic(
+        context, if_cst->raw_span, then_type,
+        doc->nodes[then_node].raw_span, context->module_index, else_type,
+        doc->nodes[else_node].raw_span, context->module_index);
+    supported = false;
+  }
+  if (!scalar_if_type(then_type) || !scalar_if_type(else_type) ||
+      !cst_scalar_if_surface_ok(doc, condition_node, 0u, false) ||
+      !cst_scalar_if_surface_ok(doc, then_node, 0u, true) ||
+      !cst_scalar_if_surface_ok(doc, else_node, 0u, true)) {
+    (void)context_append_fact(
+        context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION, if_cst->raw_span,
+        text_from_span(doc, if_cst->raw_span));
+    supported = false;
+  }
+  frontend_simple_type join_type =
+      frontend_type_equal(context, then_type, else_type) ? then_type
+                                                          : simple_type_unknown();
+  frontend_expression_parser parser = {0};
+  parser.context = context;
+  parser.document = doc;
+  frontend_expr_value value;
+  (void)memset(&value, 0, sizeof(value));
+  value.index = W_SEED_FRONTEND_NONE;
+  if (!expression_append(
+          &parser, W_SEED_FRONTEND_EXPR_IF, if_cst->raw_span,
+          text_from_span(doc, if_cst->raw_span),
+          (w_seed_frontend_text){NULL, 0u}, join_type, supported,
+          condition_expression, then_expression, W_SEED_FRONTEND_NONE, 0u,
+          &value))
+    return false;
+  if (context->emit && context->output != NULL &&
+      value.index < context->output->expression_capacity) {
+    context->output->expressions[value.index].else_expression =
+        else_expression;
+  }
+  value.left = condition_expression;
+  value.right = then_expression;
+  value.kind = W_SEED_FRONTEND_EXPR_IF;
+  value.type = join_type;
+  value.supported = supported;
+  value.span = if_cst->raw_span;
+  if (actual_out != NULL) *actual_out = join_type;
+  if (root_out != NULL) *root_out = value;
+  *expression_index = (uint32_t)value.index;
+  return true;
 }
 
 static bool switch_pattern_names(
@@ -12650,6 +12994,7 @@ static bool normalize_switch_expression(
   switch_record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   switch_record.interpolation_segment_count = 0u;
+  switch_record.else_expression = W_SEED_FRONTEND_NONE;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -13787,6 +14132,10 @@ static bool expression_tree_contains(const frontend_context *context,
     return true;
   if (root->right != W_SEED_FRONTEND_NONE &&
       expression_tree_contains(context, root->right, sought_index,
+                               depth + 1u))
+    return true;
+  if (root->else_expression != W_SEED_FRONTEND_NONE &&
+      expression_tree_contains(context, root->else_expression, sought_index,
                                depth + 1u))
     return true;
   if (root->first_argument != W_SEED_FRONTEND_NONE) {
@@ -15368,7 +15717,9 @@ w_seed_frontend_status w_seed_frontend_run(
   frontend_measure ignored_measure;
   size_t barrier_document = W_SEED_FRONTEND_NONE_SIZE;
   w_seed_span barrier_span = empty_span(0);
-  if (result == NULL || output == NULL) return W_SEED_FRONTEND_INVALID;
+  if (result == NULL || output == NULL) {
+    return W_SEED_FRONTEND_INVALID;
+  }
   frontend_diagnostic_category_scratch_count = 0u;
   (void)memset(result, 0, sizeof(*result));
   result->schema_version = (w_seed_frontend_text){
