@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:d2a41615005ce76e434a171169f811fbd42fe135e7caf75ed79016a18d65e028",
+  "corpusDigest": "sha256:ce050731dca19bd826c16b06648323c4ad9853108f6de2ccb6a7194e287600be",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5159,6 +5159,66 @@
             "codePoints": 17,
             "nonWhitespaceCodePoints": 14,
             "lines": 2,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-proc-abi0-frontend-identity",
+      "task": {
+        "utf8Bytes": 118,
+        "codePoints": 118,
+        "nonWhitespaceCodePoints": 104,
+        "lines": 1,
+        "surfaceLexemes": 18
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:d8d90f6a12f2aad1312446b87ea2dd0a3023cbc20ba5cdda96300dcdc18807a9",
+        "metrics": {
+          "utf8Bytes": 228,
+          "codePoints": 228,
+          "nonWhitespaceCodePoints": 195,
+          "lines": 9,
+          "surfaceLexemes": 42
+        }
+      },
+      "alternatives": [
+        {
+          "name": "alias-as-identity",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c411ecfb3df5c16d62a11e6790a2a5df7e7c669124b9f0beca492a9a46ed1f2e",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "duplicate-local-alias-first-match",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:b3af56baf60d9b148034e30c885897c67b6fe9a73eea4712e83d06eec4618a13",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "forged-success-value",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:745bc7eda5fb9f9d0d99ab185f288c690a7d4f1a2adbaf09aee7f8d6b291e487",
+          "metrics": {
+            "utf8Bytes": 40,
+            "codePoints": 40,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
             "surfaceLexemes": 6
           }
         }

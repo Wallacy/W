@@ -136,7 +136,7 @@ Cada aplicação tem owner type, head, envelope, argumentos ordenados e status d
 binding; cada argumento preserva ordinal, span, label, parâmetro, kind, o índice
 de type ou `ConstValue` e o índice sentinel/relacionado de `TypedConstExpr`. O
 root liga à aplicação por `generic_application_index`.
-`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-12`. Earlier D2/D3 fields
+`W_SEED_FRONTEND_SCHEMA_VERSION` is `w-seed-frontend-16`. Earlier D2/D3 fields
 anteriores permanecem append-only; a versão 6 acrescenta records, ranges,
 counts/capacities e relações de module const; a versão 7 acrescenta
 `effective_type` e preserva `declared_type` como annotation source-only para
@@ -150,7 +150,9 @@ literal-event identity on CST leaves and adds ordered interpolation segment
 records. Text segments own `const_bytes`; expression segments own normalized
 expression indices. The current seed accepts plain ordinary String text and
 built-in integer, Boolean, or String interpolation. It defaults unconstrained
-integer interpolation to canonical signed `i64`. HIR0 and MLIR0 lower only the
+integer interpolation to canonical signed `i64`. Version 16 retains those
+append-only records and adds resolver-owned external nominal identity pairs;
+W-1542 documents its bounded `std.process` use. HIR0 and MLIR0 lower only the
 bounded signed-`i64` subset. Escape decoding, Boolean/String value Display,
 general Display conformance, and native lowering outside that subset remain
 gaps.
@@ -1044,7 +1046,9 @@ HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
 `w-seed-hir0-12`, MLIR0 to `w-seed-mlir0-15`, and the Windows label to
 `w-seed-mlir0-windows-6`; Native0 remains v6. W-1541 advances frontend to
 `w-seed-frontend-15` and HIR0 to `w-seed-hir0-13`; MLIR0, its Windows label,
-and Native0 remain unchanged.
+and Native0 remain unchanged. W-1542 advances only the frontend to
+`w-seed-frontend-16`; HIR0, MLIR0, its Windows label, and Native0 remain
+unchanged.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1210,6 +1214,26 @@ This cut does not implement named entries, inline parameters, custom returns,
 typed errors, async short entries, native Windows execution, or general runtime
 entry adapters. Its `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only, with no timing or benchmark result.
+
+### External process identity in frontend16 (W-1542)
+
+The seed parser and module scanner accept grouped import aliases such as
+`Arguments as ProcessArguments`. Frontend16 stores the source alias separately
+from a resolver-owned external module/symbol pair on nominal types. A present
+pair must identify one exported external `TYPE`; partial or forged pairs fail
+closed. Duplicate local aliases are rejected across symbol kinds.
+
+The bounded process fixture admits only the exported constant
+`std.process.ExitCode.success` with receiver and return type `ExitCode` and no
+parameters. The enum-case expression keeps that member's external identity.
+Focused tests cover valid aliases, malformed and duplicate aliases, forged
+metadata, deterministic receipts, alias-sensitive provenance, and receipt
+capacity preservation.
+
+This is the frontend portion of `PROC-ABI0`, not a complete process ABI. HIR13
+does not yet publish these external identities, and this cut does not prove
+handler compatibility, `directEntry`, argument access, lowering, runtime
+input, native execution, Windows, or performance.
 
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →

@@ -2275,6 +2275,19 @@ static bool parse_import_declaration(w_seed_parser *parser) {
       return false;
     }
     (void)consume_current(parser, NULL);
+    /* Grouped imports may bind an imported symbol under an explicit local
+     * alias.  Keep the alias inside the IMPORT_ITEM span so the frontend can
+     * retain the source name and resolver-owned target identity separately. */
+    if (current_is_text(parser, "as")) {
+      (void)consume_text(parser, "as", NULL);
+      if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        pop_node(parser, parser->last_token_end);
+        return false;
+      }
+      (void)consume_current(parser, NULL);
+    }
     pop_node(parser, parser->last_token_end);
     if (!current_is_text(parser, ",")) break;
     (void)consume_text(parser, ",", NULL);

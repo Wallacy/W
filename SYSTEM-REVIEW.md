@@ -944,6 +944,12 @@ general `OsString`, argument access, async I/O, loops, Windows UTF-16 ABI, and
 the complete `std.process@1` provider remain later packages. Evidence is
 compiler-lifecycle correctness only, never a runtime or performance claim.
 
+Current checkpoint: W-1542 completes the frontend16 portion of `PROC-ABI0`.
+Grouped aliases resolve `Arguments`, `Context`, and `ExitCode` to stable
+external nominal identities, and the payload-free `ExitCode.success` member is
+validated adversarially. The verified-HIR representation and handler
+compatibility half of `PROC-ABI0` remains pending; `PROC-INPUT0` has not begun.
+
 The broad English migration and physical documentation split should be staged
 with their owners, not bundled into unrelated compiler changes. Release
 qualification, dependency updates and cleanup are routine bounded maintenance,

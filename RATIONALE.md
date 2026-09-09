@@ -199,6 +199,7 @@ O corpus compara, no mínimo:
 - bounded scalar `if` value against eager arm evaluation, fake logical encoding, and general scalar CFG.
 - checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
+- external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 
 ### 1.1 Cobertura de substituições
 
@@ -7796,6 +7797,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1539 | bounded scalar `if` values through verified HIR0 and MLIR0 | SCALAR-IF0 accepts the existing `if condition { scalar } else { scalar }` only in an immutable `let` initializer or scalar `return`; the Bool condition and both same-typed `i64`/Bool, one-expression, side-effect-free arms are verified through frontend14/HIR11. HIR uses `BRANCH.result_type` `0` for Unit, `3` for logical Bool, and `2`/`3` for scalar `i64`/Bool with logical metadata unset; scalar diamonds carry exactly one typed join argument and one incoming from each arm. MLIR14/Windows5 emits real `llvm.cond_br` and typed `llvm.br` join edges, never `llvm.select` or eager arm evaluation. Native0 remains v6. W-390 checked-overflow arithmetic remains blocked, so the earlier `seats +/- 1` sketch is not a witness; the source-backed Restaurant fixture carries direct parameters. | `source-backed-current` only for the bounded scalar-if return/immutable-let subset. Focused frontend14/HIR11/MLIR14/Native0 checks and the native Windows Release public route passed both condition directions with exact stdout `Open 5; closed 2\n`, exit zero and empty stderr. A local Release build measured `w.exe` at 10,078,208 B before post-validation cleanup; the generated tool artifact was discarded afterward. This is a local tool build fact, not a historical baseline, benchmark sample, ranking or produced-workload measurement. Missing else (`W-PARSE-0021`), non-Bool condition (`W-SEM-0001`), mismatched arms (`W-TYPE-0120`), String/aggregate, calls/effects, nested/else-if, mutation and loops remain rejected or unsupported. Linux/WSL, C/Rust, general scalar CFG, ABI, targets and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 | W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend, current HIR0 `w-seed-hir0-13`, and MLIR0 `w-seed-mlir0-15` with Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. Unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 | W-1541 | bounded short default entry through the seed compiler | `entry { statements }` lowers through parser, frontend15 and HIR13 as one private zero-argument Unit function plus one explicit `.default` descriptor. The private `<entry.default>` identity is not source-addressable. `entry(functionName)` remains valid. Duplicate default descriptors fail closed. The canonical Hello and checked-arithmetic Restaurant fixtures use the short form. | `source-backed-current` only for the bounded seed compiler and Linux/WSL public `w run` witness. Focused parser, frontend and HIR tests prove shape, direct target identity, measure/emit parity, trivia-independent semantics, provenance distinction and forged-mode rejection. HLO0/HLO1 and MLIR0 gates consume the same short-entry Hello. No named entry, parameterized inline body, custom return, typed error, async short entry, native Windows execution, general runtime, timing, or benchmark result is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1542 | bounded external `std.process` identity in frontend16 | Frontend16 accepts grouped imports with explicit local aliases, preserves each external nominal type as a resolver-owned `(external_module_index, external_symbol_index)` pair independent of source spelling, and recognizes only the canonical exported constant `std.process.ExitCode.success` with no payload. Duplicate local import aliases and malformed or inconsistent external metadata fail closed. This cut ends at frontend records; verified HIR, handler compatibility, direct-entry proof, lowering, runtime arguments, native execution, Windows, and performance remain gaps. | `source-backed-current` only for the bounded parser, module-scan, and frontend implementation plus focused adversarial C tests. HIR0/HLO0/MLIR0 passing tests are regression evidence, not external-process support. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10665,3 +10667,33 @@ exact `Open 6; closed 1\n` through the MLIR0 Linux/WSL gate. A second default
 entry fails at the root entry boundary. Named handlers, inline parameters,
 custom returns, typed errors, async short entries, native Windows execution,
 general runtime, and performance remain outside this cut.
+
+#### W-1542 — bounded external `std.process` identity in frontend16
+
+The first part of `PROC-ABI0` needed to separate a source-local alias from the
+external declaration that gives a nominal type its identity. Comparing only
+the spellings `ProcessExitCode` and `ExitCode` would either reject a valid alias
+or let unrelated modules manufacture the same type. Frontend16 therefore adds
+an append-only resolver-owned module/symbol pair to each normalized type. A
+present pair must identify one exported external `TYPE`; a partial, out-of-range,
+value-kind, or unexported identity is invalid.
+
+Grouped imports now retain both the imported name and the local name. Duplicate
+local aliases are rejected before any first-match lookup can choose a meaning,
+including collisions between imported type and value symbols. The module
+scanner accepts the same alias grammar as the parser but continues to expose
+only module-origin information.
+
+The enum work is intentionally narrower than a general external-enum model.
+Only `.success` for the expected resolver-owned `std.process.ExitCode` is
+recognized. Its resolver record must be an exported constant, use `ExitCode` as
+receiver and return type, and have no parameters. The resulting expression
+keeps the external member pair; no local enum or payload layout is invented.
+
+Focused tests cover malformed aliases, duplicate aliases, exact identities,
+non-constant and otherwise forged `.success` records, measure/run parity,
+repeatable receipt bytes, alias-sensitive provenance, and an undersized receipt
+buffer with unchanged caller-owned output. Existing HIR0, HLO0, and MLIR0 tests
+were rerun only to exclude regressions. The verified-HIR half of `PROC-ABI0`,
+handler compatibility, `directEntry`, lowering, process input, native execution,
+Windows, and performance remain separate work.

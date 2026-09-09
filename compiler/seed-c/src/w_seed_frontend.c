@@ -45,6 +45,9 @@ typedef struct {
   bool is_signed;
   uint16_t bit_width;
   w_seed_frontend_text spelling;
+  /* Resolver-owned identity for an imported external nominal type. */
+  uint32_t external_module_index;
+  uint32_t external_symbol_index;
   uint32_t enum_index;
   w_seed_frontend_text enum_name;
   w_seed_frontend_text enum_alias_name;
@@ -73,6 +76,7 @@ typedef struct {
   bool is_integer_literal;
   bool has_name;
   bool is_enum_case;
+  bool is_external_enum_case;
   uint32_t enum_index;
   uint32_t enum_case_index;
   w_seed_frontend_text name;
@@ -336,6 +340,8 @@ static w_seed_frontend_text binding_name_after_keyword(
 static w_seed_frontend_text import_item_local_name(
     const w_seed_frontend_document *doc, w_seed_span span,
     w_seed_frontend_text *imported_name);
+static bool import_local_alias_is_ambiguous(
+    const frontend_context *context, w_seed_frontend_text name);
 static w_seed_frontend_label_kind parameter_label_kind(
     const w_seed_frontend_document *doc, w_seed_span span);
 static w_seed_frontend_text parameter_name_from_span(
@@ -555,6 +561,8 @@ static bool external_type_identity_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     uint32_t *module_index, uint32_t *symbol_index,
     const w_seed_frontend_external_symbol **symbol);
+static frontend_simple_type external_contextual_type(
+    const frontend_context *context, w_seed_frontend_text spelling);
 static bool external_member_for_receiver(
     const frontend_context *context, frontend_simple_type receiver_type,
     w_seed_frontend_text member_name, uint32_t *module_index,
@@ -1140,6 +1148,8 @@ static w_seed_frontend_type const_synthetic_type(frontend_simple_type simple) {
   type.span = empty_span(0);
   type.is_signed = simple.is_signed;
   type.bit_width = simple.bit_width;
+  type.external_module_index = simple.external_module_index;
+  type.external_symbol_index = simple.external_symbol_index;
   type.element_type = W_SEED_FRONTEND_NONE;
   type.return_type = W_SEED_FRONTEND_NONE;
   type.first_parameter = W_SEED_FRONTEND_NONE;
@@ -1169,6 +1179,8 @@ static w_seed_frontend_type inferred_unit_type(w_seed_span span) {
   type.first_subset_member = W_SEED_FRONTEND_NONE;
   type.subset_member_count = 0u;
   type.generic_application_index = W_SEED_FRONTEND_NONE;
+  type.external_module_index = W_SEED_FRONTEND_NONE;
+  type.external_symbol_index = W_SEED_FRONTEND_NONE;
   return type;
 }
 
@@ -3205,6 +3217,10 @@ static bool receipt_size_type(frontend_context *context,
          receipt_size_size(context, (size_t)type->kind) &&
          receipt_size_literal(context, "|") &&
          receipt_size_text(context, type->spelling) &&
+         receipt_size_literal(context, "|external=") &&
+         receipt_size_size(context, type->external_module_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, type->external_symbol_index) &&
          receipt_size_literal(context, "|enum-base=") &&
          receipt_size_size(context, type->enum_base_index) &&
          receipt_size_literal(context, "|subset-first=") &&
@@ -3392,6 +3408,21 @@ static bool receipt_size_call_identity(
          receipt_size_size(context, external_module_index) &&
          receipt_size_literal(context, ":") &&
          receipt_size_size(context, external_symbol_index) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_external_enum_case_identity(
+    frontend_context *context, size_t expression_index,
+    uint32_t external_module_index, uint32_t external_symbol_index,
+    w_seed_frontend_text member_name) {
+  return receipt_size_literal(context, "enum-case=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|external=") &&
+         receipt_size_size(context, external_module_index) &&
+         receipt_size_literal(context, ":") &&
+         receipt_size_size(context, external_symbol_index) &&
+         receipt_size_literal(context, "|name=") &&
+         receipt_size_text(context, member_name) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3879,6 +3910,38 @@ static bool external_input_ready(const w_seed_frontend_input *input) {
   return true;
 }
 
+/* External nominal identity is an opaque resolver-owned pair, not a source
+ * spelling.  Keep the pair atomic at every consumer boundary: NONE/NONE is
+ * the only absent form, while a present pair must name an exported external
+ * TYPE in the caller-provided resolver tables. */
+static bool external_identity_pair_valid(
+    const frontend_context *context, w_seed_frontend_type_kind kind,
+    uint32_t module_index, uint32_t symbol_index) {
+  const bool module_none = module_index == W_SEED_FRONTEND_NONE;
+  const bool symbol_none = symbol_index == W_SEED_FRONTEND_NONE;
+  if (module_none != symbol_none) return false;
+  if (module_none) return true;
+  if (context == NULL || kind != W_SEED_FRONTEND_TYPE_NOMINAL ||
+      context->input.external_modules == NULL ||
+      (size_t)module_index >= context->input.external_module_count) {
+    return false;
+  }
+  const w_seed_frontend_external_module *module =
+      &context->input.external_modules[module_index];
+  if (module->symbols == NULL || (size_t)symbol_index >= module->symbol_count)
+    return false;
+  const w_seed_frontend_external_symbol *symbol =
+      &module->symbols[symbol_index];
+  return symbol->kind == W_SEED_FRONTEND_EXTERNAL_TYPE && symbol->exported;
+}
+
+static bool external_simple_type_identity_valid(
+    const frontend_context *context, frontend_simple_type type) {
+  return external_identity_pair_valid(context, type.kind,
+                                      type.external_module_index,
+                                      type.external_symbol_index);
+}
+
 static bool host_prelude_input_ready(const w_seed_frontend_input *input) {
   if (input == NULL) return false;
   if (input->host_scope == NULL) return true;
@@ -4207,6 +4270,8 @@ static frontend_simple_type simple_type_unknown(void) {
   frontend_simple_type type;
   (void)memset(&type, 0, sizeof(type));
   type.kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+  type.external_module_index = W_SEED_FRONTEND_NONE;
+  type.external_symbol_index = W_SEED_FRONTEND_NONE;
   type.enum_index = W_SEED_FRONTEND_NONE;
   type.subset_span = empty_span(0);
   type.element_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
@@ -4318,6 +4383,19 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
   }
   if (left.kind == W_SEED_FRONTEND_TYPE_FUNCTION) {
     return text_equal_text(left.spelling, right.spelling);
+  }
+  if (left.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
+    const bool left_external =
+        left.external_module_index != W_SEED_FRONTEND_NONE ||
+        left.external_symbol_index != W_SEED_FRONTEND_NONE;
+    const bool right_external =
+        right.external_module_index != W_SEED_FRONTEND_NONE ||
+        right.external_symbol_index != W_SEED_FRONTEND_NONE;
+    if (left_external || right_external) {
+      return left_external && right_external &&
+             left.external_module_index == right.external_module_index &&
+             left.external_symbol_index == right.external_symbol_index;
+    }
   }
   return text_equal_text(left.spelling, right.spelling);
 }
@@ -4463,6 +4541,10 @@ static bool enum_subset_set_equal(const frontend_context *context,
 static bool frontend_type_equal(const frontend_context *context,
                                 frontend_simple_type left,
                                 frontend_simple_type right) {
+  if (!external_simple_type_identity_valid(context, left) ||
+      !external_simple_type_identity_valid(context, right)) {
+    return false;
+  }
   if (frontend_type_is_enum(left) || frontend_type_is_enum(right)) {
     return enum_subset_set_equal(context, left, right);
   }
@@ -4472,6 +4554,10 @@ static bool frontend_type_equal(const frontend_context *context,
 static bool frontend_widening_allowed(const frontend_context *context,
                                       frontend_simple_type actual,
                                       frontend_simple_type expected) {
+  if (!external_simple_type_identity_valid(context, actual) ||
+      !external_simple_type_identity_valid(context, expected)) {
+    return false;
+  }
   if (frontend_type_is_enum(actual) || frontend_type_is_enum(expected)) {
     if (!frontend_type_is_enum(actual) || !frontend_type_is_enum(expected) ||
         actual.enum_index == W_SEED_FRONTEND_NONE ||
@@ -4906,6 +4992,7 @@ static void counts_from_measure(const frontend_measure *measure,
   (void)memset(counts, 0, sizeof(*counts));
   counts->modules = measure->modules;
   counts->imports = measure->imports;
+  counts->import_items = measure->import_items;
   counts->structs = measure->structs;
   counts->fields = measure->fields;
   counts->type_declarations = measure->type_declarations;
@@ -5647,6 +5734,10 @@ static frontend_simple_type contextual_type_from_span(
       type.kind = W_SEED_FRONTEND_TYPE_ENUM;
       type.enum_index = enum_index;
       type.enum_name = type.spelling;
+    } else {
+      (void)external_type_identity_for_name(
+          context, type.spelling, &type.external_module_index,
+          &type.external_symbol_index, NULL);
     }
   }
   return type;
@@ -6808,7 +6899,12 @@ static bool context_append_const_declaration(
 static bool context_append_type(frontend_context *context,
                                 w_seed_frontend_type value,
                                 uint32_t *index) {
-  if (context == NULL || index == NULL) return false;
+  if (context == NULL || index == NULL ||
+      !external_identity_pair_valid(context, value.kind,
+                                    value.external_module_index,
+                                    value.external_symbol_index)) {
+    return false;
+  }
   const size_t ordinal = context->count.types;
   context->count.types += 1;
   if (!add_u32(ordinal, index)) return false;
@@ -7500,6 +7596,8 @@ static w_seed_frontend_type type_record_from_span(
   value.first_subset_member = W_SEED_FRONTEND_NONE;
   value.subset_member_count = 0;
   value.generic_application_index = W_SEED_FRONTEND_NONE;
+  value.external_module_index = W_SEED_FRONTEND_NONE;
+  value.external_symbol_index = W_SEED_FRONTEND_NONE;
   if (simple.kind == W_SEED_FRONTEND_TYPE_OPTION && value.spelling.length > 0) {
     value.nominal_name.data = value.spelling.data;
     value.nominal_name.length = value.spelling.length - 1;
@@ -7557,6 +7655,11 @@ static bool normalize_type_tree_depth(frontend_context *context,
       value.nominal_name = value.spelling;
       value.enum_base_index = enum_index;
     }
+  }
+  if (value.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
+    (void)external_type_identity_for_name(
+        context, value.spelling, &value.external_module_index,
+        &value.external_symbol_index, NULL);
   }
   frontend_enum_subset_shape subset_shape = {0};
   bool has_subset_shape =
@@ -8665,6 +8768,8 @@ static bool normalize_enum(frontend_context *context, uint32_t node_index,
   enum_type.first_subset_member = W_SEED_FRONTEND_NONE;
   enum_type.subset_member_count = 0;
   enum_type.generic_application_index = W_SEED_FRONTEND_NONE;
+  enum_type.external_module_index = W_SEED_FRONTEND_NONE;
+  enum_type.external_symbol_index = W_SEED_FRONTEND_NONE;
   if (!context_append_type(context, enum_type, &value.type_index)) return false;
 
   const uint32_t conformance_node = direct_type_index(doc, node_index);
@@ -9300,6 +9405,8 @@ static frontend_simple_type simple_type_from_frontend_type(
   type.is_signed = source->is_signed;
   type.bit_width = source->bit_width;
   type.spelling = source->spelling;
+  type.external_module_index = source->external_module_index;
+  type.external_symbol_index = source->external_symbol_index;
   type.enum_index = source->enum_base_index;
   type.enum_name = source->nominal_name;
   return type;
@@ -9465,6 +9572,45 @@ static w_seed_frontend_text import_item_local_name(
   }
   if (imported_name != NULL) *imported_name = first;
   return first;
+}
+
+/* A local alias is a lexical binding.  A grouped import list therefore may
+ * not assign the same local spelling twice, even when the source symbols are
+ * different kinds (TYPE versus VALUE) or come from separate declarations.
+ * Keep this syntactic check independent of resolver lookup so a first-match
+ * implementation cannot make an ambiguous alias appear valid. */
+static bool import_local_alias_is_ambiguous(
+    const frontend_context *context, w_seed_frontend_text name) {
+  if (context == NULL || name.data == NULL || name.length == 0u) return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL || doc->parse.root >= doc->parse.node_count) return false;
+  size_t matches = 0u;
+  uint32_t import_cursor = doc->nodes[doc->parse.root].first_child;
+  uint32_t import_node = W_SEED_CST_NONE;
+  size_t import_guard = 0u;
+  while (next_child(doc, &import_cursor, &import_node) &&
+         import_guard < doc->parse.node_count) {
+    if (doc->nodes[import_node].kind == W_SEED_CST_IMPORT &&
+        import_has_from(doc, doc->nodes[import_node].raw_span)) {
+      uint32_t item_cursor = doc->nodes[import_node].first_child;
+      uint32_t item_node = W_SEED_CST_NONE;
+      size_t item_guard = 0u;
+      while (next_child(doc, &item_cursor, &item_node) &&
+             item_guard < doc->parse.node_count) {
+        if (doc->nodes[item_node].kind == W_SEED_CST_IMPORT_ITEM) {
+          const w_seed_frontend_text local = import_item_local_name(
+              doc, doc->nodes[item_node].raw_span, NULL);
+          if (text_equal_text(local, name)) {
+            matches += 1u;
+            if (matches > 1u) return true;
+          }
+        }
+        item_guard += 1u;
+      }
+    }
+    import_guard += 1u;
+  }
+  return false;
 }
 
 static w_seed_frontend_label_kind parameter_label_kind(
@@ -9671,10 +9817,10 @@ static bool imported_target_for_name(
 }
 
 /* Bare external imports expose exported nominal type declarations by their
- * exact name. Named imports expose the same exact imported/local spelling;
- * aliases are outside this module-scan subset. Values are intentionally not
- * handled here: an external member is only reachable through the
- * receiver-aware helper below, never through a free-name lookup. */
+ * exact name. Named imports expose the imported name under its source-local
+ * alias while retaining the resolver-owned module/symbol pair. Values are
+ * intentionally not handled here: an external member is only reachable
+ * through the receiver-aware helper below, never through a free-name lookup. */
 static bool external_type_identity_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     uint32_t *module_index, uint32_t *symbol_index,
@@ -9683,7 +9829,8 @@ static bool external_type_identity_for_name(
   if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
   if (symbol != NULL) *symbol = NULL;
   if (context == NULL || name.length == 0u ||
-      !context->input.import_resolution_complete) {
+      !context->input.import_resolution_complete ||
+      import_local_alias_is_ambiguous(context, name)) {
     return false;
   }
   const w_seed_frontend_document *doc = context_document(context);
@@ -9731,8 +9878,7 @@ static bool external_type_identity_for_name(
           w_seed_frontend_text imported = {NULL, 0u};
           const w_seed_frontend_text local = import_item_local_name(
               doc, doc->nodes[item].raw_span, &imported);
-          if (imported.length != 0u && text_equal_text(local, imported) &&
-              text_equal_text(local, name)) {
+          if (imported.length != 0u && text_equal_text(local, name)) {
             for (size_t candidate_index = 0u;
                  candidate_index < module->symbol_count; candidate_index += 1u) {
               const w_seed_frontend_external_symbol *candidate =
@@ -9779,8 +9925,8 @@ static bool external_type_identity_for_name(
 }
 
 /* Resolve a member against the imported type identity and the receiver's
- * exact nominal spelling. The current module-scan import subset does not
- * define nominal aliases, so the local and imported type names must match.
+ * exact nominal spelling. Grouped aliases preserve the local spelling while
+ * this helper uses the resolver-owned type record to match receiver_type.
  * The member table is indexed by the external module and symbol ordinals,
  * which are copied into the normalized MEMBER/CALL records downstream. */
 static bool external_member_for_receiver(
@@ -9791,7 +9937,8 @@ static bool external_member_for_receiver(
   if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
   if (symbol != NULL) *symbol = NULL;
   if (context == NULL || receiver_type.kind != W_SEED_FRONTEND_TYPE_NOMINAL ||
-      receiver_type.spelling.length == 0u || member_name.length == 0u) {
+      receiver_type.spelling.length == 0u || member_name.length == 0u ||
+      !external_simple_type_identity_valid(context, receiver_type)) {
     return false;
   }
   uint32_t type_module = W_SEED_FRONTEND_NONE;
@@ -9803,6 +9950,12 @@ static bool external_member_for_receiver(
       type_record == NULL ||
       type_record->kind != W_SEED_FRONTEND_EXTERNAL_TYPE ||
       (size_t)type_module >= context->input.external_module_count) {
+    return false;
+  }
+  if ((receiver_type.external_module_index != W_SEED_FRONTEND_NONE ||
+       receiver_type.external_symbol_index != W_SEED_FRONTEND_NONE) &&
+      (receiver_type.external_module_index != type_module ||
+       receiver_type.external_symbol_index != type_symbol)) {
     return false;
   }
   const w_seed_frontend_external_module *module =
@@ -9835,7 +9988,9 @@ static bool external_member_for_receiver(
 static bool external_symbol_for_name(const frontend_context *context,
                                      w_seed_frontend_text name,
                                      const w_seed_frontend_external_symbol **symbol) {
-  if (context == NULL || symbol == NULL) return false;
+  if (context == NULL || symbol == NULL ||
+      import_local_alias_is_ambiguous(context, name))
+    return false;
   w_seed_frontend_import_target_kind target_kind =
       W_SEED_FRONTEND_IMPORT_UNRESOLVED;
   uint32_t target_index = W_SEED_FRONTEND_NONE;
@@ -9865,7 +10020,8 @@ static bool external_symbol_identity_for_name(
     uint32_t *module_index, uint32_t *symbol_index) {
   if (module_index != NULL) *module_index = W_SEED_FRONTEND_NONE;
   if (symbol_index != NULL) *symbol_index = W_SEED_FRONTEND_NONE;
-  if (context == NULL) return false;
+  if (context == NULL || import_local_alias_is_ambiguous(context, name))
+    return false;
   w_seed_frontend_import_target_kind target_kind =
       W_SEED_FRONTEND_IMPORT_UNRESOLVED;
   uint32_t target_index = W_SEED_FRONTEND_NONE;
@@ -10019,6 +10175,10 @@ static frontend_simple_type external_contextual_type(
       type.kind = W_SEED_FRONTEND_TYPE_ENUM;
       type.enum_index = enum_index;
       type.enum_name = type.spelling;
+    } else {
+      (void)external_type_identity_for_name(
+          context, type.spelling, &type.external_module_index,
+          &type.external_symbol_index, NULL);
     }
   }
   return type;
@@ -10467,6 +10627,8 @@ static bool output_type_index_for_simple(frontend_context *context,
       builtin.first_subset_member = W_SEED_FRONTEND_NONE;
       builtin.subset_member_count = 0u;
       builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
       uint32_t builtin_index = W_SEED_FRONTEND_NONE;
       if (!context_append_type(context, builtin, &builtin_index)) return false;
       context->default_integer_type_index = builtin_index;
@@ -10493,6 +10655,8 @@ static bool output_type_index_for_simple(frontend_context *context,
       builtin.first_subset_member = W_SEED_FRONTEND_NONE;
       builtin.subset_member_count = 0u;
       builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
       uint32_t builtin_index = W_SEED_FRONTEND_NONE;
       if (!context_append_type(context, builtin, &builtin_index)) return false;
       context->builtin_usize_type_index = builtin_index;
@@ -10518,6 +10682,8 @@ static bool output_type_index_for_simple(frontend_context *context,
       builtin.first_subset_member = W_SEED_FRONTEND_NONE;
       builtin.subset_member_count = 0u;
       builtin.generic_application_index = W_SEED_FRONTEND_NONE;
+      builtin.external_module_index = W_SEED_FRONTEND_NONE;
+      builtin.external_symbol_index = W_SEED_FRONTEND_NONE;
       uint32_t builtin_index = W_SEED_FRONTEND_NONE;
       if (!context_append_type(context, builtin, &builtin_index)) return false;
       context->builtin_bool_type_index = builtin_index;
@@ -10622,6 +10788,8 @@ static bool binding_effective_type_index(frontend_context *context,
   value.first_subset_member = W_SEED_FRONTEND_NONE;
   value.subset_member_count = 0u;
   value.generic_application_index = W_SEED_FRONTEND_NONE;
+  value.external_module_index = W_SEED_FRONTEND_NONE;
+  value.external_symbol_index = W_SEED_FRONTEND_NONE;
   if (!context_append_type(context, value, index)) return false;
   context->inferred_string_type_index = *index;
   return true;
@@ -11142,6 +11310,24 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     bool resolved = type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
     uint32_t resolved_module_const = W_SEED_FRONTEND_NONE;
     if (!resolved) {
+      /* A qualified external enum value starts with its imported nominal
+       * type (for example `ProcessExitCode.success`).  Keep the type alias
+       * identity explicit, but do not expose a bare type as a value: it is
+       * supported only when the postfix member resolver consumes the `.`. */
+      uint32_t external_type_module = W_SEED_FRONTEND_NONE;
+      uint32_t external_type_symbol = W_SEED_FRONTEND_NONE;
+      if (external_type_identity_for_name(
+              parser->context, spelling, &external_type_module,
+              &external_type_symbol, NULL)) {
+        frontend_token next;
+        type = simple_type_from_view(spelling);
+        type.external_module_index = external_type_module;
+        type.external_symbol_index = external_type_symbol;
+        resolved = cursor_peek(&parser->cursor, &next) &&
+                   token_text(parser->document, &next, ".");
+      }
+    }
+    if (!resolved) {
       const w_seed_frontend_document *owner_doc = NULL;
       uint32_t function_node = W_SEED_CST_NONE;
       resolved = function_signature_for_name(parser->context, spelling,
@@ -11315,6 +11501,88 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     const w_seed_span span = {token.span.start_byte, member.span.end_byte};
     const w_seed_frontend_text case_name =
         text_from_span(parser->document, member.span);
+    /* PROC-ABI0 has one deliberately finite external enum projection.  The
+     * shorthand `.success` is valid only when the expected type is the
+     * resolver-owned std.process ExitCode nominal and the matching external
+     * value has no payload.  Keep the module/symbol pair on the expression;
+     * never infer it from the spelling of the alias. */
+    if (parser->has_expected_type &&
+        parser->expected_type.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+        external_simple_type_identity_valid(parser->context,
+                                            parser->expected_type) &&
+        text_equal(case_name, "success")) {
+      uint32_t external_module_index = W_SEED_FRONTEND_NONE;
+      uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
+      const w_seed_frontend_external_symbol *external_case = NULL;
+      const bool found_case = external_member_for_receiver(
+          parser->context, parser->expected_type, case_name,
+          &external_module_index, &external_symbol_index, &external_case);
+      const w_seed_frontend_external_module *external_module =
+          found_case && parser->context != NULL &&
+                  (size_t)external_module_index <
+                      parser->context->input.external_module_count
+              ? &parser->context->input
+                     .external_modules[external_module_index]
+              : NULL;
+      const w_seed_frontend_external_symbol *external_type = NULL;
+      uint32_t type_module_index = W_SEED_FRONTEND_NONE;
+      uint32_t type_symbol_index = W_SEED_FRONTEND_NONE;
+      const bool found_type = external_type_identity_for_name(
+          parser->context, parser->expected_type.spelling, &type_module_index,
+          &type_symbol_index, &external_type);
+      /* External symbol signatures name their result in module-owned
+       * spelling, not in the caller's alias namespace.  Once the receiver
+       * identity has been checked against the expected alias, the finite
+       * ExitCode projection accepts only a result spelling equal to the
+       * resolved owner type.  Do not manufacture a local enum or pretend the
+       * external provider exposed a richer case schema. */
+      const bool case_returns_owner_type =
+          found_case && external_case != NULL && found_type &&
+          external_type != NULL && external_case->return_type.length != 0u &&
+          text_equal_text(external_case->return_type, external_type->name);
+      const bool valid_case =
+          found_case && external_case != NULL && external_module != NULL &&
+          found_type && external_type != NULL &&
+          type_module_index == parser->expected_type.external_module_index &&
+          type_symbol_index == parser->expected_type.external_symbol_index &&
+          text_equal(external_module->module_id, "std.process") &&
+          text_equal(external_type->name, "ExitCode") &&
+          external_case->is_const &&
+          external_case->parameter_count == 0u &&
+          case_returns_owner_type;
+      if (valid_case) {
+        value->is_enum_case = true;
+        value->is_external_enum_case = true;
+        value->enum_index = W_SEED_FRONTEND_NONE;
+        value->enum_case_index = W_SEED_FRONTEND_NONE;
+        if (!expression_append(
+                parser, W_SEED_FRONTEND_EXPR_ENUM_CASE, span,
+                text_from_span(parser->document, span),
+                (w_seed_frontend_text){NULL, 0u}, parser->expected_type, true,
+                (size_t)W_SEED_FRONTEND_NONE,
+                (size_t)W_SEED_FRONTEND_NONE, W_SEED_FRONTEND_NONE, 0,
+                value)) {
+          return false;
+        }
+        if (parser->context->emit && parser->context->output != NULL &&
+            value->index < parser->context->output->expression_capacity) {
+          w_seed_frontend_expression *record =
+              &parser->context->output->expressions[value->index];
+          record->resolved_callee_kind =
+              W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+          record->resolved_external_module_index = external_module_index;
+          record->resolved_external_symbol_index = external_symbol_index;
+          record->member_name = case_name;
+        }
+        if (!parser->context->emit &&
+            !receipt_size_external_enum_case_identity(
+                parser->context, value->index, external_module_index,
+                external_symbol_index, case_name)) {
+          return false;
+        }
+        return true;
+      }
+    }
     if (parser->has_expected_type &&
         frontend_type_is_enum(parser->expected_type)) {
       uint32_t enum_index = parser->expected_type.enum_index;
@@ -14556,6 +14824,10 @@ static bool resolve_frontend_links(frontend_context *context) {
         expression->supported = false;
         continue;
       }
+      if (!external_simple_type_identity_valid(context, receiver_simple)) {
+        expression->supported = false;
+        continue;
+      }
       if (!external_member_for_receiver(
               context, receiver_simple, callee->member_name,
               &checked_module_index, &checked_symbol_index,
@@ -14960,6 +15232,13 @@ static bool resolve_imports(frontend_context *context) {
             w_seed_frontend_text imported_name = {NULL, 0};
             const w_seed_frontend_text local_name = import_item_local_name(
                 doc, doc->nodes[item].raw_span, &imported_name);
+            if (import_local_alias_is_ambiguous(context, local_name)) {
+              if (!context_append_fact(
+                      context, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL,
+                      doc->nodes[item].raw_span, local_name)) {
+                return false;
+              }
+            }
             bool exported = true;
             if (!context->input.import_resolution_complete) {
               exported = false;
@@ -15580,6 +15859,10 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, (size_t)type->kind);
       receipt_write_literal(writer, "|");
       receipt_write_text(writer, type->spelling);
+      receipt_write_literal(writer, "|external=");
+      receipt_write_size(writer, type->external_module_index);
+      receipt_write_literal(writer, ":");
+      receipt_write_size(writer, type->external_symbol_index);
       receipt_write_literal(writer, "|enum-base=");
       receipt_write_size(writer, type->enum_base_index);
       receipt_write_literal(writer, "|subset-first=");
@@ -15629,6 +15912,19 @@ static void receipt_write_records(frontend_receipt_writer *writer,
     for (size_t index = 0u; index < context->count.expressions; index += 1u) {
       const w_seed_frontend_expression *expression =
           &output->expressions[index];
+      if (expression->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
+          expression->resolved_callee_kind ==
+              W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL) {
+        receipt_write_literal(writer, "enum-case=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|external=");
+        receipt_write_size(writer, expression->resolved_external_module_index);
+        receipt_write_literal(writer, ":");
+        receipt_write_size(writer, expression->resolved_external_symbol_index);
+        receipt_write_literal(writer, "|name=");
+        receipt_write_text(writer, expression->member_name);
+        receipt_write_literal(writer, "\n");
+      }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
       uint32_t callee_index = W_SEED_FRONTEND_NONE;
       if (expression->left != W_SEED_FRONTEND_NONE &&

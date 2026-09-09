@@ -66,7 +66,7 @@ static bool test_forms_and_spans(void) {
       "import dep.path;\n"
       "import alias from package.menu;\n"
       "import * from wildcard.path\n"
-      "import {value,other} from kitchen.menu\n";
+      "import {value as renamed,other as second} from kitchen.menu\n";
   fixture value;
   CHECK(parse_text(&value, source));
   CHECK(value.parse.status == W_SEED_PARSE_COMPLETE &&
@@ -255,6 +255,26 @@ static bool test_invalid_inputs(void) {
   CHECK(!w_seed_module_scan_import_path_span(
           &value.source, value.nodes, value.parse.node_count,
       (w_seed_span){1u, 2u}, &path));
+
+  static const char *const malformed_aliases[] = {
+      "import {value as,other} from kitchen.menu\n",
+      "import {value as renamed as duplicate} from kitchen.menu\n",
+      "import {value as renamed,as other} from kitchen.menu\n",
+  };
+  for (size_t index = 0u;
+       index < sizeof(malformed_aliases) / sizeof(malformed_aliases[0]);
+       index += 1u) {
+    fixture malformed_alias;
+    CHECK(parse_text(&malformed_alias, malformed_aliases[index]));
+    CHECK(malformed_alias.parse.status != W_SEED_PARSE_COMPLETE ||
+          malformed_alias.parse.issue_count != 0u);
+    (void)memset(origins, 0xa5, sizeof(origins));
+    CHECK(w_seed_module_scan(
+              &malformed_alias.source, malformed_alias.nodes,
+              malformed_alias.parse.node_count, &malformed_alias.parse,
+              origins, TEST_ORIGINS, &result) == W_SEED_MODULE_SCAN_INVALID);
+    CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  }
   return true;
 }
 

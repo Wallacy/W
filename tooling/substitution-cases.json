@@ -3804,6 +3804,86 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-proc-abi0-frontend-identity",
+      "reviewItem": "external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.",
+      "decisions": [
+        "W-1542"
+      ],
+      "task": "Resolve the bounded std.process handler surface through frontend16 without claiming verified HIR or runtime execution.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import {",
+          "  Arguments as ProcessArguments,",
+          "  Context as ProcessContext,",
+          "  ExitCode as ProcessExitCode,",
+          "} from std.process",
+          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+          "  return .success",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "alias-as-identity",
+          "language": "w-rejected",
+          "source": [
+            "type identity = source spelling ProcessExitCode"
+          ],
+          "expectedDifference": "A local alias cannot replace the resolver-owned external module and symbol identity."
+        },
+        {
+          "name": "duplicate-local-alias-first-match",
+          "language": "w-rejected",
+          "source": [
+            "import { Arguments as ProcessValue, Context as ProcessValue } from std.process"
+          ],
+          "expectedDifference": "Duplicate local import aliases fail closed rather than resolving according to source order."
+        },
+        {
+          "name": "forged-success-value",
+          "language": "w-rejected",
+          "source": [
+            "external mutable value success: ExitCode"
+          ],
+          "expectedDifference": "The bounded enum projection requires the exported payload-free constant owned and returned by std.process.ExitCode."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_parser.c",
+          "symbol": "parse_import_declaration",
+          "claim": "The seed parser retains an optional grouped-import alias inside each import item."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_module_scan.c",
+          "symbol": "parse_import_path",
+          "claim": "The module scanner accepts the same bounded grouped-alias grammar while retaining module-origin ownership."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "external_identity_pair_valid",
+          "claim": "Frontend16 validates every present external nominal identity as one exported resolver-owned type pair."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_process_abi_alias_and_exit_case",
+          "claim": "Focused tests prove valid aliases, canonical success identity, adversarial metadata, deterministic receipts, and capacity preservation."
+        }
+      ],
+      "checks": [
+        "Seed parser, module-scan, and frontend units passed",
+        "HIR0, HLO0, and MLIR0 units passed as regression checks only"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
