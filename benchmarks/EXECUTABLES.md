@@ -13,6 +13,7 @@ Best-known status: **established** (20 promoted records).
 | restaurant-nested-branch | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-nested-if.w](../compiler/seed-c/fixtures/restaurant-nested-if.w); oracle source-backed | deferred-to-M3b |
 | bool-short-circuit | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w); oracle source-backed | deferred-to-M3b |
 | restaurant-interpolation | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-interpolation.w](../compiler/seed-c/fixtures/restaurant-interpolation.w); oracle source-backed | deferred-to-M3b |
+| restaurant-scalar-if | source-and-oracle-ready; w: [../compiler/seed-c/fixtures/restaurant-scalar-if.w](../compiler/seed-c/fixtures/restaurant-scalar-if.w); oracle source-backed | deferred-to-M3b |
 | restaurant-composition | not-materialized; no materialized source; oracle declared | planned |
 
 ## Best-known validated records
@@ -72,7 +73,7 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.
 C and Rust routes currently cover `hello`, `restaurant-branch` and preserve each workload's declared artifact ABI.
 W uses the public `w build` Release driver for `hello`, `restaurant-branch` with the externally materialized Windows MLIR/LLVM/LLD toolchain. Its compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
-Routes for `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
+Routes for `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation`, `restaurant-scalar-if` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
 Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.
 The current runner retains a correctness artifact only after a bounded in-process PE32+ check for zero COFF symbols, zero CodeView/PDB entries and sidecars, no certificate or overlay bytes, and in-bounds section data. A POGO-only PE debug directory is retained and measured because it is linker optimization metadata rather than source-level debug symbols. This cleanliness statement applies only to new runner-bound results; immutable history retains its original provenance and is not retroactively certified.
 New runner-bound records project exact zero counts for COFF symbols, CodeView entries, sidecars and overlay bytes, plus the bounded POGO directory entries and payload sizes when present; historical records without `artifact.cleanliness` remain uncertified.

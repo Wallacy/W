@@ -143,6 +143,7 @@ static fixture fixture_collision;
 static fixture fixture_const;
 static fixture fixture_host;
 static char long_source[8192];
+static fixture fixture_scalar_if;
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
   if (size == 0) return true;
@@ -546,6 +547,16 @@ static bool has_fact(const fixture *fixture_value,
   for (size_t index = 0; index < fixture_value->result.written.facts;
        index += 1) {
     if (fixture_value->facts[index].kind == kind) return true;
+  }
+  return false;
+}
+
+static bool has_parse_issue(const fixture *fixture_value,
+                            w_seed_parse_issue_kind kind) {
+  if (fixture_value == NULL) return false;
+  for (size_t index = 0u; index < fixture_value->parse.issue_count;
+       index += 1u) {
+    if (fixture_value->issues[index].kind == kind) return true;
   }
   return false;
 }
@@ -1054,6 +1065,154 @@ static bool append_many_piece(char *destination, size_t capacity,
                                (unsigned long long)index, suffix);
   if (written < 0 || (size_t)written >= sizeof(piece)) return false;
   return append_many_source(destination, capacity, length, piece);
+}
+
+static bool scalar_if_frontend_shape(const fixture *value,
+                                     size_t expected_count) {
+  if (value == NULL) return false;
+  size_t if_count = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_IF) continue;
+    if_count += 1u;
+    CHECK(expression->supported);
+    CHECK(expression->left < value->result.written.expressions &&
+          expression->right < value->result.written.expressions &&
+          expression->else_expression < value->result.written.expressions);
+    CHECK(expression->inferred_type < value->result.written.types);
+    const w_seed_frontend_expression *condition =
+        &value->expressions[expression->left];
+    const w_seed_frontend_expression *then_arm =
+        &value->expressions[expression->right];
+    const w_seed_frontend_expression *else_arm =
+        &value->expressions[expression->else_expression];
+    CHECK(condition->inferred_type < value->result.written.types &&
+          value->types[condition->inferred_type].kind ==
+              W_SEED_FRONTEND_TYPE_BOOL);
+    CHECK(then_arm->inferred_type < value->result.written.types &&
+          else_arm->inferred_type < value->result.written.types);
+    const w_seed_frontend_type *then_type =
+        &value->types[then_arm->inferred_type];
+    const w_seed_frontend_type *else_type =
+        &value->types[else_arm->inferred_type];
+    const w_seed_frontend_type *result_type =
+        &value->types[expression->inferred_type];
+    CHECK(then_type->kind == else_type->kind &&
+          then_type->kind == result_type->kind);
+    if (then_type->kind == W_SEED_FRONTEND_TYPE_INTEGER) {
+      CHECK(then_type->is_signed == else_type->is_signed &&
+            then_type->bit_width == else_type->bit_width &&
+            then_type->is_signed == result_type->is_signed &&
+            then_type->bit_width == result_type->bit_width &&
+            then_type->is_signed && then_type->bit_width == 64u);
+    } else {
+      CHECK(then_type->kind == W_SEED_FRONTEND_TYPE_BOOL);
+    }
+  }
+  CHECK(if_count == expected_count);
+  return true;
+}
+
+static bool scalar_if_unsupported(fixture *value, const char *source) {
+  CHECK(fixture_run(value, source));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(value->result.written.diagnostics == 0u);
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+  return true;
+}
+
+static bool test_scalar_if_frontend_subset(void) {
+  fixture *value = &fixture_scalar_if;
+  static const char i64_source[] =
+      "fn serve(isOpen: Bool, seats: i64): i64 { "
+      "let next = if isOpen { seats + 1 } else { seats - 1 } "
+      "return if isOpen { next } else { seats } }\n"
+      "entry(serve)\n";
+  CHECK(fixture_run(value, i64_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.diagnostics == 0u &&
+        value->result.written.facts == 0u);
+  CHECK(scalar_if_frontend_shape(value, 2u));
+  w_seed_frontend_counts measured_counts;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured_counts,
+                                &measured_result) == W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured_counts, &value->result.required));
+  CHECK(measured_result.required.receipt_bytes ==
+        value->result.required.receipt_bytes);
+
+  static const char bool_source[] =
+      "fn choose(isOpen: Bool): Bool { "
+      "let state = if isOpen { true } else { false } "
+      "return if isOpen { state } else { false } }\n"
+      "entry(choose)\n";
+  CHECK(fixture_run(value, bool_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(scalar_if_frontend_shape(value, 2u));
+
+  static const char literal_source[] =
+      "fn literal(isOpen: Bool): i64 { "
+      "let seats = if isOpen { 5 } else { 2 } return seats }\n"
+      "entry(literal)\n";
+  CHECK(fixture_run(value, literal_source));
+  CHECK(value->parse.status == W_SEED_PARSE_COMPLETE &&
+        value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(scalar_if_frontend_shape(value, 1u));
+  bool saw_integer_literal = false;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind != W_SEED_FRONTEND_EXPR_INTEGER) continue;
+    saw_integer_literal = true;
+    CHECK(expression->has_integer_value);
+  }
+  CHECK(saw_integer_literal);
+
+  CHECK(fixture_parse(value,
+                      "fn missing(isOpen: Bool): i64 { "
+                      "return if isOpen { 1 } }\nentry(missing)\n"));
+  CHECK(value->parse.status != W_SEED_PARSE_COMPLETE &&
+        has_parse_issue(value, W_SEED_PARSE_ISSUE_VALUE_IF_MISSING_ELSE));
+
+  CHECK(fixture_run(value,
+                    "fn nonBool(): i64 { return if 1 { 2 } else { 3 } }\n"
+                    "entry(nonBool)\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        value->result.written.diagnostics == 1u &&
+        has_diagnostic(value, "W-SEM-0001") &&
+        !has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(fixture_run(value,
+                    "fn mismatch(isOpen: Bool): i64 { "
+                    "return if isOpen { 2 } else { false } }\n"
+                    "entry(mismatch)\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        value->result.written.diagnostics == 1u &&
+        has_diagnostic(value, "W-TYPE-0120") &&
+        !has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
+  CHECK(scalar_if_unsupported(
+      value,
+      "fn nested(): i64 { return if true { if false { 1 } else { 2 } } "
+      "else { 3 } }\nentry(nested)\n"));
+  CHECK(scalar_if_unsupported(
+      value,
+      "fn text(): String { return if true { \"a\" } else { \"b\" } }\n"
+      "entry(text)\n"));
+  CHECK(scalar_if_unsupported(
+      value,
+      "fn value(): i64 { return 1 }\n"
+      "fn callArm(): i64 { return if true { value() } else { 2 } }\n"
+      "entry(callArm)\n"));
+  CHECK(scalar_if_unsupported(
+      value,
+      "fn effect(seats: i64): i64 { "
+      "return if true { seats = 1 } else { seats } }\n"
+      "entry(effect)\n"));
+  return true;
 }
 
 static bool test_enum_subsets(void) {
@@ -2286,7 +2445,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-13") &&
+                         "w-seed-frontend-14") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2325,8 +2484,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-13\n",
-                         strlen("schema=w-seed-frontend-13\n")));
+        receipt_contains(value, "schema=w-seed-frontend-14\n",
+                         strlen("schema=w-seed-frontend-14\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -4445,6 +4604,7 @@ static bool test_scalar_type_measure_emit_parity(void) {
 }
 
 int main(void) {
+  if (!test_scalar_if_frontend_subset()) return 1;
   if (!test_scalar_type_measure_emit_parity()) return 1;
   if (!test_declarations_and_determinism()) return 1;
   if (!test_enums_and_payloads()) return 1;

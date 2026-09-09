@@ -119,7 +119,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-13") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-14") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -295,6 +295,59 @@ static bool test_logical_native_selector(void) {
             W_SEED_NATIVE_SUBSET0_OK);
   CHECK(selection.has_cfg && selection.has_local_calls && selection.has_bool &&
         selection.maximum_stdout_bytes != 0u);
+  return true;
+}
+
+static bool test_scalar_if_value_native(void) {
+  static const uint8_t source[] =
+      "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
+      "return if isOpen { openCount } else { closedCount } }\n"
+      "fn main() { let open = serve(isOpen: true, openCount: 5, "
+      "closedCount: 2) let closed = serve(isOpen: false, openCount: 5, "
+      "closedCount: 2) print(\"Open ${open}; closed ${closed}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "restaurant-scalar-if", 20u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 5u &&
+        program->block_argument_count == 1u &&
+        program->functions[0].block_count == 4u &&
+        program->functions[1].block_count == 1u &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, "
+                       "%cursor_address: !llvm.ptr, %p0: i1, %p1: i64, "
+                       "%p2: i64) -> i64") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.br ^w_fn_0_b_3(%p1 : i64)") == 1u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.br ^w_fn_0_b_3(%p2 : i64)") == 1u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_append_i64(%buffer, %cursor"));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  /* Each runtime i64 interpolation reserves 20 bytes (the signed decimal
+   * spelling bound); the fixed text is 5 + 9 bytes and print appends one LF.
+   * The concrete calls below produce 17 bytes, so the selector's 55-byte
+   * maximum is an upper bound rather than a prediction of those constants. */
+  const size_t interpolation_upper_bound = 5u + 20u + 9u + 20u;
+  const size_t print_line_upper_bound = interpolation_upper_bound + 1u;
+  const size_t concrete_stdout_bytes = sizeof("Open 5; closed 2\n") - 1u;
+  CHECK(selection.has_cfg && selection.has_local_calls &&
+        selection.has_interpolation &&
+        selection.maximum_stdout_bytes == print_line_upper_bound &&
+        selection.maximum_stdout_bytes >= concrete_stdout_bytes);
   return true;
 }
 
@@ -732,6 +785,7 @@ int main(void) {
                 (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_signed_comparison_products() && test_products();
   const bool logical = products && test_logical_native_selector() &&
+                       test_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&
                        test_direct_scalar_call_return_remains_unsupported();
   const bool nested = logical && test_nested_depth_and_linear_analysis();

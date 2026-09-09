@@ -14,6 +14,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-nested-branch",
   "bool-short-circuit",
   "restaurant-interpolation",
+  "restaurant-scalar-if",
   "restaurant-composition",
 ]);
 export const EXECUTABLE_METRICS = Object.freeze([

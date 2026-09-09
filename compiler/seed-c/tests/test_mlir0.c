@@ -759,6 +759,85 @@ static bool test_scalar_return_call_result(void) {
   return true;
 }
 
+static bool test_scalar_if_value_diamond(void) {
+  static const uint8_t source[] =
+      "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
+      "return if isOpen { openCount } else { closedCount } }\n"
+      "fn flag(isOpen: Bool): Bool { return if isOpen { true } else { false } }\n"
+      "fn main() { print(\"scalar\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 3u && program->block_count == 9u &&
+        program->block_argument_count == 2u &&
+        program->functions[0].block_count == 4u &&
+        program->functions[1].first_block == 4u &&
+        program->functions[1].block_count == 4u &&
+        program->functions[2].first_block == 8u &&
+        program->functions[2].block_count == 1u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].logical_operator ==
+            W_SEED_HIR0_LOGICAL_NONE &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[4].logical_operator ==
+            W_SEED_HIR0_LOGICAL_NONE &&
+        program->terminators[4].result_type == W_SEED_HIR0_TYPE_BOOL &&
+        program->blocks[7].block_argument_count == 1u &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_BOOL);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+  CHECK(contains_bytes(
+      artifact, emitted.written.mlir_bytes,
+      "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %p0: i1, %p1: i64, %p2: i64) -> i64"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "^w_fn_0_b_3(%arg0: i64):") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.br ^w_fn_0_b_3(%p1 : i64)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.br ^w_fn_0_b_3(%p2 : i64)") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.return %arg0 : i64"));
+  CHECK(contains_bytes(
+      artifact, emitted.written.mlir_bytes,
+      "llvm.func internal @w_fn_1(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %p0: i1) -> i1"));
+  CHECK(contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.cond_br %p0, ^w_fn_1_b_5, ^w_fn_1_b_6") &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "^w_fn_1_b_7(%arg1: i1):") &&
+        count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.br ^w_fn_1_b_7(") == 2u &&
+        count_bytes(artifact, emitted.written.mlir_bytes, ": i1)") >= 2u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "llvm.return %arg1 : i1"));
+  const size_t serve = find_bytes(
+      artifact, emitted.written.mlir_bytes, "llvm.func internal @w_fn_0(", 0u);
+  const size_t flag = find_bytes(
+      artifact, emitted.written.mlir_bytes, "llvm.func internal @w_fn_1(",
+      serve == SIZE_MAX ? 0u : serve + 1u);
+  const size_t main = find_bytes(artifact, emitted.written.mlir_bytes,
+                                 "llvm.func internal @w_fn_2(",
+                                 flag == SIZE_MAX ? 0u : flag + 1u);
+  CHECK(serve != SIZE_MAX && flag != SIZE_MAX && main != SIZE_MAX);
+  CHECK(find_bytes(artifact + serve, flag - serve, "llvm.select", 0u) ==
+            SIZE_MAX &&
+        find_bytes(artifact + flag,
+                   main - flag, "llvm.select", 0u) ==
+            SIZE_MAX);
+  return true;
+}
+
 static bool test_if_diamond_cfg(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool) {\n"
@@ -1938,6 +2017,7 @@ int main(void) {
   if (!test_typed_interpolation_artifact()) return 1;
   if (!test_direct_unit_call()) return 1;
   if (!test_scalar_return_call_result()) return 1;
+  if (!test_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
   if (!test_logical_and_diamond()) return 1;
   if (!test_logical_unary_not()) return 1;

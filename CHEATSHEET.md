@@ -1671,3 +1671,14 @@ to `llvm.xor`, `llvm.cond_br`, and `llvm.br ^join(%operand : i1)`. The Restauran
 short-circuit fixture passed the Linux/WSL and native Windows gates with exact
 stdout; this is compiler-lifecycle correctness evidence, not general CFG or
 performance evidence.
+W-1539 adds the bounded scalar-if value cut: `if condition { scalar } else {
+scalar }` is valid only in scalar `return` and immutable `let` initializer
+contexts, with a Bool condition and matching `i64` or Bool arms. HIR11 carries
+one typed join argument per diamond; MLIR14/Windows5 emits real
+`llvm.cond_br`/typed `llvm.br` CFG and never `llvm.select`. The Restaurant
+fixture passed both conditions with exact `Open 5; closed 2\n` on the public
+Windows route. W-390 keeps runtime `+/-` checked and outside this witness;
+missing else/non-Bool/mismatch use `W-PARSE-0021`/`W-SEM-0001`/`W-TYPE-0120`,
+and unsupported nested/effectful/aggregate forms remain rejected. This is
+compiler-lifecycle correctness evidence only; no general CFG, target or
+performance claim follows.

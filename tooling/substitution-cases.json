@@ -3553,6 +3553,110 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-mlir0-scalar-if-value",
+      "reviewItem": "bounded scalar `if` value against eager arm evaluation, fake logical encoding, and general scalar CFG.",
+      "decisions": [
+        "W-1539"
+      ],
+      "task": "Lower one Bool-conditioned scalar if value through a typed HIR join and real LLVM CFG, then execute both Restaurant conditions.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 {",
+          "  return if isOpen { openCount } else { closedCount }",
+          "}",
+          "fn main() {",
+          "  let open = serve(isOpen: true, openCount: 5, closedCount: 2)",
+          "  let closed = serve(isOpen: false, openCount: 5, closedCount: 2)",
+          "  print(\"Open ${open}; closed ${closed}\")",
+          "}",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "eager-select",
+          "language": "w-rejected",
+          "source": [
+            "let result = select(isOpen, openCount, closedCount)"
+          ],
+          "expectedDifference": "An eager select does not prove CFG arm selection and may evaluate an unselected arm."
+        },
+        {
+          "name": "fake-logical",
+          "language": "w-rejected",
+          "source": [
+            "if isOpen { openCount } else { closedCount }"
+          ],
+          "expectedDifference": "Scalar values must use the yielded branch type and typed join, not a logical-operator tag."
+        },
+        {
+          "name": "general-cfg",
+          "language": "w-rejected",
+          "source": [
+            "goto join",
+            "join: result = phi(openCount, closedCount)"
+          ],
+          "expectedDifference": "The first scalar cut admits only one structured, nonnested value diamond."
+        },
+        {
+          "name": "runtime-arithmetic",
+          "language": "w-rejected",
+          "source": [
+            "return if isOpen { openCount + 1 } else { closedCount - 1 }"
+          ],
+          "expectedDifference": "W-390 checked overflow keeps arbitrary runtime arithmetic outside this native witness."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_scalar_if_tree_ok",
+          "claim": "Frontend value context admits the normalized nonnested scalar if only for a Bool condition and matching i64/Bool arms."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "HIR verifies yielded branch type, one typed join argument, and one typed incoming from each arm with ownership and dominance."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_function",
+          "claim": "MLIR emits llvm.cond_br and typed llvm.br join arguments without llvm.select or eager arm evaluation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_scalar_if_frontend_subset",
+          "claim": "Frontend tests cover scalar return and immutable-let positives plus diagnostic and unsupported-form boundaries."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_scalar_if_value_diamond",
+          "claim": "HIR tests reject forged result type, logical mode, incoming owner/ordinal/type, join target, block argument range/type and read location transactionally."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-scalar-if.w",
+          "symbol": "serve",
+          "claim": "The Restaurant witness invokes both Bool directions and prints Open 5; closed 2 with a single selected scalar arm."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantScalarIfFixture",
+          "claim": "The public Windows gate checks the exact scalar-if stdout through the native Release route."
+        }
+      ],
+      "checks": [
+        "Focused frontend14, HIR11, MLIR14, and Native0 C23 suites passed",
+        "bun check --target w-run-windows — native Windows scalar-if fixture passed with exact stdout"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

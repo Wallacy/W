@@ -724,7 +724,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                    owner_function, false, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
-    if (type != W_SEED_HIR0_TYPE_BOOL ||
+    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||
         value->block_argument_index == W_SEED_HIR0_NONE ||
         value->block_argument_index >= program->block_argument_count)
       return false;
@@ -764,6 +764,15 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                    owner_function, allow_string, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        program->values[value->left_value].type_index >= program->type_count ||
+        program->values[value->right_value].type_index >= program->type_count ||
+        program->types[program->values[value->left_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_I64 ||
+        program->types[program->values[value->right_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_I64)
+      return false;
     if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
         value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL)
       return type == W_SEED_HIR0_TYPE_BOOL &&
@@ -778,11 +787,11 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   return false;
 }
 
-/* HIR0 verification proves each logical branch is a structured diamond. A
- * scalar function may therefore use multiple blocks only when every branch
- * in its block range is one of those logical branches. Unit-return CFG keeps
- * the pre-existing general structured-if subset. */
-static bool program_scalar_cfg_is_logical(
+/* HIR0 verification proves each branch is a structured diamond. Scalar
+ * functions may use only the first-cut value-if diamonds: their two arm
+ * blocks are empty and jump directly to the typed join. Logical diamonds keep
+ * their existing Bool-only shape. */
+static bool program_scalar_cfg_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count) return false;
   const w_seed_hir0_function *function = &program->functions[function_index];
@@ -802,8 +811,28 @@ static bool program_scalar_cfg_is_logical(
         &program->terminators[block->terminator_index];
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
       has_branch = true;
-      if (terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE)
+      if (terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE) {
+        if ((terminator->result_type != W_SEED_HIR0_TYPE_I64 &&
+             terminator->result_type != W_SEED_HIR0_TYPE_BOOL) ||
+            terminator->target_block >= program->block_count ||
+            terminator->else_block >= program->block_count)
+          return false;
+        const w_seed_hir0_block *then_block =
+            &program->blocks[terminator->target_block];
+        const w_seed_hir0_block *else_block =
+            &program->blocks[terminator->else_block];
+        if (then_block->instruction_count != 0u ||
+            else_block->instruction_count != 0u ||
+            then_block->terminator_index >= program->terminator_count ||
+            else_block->terminator_index >= program->terminator_count ||
+            program->terminators[then_block->terminator_index].kind !=
+                W_SEED_HIR0_TERMINATOR_JUMP ||
+            program->terminators[else_block->terminator_index].kind !=
+                W_SEED_HIR0_TERMINATOR_JUMP)
+          return false;
+      } else if (terminator->result_type != W_SEED_HIR0_TYPE_BOOL) {
         return false;
+      }
     }
   }
   return has_branch;
@@ -889,7 +918,7 @@ static bool program_function_maximum(
     return false;
   if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
       function->block_count > 1u &&
-      !program_scalar_cfg_is_logical(program, function_index))
+      !program_scalar_cfg_is_supported(program, function_index))
     return false;
   for (size_t parameter = 0u; parameter < function->parameter_count;
        parameter += 1u) {
@@ -1021,9 +1050,7 @@ static bool program_function_maximum(
       continue;
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-      if ((function->return_type != 0u &&
-           terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE) ||
-          terminator->target_block == W_SEED_HIR0_NONE ||
+      if (terminator->target_block == W_SEED_HIR0_NONE ||
           terminator->else_block == W_SEED_HIR0_NONE ||
           terminator->target_block < start ||
           terminator->target_block >= end ||

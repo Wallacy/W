@@ -264,6 +264,41 @@
       "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
     },
     {
+      "id": "restaurant-scalar-if",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Run the source-backed Restaurant scalar-if witness and preserve its exact observable output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open 5; closed 2\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-scalar-if.w",
+          "digest": "sha256:9171e7b833dcb906cca0cb5044e343c275aa5e2b8684dc1d8565c45d1e669376",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "scalar-if-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["cross-language-source-variants", "w-executable-runner-and-timing-deferred-to-M3b"]
+    },
+    {
       "id": "restaurant-composition",
       "status": "planned",
       "sourceReadiness": "not-materialized",

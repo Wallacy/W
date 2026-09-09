@@ -9,7 +9,7 @@ Neither bundle produces a language or product-runtime result.
 ### Executable benchmark catalog (M3a)
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
-catalog of executable workloads. It keeps stable IDs for `hello`, the four
+catalog of executable workloads. It keeps stable IDs for `hello`, the five
 source-backed Restaurant witnesses, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 also has a public `w build` Release source-to-PE candidate plus C and Rust

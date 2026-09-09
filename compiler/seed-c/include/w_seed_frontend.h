@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-13"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-14"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -118,6 +118,9 @@ typedef enum {
   W_SEED_FRONTEND_EXPR_RANGE,
   /* Append-only ordered text/expression interpolation. */
   W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING,
+  /* Append-only bounded scalar if expression.  left is the Bool condition,
+   * right is the then arm, and else_expression is the else arm. */
+  W_SEED_FRONTEND_EXPR_IF,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -786,6 +789,9 @@ typedef struct {
   /* Append-only ordered interpolation range. */
   uint32_t first_interpolation_segment;
   uint32_t interpolation_segment_count;
+  /* Append-only scalar-if else-arm relation.  It is NONE for every other
+   * expression kind. */
+  uint32_t else_expression;
 } w_seed_frontend_expression;
 
 typedef enum {
