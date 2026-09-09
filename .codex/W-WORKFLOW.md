@@ -43,6 +43,24 @@ respective contribution, maintenance, and authority rules. Use
 This file retains only W-specific cleanup and benchmark contracts below. Do not
 copy source-of-record rules into this workflow.
 
+## Tracked artifact retention
+
+The live tree is a catalog of the current project, not an append-only archive.
+Git preserves prior states. A tracked generated artifact must serve at least
+one current consumer as a human projection, an independent golden input, or a
+compact reproducibility receipt. Delete it when its consumer is removed.
+
+Do not commit raw benchmark runs or chronological execution history. A live
+benchmark catalog keeps only the best value for each valid comparison category
+and the provenance needed to reproduce that value. A better validated result
+replaces the prior value atomically; Git records the replacement.
+
+When an oracle can deterministically recreate a large trace from reviewed case
+inputs, track case IDs, dispositions, and stable output digests. Emit the full
+trace only to an ignored local path on explicit request. Never replace an
+independent golden input with a digest produced and accepted by the same
+unchecked operation.
+
 ## Workspace cleanup contract
 
 Before a large build, measure free space on workspace and temporary volumes.

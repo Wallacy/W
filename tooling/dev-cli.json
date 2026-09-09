@@ -4,7 +4,7 @@
   "checks": {
     "quick": {
       "suite": "root-quick",
-      "description": "fast manifests, BMD executable catalog, projections, maintained parsing, and cleanup"
+      "description": "fast structural checks, maintained parsing, benchmark integrity, and cleanup"
     },
     "compiler": {
       "suite": "root-compiler",
@@ -12,19 +12,15 @@
     },
     "docs": {
       "suite": "root-docs",
-      "description": "documentation projections and link checks"
+      "description": "documentation projection freshness and links"
     },
     "studies": {
       "suite": "root-studies",
       "description": "registered study oracles and evidence"
     },
-    "bmd": {
-      "suite": "root-bmd",
-      "description": "benchmark-driven-development structure and catalog contracts"
-    },
-    "executable": {
-      "suite": "root-executable",
-      "description": "executable benchmark catalog structure without workload execution"
+    "benchmark": {
+      "suite": "root-benchmark",
+      "description": "benchmark catalogs and protocols without workload execution"
     },
     "all": {
       "suite": "root-check",

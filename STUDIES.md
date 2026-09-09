@@ -16,8 +16,7 @@
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
-| `superseded-by-W-1511` | 1 |
-| **Total** | **74** |
+| **Total** | **73** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
 Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/command-runner.mjs --command check:study-registry` para validá-las.
@@ -119,9 +118,3 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/c
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
 | `HUM0` | Human and model review protocol for W ergonomics — `protocol-ready` | [`tooling/studies/hum0-human-review`](./tooling/studies/hum0-human-review/) | `HUM0` | `bun tooling/command-runner.mjs --command check:hum0` |
-
-## Status: `superseded-by-W-1511` (1)
-
-| ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
-|---|---|---|---|---|
-| `W-1504` | Historical pipeline and transaction convergence registration for W-1504 — `superseded-by-W-1511` | [`tooling/studies/w1504-pipeline-transaction`](./tooling/studies/w1504-pipeline-transaction/) | `—` | `bun tooling/command-runner.mjs --command check:study-bundles` |

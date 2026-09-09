@@ -52,6 +52,14 @@ decision. If current artifacts conflict, fix `DESIGN.md` first, then update
   alternative.
 - One concept has one canonical home. Link to `DESIGN.md` for behavior and to
   `RATIONALE.md` for evidence instead of copying either explanation.
+- Git is the repository's history. Keep only the current contract, current
+  best measurement, and evidence required to reproduce or independently check
+  a live claim. Do not retain superseded ledgers, chronological run records,
+  or explanatory tombstones in the working tree.
+- Prefer compact checked-in receipts (identity, status, stable digests, and
+  provenance) over full generated traces. Detailed traces and raw benchmark
+  samples are local or CI artifacts unless their exact bytes are an
+  independent source of truth.
 - Do not read generated files in `tooling/tree-sitter-w/src/` during language
   work. `scanner.c` is authored and versioned. Inspect generated files only for
   a parser-generation or distribution problem.

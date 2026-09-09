@@ -2305,14 +2305,6 @@ commit value }`. `commit` plain escolhe o envelope final e não implica
 atomicidade; `commit` desse modo também solicita o commit atômico do provider.
 `unknownCommit` permanece tipado e não autoriza retry cego.
 
-**W-1504 — superseded por W-1511:** o estudo preserva a proveniência da antiga
-separação entre DAG com `return` e expressão `transaction` com `commit`. A
-decisão corrente é W-1511, que fecha a pipeline unificada, os schemas dos três
-modos, o terminal `commit`, a rejeição de nesting e da combinação
-`tasks`+`transaction`, e a migração de todas as superfícies. O ledger histórico é
-[`W-1504`](tooling/studies/w1504-pipeline-transaction/task-ledger.json); ele não
-é uma segunda decisão corrente.
-
 `panic` possui type `Never`. Seus argumentos seguem a avaliação comum. Panic
 não substitui typed error e não participa de `try?`.
 

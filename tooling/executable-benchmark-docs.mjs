@@ -1,17 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import {
-  EXECUTABLE_HISTORY_INDEX_PATH,
-  RESULT_HISTORY_PATH,
   ROOT,
-  loadExecutableHistoryResults,
   loadExecutableDocuments,
   validateExecutableCatalog,
-  validateExecutableBestKnownFreshness,
-  validateExecutableBestKnownIndex,
-  validateExecutableHistory,
+  validateExecutableBestMetrics,
 } from "./executable-benchmark-machine.mjs";
 
 export const PROJECTION_PATH = path.resolve(ROOT, "benchmarks", "EXECUTABLES.md");
@@ -106,154 +100,98 @@ function formatMicroseconds(value) {
   return `${us} µs`;
 }
 
-function formatScaledInteger(value, divisor, unit) {
-  const scaled = (value * 1_000n + divisor / 2n) / divisor;
-  const whole = scaled / 1_000n;
-  const fraction = String(scaled % 1_000n).padStart(3, "0").replace(/0+$/u, "");
-  return fraction.length === 0 ? `${whole} ${unit}` : `${whole}.${fraction} ${unit}`;
-}
-
 export function formatBytes(value) {
   const bytes = BigInt(value);
-  if (bytes >= 1_048_576n) return `${bytes} B (${formatScaledInteger(bytes, 1_048_576n, "MiB")})`;
-  if (bytes >= 1_024n) return `${bytes} B (${formatScaledInteger(bytes, 1_024n, "KiB")})`;
+  if (bytes >= 1_048_576n) return `${bytes} B (${(Number(bytes) / 1_048_576).toFixed(2)} MiB)`;
+  if (bytes >= 1_024n) return `${bytes} B (${(Number(bytes) / 1_024).toFixed(1)} KiB)`;
   return `${bytes} B`;
 }
 
-function sourceLink(source) {
-  return `${source.language}: ${jsonPathLink(projectionPath(source.path))}`;
+function formatValue(entry) {
+  if (entry.metric === "compile-latency" || entry.metric === "run-wall-time") return formatNanoseconds(entry.value);
+  if (entry.metric === "cpu-time") return formatMicroseconds(entry.value);
+  return formatBytes(entry.value);
 }
 
-function formatWorkloadIds(ids) {
-  return ids.length === 0 ? "no catalog workloads" : ids.map((id) => `\`${id}\``).join(", ");
+function sourceLinks(workload) {
+  return workload.sources?.length
+    ? workload.sources.map((source) => jsonPathLink(projectionPath(source.path), source.language)).join(", ")
+    : "—";
 }
 
-function languageBoundaryLines(catalog) {
-  const cRustTargets = catalog.workloads
-    .filter((workload) => workload.sources?.some((source) => source.language === "c" || source.language === "rust"))
-    .map((workload) => workload.id);
-  const publicWBuildTargets = catalog.workloads
-    .filter((workload) => workload.sources?.some((source) => source.language === "w" && source.recipe === "public-w-build-release"))
-    .map((workload) => workload.id);
-  const publicWTargets = catalog.workloads
-    .filter((workload) => workload.sources?.some((source) => source.language === "w" && source.recipe === "public-w-run"))
-    .map((workload) => workload.id);
-  return [
-    "## Workload language boundary",
-    "",
-    "The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.",
-    `C and Rust routes currently cover ${formatWorkloadIds(cRustTargets)} and preserve each workload's declared artifact ABI.`,
-    `W uses the public \`w build\` Release driver for ${formatWorkloadIds(publicWBuildTargets)} with the externally materialized Windows MLIR/LLVM/LLD toolchain. Its compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.`,
-    `Routes for ${formatWorkloadIds(publicWTargets)} use catalog recipe \`public-w-run\`; the runner fails before compilation until retained-artifact and separate compile-run support exists.`,
-    "Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.",
-    "The current runner retains a correctness artifact only after a bounded in-process PE32+ check for zero COFF symbols, zero CodeView/PDB entries and sidecars, no certificate or overlay bytes, and in-bounds section data. A POGO-only PE debug directory is retained and measured because it is linker optimization metadata rather than source-level debug symbols. This cleanliness statement applies only to new runner-bound results; immutable history retains its original provenance and is not retroactively certified.",
-    "New runner-bound records project exact zero counts for COFF symbols, CodeView entries, sidecars and overlay bytes, plus the bounded POGO directory entries and payload sizes when present; historical records without `artifact.cleanliness` remain uncertified.",
-    "C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.",
-    "Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols and `/DEBUG:NONE` to suppress the linker PDB sidecar with the `x86_64-pc-windows-msvc` ABI.",
-    "The public W Release route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, links without the CRT, and verifies a sidecar-free artifact. Its compile wall interval includes compiler descendants; direct-process CPU/RSS covers only w.exe, is non-comparable to C/Rust until process-tree accounting exists, and does not aggregate child processes.",
-    "All records remain exploratory, measurement-only and not-evaluated.",
-  ];
+function bestSort(left, right) {
+  return compareText(String(left?.workloadId ?? ""), String(right?.workloadId ?? "")) ||
+    compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
+    compareText(String(left?.metric ?? ""), String(right?.metric ?? "")) ||
+    compareText(String(left?.id ?? ""), String(right?.id ?? ""));
 }
 
-function readRecordSync(root, reference) {
-  try {
-    return JSON.parse(readFileSync(path.resolve(root, RESULT_HISTORY_PATH, reference.path), "utf8"));
-  } catch {
-    return undefined;
+function compactRecordId(entry) {
+  const prefix = `${entry.workloadId}-${entry.language}-`;
+  return entry.provenance.recordId.startsWith(prefix)
+    ? entry.provenance.recordId.slice(prefix.length, prefix.length + 12)
+    : entry.provenance.recordId.slice(0, 12);
+}
+
+function categoryRows(entries) {
+  const groups = new Map();
+  for (const entry of entries) {
+    const key = `${entry.categoryId}\u0000${entry.workloadId}\u0000${entry.language}`;
+    const group = groups.get(key) ?? { entry, metrics: new Map() };
+    group.metrics.set(entry.metric, entry);
+    groups.set(key, group);
   }
+  return [...groups.values()].sort((left, right) => bestSort(left.entry, right.entry));
 }
 
-function recordedLines(workload, history, root) {
-  const lines = [];
-  const references = [...(history?.records ?? [])].sort((left, right) => compareText(String(left?.id ?? ""), String(right?.id ?? "")) || compareText(String(left?.path ?? ""), String(right?.path ?? "")));
-  for (const reference of references) {
-    const record = readRecordSync(root, reference);
-    if (!record || record.workloadId !== workload.id) continue;
-    const source = workload.sources?.find((item) => item.language === record.language);
-    const comparability = source?.comparability ?? "unclassified";
-    const cleanliness = record.artifact?.cleanliness;
-    const cleanlinessText = cleanliness
-      ? `; PE cleanliness: COFF symbols ${cleanliness.coffSymbols.count}, CodeView entries ${cleanliness.codeView.count}, debug directory ${cleanliness.debugDirectory.presence} (${cleanliness.debugDirectory.sizeBytes} B), certificate ${cleanliness.certificateDirectory.sizeBytes} B, section data ${cleanliness.sectionData}, sidecars ${cleanliness.sidecars.count}, overlay ${cleanliness.overlay.sizeBytes} B`
-      : "";
-    lines.push(`- ${record.language} — ${comparability}; compile median ${formatNanoseconds(record.compile.summary.wallNs.median)} (CPU ${formatMicroseconds(record.compile.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.compile.summary.peakRssBytes.median)}); run median ${formatNanoseconds(record.run.summary.wallNs.median)} (CPU ${formatMicroseconds(record.run.summary.cpuTotalUs.median)}, RSS ${formatBytes(record.run.summary.peakRssBytes.median)}); artifact ${formatBytes(record.artifact.sizeBytes)}${cleanlinessText}; commit ${record.provenance.commit.slice(0, 12)}; toolchain ${record.identity.toolchain}; ${jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record")}`);
-  }
-  return lines;
+function metricCell(group, metric) {
+  const entry = group.metrics.get(metric);
+  return entry ? `${formatValue(entry)} (${compactRecordId(entry)})` : "—";
 }
 
-function formatBestKnownValue(record) {
-  if (record.metric === "compile-latency" || record.metric === "run-wall-time") return formatNanoseconds(record.value);
-  if (record.metric === "cpu-time") return formatMicroseconds(record.value);
-  return formatBytes(record.value);
-}
-
-function bestKnownLines(workload, bestKnown, history) {
-  const references = new Map((history?.records ?? []).map((reference) => [reference.id, reference]));
-  return (bestKnown?.records ?? [])
-    .filter((record) => record.workloadId === workload.id)
-    .sort((left, right) => compareText(String(left.id), String(right.id)))
-    .map((record) => {
-      const links = (record.derivedFrom ?? []).map((id) => {
-        const reference = references.get(id);
-        return reference ? jsonPathLink(projectionPath(`${RESULT_HISTORY_PATH}/${reference.path}`), "history record") : id;
-      }).join(", ");
-      return `- ${record.language} — ${record.metric} ${formatBestKnownValue(record)} (${record.statistic}); toolchain ${record.toolchain}; host ${record.host}; derived from ${links}`;
-    });
-}
-
-export function renderExecutableProjection({ catalog, history, bestKnown, root = ROOT } = {}) {
-  if (!catalog || !history || !bestKnown) throw new TypeError("catalog, history and best-known documents are required");
+export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
+  if (!catalog?.bestMetrics) throw new TypeError("catalog with bestMetrics is required");
+  const entries = [...catalog.bestMetrics.entries].sort(bestSort);
+  const rows = categoryRows(entries);
   const lines = [
     "<!-- generated by tooling/executable-benchmark-docs.mjs; do not edit -->",
     "# Executable benchmark status",
     "",
-    "This projection is generated from the executable catalog, immutable history index, and best-known index.",
-    "It records evidence status, not a claim of general Windows support or performance.",
+    "The catalog stores one lower-is-better value per comparable category and metric; local full-fidelity results are consumed after a successful update.",
+    "Migrated cells are historical/unverified cleanliness, not current clean-run evidence. New `benchmark update` cells require the runner's verified PE-cleanliness result.",
     "",
-    `Best-known status: **${bestKnown.status}** (${bestKnown.records.length} promoted records).`,
+    "## Workload readiness",
     "",
-    "| Workload | Source/oracle readiness | Benchmark status |",
+    "| Workload | Source/oracle | Benchmark lane |",
     "| --- | --- | --- |",
   ];
   for (const workload of catalog.workloads) {
-    const sources = workload.sources?.map(sourceLink).join("; ") || "no materialized source";
-    lines.push(`| ${workload.id} | ${workload.sourceReadiness}; ${sources}; oracle ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
+    lines.push(`| ${workload.id} | ${workload.sourceReadiness}; oracle ${workload.oracle.status}; ${sourceLinks(workload)} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the public W build route remain contextual/non-ranking evidence until process-tree accounting exists.", "A zero-valued run CPU median remains recorded evidence but is excluded from promoted `cpu-time` rows because microsecond resolution cannot establish a positive measurement.");
-  let bestRecorded = 0;
-  for (const workload of catalog.workloads) {
-    const evidence = bestKnownLines(workload, bestKnown, history);
-    if (evidence.length === 0) continue;
-    bestRecorded += evidence.length;
-    lines.push("", `### ${workload.id}`, "", ...evidence);
+  lines.push("", "## Best known cells", "", "Values include compact record-id prefixes; full per-metric provenance is in the machine catalog.", "", "| Workload | Language | Category | Artifact | Compile | Run | Peak RSS | CPU | Cleanliness |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |");
+  for (const group of rows) {
+    const entry = group.entry;
+    const category = `${entry.artifactTarget}; ${entry.profile}; ${entry.host}; ${entry.recipeClass}; eq ${entry.equivalenceKey.slice(-8)}`;
+    const cleanliness = [...new Set([...group.metrics.values()].map((item) => item.provenance.artifactCleanliness))].join(", ");
+    lines.push(`| ${entry.workloadId} | ${entry.language} | ${category} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} | ${cleanliness} |`);
   }
-  if (bestRecorded === 0) lines.push("", "No promotable executable result is tracked yet.");
-  lines.push("", "## Current recorded evidence", "");
-  let recorded = 0;
-  for (const workload of catalog.workloads) {
-    const evidence = recordedLines(workload, history, root);
-    if (evidence.length === 0) continue;
-    recorded += evidence.length;
-    lines.push(`### ${workload.id}`, "", ...evidence, "");
-  }
-  if (recorded === 0) {
-    lines.push("No clean-HEAD executable result is tracked yet.", "", "The local W route is bounded candidate evidence only: public `w build` Release Windows source-to-PE for workloads that declare that recipe, contextual/non-ranking until process-tree accounting exists.", "", "The runner builds `build/w-windows/w.exe` once as a bootstrap outside sample directories and leaves it retained. A pre-existing bootstrap may be replaced during that Release build. Sample directories and target EXEs are removed after the run.", "", "Local outputs stay ignored under `benchmarks/results/`; the immutable index is", `${jsonPathLink(projectionPath(EXECUTABLE_HISTORY_INDEX_PATH), "benchmarks/history/executables/index.json")}.`, "");
-  }
-  lines.push(...languageBoundaryLines(catalog));
+  lines.push(
+    "",
+    "C MinGW and W rows are contextual and are not cross-ABI rankings; promotable Rust rows remain source-equivalence scoped.",
+    "Category identity includes workload, source equivalence, platform, artifact target/ABI, profile, host, recipe class and readiness policy. Toolchain and recipe changes may improve the same cell.",
+    `Machine source: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "benchmarks/executable-catalog.json")}.`,
+  );
   return lines.join("\n");
 }
 
 export async function renderFromDisk(root = ROOT) {
   const documents = loadExecutableDocuments(root);
-  const historyResults = loadExecutableHistoryResults(documents.history, root);
-  const resultRecords = historyResults.map((item) => item.record);
   const errors = [
-    ...validateExecutableHistory(documents.history, documents.catalog, root),
-    ...validateExecutableCatalog(documents.catalog, { ...documents, historyResults: resultRecords }, root),
-    ...validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, resultRecords),
-    ...validateExecutableBestKnownFreshness(documents.bestKnown, documents.catalog, resultRecords),
+    ...validateExecutableCatalog(documents.catalog, documents, root),
+    ...validateExecutableBestMetrics(documents.catalog.bestMetrics, documents.catalog),
   ];
   if (errors.length > 0) throw new Error(errors.join("\n"));
-  return renderExecutableProjection({ ...documents, root });
+  return renderExecutableProjection({ catalog: documents.catalog, root });
 }
 
 export async function main(argv = process.argv.slice(2)) {

@@ -21,8 +21,7 @@ bun check
 bun check --target compiler
 bun check --target docs
 bun check --target studies
-bun check --target bmd
-bun check --target executable
+bun check --target benchmark
 bun check --target all
 bun check --list
 bun check --list-all
@@ -34,6 +33,7 @@ bun tooling/command-runner.mjs --list
 bun check --target study-registry
 bun run study:registry
 bun benchmark list
+bun benchmark update benchmarks/results/<result>.json
 bun benchmark check
 ```
 
@@ -68,8 +68,9 @@ bun tooling/check-suite.mjs --dry-run --suite root-quick
 bun tooling/check-suite.mjs --dry-run --suite root-compiler
 ```
 
-`bun check --target quick` validates manifests, the BMD/executable catalogs, projections,
-documentation, and maintained parsing without heavy C builds.
+`bun check --target quick` validates manifests, cleanup policy, the current
+platform/dependency/diagnostic projections, maintained parsing, links, and the
+BMD/executable catalogs without compiler builds or deep design oracles.
 `check:bmd:executable` is a separate Hello correctness smoke: it never runs W,
 records no timing, and compiles C23/c2x and Rust when toolchains are available.
 The executable catalog uses `windows-x64` as the shared platform class; GCC C
@@ -80,17 +81,20 @@ the catalog's source/oracle readiness does not make W performance-ready.
 Raw wall/RSS samples and artifact sizes are strictly positive; CPU counters may
 be zero at their disclosed microsecond resolution, and arithmetic means use
 integer-floor rounding. Result host identities are derived from normalized
-redacted environment classes, never from hostnames, users, or paths. The
-best-known contract is defined even while its empty index is not-established.
+redacted environment classes, never from hostnames, users, or paths. The live
+best-metrics contract stores only positive lower-is-better cells; zero CPU
+measurements never become best, and migrated cells are historical/unverified.
 The executable facade's `run` command measures one W, C or Rust Hello source.
 W uses the private Native0/MLIR0 Windows source-to-PE candidate route. C probes
 `-std=c23` and `-std=c2x`, then records the accepted standard and MinGW ABI.
 Rust records its rustc release, edition 2024 and MSVC ABI. The facade does not
-benchmark public `w run` or claim general Windows support. `benchmark record` is intentionally stricter:
-it requires clean-HEAD commit/catalog/runner provenance and writes only a
-content-addressed history record plus its index/projection. A crash between
-those files is detectable by `benchmark check`, not silently treated as an
-atomic multi-file transaction.
+benchmark public `w run` or claim general Windows support. `benchmark update`
+is intentionally stricter: it requires clean-HEAD commit/catalog/runner
+provenance, atomically replaces the catalog file for improving live cells,
+regenerates the projection, and consumes the local result on success. Projection
+drift after an interrupted two-file replacement is detected by `benchmark
+check`. Valid non-improving updates are idempotent no-ops; raw history files are
+never written.
 `bun check --target compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
 interno permanece um gate focal separado (`bun check --target run0`). Os leaves
@@ -100,8 +104,8 @@ imediatamente depois de OWN0. O gate MAN0 atravessa o caminho OWN0 que consome,
 mas não repete a suíte OWN0 inteira. `tree-check` e `root-check` recebem os
 mesmos leaves por composição. `check:w-cli` continua depois deles como
 regressão pública.
-`check --target all` mantém a suíte integrada histórica. Use os targets
-`docs`, `studies`, `bmd` e `executable` para escopos menores; os leaves
+`check --target all` mantém a suíte integrada completa. Use os targets
+`docs`, `studies` e `benchmark` para escopos menores; os leaves
 internos com dois-pontos são resolvidos pelo command registry. `--target`
 prioriza esses nomes de suíte; um leaf sem o prefixo, como `hlo0` ou `w-run`,
 resolve `check:<leaf>` no registro. `bun check --list` shows only the public
@@ -256,7 +260,7 @@ owner selection, backend, linker, runtime ou o runner `w run` geral.
 
 ## Estudos e oracles
 
-Leia [`STUDIES.md`](../STUDIES.md) para o inventário dos 71 estudos, seus
+Leia [`STUDIES.md`](../STUDIES.md) para o inventário dos 73 estudos, seus
 status e entrypoints. Cada diretório em `studies/` pode conter corpus, máquina,
 oracle, snapshot e documentação local. `bun check --target studies` executa a suíte
 agregada; um estudo também pode ter um alias focal na raiz.

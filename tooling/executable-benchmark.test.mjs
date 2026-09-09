@@ -1,167 +1,55 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import test from "node:test";
-import os from "node:os";
-import path from "node:path";
 import {
-  EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
   EXECUTABLE_BEST_SCHEMA,
+  EXECUTABLE_COMPARABILITY_AXES,
   EXECUTABLE_LANGUAGES,
-  EXECUTABLE_METRICS,
-  EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
-  deriveExecutableBestKnown,
+  EXECUTABLE_PLATFORM_TARGET,
+  deriveExecutableBestMetrics,
   executableEquivalenceKey,
   executableHostIdentity,
   exactOutputDigest,
   loadExecutableDocuments,
-  loadExecutableHistoryResults,
-  validateExecutableBestKnown,
-  validateExecutableBestKnownFreshness,
-  validateExecutableBestKnownIndex,
+  updateExecutableBestMetrics,
+  validateExecutableBestMetric,
+  validateExecutableBestMetrics,
   validateExecutableCatalog,
-  validateExecutableHistory,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 
 const documents = loadExecutableDocuments();
-const historyResults = loadExecutableHistoryResults(documents.history).map(({ record }) => record);
 const clone = (value) => structuredClone(value);
 const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
 
-test("executable catalog is source-backed and keeps planned work separate", () => {
+test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
-  assert.equal(documents.schema.$id, "w-executable-benchmark/3");
+  assert.equal(documents.schema.$id, "w-executable-benchmark/4");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
-    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestKnown", "#/$defs/bestKnownIndex", "#/$defs/historyIndex",
+    "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
-  for (const definition of ["catalog", "result", "bestKnown", "bestKnownIndex", "historyIndex", "historyReference", "sample", "sampleSeries"]) {
+  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
-  assert.deepEqual(documents.schema.$defs.sampleSeries.properties.raw.minItems, 9);
-  assert.deepEqual(documents.schema.$defs.sample.required, [
-    "wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes",
-  ]);
-  assert.deepEqual(documents.schema.$defs.artifactCleanliness.required, [
-    "coffSymbols", "codeView", "debugDirectory", "certificateDirectory", "sectionData", "sidecars", "overlay",
-  ]);
-  assert.equal(documents.schema.$defs.sample.properties.wallNs.$ref, "#/$defs/positiveDecimal");
-  assert.equal(documents.schema.$defs.sample.properties.peakRssBytes.$ref, "#/$defs/positiveDecimal");
-  assert.equal(documents.schema.$defs.artifact.properties.sizeBytes.$ref, "#/$defs/positiveDecimal");
-  assert.equal(documents.schema.$defs.protocol.properties.arithmeticMeanRounding.const, "floor-integer");
-  assert.deepEqual(documents.catalog.metrics.map((item) => item.id), EXECUTABLE_METRICS.map((item) => item.id));
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
-  const hello = documents.catalog.workloads.find((item) => item.id === "hello");
-  assert.equal(hello.status, "source-oracle-ready");
-  assert.equal(hello.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(hello.benchmarkStatus, "not-performance-ready");
-  assert.equal(hello.sources.find((item) => item.language === "w").recipe, "public-w-build-release");
-  assert.equal(hello.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-process-tree-accounting");
-  assert.equal(hello.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-process-tree-accounting");
-  assert.deepEqual(hello.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
-  assert.equal(hello.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
-  assert.equal(hello.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
-  assert.equal(hello.sources.find((item) => item.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
-  assert.equal(hello.oracle.stdout, "Hello, world!\n");
-  const restaurant = documents.catalog.workloads.find((item) => item.id === "restaurant-branch");
-  assert.equal(restaurant.status, "source-oracle-ready");
-  assert.equal(restaurant.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(restaurant.benchmarkStatus, "not-performance-ready");
-  assert.deepEqual(restaurant.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
-  assert.deepEqual(restaurant.blockedLanguages, []);
-  assert.deepEqual(restaurant.blockers, ["process-tree-accounting"]);
-  assert.equal(restaurant.sources.find((item) => item.language === "w").recipe, "public-w-build-release");
-  assert.equal(restaurant.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-process-tree-accounting");
-  assert.equal(restaurant.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-process-tree-accounting");
-  assert.equal(restaurant.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
-  assert.equal(restaurant.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
-  assert.equal(restaurant.sources.find((item) => item.language === "c").eligibility, "correctness-only-until-c23");
-  assert.equal(restaurant.sources.find((item) => item.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
-  assert.equal(restaurant.sources.find((item) => item.language === "rust").comparability, "promotable-after-equivalence");
-  assert.equal(restaurant.sources.find((item) => item.language === "rust").eligibility, "promotable-after-equivalence");
-  assert.equal(restaurant.oracle.exitCode, 0);
-  assert.equal(restaurant.oracle.stdout, "Kitchen open\nAfter service\nKitchen closed\nAfter service\n");
-  assert.equal(restaurant.oracle.stderr, "");
-  for (const id of ["restaurant-nested-branch", "bool-short-circuit", "restaurant-interpolation"]) {
-    const workload = documents.catalog.workloads.find((item) => item.id === id);
-    assert.equal(workload.status, "source-oracle-ready");
-    assert.deepEqual(workload.blockedLanguages, ["c", "rust"]);
-    assert.equal(workload.sources[0].language, "w");
-  }
-  assert.equal(documents.catalog.workloads.find((item) => item.id === "restaurant-composition").status, "planned");
-  assert.equal(documents.catalog.bestKnownContract.status, "defined");
-  assert.equal(documents.catalog.status, "catalog-ready");
-  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, historyResults), []);
-  assert.deepEqual(validateExecutableHistory(documents.history, documents.catalog), []);
-  assert.ok(historyResults.some((record) => record.language === "w" && record.identity.recipe === "private-native0-mlir0-source-to-pe-candidate" && record.identity.eligibility === "contextual-only-until-public-run"), "immutable history retains the previous W recipe and policy label");
-});
-
-test("catalog rejects stale, escaped, duplicate and partition-drifting records", () => {
-  const stale = clone(documents.catalog);
-  stale.workloads[0].sources[0].digest = digest;
-  assert.match(validateExecutableCatalog(stale, documents).join("\n"), /digest is stale/);
-
-  const escaped = clone(documents.catalog);
-  escaped.workloads[0].sources[1].path = "../outside.c";
-  assert.match(validateExecutableCatalog(escaped, documents).join("\n"), /escapes/);
-
-  const duplicate = clone(documents.catalog);
-  duplicate.workloads[2].blockedLanguages.push("rust");
-  assert.match(validateExecutableCatalog(duplicate, documents).join("\n"), /duplicates/);
-
-  const forgedPartition = clone(documents.catalog);
-  forgedPartition.workloads[2].blockedLanguages = ["c"];
-  assert.match(validateExecutableCatalog(forgedPartition, documents).join("\n"), /must account for language rust/);
-
-  const drifted = clone(documents.catalog);
-  drifted.metrics[0].id = "timing-percent";
-  assert.match(validateExecutableCatalog(drifted, documents).join("\n"), /metric/);
-
-  const wrongRecipe = clone(documents.catalog);
-  wrongRecipe.workloads[0].sources.find((item) => item.language === "w").recipe = "unscoped-private-route";
-  assert.match(validateExecutableCatalog(wrongRecipe, documents).join("\n"), /recipe is not a supported recipe for w/);
-});
-
-test("history is content-addressed and rejects unindexed entries", () => {
-  const invalidName = clone(documents.history);
-  invalidName.records = [{ id: "forged", path: "forged.json", digest }];
-  invalidName.status = "recorded";
-  assert.match(validateExecutableHistory(invalidName, documents.catalog).join("\n"), /lowercase sha256 hex digest filename/);
-  const mismatchedDigest = clone(documents.history);
-  mismatchedDigest.records = [{ id: "forged", path: "0".repeat(64) + ".json", digest }];
-  mismatchedDigest.status = "recorded";
-  assert.match(validateExecutableHistory(mismatchedDigest, documents.catalog).join("\n"), /match its sha256 digest filename/);
-
-  const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "w-executable-history-test-"));
-  const historyRoot = path.join(temporaryRoot, "benchmarks", "history", "executables");
-  fs.mkdirSync(historyRoot, { recursive: true });
-  fs.writeFileSync(path.join(historyRoot, "index.json"), JSON.stringify(documents.history, null, 2) + "\n");
-  fs.writeFileSync(path.join(historyRoot, "README.md"), "history\n");
-  fs.writeFileSync(path.join(historyRoot, "unexpected.json"), "{}\n");
-  try {
-    assert.match(validateExecutableHistory(documents.history, documents.catalog, temporaryRoot).join("\n"), /unindexed entry: unexpected\.json/);
-  } finally {
-    fs.rmSync(temporaryRoot, { recursive: true, force: true });
-  }
+  assert.equal(documents.catalog.resultContract.recordsPath, "benchmarks/results");
+  assert.equal(documents.catalog.bestMetricsContract.schema, EXECUTABLE_BEST_SCHEMA);
+  assert.equal(documents.catalog.bestMetrics.entries.length, 24);
+  assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.provenance.artifactCleanliness === "historical-unverified"));
+  assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
+  assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
+  assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
 });
 
 function sample(index) {
-  return {
-    wallNs: String(index + 1),
-    cpuUserUs: "1",
-    cpuSystemUs: "0",
-    cpuTotalUs: "1",
-    peakRssBytes: String(100 + index),
-  };
+  return { wallNs: String(index + 1), cpuUserUs: "1", cpuSystemUs: "0", cpuTotalUs: "1", peakRssBytes: String(100 + index) };
 }
 
 function sampleSeries() {
   const raw = Array.from({ length: 9 }, (_, index) => sample(index));
-  const stats = (min, median, max, arithmeticMean, mad) => ({
-    min: String(min), median: String(median), max: String(max), arithmeticMean: String(arithmeticMean), mad: String(mad),
-  });
+  const stats = (min, median, max, arithmeticMean, mad) => ({ min: String(min), median: String(median), max: String(max), arithmeticMean: String(arithmeticMean), mad: String(mad) });
   return {
     warmup: [sample(99)],
     raw,
@@ -181,367 +69,67 @@ function sampleSeries() {
 }
 
 function validResult(language = "rust") {
-  const hello = documents.catalog.workloads.find((item) => item.id === "hello");
-  const source = hello.sources.find((item) => item.language === language);
-  const recipeDigest = digest;
+  const workload = documents.catalog.workloads.find((item) => item.id === "hello");
+  const source = workload.sources.find((item) => item.language === language);
   const artifactTarget = language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
-  const environment = {
-    os: "windows-11",
-    kernel: "windows-class",
-    cpuModel: "x86_64-class",
-    logicalCores: "16",
-    ramBytes: "34359738368",
-  };
+  const environment = { os: "windows-11", kernel: "windows-class", cpuModel: "x86_64-class", logicalCores: "16", ramBytes: "34359738368" };
   return {
-    $schema: "./executable-benchmark.schema.json",
-    schema: EXECUTABLE_RESULT_SCHEMA,
-    kind: "executable-result",
-    id: "hello-" + language + "-example",
-    status: "recorded",
-    workloadId: "hello",
-    language,
-    platformTarget: EXECUTABLE_PLATFORM_TARGET,
-    artifactTarget,
-    profile: "release",
-    quality: "exploratory",
-    claim: "measurement-only",
-    verdict: "not-evaluated",
+    $schema: "./executable-benchmark.schema.json", schema: EXECUTABLE_RESULT_SCHEMA, kind: "executable-result", id: `hello-${language}-example`, status: "recorded",
+    workloadId: "hello", language, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", quality: "exploratory", claim: "measurement-only", verdict: "not-evaluated",
     equivalenceKey: executableEquivalenceKey(documents.catalog, "hello", EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
-    identity: {
-      sourceDigest: source.digest,
-      platformTarget: EXECUTABLE_PLATFORM_TARGET,
-      artifactTarget,
-      profile: "release",
-      toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2",
-      host: executableHostIdentity(environment),
-      recipe: source.recipe,
-      recipeClass: source.recipeClass,
-      recipeDigest,
-      eligibility: source.eligibility,
-    },
-    correctness: {
-      oracleId: "hello:exact-output",
-      exitCode: 0,
-      stdoutDigest: exactOutputDigest("Hello, world!\n"),
-      stderrDigest: exactOutputDigest(""),
-    },
-    artifact: {
-      digest,
-      sizeBytes: "123",
-      cleanliness: {
-        coffSymbols: { pointer: "0", count: "0" },
-        codeView: { count: "0", sizeBytes: "0" },
-        debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
-        certificateDirectory: { pointer: "0", sizeBytes: "0" },
-        sectionData: "in-bounds",
-        sidecars: { count: "0" },
-        overlay: { sizeBytes: "0" },
-      },
-    },
-    protocol: {
-      warmupMinimum: 1,
-      rawMinimum: 9,
-      rawParity: "odd",
-      arithmeticMeanRounding: "floor-integer",
-      stopRule: "fixed-count",
-      wallClock: "monotonic-nanoseconds",
-      processIsolation: "fresh-process-per-sample",
-      order: "deterministic-interleaved",
-      resourceScope: "direct child process only; descendants are not aggregated",
-      knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"],
-      unknownNoiseControls: ["host-scheduler", "filesystem-cache"],
-      directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.",
-    },
-    environment,
-    compile: sampleSeries(),
-    run: sampleSeries(),
-    provenance: {
-      sourceDigest: source.digest,
-      artifactDigest: digest,
-      recipeDigest,
-      toolchainDigest: digest,
-      runnerDigest: digest,
-      catalogDigest: digest,
-      commit: "1111111111111111111111111111111111111111",
-      observedAt: "2026-09-08T00:00:00.000Z",
-    },
-  };
-}
-
-function validBest(result, metric = "run-wall-time") {
-  return {
-    $schema: "./executable-benchmark.schema.json",
-    schema: EXECUTABLE_BEST_SCHEMA,
-    kind: "executable-best-known",
-    id: result.workloadId + "-" + result.language + "-" + metric,
-    status: "derived",
-    workloadId: result.workloadId,
-    metric,
-    language: result.language,
-    platformTarget: result.platformTarget,
-    artifactTarget: result.artifactTarget,
-    profile: result.profile,
-    statistic: metric === "artifact-size" ? "single-artifact" : "median",
-    equivalenceKey: result.equivalenceKey,
-    toolchain: result.identity.toolchain,
-    host: result.identity.host,
-    recipe: result.identity.recipe,
-    recipeClass: result.identity.recipeClass,
-    recipeDigest: result.identity.recipeDigest,
-    value: metric === "artifact-size" ? result.artifact.sizeBytes : "5",
-    derivedFrom: [result.id],
+    identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, recipeDigest: digest, eligibility: source.eligibility },
+    correctness: { oracleId: "hello:exact-output", exitCode: 0, stdoutDigest: exactOutputDigest("Hello, world!\n"), stderrDigest: exactOutputDigest("") },
+    artifact: { digest, sizeBytes: "123", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
+    protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated." },
+    environment, compile: sampleSeries(), run: sampleSeries(),
+    provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z" },
   };
 }
 
 function zeroRunCpu(result) {
-  for (const sample of [...result.run.warmup, ...result.run.raw]) {
-    sample.cpuUserUs = "0";
-    sample.cpuSystemUs = "0";
-    sample.cpuTotalUs = "0";
-  }
-  for (const field of ["cpuUserUs", "cpuSystemUs", "cpuTotalUs"]) {
-    result.run.summary[field] = { min: "0", median: "0", max: "0", arithmeticMean: "0", mad: "0" };
-  }
+  for (const sample of [...result.run.warmup, ...result.run.raw]) Object.assign(sample, { cpuUserUs: "0", cpuSystemUs: "0", cpuTotalUs: "0" });
+  for (const field of ["cpuUserUs", "cpuSystemUs", "cpuTotalUs"]) result.run.summary[field] = { min: "0", median: "0", max: "0", arithmeticMean: "0", mad: "0" };
   return result;
 }
 
-test("result preserves raw samples and derives every summary", () => {
+test("local result remains full-fidelity and rejects invalid measurements", () => {
   const result = validResult();
   assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
-
-  const tooShort = clone(result);
-  tooShort.run.raw = tooShort.run.raw.slice(0, 8);
-  assert.match(validateExecutableResult(tooShort, documents.catalog).join("\n"), /odd count of at least nine/);
-
-  const even = clone(result);
-  even.compile.raw.push(sample(10));
-  assert.match(validateExecutableResult(even, documents.catalog).join("\n"), /odd count of at least nine/);
-
-  const badSummary = clone(result);
-  badSummary.run.summary.wallNs.arithmeticMean = "999";
-  assert.match(validateExecutableResult(badSummary, documents.catalog).join("\n"), /derive min\/median\/max/);
-
   const badWall = clone(result);
   badWall.run.raw[0].wallNs = "0";
   assert.match(validateExecutableResult(badWall, documents.catalog).join("\n"), /wallNs must be positive/);
-
-  const badPeakRss = clone(result);
-  badPeakRss.run.raw[0].peakRssBytes = "0";
-  assert.match(validateExecutableResult(badPeakRss, documents.catalog).join("\n"), /peakRssBytes must be positive/);
-
-  const badArtifactSize = clone(result);
-  badArtifactSize.artifact.sizeBytes = "0";
-  assert.match(validateExecutableResult(badArtifactSize, documents.catalog).join("\n"), /sizeBytes must be positive/);
-
-  const badMeanRounding = clone(result);
-  badMeanRounding.protocol.arithmeticMeanRounding = "nearest-integer";
-  assert.match(validateExecutableResult(badMeanRounding, documents.catalog).join("\n"), /arithmeticMeanRounding must be floor-integer/);
-
-  const badCpu = clone(result);
-  badCpu.run.cpuResolution.disclosure = "nanoseconds only";
-  assert.match(validateExecutableResult(badCpu, documents.catalog).join("\n"), /zero-valued microsecond/);
-
-  const badTimestamp = clone(result);
-  badTimestamp.provenance.observedAt = "2026-09-08T00:00:00Z";
-  assert.match(validateExecutableResult(badTimestamp, documents.catalog).join("\n"), /canonical ISO-8601 UTC/);
-
-  const wrongTarget = clone(result);
-  wrongTarget.artifactTarget = EXECUTABLE_PLATFORM_TARGET;
-  assert.match(validateExecutableResult(wrongTarget, documents.catalog).join("\n"), /artifact target/);
-
-  const wrongPlatform = clone(result);
-  wrongPlatform.platformTarget = "linux-x64";
-  assert.match(validateExecutableResult(wrongPlatform, documents.catalog).join("\n"), /platformTarget/);
-
-  const falseCAbi = validResult("c");
-  falseCAbi.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_MSVC;
-  falseCAbi.identity.artifactTarget = EXECUTABLE_ARTIFACT_TARGET_MSVC;
-  assert.match(validateExecutableResult(falseCAbi, documents.catalog).join("\n"), /C executable results.*mingw32/);
-
-  const wrongProfile = clone(result);
-  wrongProfile.profile = "size-experimental";
-  assert.match(validateExecutableResult(wrongProfile, documents.catalog).join("\n"), /profile must be release/);
-
-  for (const [field, value, message] of [
-    ["quality", "correctness-gate", /quality must be exploratory/],
-    ["claim", "performance", /claim must be measurement-only/],
-    ["verdict", "pass", /verdict must be not-evaluated/],
-  ]) {
-    const invalid = clone(result);
-    invalid[field] = value;
-    assert.match(validateExecutableResult(invalid, documents.catalog).join("\n"), message);
-  }
-
-  const missingProtocol = clone(result);
-  missingProtocol.protocol = null;
-  assert.match(validateExecutableResult(missingProtocol, documents.catalog).join("\n"), /protocol must be an object/);
-
-  const badNoise = clone(result);
-  badNoise.protocol.unknownNoiseControls = [];
-  assert.match(validateExecutableResult(badNoise, documents.catalog).join("\n"), /unknownNoiseControls/);
-
-  const badScope = clone(result);
-  badScope.protocol.resourceScope = "";
-  assert.match(validateExecutableResult(badScope, documents.catalog).join("\n"), /resourceScope/);
-
-  const badDisclosure = clone(result);
-  badDisclosure.protocol.directProcessDisclosure = "CPU is measured precisely.";
-  assert.match(validateExecutableResult(badDisclosure, documents.catalog).join("\n"), /directProcessDisclosure/);
-
-  const badEnvironment = clone(result);
-  badEnvironment.environment.cpuModel = "C:\\Users\\Wallacy";
-  assert.match(validateExecutableResult(badEnvironment, documents.catalog).join("\n"), /redacted environment class/);
-
-  const readableCpu = clone(result);
-  readableCpu.environment.cpuModel = "Intel(R) Core(TM) i7-12700K @ 3.60GHz";
-  readableCpu.identity.host = executableHostIdentity(readableCpu.environment);
-  assert.deepEqual(validateExecutableResult(readableCpu, documents.catalog), []);
-
-  const forgedEnvironment = clone(result);
-  forgedEnvironment.environment.logicalCores = "32";
-  assert.match(validateExecutableResult(forgedEnvironment, documents.catalog).join("\n"), /host.*derived.*environment/);
-
-  const unsafeHost = clone(result);
-  unsafeHost.identity.host = "Wallacy-PC@home";
-  assert.match(validateExecutableResult(unsafeHost, documents.catalog).join("\n"), /host.*class/);
-
-  const forgedKey = clone(result);
-  forgedKey.equivalenceKey = digest;
-  assert.match(validateExecutableResult(forgedKey, documents.catalog).join("\n"), /recomputed/);
+  const badCpuDisclosure = clone(result);
+  badCpuDisclosure.run.cpuResolution.disclosure = "nanoseconds only";
+  assert.match(validateExecutableResult(badCpuDisclosure, documents.catalog).join("\n"), /zero-valued microsecond/);
+  const badSource = clone(result);
+  badSource.identity.artifactTarget = EXECUTABLE_PLATFORM_TARGET;
+  assert.match(validateExecutableResult(badSource, documents.catalog).join("\n"), /artifact target/);
 });
 
-test("artifact cleanliness is validated when present and remains optional for historical records", () => {
-  const historical = validResult();
-  delete historical.artifact.cleanliness;
-  assert.match(validateExecutableResult(historical, documents.catalog).join("\n"), /cleanliness is required/u);
-  assert.deepEqual(validateExecutableResult(historical, documents.catalog, {
-    allowHistoricalArtifactWithoutCleanliness: true,
-  }), []);
-
-  const current = validResult();
-  assert.deepEqual(validateExecutableResult(current, documents.catalog), []);
-
-  const malformed = clone(current);
-  malformed.artifact.cleanliness.coffSymbols.count = "1";
-  assert.match(validateExecutableResult(malformed, documents.catalog).join("\n"), /zero pointer and zero count/u);
-
-  const pogoOnly = clone(current);
-  pogoOnly.artifact.cleanliness.debugDirectory = {
-    presence: "pogo-only",
-    sizeBytes: "28",
-    entries: [{ type: "pogo", typeCode: 13, sizeBytes: "796" }],
-  };
-  assert.deepEqual(validateExecutableResult(pogoOnly, documents.catalog), []);
-
-  const forgedCodeView = clone(current);
-  forgedCodeView.artifact.cleanliness.codeView.count = "1";
-  assert.match(validateExecutableResult(forgedCodeView, documents.catalog).join("\n"), /zero entries and zero bytes/u);
-});
-
-test("best-known records rank only validated optimizable measurements", () => {
+test("best derivation excludes zero CPU and preserves category/provenance", () => {
   const result = validResult();
-  assert.deepEqual(validateExecutableResult(result, documents.catalog), []);
-  const best = validBest(result);
-  assert.deepEqual(validateExecutableBestKnown(best, documents.catalog, [result]), []);
-  const artifactBest = validBest(result, "artifact-size");
-  assert.equal(artifactBest.statistic, "single-artifact");
-  assert.deepEqual(validateExecutableBestKnown(artifactBest, documents.catalog, [result]), []);
-
-  const badArtifactStatistic = clone(artifactBest);
-  badArtifactStatistic.statistic = "median";
-  assert.match(validateExecutableBestKnown(badArtifactStatistic, documents.catalog, [result]).join("\n"), /single-artifact/);
-
-  const forbidden = clone(best);
-  forbidden.metric = "stdout";
-  assert.match(validateExecutableBestKnown(forbidden, documents.catalog, [result]).join("\n"), /optimizable/);
-
-  const malformed = clone(best);
-  malformed.value = "01";
-  malformed.derivedFrom = [];
-  const malformedErrors = validateExecutableBestKnown(malformed, documents.catalog, [result]).join("\n");
-  assert.match(malformedErrors, /canonical decimal/);
-  assert.match(malformedErrors, /array of strings/);
-
-  const forgedKey = clone(best);
-  forgedKey.equivalenceKey = digest;
-  assert.match(validateExecutableBestKnown(forgedKey, documents.catalog, [result]).join("\n"), /recomputed/);
-
-  const mixed = clone(best);
-  mixed.toolchain = "other-tool";
-  assert.match(validateExecutableBestKnown(mixed, documents.catalog, [result]).join("\n"), /mixes incomparable/);
-
-  const mixedRecipe = clone(best);
-  mixedRecipe.recipe = "different-recipe";
-  assert.match(validateExecutableBestKnown(mixedRecipe, documents.catalog, [result]).join("\n"), /mixes incomparable/);
-
-  const cResult = validResult("c");
-  assert.deepEqual(validateExecutableResult(cResult, documents.catalog), []);
-  const cBest = validBest(cResult);
-  assert.match(validateExecutableBestKnown(cBest, documents.catalog, [cResult]).join("\n"), /ineligible/);
-
-  assert.match(validateExecutableBestKnown(best, documents.catalog).join("\n"), /validated result records/);
-  assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, historyResults), []);
-
-  const emptyIndex = { ...clone(documents.bestKnown), status: "not-established", records: [] };
-  const establishedEmpty = clone(emptyIndex);
-  establishedEmpty.status = "established";
-  assert.match(validateExecutableBestKnownIndex(establishedEmpty, documents.catalog, [result]).join("\n"), /no records.*not-established/);
-
-  const nonEmptyNotEstablished = clone(emptyIndex);
-  nonEmptyNotEstablished.records = [best];
-  assert.match(validateExecutableBestKnownIndex(nonEmptyNotEstablished, documents.catalog, [result]).join("\n"), /non-empty.*established/);
-
-  const established = clone(emptyIndex);
-  established.status = "established";
-  established.records = [best];
-  assert.deepEqual(validateExecutableBestKnownIndex(established, documents.catalog, [result]), []);
+  const zero = zeroRunCpu(clone(result));
+  const derived = deriveExecutableBestMetrics(documents.catalog, [zero]);
+  assert.deepEqual(validateExecutableBestMetrics(derived, documents.catalog), []);
+  assert.equal(derived.entries.length, 4);
+  assert.equal(derived.entries.some((entry) => entry.metric === "cpu-time"), false);
+  assert.equal(derived.entries[0].provenance.recordId, result.id);
+  const hostVariant = clone(result);
+  hostVariant.id = "hello-rust-host-variant";
+  hostVariant.environment.cpuModel = "x86_64-other-class";
+  hostVariant.identity.host = executableHostIdentity(hostVariant.environment);
+  const variant = deriveExecutableBestMetrics(documents.catalog, [result, hostVariant]);
+  assert.equal(new Set(variant.entries.map((entry) => entry.categoryId)).size, 2);
 });
 
-test("best-known derivation is deterministic, excludes zero CPU and separates provenance", () => {
-  const zeroCpu = zeroRunCpu(validResult("rust"));
-  zeroCpu.id = "hello-rust-zero-cpu";
-  assert.deepEqual(validateExecutableResult(zeroCpu, documents.catalog), []);
-  const cResult = validResult("c");
-  const wResult = validResult("w");
-
-  const derived = deriveExecutableBestKnown(documents.catalog, [wResult, cResult, zeroCpu]);
-  assert.equal(derived.status, "established");
-  assert.equal(derived.records.length, 4, "zero CPU is recorded but cannot create a CPU best-known record");
-  assert.equal(derived.records.some((record) => record.metric === "cpu-time"), false);
-  assert.ok(derived.records.every((record) => record.language === "rust"));
-  assert.deepEqual(validateExecutableBestKnownFreshness(derived, documents.catalog, [wResult, cResult, zeroCpu]), []);
-
-  const reordered = deriveExecutableBestKnown(documents.catalog, [zeroCpu, cResult, wResult]);
-  assert.deepEqual(reordered, derived, "input order must not affect derived output");
-
-  const stale = clone(derived);
-  stale.records[0].value = stale.records[0].value === "1" ? "2" : "1";
-  assert.match(validateExecutableBestKnownFreshness(stale, documents.catalog, [wResult, cResult, zeroCpu]).join("\n"), /stale/);
-
-  const forbiddenCpu = validBest(zeroCpu, "cpu-time");
-  assert.match(validateExecutableBestKnown(forbiddenCpu, documents.catalog, [zeroCpu]).join("\n"), /zero microsecond/);
-
-  const provenanceVariant = clone(zeroCpu);
-  provenanceVariant.id = "hello-rust-zero-cpu-other-runner";
-  provenanceVariant.provenance.runnerDigest = "sha256:2222222222222222222222222222222222222222222222222222222222222222";
-  const separated = deriveExecutableBestKnown(documents.catalog, [provenanceVariant, zeroCpu]);
-  assert.equal(separated.records.length, 8, "different runner provenance must not share a best-known group");
-  assert.ok(separated.records.every((record) => record.derivedFrom.length === 1));
-
-  const duplicate = clone(zeroCpu);
-  assert.throws(() => deriveExecutableBestKnown(documents.catalog, [zeroCpu, duplicate]), /duplicate id/);
-
-  const tieLeft = validResult("rust");
-  tieLeft.id = "hello-rust-tie-a";
-  const tieRight = clone(tieLeft);
-  tieRight.id = "hello-rust-tie-b";
-  const tied = deriveExecutableBestKnown(documents.catalog, [tieRight, tieLeft]);
-  assert.deepEqual(tied.records[0].derivedFrom, [tieLeft.id, tieRight.id]);
-
-  const reversedIndex = clone(tied);
-  reversedIndex.records.reverse();
-  assert.match(validateExecutableBestKnownIndex(reversedIndex, documents.catalog, [tieLeft, tieRight]).join("\n"), /sorted by id/);
-  const duplicateIndex = clone(tied);
-  duplicateIndex.records[1].id = duplicateIndex.records[0].id;
-  assert.match(validateExecutableBestKnownIndex(duplicateIndex, documents.catalog, [tieLeft, tieRight]).join("\n"), /ids must be unique/);
+test("update replaces only lower cells and is idempotent for non-improving values", () => {
+  const result = validResult();
+  const first = updateExecutableBestMetrics(documents.catalog, result);
+  assert.equal(first.changed, true);
+  assert.ok(first.updatedMetrics.includes("compile-latency"));
+  const again = updateExecutableBestMetrics(first.catalog, result);
+  assert.equal(again.changed, false);
+  const zero = clone(documents.catalog.bestMetrics.entries[0]);
+  zero.value = "0";
+  assert.match(validateExecutableBestMetric(zero, documents.catalog).join("\n"), /positive/);
 });

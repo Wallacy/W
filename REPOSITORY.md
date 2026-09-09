@@ -37,21 +37,20 @@ replace current contracts or implementation receipts.
 | `.github/` | fluxos de trabalho e configuração de automação do repositório |
 | `.codex/` | instruções operacionais para trabalho assistido e revisão |
 
-O diretório físico `history/` não faz mais parte do checkout. O Git é o arquivo
-da proveniência removida: os commits imutáveis `4964d1f` (material bruto
-anterior) e `25ef412` (último estado com `history/` no checkout) preservam a
-narrativa para auditoria. Eles não são autoridade do W atual.
+O Git é o único arquivo histórico do projeto. Diretórios `history/`, execuções
+anteriores, tombstones e ledgers superseded não pertencem ao checkout atual.
 
 ## Versionado, gerado e local
 
-Fontes canônicas, testes, fixtures, manifests e snapshots necessários para
-reprodução são versionados. Entre as projeções geradas e verificadas estão:
+Fontes canônicas, testes, fixtures, manifests e recibos compactos necessários
+para reprodução são versionados. Traces completos e resultados brutos são
+artefatos locais ou de CI. Entre as projeções geradas e verificadas estão:
 
 - `DESIGN-INDEX.md`, `DIAGNOSTICS.md` e `STUDIES.md`;
 - `PLATFORM-SUPPORT.md` (de `tooling/platform-support.json`);
 - `DEPENDENCIES.md` (de `tooling/dependency-currency.json`);
 - `tooling/study-registry.json` e `reference/syntax-atlas/*`;
-- snapshots e bundles declarados pelos seus manifests.
+- recibos e bundles ainda exigidos pelos seus manifests.
 
 `tooling/tree-sitter-w/src/` é a saída de `tree-sitter generate`; não é código-fonte e
 não deve ser editado manualmente. `src/scanner.c` é escrito manualmente e versionado.
@@ -137,8 +136,7 @@ bun check --target quick
 bun check --target compiler
 bun check --target docs
 bun check --target studies
-bun check --target bmd
-bun check --target executable
+bun check --target benchmark
 bun check
 bun run study:registry
 ```

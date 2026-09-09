@@ -78,20 +78,16 @@ describe("check-suite manifest", () => {
       "root-studies",
       "root-quick",
       "root-compiler",
-      "root-bmd",
-      "root-executable",
+      "root-benchmark",
       "tree-check",
-      "tree-docs",
     ]);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-check" })).toHaveLength(115);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(82);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-docs" })).toHaveLength(8);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(26);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(9);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(26);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-bmd" })).toHaveLength(1);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-executable" })).toHaveLength(1);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-benchmark" })).toHaveLength(2);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(112);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-docs" })).toHaveLength(76);
 
     const isWRun = (step) =>
       step.package === "root" && step.script === "check:w-run";
@@ -126,8 +122,14 @@ describe("check-suite manifest", () => {
     expect(loaded.suites["root-docs"].steps.slice(0, 3)).toEqual([
       { package: "root", script: "check:diagnostic-catalog" },
       { package: "root", script: "check:platform-support" },
-      { package: "root", script: "check:study-registry" },
+      { package: "root", script: "check:dependency-currency" },
     ]);
+    expect(loaded.suites["root-docs"].steps).toContainEqual(
+      { package: "root", script: "check:syntax-atlas-projection" },
+    );
+    expect(loaded.suites["root-docs"].steps).not.toContainEqual(
+      { package: "root", script: "check:syntax-atlas" },
+    );
     expect(loaded.suites["root-quick"].steps.slice(0, 3)).toEqual([
       { package: "root", script: "check:suite-manifest" },
       { package: "root", script: "check:platform-support" },
@@ -135,7 +137,7 @@ describe("check-suite manifest", () => {
     ]);
     const isExecutable = (step) =>
       step.package === "root" && step.script === "check:executable";
-    for (const suiteName of ["root-check", "root-docs", "root-quick"]) {
+    for (const suiteName of ["root-check", "root-docs", "root-quick", "root-benchmark"]) {
       expect(flattenCheckSuite({ suites: loaded.suites, suiteName })
         .filter(isExecutable)).toHaveLength(1);
     }

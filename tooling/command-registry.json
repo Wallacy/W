@@ -566,6 +566,23 @@
         }
       ]
     },
+    "check:syntax-atlas-projection": {
+      "description": "Fast syntax-atlas generated-policy and projection freshness check without adversarial unit tests.",
+      "steps": [
+        {
+          "kind": "command",
+          "command": "check:generated-policy"
+        },
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/syntax-atlas.mjs",
+            "--check"
+          ]
+        }
+      ]
+    },
     "check:operator-surface": {
       "description": "Internal check:operator-surface command.",
       "steps": [
@@ -624,8 +641,7 @@
           "args": [
             "test",
             "tooling/benchmark-driven-development-reference.test.mjs",
-            "tooling/benchmark-driven-development-runner.test.mjs",
-            "tooling/executable-benchmark.test.mjs"
+            "tooling/benchmark-driven-development-runner.test.mjs"
           ]
         },
         {
@@ -2972,7 +2988,7 @@
       ]
     },
     "check:executable": {
-      "description": "Executable benchmark catalog, runner, history, and human projection checks without executing workloads.",
+      "description": "Executable benchmark catalog, runner, live best metrics, and human projection checks without executing workloads.",
       "steps": [
         {
           "kind": "bun",

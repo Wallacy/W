@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -16,6 +17,10 @@ const errors = [];
 const caseIds = new Set();
 const results = [];
 let operationCount = 0;
+
+function digest(value) {
+  return `sha256:${crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
+}
 
 function requireString(value, location) {
   if (typeof value !== "string" || value.trim() === "") {
@@ -148,9 +153,9 @@ for (const [caseIndex, testCase] of (corpus.cases ?? []).entries()) {
     caseId: testCase.id,
     status: actual.status,
     ...(actual.code ? { code: actual.code, operation: actual.operation } : {}),
-    ...(actual.facts ? { facts: actual.facts } : {}),
-    state: actual.state,
-    trace: actual.trace,
+    ...(actual.facts ? { factsDigest: digest(actual.facts) } : {}),
+    stateDigest: digest(actual.state),
+    traceDigest: digest(actual.trace),
   });
 }
 
@@ -160,7 +165,7 @@ if (errors.length > 0) {
 }
 
 const expectedSnapshot = [
-  JSON.stringify({ schema: "w-memory-transition-results-m1", status: "design-oracle-output-m1" }),
+  JSON.stringify({ schema: "w-memory-transition-receipts-m1", status: "design-oracle-receipts-m1" }),
   ...results.map((result) => JSON.stringify(result)),
 ].join("\n") + "\n";
 const acceptedCount = results.filter((result) => result.status === "accepted").length;
