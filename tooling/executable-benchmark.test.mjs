@@ -44,6 +44,9 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.deepEqual(documents.schema.$defs.sample.required, [
     "wallNs", "cpuUserUs", "cpuSystemUs", "cpuTotalUs", "peakRssBytes",
   ]);
+  assert.deepEqual(documents.schema.$defs.artifactCleanliness.required, [
+    "coffSymbols", "codeView", "debugDirectory", "certificateDirectory", "sectionData", "sidecars", "overlay",
+  ]);
   assert.equal(documents.schema.$defs.sample.properties.wallNs.$ref, "#/$defs/positiveDecimal");
   assert.equal(documents.schema.$defs.sample.properties.peakRssBytes.$ref, "#/$defs/positiveDecimal");
   assert.equal(documents.schema.$defs.artifact.properties.sizeBytes.$ref, "#/$defs/positiveDecimal");
@@ -225,6 +228,15 @@ function validResult(language = "rust") {
     artifact: {
       digest,
       sizeBytes: "123",
+      cleanliness: {
+        coffSymbols: { pointer: "0", count: "0" },
+        codeView: { count: "0", sizeBytes: "0" },
+        debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
+        certificateDirectory: { pointer: "0", sizeBytes: "0" },
+        sectionData: "in-bounds",
+        sidecars: { count: "0" },
+        overlay: { sizeBytes: "0" },
+      },
     },
     protocol: {
       warmupMinimum: 1,
@@ -396,6 +408,34 @@ test("result preserves raw samples and derives every summary", () => {
   const forgedKey = clone(result);
   forgedKey.equivalenceKey = digest;
   assert.match(validateExecutableResult(forgedKey, documents.catalog).join("\n"), /recomputed/);
+});
+
+test("artifact cleanliness is validated when present and remains optional for historical records", () => {
+  const historical = validResult();
+  delete historical.artifact.cleanliness;
+  assert.match(validateExecutableResult(historical, documents.catalog).join("\n"), /cleanliness is required/u);
+  assert.deepEqual(validateExecutableResult(historical, documents.catalog, {
+    allowHistoricalArtifactWithoutCleanliness: true,
+  }), []);
+
+  const current = validResult();
+  assert.deepEqual(validateExecutableResult(current, documents.catalog), []);
+
+  const malformed = clone(current);
+  malformed.artifact.cleanliness.coffSymbols.count = "1";
+  assert.match(validateExecutableResult(malformed, documents.catalog).join("\n"), /zero pointer and zero count/u);
+
+  const pogoOnly = clone(current);
+  pogoOnly.artifact.cleanliness.debugDirectory = {
+    presence: "pogo-only",
+    sizeBytes: "28",
+    entries: [{ type: "pogo", typeCode: 13, sizeBytes: "796" }],
+  };
+  assert.deepEqual(validateExecutableResult(pogoOnly, documents.catalog), []);
+
+  const forgedCodeView = clone(current);
+  forgedCodeView.artifact.cleanliness.codeView.count = "1";
+  assert.match(validateExecutableResult(forgedCodeView, documents.catalog).join("\n"), /zero entries and zero bytes/u);
 });
 
 test("best-known records rank only validated optimizable measurements", () => {

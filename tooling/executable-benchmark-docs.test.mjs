@@ -25,6 +25,8 @@ test("generated executable projection is current and uses projection-relative li
   assert.match(rendered, /\]\(\.\/executable\/restaurant_branch\.c\)/u);
   assert.match(rendered, /\]\(\.\/executable\/restaurant_branch\.rs\)/u);
   assert.match(rendered, /runner selects each target workload, materialized source, recipe and source-backed exact-output oracle/u);
+  assert.match(rendered, /bounded in-process PE32\+ check for zero COFF symbols, zero CodeView\/PDB entries and sidecars.*POGO-only.*linker optimization metadata.*new runner-bound results.*not retroactively certified/u);
+  assert.match(rendered, /exact zero counts for COFF symbols, CodeView entries, sidecars and overlay bytes.*bounded POGO directory entries and payload sizes.*historical records without `artifact\.cleanliness` remain uncertified/u);
   assert.match(rendered, /C and Rust routes currently cover `hello`, `restaurant-branch`/u);
   assert.match(rendered, /W uses the public `w build` Release driver for `hello`, `restaurant-branch`/u);
   assert.match(rendered, /public-w-run.*fails before compilation/u);
@@ -55,7 +57,18 @@ test("projection formatting and root-relative record lookup are deterministic", 
     language: "w",
     compile: { summary: { wallNs: { median: "1000000" }, cpuTotalUs: { median: "500" }, peakRssBytes: { median: "8192" } } },
     run: { summary: { wallNs: { median: "2000000" }, cpuTotalUs: { median: "0" }, peakRssBytes: { median: "4096" } } },
-    artifact: { sizeBytes: "2048" },
+    artifact: {
+      sizeBytes: "2048",
+      cleanliness: {
+        coffSymbols: { pointer: "0", count: "0" },
+        codeView: { count: "0", sizeBytes: "0" },
+        debugDirectory: { presence: "pogo-only", sizeBytes: "28", entries: [{ type: "pogo", typeCode: 13, sizeBytes: "796" }] },
+        certificateDirectory: { pointer: "0", sizeBytes: "0" },
+        sectionData: "in-bounds",
+        sidecars: { count: "0" },
+        overlay: { sizeBytes: "0" },
+      },
+    },
     provenance: { commit: "1".repeat(40) },
     identity: { toolchain: "test-toolchain" },
   }));
@@ -65,7 +78,7 @@ test("projection formatting and root-relative record lookup are deterministic", 
       history: { records: [{ id: "record", path: "record.json", digest: "sha256:" + "0".repeat(64) }] },
       root: temporaryRoot,
     });
-    assert.match(rendered, /compile median 1 ms \(CPU .*?, RSS .*?\); run median 2 ms \(CPU 0 µs, RSS 4096 B \(4 KiB\)\); artifact 2048 B \(2 KiB\)/u);
+    assert.match(rendered, /compile median 1 ms \(CPU .*?, RSS .*?\); run median 2 ms \(CPU 0 µs, RSS 4096 B \(4 KiB\)\); artifact 2048 B \(2 KiB\); PE cleanliness: COFF symbols 0, CodeView entries 0, debug directory pogo-only \(28 B\), certificate 0 B, section data in-bounds, sidecars 0, overlay 0 B/u);
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
   }

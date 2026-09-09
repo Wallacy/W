@@ -60,6 +60,20 @@ const PUBLIC_W_EXECUTABLE = path.join(PUBLIC_W_BUILD_DIRECTORY, "w.exe");
 const PUBLIC_W_RECEIPT = path.join(PUBLIC_W_BUILD_DIRECTORY, "receipt.json");
 const C_COMPILER_NAMES = ["gcc", "clang", "cc"];
 const RUST_TARGET = EXECUTABLE_ARTIFACT_TARGET_MSVC;
+const PE_DOS_HEADER_SIZE = 0x40;
+const PE_FILE_HEADER_SIZE = 20;
+const PE_OPTIONAL_HEADER_MINIMUM_SIZE = 240;
+const PE_OPTIONAL_HEADER_DATA_DIRECTORY_OFFSET = 108;
+const PE_DATA_DIRECTORY_OFFSET = 112;
+const PE_DATA_DIRECTORY_ENTRY_SIZE = 8;
+const PE_DEBUG_DIRECTORY_INDEX = 6;
+const PE_SECURITY_DIRECTORY_INDEX = 4;
+const PE_REQUIRED_DIRECTORY_COUNT = PE_DEBUG_DIRECTORY_INDEX + 1;
+const PE_MAX_DIRECTORY_COUNT = 16;
+const PE_SECTION_HEADER_SIZE = 40;
+const PE_DEBUG_DIRECTORY_ENTRY_SIZE = 28;
+const PE_DEBUG_TYPE_CODEVIEW = 2;
+const PE_DEBUG_TYPE_POGO = 13;
 export const EXECUTABLE_CHILD_TIMEOUT_MS = 120_000;
 export const EXECUTABLE_CHILD_KILL_SIGNAL = "SIGKILL";
 const EXECUTABLE_TIMEOUT_STATUS = `Bun.spawnSync enforces a ${EXECUTABLE_CHILD_TIMEOUT_MS} ms per-direct-child timeout and sends ${EXECUTABLE_CHILD_KILL_SIGNAL}; descendant termination is not guaranteed without a Windows Job Object, and timed-out children abort the run without publishing a partial result`;
@@ -121,6 +135,13 @@ async function regularFile(filePath, label) {
   const stats = await lstat(filePath);
   if (!stats.isFile() || stats.isSymbolicLink()) fail(`${label} must be a regular non-link file`);
   return stats;
+}
+
+async function assertSidecarFree(directory, artifact, label) {
+  const produced = (await readdir(directory)).sort();
+  if (produced.length !== 1 || produced[0] !== path.basename(artifact)) {
+    fail(`${label} produced unexpected release sidecars: ${produced.join(", ")}`);
+  }
 }
 
 function bufferValue(value) {
@@ -590,10 +611,7 @@ async function compileW(context, retain) {
     requireSuccess(step, "W public build");
     const stats = await regularFile(artifact, "W PE artifact");
     if (stats.size <= 0) fail("W PE artifact is empty");
-    const produced = (await readdir(sampleDirectory)).sort();
-    if (produced.length !== 1 || produced[0] !== path.basename(artifact)) {
-      fail(`W public build produced unexpected release sidecars: ${produced.join(", ")}`);
-    }
+    await assertSidecarFree(sampleDirectory, artifact, "W public build");
     const sample = chainSample([step], step.start, step.end, "W public build");
     if (retain) return { sampleDirectory, artifact, sample };
     await rm(sampleDirectory, { recursive: true, force: true });
@@ -618,6 +636,7 @@ async function compileC(context, retain) {
     requireSuccess(step, "C compiler");
     const stats = await regularFile(artifact, "C PE artifact");
     if (stats.size <= 0) fail("C PE artifact is empty");
+    await assertSidecarFree(sampleDirectory, artifact, "C compiler");
     const end = process.hrtime.bigint();
     const sample = chainSample([step], start, end, "C compile");
     if (retain) return { sampleDirectory, artifact, sample };
@@ -644,10 +663,7 @@ async function compileRust(context, retain) {
     requireSuccess(step, "Rust compiler");
     const stats = await regularFile(artifact, "Rust PE artifact");
     if (stats.size <= 0) fail("Rust PE artifact is empty");
-    const produced = (await readdir(sampleDirectory)).sort();
-    if (produced.length !== 1 || produced[0] !== path.basename(artifact)) {
-      fail(`Rust compiler produced unexpected release sidecars: ${produced.join(", ")}`);
-    }
+    await assertSidecarFree(sampleDirectory, artifact, "Rust compiler");
     const end = process.hrtime.bigint();
     const sample = chainSample([step], start, end, "Rust compile");
     if (retain) return { sampleDirectory, artifact, sample };
@@ -684,21 +700,165 @@ function assertOracle(execution, oracle, target, label) {
   }
 }
 
-function validatePeX64(bytes, language = "w") {
-  if (bytes.length < 0x40 || bytes[0] !== 0x4d || bytes[1] !== 0x5a) fail(`${language} artifact is not a PE image`);
-  const offset = bytes.readUInt32LE(0x3c);
-  if (offset < 0x40 || offset > bytes.length - 26 || bytes.readUInt32LE(offset) !== 0x00004550 || bytes.readUInt16LE(offset + 4) !== 0x8664 || bytes.readUInt16LE(offset + 24) !== 0x20b) fail(`${language} artifact is not PE x64`);
+function peRange(bytes, offset, length, label, language) {
+  if (!Number.isSafeInteger(offset) || !Number.isSafeInteger(length) || offset < 0 || length < 0 ||
+      offset > bytes.length || length > bytes.length - offset) {
+    fail(`${language} artifact has a truncated or invalid ${label}`);
+  }
+}
+
+function peUInt16(bytes, offset, label, language) {
+  peRange(bytes, offset, 2, label, language);
+  return bytes.readUInt16LE(offset);
+}
+
+function peUInt32(bytes, offset, label, language) {
+  peRange(bytes, offset, 4, label, language);
+  return bytes.readUInt32LE(offset);
+}
+
+function peRvaRange(bytes, sections, rva, length, label, language) {
+  if (!Number.isSafeInteger(rva) || !Number.isSafeInteger(length) || rva < 0 || length < 0) {
+    fail(`${language} artifact has an invalid ${label} RVA range`);
+  }
+  for (const section of sections) {
+    if (section.rawSize === 0 || rva < section.virtualAddress) continue;
+    const sectionOffset = rva - section.virtualAddress;
+    if (sectionOffset > section.rawSize || length > section.rawSize - sectionOffset) continue;
+    const fileOffset = section.rawPointer + sectionOffset;
+    peRange(bytes, fileOffset, length, label, language);
+    return { offset: fileOffset, length };
+  }
+  fail(`${language} artifact has an invalid ${label} RVA range`);
+}
+
+function parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language) {
+  if (debugRva === 0 && debugSize === 0) {
+    return { presence: "absent", sizeBytes: "0", entries: [] };
+  }
+  if (debugRva === 0 || debugSize === 0 || debugSize % PE_DEBUG_DIRECTORY_ENTRY_SIZE !== 0) {
+    fail(`${language} artifact has an invalid PE debug data directory`);
+  }
+  const directory = peRvaRange(bytes, sections, debugRva, debugSize, "PE debug directory", language);
+  const entries = [];
+  for (let index = 0; index < debugSize / PE_DEBUG_DIRECTORY_ENTRY_SIZE; index += 1) {
+    const entry = directory.offset + index * PE_DEBUG_DIRECTORY_ENTRY_SIZE;
+    const typeCode = peUInt32(bytes, entry + 12, `PE debug directory entry ${index}`, language);
+    const sizeOfData = peUInt32(bytes, entry + 16, `PE debug directory entry ${index}`, language);
+    const addressOfRawData = peUInt32(bytes, entry + 20, `PE debug directory entry ${index}`, language);
+    const pointerToRawData = peUInt32(bytes, entry + 24, `PE debug directory entry ${index}`, language);
+    if (typeCode === PE_DEBUG_TYPE_CODEVIEW) fail(`${language} artifact contains CodeView debug data`);
+    if (typeCode !== PE_DEBUG_TYPE_POGO) fail(`${language} artifact contains unsupported PE debug data type ${typeCode}`);
+    if (sizeOfData === 0 || pointerToRawData === 0 || addressOfRawData === 0) {
+      fail(`${language} artifact has an invalid POGO debug payload`);
+    }
+    peRange(bytes, pointerToRawData, sizeOfData, `POGO debug payload ${index}`, language);
+    const payload = peRvaRange(bytes, sections, addressOfRawData, sizeOfData, `POGO debug payload ${index}`, language);
+    if (payload.offset !== pointerToRawData) fail(`${language} artifact has mismatched POGO debug payload pointers`);
+    entries.push({ type: "pogo", typeCode: PE_DEBUG_TYPE_POGO, sizeBytes: String(sizeOfData) });
+  }
+  return { presence: "pogo-only", sizeBytes: String(debugSize), entries };
+}
+
+export function validatePeX64(bytes, language = "w") {
+  if (!Buffer.isBuffer(bytes)) fail(`${language} artifact bytes must be a buffer`);
+  peRange(bytes, 0, PE_DOS_HEADER_SIZE, "DOS header", language);
+  if (bytes.readUInt16LE(0) !== 0x5a4d) fail(`${language} artifact is not a PE image`);
+
+  const offset = peUInt32(bytes, 0x3c, "DOS header", language);
+  if (offset < PE_DOS_HEADER_SIZE) fail(`${language} artifact has an invalid DOS header`);
+  peRange(bytes, offset, 4 + PE_FILE_HEADER_SIZE, "PE/COFF header", language);
+  if (bytes.readUInt32LE(offset) !== 0x00004550) fail(`${language} artifact is not a PE image`);
+
+  const fileHeader = offset + 4;
+  const machine = peUInt16(bytes, fileHeader, "COFF file header", language);
+  if (machine !== 0x8664) fail(`${language} artifact is not PE x64`);
+  const sectionCount = peUInt16(bytes, fileHeader + 2, "COFF file header", language);
+  if (sectionCount === 0) fail(`${language} artifact has no PE sections`);
+  const symbolTablePointer = peUInt32(bytes, fileHeader + 8, "COFF file header", language);
+  const symbolCount = peUInt32(bytes, fileHeader + 12, "COFF file header", language);
+  if (symbolTablePointer !== 0 || symbolCount !== 0) fail(`${language} artifact contains a COFF symbol table`);
+  const optionalHeaderSize = peUInt16(bytes, fileHeader + 16, "COFF file header", language);
+  const optionalHeader = fileHeader + PE_FILE_HEADER_SIZE;
+  if (optionalHeaderSize < PE_OPTIONAL_HEADER_MINIMUM_SIZE) {
+    fail(`${language} artifact optional header is too small to prove PE debug cleanliness`);
+  }
+  peRange(bytes, optionalHeader, optionalHeaderSize, "PE optional header", language);
+  if (peUInt16(bytes, optionalHeader, "PE optional header", language) !== 0x20b) {
+    fail(`${language} artifact is not PE32+`);
+  }
+
+  const directoryCount = peUInt32(
+    bytes,
+    optionalHeader + PE_OPTIONAL_HEADER_DATA_DIRECTORY_OFFSET,
+    "PE optional header data-directory count",
+    language,
+  );
+  if (directoryCount < PE_REQUIRED_DIRECTORY_COUNT || directoryCount > PE_MAX_DIRECTORY_COUNT) {
+    fail(`${language} artifact has an invalid PE data-directory count`);
+  }
+  const directoryBytes = directoryCount * PE_DATA_DIRECTORY_ENTRY_SIZE;
+  const directoryStart = optionalHeader + PE_DATA_DIRECTORY_OFFSET;
+  peRange(bytes, directoryStart, directoryBytes, "PE data directories", language);
+  if (directoryStart + directoryBytes > optionalHeader + optionalHeaderSize) {
+    fail(`${language} artifact has truncated PE data directories`);
+  }
+
+  const debugDirectory = directoryStart + PE_DEBUG_DIRECTORY_INDEX * PE_DATA_DIRECTORY_ENTRY_SIZE;
+  const debugRva = peUInt32(bytes, debugDirectory, "PE debug data directory", language);
+  const debugSize = peUInt32(bytes, debugDirectory + 4, "PE debug data directory", language);
+
+  const securityDirectory = directoryStart + PE_SECURITY_DIRECTORY_INDEX * PE_DATA_DIRECTORY_ENTRY_SIZE;
+  const securityPointer = peUInt32(bytes, securityDirectory, "PE certificate data directory", language);
+  const securitySize = peUInt32(bytes, securityDirectory + 4, "PE certificate data directory", language);
+  if (securityPointer !== 0 || securitySize !== 0) {
+    fail(`${language} artifact contains a PE certificate directory`);
+  }
+
+  const sizeOfHeaders = peUInt32(bytes, optionalHeader + 60, "PE optional header", language);
+  if (sizeOfHeaders === 0 || sizeOfHeaders > bytes.length) fail(`${language} artifact has invalid PE headers size`);
+  const sectionTable = optionalHeader + optionalHeaderSize;
+  const sectionTableBytes = sectionCount * PE_SECTION_HEADER_SIZE;
+  peRange(bytes, sectionTable, sectionTableBytes, "PE section table", language);
+  const sectionTableEnd = sectionTable + sectionTableBytes;
+  if (sizeOfHeaders < sectionTableEnd) fail(`${language} artifact has invalid PE headers size`);
+
+  const sections = [];
+  let rawEnd = sizeOfHeaders;
+  for (let index = 0; index < sectionCount; index += 1) {
+    const section = sectionTable + index * PE_SECTION_HEADER_SIZE;
+    const virtualSize = peUInt32(bytes, section + 8, `PE section ${index} header`, language);
+    const virtualAddress = peUInt32(bytes, section + 12, `PE section ${index} header`, language);
+    const rawSize = peUInt32(bytes, section + 16, `PE section ${index} header`, language);
+    const rawPointer = peUInt32(bytes, section + 20, `PE section ${index} header`, language);
+    sections.push({ virtualSize, virtualAddress, rawSize, rawPointer });
+    if (rawSize === 0) continue;
+    if (rawPointer < sizeOfHeaders) fail(`${language} artifact section ${index} overlaps PE headers`);
+    peRange(bytes, rawPointer, rawSize, `PE section ${index} raw data`, language);
+    rawEnd = Math.max(rawEnd, rawPointer + rawSize);
+  }
+  if (bytes.length > rawEnd) fail(`${language} artifact contains overlay bytes`);
+
+  return {
+    coffSymbols: { pointer: String(symbolTablePointer), count: String(symbolCount) },
+    codeView: { count: "0", sizeBytes: "0" },
+    debugDirectory: parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language),
+    certificateDirectory: { pointer: String(securityPointer), sizeBytes: String(securitySize) },
+    sectionData: "in-bounds",
+    overlay: { sizeBytes: "0" },
+  };
 }
 
 async function correctnessBuild(context) {
   const compiled = await compileSource(context, true);
   try {
     const bytes = await readFile(compiled.artifact);
-    validatePeX64(bytes, context.language);
+    const artifactCleanliness = validatePeX64(bytes, context.language);
+    artifactCleanliness.sidecars = { count: "0" };
     const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
     const oracle = context.source.workload.oracle;
     assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
-    return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length) };
+    return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
   } catch (error) {
     await rm(compiled.sampleDirectory, { recursive: true, force: true });
     throw error;
@@ -834,6 +994,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
     artifact: {
       digest: correctness.artifactDigest,
       sizeBytes: correctness.artifactSizeBytes,
+      cleanliness: correctness.artifactCleanliness,
     },
     protocol: protocol(context.language),
     environment: context.environment,

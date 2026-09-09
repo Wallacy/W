@@ -68,6 +68,15 @@ export const EXECUTABLE_PLATFORM_TARGET = "windows-x64";
 export const EXECUTABLE_ARTIFACT_TARGET_MSVC = "x86_64-pc-windows-msvc";
 export const EXECUTABLE_ARTIFACT_TARGET_MINGW = "x86_64-w64-mingw32";
 export const ENVIRONMENT_FIELDS = Object.freeze(["os", "kernel", "cpuModel", "logicalCores", "ramBytes"]);
+const ARTIFACT_CLEANLINESS_FIELDS = Object.freeze([
+  "coffSymbols",
+  "codeView",
+  "debugDirectory",
+  "certificateDirectory",
+  "sectionData",
+  "sidecars",
+  "overlay",
+]);
 export const PROTOCOL_FIELDS = Object.freeze([
   "warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock",
   "processIsolation", "order", "resourceScope", "knownNoiseControls",
@@ -586,6 +595,54 @@ function checkEnvironment(environment, name, errors) {
   positiveDecimal(environment.ramBytes, name + ".ramBytes", errors);
 }
 
+function checkArtifactCleanliness(cleanliness, name, errors) {
+  if (!exactKeys(cleanliness, name, ARTIFACT_CLEANLINESS_FIELDS, errors)) return;
+  if (exactKeys(cleanliness.coffSymbols, `${name}.coffSymbols`, ["pointer", "count"], errors)) {
+    if (cleanliness.coffSymbols.pointer !== "0" || cleanliness.coffSymbols.count !== "0") {
+      push(errors, `${name}.coffSymbols must prove a zero pointer and zero count.`);
+    }
+  }
+  if (exactKeys(cleanliness.codeView, `${name}.codeView`, ["count", "sizeBytes"], errors)) {
+    if (cleanliness.codeView.count !== "0" || cleanliness.codeView.sizeBytes !== "0") {
+      push(errors, `${name}.codeView must prove zero entries and zero bytes.`);
+    }
+  }
+  const debug = cleanliness.debugDirectory;
+  if (exactKeys(debug, `${name}.debugDirectory`, ["presence", "sizeBytes", "entries"], errors)) {
+    if (debug.presence !== "absent" && debug.presence !== "pogo-only") {
+      push(errors, `${name}.debugDirectory.presence must be absent or pogo-only.`);
+    }
+    const expectedDirectorySize = Array.isArray(debug.entries) ? String(debug.entries.length * 28) : undefined;
+    if (!Array.isArray(debug.entries)) {
+      push(errors, `${name}.debugDirectory.entries must be an array.`);
+    } else {
+      for (const [index, entry] of debug.entries.entries()) {
+        const entryName = `${name}.debugDirectory.entries[${index}]`;
+        if (!exactKeys(entry, entryName, ["type", "typeCode", "sizeBytes"], errors)) continue;
+        if (entry.type !== "pogo" || entry.typeCode !== 13) push(errors, `${entryName} must be POGO type 13.`);
+        positiveDecimal(entry.sizeBytes, `${entryName}.sizeBytes`, errors);
+      }
+    }
+    if (debug.presence === "absent" && (debug.sizeBytes !== "0" || debug.entries?.length !== 0)) {
+      push(errors, `${name}.debugDirectory absent form must have zero bytes and no entries.`);
+    }
+    if (debug.presence === "pogo-only" && (debug.entries?.length < 1 || debug.sizeBytes !== expectedDirectorySize)) {
+      push(errors, `${name}.debugDirectory pogo-only form must contain only bounded 28-byte POGO entries.`);
+    }
+  }
+  for (const [field, keys] of [
+    ["certificateDirectory", ["pointer", "sizeBytes"]],
+    ["overlay", ["sizeBytes"]],
+    ["sidecars", ["count"]],
+  ]) {
+    if (!exactKeys(cleanliness[field], `${name}.${field}`, keys, errors)) continue;
+    if (keys.some((key) => cleanliness[field][key] !== "0")) {
+      push(errors, `${name}.${field} must prove zero ${keys.join(" and ")}.`);
+    }
+  }
+  if (cleanliness.sectionData !== "in-bounds") push(errors, `${name}.sectionData must be in-bounds.`);
+}
+
 export function validateExecutableResult(result, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"];
@@ -637,9 +694,17 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
     digest(result.correctness.stderrDigest, "executable result.correctness.stderrDigest", errors);
     if (workload?.oracle?.status === "source-backed" && (result.correctness.exitCode !== workload.oracle.exitCode || result.correctness.stdoutDigest !== exactOutputDigest(workload.oracle.stdout) || result.correctness.stderrDigest !== exactOutputDigest(workload.oracle.stderr))) push(errors, "executable result.correctness must match the exact-output oracle.");
   }
-  if (exactKeys(result.artifact, "executable result.artifact", ["digest", "sizeBytes"], errors)) {
+  const hasArtifactCleanliness = isObject(result.artifact) && Object.prototype.hasOwnProperty.call(result.artifact, "cleanliness");
+  if (!hasArtifactCleanliness && options.allowHistoricalArtifactWithoutCleanliness !== true) {
+    push(errors, "executable result.artifact.cleanliness is required for new runner-bound results.");
+  }
+  const artifactFields = hasArtifactCleanliness
+    ? ["digest", "sizeBytes", "cleanliness"]
+    : ["digest", "sizeBytes"];
+  if (exactKeys(result.artifact, "executable result.artifact", artifactFields, errors)) {
     digest(result.artifact.digest, "executable result.artifact.digest", errors);
     positiveDecimal(result.artifact.sizeBytes, "executable result.artifact.sizeBytes", errors);
+    if (artifactFields.includes("cleanliness")) checkArtifactCleanliness(result.artifact.cleanliness, "executable result.artifact.cleanliness", errors);
   }
   checkProtocol(result.protocol, "executable result.protocol", errors);
   checkEnvironment(result.environment, "executable result.environment", errors);
@@ -746,7 +811,10 @@ export function deriveExecutableBestKnown(catalog, results) {
   const ids = new Set();
   for (const item of results) {
     const record = resultValue(item);
-    const errors = validateExecutableResult(record, catalog, { allowHistoricalWRecipe: true });
+    const errors = validateExecutableResult(record, catalog, {
+      allowHistoricalWRecipe: true,
+      allowHistoricalArtifactWithoutCleanliness: true,
+    });
     if (errors.length > 0) throw new Error(errors.join("; "));
     if (ids.has(record.id)) throw new Error(`executable results contain duplicate id: ${record.id}`);
     ids.add(record.id);
@@ -843,7 +911,10 @@ export function validateExecutableBestKnown(record, catalog = loadExecutableDocu
     const normalizedResults = results.map(resultValue);
     const selected = normalizedResults.filter((item) => derivedFrom.includes(item?.id));
     if (selected.length !== derivedFrom.length) push(errors, "executable best-known record.derivedFrom must reference supplied results exactly.");
-    if (selected.some((item) => validateExecutableResult(item, catalog).length > 0)) push(errors, "executable best-known record derives from an invalid result.");
+    if (selected.some((item) => validateExecutableResult(item, catalog, {
+      allowHistoricalWRecipe: true,
+      allowHistoricalArtifactWithoutCleanliness: true,
+    }).length > 0)) push(errors, "executable best-known record derives from an invalid result.");
     const expectedKey = source ? executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass) : undefined;
     if (record.equivalenceKey !== expectedKey) push(errors, "executable best-known record.equivalenceKey must be recomputed from the catalog.");
     if (source?.comparability !== "promotable-after-equivalence" || source?.eligibility !== "promotable-after-equivalence") push(errors, "executable best-known record cannot promote an ineligible or non-comparable source variant.");
@@ -952,7 +1023,10 @@ export function validateExecutableHistory(index, catalog = loadExecutableDocumen
     if (reference.digest !== "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex")) push(errors, location + ".digest is stale.");
     let record;
     try { record = JSON.parse(bytes.toString("utf8")); } catch { push(errors, location + ".path must contain valid JSON."); continue; }
-    errors.push(...validateExecutableResult(record, catalog, { allowHistoricalWRecipe: true }).map((error) => location + ": " + error));
+    errors.push(...validateExecutableResult(record, catalog, {
+      allowHistoricalWRecipe: true,
+      allowHistoricalArtifactWithoutCleanliness: true,
+    }).map((error) => location + ": " + error));
     if (record?.id !== reference.id) push(errors, location + ".id must match the immutable result record.");
   }
   let entries;

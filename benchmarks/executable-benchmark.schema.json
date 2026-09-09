@@ -188,7 +188,78 @@
       "required": ["digest", "sizeBytes"],
       "properties": {
         "digest": { "$ref": "#/$defs/digest" },
-        "sizeBytes": { "$ref": "#/$defs/positiveDecimal" }
+        "sizeBytes": { "$ref": "#/$defs/positiveDecimal" },
+        "cleanliness": { "$ref": "#/$defs/artifactCleanliness" }
+      }
+    },
+    "artifactCleanliness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["coffSymbols", "codeView", "debugDirectory", "certificateDirectory", "sectionData", "sidecars", "overlay"],
+      "properties": {
+        "coffSymbols": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pointer", "count"],
+          "properties": {
+            "pointer": { "const": "0" },
+            "count": { "const": "0" }
+          }
+        },
+        "codeView": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count", "sizeBytes"],
+          "properties": {
+            "count": { "const": "0" },
+            "sizeBytes": { "const": "0" }
+          }
+        },
+        "debugDirectory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["presence", "sizeBytes", "entries"],
+          "properties": {
+            "presence": { "enum": ["absent", "pogo-only"] },
+            "sizeBytes": { "$ref": "#/$defs/decimal" },
+            "entries": {
+              "type": "array",
+              "maxItems": 16,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["type", "typeCode", "sizeBytes"],
+                "properties": {
+                  "type": { "const": "pogo" },
+                  "typeCode": { "const": 13 },
+                  "sizeBytes": { "$ref": "#/$defs/positiveDecimal" }
+                }
+              }
+            }
+          }
+        },
+        "certificateDirectory": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pointer", "sizeBytes"],
+          "properties": {
+            "pointer": { "const": "0" },
+            "sizeBytes": { "const": "0" }
+          }
+        },
+        "sectionData": { "const": "in-bounds" },
+        "sidecars": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["count"],
+          "properties": { "count": { "const": "0" } }
+        },
+        "overlay": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["sizeBytes"],
+          "properties": { "sizeBytes": { "const": "0" } }
+        }
       }
     },
     "sample": {
