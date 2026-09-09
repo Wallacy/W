@@ -12,7 +12,7 @@ Neither bundle produces a language or product-runtime result.
 catalog of executable workloads. It keeps stable IDs for `hello`, the four
 source-backed Restaurant witnesses, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
-also has a private W Native0/MLIR0 source-to-PE candidate plus C and Rust
+also has a public `w build` Release source-to-PE candidate plus C and Rust
 sources verified against its exact oracle. The other
 Restaurant witnesses remain W-only with explicit C/Rust blockers. C is
 contextual and non-ranking across its MinGW ABI. Equivalent Hello sources live in
@@ -37,7 +37,7 @@ the normalized redacted environment rather than a hostname or user identity.
 derived only from validated results, ranks only optimizable metrics, and its
 contract is defined while the empty index remains `not-established` (it becomes
 `established` only when validated records are present). W execution and timing are
-currently private candidate evidence, not public `w run` timing. Recorded measurement evidence is `exploratory`,
+currently public `w build` candidate evidence, not process-tree-complete timing. Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
@@ -47,11 +47,19 @@ not claim that a W benchmark is performance-ready.
 
 [`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection
 of the executable catalog, immutable history index, and best-known index. The
-W route for workloads declaring the private recipe is a private Native0/MLIR0
-Windows source-to-PE candidate.
+W route for workloads declaring `public-w-build-release` is a public `w build`
+Release Windows source-to-PE candidate backed by the external, materialized
+MLIR/LLVM/LLD toolchain. It measures the complete build wall interval while
+CPU/RSS counters cover only the direct `w.exe` process; child process counters
+are unavailable and never aggregated, so compile CPU/RSS is non-comparable to
+C/Rust until process-tree accounting exists. Release artifacts must be
+sidecar-free. The runner builds `build/w-windows/w.exe` once as a bootstrap
+outside sample directories and leaves it retained. A pre-existing bootstrap
+may be replaced during that Release build. Sample directories and target EXEs
+are removed after each run.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
 remains exploratory and measurement-only. W remains contextual/non-ranking
-until the public `w run` route is benchmarkable. Local measurements remain ignored under `benchmarks/results/`;
+until process-tree accounting makes its compile CPU/RSS comparable. Local measurements remain ignored under `benchmarks/results/`;
 only a rerun from a clean committed HEAD may add a content-addressed history
 record. The history index rejects records whose filename is not the SHA-256
 digest of their canonical bytes, and rejects unindexed entries.
@@ -65,10 +73,11 @@ warmup and at least nine odd raw samples for every language. C probes `-std=c23`
 then `-std=c2x` and records the accepted standard plus MinGW ABI; its release
 recipe uses O3, LTO, section GC and stripped symbols. Rust records its rustc
 release, edition 2024 and MSVC ABI; its release recipe uses O3, fat LTO, one
-codegen unit, panic abort and stripped symbols. The private W release route uses
+codegen unit, panic abort and stripped symbols. The public W build Release route uses
 MLIR canonicalization/CSE, llc O3, lld dead-code/identical-code folding and no
 CRT. These profiles prioritize runtime performance while removing distributable
-symbols; none selects a size-only optimization level or host-specific CPU.
+symbols; none selects a size-only optimization level or host-specific CPU. W
+compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
 Publication creates a
 content-addressed record and updates the index and generated projection. An
 interrupted multi-file publication remains detectable as an unindexed entry

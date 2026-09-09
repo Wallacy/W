@@ -54,9 +54,9 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(hello.status, "source-oracle-ready");
   assert.equal(hello.sourceReadiness, "source-and-oracle-ready");
   assert.equal(hello.benchmarkStatus, "not-performance-ready");
-  assert.equal(hello.sources.find((item) => item.language === "w").recipe, "private-native0-mlir0-source-to-pe-candidate");
-  assert.equal(hello.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-public-run");
-  assert.equal(hello.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-public-run");
+  assert.equal(hello.sources.find((item) => item.language === "w").recipe, "public-w-build-release");
+  assert.equal(hello.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-process-tree-accounting");
+  assert.equal(hello.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-process-tree-accounting");
   assert.deepEqual(hello.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
   assert.equal(hello.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
   assert.equal(hello.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
@@ -68,10 +68,10 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(restaurant.benchmarkStatus, "not-performance-ready");
   assert.deepEqual(restaurant.sources.map((item) => item.language), EXECUTABLE_LANGUAGES);
   assert.deepEqual(restaurant.blockedLanguages, []);
-  assert.deepEqual(restaurant.blockers, ["public-w-run-benchmark-route"]);
-  assert.equal(restaurant.sources.find((item) => item.language === "w").recipe, "private-native0-mlir0-source-to-pe-candidate");
-  assert.equal(restaurant.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-public-run");
-  assert.equal(restaurant.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-public-run");
+  assert.deepEqual(restaurant.blockers, ["process-tree-accounting"]);
+  assert.equal(restaurant.sources.find((item) => item.language === "w").recipe, "public-w-build-release");
+  assert.equal(restaurant.sources.find((item) => item.language === "w").comparability, "contextual-non-ranking-until-process-tree-accounting");
+  assert.equal(restaurant.sources.find((item) => item.language === "w").eligibility, "contextual-only-until-process-tree-accounting");
   assert.equal(restaurant.sources.find((item) => item.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
   assert.equal(restaurant.sources.find((item) => item.language === "c").comparability, "contextual-non-ranking-across-abi");
   assert.equal(restaurant.sources.find((item) => item.language === "c").eligibility, "correctness-only-until-c23");
@@ -92,6 +92,7 @@ test("executable catalog is source-backed and keeps planned work separate", () =
   assert.equal(documents.catalog.status, "catalog-ready");
   assert.deepEqual(validateExecutableBestKnownIndex(documents.bestKnown, documents.catalog, historyResults), []);
   assert.deepEqual(validateExecutableHistory(documents.history, documents.catalog), []);
+  assert.ok(historyResults.some((record) => record.language === "w" && record.identity.recipe === "private-native0-mlir0-source-to-pe-candidate" && record.identity.eligibility === "contextual-only-until-public-run"), "immutable history retains the previous W recipe and policy label");
 });
 
 test("catalog rejects stale, escaped, duplicate and partition-drifting records", () => {

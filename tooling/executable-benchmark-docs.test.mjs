@@ -26,14 +26,15 @@ test("generated executable projection is current and uses projection-relative li
   assert.match(rendered, /\]\(\.\/executable\/restaurant_branch\.rs\)/u);
   assert.match(rendered, /runner selects each target workload, materialized source, recipe and source-backed exact-output oracle/u);
   assert.match(rendered, /C and Rust routes currently cover `hello`, `restaurant-branch`/u);
-  assert.match(rendered, /W uses the private Native0\/MLIR0 gate for `hello`, `restaurant-branch`/u);
+  assert.match(rendered, /W uses the public `w build` Release driver for `hello`, `restaurant-branch`/u);
   assert.match(rendered, /public-w-run.*fails before compilation/u);
   assert.match(rendered, /probes `-std=c23` and then `-std=c2x`/u);
   assert.match(rendered, /performance-first release optimization and strip distributable symbols/u);
   assert.match(rendered, /O3, fat LTO, one codegen unit, panic abort, stripped symbols and `\/DEBUG:NONE` to suppress the linker PDB sidecar/u);
   assert.match(rendered, /canonicalizes and eliminates common subexpressions in MLIR/u);
-  assert.match(rendered, /private Native0\/MLIR0 gate/u);
-  assert.match(rendered, /Windows MLIR\/LLVM\/LLD chain/u);
+  assert.match(rendered, /public W Release route/u);
+  assert.match(rendered, /compile wall interval.*direct-process CPU\/RSS.*non-comparable to C\/Rust.*process-tree accounting/u);
+  assert.match(rendered, /externally materialized Windows MLIR\/LLVM\/LLD toolchain/u);
   assert.match(rendered, /contextual-non-ranking/u);
 });
 

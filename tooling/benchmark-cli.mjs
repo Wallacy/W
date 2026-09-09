@@ -133,7 +133,7 @@ export function benchmarkUsage() {
     "  record <result.json>    (content-addressed history publication; consumes a local result on success)",
     "  check",
     "",
-    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the private Native0/MLIR0 source-to-PE candidate for workloads that declare that recipe; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 

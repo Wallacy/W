@@ -17,7 +17,7 @@ Best-known status: **established** (20 promoted records).
 
 ## Best-known validated records
 
-Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.
+Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the public W build route remain contextual/non-ranking evidence until process-tree accounting exists.
 A zero-valued run CPU median remains recorded evidence but is excluded from promoted `cpu-time` rows because microsecond resolution cannot establish a positive measurement.
 
 ### hello
@@ -55,24 +55,24 @@ A zero-valued run CPU median remains recorded evidence but is excluded from prom
 - rust — promotable-after-equivalence; compile median 1.3664357 s (CPU 15.625 ms, RSS 12980224 B (12.379 MiB)); run median 18.5136 ms (CPU 0 µs, RSS 4763648 B (4.543 MiB)); artifact 113152 B (110.5 KiB); commit 4a7b86390bd8; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/e99249993fd92ae1a6eb68691a30e9e70d5332112eb28dd2570b0fb86f189e78.json)
 - rust — promotable-after-equivalence; compile median 237.4533 ms (CPU 31.25 ms, RSS 12910592 B (12.313 MiB)); run median 20.3466 ms (CPU 0 µs, RSS 4796416 B (4.574 MiB)); artifact 130048 B (127 KiB); commit 5667ee42e006; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/2fd083d793532081f9d02258a30266a6ac3e877f690489d30dc10ab4b8a37e2b.json)
 - rust — promotable-after-equivalence; compile median 1.4294274 s (CPU 15.625 ms, RSS 12935168 B (12.336 MiB)); run median 19.7934 ms (CPU 0 µs, RSS 4763648 B (4.543 MiB)); artifact 113152 B (110.5 KiB); commit f621c7a8a503; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/727db3bf361686d6d9a867e8615fcea11c0d06f19bc378bdd17e08bfae2a5d27.json)
-- w — contextual-non-ranking-until-public-run; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
-- w — contextual-non-ranking-until-public-run; compile median 171.9469 ms (CPU 109.375 ms, RSS 24862720 B (23.711 MiB)); run median 15.8529 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit d834927505d5; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/7c140903cbaae00c89356a9c8743a724b58af213bd102036d4dbe4b15420cc1a.json)
+- w — contextual-non-ranking-until-process-tree-accounting; compile median 193.5199 ms (CPU 93.75 ms, RSS 24866816 B (23.715 MiB)); run median 19.0794 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit cbc349985a26; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json)
+- w — contextual-non-ranking-until-process-tree-accounting; compile median 171.9469 ms (CPU 109.375 ms, RSS 24862720 B (23.711 MiB)); run median 15.8529 ms (CPU 0 µs, RSS 3715072 B (3.543 MiB)); artifact 2560 B (2.5 KiB); commit d834927505d5; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/7c140903cbaae00c89356a9c8743a724b58af213bd102036d4dbe4b15420cc1a.json)
 
 ### restaurant-branch
 
 - c — contextual-non-ranking-across-abi; compile median 291.4917 ms (CPU 31.25 ms, RSS 6074368 B (5.793 MiB)); run median 16.4601 ms (CPU 0 µs, RSS 4673536 B (4.457 MiB)); artifact 19456 B (19 KiB); commit 90ff03d3ba04; toolchain gcc-13.2.0-c2x-preview-x86_64-w64-mingw32; [history record](./history/executables/df6ad2507a190be183593e1076339603b9f58aa38a8469aceaecea8f3eba9032.json)
 - rust — promotable-after-equivalence; compile median 1.4367235 s (CPU 31.25 ms, RSS 12726272 B (12.137 MiB)); run median 21.4716 ms (CPU 0 µs, RSS 4763648 B (4.543 MiB)); artifact 115200 B (112.5 KiB); commit 7dc01230fb5b; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/74efda66ee25093582c95efb5f8d98420f2143b9cc0153a833f27ba030eca4e2.json)
 - rust — promotable-after-equivalence; compile median 1.4136568 s (CPU 15.625 ms, RSS 12742656 B (12.152 MiB)); run median 22.4224 ms (CPU 0 µs, RSS 4767744 B (4.547 MiB)); artifact 114688 B (112 KiB); commit d54108567a8d; toolchain rustc-1.94.0-edition-2024-x86_64-pc-windows-msvc; [history record](./history/executables/c75e34886954e8912f3c12e276b93c262c4251985afe79d9af9376c11775a864.json)
-- w — contextual-non-ranking-until-public-run; compile median 202.5762 ms (CPU 109.375 ms, RSS 24903680 B (23.75 MiB)); run median 15.2738 ms (CPU 0 µs, RSS 3719168 B (3.547 MiB)); artifact 3072 B (3 KiB); commit 0a9862a58747; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4.json)
+- w — contextual-non-ranking-until-process-tree-accounting; compile median 202.5762 ms (CPU 109.375 ms, RSS 24903680 B (23.75 MiB)); run median 15.2738 ms (CPU 0 µs, RSS 3719168 B (3.547 MiB)); artifact 3072 B (3 KiB); commit 0a9862a58747; toolchain msvc-19.51.36256.0-mlir-23.1.0; [history record](./history/executables/02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4.json)
 
 ## Workload language boundary
 
 The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.
 C and Rust routes currently cover `hello`, `restaurant-branch` and preserve each workload's declared artifact ABI.
-W uses the private Native0/MLIR0 gate for `hello`, `restaurant-branch` and the pinned Windows MLIR/LLVM/LLD chain.
+W uses the public `w build` Release driver for `hello`, `restaurant-branch` with the externally materialized Windows MLIR/LLVM/LLD toolchain. Its compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
 Routes for `restaurant-nested-branch`, `bool-short-circuit`, `restaurant-interpolation` use catalog recipe `public-w-run`; the runner fails before compilation until retained-artifact and separate compile-run support exists.
 Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.
 C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.
 Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols and `/DEBUG:NONE` to suppress the linker PDB sidecar with the `x86_64-pc-windows-msvc` ABI.
-The private W route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, and links without the CRT.
+The public W Release route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, links without the CRT, and verifies a sidecar-free artifact. Its compile wall interval includes compiler descendants; direct-process CPU/RSS covers only w.exe, is non-comparable to C/Rust until process-tree accounting exists, and does not aggregate child processes.
 All records remain exploratory, measurement-only and not-evaluated.

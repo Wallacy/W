@@ -132,8 +132,8 @@ function languageBoundaryLines(catalog) {
   const cRustTargets = catalog.workloads
     .filter((workload) => workload.sources?.some((source) => source.language === "c" || source.language === "rust"))
     .map((workload) => workload.id);
-  const privateWTargets = catalog.workloads
-    .filter((workload) => workload.sources?.some((source) => source.language === "w" && source.recipe === "private-native0-mlir0-source-to-pe-candidate"))
+  const publicWBuildTargets = catalog.workloads
+    .filter((workload) => workload.sources?.some((source) => source.language === "w" && source.recipe === "public-w-build-release"))
     .map((workload) => workload.id);
   const publicWTargets = catalog.workloads
     .filter((workload) => workload.sources?.some((source) => source.language === "w" && source.recipe === "public-w-run"))
@@ -143,12 +143,12 @@ function languageBoundaryLines(catalog) {
     "",
     "The runner selects each target workload, materialized source, recipe and source-backed exact-output oracle from the catalog before warmup and raw samples.",
     `C and Rust routes currently cover ${formatWorkloadIds(cRustTargets)} and preserve each workload's declared artifact ABI.`,
-    `W uses the private Native0/MLIR0 gate for ${formatWorkloadIds(privateWTargets)} and the pinned Windows MLIR/LLVM/LLD chain.`,
+    `W uses the public \`w build\` Release driver for ${formatWorkloadIds(publicWBuildTargets)} with the externally materialized Windows MLIR/LLVM/LLD toolchain. Its compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.`,
     `Routes for ${formatWorkloadIds(publicWTargets)} use catalog recipe \`public-w-run\`; the runner fails before compilation until retained-artifact and separate compile-run support exists.`,
     "Comparison recipes use performance-first release optimization and strip distributable symbols; they do not use size-only optimization levels or host-specific CPU tuning.",
     "C probes `-std=c23` and then `-std=c2x`, uses O3, LTO, function/data sections, section GC and stripped symbols, and records the `x86_64-w64-mingw32` MinGW ABI.",
     "Rust records its rustc release and uses edition 2024, O3, fat LTO, one codegen unit, panic abort, stripped symbols and `/DEBUG:NONE` to suppress the linker PDB sidecar with the `x86_64-pc-windows-msvc` ABI.",
-    "The private W route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, and links without the CRT.",
+    "The public W Release route canonicalizes and eliminates common subexpressions in MLIR, uses llc O3, lld dead-code/identical-code folding, links without the CRT, and verifies a sidecar-free artifact. Its compile wall interval includes compiler descendants; direct-process CPU/RSS covers only w.exe, is non-comparable to C/Rust until process-tree accounting exists, and does not aggregate child processes.",
     "All records remain exploratory, measurement-only and not-evaluated.",
   ];
 }
@@ -212,7 +212,7 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
     const sources = workload.sources?.map(sourceLink).join("; ") || "no materialized source";
     lines.push(`| ${workload.id} | ${workload.sourceReadiness}; ${sources}; oracle ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the private W route remain contextual/non-ranking evidence.", "A zero-valued run CPU median remains recorded evidence but is excluded from promoted `cpu-time` rows because microsecond resolution cannot establish a positive measurement.");
+  lines.push("", "## Best-known validated records", "", "Only sources with `promotable-after-equivalence` eligibility are ranked; C MinGW and the public W build route remain contextual/non-ranking evidence until process-tree accounting exists.", "A zero-valued run CPU median remains recorded evidence but is excluded from promoted `cpu-time` rows because microsecond resolution cannot establish a positive measurement.");
   let bestRecorded = 0;
   for (const workload of catalog.workloads) {
     const evidence = bestKnownLines(workload, bestKnown, history);
@@ -230,7 +230,7 @@ export function renderExecutableProjection({ catalog, history, bestKnown, root =
     lines.push(`### ${workload.id}`, "", ...evidence, "");
   }
   if (recorded === 0) {
-    lines.push("No clean-HEAD executable result is tracked yet.", "", "The local W route is bounded candidate evidence only: private Native0/MLIR0 Windows source-to-PE for workloads that declare that recipe, contextual/non-ranking until the public `w run` route is benchmarkable.", "", "Local outputs stay ignored under `benchmarks/results/`; the immutable index is", `${jsonPathLink(projectionPath(EXECUTABLE_HISTORY_INDEX_PATH), "benchmarks/history/executables/index.json")}.`, "");
+    lines.push("No clean-HEAD executable result is tracked yet.", "", "The local W route is bounded candidate evidence only: public `w build` Release Windows source-to-PE for workloads that declare that recipe, contextual/non-ranking until process-tree accounting exists.", "", "The runner builds `build/w-windows/w.exe` once as a bootstrap outside sample directories and leaves it retained. A pre-existing bootstrap may be replaced during that Release build. Sample directories and target EXEs are removed after the run.", "", "Local outputs stay ignored under `benchmarks/results/`; the immutable index is", `${jsonPathLink(projectionPath(EXECUTABLE_HISTORY_INDEX_PATH), "benchmarks/history/executables/index.json")}.`, "");
   }
   lines.push(...languageBoundaryLines(catalog));
   return lines.join("\n");

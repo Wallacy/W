@@ -29,13 +29,11 @@ import {
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 import {
-  MATERIALIZED_MANIFEST,
   defaultCacheDirectory,
   validateManifest,
   validateMaterialized,
 } from "./acquire-mlir0-windows.mjs";
-import { findVisualStudio, findWindowsSdkKernel32, runWithVisualStudio } from "./windows-build-support.mjs";
-import { parseMsvcCompilerVersion } from "./build-w-windows.mjs";
+import { findWindowsSdkKernel32 } from "./windows-build-support.mjs";
 import { dialectArgs, dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
 import {
   C_RELEASE_FLAGS,
@@ -48,15 +46,18 @@ import {
 export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
-const SEED_DIRECTORY = path.resolve(ROOT, "compiler", "seed-c");
 const DEFAULT_TARGET = "hello";
 const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch"]);
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
 const RUN_DIRECTORY_PREFIX = "w-executable-run-";
-const GATE_DIRECTORY_PREFIX = "w-executable-gate-";
 const SAMPLE_DIRECTORY_PREFIX = "w-executable-sample-";
+const PUBLIC_W_BUILD_RECIPE = "public-w-build-release";
+const PUBLIC_W_BUILD_SCRIPT = path.resolve(ROOT, "tooling", "build-w-windows.mjs");
+const PUBLIC_W_BUILD_DIRECTORY = path.resolve(ROOT, "build", "w-windows");
+const PUBLIC_W_EXECUTABLE = path.join(PUBLIC_W_BUILD_DIRECTORY, "w.exe");
+const PUBLIC_W_RECEIPT = path.join(PUBLIC_W_BUILD_DIRECTORY, "receipt.json");
 const C_COMPILER_NAMES = ["gcc", "clang", "cc"];
 const RUST_TARGET = EXECUTABLE_ARTIFACT_TARGET_MSVC;
 export const EXECUTABLE_CHILD_TIMEOUT_MS = 120_000;
@@ -191,7 +192,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target hello|restaurant-branch (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the private Native0/MLIR0 source-to-PE candidate for workloads that declare that recipe; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -380,50 +381,50 @@ async function resolveWindowsToolchain() {
   return { cache, manifest, manifestDigest, materialized, tools, sdk };
 }
 
-async function buildPrivateGate() {
-  if (process.platform !== "win32" || process.arch !== "x64") fail("private Native0 gate requires Windows x86_64");
-  const vs = findVisualStudio();
-  const cmake = Bun.which("cmake");
-  const ninja = Bun.which("ninja");
-  if (!cmake || !ninja) fail("private gate requires cmake and ninja");
-  const buildDirectory = await mkdtemp(path.join(os.tmpdir(), GATE_DIRECTORY_PREFIX));
-  console.error(`executable benchmark: private gate temp=${buildDirectory}`);
+async function buildPublicW(executor) {
+  if (process.platform !== "win32" || process.arch !== "x64") fail("public w build Release requires Windows x86_64");
+  const build = await timedStep(executor, process.execPath, [PUBLIC_W_BUILD_SCRIPT, "--profile", "release"], ROOT, "public W Release build");
+  requireSuccess(build, "public W Release build");
+  await regularFile(PUBLIC_W_EXECUTABLE, "public W compiler");
+  await regularFile(PUBLIC_W_RECEIPT, "public W build receipt");
+  let receipt;
   try {
-    const invoke = (command, args, label) => {
-      const result = commandResult(runWithVisualStudio(vs.devCommand, command, args, {
-        cwd: ROOT,
-        timeout: EXECUTABLE_CHILD_TIMEOUT_MS,
-        killSignal: EXECUTABLE_CHILD_KILL_SIGNAL,
-      }));
-      timeoutFailure(result, label, EXECUTABLE_CHILD_TIMEOUT_MS);
-      requireSuccess(result, label);
-    };
-    invoke(cmake, [
-      "-S", SEED_DIRECTORY,
-      "-B", buildDirectory,
-      "-G", "Ninja",
-      `-DCMAKE_MAKE_PROGRAM=${ninja}`,
-      "-DCMAKE_BUILD_TYPE=Release",
-      "-DCMAKE_C_FLAGS_RELEASE=/O2",
-      "-DW_SEED_C_STANDARD=11",
-      `-DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${buildDirectory}`,
-    ], "private gate configure");
-    invoke(cmake, ["--build", buildDirectory, "--target", "w_seed_mlir0_gate", "--", "-j", "2"], "private gate build");
-    const executable = path.join(buildDirectory, "w_seed_mlir0_gate.exe");
-    await regularFile(executable, "private gate executable");
-    const compilerProbe = commandResult(runWithVisualStudio(vs.devCommand, "cl.exe", ["/Bv"], {
-      cwd: ROOT,
-      timeout: EXECUTABLE_CHILD_TIMEOUT_MS,
-      killSignal: EXECUTABLE_CHILD_KILL_SIGNAL,
-    }));
-    timeoutFailure(compilerProbe, "private gate compiler probe", EXECUTABLE_CHILD_TIMEOUT_MS);
-    const compilerOutput = Buffer.concat([bufferValue(compilerProbe.stdout), bufferValue(compilerProbe.stderr)]).toString("latin1");
-    const compilerVersion = parseMsvcCompilerVersion(compilerOutput);
-    return { buildDirectory, executable, compilerVersion };
+    receipt = JSON.parse(await readFile(PUBLIC_W_RECEIPT, "utf8"));
   } catch (error) {
-    await rm(buildDirectory, { recursive: true, force: true });
-    throw error;
+    fail(`public W build receipt is not valid JSON: ${error.message}`);
   }
+  if (receipt?.profile?.selected !== "release") fail("public W compiler must be built with the Release profile");
+  const digest = await sha256File(PUBLIC_W_EXECUTABLE);
+  if (receipt?.artifact?.sha256 !== digest.slice("sha256:".length)) fail("public W build receipt does not match w.exe");
+  const outputEntries = (await readdir(PUBLIC_W_BUILD_DIRECTORY)).sort();
+  if (JSON.stringify(outputEntries) !== JSON.stringify(["receipt.json", "w.exe"])) {
+    fail(`public W build produced unexpected sidecars: ${outputEntries.join(", ")}`);
+  }
+  return {
+    executable: PUBLIC_W_EXECUTABLE,
+    digest,
+    receiptDigest: await sha256File(PUBLIC_W_RECEIPT),
+    compilerVersion: receipt.compiler?.version,
+  };
+}
+
+function normalizePublicW(value) {
+  if (!isObject(value) || typeof value.executable !== "string" || !path.isAbsolute(value.executable) ||
+      typeof value.digest !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value.digest)) {
+    fail("public W compiler must identify an absolute executable and its sha256 digest");
+  }
+  if (value.receiptDigest !== undefined && (typeof value.receiptDigest !== "string" || !/^sha256:[0-9a-f]{64}$/u.test(value.receiptDigest))) {
+    fail("public W build receipt digest must be a sha256 digest");
+  }
+  if (value.compilerVersion !== undefined && (typeof value.compilerVersion !== "string" || value.compilerVersion.trim() === "")) {
+    fail("public W compiler version must be a non-empty string");
+  }
+  return value;
+}
+
+function publicWToolchainIdentity(publicW) {
+  const digestSlug = publicW.digest.slice("sha256:".length);
+  return `w-public-build-release-${digestSlug}-${EXECUTABLE_ARTIFACT_TARGET_MSVC}`;
 }
 
 function identityToken(value, label) {
@@ -576,37 +577,24 @@ async function sourcePath(catalog, target, language) {
 
 async function compileW(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
-  const input = path.join(sampleDirectory, "input.mlir");
-  const verified = path.join(sampleDirectory, "verified.mlir");
-  const llvm = path.join(sampleDirectory, "output.ll");
-  const object = path.join(sampleDirectory, "output.obj");
   const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
   try {
-    const start = process.hrtime.bigint();
-    const steps = [];
-    const gate = await timedStep(context.executor, context.gate.executable, [context.source.filePath, "--target=x86_64-pc-windows-msvc"], sampleDirectory, "W Native0 gate");
-    requireSuccess(gate, "W Native0 gate");
-    await writeFile(input, gate.stdout);
-    steps.push(gate);
-    const opt = await timedStep(context.executor, context.tools["mlir-opt.exe"], [input, "-o", verified, ...W_MLIR_OPT_FLAGS], sampleDirectory, "mlir-opt");
-    requireSuccess(opt, "mlir-opt");
-    steps.push(opt);
-    const translate = await timedStep(context.executor, context.tools["mlir-translate.exe"], ["--mlir-to-llvmir", verified, "-o", llvm], sampleDirectory, "mlir-translate");
-    requireSuccess(translate, "mlir-translate");
-    steps.push(translate);
-    const llc = await timedStep(context.executor, context.tools["llc.exe"], [...W_LLC_FLAGS, llvm, "-o", object], sampleDirectory, "llc");
-    requireSuccess(llc, "llc");
-    steps.push(llc);
-    const linkStep = await timedStep(context.executor, context.tools["lld-link.exe"], [
-      ...W_LLD_LINK_FLAGS,
-      `/out:${artifact}`, object, context.windowsToolchain.sdk.path,
-    ], sampleDirectory, "lld-link");
-    requireSuccess(linkStep, "lld-link");
-    steps.push(linkStep);
+    const step = await timedStep(context.executor, context.publicW.executable, [
+      "build",
+      context.source.filePath,
+      "--target",
+      EXECUTABLE_ARTIFACT_TARGET_MSVC,
+      "--output",
+      artifact,
+    ], sampleDirectory, "W public build");
+    requireSuccess(step, "W public build");
     const stats = await regularFile(artifact, "W PE artifact");
     if (stats.size <= 0) fail("W PE artifact is empty");
-    const end = process.hrtime.bigint();
-    const sample = chainSample(steps, start, end, "W compile");
+    const produced = (await readdir(sampleDirectory)).sort();
+    if (produced.length !== 1 || produced[0] !== path.basename(artifact)) {
+      fail(`W public build produced unexpected release sidecars: ${produced.join(", ")}`);
+    }
+    const sample = chainSample([step], step.start, step.end, "W public build");
     if (retain) return { sampleDirectory, artifact, sample };
     await rm(sampleDirectory, { recursive: true, force: true });
     return { sampleDirectory: undefined, artifact: undefined, sample };
@@ -717,17 +705,9 @@ async function correctnessBuild(context) {
   }
 }
 
-async function checkGateArguments(context) {
-  const positive = await timedStep(context.executor, context.gate.executable, [context.source.filePath, "--target=x86_64-pc-windows-msvc"], ROOT, "W gate target contract");
-  requireSuccess(positive, "W gate target contract");
-  if (!positive.stdout.toString("utf8").includes("x86_64-pc-windows-msvc")) fail("W gate target contract did not emit a Windows-target artifact");
-  const invalid = await timedStep(context.executor, context.gate.executable, [context.source.filePath, "--target=unsupported"], ROOT, "W gate invalid target contract");
-  if (invalid.exitCode !== 2 || invalid.stdout.length !== 0) fail("W gate invalid target contract must return exit 2 with empty stdout");
-}
-
 function protocol(language) {
   const compileScope = language === "w"
-    ? "W compile aggregates the five direct children (Native0 gate, mlir-opt, mlir-translate, llc and lld-link)."
+    ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
   return {
     warmupMinimum: 1,
@@ -748,12 +728,14 @@ function protocol(language) {
 function recipeFor(context) {
   if (context.language === "w") {
     return {
-      command: "w-seed-mlir0-gate",
+      command: "w.exe",
+      subcommand: "build",
       target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
-      args: ["<source>", "--target=x86_64-pc-windows-msvc", "|", "mlir-opt", "|", "mlir-translate", "|", "llc", "|", "lld-link"],
-      flags: [...W_MLIR_OPT_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS],
+      args: ["build", "<source>", "--target", EXECUTABLE_ARTIFACT_TARGET_MSVC, "--output", "<artifact>"],
+      flags: [...W_MLIR_OPT_FLAGS, "--mlir-to-llvmir", ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS],
       cmakeBuildType: "Release",
-      cStandard: "11-recovery",
+      profile: "release",
+      artifactAbi: EXECUTABLE_ARTIFACT_TARGET_MSVC,
     };
   }
   if (context.language === "c") {
@@ -782,11 +764,16 @@ function recipeFor(context) {
 function toolchainProvenance(context) {
   if (context.language === "w") {
     return {
+      compiler: "w.exe",
+      compilerProfile: "release",
+      compilerTarget: EXECUTABLE_ARTIFACT_TARGET_MSVC,
+      wExecutableDigest: context.publicW.digest,
+      wExecutableReceiptDigest: context.publicW.receiptDigest,
       manifestDigest: context.windowsToolchain.manifestDigest,
       materializedTools: Object.fromEntries(Object.entries(context.windowsToolchain.materialized.tools)
         .filter(([name]) => context.tools[name] !== undefined)
         .map(([name, record]) => [name, { relativePath: record.relativePath, sizeBytes: record.sizeBytes, sha256: record.sha256, version: record.version }])),
-      gateCompiler: context.gate.compilerVersion,
+      compilerVersion: context.publicW.compilerVersion,
     };
   }
   return {
@@ -920,7 +907,7 @@ async function cleanupOwned(directory) {
   const candidate = path.resolve(directory);
   const tempRoot = path.resolve(os.tmpdir());
   const base = path.basename(candidate);
-  if (![RUN_DIRECTORY_PREFIX, GATE_DIRECTORY_PREFIX, SAMPLE_DIRECTORY_PREFIX].some((prefix) => base.startsWith(prefix))) fail(`refusing to clean unowned directory: ${directory}`);
+  if (![RUN_DIRECTORY_PREFIX, SAMPLE_DIRECTORY_PREFIX].some((prefix) => base.startsWith(prefix))) fail(`refusing to clean unowned directory: ${directory}`);
   if (samePath(tempRoot, candidate) || !isContained(tempRoot, candidate)) fail(`owned temporary directory escapes the OS temp directory: ${directory}`);
   await assertNoReparseAncestors(candidate, tempRoot);
   await rm(candidate, { recursive: true, force: true });
@@ -943,6 +930,11 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   if (!Number.isSafeInteger(samples) || samples < 9 || samples % 2 === 0) fail("samples must be odd and at least nine");
   const publish = options.publish !== false;
   measurementPlatform(dependencies, publish);
+  if (language === "w") {
+    const legacyFallbacks = ["gate", "buildPrivateGate"]
+      .filter((key) => Object.prototype.hasOwnProperty.call(dependencies, key));
+    if (legacyFallbacks.length > 0) fail(`W private gate fallback dependencies are unsupported: ${legacyFallbacks.join(", ")}`);
+  }
   const outputPath = publish ? await resolveResultPath(options.output) : undefined;
   const executor = dependencies.executor ?? defaultExecutor;
   const documents = dependencies.documents ?? loadExecutableDocuments();
@@ -950,11 +942,8 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const catalogErrors = validateExecutableCatalog(catalog, documents);
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
   const source = await sourcePath(catalog, target, language);
-  if (language === "w" && source.source.recipe === "public-w-run") {
-    fail(`${target} W cannot run: catalog recipe public-w-run has no retained artifact or separate compile-run support; private Native0/MLIR0 is not a route for this target`);
-  }
-  if (language === "w" && source.source.recipe !== "private-native0-mlir0-source-to-pe-candidate") {
-    fail(`${target} W has no executable benchmark implementation for catalog recipe ${source.source.recipe}`);
+  if (language === "w" && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
+    fail(`${target} W cannot run: catalog recipe ${source.source.recipe} has no retained-artifact and separate compile-run benchmark support`);
   }
   const runnerDigest = dependencies.runnerDigest ?? await sha256File(path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"));
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);
@@ -964,23 +953,26 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const windowsToolchain = language === "w"
     ? dependencies.windowsToolchain ?? await resolveWindowsToolchain()
     : undefined;
+  const publicW = language === "w"
+    ? normalizePublicW(dependencies.publicW ?? (typeof dependencies.buildPublicW === "function"
+      ? await dependencies.buildPublicW(executor)
+      : await buildPublicW(executor)))
+    : undefined;
   const languageToolchain = language === "c"
     ? await resolveCCompiler(executor, dependencies, target)
     : language === "rust"
       ? await resolveRustCompiler(executor, dependencies, target)
       : undefined;
-  let gate;
   let tempRoot;
   const retained = [];
   try {
-    gate = language === "w" ? dependencies.gate ?? await buildPrivateGate() : undefined;
     tempRoot = await mkdtemp(path.join(os.tmpdir(), RUN_DIRECTORY_PREFIX));
     console.error(`executable benchmark: measurement temp=${tempRoot}`);
     const selectedToolchain = language === "w"
       ? {
         language: "w",
-        identity: `msvc-${gate.compilerVersion}-mlir-23.1.0`,
-        version: gate.compilerVersion,
+        identity: publicWToolchainIdentity(publicW),
+        version: publicW.compilerVersion ?? "release",
         target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
       }
       : languageToolchain;
@@ -991,7 +983,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       source,
       windowsToolchain,
       tools: windowsToolchain?.tools,
-      gate,
+      publicW,
       language,
       languageToolchain: selectedToolchain,
       environment,
@@ -1000,7 +992,6 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       catalogDigest,
       tempRoot,
     };
-    if (language === "w") await checkGateArguments(context);
     const correctness = await correctnessBuild(context);
     retained.push(correctness.compiled.sampleDirectory);
     const compileWarmup = [];
@@ -1029,7 +1020,6 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   } finally {
     for (const directory of retained) await cleanupOwned(directory);
     await cleanupOwned(tempRoot);
-    if (gate !== undefined && dependencies.gate === undefined && gate.buildDirectory !== undefined) await cleanupOwned(gate.buildDirectory);
   }
 }
 
