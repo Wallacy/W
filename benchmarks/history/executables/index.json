@@ -31,6 +31,11 @@
       "digest": "sha256:727db3bf361686d6d9a867e8615fcea11c0d06f19bc378bdd17e08bfae2a5d27"
     },
     {
+      "id": "hello-w-1afde29ccb38",
+      "path": "d2a211e6a7264c9cd88cf697653140f12d24aef576ff633e445919b1bd4d7b7c.json",
+      "digest": "sha256:d2a211e6a7264c9cd88cf697653140f12d24aef576ff633e445919b1bd4d7b7c"
+    },
+    {
       "id": "hello-w-cbc349985a26",
       "path": "35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd.json",
       "digest": "sha256:35b8f6e27ea0af347c798f882718576d887ffab7b560a5d067e34bb3496f4fdd"
