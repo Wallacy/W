@@ -18,7 +18,10 @@ import {
 } from "./executable-benchmark-runner.mjs";
 import {
   C_RELEASE_FLAGS,
+  C_WHOLE_PROGRAM_FLAG,
+  NATIVE_RECIPE_PROFILE,
   RUST_RELEASE_FLAGS,
+  cReleaseFlags,
   W_LLC_FLAGS,
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
@@ -57,7 +60,11 @@ test("default executor enforces the Bun child timeout and preserves termination 
 
 test("release recipes prioritize runtime and strip distributable symbols", () => {
   assert.deepEqual(C_RELEASE_FLAGS, ["-O3", "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", "-s"]);
-  assert.deepEqual(RUST_RELEASE_FLAGS, ["-C", "opt-level=3", "-C", "lto=fat", "-C", "codegen-units=1", "-C", "panic=abort", "-C", "debuginfo=0", "-C", "strip=symbols", "-C", "link-arg=/DEBUG:NONE"]);
+  assert.equal(C_WHOLE_PROGRAM_FLAG, "-fwhole-program");
+  assert.deepEqual(cReleaseFlags(), C_RELEASE_FLAGS);
+  assert.deepEqual(cReleaseFlags({ wholeProgram: true }), [...C_RELEASE_FLAGS, C_WHOLE_PROGRAM_FLAG]);
+  assert.equal(NATIVE_RECIPE_PROFILE, "release-native");
+  assert.deepEqual(RUST_RELEASE_FLAGS, ["-C", "opt-level=3", "-C", "lto=fat", "-C", "codegen-units=1", "-C", "panic=abort", "-C", "debuginfo=0", "-C", "strip=symbols", "-C", "link-dead-code=no", "-C", "link-arg=/OPT:REF", "-C", "link-arg=/OPT:ICF", "-C", "link-arg=/INCREMENTAL:NO", "-C", "link-arg=/DEBUG:NONE"]);
   assert.equal(RUST_RELEASE_FLAGS.includes("incremental=off"), false, "rustc treats this as an output directory rather than disabling incremental compilation");
   assert.deepEqual(W_MLIR_OPT_FLAGS, ["--verify-each", "--canonicalize", "--cse"]);
   assert.ok(W_LLC_FLAGS.includes("-O3"));
@@ -369,11 +376,13 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(fake.calls.some((call) => /w_seed|mlir|cmake|ninja/iu.test([call.command, ...call.args].join(" "))), false);
     if (language === "c") {
       assert.equal(fake.calls.filter((call) => call.args.includes("-dumpmachine")).length, 1);
-      assert.equal(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).length, 2, "C dialect probe must use the injected executor for both candidates");
+      assert.equal(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).length, 3, "C dialect and release-flag probes must use the injected executor");
       assert.ok(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).every((call) => typeof call.stdin === "string" && call.stdin.includes("int main")));
+      assert.ok(fake.calls.some((call) => call.args.includes(C_WHOLE_PROGRAM_FLAG)), "C release must include probed -fwhole-program when supported");
       assert.equal(fake.calls.filter((call) => call.args.length === 1 && call.args[0] === "--version").length, 1);
       assert.ok(compileCalls.every((call) => call.args.includes("-std=c2x")));
       assert.ok(compileCalls.every((call) => C_RELEASE_FLAGS.every((flag) => call.args.includes(flag))));
+      assert.ok(compileCalls.every((call) => call.args.includes(C_WHOLE_PROGRAM_FLAG)));
       assert.match(record.identity.toolchain, /c2x-preview/u);
       assert.match(record.identity.toolchain, /x86_64-w64-mingw32/u);
       assert.equal(record.provenance.toolchainDigest.length, 71);

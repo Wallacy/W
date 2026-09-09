@@ -69,12 +69,12 @@ if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result")) 
   fail("WBench/1 root must expose kind result.");
 }
 
-if (executableDocuments.schema?.$id !== "w-executable-benchmark/3" ||
+if (executableDocuments.schema?.$id !== "w-executable-benchmark/4" ||
     !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/catalog") ||
     !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result") ||
-    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestKnown") ||
-    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestKnownIndex")) {
-  fail("executable benchmark schema must expose catalog, immutable result and derived best-known contracts plus its generated index.");
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestMetric") ||
+    !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestMetrics")) {
+  fail("executable benchmark schema must expose catalog, local result and live best-metric contracts.");
 }
 if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageCatalog") ||
     !documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/languageWorkloadManifest")) {

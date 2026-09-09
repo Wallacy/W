@@ -26,8 +26,7 @@ export const CHECK_TARGETS = Object.freeze([
   "compiler",
   "docs",
   "studies",
-  "bmd",
-  "executable",
+  "benchmark",
   "all",
 ]);
 export const DEMO_TARGETS = Object.freeze(["hello", "bool-short-circuit"]);
@@ -620,7 +619,7 @@ export async function runDevRun({
 }
 
 const HELP = `usage:
-  bun check [--target quick|compiler|docs|studies|bmd|executable|all|<leaf>] [--list|--list-all] [--dry-run]
+  bun check [--target quick|compiler|docs|studies|benchmark|all|<leaf>] [--list|--list-all] [--dry-run]
   bun demo [--target hello|bool-short-circuit] [--list]
   bun bootstrap --target host
   bun dev run <explicit .w path> [-- args]

@@ -56,7 +56,6 @@ export const RESEARCH_STATE_FAMILY_IDS = Object.freeze([
   "cyc1",
   "brx2",
   "brx3",
-  "w1504",
 ]);
 export const DESIGN_ONLY_CLOSURES = Object.freeze({
   "W-1517": "oracle-backed-current",
@@ -871,7 +870,7 @@ export function mutationChecks() {
   checks.researchInventoryInvalidCategoryRejected = !researchStateInventoryFacts(invalidCategory).valid;
 
   const missingSuccessor = clone(state.researchStateInventory);
-  const successorFamily = missingSuccessor.families.find((family) => family.id === "w1504");
+  const successorFamily = missingSuccessor.families.find((family) => family.id === "drc0");
   successorFamily.successorDecisions = [];
   successorFamily.implementationGaps = [];
   checks.researchInventoryMissingSuccessorRejected = !researchStateInventoryFacts(missingSuccessor).valid;

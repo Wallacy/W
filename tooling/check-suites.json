@@ -16,15 +16,16 @@
       ]
     },
     "root-docs": {
-      "description": "BMD validation followed by documentation and design checks.",
+      "description": "Generated documentation freshness and link checks.",
       "steps": [
         { "package": "root", "script": "check:diagnostic-catalog" },
         { "package": "root", "script": "check:platform-support" },
-        { "package": "root", "script": "check:study-registry" },
         { "package": "root", "script": "check:dependency-currency" },
-        { "package": "root", "script": "check:bmd" },
+        { "package": "root", "script": "check:syntax-atlas-projection" },
+        { "package": "root", "script": "check:cheatsheet" },
         { "package": "root", "script": "check:executable" },
-        { "suite": "tree-docs" }
+        { "package": "root", "script": "design:index:check" },
+        { "package": "root", "script": "check:links" }
       ]
     },
     "root-studies": {
@@ -66,34 +67,17 @@
       ]
     },
     "root-quick": {
-      "description": "Fast manifests, BMD executable catalog, projections, documentation, and maintained-source parse checks without seed C builds.",
+      "description": "Fast structural, projection, maintained-source, and benchmark integrity checks without builds or design oracles.",
       "steps": [
         { "package": "root", "script": "check:suite-manifest" },
         { "package": "root", "script": "check:platform-support" },
         { "package": "root", "script": "check:cleanup" },
         { "package": "root", "script": "check:dependency-currency" },
-        { "package": "root", "script": "check:study-registry" },
         { "package": "root", "script": "check:diagnostic-catalog" },
-        { "package": "root", "script": "check:design-freeze" },
-        { "package": "root", "script": "check:syntax-atlas" },
-        { "package": "root", "script": "check:operator-surface" },
-        { "package": "root", "script": "check:cheatsheet" },
-        { "package": "root", "script": "check:substitution-surface" },
-        { "package": "root", "script": "check:type-queries" },
-        { "package": "root", "script": "check:type-query-highlighting" },
-        { "package": "root", "script": "check:semantic-cases" },
-        { "package": "root", "script": "check:design" },
-        { "package": "root", "script": "check:capability-matrix" },
         { "package": "root", "script": "check:maintained-parse" },
         { "package": "root", "script": "check:links" },
         { "package": "root", "script": "check:bmd" },
-        { "package": "root", "script": "check:executable" },
-        { "package": "root", "script": "design:index:check" },
-        { "package": "tree", "script": "generate" },
-        { "package": "tree", "script": "test" },
-        { "package": "tree", "script": "parse:reference" },
-        { "package": "tree", "script": "parse:std" },
-        { "package": "tree", "script": "parse:fixture" }
+        { "package": "root", "script": "check:executable" }
       ]
     },
     "root-compiler": {
@@ -127,15 +111,10 @@
         { "package": "root", "script": "check:hlo1" }
       ]
     },
-    "root-bmd": {
-      "description": "Benchmark-driven-development structure and immutable catalog contracts without workload execution.",
+    "root-benchmark": {
+      "description": "Benchmark-driven-development and executable catalog integrity without workload execution.",
       "steps": [
-        { "package": "root", "script": "check:bmd" }
-      ]
-    },
-    "root-executable": {
-      "description": "Executable benchmark catalog structure without compiling or executing workloads.",
-      "steps": [
+        { "package": "root", "script": "check:bmd" },
         { "package": "root", "script": "check:executable" }
       ]
     },
@@ -228,87 +207,6 @@
         { "package": "tree", "script": "parse:studies" },
         { "package": "root", "script": "check:links" },
         { "package": "root", "script": "check:design" },
-        { "package": "root", "script": "design:index:check" }
-      ]
-    },
-    "tree-docs": {
-      "description": "Documentation, design, and evidence checks without the full parser suite.",
-      "steps": [
-        { "package": "root", "script": "check:reader" },
-        { "package": "root", "script": "check:syntax-atlas" },
-        { "package": "root", "script": "check:operator-surface" },
-        { "package": "root", "script": "check:cheatsheet" },
-        { "package": "root", "script": "check:root-unification" },
-        { "package": "root", "script": "check:pkg1" },
-        { "package": "root", "script": "check:avf0" },
-        { "package": "root", "script": "check:sec0" },
-        { "package": "root", "script": "check:asic0" },
-        { "package": "root", "script": "check:links" },
-        { "package": "root", "script": "check:design" },
-        { "package": "root", "script": "check:capability-matrix" },
-        { "package": "root", "script": "check:memory-transitions" },
-        { "package": "root", "script": "check:allocation" },
-        { "package": "root", "script": "check:allocator-scope" },
-        { "package": "root", "script": "check:shared-control" },
-        { "package": "root", "script": "check:layout-abi-model" },
-        { "package": "root", "script": "check:layout-abi" },
-        { "package": "root", "script": "check:execution-model" },
-        { "package": "root", "script": "check:execution-concurrency" },
-        { "package": "root", "script": "check:execution-ergonomics" },
-        { "package": "root", "script": "check:process-root" },
-        { "package": "root", "script": "check:filesystem" },
-        { "package": "root", "script": "check:io-error" },
-        { "package": "root", "script": "check:time" },
-        { "package": "tree", "script": "check:injections" },
-        { "package": "root", "script": "check:foreign-bodies" },
-        { "package": "root", "script": "check:runtime-liveness-model" },
-        { "package": "root", "script": "check:runtime-liveness" },
-        { "package": "root", "script": "check:lazy" },
-        { "package": "root", "script": "check:ownership-execution" },
-        { "package": "root", "script": "check:channel" },
-        { "package": "root", "script": "check:context-local" },
-        { "package": "root", "script": "check:interference-layout" },
-        { "package": "root", "script": "check:locks" },
-        { "package": "root", "script": "check:snapshot-cell" },
-        { "package": "root", "script": "check:boundary-effects" },
-        { "package": "root", "script": "check:service-recovery" },
-        { "package": "root", "script": "check:package-releases" },
-        { "package": "root", "script": "check:module-run" },
-        { "package": "root", "script": "check:repl-session" },
-        { "package": "root", "script": "check:presentation" },
-        { "package": "root", "script": "check:dlpack" },
-        { "package": "root", "script": "check:device-execution" },
-        { "package": "root", "script": "check:kernel-modules" },
-        { "package": "root", "script": "check:jupyter" },
-        { "package": "root", "script": "check:notebook-export" },
-        { "package": "root", "script": "check:std-api" },
-        { "package": "root", "script": "check:web-bodies" },
-        { "package": "root", "script": "check:wmeta" },
-        { "package": "root", "script": "check:semantic-matrix" },
-        { "package": "root", "script": "check:substitutions" },
-        { "package": "root", "script": "check:freeze-audit" },
-        { "package": "root", "script": "check:frontend-freeze" },
-        { "package": "root", "script": "check:frc0" },
-        { "package": "root", "script": "check:substitution-surface" },
-        { "package": "root", "script": "check:tabular-carrier" },
-        { "package": "root", "script": "check:tabular-adapters" },
-        { "package": "root", "script": "check:source-calls" },
-        { "package": "root", "script": "check:study-bundles" },
-        { "package": "root", "script": "check:r1c0" },
-        { "package": "root", "script": "check:prc0" },
-        { "package": "root", "script": "check:syn2-dyn2" },
-        { "package": "root", "script": "check:hrd0" },
-        { "package": "root", "script": "check:atom2" },
-        { "package": "root", "script": "check:ipc1" },
-        { "package": "root", "script": "check:hum0" },
-        { "package": "root", "script": "check:gen1" },
-        { "package": "root", "script": "check:gen2" },
-        { "package": "root", "script": "check:atom1" },
-        { "package": "root", "script": "check:cyc1" },
-        { "package": "root", "script": "check:syn1" },
-        { "package": "root", "script": "check:dyn1" },
-        { "package": "root", "script": "check:borrow-expressivity" },
-        { "package": "root", "script": "check:brx2" },
         { "package": "root", "script": "design:index:check" }
       ]
     }

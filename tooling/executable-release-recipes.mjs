@@ -1,5 +1,9 @@
-// Shared performance-first release flags for executable comparisons.
+// Shared performance-first portable release flags for executable comparisons.
 // Size-only opt levels and host-specific CPU tuning are intentionally excluded.
+// A future/local native recipe must be identified separately as release-native
+// and never compare against these portable cells.
+
+export const NATIVE_RECIPE_PROFILE = "release-native";
 
 export const C_RELEASE_FLAGS = Object.freeze([
   "-O3",
@@ -10,6 +14,12 @@ export const C_RELEASE_FLAGS = Object.freeze([
   "-s",
 ]);
 
+export const C_WHOLE_PROGRAM_FLAG = "-fwhole-program";
+
+export function cReleaseFlags({ wholeProgram = false } = {}) {
+  return wholeProgram ? [...C_RELEASE_FLAGS, C_WHOLE_PROGRAM_FLAG] : [...C_RELEASE_FLAGS];
+}
+
 export const RUST_RELEASE_FLAGS = Object.freeze([
   "-C", "opt-level=3",
   "-C", "lto=fat",
@@ -17,6 +27,10 @@ export const RUST_RELEASE_FLAGS = Object.freeze([
   "-C", "panic=abort",
   "-C", "debuginfo=0",
   "-C", "strip=symbols",
+  "-C", "link-dead-code=no",
+  "-C", "link-arg=/OPT:REF",
+  "-C", "link-arg=/OPT:ICF",
+  "-C", "link-arg=/INCREMENTAL:NO",
   "-C", "link-arg=/DEBUG:NONE",
 ]);
 

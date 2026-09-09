@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import crypto from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -34,6 +35,10 @@ function metadataOnly(value) {
     return Object.fromEntries(Object.entries(value).filter(([key]) => key !== "value" && key !== "liveValue").map(([key, entry]) => [key, metadataOnly(entry)]));
   }
   return value;
+}
+
+function digest(value) {
+  return `sha256:${crypto.createHash("sha256").update(JSON.stringify(value)).digest("hex")}`;
 }
 
 function resolveReference(reference, location) {
@@ -266,7 +271,14 @@ for (const [index, testCase] of (corpus.cases ?? []).entries()) {
   } else {
     assertCase(actual.state, testCase.expected.assertions, testCase.id);
   }
-  results.push({ caseId: testCase.id, status: actual.status, ...(actual.code ? { code: actual.code, operation: actual.operation } : {}), state: compactState(actual.state), trace: actual.state.trace });
+  const state = compactState(actual.state);
+  results.push({
+    caseId: testCase.id,
+    status: actual.status,
+    ...(actual.code ? { code: actual.code, operation: actual.operation } : {}),
+    stateDigest: digest(state),
+    traceDigest: digest(actual.state.trace),
+  });
 }
 
 const requiredOperations = new Set(["open", "appendBuffer", "clearBuffer", "classify", "submit", "beginSubmission", "advanceSubmission", "finishSubmission", "enqueue", "admitNext", "complete", "inspect", "status", "history", "why", "cancel", "command", "reset", "restart", "quit"]);
@@ -275,7 +287,10 @@ const accepted = results.filter((result) => result.status === "accepted").length
 const rejected = results.length - accepted;
 if (accepted === 0 || rejected === 0) errors.push("PYN2 corpus must contain accepted and rejected cases");
 
-const expectedSnapshot = `${results.map((result) => JSON.stringify(result)).join("\n")}\n`;
+const expectedSnapshot = [
+  JSON.stringify({ schema: "w-repl-session-receipts-1", status: "design-oracle-receipts" }),
+  ...results.map((result) => JSON.stringify(result)),
+].join("\n") + "\n";
 if (process.argv.includes("--write")) fs.writeFileSync(snapshotPath, expectedSnapshot);
 else if (!fs.existsSync(snapshotPath)) errors.push("PYN2 snapshot is missing; run with --write");
 else if (fs.readFileSync(snapshotPath, "utf8") !== expectedSnapshot) errors.push("PYN2 snapshot is stale; run with --write after reviewing the change");

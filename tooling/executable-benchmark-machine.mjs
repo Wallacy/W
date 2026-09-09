@@ -3,10 +3,10 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
-export const EXECUTABLE_SCHEMA = "w-executable-benchmark/3";
+export const EXECUTABLE_SCHEMA = "w-executable-benchmark/4";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
-export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/3";
-export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best/3";
+export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/4";
+export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
 export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "hello",
@@ -33,6 +33,7 @@ export const EXECUTABLE_COMPARABILITY_AXES = Object.freeze([
   "source-semantics",
   "platform-target",
   "artifact-target",
+  "abi",
   "profile",
   "toolchain",
   "host",
@@ -60,11 +61,34 @@ export const OPTIMIZABLE_METRICS = Object.freeze([
   "peak-working-set",
   "artifact-size",
 ]);
-export const BEST_KNOWN_METRIC_ORDER = Object.freeze([...OPTIMIZABLE_METRICS]);
-export const RESULT_HISTORY_PATH = "benchmarks/history/executables";
-export const EXECUTABLE_HISTORY_SCHEMA = "w-executable-benchmark-history/1";
-export const EXECUTABLE_HISTORY_INDEX_PATH = "benchmarks/history/executables/index.json";
-export const BEST_KNOWN_PATH = "benchmarks/executable-best-known.json";
+export const BEST_METRIC_ORDER = Object.freeze([...OPTIMIZABLE_METRICS]);
+export const LOCAL_RESULTS_PATH = "benchmarks/results";
+export const BEST_METRICS_STATUS = "current";
+export const BEST_CATEGORY_AXES = Object.freeze([
+  "workloadId",
+  "language",
+  "equivalenceKey",
+  "platformTarget",
+  "artifactTarget",
+  "abi",
+  "profile",
+  "host",
+  "recipeClass",
+  "comparability",
+  "eligibility",
+]);
+export const BEST_METRIC_PROVENANCE_FIELDS = Object.freeze([
+  "recordId",
+  "commit",
+  "observedAt",
+  "sourceDigest",
+  "artifactDigest",
+  "recipeDigest",
+  "toolchainDigest",
+  "runnerDigest",
+  "catalogDigest",
+  "artifactCleanliness",
+]);
 export const EXECUTABLE_PLATFORM_TARGET = "windows-x64";
 export const EXECUTABLE_ARTIFACT_TARGET_MSVC = "x86_64-pc-windows-msvc";
 export const EXECUTABLE_ARTIFACT_TARGET_MINGW = "x86_64-w64-mingw32";
@@ -84,7 +108,7 @@ export const PROTOCOL_FIELDS = Object.freeze([
   "unknownNoiseControls", "directProcessDisclosure",
 ]);
 export const CATALOG_STATUS = "catalog-ready";
-export const BEST_KNOWN_CONTRACT_STATUS = "defined";
+export const BEST_METRICS_CONTRACT_STATUS = "defined";
 
 const SOURCE_ELIGIBILITY = Object.freeze({
   wPublicBuild: Object.freeze({
@@ -283,10 +307,10 @@ function checkOracle(oracle, location, workloadStatus, errors) {
 }
 
 function checkContract(contract, name, errors) {
-  const keys = ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "immutability"];
+  const keys = ["schema", "status", "recordsPath", "requiredIdentity", "provenance", "sampling", "protocolFields", "environmentFields", "artifact", "metrics", "storage"];
   if (!exactKeys(contract, name, keys, errors)) return;
-  if (contract.schema !== EXECUTABLE_RESULT_SCHEMA || contract.status !== "contract-only") push(errors, name + " must remain a contract-only result schema.");
-  if (contract.recordsPath !== RESULT_HISTORY_PATH) push(errors, name + ".recordsPath must identify the concrete immutable history path.");
+  if (contract.schema !== EXECUTABLE_RESULT_SCHEMA || contract.status !== "contract-only") push(errors, name + " must remain a contract-only local result schema.");
+  if (contract.recordsPath !== LOCAL_RESULTS_PATH) push(errors, name + ".recordsPath must identify the ignored local result directory.");
   stringArray(contract.requiredIdentity, name + ".requiredIdentity", errors, 1);
   stringArray(contract.provenance, name + ".provenance", errors, 1);
   if (exactKeys(contract.sampling, name + ".sampling", ["warmupMinimum", "rawMinimum", "rawParity", "sampleFields", "cpuUnits", "zeroCpuDisclosure"], errors)) {
@@ -300,23 +324,24 @@ function checkContract(contract, name, errors) {
   requiredString(contract.artifact, name + ".artifact", errors);
   stringArray(contract.metrics, name + ".metrics", errors, EXECUTABLE_METRICS.length);
   if (JSON.stringify(contract.metrics) !== JSON.stringify(EXECUTABLE_METRICS.map((item) => item.id))) push(errors, name + ".metrics must match the declared vocabulary.");
-  requiredString(contract.immutability, name + ".immutability", errors);
+  requiredString(contract.storage, name + ".storage", errors);
 }
 
-function checkBestKnownContract(contract, name, errors) {
-  const keys = ["schema", "status", "path", "derivation", "optimizableMetrics", "forbiddenMetrics", "rule"];
+function checkBestMetricsContract(contract, name, errors) {
+  const keys = ["schema", "status", "storage", "optimizableMetrics", "forbiddenMetrics", "categoryAxes", "provenanceFields", "rule"];
   if (!exactKeys(contract, name, keys, errors)) return;
-  if (contract.schema !== EXECUTABLE_BEST_SCHEMA || contract.status !== BEST_KNOWN_CONTRACT_STATUS) push(errors, name + " must declare the defined best-known contract.");
-  if (contract.path !== BEST_KNOWN_PATH) push(errors, name + ".path must identify the concrete generated best-known index.");
-  requiredString(contract.derivation, name + ".derivation", errors);
+  if (contract.schema !== EXECUTABLE_BEST_SCHEMA || contract.status !== BEST_METRICS_CONTRACT_STATUS) push(errors, name + " must declare the live best-metrics contract.");
+  requiredString(contract.storage, name + ".storage", errors);
   if (JSON.stringify(contract.optimizableMetrics) !== JSON.stringify(OPTIMIZABLE_METRICS)) push(errors, name + ".optimizableMetrics must be the closed promotable set.");
   if (JSON.stringify(contract.forbiddenMetrics) !== JSON.stringify(["exit-code", "stdout", "stderr"])) push(errors, name + ".forbiddenMetrics must exclude correctness outputs.");
+  if (JSON.stringify(contract.categoryAxes) !== JSON.stringify(BEST_CATEGORY_AXES)) push(errors, name + ".categoryAxes must preserve every non-crossable category axis.");
+  if (JSON.stringify(contract.provenanceFields) !== JSON.stringify(BEST_METRIC_PROVENANCE_FIELDS)) push(errors, name + ".provenanceFields must preserve exact per-metric provenance.");
   requiredString(contract.rule, name + ".rule", errors);
 }
 
 export function validateExecutableCatalog(catalog, documents = undefined, root = ROOT) {
   const errors = [];
-  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestKnownContract"];
+  const keys = ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"];
   if (!exactKeys(catalog, "executable catalog", keys, errors)) return errors;
   if (catalog.$schema !== "./executable-benchmark.schema.json" ||
       catalog.schema !== EXECUTABLE_SCHEMA ||
@@ -391,10 +416,8 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   }
   for (const id of EXECUTABLE_WORKLOAD_IDS) if (!workloadIds.has(id)) push(errors, "executable catalog is missing workload " + id + ".");
   checkContract(catalog.resultContract, "executable catalog.resultContract", errors);
-  checkBestKnownContract(catalog.bestKnownContract, "executable catalog.bestKnownContract", errors);
-  if (documents?.bestKnown && Object.prototype.hasOwnProperty.call(documents, "historyResults")) {
-    errors.push(...validateExecutableBestKnownIndex(documents.bestKnown, catalog, documents.historyResults).map((error) => "best-known index: " + error));
-  }
+  checkBestMetricsContract(catalog.bestMetricsContract, "executable catalog.bestMetricsContract", errors);
+  errors.push(...validateExecutableBestMetrics(catalog.bestMetrics, catalog).map((error) => "best metrics: " + error));
   return errors;
 }
 
@@ -722,61 +745,7 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   return errors;
 }
 
-function resultValue(item) {
-  return item?.record ?? item;
-}
-
-function historyReferenceSort(left, right) {
-  return compareText(String(left?.id ?? ""), String(right?.id ?? "")) || compareText(String(left?.path ?? ""), String(right?.path ?? ""));
-}
-
-export function loadExecutableHistoryResults(history, root = ROOT) {
-  if (!isObject(history) || !Array.isArray(history.records)) throw new TypeError("executable history records are required");
-  const historyRoot = path.resolve(root, RESULT_HISTORY_PATH);
-  return history.records.map((reference) => {
-    const physical = path.resolve(historyRoot, reference.path);
-    if (!isContained(historyRoot, physical)) throw new Error("executable history record path escapes its directory");
-    const bytes = fs.readFileSync(physical);
-    const actual = "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex");
-    if (actual !== reference.digest) throw new Error(`executable history record digest is stale: ${reference.path}`);
-    let record;
-    try {
-      record = JSON.parse(bytes.toString("utf8"));
-    } catch {
-      throw new Error(`executable history record is not valid JSON: ${reference.path}`);
-    }
-    return { reference, record, bytes };
-  });
-}
-
-const BEST_KNOWN_PROVENANCE_FIELDS = Object.freeze([
-  "sourceDigest", "runnerDigest", "toolchainDigest", "catalogDigest",
-]);
-
-function bestKnownGroupIdentity(record) {
-  return {
-    workloadId: record.workloadId,
-    language: record.language,
-    platformTarget: record.platformTarget,
-    artifactTarget: record.artifactTarget,
-    profile: record.profile,
-    equivalenceKey: record.equivalenceKey,
-    toolchain: record.identity.toolchain,
-    host: record.identity.host,
-    recipe: record.identity.recipe,
-    recipeClass: record.identity.recipeClass,
-    recipeDigest: record.identity.recipeDigest,
-    eligibility: record.identity.eligibility,
-    provenance: Object.fromEntries(BEST_KNOWN_PROVENANCE_FIELDS.map((field) => [field, record.provenance[field]])),
-    protocol: record.protocol,
-  };
-}
-
-function bestKnownGroupKey(record) {
-  return JSON.stringify(bestKnownGroupIdentity(record));
-}
-
-function bestKnownMetricValue(record, metric) {
+function resultMetricValue(record, metric) {
   if (metric === "compile-latency") return record.compile.summary.wallNs.median;
   if (metric === "run-wall-time") return record.run.summary.wallNs.median;
   if (metric === "cpu-time") return record.run.summary.cpuTotalUs.median;
@@ -785,19 +754,31 @@ function bestKnownMetricValue(record, metric) {
   return undefined;
 }
 
-function bestKnownStatistic(metric) {
+function bestMetricStatistic(metric) {
   return metric === "artifact-size" ? "single-artifact" : "median";
 }
 
-function bestKnownMetricIsEligible(record, metric) {
-  // A zero run CPU median is a valid microsecond-resolution observation, but
-  // it cannot establish a useful CPU best-known value.
-  return metric !== "cpu-time" || record.run.summary.cpuTotalUs.median !== "0";
+function bestMetricIsEligible(record, metric) {
+  const value = resultMetricValue(record, metric);
+  // CPU counters can be valid at microsecond resolution, but a zero value
+  // cannot establish a useful lower-is-better cell.
+  return value !== undefined && (!metric.startsWith("cpu-") || value !== "0");
 }
 
-function bestKnownRecordId(groupKey, metric) {
-  const digestHex = crypto.createHash("sha256").update(`${groupKey}\u0000${metric}`, "utf8").digest("hex");
-  return `best-${digestHex}`;
+function categoryIdentity(value) {
+  return Object.fromEntries(BEST_CATEGORY_AXES.map((axis) => [axis, value?.[axis]]));
+}
+
+export function executableCategoryKey(value) {
+  return JSON.stringify(categoryIdentity(value));
+}
+
+export function executableCategoryId(value) {
+  return "category-" + crypto.createHash("sha256").update(executableCategoryKey(value), "utf8").digest("hex");
+}
+
+function bestMetricId(category, metric) {
+  return "best-" + crypto.createHash("sha256").update(`${category}\u0000${metric}`, "utf8").digest("hex");
 }
 
 function compareResultForTie(left, right) {
@@ -806,12 +787,68 @@ function compareResultForTie(left, right) {
     compareText(String(left?.provenance?.commit ?? ""), String(right?.provenance?.commit ?? ""));
 }
 
-export function deriveExecutableBestKnown(catalog, results) {
+function entryFromResult(record, catalog, metric) {
+  const workload = workloadFor(catalog, record.workloadId);
+  const source = sourceFor(workload, record.language);
+  const category = {
+    workloadId: record.workloadId,
+    language: record.language,
+    equivalenceKey: record.equivalenceKey,
+    platformTarget: record.platformTarget,
+    artifactTarget: record.artifactTarget,
+    abi: record.artifactTarget,
+    profile: record.profile,
+    host: record.identity.host,
+    recipeClass: record.identity.recipeClass,
+    comparability: source?.comparability,
+    eligibility: source?.eligibility,
+  };
+  const categoryKey = executableCategoryKey(category);
+  return {
+    $schema: "./executable-benchmark.schema.json",
+    schema: EXECUTABLE_BEST_SCHEMA,
+    kind: "executable-best-metric",
+    id: bestMetricId(categoryKey, metric),
+    status: "current",
+    categoryId: executableCategoryId(category),
+    workloadId: record.workloadId,
+    language: record.language,
+    equivalenceKey: record.equivalenceKey,
+    platformTarget: record.platformTarget,
+    artifactTarget: record.artifactTarget,
+    abi: record.artifactTarget,
+    profile: record.profile,
+    host: record.identity.host,
+    recipeClass: record.identity.recipeClass,
+    comparability: source?.comparability,
+    eligibility: source?.eligibility,
+    metric,
+    unit: EXECUTABLE_METRICS.find((item) => item.id === metric)?.unit,
+    statistic: bestMetricStatistic(metric),
+    value: resultMetricValue(record, metric),
+    toolchain: record.identity.toolchain,
+    recipe: record.identity.recipe,
+    provenance: {
+      recordId: record.id,
+      commit: record.provenance.commit,
+      observedAt: record.provenance.observedAt,
+      sourceDigest: record.provenance.sourceDigest,
+      artifactDigest: record.provenance.artifactDigest,
+      recipeDigest: record.provenance.recipeDigest,
+      toolchainDigest: record.provenance.toolchainDigest,
+      runnerDigest: record.provenance.runnerDigest,
+      catalogDigest: record.provenance.catalogDigest,
+      artifactCleanliness: record.artifact?.cleanliness ? "verified-clean" : "historical-unverified",
+    },
+  };
+}
+
+export function deriveExecutableBestMetrics(catalog, results) {
   if (!Array.isArray(results)) throw new TypeError("validated executable results are required");
   const groups = new Map();
   const ids = new Set();
   for (const item of results) {
-    const record = resultValue(item);
+    const record = item?.record ?? item;
     const errors = validateExecutableResult(record, catalog, {
       allowHistoricalWRecipe: true,
       allowHistoricalArtifactWithoutCleanliness: true,
@@ -821,232 +858,172 @@ export function deriveExecutableBestKnown(catalog, results) {
     ids.add(record.id);
     const workload = workloadFor(catalog, record.workloadId);
     const source = sourceFor(workload, record.language);
-    if (source?.comparability !== "promotable-after-equivalence" || source?.eligibility !== "promotable-after-equivalence") continue;
-    const key = bestKnownGroupKey(record);
+    if (!source) continue;
+    const category = {
+      workloadId: record.workloadId,
+      language: record.language,
+      equivalenceKey: record.equivalenceKey,
+      platformTarget: record.platformTarget,
+      artifactTarget: record.artifactTarget,
+      abi: record.artifactTarget,
+      profile: record.profile,
+      host: record.identity.host,
+      recipeClass: record.identity.recipeClass,
+      comparability: source.comparability,
+      eligibility: source.eligibility,
+    };
+    const key = executableCategoryKey(category);
     const group = groups.get(key) ?? { key, records: [] };
     group.records.push(record);
     groups.set(key, group);
   }
 
-  const derived = [];
+  const entries = [];
   for (const group of [...groups.values()].sort((left, right) => compareText(left.key, right.key))) {
     const ordered = [...group.records].sort(compareResultForTie);
-    for (const metric of BEST_KNOWN_METRIC_ORDER) {
+    for (const metric of BEST_METRIC_ORDER) {
       const values = ordered
-        .filter((record) => bestKnownMetricIsEligible(record, metric))
-        .map((record) => ({ record, value: BigInt(bestKnownMetricValue(record, metric)) }));
+        .filter((record) => bestMetricIsEligible(record, metric))
+        .map((record) => ({ record, value: BigInt(resultMetricValue(record, metric)) }));
       if (values.length === 0) continue;
       const minimum = values.reduce((best, item) => item.value < best ? item.value : best, values[0].value);
-      const selected = values.filter((item) => item.value === minimum).map((item) => item.record).sort(compareResultForTie);
-      const primary = selected[0];
-      derived.push({
-        $schema: "./executable-benchmark.schema.json",
-        schema: EXECUTABLE_BEST_SCHEMA,
-        kind: "executable-best-known",
-        id: bestKnownRecordId(group.key, metric),
-        status: "derived",
-        workloadId: primary.workloadId,
-        metric,
-        language: primary.language,
-        platformTarget: primary.platformTarget,
-        artifactTarget: primary.artifactTarget,
-        profile: primary.profile,
-        statistic: bestKnownStatistic(metric),
-        equivalenceKey: primary.equivalenceKey,
-        toolchain: primary.identity.toolchain,
-        host: primary.identity.host,
-        recipe: primary.identity.recipe,
-        recipeClass: primary.identity.recipeClass,
-        recipeDigest: primary.identity.recipeDigest,
-        value: minimum.toString(10),
-        derivedFrom: selected.map((record) => record.id),
-      });
+      const primary = values.filter((item) => item.value === minimum).map((item) => item.record).sort(compareResultForTie)[0];
+      entries.push(entryFromResult(primary, catalog, metric));
     }
   }
-  derived.sort((left, right) => compareText(left.id, right.id));
+  entries.sort(bestMetricSort);
   return {
     $schema: "./executable-benchmark.schema.json",
     schema: EXECUTABLE_BEST_SCHEMA,
-    kind: "executable-best-known-index",
-    status: derived.length === 0 ? "not-established" : "established",
-    records: derived,
+    kind: "executable-best-metrics",
+    status: entries.length === 0 ? "empty" : BEST_METRICS_STATUS,
+    entries,
   };
 }
 
-export function validateExecutableBestKnown(record, catalog = loadExecutableDocuments().catalog, results = []) {
+function bestMetricSort(left, right) {
+  return compareText(String(left?.workloadId ?? ""), String(right?.workloadId ?? "")) ||
+    compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
+    compareText(String(left?.equivalenceKey ?? ""), String(right?.equivalenceKey ?? "")) ||
+    compareText(String(left?.platformTarget ?? ""), String(right?.platformTarget ?? "")) ||
+    compareText(String(left?.artifactTarget ?? ""), String(right?.artifactTarget ?? "")) ||
+    compareText(String(left?.profile ?? ""), String(right?.profile ?? "")) ||
+    compareText(String(left?.host ?? ""), String(right?.host ?? "")) ||
+    compareText(String(left?.recipeClass ?? ""), String(right?.recipeClass ?? "")) ||
+    compareText(String(left?.metric ?? ""), String(right?.metric ?? "")) ||
+    compareText(String(left?.id ?? ""), String(right?.id ?? ""));
+}
+
+export function validateExecutableBestMetric(record, catalog = loadExecutableDocuments().catalog) {
   const errors = [];
-  const keys = ["$schema", "schema", "kind", "id", "status", "workloadId", "metric", "language", "platformTarget", "artifactTarget", "profile", "statistic", "equivalenceKey", "toolchain", "host", "recipe", "recipeClass", "recipeDigest", "value", "derivedFrom"];
-  if (!exactKeys(record, "executable best-known record", keys, errors)) return errors;
-  if (record.$schema !== "./executable-benchmark.schema.json" || record.schema !== EXECUTABLE_BEST_SCHEMA || record.kind !== "executable-best-known" || record.status !== "derived") push(errors, "executable best-known identity or status is invalid.");
-  requiredString(record.id, "executable best-known record.id", errors);
+  const keys = ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"];
+  if (!exactKeys(record, "executable best-metric record", keys, errors)) return errors;
+  if (record.$schema !== "./executable-benchmark.schema.json" || record.schema !== EXECUTABLE_BEST_SCHEMA || record.kind !== "executable-best-metric" || record.status !== "current") push(errors, "executable best-metric identity or status is invalid.");
+  requiredString(record.id, "executable best metric.id", errors);
   const workload = workloadFor(catalog, record.workloadId);
   const source = sourceFor(workload, record.language);
-  if (!workload || workload.status !== "source-oracle-ready") push(errors, "executable best-known record must identify a ready workload.");
-  if (!OPTIMIZABLE_METRICS.includes(record.metric)) push(errors, "executable best-known record.metric must be optimizable, never exit-code/stdout/stderr.");
-  if (!EXECUTABLE_LANGUAGES.includes(record.language) || !source) push(errors, "executable best-known record.language must identify a materialized source.");
-  if (record.platformTarget !== EXECUTABLE_PLATFORM_TARGET) push(errors, "executable best-known record.platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + ".");
-  if (source && record.artifactTarget !== source.artifactTarget) push(errors, "executable best-known record.artifactTarget must match the source ABI target.");
-  if (record.language === "c" && record.artifactTarget !== EXECUTABLE_ARTIFACT_TARGET_MINGW) push(errors, "C best-known records must use the x86_64-w64-mingw32 artifact target.");
-  if (record.language !== "c" && record.artifactTarget !== EXECUTABLE_ARTIFACT_TARGET_MSVC) push(errors, "W and Rust best-known records must use the x86_64-pc-windows-msvc artifact target.");
-  if (record.profile !== "release") push(errors, "executable best-known record.profile must be release.");
+  if (!workload || workload.status !== "source-oracle-ready") push(errors, "executable best metric must identify a ready workload.");
+  if (!OPTIMIZABLE_METRICS.includes(record.metric)) push(errors, "executable best metric must be optimizable, never exit-code/stdout/stderr.");
+  if (!EXECUTABLE_LANGUAGES.includes(record.language) || !source) push(errors, "executable best metric.language must identify a materialized source.");
+  if (record.platformTarget !== EXECUTABLE_PLATFORM_TARGET) push(errors, "executable best metric.platformTarget must be " + EXECUTABLE_PLATFORM_TARGET + ".");
+  if (source && record.artifactTarget !== source.artifactTarget) push(errors, "executable best metric.artifactTarget must match the source ABI target.");
+  if (record.abi !== record.artifactTarget) push(errors, "executable best metric.abi must equal the artifact target.");
+  if (record.language === "c" && record.artifactTarget !== EXECUTABLE_ARTIFACT_TARGET_MINGW) push(errors, "C best metrics must use the x86_64-w64-mingw32 artifact target.");
+  if (record.language !== "c" && record.artifactTarget !== EXECUTABLE_ARTIFACT_TARGET_MSVC) push(errors, "W and Rust best metrics must use the x86_64-pc-windows-msvc artifact target.");
+  if (record.profile !== "release") push(errors, "executable best metric.profile must be release.");
+  const expectedUnit = EXECUTABLE_METRICS.find((item) => item.id === record.metric)?.unit;
+  if (record.unit !== expectedUnit) push(errors, "executable best metric.unit must match the declared metric.");
   const expectedStatistic = record.metric === "artifact-size" ? "single-artifact" : "median";
-  if (record.statistic !== expectedStatistic) push(errors, "executable best-known record.statistic must be " + expectedStatistic + ".");
-  digest(record.equivalenceKey, "executable best-known record.equivalenceKey", errors);
-  checkSafeIdentityString(record.toolchain, "executable best-known record.toolchain", errors);
-  checkSafeIdentityString(record.host, "executable best-known record.host", errors);
-  requiredString(record.recipe, "executable best-known record.recipe", errors);
-  requiredString(record.recipeClass, "executable best-known record.recipeClass", errors);
-  digest(record.recipeDigest, "executable best-known record.recipeDigest", errors);
-  decimal(record.value, "executable best-known record.value", errors);
-  if (record.metric === "cpu-time" && record.value === "0") {
-    push(errors, "executable best-known cpu-time cannot promote a zero microsecond run median.");
+  if (record.statistic !== expectedStatistic) push(errors, "executable best metric.statistic must be " + expectedStatistic + ".");
+  digest(record.equivalenceKey, "executable best metric.equivalenceKey", errors);
+  checkSafeIdentityString(record.toolchain, "executable best metric.toolchain", errors);
+  checkSafeIdentityString(record.host, "executable best metric.host", errors);
+  requiredString(record.recipe, "executable best metric.recipe", errors);
+  requiredString(record.recipeClass, "executable best metric.recipeClass", errors);
+  if (source && record.recipeClass !== source.recipeClass) push(errors, "executable best metric.recipeClass must match the catalog source.");
+  if (source) {
+    const expectedKey = executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass);
+    if (record.equivalenceKey !== expectedKey) push(errors, "executable best metric.equivalenceKey must be recomputed from the catalog.");
+    if (record.comparability !== source.comparability || record.eligibility !== source.eligibility) push(errors, "executable best metric policy must match the catalog source.");
   }
-  stringArray(record.derivedFrom, "executable best-known record.derivedFrom", errors, 1);
-  if (Array.isArray(record.derivedFrom) && !isCanonicalOrder(record.derivedFrom, (items) => [...items].sort(compareText))) {
-    push(errors, "executable best-known record.derivedFrom must be sorted by result id.");
-  }
-  if (!Array.isArray(results) || results.length === 0) {
-    push(errors, "executable best-known record must be derived from validated result records.");
-  } else {
-    const derivedFrom = Array.isArray(record.derivedFrom) ? record.derivedFrom : [];
-    const normalizedResults = results.map(resultValue);
-    const selected = normalizedResults.filter((item) => derivedFrom.includes(item?.id));
-    if (selected.length !== derivedFrom.length) push(errors, "executable best-known record.derivedFrom must reference supplied results exactly.");
-    if (selected.some((item) => validateExecutableResult(item, catalog, {
-      allowHistoricalWRecipe: true,
-      allowHistoricalArtifactWithoutCleanliness: true,
-    }).length > 0)) push(errors, "executable best-known record derives from an invalid result.");
-    const expectedKey = source ? executableEquivalenceKey(catalog, record.workloadId, record.platformTarget, record.profile, source.recipeClass) : undefined;
-    if (record.equivalenceKey !== expectedKey) push(errors, "executable best-known record.equivalenceKey must be recomputed from the catalog.");
-    if (source?.comparability !== "promotable-after-equivalence" || source?.eligibility !== "promotable-after-equivalence") push(errors, "executable best-known record cannot promote an ineligible or non-comparable source variant.");
-    const selectedGroup = selected[0] ? bestKnownGroupIdentity(selected[0]) : undefined;
-    for (const item of selected) {
-      if (item.workloadId !== record.workloadId || item.language !== record.language || item.platformTarget !== record.platformTarget || item.artifactTarget !== record.artifactTarget || item.profile !== record.profile || item.equivalenceKey !== record.equivalenceKey || item.identity?.toolchain !== record.toolchain || item.identity?.host !== record.host || item.identity?.recipe !== record.recipe || item.identity?.recipeClass !== record.recipeClass || item.identity?.recipeDigest !== record.recipeDigest || item.identity?.eligibility !== "promotable-after-equivalence" || JSON.stringify(bestKnownGroupIdentity(item)) !== JSON.stringify(selectedGroup)) push(errors, "executable best-known record mixes incomparable identity, artifact target, toolchain, host, recipe or provenance.");
-    }
-    const stage = record.metric === "compile-latency" ? "compile" : record.metric === "artifact-size" ? "artifact" : "run";
-    const metricPath = optimizableMetricField(record.metric, stage);
-    const values = selected.map((item) => metricPath?.[0] === "artifact" ? item.artifact?.sizeBytes : metricPath ? item[metricPath[0]]?.summary?.[metricPath[1]]?.median : undefined).filter((value) => typeof value === "string" && DECIMAL_PATTERN.test(value));
-    if (values.length !== selected.length || values.length === 0) {
-      push(errors, "executable best-known record metric values must be complete validated summaries.");
-    } else {
-      if (record.metric === "cpu-time" && values.some((value) => value === "0")) {
-        push(errors, "executable best-known cpu-time cannot derive from a zero microsecond run median.");
-      }
-      const minimum = values.reduce((best, value) => BigInt(value) < BigInt(best) ? value : best);
-      if (record.value !== minimum) push(errors, "executable best-known record.value must be the derived minimum summary.");
-    }
+  positiveDecimal(record.value, "executable best metric.value", errors);
+  const expectedCategoryId = executableCategoryId(record);
+  if (record.categoryId !== expectedCategoryId) push(errors, "executable best metric.categoryId must be derived from its category identity.");
+  if (exactKeys(record.provenance, "executable best metric.provenance", BEST_METRIC_PROVENANCE_FIELDS, errors)) {
+    requiredString(record.provenance.recordId, "executable best metric.provenance.recordId", errors);
+    if (typeof record.provenance.commit !== "string" || !/^[0-9a-f]{40}$/u.test(record.provenance.commit)) push(errors, "executable best metric.provenance.commit must be a full lowercase Git commit identity.");
+    checkObservedAt(record.provenance.observedAt, "executable best metric.provenance.observedAt", errors);
+    for (const field of ["sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest"]) digest(record.provenance[field], "executable best metric.provenance." + field, errors);
+    if (!['historical-unverified', 'verified-clean'].includes(record.provenance.artifactCleanliness)) push(errors, "executable best metric.provenance.artifactCleanliness must be historical-unverified or verified-clean.");
+    if (source && record.provenance.sourceDigest !== source.digest) push(errors, "executable best metric.provenance.sourceDigest must match the catalog source.");
+    if (record.provenance.recipeDigest === undefined) push(errors, "executable best metric provenance must include recipeDigest.");
   }
   return errors;
 }
 
-export function validateExecutableBestKnownIndex(index, catalog = loadExecutableDocuments().catalog, results = []) {
+export function validateExecutableBestMetrics(index, catalog = loadExecutableDocuments().catalog) {
   const errors = [];
-  if (!exactKeys(index, "executable best-known index", ["$schema", "schema", "kind", "status", "records"], errors)) return errors;
-  if (index.$schema !== "./executable-benchmark.schema.json" || index.schema !== EXECUTABLE_BEST_SCHEMA || index.kind !== "executable-best-known-index") {
-    push(errors, "executable best-known index identity is invalid.");
+  if (!exactKeys(index, "executable best-metrics catalog", ["$schema", "schema", "kind", "status", "entries"], errors)) return errors;
+  if (index.$schema !== "./executable-benchmark.schema.json" || index.schema !== EXECUTABLE_BEST_SCHEMA || index.kind !== "executable-best-metrics") {
+    push(errors, "executable best-metrics identity is invalid.");
   }
-  if (!["not-established", "established"].includes(index.status)) push(errors, "executable best-known index.status must be not-established or established.");
-  if (!Array.isArray(index.records)) {
-    push(errors, "executable best-known index.records must be an array.");
+  if (!["empty", BEST_METRICS_STATUS].includes(index.status)) push(errors, "executable best-metrics status must be empty or current.");
+  if (!Array.isArray(index.entries)) {
+    push(errors, "executable best-metrics entries must be an array.");
   } else {
-    if (index.records.length === 0 && index.status !== "not-established") push(errors, "executable best-known index with no records must be not-established.");
-    if (index.records.length > 0 && index.status !== "established") push(errors, "executable best-known index with non-empty records must be established.");
+    if (index.entries.length === 0 && index.status !== "empty") push(errors, "empty executable best-metrics catalog must be empty.");
+    if (index.entries.length > 0 && index.status !== BEST_METRICS_STATUS) push(errors, "non-empty executable best-metrics catalog must be current.");
     const ids = new Set();
-    for (const record of index.records) {
-      if (ids.has(record?.id)) push(errors, "executable best-known index record ids must be unique.");
+    const cells = new Set();
+    for (const record of index.entries) {
+      if (ids.has(record?.id)) push(errors, "executable best-metrics ids must be unique.");
       ids.add(record?.id);
+      const cell = `${record?.categoryId ?? ""}\u0000${record?.metric ?? ""}`;
+      if (cells.has(cell)) push(errors, "executable best-metrics must contain one cell per category and metric.");
+      cells.add(cell);
     }
-    if (!isCanonicalOrder(index.records, (items) => [...items].sort((left, right) => compareText(String(left?.id ?? ""), String(right?.id ?? ""))))) {
-      push(errors, "executable best-known index.records must be sorted by id.");
+    if (!isCanonicalOrder(index.entries, (items) => [...items].sort(bestMetricSort))) {
+      push(errors, "executable best-metrics entries must be sorted by category and metric.");
     }
-    for (const [number, record] of index.records.entries()) errors.push(...validateExecutableBestKnown(record, catalog, results).map((error) => "records[" + number + "]: " + error));
+    for (const [number, record] of index.entries.entries()) errors.push(...validateExecutableBestMetric(record, catalog).map((error) => "entries[" + number + "]: " + error));
   }
   return errors;
 }
 
-export function validateExecutableBestKnownFreshness(index, catalog, results) {
-  try {
-    const expected = deriveExecutableBestKnown(catalog, results);
-    if (JSON.stringify(index) !== JSON.stringify(expected)) return ["executable best-known index is stale; regenerate it from immutable history."];
-  } catch (error) {
-    return [String(error?.message ?? error)];
+export function updateExecutableBestMetrics(catalog, result) {
+  const errors = validateExecutableResult(result, catalog);
+  if (errors.length > 0) throw new Error(errors.join("; "));
+  const candidate = deriveExecutableBestMetrics(catalog, [result]);
+  const entries = [...(catalog.bestMetrics?.entries ?? [])];
+  const byCell = new Map(entries.map((entry) => [`${entry.categoryId}\u0000${entry.metric}`, entry]));
+  const updatedMetrics = [];
+  for (const entry of candidate.entries) {
+    const key = `${entry.categoryId}\u0000${entry.metric}`;
+    const previous = byCell.get(key);
+    if (!previous || BigInt(entry.value) < BigInt(previous.value)) {
+      byCell.set(key, entry);
+      updatedMetrics.push(entry.metric);
+    }
   }
-  return [];
+  const nextEntries = [...byCell.values()].sort(bestMetricSort);
+  const changed = JSON.stringify(nextEntries) !== JSON.stringify(entries);
+  return {
+    catalog: changed ? { ...catalog, bestMetrics: { ...catalog.bestMetrics, status: nextEntries.length === 0 ? "empty" : BEST_METRICS_STATUS, entries: nextEntries } } : catalog,
+    changed,
+    updatedMetrics: [...new Set(updatedMetrics)].sort(compareText),
+  };
 }
 
-export function validateExecutableHistory(index, catalog = loadExecutableDocuments().catalog, root = ROOT) {
-  const errors = [];
-  const keys = ["$schema", "schema", "kind", "status", "recordsPath", "records"];
-  if (!exactKeys(index, "executable history index", keys, errors)) return errors;
-  if (index.$schema !== "../../executable-benchmark.schema.json" || index.schema !== EXECUTABLE_HISTORY_SCHEMA || index.kind !== "executable-history-index") push(errors, "executable history index identity is invalid.");
-  if (!["empty-awaiting-clean-head-record", "recorded"].includes(index.status)) push(errors, "executable history index.status is invalid.");
-  if (index.recordsPath !== RESULT_HISTORY_PATH) push(errors, "executable history index.recordsPath must identify the immutable history directory.");
-  if (!Array.isArray(index.records)) {
-    push(errors, "executable history index.records must be an array.");
-    return errors;
-  }
-  if (index.records.length === 0 && index.status !== "empty-awaiting-clean-head-record") push(errors, "empty executable history must await a clean-head record.");
-  if (index.records.length > 0 && index.status !== "recorded") push(errors, "non-empty executable history must be recorded.");
-  if (!isCanonicalOrder(index.records, (items) => [...items].sort(historyReferenceSort))) push(errors, "executable history index.records must be sorted by id and path.");
-  const historyRoot = path.resolve(root, RESULT_HISTORY_PATH);
-  const ids = new Set();
-  const paths = new Set();
-  for (const [number, reference] of index.records.entries()) {
-    const location = "executable history index.records[" + number + "]";
-    if (!exactKeys(reference, location, ["id", "path", "digest"], errors)) continue;
-    requiredString(reference.id, location + ".id", errors);
-    if (ids.has(reference.id)) push(errors, location + ".id must be unique.");
-    ids.add(reference.id);
-    if (typeof reference.path !== "string" || !/^[0-9a-f]{64}\.json$/u.test(reference.path)) {
-      push(errors, location + ".path must be the lowercase sha256 hex digest filename.");
-      continue;
-    }
-    if (digest(reference.digest, location + ".digest", errors) && reference.path !== reference.digest.slice("sha256:".length) + ".json") {
-      push(errors, location + ".path must match its sha256 digest filename.");
-    }
-    const physical = path.resolve(historyRoot, reference.path);
-    if (!isContained(historyRoot, physical)) {
-      push(errors, location + ".path escapes immutable history.");
-      continue;
-    }
-    if (paths.has(physical)) push(errors, location + ".path must be unique.");
-    paths.add(physical);
-    if (!digest(reference.digest, location + ".digest", errors)) continue;
-    let bytes;
+export function validateExecutableBestMetricsFreshness(index, catalog, results) {
+  if (Array.isArray(results)) {
     try {
-      const stats = fs.lstatSync(physical);
-      if (!stats.isFile() || stats.isSymbolicLink()) throw new Error();
-      bytes = fs.readFileSync(physical);
-    } catch {
-      push(errors, location + ".path must identify an existing regular history record.");
-      continue;
+      const expected = deriveExecutableBestMetrics(catalog, results);
+      if (JSON.stringify(index) !== JSON.stringify(expected)) return ["executable best-metrics catalog is stale; regenerate it from validated local results."];
+    } catch (error) {
+      return [String(error?.message ?? error)];
     }
-    if (reference.digest !== "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex")) push(errors, location + ".digest is stale.");
-    let record;
-    try { record = JSON.parse(bytes.toString("utf8")); } catch { push(errors, location + ".path must contain valid JSON."); continue; }
-    errors.push(...validateExecutableResult(record, catalog, {
-      allowHistoricalWRecipe: true,
-      allowHistoricalArtifactWithoutCleanliness: true,
-    }).map((error) => location + ": " + error));
-    if (record?.id !== reference.id) push(errors, location + ".id must match the immutable result record.");
   }
-  let entries;
-  try {
-    entries = fs.readdirSync(historyRoot, { withFileTypes: true });
-  } catch {
-    push(errors, "executable history directory must be readable.");
-    return errors;
-  }
-  const indexedNames = new Set([...paths].map((physical) => path.basename(physical)));
-  for (const entry of entries) {
-    if (!entry.isFile() || entry.isSymbolicLink()) {
-      push(errors, "executable history contains a non-regular or symbolic-link entry: " + entry.name + ".");
-      continue;
-    }
-    if (entry.name === "index.json" || entry.name === "README.md") continue;
-    if (!indexedNames.has(entry.name)) push(errors, "executable history contains an unindexed entry: " + entry.name + ".");
-  }
-  return errors;
+  return validateExecutableBestMetrics(index, catalog);
 }
 
 export function loadExecutableDocuments(root = ROOT) {
@@ -1054,8 +1031,6 @@ export function loadExecutableDocuments(root = ROOT) {
   return {
     catalog: read("benchmarks/executable-catalog.json"),
     schema: read("benchmarks/executable-benchmark.schema.json"),
-    bestKnown: read(BEST_KNOWN_PATH),
-    history: read(EXECUTABLE_HISTORY_INDEX_PATH),
   };
 }
 

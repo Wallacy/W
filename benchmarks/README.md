@@ -23,21 +23,19 @@ The C c2x fallback is correctness-only and cannot enter promoted C23 ranking;
 the current Rust baseline uses edition 2024.
 
 The catalog declares compile latency, run wall time, user/system/total CPU
-time, peak working set, artifact size, exit code, and stdout/stderr without
-collecting measurements. An immutable `executable-result` records correctness
-artifact facts plus at least one warmup and an odd set of at least nine raw
-compile/run samples; summaries are derived from those raw samples. Bun's
-native CPU microseconds and RSS bytes are preserved, including an explicit
-disclosure when CPU samples are zero. Each result freezes a fixed-count,
-monotonic-clock, fresh-process protocol and a redacted environment; direct
-Bun-process CPU/RSS counters do not aggregate descendants. The
+time, peak working set, artifact size, exit code, and stdout/stderr. A local
+`executable-result` retains correctness artifact facts, one warmup, and an odd
+set of at least nine raw compile/run samples; summaries are derived from those
+samples. Bun's native CPU microseconds and RSS bytes are preserved, including
+an explicit disclosure when CPU samples are zero. Each result freezes a
+fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
+direct Bun-process CPU/RSS counters do not aggregate descendants. The
 arithmetic mean is an integer floor, and the safe host identity is derived from
 the normalized redacted environment rather than a hostname or user identity.
-`executable-best-known` index is
-derived only from validated results, ranks only optimizable metrics, and its
-contract is defined while the empty index remains `not-established` (it becomes
-`established` only when validated records are present). W execution and timing are
-currently public `w build` candidate evidence, not process-tree-complete timing. Recorded measurement evidence is `exploratory`,
+The live `bestMetrics` catalog stores only positive lower-is-better cells, never
+exit-code/stdout/stderr; zero CPU measurements cannot become best. W execution
+and timing are currently public `w build` candidate evidence, not process-tree-
+complete timing. Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
@@ -46,7 +44,7 @@ not claim that a W benchmark is performance-ready.
 ### M3b executable candidate evidence
 
 [`EXECUTABLES.md`](EXECUTABLES.md) is the generated human-readable projection
-of the executable catalog, immutable history index, and best-known index. The
+of the executable catalog and its compact live best-metrics cells. The
 W route for workloads declaring `public-w-build-release` is a public `w build`
 Release Windows source-to-PE candidate backed by the external, materialized
 MLIR/LLVM/LLD toolchain. It measures the complete build wall interval while
@@ -62,37 +60,46 @@ PE32+ verifier: COFF symbols, CodeView/PDB data, certificate directories,
 out-of-bounds sections, overlay bytes and release sidecars fail closed. A
 POGO-only debug directory is accepted and measured as linker optimization
 metadata, not source-level debug symbols. This cleanliness statement applies
-only to new results produced by the current runner; immutable history retains
-its original provenance and is not retroactively certified. New runner-bound
-records carry `artifact.cleanliness` with exact zero counts for COFF symbols,
-CodeView entries, sidecars and overlay bytes plus bounded POGO entries and
-payload sizes when present. Historical records omit this field and remain
-uncertified.
+only to new results produced by the current runner. New runner-bound records
+carry `artifact.cleanliness` with exact zero counts for COFF symbols, CodeView
+entries, sidecars and overlay bytes plus bounded POGO entries and payload sizes
+when present. Migrated best cells are explicitly historical/unverified
+cleanliness and are not current clean-run evidence.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
 remains exploratory and measurement-only. W remains contextual/non-ranking
-until process-tree accounting makes its compile CPU/RSS comparable. Local measurements remain ignored under `benchmarks/results/`;
-only a rerun from a clean committed HEAD may add a content-addressed history
-record. The history index rejects records whose filename is not the SHA-256
-digest of their canonical bytes, and rejects unindexed entries.
+until process-tree accounting makes its compile CPU/RSS comparable. Local
+measurements remain ignored under `benchmarks/results/`; only a rerun from a
+clean committed HEAD may update the compact catalog, and raw results are
+consumed after successful publication.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target hello|restaurant-branch --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,
-`check` for catalog/history/projection consistency, and `record <json>` only
+`check` for catalog/live-best/projection consistency, and `update <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one
 warmup and at least nine odd raw samples for every language. C probes `-std=c23`
-then `-std=c2x` and records the accepted standard plus MinGW ABI; its release
-recipe uses O3, LTO, section GC and stripped symbols. Rust records its rustc
-release, edition 2024 and MSVC ABI; its release recipe uses O3, fat LTO, one
-codegen unit, panic abort and stripped symbols. The public W build Release route uses
+then `-std=c2x` and records the accepted standard plus MinGW ABI; its portable
+release recipe uses O3, LTO, per-function/data sections, linker section GC,
+stripped symbols, and probed `-fwhole-program`. Rust records its rustc release,
+edition 2024 and MSVC ABI; its portable release recipe uses O3, fat LTO, one
+codegen unit, panic abort, dead-code elimination, `/OPT:REF`, `/OPT:ICF`, and
+stripped symbols. The public W build Release route uses
 MLIR canonicalization/CSE, llc O3, lld dead-code/identical-code folding and no
 CRT. These profiles prioritize runtime performance while removing distributable
-symbols; none selects a size-only optimization level or host-specific CPU. W
+symbols; none selects a size-only optimization level or host-specific CPU.
+Host tuning is a separate future/local `release-native` category (`-march=native`
+for C and `-C target-cpu=native` for Rust), never a portable-cell replacement. W
 compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
-Publication creates a
-content-addressed record and updates the index and generated projection. An
-interrupted multi-file publication remains detectable as an unindexed entry
-and must be repaired before `benchmark check` can pass.
+The catalog's current `release` cells therefore mean portable release. C stays
+in standards-only `c23`/`c2x` mode rather than `gnu23`; GNU extensions are not
+needed by these sources. PIE/hardening remains a separate artifact-policy axis
+until W, MinGW C, and MSVC Rust have an equivalent declared recipe, so the
+portable comparison does not add `-fpie` to only one ABI.
+Publication atomically replaces the live catalog file for lower values in
+matching category/metric cells, then replaces the derived projection. A crash
+between those two files is detected as projection drift by `benchmark check`.
+Valid non-improving updates are idempotent no-ops, and successful updates
+consume the local result.
 
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em
@@ -256,8 +263,7 @@ autoridade semântica para W:
 Execute os checks focais com:
 
 ```text
-bun check --target bmd
-bun check --target executable
+bun check --target benchmark
 bun check --target bmd:byte-scan
 bun check --target bmd:parse
 bun check --target bmd:smoke

@@ -68,12 +68,12 @@ describe("FRC0 final research closure host oracle", () => {
       active: [],
       status: "authoritative-maintained-surface",
       normalized: true,
-      familyCount: 15,
+      familyCount: 14,
       normalizationPendingCount: 0,
     });
     expect(current.facts.researchStateInventory).toMatchObject({
       categoryCounts: {
-        historical: 8,
+        historical: 7,
         rejected: 1,
         "current-design-evidence-gap": 5,
         "future-reopen-candidate": 1,

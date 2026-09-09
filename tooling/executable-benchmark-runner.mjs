@@ -34,10 +34,11 @@ import {
   validateMaterialized,
 } from "./acquire-mlir0-windows.mjs";
 import { findWindowsSdkKernel32 } from "./windows-build-support.mjs";
-import { dialectArgs, dialectDisclosure, probeCDialect } from "./c-dialect.mjs";
+import { dialectArgs, dialectDisclosure, probeCDialect, probeCFlag } from "./c-dialect.mjs";
 import {
-  C_RELEASE_FLAGS,
+  C_WHOLE_PROGRAM_FLAG,
   RUST_RELEASE_FLAGS,
+  cReleaseFlags,
   W_LLC_FLAGS,
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
@@ -502,11 +503,15 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
     });
     const dialect = dialectProbe ? normalizeCDialect(dialectProbe) : undefined;
     if (!dialect) continue;
+    const wholeProgram = await probeCFlag(info.command, C_WHOLE_PROGRAM_FLAG, {
+      args: [dialect.flag],
+      executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C release flag probe`),
+    });
     const versionProbe = await executeChild(executor, info.command, ["--version"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C compiler probe`);
     requireSuccess(versionProbe, `${target} C compiler probe`);
     const version = parseGccVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
     const compilerName = path.basename(info.command).replace(/\.exe$/iu, "").toLowerCase();
-    const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "C ABI")}`;
+    const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(wholeProgram ? "whole-program" : "portable", "C release recipe")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "C ABI")}`;
     console.error(`executable benchmark: C compiler=${identity}; standard=${dialectDisclosure(dialect)}; ABI=${EXECUTABLE_ARTIFACT_TARGET_MINGW}`);
     return {
       language: "c",
@@ -514,6 +519,7 @@ async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TA
       target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
       version,
       dialect,
+      wholeProgram,
       identity,
     };
   }
@@ -629,7 +635,7 @@ async function compileC(context, retain) {
     const start = process.hrtime.bigint();
     const step = await timedStep(context.executor, context.languageToolchain.command, [
       ...dialectArgs(context.languageToolchain.dialect),
-      ...C_RELEASE_FLAGS,
+      ...cReleaseFlags(context.languageToolchain),
       context.source.filePath,
       "-o", artifact,
     ], sampleDirectory, "C compiler");
@@ -902,8 +908,8 @@ function recipeFor(context) {
     return {
       command: path.basename(context.languageToolchain.command).replace(/\.exe$/iu, ""),
       target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
-      args: [context.languageToolchain.dialect.flag, ...C_RELEASE_FLAGS, "<source>", "-o", "<artifact>"],
-      flags: [context.languageToolchain.dialect.flag, ...C_RELEASE_FLAGS],
+      args: [context.languageToolchain.dialect.flag, ...cReleaseFlags(context.languageToolchain), "<source>", "-o", "<artifact>"],
+      flags: [context.languageToolchain.dialect.flag, ...cReleaseFlags(context.languageToolchain)],
       cStandard: dialectDisclosure(context.languageToolchain.dialect),
       artifactAbi: EXECUTABLE_ARTIFACT_TARGET_MINGW,
     };

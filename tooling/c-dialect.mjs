@@ -52,6 +52,51 @@ async function probe(command, dialect, options) {
 }
 
 /**
+ * Probe a compiler-only C flag in the selected language mode. Optional
+ * release flags must be accepted by the actual compiler before they are
+ * included in a measured recipe.
+ */
+export async function probeCFlag(command, flag, options = {}) {
+  if (typeof flag !== "string" || flag.length === 0) throw new TypeError("C flag probe requires a flag")
+  const parts = commandParts(command)
+  const args = [
+    ...parts.slice(1),
+    ...(options.args ?? []),
+    flag,
+    "-x",
+    "c",
+    "-fsyntax-only",
+    "-",
+  ]
+  if (options.executor) {
+    const result = await options.executor(parts[0], args, {
+      cwd: options.cwd,
+      env: options.env,
+      stdin: probeSource,
+      stdout: "pipe",
+      stderr: "pipe",
+      windowsHide: true,
+    })
+    return result?.exitCode === 0
+  }
+  const child = Bun.spawn([parts[0], ...args], {
+    cwd: options.cwd,
+    env: options.env,
+    stdin: "pipe",
+    stdout: "pipe",
+    stderr: "pipe",
+  })
+  child.stdin.write(probeSource)
+  child.stdin.end()
+  const [, , exitCode] = await Promise.all([
+    new Response(child.stdout).arrayBuffer(),
+    new Response(child.stderr).arrayBuffer(),
+    child.exited,
+  ])
+  return exitCode === 0
+}
+
+/**
  * Select the strongest accepted C dialect without silently falling back to C11.
  * The command may be a compiler path or a command prefix such as wsl.exe.
  */
