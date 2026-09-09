@@ -1314,6 +1314,50 @@ The opaque-basename rule is local to `w run`. `w check` keeps its existing
 identifier helper and grammar; no general source identity or runner surface is
 claimed.
 
+## Public bounded `w build` retained artifact
+
+The finite seed build command is limited to:
+
+```text
+w build <explicit-path.w> --target <exact-supported-triple> --output <new-artifact>
+```
+
+Source, target, and output are mandatory. Linux accepts only
+`x86_64-unknown-linux-gnu` in an explicitly enabled Linux native build.
+Native Windows accepts only `x86_64-pc-windows-msvc` in an explicitly enabled
+Windows native build. Disabled or unsupported routes return 2 without staging
+or tool invocation.
+
+The output must not exist. Its parent must already be a physical directory.
+The route creates private staging under that parent and publishes one
+caller-owned executable without replacement. Before publication it removes every
+intermediate and staging entry from the staging directory, retaining only the
+hidden sibling publication source. Linux prefers exactly one
+`renameat2(..., RENAME_NOREPLACE)` operation from a hidden sibling in the output
+parent; on a filesystem without that syscall it uses one atomic hard-link
+no-clobber publication and best-effort post-commit hidden-link cleanup. Windows
+uses exactly one `MoveFileExW` without `MOVEFILE_REPLACE_EXISTING` after the
+staging directory is clean. The route does not search PATH, invoke a shell, use
+network access, choose a host or target implicitly, or invoke WSL implicitly. It
+writes no receipt and makes no general artifact-record claim.
+
+The compiler stage is shared with `w run`. `w run` retains its private
+compile-to-execute cleanup lifecycle and its fast development recipe. `w build`
+uses the explicit internal release recipe by default: `mlir-opt --canonicalize
+--cse`, `llc -O3`, and Linux link-driver stripping with `-s`; native Windows
+uses `llc -O3` and LLD `/opt:ref /opt:icf /incremental:no`. There is no public
+profile option in this seed. `w build` retains only the published executable.
+The route supports the current seed subset, including `restaurant-if.w`,
+without changing language semantics. Separate compile/run benchmark migration
+is not part of this bundle.
+
+The Linux/WSL and native Windows gates cover the retained-artifact route:
+
+```text
+bun check --target w-run
+bun check --target w-run-windows
+```
+
 For a manual Linux or WSL smoke from the repository root:
 
 ```sh

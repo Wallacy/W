@@ -1,4 +1,5 @@
 #include "check.h"
+#include "build.h"
 #include "run.h"
 #include "w_cli_io.h"
 
@@ -8,7 +9,8 @@
 
 static const char *usage_text =
     "usage: w check <path/file.w> [--json]\n"
-    "usage: w run <path/file.w> [-- <args...>]\n";
+    "usage: w run <path/file.w> [-- <args...>]\n"
+    "usage: w build <path/file.w> --target <target> --output <artifact>\n";
 
 static bool write_usage(FILE *stream) {
   return w_seed_cli_write_text(stream, usage_text, &w_seed_cli_stdio_ops);
@@ -20,7 +22,8 @@ static bool is_help(int argc, char **argv) {
     return true;
   }
   return argc == 3 &&
-         (strcmp(argv[1], "check") == 0 || strcmp(argv[1], "run") == 0) &&
+         (strcmp(argv[1], "check") == 0 || strcmp(argv[1], "run") == 0 ||
+          strcmp(argv[1], "build") == 0) &&
          strcmp(argv[2], "--help") == 0;
 }
 
@@ -49,6 +52,9 @@ int main(int argc, char **argv) {
   const char *path = NULL;
   bool json = false;
   if (!parse_check(argc, argv, &path, &json)) {
+    w_seed_build_request build_request;
+    if (w_seed_build_parse(argc, argv, &build_request))
+      return w_seed_build_execute(&build_request);
     w_seed_run_request request;
     if (!w_seed_run_parse(argc, argv, &request))
       return write_usage(stderr) ? 2 : 3;

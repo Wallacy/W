@@ -35656,6 +35656,40 @@ is not required to be a W identifier or module name. The `w check` helper and
 examples executable directly without
 changing the public argument grammar.
 
+The finite retained-artifact companion is exactly
+`w build <explicit-path.w> --target <exact-supported-triple> --output
+<new-artifact>`. Source path, target, and output are mandatory. The Linux
+target is `x86_64-unknown-linux-gnu` only when the Linux native route is
+explicitly enabled. The Windows target is `x86_64-pc-windows-msvc` only when
+the native Windows route is explicitly enabled. Every other target or a
+disabled route returns 2 without staging or invoking a tool.
+
+The output must not already exist, including as a directory, symlink, or
+reparse point. Its existing parent must be a physical directory. The command
+does not search PATH, discover a host or target, invoke a shell, access the
+network, or select WSL implicitly. It creates an owned staging directory under
+the output parent, reuses the bounded Native0-to-native pipeline, removes every
+intermediate and staging entry from the staging directory, retaining only the
+hidden sibling publication source, and then publishes one executable with one
+atomic no-clobber operation. Linux prefers `renameat2(RENAME_NOREPLACE)` from a
+hidden same-parent sibling and falls back to one same-filesystem hard-link
+no-clobber publication only when that syscall is unavailable; Windows uses
+`MoveFileExW` without replacement.
+After that terminal operation no fallible cleanup is required for success. The
+published executable belongs to the caller. The command writes no receipt and
+does not claim a general `WArtifactRecord`.
+
+The compiler stage is shared with `w run`. `w run` still creates a private
+temporary directory, executes the compiled program, forwards its arguments,
+and removes its artifact and directory on every return; it keeps the fast
+development compile recipe. `w build` selects the internal release recipe by
+default: MLIR `--canonicalize --cse`, `llc -O3`, Linux link-driver `-s`, and
+native Windows LLD `/opt:ref /opt:icf /incremental:no`. No public profile option
+is exposed. `w build` retains only the caller-owned executable. This finite
+companion compiles the already supported seed subset, including
+`restaurant-if.w`, without changing language semantics. Separate compile/run
+benchmarking remains a later benchmark-runner change.
+
 #### 26.4.1.6 W-1522 — bounded linear print sequence on direct verified HIR0 (Retained static form; adapter advanced by W-1528)
 
 W-1522 is the retained `source-backed-current` static NAT1 product cut.

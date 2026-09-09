@@ -39,6 +39,15 @@ W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
 não suporte Windows nativo.
+O companion finito `w build <explicit-path.w> --target <exact-supported-triple>
+--output <new-artifact>` retém um executável caller-owned do mesmo subset. Ele
+exige source, target e output explícitos, rejeita output existente, usa staging
+owned e publicação atômica sem clobber, e não cria receipt ou `WArtifactRecord`.
+`w build` seleciona a receita interna release por padrão; `w run` preserva a
+receita dev rápida. Somente as triples Linux GNU e Windows MSVC já configuradas
+são aceitas. O
+runner geral, package/workspace/lock/registry behavior e benchmark migration
+continuam fora deste corte.
 W-1532 records bounded candidate evidence for Windows x86_64: users can
 materialize the external development toolchain with `bun tooling/command-runner.mjs
 --command acquire:mlir0-windows` (network is enabled only by this opt-in) and build a
@@ -323,7 +332,7 @@ mudarem; `bun check` é a seleção rápida.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v13 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64` e BOOL0 short-circuit bounded, RUN0 interno test-only e W-1521 `w run` bounded em Linux/WSL. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v13 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64` e BOOL0 short-circuit bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

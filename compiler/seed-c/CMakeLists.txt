@@ -286,6 +286,7 @@ target_link_libraries(w_seed_check_host_tests PRIVATE w_seed_source)
 
 add_executable(w
   cli/w.c
+  cli/build.c
   cli/run.c
   cli/check.c
   cli/check_host.c
@@ -308,6 +309,17 @@ target_include_directories(w_seed_run_cli_tests PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/cli
 )
 target_link_libraries(w_seed_run_cli_tests PRIVATE w_seed_source)
+
+add_executable(w_seed_build_cli_tests
+  tests/test_build.c
+  cli/build.c
+  cli/run.c
+  cli/check_host.c
+)
+target_include_directories(w_seed_build_cli_tests PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}/cli
+)
+target_link_libraries(w_seed_build_cli_tests PRIVATE w_seed_source)
 
 if(WIN32)
   option(W_SEED_ENABLE_WINDOWS_NATIVE_RUN
@@ -346,6 +358,8 @@ if(WIN32)
   target_include_directories(w PRIVATE "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
   target_include_directories(w_seed_run_cli_tests PRIVATE
     "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
+  target_include_directories(w_seed_build_cli_tests PRIVATE
+    "${W_SEED_WINDOWS_GENERATED_INCLUDE}")
   if(W_SEED_ENABLE_WINDOWS_NATIVE_RUN)
     if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
       message(FATAL_ERROR
@@ -356,8 +370,10 @@ if(WIN32)
     # two targets that include the Win32 runner headers.
     target_compile_definitions(w PRIVATE _AMD64_)
     target_compile_definitions(w_seed_run_cli_tests PRIVATE _AMD64_)
+    target_compile_definitions(w_seed_build_cli_tests PRIVATE _AMD64_)
     target_link_libraries(w PRIVATE kernel32 bcrypt)
     target_link_libraries(w_seed_run_cli_tests PRIVATE kernel32 bcrypt)
+    target_link_libraries(w_seed_build_cli_tests PRIVATE kernel32 bcrypt)
   endif()
 endif()
 
@@ -512,6 +528,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
   target_include_directories(w PRIVATE "${W_SEED_LINUX_GENERATED_INCLUDE}")
   target_include_directories(w_seed_run_cli_tests PRIVATE
     "${W_SEED_LINUX_GENERATED_INCLUDE}")
+  target_include_directories(w_seed_build_cli_tests PRIVATE
+    "${W_SEED_LINUX_GENERATED_INCLUDE}")
 endif()
 
 add_executable(w_seed_constir_probe
@@ -635,6 +653,7 @@ if(MSVC)
   target_compile_options(w_seed_check_host_tests PRIVATE /W4 /WX)
   target_compile_options(w PRIVATE /W4 /WX)
   target_compile_options(w_seed_run_cli_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_build_cli_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_frontend_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hlo0_gate PRIVATE /W4 /WX)
@@ -976,6 +995,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_build_cli_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_frontend_tests PRIVATE
     -Wall
     -Wextra
@@ -1143,6 +1171,7 @@ add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_run0_unit COMMAND w_seed_run0_tests)
 add_test(NAME w_seed_cli_io_unit COMMAND w_seed_cli_io_tests)
 add_test(NAME w_seed_run_cli_unit COMMAND w_seed_run_cli_tests)
+add_test(NAME w_seed_build_cli_unit COMMAND w_seed_build_cli_tests)
 add_test(NAME w_seed_check_storage_unit COMMAND w_seed_check_storage_tests)
 add_test(NAME w_seed_check_retry_unit COMMAND w_seed_check_retry_tests)
 add_test(NAME w_seed_check_pipeline_unit COMMAND w_seed_check_pipeline_tests)

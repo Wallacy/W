@@ -9,7 +9,8 @@ const canonicalFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const expectedOutput = Buffer.from("Hello, world!\n", "utf8")
 const expectedPublicHelp =
   "usage: w check <path/file.w> [--json]\n" +
-  "usage: w run <path/file.w> [-- <args...>]\n"
+  "usage: w run <path/file.w> [-- <args...>]\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
 const expectedGateUsage = "usage: w_seed_run0_gate <path/file.w>\n"
 const acquisitionFailure =
   "w_seed_run0_gate: source is missing, unreadable, empty, or over 4096 bytes\n"
@@ -164,6 +165,8 @@ try {
     "w check --help")
   expectHelp(executable, ["run", "--help"], expectedPublicHelp,
     "w run --help")
+  expectHelp(executable, ["build", "--help"], expectedPublicHelp,
+    "w build --help")
   expectUsageFailure(executable, ["run", "--entry", canonicalFixture],
     expectedPublicHelp, "w run --entry remains unavailable")
   expectUsageFailure(executable, ["run", "--offline", canonicalFixture],

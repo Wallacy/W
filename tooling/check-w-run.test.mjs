@@ -13,6 +13,7 @@ import { parseArguments, validateManifest } from "./check-w-run.mjs"
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
+const targetTriple = "x86_64-unknown-linux-gnu"
 const workflowPath = resolve(root, ".github", "workflows", "validate.yml")
 const workflowText = await readFile(workflowPath, "utf8")
 const ciManifest = JSON.parse(await readFile(
@@ -175,6 +176,15 @@ describe("W RUN native CI contract", () => {
         expect(execution.exitCode).toBe(2)
         expect(Buffer.from(execution.stdout)).toEqual(Buffer.alloc(0))
         expect(Buffer.from(execution.stderr)).toEqual(Buffer.alloc(0))
+        const disabledArtifact = `${buildPath}/disabled-build`
+        const disabledBuild = runLinux(binary, ["build", linuxPath(helloFixture),
+          "--target", targetTriple, "--output", disabledArtifact])
+        expect(disabledBuild.exitCode, output(disabledBuild)).toBe(2)
+        expect(Buffer.from(disabledBuild.stdout)).toEqual(Buffer.alloc(0))
+        expect(Buffer.from(disabledBuild.stderr)).toEqual(Buffer.alloc(0))
+        const disabledArtifactCheck = runLinux("test", ["!", "-e",
+          disabledArtifact])
+        expect(disabledArtifactCheck.exitCode, output(disabledArtifactCheck)).toBe(0)
         const marker = runLinux("test", ["!", "-e", markerPath])
         expect(marker.exitCode, output(marker)).toBe(0)
 
