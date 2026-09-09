@@ -77,9 +77,9 @@ export const CATALOG_STATUS = "catalog-ready";
 export const BEST_KNOWN_CONTRACT_STATUS = "defined";
 
 const SOURCE_ELIGIBILITY = Object.freeze({
-  wPrivate: Object.freeze({
-    comparability: "contextual-non-ranking-until-public-run",
-    eligibility: "contextual-only-until-public-run",
+  wPublicBuild: Object.freeze({
+    comparability: "contextual-non-ranking-until-process-tree-accounting",
+    eligibility: "contextual-only-until-process-tree-accounting",
   }),
   wDeferred: Object.freeze({
     comparability: "deferred-until-M3b",
@@ -96,10 +96,13 @@ const SOURCE_ELIGIBILITY = Object.freeze({
 });
 
 const SOURCE_RECIPES = Object.freeze({
-  w: Object.freeze(["private-native0-mlir0-source-to-pe-candidate", "public-w-run"]),
+  w: Object.freeze(["public-w-build-release", "public-w-run"]),
   c: Object.freeze(["gcc-c23-or-c2x"]),
   rust: Object.freeze(["rustc-edition-2024"]),
 });
+
+const LEGACY_W_RESULT_RECIPE = "private-native0-mlir0-source-to-pe-candidate";
+const LEGACY_W_RESULT_ELIGIBILITY = "contextual-only-until-public-run";
 
 const DIGEST_PATTERN = /^sha256:[0-9a-f]{64}$/u;
 const DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/u;
@@ -396,8 +399,8 @@ function sourceFor(workload, language) {
 function sourcePolicy(workload, language, recipe) {
   if (language === "c") return SOURCE_ELIGIBILITY.c;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
-  return recipe === "private-native0-mlir0-source-to-pe-candidate"
-    ? SOURCE_ELIGIBILITY.wPrivate
+  return recipe === "public-w-build-release"
+    ? SOURCE_ELIGIBILITY.wPublicBuild
     : SOURCE_ELIGIBILITY.wDeferred;
 }
 
@@ -583,7 +586,7 @@ function checkEnvironment(environment, name, errors) {
   positiveDecimal(environment.ramBytes, name + ".ramBytes", errors);
 }
 
-export function validateExecutableResult(result, catalog = loadExecutableDocuments().catalog) {
+export function validateExecutableResult(result, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"];
   if (!exactKeys(result, "executable result", keys, errors)) return errors;
@@ -620,7 +623,11 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
     digest(result.identity.recipeDigest, "executable result.identity.recipeDigest", errors);
     requiredString(result.identity.eligibility, "executable result.identity.eligibility", errors);
     if (source && result.identity.sourceDigest !== source.digest) push(errors, "executable result.identity.sourceDigest must match the catalog source.");
-    if (source && (result.identity.recipe !== source.recipe || result.identity.recipeClass !== source.recipeClass || result.identity.eligibility !== source.eligibility || result.identity.platformTarget !== source.platformTarget || result.identity.artifactTarget !== source.artifactTarget)) push(errors, "executable result identity must match catalog target, recipe, recipe class and eligibility.");
+    const historicalWRecipe = options.allowHistoricalWRecipe === true && result.language === "w" && source?.recipe === "public-w-build-release" && result.identity.recipe === LEGACY_W_RESULT_RECIPE && result.identity.eligibility === LEGACY_W_RESULT_ELIGIBILITY;
+    const identityMismatch = historicalWRecipe
+      ? result.identity.recipeClass !== source?.recipeClass || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget
+      : result.identity.recipe !== source?.recipe || result.identity.recipeClass !== source?.recipeClass || result.identity.eligibility !== source?.eligibility || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget;
+    if (source && identityMismatch) push(errors, "executable result identity must match catalog target, recipe, recipe class and eligibility.");
   }
   if (exactKeys(result.correctness, "executable result.correctness", ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"], errors)) {
     requiredString(result.correctness.oracleId, "executable result.correctness.oracleId", errors);
@@ -739,7 +746,7 @@ export function deriveExecutableBestKnown(catalog, results) {
   const ids = new Set();
   for (const item of results) {
     const record = resultValue(item);
-    const errors = validateExecutableResult(record, catalog);
+    const errors = validateExecutableResult(record, catalog, { allowHistoricalWRecipe: true });
     if (errors.length > 0) throw new Error(errors.join("; "));
     if (ids.has(record.id)) throw new Error(`executable results contain duplicate id: ${record.id}`);
     ids.add(record.id);
@@ -945,7 +952,7 @@ export function validateExecutableHistory(index, catalog = loadExecutableDocumen
     if (reference.digest !== "sha256:" + crypto.createHash("sha256").update(bytes).digest("hex")) push(errors, location + ".digest is stale.");
     let record;
     try { record = JSON.parse(bytes.toString("utf8")); } catch { push(errors, location + ".path must contain valid JSON."); continue; }
-    errors.push(...validateExecutableResult(record, catalog).map((error) => location + ": " + error));
+    errors.push(...validateExecutableResult(record, catalog, { allowHistoricalWRecipe: true }).map((error) => location + ": " + error));
     if (record?.id !== reference.id) push(errors, location + ".id must match the immutable result record.");
   }
   let entries;

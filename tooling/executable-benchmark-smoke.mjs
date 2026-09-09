@@ -103,7 +103,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  report("W source/oracle is declared; private executable evidence remains contextual/non-ranking until public w run");
+  report("W source/oracle is declared; public w build executable evidence remains contextual/non-ranking until public w run");
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "w-executable-correctness-"));
   try {
     const cCandidates = ["gcc", "clang", "cc"].map((name) => Bun.which(name)).filter(Boolean);

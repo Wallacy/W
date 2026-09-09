@@ -168,10 +168,15 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
   return { compiler, calls, sampleDirectories, executor };
 }
 
-function fakeWRunnerExecutor(target) {
+function fakeWRunnerExecutor(target, { symbolSidecar = false } = {}) {
   const calls = [];
   const sampleDirectories = new Set();
-  const gate = { executable: path.resolve("fake-w-seed-mlir0-gate.exe"), compilerVersion: "19.51.36256.0" };
+  const publicW = {
+    executable: path.resolve("fake-w.exe"),
+    digest: TEST_DIGEST,
+    receiptDigest: TEST_DIGEST,
+    compilerVersion: "19.51.36256.0",
+  };
   const toolNames = ["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"];
   const windowsToolchain = {
     manifestDigest: TEST_DIGEST,
@@ -194,27 +199,17 @@ function fakeWRunnerExecutor(target) {
     if (args.length === 0) {
       return result(0, Buffer.from(target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
     }
-    if (command === gate.executable) {
-      if (args.includes("--target=unsupported")) return result(2);
-      return result(0, Buffer.from("x86_64-pc-windows-msvc\n", "utf8"));
-    }
-    const outputIndex = args.indexOf("-o");
-    if (outputIndex >= 0) {
-      const output = args[outputIndex + 1];
-      sampleDirectories.add(options.cwd);
-      await writeFile(output, Buffer.from("generated\n", "utf8"));
-      return result(0);
-    }
-    const linkOutput = args.find((argument) => argument.startsWith("/out:"));
-    if (linkOutput !== undefined) {
-      const output = linkOutput.slice("/out:".length);
+    if (command === publicW.executable && args[0] === "build") {
+      assert.deepEqual(args.slice(0, 6), ["build", path.resolve(target === "restaurant-branch" ? "compiler/seed-c/fixtures/restaurant-if.w" : "benchmarks/executable/hello.w"), "--target", "x86_64-pc-windows-msvc", "--output", args[5]]);
+      const output = args[5];
       sampleDirectories.add(options.cwd);
       await writeFile(output, fakePeX64());
+      if (symbolSidecar) await writeFile(output.replace(/\.exe$/iu, ".pdb"), Buffer.from("debug symbols", "utf8"));
       return result(0);
     }
     throw new Error(`unexpected fake W executor invocation: ${command} ${args.join(" ")}`);
   };
-  return { calls, sampleDirectories, executor, gate, windowsToolchain };
+  return { calls, sampleDirectories, executor, publicW, windowsToolchain };
 }
 
 function fakeRunnerDependencies(language, fake) {
@@ -301,8 +296,9 @@ test("Rust release measurement rejects an unexpected PDB sidecar", async () => {
   assertNoFakeSampleDirectories(fake);
 });
 
-test("restaurant-branch W uses the private route with a retained correctness artifact and separate run series", async () => {
+test("restaurant-branch W uses public w build with a retained correctness artifact and separate run series", async () => {
   const fake = fakeWRunnerExecutor("restaurant-branch");
+  let publicBuilds = 0;
   const { record } = await runBenchmark({ target: "restaurant-branch", language: "w", warmup: 1, samples: 9, publish: false }, {
     executor: fake.executor,
     commit: TEST_COMMIT,
@@ -312,17 +308,97 @@ test("restaurant-branch W uses the private route with a retained correctness art
     testOnly: true,
     testOnlyPlatform: { platform: "win32", arch: "x64" },
     windowsToolchain: fake.windowsToolchain,
-    gate: fake.gate,
+    buildPublicW: async () => {
+      publicBuilds += 1;
+      return fake.publicW;
+    },
   });
   assert.equal(record.workloadId, "restaurant-branch");
   assert.equal(record.language, "w");
-  assert.equal(record.identity.recipe, "private-native0-mlir0-source-to-pe-candidate");
+  assert.equal(record.identity.recipe, "public-w-build-release");
   assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
   assert.equal(record.compile.raw.length, 9);
   assert.equal(record.run.raw.length, 9);
-  assert.equal(fake.calls.filter((call) => call.args.includes("--target=x86_64-pc-windows-msvc")).length, 12);
+  assert.equal(publicBuilds, 1, "public w.exe must be built once outside the compile samples");
+  const compileCalls = fake.calls.filter((call) => call.args[0] === "build");
+  assert.equal(compileCalls.length, 11);
+  assert.ok(compileCalls.every((call) => call.command === fake.publicW.executable && call.args[2] === "--target" && call.args[3] === "x86_64-pc-windows-msvc" && call.args[4] === "--output"));
+  assert.equal(fake.calls.some((call) => /w_seed|mlir|cmake|ninja/iu.test([call.command, ...call.args].join(" "))), false);
   assert.equal(fake.calls.filter((call) => call.args.length === 0).length, 11);
+  assert.match(record.protocol.resourceScope, /complete direct w\.exe build interval.*direct-process CPU\/RSS.*non-comparable to C\/Rust.*child process-tree/u);
   assertNoFakeSampleDirectories(fake);
+});
+
+test("W toolchain identity binds the complete public CLI digest", async () => {
+  const first = fakeWRunnerExecutor("hello");
+  const firstRun = await runBenchmark({ language: "w", warmup: 1, samples: 9, publish: false }, {
+    executor: first.executor,
+    commit: TEST_COMMIT,
+    environment: TEST_ENVIRONMENT,
+    runnerDigest: TEST_DIGEST,
+    catalogDigest: TEST_DIGEST,
+    testOnly: true,
+    testOnlyPlatform: { platform: "win32", arch: "x64" },
+    windowsToolchain: first.windowsToolchain,
+    publicW: first.publicW,
+  });
+  const second = fakeWRunnerExecutor("hello");
+  const changedDigest = "sha256:" + "2".repeat(64);
+  const secondRun = await runBenchmark({ language: "w", warmup: 1, samples: 9, publish: false }, {
+    executor: second.executor,
+    commit: TEST_COMMIT,
+    environment: TEST_ENVIRONMENT,
+    runnerDigest: TEST_DIGEST,
+    catalogDigest: TEST_DIGEST,
+    testOnly: true,
+    testOnlyPlatform: { platform: "win32", arch: "x64" },
+    windowsToolchain: second.windowsToolchain,
+    publicW: { ...second.publicW, digest: changedDigest },
+  });
+  assert.match(firstRun.record.identity.toolchain, new RegExp(TEST_DIGEST.slice("sha256:".length), "u"));
+  assert.match(secondRun.record.identity.toolchain, new RegExp(changedDigest.slice("sha256:".length), "u"));
+  assert.notEqual(firstRun.record.identity.toolchain, secondRun.record.identity.toolchain);
+  assertNoFakeSampleDirectories(first);
+  assertNoFakeSampleDirectories(second);
+});
+
+test("W public build rejects an unexpected release sidecar", async () => {
+  const fake = fakeWRunnerExecutor("hello", { symbolSidecar: true });
+  await assert.rejects(
+    () => runBenchmark({ language: "w", warmup: 1, samples: 9, publish: false }, {
+      executor: fake.executor,
+      commit: TEST_COMMIT,
+      environment: TEST_ENVIRONMENT,
+      runnerDigest: TEST_DIGEST,
+      catalogDigest: TEST_DIGEST,
+      testOnly: true,
+      testOnlyPlatform: { platform: "win32", arch: "x64" },
+      windowsToolchain: fake.windowsToolchain,
+      publicW: fake.publicW,
+    }),
+    /W public build produced unexpected release sidecars: .*\.exe, .*\.pdb/iu,
+  );
+  assertNoFakeSampleDirectories(fake);
+});
+
+test("W rejects a private gate fallback dependency", async () => {
+  const fake = fakeWRunnerExecutor("hello");
+  await assert.rejects(
+    () => runBenchmark({ language: "w", warmup: 1, samples: 9, publish: false }, {
+      executor: fake.executor,
+      commit: TEST_COMMIT,
+      environment: TEST_ENVIRONMENT,
+      runnerDigest: TEST_DIGEST,
+      catalogDigest: TEST_DIGEST,
+      testOnly: true,
+      testOnlyPlatform: { platform: "win32", arch: "x64" },
+      windowsToolchain: fake.windowsToolchain,
+      publicW: fake.publicW,
+      gate: { executable: path.resolve("fake-w-seed-mlir0-gate.exe") },
+    }),
+    /private gate fallback dependencies are unsupported/u,
+  );
+  assert.equal(fake.calls.length, 0);
 });
 
 test("timed-out compiler probes abort before a measurement directory or result exists", async () => {

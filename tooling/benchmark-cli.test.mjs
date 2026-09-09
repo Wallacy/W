@@ -57,7 +57,7 @@ test("benchmark facade parses bounded commands without shell syntax", () => {
     samples: 9,
   });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--samples", "10"]), /odd/);
-  assert.match(benchmarkUsage(), /private Native0\/MLIR0/u);
+  assert.match(benchmarkUsage(), /public w build Release/u);
   assert.match(benchmarkUsage(), /restaurant-branch/u);
 });
 

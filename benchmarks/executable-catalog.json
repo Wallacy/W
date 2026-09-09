@@ -52,12 +52,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "private-native0-mlir0-source-to-pe-candidate",
+          "recipe": "public-w-build-release",
           "recipeClass": "hello-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-public-run",
-          "eligibility": "contextual-only-until-public-run"
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
         },
         {
           "language": "c",
@@ -91,7 +91,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": ["public-w-run-benchmark-route"]
+      "blockers": ["process-tree-accounting"]
     },
     {
       "id": "restaurant-branch",
@@ -117,12 +117,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "private-native0-mlir0-source-to-pe-candidate",
+          "recipe": "public-w-build-release",
           "recipeClass": "restaurant-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-public-run",
-          "eligibility": "contextual-only-until-public-run"
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
         },
         {
           "language": "c",
@@ -156,7 +156,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": ["public-w-run-benchmark-route"]
+      "blockers": ["process-tree-accounting"]
     },
     {
       "id": "restaurant-nested-branch",
