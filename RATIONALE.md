@@ -8766,6 +8766,32 @@ module name. Only `w run` uses this basename rule. The `w check` helper and
 fixtures are therefore executable by
 their repository paths, without changing the CLI grammar.
 
+The finite retained-artifact companion keeps the same explicit source boundary:
+`w build <explicit-path.w> --target <exact-supported-triple> --output
+<new-artifact>`. It accepts only the configured Linux x86_64 GNU target or the
+explicitly configured native Windows x86_64 MSVC target. Source, exact target,
+and output are mandatory. An existing output, missing or non-physical parent,
+unknown target, or disabled route returns 2 before staging or tool invocation.
+
+The build route stages under the output parent and publishes one executable
+without replacement. It removes every intermediate and staging entry from the
+staging directory before the terminal publication operation, retaining only the
+hidden sibling publication source. Linux prefers one same-filesystem
+`renameat2(RENAME_NOREPLACE)` from a hidden sibling and falls back to one
+same-filesystem atomic hard-link no-clobber publication only when that syscall
+is unavailable; Windows uses one
+`MoveFileExW` without `MOVEFILE_REPLACE_EXISTING`. The final executable is
+caller-owned. The route has no receipt, general artifact record, PATH search,
+shell, network, host/target fallback, or implicit WSL. Shared compilation keeps
+`w run` private and cleanup-based. `w run` retains its fast development recipe;
+`w build` selects the internal release recipe by default: MLIR canonicalize/CSE,
+`llc -O3`, Linux link-driver `-s`, and native Windows LLD
+`/opt:ref /opt:icf /incremental:no`. No public profile option is added. The
+Linux/WSL and native Windows gates now build and execute Hello and
+`restaurant-if.w`, reject overwrite, symlink/reparse outputs and unsupported
+targets, exercise every tool-stage failure, and check staging cleanup. This is
+compiler-lifecycle correctness evidence only, with no benchmark result.
+
 #### W-1522 — bounded linear print sequence on direct verified HIR0
 
 W-1522 is the current `source-backed-current` decision for the NAT1 product

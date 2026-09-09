@@ -220,6 +220,122 @@ static int native_status_exit(w_seed_native0_status status) {
   return 3;
 }
 
+int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  if (request == NULL || request->source_path == NULL ||
+      request->target == NULL || request->directory == NULL ||
+      request->artifact_path == NULL || request->directory[0] == '\0' ||
+      request->artifact_path[0] == '\0' ||
+      strcmp(request->target, W_SEED_NATIVE_TARGET_LINUX) != 0 ||
+      (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
+    return 2;
+  const size_t path_length = strlen(request->source_path);
+  if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
+    return 2;
+  w_seed_frontend_text source_id;
+  if (!run_logical_source_id(request->source_path, path_length, &source_id))
+    return 2;
+
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  const w_seed_native0_input native_input = {
+      .path = request->source_path,
+      .path_length = path_length,
+      .logical_source_id = source_id,
+      .target =
+          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
+  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
+  w_seed_native0_result native_result;
+  const int source_status = native_status_exit(w_seed_native0_run(
+      &native_input, &native_storage, &native_output, &native_result));
+
+  char input_path[PATH_MAX] = {0};
+  char verified_path[PATH_MAX] = {0};
+  char ll_path[PATH_MAX] = {0};
+  char object_path[PATH_MAX] = {0};
+  int exit_code = source_status;
+  if (source_status != 0) {
+    if (!cleanup_directory(request->directory, NULL, NULL, NULL, NULL,
+                           request->artifact_path))
+      return 3;
+    return source_status;
+  }
+  if (!path_join(input_path, sizeof(input_path), request->directory,
+                 "input.mlir") ||
+      !path_join(verified_path, sizeof(verified_path), request->directory,
+                 "verified.mlir") ||
+      !path_join(ll_path, sizeof(ll_path), request->directory, "output.ll") ||
+      !path_join(object_path, sizeof(object_path), request->directory,
+                 "output.o") ||
+      !write_private_file(input_path, artifact,
+                          native_result.mlir.written.mlir_bytes) ||
+      !create_private_file(verified_path, (mode_t)0600) ||
+      !create_private_file(ll_path, (mode_t)0600) ||
+      !create_private_file(object_path, (mode_t)0600) ||
+      !create_private_file(request->artifact_path, (mode_t)0700))
+    goto cleanup;
+
+  {
+    char *arguments[8] = {(char *)MLIR_OPT, input_path, (char *)"-o",
+                          verified_path, (char *)"--verify-each", NULL, NULL,
+                          NULL};
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
+      arguments[5] = (char *)"--canonicalize";
+      arguments[6] = (char *)"--cse";
+    }
+    exit_code = run_tool(MLIR_OPT, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    char *arguments[] = {(char *)MLIR_TRANSLATE, (char *)"--mlir-to-llvmir",
+                         verified_path, (char *)"-o", ll_path, NULL};
+    exit_code = run_tool(MLIR_TRANSLATE, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    char *arguments[9] = {
+        (char *)LLC,
+        (char *)"-mtriple=x86_64-unknown-linux-gnu",
+        (char *)"-filetype=obj",
+        (char *)"-relocation-model=pic",
+        ll_path,
+        (char *)"-o",
+        object_path,
+        NULL,
+        NULL};
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      arguments[7] = (char *)"-O3";
+    exit_code = run_tool(LLC, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    char *arguments[7] = {(char *)LINK_DRIVER, (char *)"-pie", object_path,
+                          (char *)"-o", (char *)request->artifact_path, NULL,
+                          NULL};
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      arguments[5] = (char *)"-s";
+    exit_code = run_tool(LINK_DRIVER, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  if (chmod(request->artifact_path, (mode_t)0700) != 0) goto cleanup;
+  if (!remove_file(input_path) || !remove_file(verified_path) ||
+      !remove_file(ll_path) || !remove_file(object_path)) {
+    exit_code = 3;
+    goto cleanup;
+  }
+  return 0;
+
+cleanup:
+  if (!cleanup_directory(request->directory, input_path, verified_path,
+                          ll_path, object_path, request->artifact_path))
+    return 3;
+  return exit_code;
+}
+
+bool w_seed_run_cleanup_compiled(const char *directory,
+                                 const char *artifact_path) {
+  return cleanup_directory(directory, NULL, NULL, NULL, NULL, artifact_path);
+}
+
 int w_seed_run_execute(const w_seed_run_request *request) {
   if (request == NULL || request->path == NULL ||
       request->argument_count > W_SEED_RUN_MAX_ARGUMENTS ||
@@ -231,79 +347,26 @@ int w_seed_run_execute(const w_seed_run_request *request) {
   w_seed_frontend_text source_id;
   if (!run_logical_source_id(request->path, path_length, &source_id)) return 2;
 
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
-  const w_seed_native0_input native_input = {
-      .path = request->path,
-      .path_length = path_length,
-      .logical_source_id = source_id,
-      .target =
-          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
-  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
-  w_seed_native0_result native_result;
-  const int source_status = native_status_exit(w_seed_native0_run(
-      &native_input, &native_storage, &native_output, &native_result));
-  if (source_status != 0) return source_status;
-
   char directory[] = "/tmp/w-run-XXXXXX";
   if (mkdtemp(directory) == NULL) return 3;
-  char input_path[PATH_MAX] = {0};
-  char verified_path[PATH_MAX] = {0};
-  char ll_path[PATH_MAX] = {0};
-  char object_path[PATH_MAX] = {0};
   char program_path[PATH_MAX] = {0};
   int exit_code = 3;
-  if (!path_join(input_path, sizeof(input_path), directory, "input.mlir") ||
-      !path_join(verified_path, sizeof(verified_path), directory,
-                 "verified.mlir") ||
-      !path_join(ll_path, sizeof(ll_path), directory, "output.ll") ||
-      !path_join(object_path, sizeof(object_path), directory, "output.o") ||
-      !path_join(program_path, sizeof(program_path), directory, "program") ||
-      !write_private_file(input_path, artifact,
-                          native_result.mlir.written.mlir_bytes) ||
-      !create_private_file(verified_path, (mode_t)0600) ||
-      !create_private_file(ll_path, (mode_t)0600) ||
-      !create_private_file(object_path, (mode_t)0600) ||
-      !create_private_file(program_path, (mode_t)0700))
+  if (!path_join(program_path, sizeof(program_path), directory, "program"))
     goto cleanup;
-
   {
-    char *arguments[] = {(char *)MLIR_OPT, input_path, (char *)"-o",
-                         verified_path, (char *)"--verify-each", NULL};
-    exit_code = run_tool(MLIR_OPT, arguments);
+    const w_seed_run_compile_request compile_request = {
+        .source_path = request->path,
+        .target = W_SEED_NATIVE_TARGET_LINUX,
+        .directory = directory,
+        .artifact_path = program_path,
+        .profile = W_SEED_RUN_COMPILE_PROFILE_DEV};
+    exit_code = w_seed_run_compile(&compile_request);
   }
   if (exit_code != 0) goto cleanup;
-  {
-    char *arguments[] = {(char *)MLIR_TRANSLATE, (char *)"--mlir-to-llvmir",
-                         verified_path, (char *)"-o", ll_path, NULL};
-    exit_code = run_tool(MLIR_TRANSLATE, arguments);
-  }
-  if (exit_code != 0) goto cleanup;
-  {
-    char *arguments[] = {
-        (char *)LLC,
-        (char *)"-mtriple=x86_64-unknown-linux-gnu",
-        (char *)"-filetype=obj",
-        (char *)"-relocation-model=pic",
-        ll_path,
-        (char *)"-o",
-        object_path,
-        NULL};
-    exit_code = run_tool(LLC, arguments);
-  }
-  if (exit_code != 0) goto cleanup;
-  {
-    char *arguments[] = {(char *)LINK_DRIVER, (char *)"-pie", object_path,
-                         (char *)"-o", program_path, NULL};
-    exit_code = run_tool(LINK_DRIVER, arguments);
-  }
-  if (exit_code != 0) goto cleanup;
-  if (chmod(program_path, (mode_t)0700) != 0) goto cleanup;
   exit_code = run_program(program_path, request);
 
 cleanup:
-  if (!cleanup_directory(directory, input_path, verified_path, ll_path,
-                          object_path, program_path))
-    return 3;
+  if (!w_seed_run_cleanup_compiled(directory, program_path)) return 3;
   return exit_code;
 }
 
@@ -350,6 +413,21 @@ static bool windows_utf8_to_wide(const char *source, wchar_t *destination,
       (int)(capacity - 1u));
   if (converted <= 0) return false;
   destination[converted] = L'\0';
+  return true;
+}
+
+static bool windows_wide_to_utf8(const wchar_t *source, char *destination,
+                                 size_t capacity) {
+  if (source == NULL || destination == NULL || capacity < 2u ||
+      capacity > (size_t)INT_MAX)
+    return false;
+  const size_t source_length = wcslen(source);
+  if (source_length > (size_t)INT_MAX) return false;
+  const int converted = WideCharToMultiByte(
+      CP_UTF8, WC_ERR_INVALID_CHARS, source, (int)source_length, destination,
+      (int)(capacity - 1u), NULL, NULL);
+  if (converted <= 0) return false;
+  destination[converted] = '\0';
   return true;
 }
 
@@ -603,7 +681,9 @@ static bool windows_write_new_file(const wchar_t *path, const uint8_t *bytes,
 
 static bool windows_remove_file(const wchar_t *path) {
   if (path == NULL || path[0] == L'\0') return true;
-  return DeleteFileW(path) != 0 || GetLastError() == ERROR_FILE_NOT_FOUND;
+  if (DeleteFileW(path) != 0) return true;
+  const DWORD error = GetLastError();
+  return error == ERROR_FILE_NOT_FOUND || error == ERROR_PATH_NOT_FOUND;
 }
 
 static bool windows_cleanup_directory(const wchar_t *directory,
@@ -658,6 +738,163 @@ static int windows_run_program(const wchar_t *application,
   return windows_launch_command(application, command_line, false);
 }
 
+int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  if (request == NULL || request->source_path == NULL ||
+      request->target == NULL || request->directory == NULL ||
+      request->artifact_path == NULL || request->directory[0] == '\0' ||
+      request->artifact_path[0] == '\0' ||
+      strcmp(request->target, W_SEED_NATIVE_TARGET_WINDOWS) != 0 ||
+      (request->profile != W_SEED_RUN_COMPILE_PROFILE_DEV &&
+       request->profile != W_SEED_RUN_COMPILE_PROFILE_RELEASE))
+    return 2;
+  const size_t path_length = strlen(request->source_path);
+  if (path_length == 0u || path_length > W_SEED_NATIVE0_MAX_PATH_BYTES)
+    return 2;
+  w_seed_frontend_text source_id;
+  if (!run_logical_source_id(request->source_path, path_length, &source_id))
+    return 2;
+
+  wchar_t directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t artifact_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (!windows_utf8_to_wide(request->directory, directory,
+                            sizeof(directory) / sizeof(directory[0])) ||
+      !windows_utf8_to_wide(request->artifact_path, artifact_path,
+                            sizeof(artifact_path) / sizeof(artifact_path[0])))
+    return 2;
+
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  const w_seed_native0_input native_input = {
+      .path = request->source_path,
+      .path_length = path_length,
+      .logical_source_id = source_id,
+      .target =
+          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
+  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
+  w_seed_native0_result native_result;
+  const int source_status = windows_native_status_exit(w_seed_native0_run(
+      &native_input, &native_storage, &native_output, &native_result));
+
+  wchar_t input_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t verified_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t mlir_opt[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t mlir_translate[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t llc[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t lld_link[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t kernel32[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  int exit_code = source_status;
+  if (source_status != 0) {
+    if (!windows_cleanup_directory(directory, NULL, NULL, NULL, NULL,
+                                   artifact_path))
+      return 3;
+    return source_status;
+  }
+  if (!windows_utf8_to_wide(W_SEED_WINDOWS_MLIR_OPT_PATH, mlir_opt,
+                            sizeof(mlir_opt) / sizeof(mlir_opt[0])) ||
+      !windows_utf8_to_wide(W_SEED_WINDOWS_MLIR_TRANSLATE_PATH, mlir_translate,
+                            sizeof(mlir_translate) / sizeof(mlir_translate[0])) ||
+      !windows_utf8_to_wide(W_SEED_WINDOWS_LLC_PATH, llc,
+                            sizeof(llc) / sizeof(llc[0])) ||
+      !windows_utf8_to_wide(W_SEED_WINDOWS_LLD_LINK_PATH, lld_link,
+                            sizeof(lld_link) / sizeof(lld_link[0])) ||
+      !windows_utf8_to_wide(W_SEED_WINDOWS_KERNEL32_LIB_PATH, kernel32,
+                            sizeof(kernel32) / sizeof(kernel32[0])) ||
+      !windows_path_join(input_path, sizeof(input_path) / sizeof(input_path[0]),
+                         directory, L"input.mlir") ||
+      !windows_path_join(verified_path,
+                         sizeof(verified_path) / sizeof(verified_path[0]),
+                         directory, L"verified.mlir") ||
+      !windows_path_join(ll_path, sizeof(ll_path) / sizeof(ll_path[0]),
+                         directory, L"output.ll") ||
+      !windows_path_join(object_path,
+                         sizeof(object_path) / sizeof(object_path[0]), directory,
+                         L"output.obj") ||
+      !windows_write_new_file(input_path, artifact,
+                              native_result.mlir.written.mlir_bytes))
+    goto cleanup;
+
+  {
+    const wchar_t *arguments[6] = {input_path, L"-o", verified_path,
+                                   L"--verify-each", NULL, NULL};
+    size_t argument_count = 4u;
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
+      arguments[argument_count++] = L"--canonicalize";
+      arguments[argument_count++] = L"--cse";
+    }
+    exit_code = windows_run_tool(mlir_opt, arguments,
+                                 argument_count);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    const wchar_t *arguments[] = {L"--mlir-to-llvmir", verified_path, L"-o",
+                                  ll_path};
+    exit_code = windows_run_tool(
+        mlir_translate, arguments, sizeof(arguments) / sizeof(arguments[0]));
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    const wchar_t *arguments[6] = {L"-filetype=obj",
+                                   L"-mtriple=x86_64-pc-windows-msvc",
+                                   ll_path, L"-o", object_path, NULL};
+    size_t argument_count = 5u;
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      arguments[argument_count++] = L"-O3";
+    exit_code = windows_run_tool(llc, arguments,
+                                 argument_count);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    wchar_t out_argument[W_SEED_WINDOWS_PATH_CAPACITY + 6u];
+    const wchar_t *link_arguments[10];
+    size_t link_argument_count = 7u;
+    if (swprintf(out_argument, sizeof(out_argument) / sizeof(out_argument[0]),
+                 L"/out:%ls", artifact_path) < 0)
+      goto cleanup;
+    link_arguments[0] = L"/entry:mainCRTStartup";
+    link_arguments[1] = L"/subsystem:console";
+    link_arguments[2] = L"/nodefaultlib";
+    link_arguments[3] = L"/machine:x64";
+    link_arguments[4] = out_argument;
+    link_arguments[5] = object_path;
+    link_arguments[6] = kernel32;
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
+      link_arguments[link_argument_count++] = L"/opt:ref";
+      link_arguments[link_argument_count++] = L"/opt:icf";
+      link_arguments[link_argument_count++] = L"/incremental:no";
+    }
+    exit_code = windows_run_tool(
+        lld_link, link_arguments, link_argument_count);
+  }
+  if (exit_code != 0) goto cleanup;
+  if (!windows_remove_file(input_path) ||
+      !windows_remove_file(verified_path) || !windows_remove_file(ll_path) ||
+      !windows_remove_file(object_path)) {
+    exit_code = 3;
+    goto cleanup;
+  }
+  return 0;
+
+cleanup:
+  if (!windows_cleanup_directory(directory, input_path, verified_path, ll_path,
+                                 object_path, artifact_path))
+    return 3;
+  return exit_code;
+}
+
+bool w_seed_run_cleanup_compiled(const char *directory,
+                                 const char *artifact_path) {
+  wchar_t wide_directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t wide_artifact[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (!windows_utf8_to_wide(directory, wide_directory,
+                            sizeof(wide_directory) / sizeof(wide_directory[0])) ||
+      !windows_utf8_to_wide(artifact_path, wide_artifact,
+                            sizeof(wide_artifact) / sizeof(wide_artifact[0])))
+    return false;
+  return windows_cleanup_directory(wide_directory, NULL, NULL, NULL, NULL,
+                                   wide_artifact);
+}
+
 int w_seed_run_execute(const w_seed_run_request *request) {
   if (request == NULL || request->path == NULL ||
       request->argument_count > W_SEED_RUN_MAX_ARGUMENTS ||
@@ -669,109 +906,49 @@ int w_seed_run_execute(const w_seed_run_request *request) {
   w_seed_frontend_text source_id;
   if (!run_logical_source_id(request->path, path_length, &source_id)) return 2;
 
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
-  const w_seed_native0_input native_input = {
-      .path = request->path,
-      .path_length = path_length,
-      .logical_source_id = source_id,
-      .target =
-          (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
-  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
-  w_seed_native0_result native_result;
-  const int source_status = windows_native_status_exit(w_seed_native0_run(
-      &native_input, &native_storage, &native_output, &native_result));
-  if (source_status != 0) return source_status;
-
-  wchar_t directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t input_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t verified_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t ll_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t object_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t program_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t mlir_opt[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t mlir_translate[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t llc[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t lld_link[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  wchar_t kernel32[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
-  int exit_code = 3;
-  if (!windows_utf8_to_wide(W_SEED_WINDOWS_MLIR_OPT_PATH, mlir_opt,
-                            sizeof(mlir_opt) / sizeof(mlir_opt[0])) ||
-      !windows_utf8_to_wide(W_SEED_WINDOWS_MLIR_TRANSLATE_PATH, mlir_translate,
-                            sizeof(mlir_translate) / sizeof(mlir_translate[0])) ||
-      !windows_utf8_to_wide(W_SEED_WINDOWS_LLC_PATH, llc,
-                            sizeof(llc) / sizeof(llc[0])) ||
-      !windows_utf8_to_wide(W_SEED_WINDOWS_LLD_LINK_PATH, lld_link,
-                            sizeof(lld_link) / sizeof(lld_link[0])) ||
-      !windows_utf8_to_wide(W_SEED_WINDOWS_KERNEL32_LIB_PATH, kernel32,
-                            sizeof(kernel32) / sizeof(kernel32[0])) ||
-      !windows_create_temp_directory(directory,
-                                     sizeof(directory) / sizeof(directory[0])) ||
-      !windows_path_join(input_path, sizeof(input_path) / sizeof(input_path[0]),
-                         directory, L"input.mlir") ||
-      !windows_path_join(verified_path,
-                         sizeof(verified_path) / sizeof(verified_path[0]),
-                         directory, L"verified.mlir") ||
-      !windows_path_join(ll_path, sizeof(ll_path) / sizeof(ll_path[0]),
-                         directory, L"output.ll") ||
-      !windows_path_join(object_path,
-                         sizeof(object_path) / sizeof(object_path[0]), directory,
-                         L"output.obj") ||
-      !windows_path_join(program_path,
-                         sizeof(program_path) / sizeof(program_path[0]),
-                         directory, L"program.exe") ||
-      !windows_write_new_file(input_path, artifact,
-                              native_result.mlir.written.mlir_bytes))
-    goto cleanup;
-
-  {
-    const wchar_t *arguments[] = {input_path, L"-o", verified_path,
-                                  L"--verify-each"};
-    exit_code = windows_run_tool(mlir_opt, arguments,
-                                 sizeof(arguments) / sizeof(arguments[0]));
-  }
-  if (exit_code != 0) goto cleanup;
-  {
-    const wchar_t *arguments[] = {L"--mlir-to-llvmir", verified_path, L"-o",
-                                  ll_path};
-    exit_code = windows_run_tool(
-        mlir_translate, arguments, sizeof(arguments) / sizeof(arguments[0]));
-  }
-  if (exit_code != 0) goto cleanup;
-  {
-    const wchar_t *arguments[] = {L"-filetype=obj",
-                                  L"-mtriple=x86_64-pc-windows-msvc",
-                                  ll_path, L"-o", object_path};
-    exit_code = windows_run_tool(llc, arguments,
-                                 sizeof(arguments) / sizeof(arguments[0]));
-  }
-  if (exit_code != 0) goto cleanup;
-  {
-    wchar_t out_argument[W_SEED_WINDOWS_PATH_CAPACITY + 6u];
-    const wchar_t *link_arguments[7];
-    if (swprintf(out_argument, sizeof(out_argument) / sizeof(out_argument[0]),
-                 L"/out:%ls", program_path) < 0)
-      goto cleanup;
-    link_arguments[0] = L"/entry:mainCRTStartup";
-    link_arguments[1] = L"/subsystem:console";
-    link_arguments[2] = L"/nodefaultlib";
-    link_arguments[3] = L"/machine:x64";
-    link_arguments[4] = out_argument;
-    link_arguments[5] = object_path;
-    link_arguments[6] = kernel32;
-    exit_code = windows_run_tool(
-        lld_link, link_arguments, sizeof(link_arguments) / sizeof(link_arguments[0]));
-  }
-  if (exit_code != 0) goto cleanup;
-  exit_code = windows_run_program(program_path, request);
-
-cleanup:
-  if (!windows_cleanup_directory(directory, input_path, verified_path, ll_path,
-                                 object_path, program_path))
+  wchar_t wide_directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  char directory[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  char program_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  wchar_t wide_program_path[W_SEED_WINDOWS_PATH_CAPACITY] = {0};
+  if (!windows_create_temp_directory(
+          wide_directory, sizeof(wide_directory) / sizeof(wide_directory[0])) ||
+      !windows_wide_to_utf8(wide_directory, directory, sizeof(directory)) ||
+      !windows_path_join(wide_program_path,
+                         sizeof(wide_program_path) / sizeof(wide_program_path[0]),
+                         wide_directory, L"program.exe") ||
+      !windows_wide_to_utf8(wide_program_path, program_path,
+                            sizeof(program_path))) {
+    if (wide_directory[0] != L'\0') (void)RemoveDirectoryW(wide_directory);
     return 3;
+  }
+  int exit_code = 3;
+  {
+    const w_seed_run_compile_request compile_request = {
+        .source_path = request->path,
+        .target = W_SEED_NATIVE_TARGET_WINDOWS,
+        .directory = directory,
+        .artifact_path = program_path,
+        .profile = W_SEED_RUN_COMPILE_PROFILE_DEV};
+    exit_code = w_seed_run_compile(&compile_request);
+  }
+  if (exit_code == 0) exit_code = windows_run_program(wide_program_path, request);
+  if (!w_seed_run_cleanup_compiled(directory, program_path)) return 3;
   return exit_code;
 }
 
 #else /* W_SEED_WINDOWS_NATIVE_RUN_ENABLED */
+
+int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  (void)request;
+  return 2;
+}
+
+bool w_seed_run_cleanup_compiled(const char *directory,
+                                 const char *artifact_path) {
+  (void)directory;
+  (void)artifact_path;
+  return true;
+}
 
 int w_seed_run_execute(const w_seed_run_request *request) {
   (void)request;
@@ -782,12 +959,36 @@ int w_seed_run_execute(const w_seed_run_request *request) {
 
 #elif defined(__linux__) /* W_SEED_LINUX_NATIVE_RUN_ENABLED */
 
+int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  (void)request;
+  return 2;
+}
+
+bool w_seed_run_cleanup_compiled(const char *directory,
+                                 const char *artifact_path) {
+  (void)directory;
+  (void)artifact_path;
+  return true;
+}
+
 int w_seed_run_execute(const w_seed_run_request *request) {
   (void)request;
   return 2;
 }
 
 #else /* unsupported host */
+
+int w_seed_run_compile(const w_seed_run_compile_request *request) {
+  (void)request;
+  return 2;
+}
+
+bool w_seed_run_cleanup_compiled(const char *directory,
+                                 const char *artifact_path) {
+  (void)directory;
+  (void)artifact_path;
+  return true;
+}
 
 int w_seed_run_execute(const w_seed_run_request *request) {
   (void)request;

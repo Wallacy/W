@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { mkdir, mkdtemp, readdir, readFile, rm, symlink, writeFile } from "node:fs/promises"
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, symlink, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { isAbsolute, join, resolve } from "node:path"
 
@@ -23,7 +23,8 @@ const w1531FrontierFixture = resolve(seedDirectory, "fixtures", "w1531-if-fronti
 const targetTriple = "x86_64-unknown-linux-gnu"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
-  "usage: w run <path/file.w> [-- <args...>]\n"
+  "usage: w run <path/file.w> [-- <args...>]\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
 const expectedHello = Buffer.from("Hello, world!\n", "utf8")
 
 const isWindows = process.platform === "win32"
@@ -262,6 +263,43 @@ function expectUnsupportedOption(binary, args, label) {
   `${label} did not reject with exact usage: ${resultSummary(result)}`)
 }
 
+function expectBuildFailure(binary, args, label) {
+  const result = invoke(binary, args)
+  assert(result.exitCode === 2 && result.stdout.length === 0 &&
+    result.stderr.length === 0,
+  `${label} did not fail cleanly: ${resultSummary(result)}`)
+}
+
+async function assertNoBuildResidue(directory, label = "public build") {
+  if (isWindows) {
+    const result = runRequired(`${label} WSL residue check`, "wsl.exe", [
+      "-d", "Ubuntu", "--", "find", directory, "-mindepth", "1",
+      "-maxdepth", "1", "-name", ".w-build-*", "-printf", "%f\\n",
+    ])
+    assert(result.stderrBytes.length === 0, `${label} residue check wrote stderr`)
+    const residue = result.stdoutBytes.toString().split(/\r?\n/u).filter(Boolean)
+    assert(residue.length === 0,
+      `${label} left staging entries: ${JSON.stringify(residue)}`)
+    return
+  }
+  const entries = await readdir(directory, { withFileTypes: true })
+  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-"))
+  assert(residue.length === 0,
+    `${label} left staging entries: ${JSON.stringify(residue)}`)
+}
+
+function artifactExists(path) {
+  if (!isWindows) return existsSync(path)
+  return wslRun("test", ["-e", path]).exitCode === 0
+}
+
+function readBuildArtifact(path) {
+  if (!isWindows) return readFile(path)
+  return Promise.resolve(runRequired("WSL artifact read", "wsl.exe", [
+    "-d", "Ubuntu", "--", "cat", path,
+  ]).stdoutBytes)
+}
+
 if (import.meta.main) {
 if (isMacos) unavailable("macOS has no pinned MLIR/LLVM/native-link evidence")
 if (!isWindows && !isLinux) unavailable(`unsupported host ${process.platform}`)
@@ -273,10 +311,18 @@ if (isWindows && !Bun.which("wsl.exe"))
 const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
 const commands = validateManifest(manifest)
 const runSource = await readFile(resolve(seedDirectory, "cli", "run.c"), "utf8")
+const buildSource = await readFile(resolve(seedDirectory, "cli", "build.c"), "utf8")
 for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
   "W_SEED_LINUX_LINK_DRIVER_PATH"])
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
+for (const marker of ["--canonicalize", "--cse", "-O3", "-s"])
+  assert(runSource.includes(marker),
+    `cli/run.c is missing the release build flag ${marker}`)
+assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
+  "cli/run.c does not select the development compile profile for w run")
+assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
+  "cli/build.c does not select the release compile profile for w build")
 const llvmRoles = ["mlirOpt", "mlirTranslate", "llvmConfig", "llc"]
 const roles = [...llvmRoles, "linkDriver"]
 const resolvedCommands = Object.fromEntries(roles.map((role) => {
@@ -333,10 +379,20 @@ if (isWindows) {
 
 let buildDirectory
 let fixtureDirectory
+let buildArtifactDirectory
 let residueBefore
 try {
   buildDirectory = await mkdtemp(join(tmpdir(), "w-run-product-build-"))
   fixtureDirectory = await mkdtemp(join(tmpdir(), "w-run-product-fixtures-"))
+  if (isWindows) {
+    const result = runRequired("WSL build artifact directory", "wsl.exe", [
+      "-d", "Ubuntu", "--", "mktemp", "-d",
+      "/tmp/w-run-build-artifacts-XXXXXX",
+    ])
+    buildArtifactDirectory = result.stdoutBytes.toString().trim()
+    assert(/^\/tmp\/w-run-build-artifacts-[A-Za-z0-9]+$/u.test(buildArtifactDirectory),
+      "WSL build artifact directory is not an isolated /tmp path")
+  } else buildArtifactDirectory = fixtureDirectory
   const buildPath = isWindows ? wslPath(buildDirectory) : buildDirectory
   const sourcePath = isWindows ? wslPath(seedDirectory) : seedDirectory
   const toolDirectory = join(fixtureDirectory, "tool links")
@@ -490,6 +546,8 @@ try {
   expectSuccess(binary, ["--help"], Buffer.from(expectedHelp), "w --help")
   expectSuccess(binary, ["run", "--help"], Buffer.from(expectedHelp),
     "w run --help")
+  expectSuccess(binary, ["build", "--help"], Buffer.from(expectedHelp),
+    "w build --help")
   expectSuccess(binary, ["run", toWsl(helloFixture)], expectedHello,
     "Hello fixture")
   expectSuccess(binary, ["run", toWsl(restaurantBinding)],
@@ -563,6 +621,81 @@ try {
   expectSuccess(binary, ["run", toWsl(helloFixture), "--", "arbitrary", "--entry", ""],
     expectedHello, "forwarded program arguments")
 
+  const buildOutput = (name) => isWindows
+    ? `${buildArtifactDirectory}/${name}`
+    : join(buildArtifactDirectory, name)
+  const buildHello = buildOutput("hello-build")
+  const buildRestaurantIf = buildOutput("restaurant-if-build")
+  const buildMounted = join(fixtureDirectory, "mounted-build")
+  const buildWrongTarget = buildOutput("wrong-target-build")
+  const buildMissingParent = buildOutput("missing/artifact")
+  const buildSymlinkOutput = buildOutput("symlink-output")
+  const buildSymlinkTarget = buildOutput("symlink-target")
+  expectSuccess(binary, ["build", toWsl(helloFixture), "--target", targetTriple,
+    "--output", buildHello], Buffer.alloc(0),
+    "build Hello fixture")
+  expectSuccess(buildHello, [], expectedHello,
+    "execute built Hello artifact")
+  const helloBytes = await readBuildArtifact(buildHello)
+  expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+    targetTriple, "--output", buildHello],
+  "reject existing build output")
+  assert((await readBuildArtifact(buildHello)).equals(helloBytes),
+    "existing build output was modified")
+  expectSuccess(binary, ["build", toWsl(restaurantIfFixture), "--target",
+    targetTriple, "--output", buildRestaurantIf], Buffer.alloc(0),
+    "build restaurant-if fixture")
+  expectSuccess(buildRestaurantIf, [], expectedRestaurantIf,
+    "execute built restaurant-if artifact")
+  if (isWindows) {
+    expectSuccess(binary, ["build", toWsl(helloFixture), "--target", targetTriple,
+      "--output", toWsl(buildMounted)], Buffer.alloc(0),
+    "build mounted-filesystem fallback")
+    expectSuccess(toWsl(buildMounted), [], expectedHello,
+      "execute mounted-filesystem fallback artifact")
+    await assertNoBuildResidue(wslPath(fixtureDirectory),
+      "mounted-filesystem fallback")
+  }
+  expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+    "x86_64-pc-windows-msvc", "--output", buildWrongTarget],
+  "reject unsupported build target")
+  assert(!artifactExists(buildWrongTarget), "wrong-target build left an artifact")
+  expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+    targetTriple, "--output", buildMissingParent],
+  "reject missing build output parent")
+  assert(!artifactExists(buildMissingParent), "missing-parent build left an artifact")
+  if (isWindows) {
+    runRequired("WSL output symlink", "wsl.exe", [
+      "-d", "Ubuntu", "--", "ln", "-s", buildSymlinkTarget,
+      buildSymlinkOutput,
+    ])
+    try {
+      expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+        targetTriple, "--output", buildSymlinkOutput],
+      "reject symlink build output")
+      const symlinkCheck = wslRun("test", ["-L", buildSymlinkOutput])
+      assert(symlinkCheck.exitCode === 0,
+        "rejected symlink build output was modified")
+    } finally {
+      runRequired("WSL output symlink cleanup", "wsl.exe", [
+        "-d", "Ubuntu", "--", "rm", "-f", "--", buildSymlinkOutput,
+      ])
+    }
+  } else {
+    await symlink("symlink-target", buildSymlinkOutput)
+    try {
+      expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+        targetTriple, "--output", buildSymlinkOutput],
+      "reject symlink build output")
+      const symlinkStats = await lstat(buildSymlinkOutput)
+      assert(symlinkStats.isSymbolicLink(),
+        "rejected symlink build output was modified")
+    } finally {
+      await unlink(buildSymlinkOutput)
+    }
+  }
+  await assertNoBuildResidue(buildArtifactDirectory)
+
   expectSourceFailure(binary, toWsl(join(fixtureDirectory, "missing.w")),
     "missing source")
   expectSourceFailure(binary, toWsl(zero), "zero-byte source")
@@ -610,8 +743,18 @@ try {
     try {
       await replaceToolLink(role, "/usr/bin/false")
       expectSourceFailure(binary, toWsl(helloFixture), `${role} stage failure`)
+      expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+        targetTriple, "--output", buildOutput(`${role}-failure`)],
+      `${role} build stage failure`)
+      await assertNoBuildResidue(buildArtifactDirectory,
+        `${role} build stage failure`)
       await replaceToolLink(role, `${toolPath}/missing-executable`)
       expectSourceFailure(binary, toWsl(helloFixture), `${role} missing at runtime`)
+      expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
+        targetTriple, "--output", buildOutput(`${role}-missing`)],
+      `${role} build missing at runtime`)
+      await assertNoBuildResidue(buildArtifactDirectory,
+        `${role} build missing at runtime`)
     } finally {
       await replaceToolLink(role, resolvedCommands[role])
     }
@@ -621,11 +764,16 @@ try {
 
   const residueAfter = await snapshotRunResidue()
   assertNoNewResidue(residueBefore, residueAfter)
+  await assertNoBuildResidue(buildArtifactDirectory)
   console.log("W RUN: public source → verified HIR0 → MLIR0 → MLIR/LLVM/native E2E passed")
 } finally {
   if (buildDirectory !== undefined)
     await rm(buildDirectory, { recursive: true, force: true })
   if (fixtureDirectory !== undefined)
     await rm(fixtureDirectory, { recursive: true, force: true })
+  if (isWindows && buildArtifactDirectory !== undefined)
+    runRequired("WSL build artifact cleanup", "wsl.exe", [
+      "-d", "Ubuntu", "--", "rm", "-rf", "--", buildArtifactDirectory,
+    ])
 }
 }

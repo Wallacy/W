@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs"
-import { lstat, mkdtemp, readdir, readFile, rm, statfs, writeFile } from "node:fs/promises"
+import { lstat, mkdir, mkdtemp, readdir, readFile, rm, statfs, symlink, unlink, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join, relative, resolve, isAbsolute } from "node:path"
 import {
@@ -25,9 +25,11 @@ const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "re
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
+const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
-  "usage: w run <path/file.w> [-- <args...>]\n"
+  "usage: w run <path/file.w> [-- <args...>]\n" +
+  "usage: w build <path/file.w> --target <target> --output <artifact>\n"
 const expectedWindowsErrorHelp = expectedHelp.replaceAll("\n", "\r\n")
 
 function fail(message) {
@@ -119,6 +121,13 @@ function assertNoNewResidue(before, after) {
   assert(added.length === 0, `native runner left temporary directories: ${JSON.stringify(added)}`)
 }
 
+async function assertNoBuildResidue(directory, label = "public build") {
+  const entries = await readdir(directory, { withFileTypes: true })
+  const residue = entries.filter((entry) => entry.name.startsWith(".w-build-"))
+  assert(residue.length === 0,
+    `${label} left staging entries: ${JSON.stringify(residue)}`)
+}
+
 async function readMaterialized(manifest) {
   const document = JSON.parse(await readFile(materializedPath, "utf8"))
   assert(document?.$schema === "w-seed-mlir0-windows-materialized-1" &&
@@ -160,6 +169,10 @@ function expectSourceFailure(binary, pathValue, label) {
   expectExact(binary, ["run", pathValue], 2, Buffer.alloc(0), label)
 }
 
+function expectBuildFailure(binary, args, label) {
+  expectExact(binary, args, 2, Buffer.alloc(0), label)
+}
+
 function assertPeX64(bytes, label) {
   assert(bytes.length >= 0x40 && bytes[0] === 0x4d && bytes[1] === 0x5a,
     `${label} is not an MZ image`)
@@ -198,6 +211,7 @@ const ninja = Bun.which("ninja")
 assert(cmake && ninja, "CMake/Ninja are unavailable to the Windows gate")
 
 const runSource = await readFile(resolve(seedDirectory, "cli", "run.c"), "utf8")
+const buildSource = await readFile(resolve(seedDirectory, "cli", "build.c"), "utf8")
 const emitterSource = await readFile(resolve(seedDirectory, "src", "w_seed_mlir0.c"),
   "utf8")
 const windowsSourceStart = runSource.indexOf("#elif defined(_WIN32)")
@@ -211,13 +225,18 @@ for (const forbidden of ["wsl.exe", "process.env.PATH", "exec(", "shell: true", 
 }
 for (const marker of ["CreateProcessW", "lpApplicationName", "CREATE_NEW",
   "GetStdHandle", "WriteFile", "ExitProcess", "mainCRTStartup",
-  "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib"]) {
+  "-mtriple=x86_64-pc-windows-msvc", "/nodefaultlib", "--canonicalize",
+  "--cse", "-O3", "/opt:ref", "/opt:icf", "/incremental:no"]) {
   assert(`${runSource}\n${emitterSource}`.includes(marker),
     `native Windows implementation marker is missing: ${marker}`)
 }
 assert(emitterSource.includes("llvm.mlir.zero") &&
   !emitterSource.includes("HeapAlloc") && !emitterSource.includes("HeapFree"),
 "Windows emitter must use the bounded global buffer without Heap APIs")
+assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
+  "cli/run.c does not select the development compile profile for w run")
+assert(buildSource.includes("W_SEED_RUN_COMPILE_PROFILE_RELEASE"),
+  "cli/build.c does not select the release compile profile for w build")
 for (const name of ["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"])
   runRequired(`${name} version`, materialized.tools[name].absolutePath, ["--version"])
 
@@ -239,23 +258,31 @@ try {
   const disabledBinary = join(unsupportedBuildDirectory, "w.exe")
   expectExact(disabledBinary, ["run", helloFixture], 2, Buffer.alloc(0),
     "disabled native run")
+  const disabledArtifact = join(fixtureDirectory, "disabled-build.exe")
+  expectBuildFailure(disabledBinary, ["build", helloFixture, "--target",
+    targetTriple, "--output", disabledArtifact], "disabled native build")
+  assert(!existsSync(disabledArtifact), "disabled native build left an artifact")
   assertNoNewResidue(residueBefore, await snapshotResidue())
 
-  const cmakeArguments = [
+  const nativeCmakeArguments = (toolOverrides = {}) => [
     "-S", seedDirectory, "-B", buildDirectory, "-G", "Ninja",
     "-DCMAKE_BUILD_TYPE=Release", "-DCMAKE_C_COMPILER=cl",
     `-DCMAKE_MAKE_PROGRAM=${ninja}`,
     `-DW_SEED_C_STANDARD=${cStandard}`,
     "-DW_SEED_ENABLE_WINDOWS_NATIVE_RUN=ON",
-    `-DW_MLIR0_WINDOWS_MLIR_OPT=${materialized.tools["mlir-opt.exe"].absolutePath}`,
-    `-DW_MLIR0_WINDOWS_MLIR_TRANSLATE=${materialized.tools["mlir-translate.exe"].absolutePath}`,
-    `-DW_MLIR0_WINDOWS_LLC=${materialized.tools["llc.exe"].absolutePath}`,
-    `-DW_MLIR0_WINDOWS_LLD_LINK=${materialized.tools["lld-link.exe"].absolutePath}`,
+    `-DW_MLIR0_WINDOWS_MLIR_OPT=${toolOverrides.mlirOpt ?? materialized.tools["mlir-opt.exe"].absolutePath}`,
+    `-DW_MLIR0_WINDOWS_MLIR_TRANSLATE=${toolOverrides.mlirTranslate ?? materialized.tools["mlir-translate.exe"].absolutePath}`,
+    `-DW_MLIR0_WINDOWS_LLC=${toolOverrides.llc ?? materialized.tools["llc.exe"].absolutePath}`,
+    `-DW_MLIR0_WINDOWS_LLD_LINK=${toolOverrides.linkDriver ?? materialized.tools["lld-link.exe"].absolutePath}`,
     `-DW_MLIR0_WINDOWS_KERNEL32_LIB=${sdk.path}`,
   ]
-  runWithVs("native CMake configure", vsDevCmd, cmake, cmakeArguments)
-  runWithVs("native w build", vsDevCmd, cmake,
-    ["--build", buildDirectory, "--target", "w", "--", "-j", "2"])
+  function configureNative(label, toolOverrides = {}) {
+    runWithVs(`${label} configure`, vsDevCmd, cmake,
+      nativeCmakeArguments(toolOverrides))
+    runWithVs(`${label} w build`, vsDevCmd, cmake,
+      ["--build", buildDirectory, "--target", "w", "--", "-j", "2"])
+  }
+  configureNative("native")
   const binary = join(buildDirectory, "w.exe")
   const binaryStats = await lstat(binary)
   assert(binaryStats.isFile() && !binaryStats.isSymbolicLink(),
@@ -282,6 +309,8 @@ try {
   const expectedIf = Buffer.from(
     "Kitchen open\nAfter service\nKitchen closed\nAfter service\n", "utf8")
   expectExact(binary, ["--help"], 0, Buffer.from(expectedHelp), "w --help")
+  expectExact(binary, ["build", "--help"], 0, Buffer.from(expectedHelp),
+    "w build --help")
   expectExact(binary, ["run", helloFixture], 0,
     Buffer.from("Hello, world!\n", "utf8"), "Hello fixture")
   expectExact(binary, ["run", restaurantIfFixture], 0, expectedIf,
@@ -310,6 +339,64 @@ try {
     "Restaurant linear fixture")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
+
+  const buildHello = join(fixtureDirectory, "hello-build.exe")
+  const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
+  const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
+  const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
+  expectExact(binary, ["build", helloFixture, "--target", targetTriple,
+    "--output", buildHello], 0, Buffer.alloc(0), "build Hello fixture")
+  const builtHelloStats = await lstat(buildHello)
+  assert(builtHelloStats.isFile() && !builtHelloStats.isSymbolicLink(),
+    "build Hello did not produce a regular artifact")
+  expectExact(buildHello, [], 0, Buffer.from("Hello, world!\n", "utf8"),
+    "execute built Hello artifact")
+  const helloBytes = await readFile(buildHello)
+  expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
+    "--output", buildHello], "reject existing build output")
+  assert((await readFile(buildHello)).equals(helloBytes),
+    "existing build output was modified")
+  expectExact(binary, ["build", restaurantIfFixture, "--target", targetTriple,
+    "--output", buildRestaurantIf], 0, Buffer.alloc(0),
+    "build restaurant-if fixture")
+  expectExact(buildRestaurantIf, [], 0, expectedIf,
+    "execute built restaurant-if artifact")
+  expectBuildFailure(binary, ["build", helloFixture, "--target",
+    "x86_64-unknown-linux-gnu", "--output", buildWrongTarget],
+    "reject unsupported build target")
+  assert(!existsSync(buildWrongTarget), "wrong-target build left an artifact")
+  expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
+    "--output", buildMissingParent], "reject missing build output parent")
+  assert(!existsSync(buildMissingParent), "missing-parent build left an artifact")
+  const reparseTarget = join(fixtureDirectory, "reparse-target")
+  const reparseOutput = join(fixtureDirectory, "reparse-output.exe")
+  await mkdir(reparseTarget)
+  await symlink(reparseTarget, reparseOutput, "junction")
+  try {
+    expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
+      "--output", reparseOutput], "reject reparse build output")
+    const reparseStats = await lstat(reparseOutput)
+    assert(reparseStats.isSymbolicLink(),
+      "rejected reparse build output was modified")
+  } finally {
+    await unlink(reparseOutput)
+    await rm(reparseTarget, { recursive: true, force: true })
+  }
+  await assertNoBuildResidue(fixtureDirectory)
+
+  const failingTool = process.env.ComSpec
+  assert(failingTool && existsSync(failingTool),
+    "ComSpec is unavailable for native tool-stage failure checks")
+  for (const role of ["mlirOpt", "mlirTranslate", "llc", "linkDriver"]) {
+    configureNative(`native ${role} failure`, { [role]: failingTool })
+    const failureOutput = join(fixtureDirectory, `${role}-failure.exe`)
+    expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
+      "--output", failureOutput], `${role} build stage failure`)
+    assert(!existsSync(failureOutput), `${role} build left an artifact`)
+    await assertNoBuildResidue(fixtureDirectory, `${role} build stage failure`)
+    configureNative(`native ${role} restore`)
+  }
+  await assertNoBuildResidue(fixtureDirectory)
   expectSourceFailure(binary, invalidSource, "invalid UTF-8 source")
   expectSourceFailure(binary, unsupportedSource, "unsupported source")
   for (const [label, path] of invalidComparisons)
