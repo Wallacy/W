@@ -944,11 +944,13 @@ general `OsString`, argument access, async I/O, loops, Windows UTF-16 ABI, and
 the complete `std.process@1` provider remain later packages. Evidence is
 compiler-lifecycle correctness only, never a runtime or performance claim.
 
-Current checkpoint: W-1542 completes the frontend16 portion of `PROC-ABI0`.
+Current checkpoint: W-1543 completes `PROC-ABI0` through verified HIR14.
 Grouped aliases resolve `Arguments`, `Context`, and `ExitCode` to stable
-external nominal identities, and the payload-free `ExitCode.success` member is
-validated adversarially. The verified-HIR representation and handler
-compatibility half of `PROC-ABI0` remains pending; `PROC-INPUT0` has not begun.
+external nominal identities; HIR14 owns and revalidates the canonical external
+table, payload-free `ExitCode.success`, and explicit native-process handler
+adapter. HLO0 and MLIR0 still reject that HIR without partial output.
+`directEntry`, ABI lowering, providers, runtime argument access, native
+execution, Windows, and `PROC-INPUT0` have not begun.
 
 The broad English migration and physical documentation split should be staged
 with their owners, not bundled into unrelated compiler changes. Release

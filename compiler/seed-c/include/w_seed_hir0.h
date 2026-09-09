@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-13"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-14"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -35,6 +35,8 @@ typedef enum {
   W_SEED_HIR0_TYPE_STRING,
   W_SEED_HIR0_TYPE_I64,
   W_SEED_HIR0_TYPE_BOOL,
+  /* Append-only nominal type with resolver-owned external identity. */
+  W_SEED_HIR0_TYPE_NOMINAL,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -67,6 +69,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_CALL_RESULT,
   W_SEED_HIR0_VALUE_UNARY_BOOL,
   W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ,
+  /* Payload-free member of the bounded external ExitCode enum. */
+  W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -118,6 +122,18 @@ typedef enum {
   W_SEED_HIR0_REQUIREMENT_HOST_IDENTITY = 0,
 } w_seed_hir0_requirement_owner_kind;
 
+typedef enum {
+  W_SEED_HIR0_EXTERNAL_VALUE = 0,
+  W_SEED_HIR0_EXTERNAL_TYPE,
+} w_seed_hir0_external_kind;
+
+typedef enum {
+  /* Existing/default zero-argument Unit entry adapter. */
+  W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT = 0,
+  /* Bounded native-process handler adapter. */
+  W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS,
+} w_seed_hir0_entry_adapter_kind;
+
 typedef struct {
   uint32_t offset;
   uint32_t count;
@@ -145,7 +161,31 @@ typedef struct {
   w_seed_hir0_type_kind kind;
   uint32_t owner_module;
   w_seed_hir0_text name;
+  /* Present only for TYPE_NOMINAL. The pair indexes caller-copied external
+   * records and is independent of source-local aliases. */
+  uint32_t external_module_index;
+  uint32_t external_symbol_index;
 } w_seed_hir0_type;
+
+typedef struct {
+  uint32_t module_index;
+  w_seed_hir0_text module_id;
+  uint32_t first_symbol;
+  uint32_t symbol_count;
+} w_seed_hir0_external_module;
+
+typedef struct {
+  uint32_t module_index;
+  uint32_t ordinal;
+  w_seed_hir0_text name;
+  w_seed_hir0_external_kind kind;
+  bool exported;
+  bool is_const;
+  w_seed_hir0_text receiver_type;
+  w_seed_hir0_text return_type;
+  /* HIR14 accepts only zero-parameter external symbols. */
+  uint32_t parameter_count;
+} w_seed_hir0_external_symbol;
 
 typedef struct {
   uint32_t module_index;
@@ -296,6 +336,11 @@ typedef struct {
   uint32_t byte_offset;
   uint32_t byte_count;
   w_seed_span source_span;
+  /* Present only for VALUE_EXTERNAL_ENUM_CASE. The pair identifies the
+   * caller-copied external symbol and member_name carries its canonical name. */
+  uint32_t external_module_index;
+  uint32_t external_symbol_index;
+  w_seed_hir0_text member_name;
 } w_seed_hir0_value;
 
 typedef struct {
@@ -333,6 +378,9 @@ typedef struct {
   w_seed_span source_span;
   /* True when this descriptor owns an inline short-entry body. */
   bool is_body;
+  /* Explicit adapter compatibility. Consumers must not infer this from
+   * function names or signature spelling. */
+  w_seed_hir0_entry_adapter_kind adapter_kind;
 } w_seed_hir0_entry;
 
 typedef struct {
@@ -356,6 +404,8 @@ typedef struct {
   size_t text_bytes;
   size_t value_bytes;
   size_t receipt_bytes;
+  size_t external_modules;
+  size_t external_symbols;
 } w_seed_hir0_counts;
 
 /* A program carries capacities so the verifier can reject a truncated or
@@ -421,6 +471,12 @@ typedef struct {
   const uint8_t *receipt;
   size_t receipt_count;
   size_t receipt_capacity;
+  const w_seed_hir0_external_module *external_modules;
+  size_t external_module_count;
+  size_t external_module_capacity;
+  const w_seed_hir0_external_symbol *external_symbols;
+  size_t external_symbol_count;
+  size_t external_symbol_capacity;
 } w_seed_hir0_program;
 
 typedef struct {
@@ -464,6 +520,10 @@ typedef struct {
   size_t value_byte_capacity;
   uint8_t *receipt;
   size_t receipt_capacity;
+  w_seed_hir0_external_module *external_modules;
+  size_t external_module_capacity;
+  w_seed_hir0_external_symbol *external_symbols;
+  size_t external_symbol_capacity;
 } w_seed_hir0_output;
 
 typedef struct {

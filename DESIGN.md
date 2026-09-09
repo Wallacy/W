@@ -36676,7 +36676,8 @@ fn adjustedGuests(isOpen: Bool, guests: i64): i64 {
 }
 ```
 
-HIR0 now uses `w-seed-hir0-13`. MLIR0 uses
+W-1540 introduced HIR0 `w-seed-hir0-13`; the current schema is HIR14 under
+W-1543. MLIR0 uses
 `w-seed-mlir0-15`, with the Windows artifact label
 `w-seed-mlir0-windows-6`. Native0 remains `w-seed-native0-6`. Existing HIR
 argument evaluation keeps left-to-right and once-only call semantics. The
@@ -36715,7 +36716,7 @@ entry {
 }
 ```
 
-HIR13 copies the private identity and explicit entry mode into caller-owned
+HIR13 introduced the private identity and explicit entry mode in caller-owned
 storage. Its verifier requires the anonymous function to return Unit, have no
 parameters, belong to the same module, and match the entry target. Measure and
 emit include the synthesized function name exactly twice: once for the function
@@ -36779,6 +36780,59 @@ HLO0, and MLIR0 tests remain green only as regression evidence: this cut does
 not publish the external records into verified HIR and does not prove handler
 compatibility, `directEntry`, argument access, lowering, runtime input, native
 execution, Windows behavior, or performance.
+
+#### 26.4.1.26 W-1543 — bounded `std.process` identity and handler adapter in verified HIR14 (Current form)
+
+HIR14 completes the verified-HIR half of `PROC-ABI0` for the exact source shape
+shown in W-1542. It deep-copies one canonical external module, `std.process`,
+and exactly four resolver-owned symbols: the exported nominal types
+`Arguments`, `Context`, and `ExitCode`, followed by the exported constant,
+zero-parameter `ExitCode.success` value. No frontend or resolver pointer crosses
+the HIR boundary.
+
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+
+async fn run(
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode {
+  return .success
+}
+
+entry(run)
+```
+
+Nominal HIR types retain the atomic external module/symbol pair. The `.success`
+value has a distinct external-enum-case record with its canonical member name
+and pair. Partial, out-of-range, reordered, wrong-kind, unexported, mutable,
+wrong-receiver, wrong-return, or parameterized external records fail closed.
+Canonical copied names and metadata enter the semantic digest; source aliases
+and trivia affect provenance instead. Consequently two valid alias spellings
+produce equal semantic digests and different provenance digests.
+
+The entry record carries an explicit `NATIVE_PROCESS` adapter discriminator;
+consumers do not infer compatibility from a function name or source spelling.
+This bounded adapter accepts exactly one same-module declared `async fn` with
+two required value parameters, `Arguments` then `Context`, an `ExitCode`
+return, no `const`, `throws`, `unsafe`, borrow clause, or anonymous-entry mode,
+and a body whose sole result is the canonical `.success` member. The zero-arg
+Unit subset retains the default adapter discriminator. Wider effect, ownership,
+body, import, and external-symbol shapes return `UNSUPPORTED`; this is a seed
+subset boundary, not a language rejection.
+
+Module and symbol records, nominal references, member identity, entry adapter,
+counts, capacities, text, receipt, and semantic/provenance digests are all
+independently verified in caller-owned storage. The new arrays participate in
+the existing overlap and all-or-nothing barriers. HLO0 and MLIR0 deliberately
+reject a valid process HIR without publishing partial output. This decision
+does not prove `directEntry`, argument access, process providers, ABI lowering,
+runtime input, native execution, Windows behavior, or performance; those remain
+separate `PROC-INPUT0` and later milestones.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

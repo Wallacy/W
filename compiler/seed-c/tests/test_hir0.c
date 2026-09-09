@@ -85,6 +85,10 @@ typedef struct {
   w_seed_frontend_external_parameter host_parameters[2];
   w_seed_frontend_host_prelude_symbol host_symbols[2];
   w_seed_frontend_host_prelude host_scope;
+  w_seed_frontend_external_parameter external_parameters[8];
+  w_seed_frontend_external_symbol external_symbols[8];
+  w_seed_frontend_external_module external_modules[2];
+  w_seed_frontend_resolved_import resolved_imports[4];
   uint8_t const_bytes[TEST_SOURCE];
   uint8_t frontend_receipt[TEST_RECEIPT];
   w_seed_frontend_output output;
@@ -107,6 +111,8 @@ typedef struct {
       hir_interpolation_segments[TEST_HIR_RECORDS];
   w_seed_hir0_terminator hir_terminators[TEST_HIR_RECORDS];
   w_seed_hir0_entry hir_entries[TEST_HIR_RECORDS];
+  w_seed_hir0_external_module hir_external_modules[2];
+  w_seed_hir0_external_symbol hir_external_symbols[8];
   uint8_t hir_text[TEST_HIR_TEXT];
   uint8_t hir_value_bytes[TEST_HIR_VALUES];
   uint8_t hir_receipt[TEST_HIR_RECEIPT];
@@ -256,6 +262,81 @@ static bool fixture_frontend(const char *source) {
   return true;
 }
 
+static void configure_process_external(void) {
+  static const w_seed_frontend_text empty = {NULL, 0u};
+  fixture.external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"Arguments", 9u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Arguments", 9u},
+      .is_const = false,
+      .receiver_type = empty};
+  fixture.external_symbols[1] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"Context", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Context", 7u},
+      .is_const = false,
+      .receiver_type = empty};
+  fixture.external_symbols[2] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"ExitCode", 8u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = false,
+      .receiver_type = empty};
+  fixture.external_symbols[3] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"success", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture.external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"std.process", 11u},
+      .symbols = fixture.external_symbols,
+      .symbol_count = 4u};
+  fixture.input.external_modules = fixture.external_modules;
+  fixture.input.external_module_count = 1u;
+}
+
+static bool resolve_process_import(void) {
+  w_seed_module_origin origins[4];
+  w_seed_module_scan_result scan_result;
+  CHECK(w_seed_module_scan(&fixture.source, fixture.nodes,
+                          fixture.parse.node_count, &fixture.parse, origins,
+                          4u, &scan_result) == W_SEED_MODULE_SCAN_OK);
+  CHECK(scan_result.written == 1u);
+  fixture.resolved_imports[0] = (w_seed_frontend_resolved_import){
+      .source_document_index = 0u,
+      .direct_import_ordinal = origins[0].direct_import_ordinal,
+      .import_declaration_span = origins[0].declaration_span,
+      .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+      .target_index = 0u};
+  fixture.input.import_resolution_complete = true;
+  fixture.input.resolved_imports = fixture.resolved_imports;
+  fixture.input.resolved_import_count = 1u;
+  return true;
+}
+
+static bool fixture_process_frontend(const char *source) {
+  CHECK(fixture_parse(source));
+  configure_host();
+  configure_process_external();
+  CHECK(resolve_process_import());
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  return true;
+}
+
 static void setup_hir_output(void) {
   fixture.hir_output = (w_seed_hir0_output){
       .modules = fixture.hir_modules,
@@ -297,7 +378,11 @@ static void setup_hir_output(void) {
       .value_bytes = fixture.hir_value_bytes,
       .value_byte_capacity = sizeof(fixture.hir_value_bytes),
       .receipt = fixture.hir_receipt,
-      .receipt_capacity = sizeof(fixture.hir_receipt)};
+      .receipt_capacity = sizeof(fixture.hir_receipt),
+      .external_modules = fixture.hir_external_modules,
+      .external_module_capacity = 2u,
+      .external_symbols = fixture.hir_external_symbols,
+      .external_symbol_capacity = 8u};
 }
 
 static bool lower(const char *source) {
@@ -318,6 +403,111 @@ static bool lower(const char *source) {
                                         &fixture.hir_program));
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_counts = measured;
+  return true;
+}
+
+static bool lower_process(const char *source) {
+  CHECK(fixture_process_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(measured.external_modules == 1u && measured.external_symbols == 4u &&
+        measured.types == 7u);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+static bool test_process_hir(void) {
+  static const char canonical[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  static const char variant[] =
+      "import { Arguments as ProcessArgs, Context as ProcessCtx, "
+      "ExitCode as ProcessStatus } from std.process\n"
+      "async fn run(args: ProcessArgs, ctx: ProcessCtx): ProcessStatus { "
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(lower_process(canonical));
+  CHECK(fixture.hir_counts.external_modules == 1u &&
+        fixture.hir_counts.external_symbols == 4u &&
+        fixture.hir_counts.types == 7u && fixture.hir_counts.functions == 1u &&
+        fixture.hir_counts.parameters == 2u && fixture.hir_counts.values == 1u);
+  CHECK(fixture.hir_program.external_modules[0].module_index == 0u &&
+        fixture.hir_program.external_modules[0].first_symbol == 0u &&
+        fixture.hir_program.external_modules[0].symbol_count == 4u &&
+        fixture.hir_program.external_symbol_count == 4u);
+  CHECK(fixture.hir_program.types[4].kind == W_SEED_HIR0_TYPE_NOMINAL &&
+        fixture.hir_program.types[4].external_module_index == 0u &&
+        fixture.hir_program.types[4].external_symbol_index == 0u &&
+        fixture.hir_program.types[5].external_symbol_index == 1u &&
+        fixture.hir_program.types[6].external_symbol_index == 2u);
+  CHECK(fixture.hir_program.functions[0].is_async &&
+        fixture.hir_program.functions[0].return_type == 6u &&
+        fixture.hir_program.parameters[0].type_index == 4u &&
+        fixture.hir_program.parameters[1].type_index == 5u &&
+        fixture.hir_program.entries[0].adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS);
+  CHECK(fixture.hir_program.values[0].kind ==
+            W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+        fixture.hir_program.values[0].type_index == 6u &&
+        fixture.hir_program.values[0].external_module_index == 0u &&
+        fixture.hir_program.values[0].external_symbol_index == 3u &&
+        fixture.hir_program.values[0].member_name.count == 7u &&
+        memcmp(fixture.hir_text + fixture.hir_program.values[0].member_name.offset,
+               "success", 7u) == 0);
+
+  uint8_t semantic[32];
+  uint8_t provenance[32];
+  (void)memcpy(semantic, fixture.hir_result.semantic_digest, sizeof(semantic));
+  (void)memcpy(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance));
+  /* The HIR owns canonical external names and does not retain resolver
+   * pointers or source aliases. */
+  fixture.external_symbols[0].name = (w_seed_frontend_text){NULL, 9u};
+  fixture.external_modules[0].module_id = (w_seed_frontend_text){NULL, 11u};
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  CHECK(lower_process(variant));
+  CHECK(memcmp(semantic, fixture.hir_result.semantic_digest,
+               sizeof(semantic)) == 0);
+  CHECK(memcmp(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance)) != 0);
+
+  /* HIR-consumer mutations are rejected without reparsing aliases. */
+  w_seed_hir0_type saved_type = fixture.hir_types[4];
+  fixture.hir_types[4].external_symbol_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  w_seed_hir0_external_symbol saved_symbol = fixture.hir_external_symbols[0];
+  fixture.hir_external_symbols[0] = fixture.hir_external_symbols[1];
+  fixture.hir_external_symbols[1] = saved_symbol;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  saved_symbol = fixture.hir_external_symbols[0];
+  fixture.hir_external_symbols[0] = fixture.hir_external_symbols[1];
+  fixture.hir_external_symbols[1] = saved_symbol;
+  w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
+  fixture.hir_entries[0].adapter_kind =
+      W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  w_seed_hir0_value saved_value = fixture.hir_values[0];
+  fixture.hir_values[0].external_symbol_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_value;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }
 
@@ -567,6 +757,10 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_terminators, value,
                sizeof(fixture.hir_terminators));
   (void)memset(fixture.hir_entries, value, sizeof(fixture.hir_entries));
+  (void)memset(fixture.hir_external_modules, value,
+               sizeof(fixture.hir_external_modules));
+  (void)memset(fixture.hir_external_symbols, value,
+               sizeof(fixture.hir_external_symbols));
   (void)memset(fixture.hir_text, value, sizeof(fixture.hir_text));
   (void)memset(fixture.hir_value_bytes, value,
                sizeof(fixture.hir_value_bytes));
@@ -597,6 +791,8 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_interpolation_segments,
       (const uint8_t *)fixture.hir_terminators,
       (const uint8_t *)fixture.hir_entries,
+      (const uint8_t *)fixture.hir_external_modules,
+      (const uint8_t *)fixture.hir_external_symbols,
       fixture.hir_text,
       fixture.hir_value_bytes,
       fixture.hir_receipt};
@@ -611,6 +807,8 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_requirements), sizeof(fixture.hir_values),
       sizeof(fixture.hir_interpolation_segments),
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
+      sizeof(fixture.hir_external_modules),
+      sizeof(fixture.hir_external_symbols),
       sizeof(fixture.hir_text), sizeof(fixture.hir_value_bytes),
       sizeof(fixture.hir_receipt)};
   for (size_t region = 0u; region < sizeof(sizes) / sizeof(sizes[0]);
@@ -618,6 +816,363 @@ static bool hir_output_is_byte(uint8_t value) {
     for (size_t byte = 0u; byte < sizes[region]; byte += 1u)
       if (regions[region][byte] != value) return false;
   }
+  return true;
+}
+
+typedef enum {
+  PROCESS_BAD_EXTERNAL_MODULE_COUNT,
+  PROCESS_BAD_EXTERNAL_SYMBOL_COUNT,
+  PROCESS_BAD_EXTERNAL_MODULE_ID,
+  PROCESS_BAD_EXTERNAL_SYMBOL_NAME,
+  PROCESS_BAD_EXTERNAL_SYMBOL_KIND,
+  PROCESS_BAD_EXTERNAL_SYMBOL_EXPORT,
+  PROCESS_BAD_EXTERNAL_SYMBOL_CONST,
+  PROCESS_BAD_EXTERNAL_SYMBOL_RECEIVER,
+  PROCESS_BAD_EXTERNAL_SYMBOL_RETURN,
+  PROCESS_BAD_EXTERNAL_IMPORT_ITEM,
+  PROCESS_BAD_EXTERNAL_TYPE_IDENTITY,
+  PROCESS_BAD_EXTERNAL_CASE_IDENTITY,
+  PROCESS_BAD_EXTERNAL_CASE_MEMBER,
+  PROCESS_BAD_EXTERNAL_RETURN_EXPRESSION_MAX,
+  PROCESS_BAD_EXTERNAL_RETURN_EXPRESSION_COUNT,
+  PROCESS_BAD_PROCESS_PROFILE,
+  PROCESS_BAD_HANDLER_ARITY,
+  PROCESS_BAD_HANDLER_ORDER,
+  PROCESS_BAD_HANDLER_ASYNC,
+  PROCESS_BAD_HANDLER_RETURN,
+  PROCESS_BAD_HANDLER_CONST,
+  PROCESS_BAD_HANDLER_THROWS,
+  PROCESS_BAD_HANDLER_UNSAFE,
+  PROCESS_BAD_HANDLER_BORROW,
+  PROCESS_BAD_HANDLER_ANONYMOUS,
+} process_bad_frontend_case;
+
+static w_seed_frontend_expression *process_return_expression(void) {
+  const w_seed_frontend_function *function = &fixture.functions[0];
+  const w_seed_frontend_statement *statement =
+      &fixture.statements[function->first_statement];
+  return &fixture.expressions[statement->expression_index];
+}
+
+static bool expect_process_frontend_rejected(process_bad_frontend_case bad) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  CHECK(fixture_process_frontend(SOURCE));
+  switch (bad) {
+    case PROCESS_BAD_EXTERNAL_MODULE_COUNT:
+      fixture.input.external_module_count = 2u;
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_COUNT:
+      fixture.external_modules[0].symbol_count = 5u;
+      break;
+    case PROCESS_BAD_EXTERNAL_MODULE_ID:
+      fixture.external_modules[0].module_id =
+          (w_seed_frontend_text){"std.other", 9u};
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_NAME:
+      fixture.external_symbols[0].name =
+          (w_seed_frontend_text){"Wrong", 5u};
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_KIND:
+      fixture.external_symbols[0].kind = W_SEED_FRONTEND_EXTERNAL_VALUE;
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_EXPORT:
+      fixture.external_symbols[2].exported = false;
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_CONST:
+      fixture.external_symbols[3].is_const = false;
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_RECEIVER:
+      fixture.external_symbols[3].receiver_type =
+          (w_seed_frontend_text){"Context", 7u};
+      break;
+    case PROCESS_BAD_EXTERNAL_SYMBOL_RETURN:
+      fixture.external_symbols[3].return_type =
+          (w_seed_frontend_text){"Context", 7u};
+      break;
+    case PROCESS_BAD_EXTERNAL_IMPORT_ITEM:
+      fixture.import_items[0].name = (w_seed_frontend_text){"Wrong", 5u};
+      break;
+    case PROCESS_BAD_EXTERNAL_TYPE_IDENTITY:
+      fixture.types[0].external_symbol_index = 1u;
+      break;
+    case PROCESS_BAD_EXTERNAL_CASE_IDENTITY:
+      process_return_expression()->resolved_external_symbol_index = 2u;
+      break;
+    case PROCESS_BAD_EXTERNAL_CASE_MEMBER:
+      process_return_expression()->member_name =
+          (w_seed_frontend_text){"failure", 7u};
+      break;
+    case PROCESS_BAD_EXTERNAL_RETURN_EXPRESSION_MAX:
+      fixture.statements[0].expression_index = UINT32_MAX;
+      break;
+    case PROCESS_BAD_EXTERNAL_RETURN_EXPRESSION_COUNT:
+      fixture.statements[0].expression_index =
+          (uint32_t)fixture.result.written.expressions;
+      break;
+    case PROCESS_BAD_PROCESS_PROFILE:
+      fixture.host_scope.profile = (w_seed_frontend_text){"bogus", 5u};
+      break;
+    case PROCESS_BAD_HANDLER_ARITY:
+      fixture.functions[0].parameter_count = 1u;
+      break;
+    case PROCESS_BAD_HANDLER_ORDER:
+      fixture.parameters[0].type_index = 5u;
+      break;
+    case PROCESS_BAD_HANDLER_ASYNC:
+      fixture.functions[0].is_async = false;
+      break;
+    case PROCESS_BAD_HANDLER_RETURN:
+      fixture.functions[0].return_type = 4u;
+      break;
+    case PROCESS_BAD_HANDLER_CONST:
+      fixture.functions[0].is_const = true;
+      break;
+    case PROCESS_BAD_HANDLER_THROWS:
+      fixture.functions[0].is_throws = true;
+      break;
+    case PROCESS_BAD_HANDLER_UNSAFE:
+      fixture.functions[0].is_unsafe = true;
+      break;
+    case PROCESS_BAD_HANDLER_BORROW:
+      fixture.functions[0].has_borrow_clause = true;
+      break;
+    case PROCESS_BAD_HANDLER_ANONYMOUS:
+      fixture.functions[0].is_anonymous_entry = true;
+      fixture.entries[0].is_body = true;
+      break;
+  }
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  const w_seed_hir0_input input = hir_input();
+  const w_seed_hir0_result result_before = fixture.hir_result;
+  const w_seed_hir0_status status =
+      w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result);
+  if (status == W_SEED_HIR0_OK)
+    (void)fprintf(stderr, "process bad case unexpectedly accepted: %d\n",
+                  (int)bad);
+  CHECK(status != W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&fixture.hir_result, &result_before, sizeof(result_before)) ==
+        0);
+  return true;
+}
+
+static bool test_process_hir_adversarial(void) {
+  static const char SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  for (int bad = PROCESS_BAD_EXTERNAL_MODULE_COUNT;
+       bad <= PROCESS_BAD_HANDLER_ANONYMOUS; bad += 1)
+    CHECK(expect_process_frontend_rejected((process_bad_frontend_case)bad));
+
+  CHECK(lower_process(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  const w_seed_hir0_result result_before = fixture.hir_result;
+  const w_seed_hir0_external_module saved_module =
+      fixture.hir_external_modules[0];
+  const w_seed_hir0_external_symbol saved_symbol =
+      fixture.hir_external_symbols[3];
+  const w_seed_hir0_type saved_type = fixture.hir_types[4];
+  const w_seed_hir0_value saved_value = fixture.hir_values[0];
+  const w_seed_hir0_function saved_function = fixture.hir_functions[0];
+  const w_seed_hir0_parameter saved_parameter = fixture.hir_parameters[0];
+  const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
+  const w_seed_hir0_terminator saved_terminator = fixture.hir_terminators[0];
+
+  fixture.hir_external_modules[0].module_id.count = 10u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_modules[0] = saved_module;
+  fixture.hir_external_symbols[3].kind = W_SEED_HIR0_EXTERNAL_TYPE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_symbols[3].exported = false;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_symbols[3].is_const = false;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_symbols[3].receiver_type =
+      fixture.hir_external_symbols[1].name;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_symbols[3].return_type =
+      fixture.hir_external_symbols[1].name;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_symbols[3].parameter_count = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[3] = saved_symbol;
+  fixture.hir_external_modules[0].first_symbol = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_modules[0] = saved_module;
+
+  fixture.hir_types[4].external_module_index = W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  fixture.hir_types[4].external_symbol_index = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  fixture.hir_values[0].kind = W_SEED_HIR0_VALUE_CONST_STRING;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_value;
+  fixture.hir_values[0].member_name.count = 6u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_value;
+  fixture.hir_values[0].external_symbol_index = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[0] = saved_value;
+
+  fixture.hir_functions[0].is_async = false;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].is_const = true;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].is_throws = true;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].is_unsafe = true;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].has_borrow_clause = true;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].return_type = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_parameters[0].type_index = 5u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_parameters[0] = saved_parameter;
+  fixture.hir_parameters[0].ordinal = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_parameters[0] = saved_parameter;
+  fixture.hir_entries[0].adapter_kind =
+      W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  fixture.hir_terminators[0].result_type = 4u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_terminator;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint8_t saved_receipt_byte = fixture.hir_receipt[0];
+  fixture.hir_receipt[0] ^= 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_receipt[0] = saved_receipt_byte;
+  const uint8_t saved_digest_byte = fixture.hir_result.semantic_digest[0];
+  fixture.hir_result.semantic_digest[0] ^= 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_result.semantic_digest[0] = saved_digest_byte;
+  const size_t saved_external_symbols =
+      fixture.hir_result.required.external_symbols;
+  fixture.hir_result.required.external_symbols = 3u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_result.required.external_symbols = saved_external_symbols;
+  CHECK(memcmp(&fixture.hir_result, &result_before, sizeof(result_before)) ==
+        0);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  /* Caller-owned external output arrays are transactional and non-aliasing. */
+  CHECK(lower_process(SOURCE));
+  const w_seed_hir0_input input = hir_input();
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  fixture.hir_output.external_module_capacity = 0u;
+  const w_seed_hir0_result capacity_result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&fixture.hir_result, &capacity_result_before,
+               sizeof(capacity_result_before)) == 0);
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  fixture.hir_output.external_symbol_capacity = 3u;
+  const w_seed_hir0_result symbol_capacity_result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&fixture.hir_result, &symbol_capacity_result_before,
+               sizeof(symbol_capacity_result_before)) == 0);
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.external_modules =
+      (w_seed_hir0_external_module *)(void *)fixture.hir_external_symbols;
+  CHECK(w_seed_hir0_run(&input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  alias = fixture.hir_output;
+  alias.external_symbols =
+      (w_seed_hir0_external_symbol *)(void *)fixture.hir_external_modules;
+  CHECK(w_seed_hir0_run(&input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u));
+
+  /* Every nested import text slice is input-owned and must stay outside the
+   * caller-owned HIR text buffer. */
+  CHECK(lower_process(SOURCE));
+  const w_seed_hir0_input import_input = hir_input();
+  uint8_t path_before[11];
+  (void)memcpy(path_before, fixture.imports[0].path.data,
+               sizeof(path_before));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  alias = fixture.hir_output;
+  alias.text_bytes = (uint8_t *)(void *)fixture.imports[0].path.data;
+  alias.text_byte_capacity = fixture.hir_counts.text_bytes;
+  const w_seed_hir0_result path_result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&import_input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(path_before, fixture.imports[0].path.data,
+               sizeof(path_before)) == 0 &&
+        memcmp(&fixture.hir_result, &path_result_before,
+               sizeof(path_result_before)) == 0);
+
+  uint8_t local_name_before[sizeof("ProcessArguments") - 1u];
+  (void)memcpy(local_name_before, fixture.import_items[0].local_name.data,
+               sizeof(local_name_before));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  alias = fixture.hir_output;
+  alias.text_bytes =
+      (uint8_t *)(void *)fixture.import_items[0].local_name.data;
+  alias.text_byte_capacity = fixture.hir_counts.text_bytes;
+  const w_seed_hir0_result local_name_result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&import_input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(local_name_before, fixture.import_items[0].local_name.data,
+               sizeof(local_name_before)) == 0 &&
+        memcmp(&fixture.hir_result, &local_name_result_before,
+               sizeof(local_name_result_before)) == 0);
+
+  static const char MODULE_ALIAS[] = "module";
+  fixture.imports[0].alias =
+      (w_seed_frontend_text){MODULE_ALIAS, sizeof(MODULE_ALIAS) - 1u};
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  alias = fixture.hir_output;
+  alias.text_bytes = (uint8_t *)(void *)fixture.imports[0].alias.data;
+  alias.text_byte_capacity = fixture.hir_counts.text_bytes;
+  const w_seed_hir0_result alias_result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_run(&import_input, &alias, &fixture.hir_result) ==
+        W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(MODULE_ALIAS, fixture.imports[0].alias.data,
+               sizeof(MODULE_ALIAS) - 1u) == 0 &&
+        memcmp(&fixture.hir_result, &alias_result_before,
+               sizeof(alias_result_before)) == 0);
   return true;
 }
 
@@ -2204,6 +2759,8 @@ static bool test_short_entry_hir(void) {
 }
 
 int main(void) {
+  if (!test_process_hir()) return 1;
+  if (!test_process_hir_adversarial()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
