@@ -36655,6 +36655,41 @@ scalar-if evidence is not claimed. `benchmarkDisposition` is `compiler-lifecycle
 correctness-only evidence with no timing, throughput, general scalar CFG,
 performance, ABI, cross-target or unsupported-form claim.
 
+#### 26.4.1.23 W-1540 — checked signed-`i64` arithmetic through verified HIR0 and MLIR0 (Forma vigente)
+
+W-1540 defines ARITH0 for checked signed-`i64` `+`, `-`, and `*` in the
+bounded source → frontend → HIR0 → MLIR0 route. Runtime operands use LLVM
+signed-overflow intrinsics and a trap plus unreachable fault boundary. A
+faulting process terminates nonzero before later success output. This is a
+bounded process and fault-termination proof. It is not a `PanicEvent`, runtime
+payload, or general panic-runtime proof.
+
+HIR0 advances to `w-seed-hir0-12`. MLIR0 advances to
+`w-seed-mlir0-15`, with the Windows artifact label
+`w-seed-mlir0-windows-6`. Native0 remains `w-seed-native0-6`. Existing HIR
+argument evaluation keeps left-to-right and once-only call semantics. The
+all-or-nothing, capacity, alias, receipt, and semantic/provenance digest
+invariants remain unchanged.
+
+Checked helpers are demand-driven from reachable value trees. An unreachable
+function, call chain, text value, or arithmetic operation does not emit a
+function or helper. Hello and the dead-function witness therefore contain no
+checked helper. Constant overflow is rejected before MLIR emission. A safe
+fully constant `/` or `%` tree remains admitted and emits `llvm.sdiv` or
+`llvm.srem`. Dynamic or runtime `/` and `%` remain unsupported in this cut.
+Their faulting constant forms also fail closed. Unary negation, power, other
+integer widths, named numeric APIs, and general panic runtime remain outside
+the cut.
+
+The source-backed fixture
+`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses the named
+`entry(main)` form and requires exact stdout `Open 6; closed 1\n`, exit zero,
+and empty stderr through the Linux/WSL LLVM 20.1.2 route. No native Windows
+evidence is claimed. The specification recommends `entry {}` but the seed
+parser currently accepts only `entry(name)`. Entry-block syntax is a separate
+future cut. The focused route is `benchmarkDisposition: compiler-lifecycle`
+and correctness-only, with no timing or benchmark result.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

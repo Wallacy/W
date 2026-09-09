@@ -119,7 +119,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 
 static bool test_products(void) {
   CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-14") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-15") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -555,7 +555,8 @@ static bool test_failures_and_capacity(void) {
   CHECK(storage.hir_program.value_count == 4u &&
         storage.hir_program.interpolation_segment_count == 2u);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
-                       "llvm.mul %v0, %v1 : i64"));
+                       "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : "
+                       "(i64, i64) -> i64"));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                        "llvm.call @w_seed_append_i64"));
   CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes,
@@ -759,7 +760,7 @@ static bool test_signed_comparison_products(void) {
       "fn main() { print(\"${true == false}\") }\nentry(main)\n",
       "fn main() { let same = \"a\" == \"b\" print(\"${same}\") }\nentry(main)\n",
       "fn main() { let same = 3 == true print(\"${same}\") }\nentry(main)\n",
-      "fn test(a: i64) { if a + 1 > 0 { print(\"unsafe arithmetic\") } }\n"
+      "fn test(a: i64) { if a / 1 > 0 { print(\"unsafe arithmetic\") } }\n"
       "fn main() { test(a: 1) }\nentry(main)\n",
       "fn main() { let x = 9223372036854775807 + 1 "
       "print(\"${x > 0}\") }\nentry(main)\n",
