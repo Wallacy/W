@@ -36737,6 +36737,49 @@ Windows MLIR artifact is structurally generated, but no new native Windows
 execution is claimed. This cut is `benchmarkDisposition: compiler-lifecycle`,
 correctness-only, with no timing or benchmark result.
 
+#### 26.4.1.25 W-1542 — bounded external `std.process` identity in frontend16 (Current form)
+
+Frontend16 accepts grouped imports whose items use explicit local aliases while
+keeping source spelling separate from resolver-owned identity. An imported
+nominal type records the pair `(external_module_index,
+external_symbol_index)`; the pair is either wholly absent or names one exported
+external `TYPE`. Type equality uses that pair when present rather than treating
+the caller's alias as nominal identity.
+
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+
+async fn run(
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode {
+  return .success
+}
+
+entry(run)
+```
+
+The only external enum projection in this cut is the payload-free `.success`
+member of `std.process.ExitCode`. Acceptance requires an exported constant with
+the exact receiver and return type and no parameters. The frontend records the
+external member identity on the enum-case expression. A non-constant member,
+wrong module, type, receiver, return, arity, export state, incomplete identity,
+or out-of-range resolver record fails closed. Reusing one local import alias,
+including across external type and value symbols, produces the existing
+duplicate-local-symbol barrier instead of first-match resolution.
+
+Parser, module-scan, and frontend tests cover grouped aliases, malformed alias
+forms, exact nominal identities, deterministic receipts, alias-sensitive source
+provenance, capacity preservation, and adversarial resolver metadata. HIR0,
+HLO0, and MLIR0 tests remain green only as regression evidence: this cut does
+not publish the external records into verified HIR and does not prove handler
+compatibility, `directEntry`, argument access, lowering, runtime input, native
+execution, Windows behavior, or performance.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

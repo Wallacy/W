@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-15"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-16"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -517,6 +517,11 @@ typedef struct {
   uint32_t subset_member_count;
   /* W_SEED_FRONTEND_NONE unless this root owns a generic application. */
   uint32_t generic_application_index;
+  /* External nominal identity.  These fields are populated only when the
+   * spelling is bound to an imported external TYPE; the pair indexes the
+   * resolver-owned external module/symbol tables and is never a pointer. */
+  uint32_t external_module_index;
+  uint32_t external_symbol_index;
 } w_seed_frontend_type;
 
 typedef struct {

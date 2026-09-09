@@ -67,6 +67,13 @@ The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
 no timing or benchmark result.
+W-1542 advances the seed frontend to `w-seed-frontend-16` for the first bounded
+`PROC-ABI0` stage. Grouped aliases for `std.process` keep local spelling
+separate from resolver-owned nominal identity, and the only admitted external
+case is the exported, constant, payload-free `ExitCode.success`. Duplicate
+local aliases and malformed resolver metadata fail closed. This evidence stops
+at frontend records: verified HIR, handler compatibility, runtime arguments,
+lowering, native execution, Windows, and performance remain gaps.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -202,7 +209,7 @@ frontend normativo completo continuam gaps.
 
 W-1519 is `source-backed-current` for the first bounded immutable local String
 path. Frontend schema version 11 introduced an indexed lexical binding
-relation; current schema `w-seed-frontend-12` preserves it. HIR0 schema
+relation; current schema `w-seed-frontend-16` preserves it. HIR0 schema
 `w-seed-hir0-9` gives each binding one typed initializer root in the common
 postorder value graph. It verifies owners, order, types, spans, dense ranges,
 alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its

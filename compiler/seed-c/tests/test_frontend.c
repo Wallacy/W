@@ -114,8 +114,8 @@ typedef struct {
       diagnostic_items[TEST_DIAGNOSTIC_ITEMS];
   w_seed_frontend_diagnostic_label
       diagnostic_labels[TEST_DIAGNOSTIC_LABELS];
-  w_seed_frontend_external_parameter external_parameters[2];
-  w_seed_frontend_external_symbol external_symbols[2];
+  w_seed_frontend_external_parameter external_parameters[8];
+  w_seed_frontend_external_symbol external_symbols[8];
   w_seed_frontend_external_module external_modules[2];
   w_seed_frontend_host_requirement host_requirements[2];
   w_seed_frontend_external_parameter host_parameters[2];
@@ -499,6 +499,56 @@ static void fixture_configure_arguments_external(fixture *fixture_value) {
           .module_id = (w_seed_frontend_text){"std.process", 11u},
           .symbols = fixture_value->external_symbols,
           .symbol_count = 2u};
+  fixture_value->input.external_modules = fixture_value->external_modules;
+  fixture_value->input.external_module_count = 1u;
+}
+
+static void fixture_configure_process_abi_external(fixture *fixture_value) {
+  fixture_value->external_symbols[0] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"Arguments", 9u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"Arguments", 9u},
+          .is_const = false,
+          .receiver_type = (w_seed_frontend_text){NULL, 0u}};
+  fixture_value->external_symbols[1] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"Context", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"Context", 7u},
+          .is_const = false,
+          .receiver_type = (w_seed_frontend_text){NULL, 0u}};
+  fixture_value->external_symbols[2] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"ExitCode", 8u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .is_const = false,
+          .receiver_type = (w_seed_frontend_text){NULL, 0u}};
+  fixture_value->external_symbols[3] =
+      (w_seed_frontend_external_symbol){
+          .name = (w_seed_frontend_text){"success", 7u},
+          .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+          .exported = true,
+          .parameters = NULL,
+          .parameter_count = 0u,
+          .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+          .is_const = true,
+          .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture_value->external_modules[0] =
+      (w_seed_frontend_external_module){
+          .module_id = (w_seed_frontend_text){"std.process", 11u},
+          .symbols = fixture_value->external_symbols,
+          .symbol_count = 4u};
   fixture_value->input.external_modules = fixture_value->external_modules;
   fixture_value->input.external_module_count = 1u;
 }
@@ -2492,7 +2542,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-15") &&
+                         "w-seed-frontend-16") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2531,8 +2581,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-15\n",
-                         strlen("schema=w-seed-frontend-15\n")));
+        receipt_contains(value, "schema=w-seed-frontend-16\n",
+                         strlen("schema=w-seed-frontend-16\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -4650,6 +4700,277 @@ static bool test_scalar_type_measure_emit_parity(void) {
   return true;
 }
 
+typedef enum {
+  PROCESS_NEGATIVE_NONCONST = 0,
+  PROCESS_NEGATIVE_MODULE,
+  PROCESS_NEGATIVE_TYPE,
+  PROCESS_NEGATIVE_RECEIVER,
+  PROCESS_NEGATIVE_RETURN,
+  PROCESS_NEGATIVE_PARAMETERS,
+  PROCESS_NEGATIVE_EXPORT,
+  PROCESS_NEGATIVE_METADATA,
+} process_negative_case;
+
+static bool process_negative_fixture(
+    fixture *value, const char *source, process_negative_case negative_case) {
+  CHECK(fixture_parse(value, source));
+  fixture_configure_process_abi_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  switch (negative_case) {
+    case PROCESS_NEGATIVE_NONCONST:
+      value->external_symbols[3].is_const = false;
+      break;
+    case PROCESS_NEGATIVE_MODULE:
+      value->external_modules[0].module_id =
+          (w_seed_frontend_text){"alt.process", 11u};
+      break;
+    case PROCESS_NEGATIVE_TYPE:
+      /* The source alias resolves to Context, not ExitCode. */
+      break;
+    case PROCESS_NEGATIVE_RECEIVER:
+      value->external_symbols[3].receiver_type =
+          (w_seed_frontend_text){"Context", 7u};
+      break;
+    case PROCESS_NEGATIVE_RETURN:
+      value->external_symbols[3].return_type =
+          (w_seed_frontend_text){"Context", 7u};
+      break;
+    case PROCESS_NEGATIVE_PARAMETERS:
+      value->external_parameters[0] =
+          (w_seed_frontend_external_parameter){
+              .name = (w_seed_frontend_text){"reason", 6u},
+              .type = (w_seed_frontend_text){"Context", 7u},
+              .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+      value->external_symbols[3].parameters = value->external_parameters;
+      value->external_symbols[3].parameter_count = 1u;
+      break;
+    case PROCESS_NEGATIVE_EXPORT:
+      value->external_symbols[3].exported = false;
+      break;
+    case PROCESS_NEGATIVE_METADATA:
+      value->external_symbols[3].receiver_type =
+          (w_seed_frontend_text){NULL, 1u};
+      fixture_fill_output(value, 0xa5u);
+      break;
+  }
+  const w_seed_frontend_status status =
+      w_seed_frontend_run(&value->input, &value->output, &value->result);
+  if (negative_case == PROCESS_NEGATIVE_METADATA) {
+    CHECK(status == W_SEED_FRONTEND_INVALID);
+    CHECK(fixture_output_is(value, 0xa5u, true));
+  } else {
+    CHECK(status == W_SEED_FRONTEND_UNSUPPORTED);
+  }
+  return true;
+}
+
+static bool test_process_abi_duplicate_import_aliases(const char *source) {
+  fixture *value = &fixture_callback;
+  CHECK(fixture_parse(value, source));
+  fixture_configure_process_abi_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_UNSUPPORTED);
+  CHECK(has_fact(value, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL));
+  return true;
+}
+
+static bool test_process_abi_alias_and_exit_case(void) {
+  static const char source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  fixture *value = &fixture_external;
+  CHECK(fixture_parse(value, source));
+  fixture_configure_process_abi_external(value);
+  CHECK(fixture_resolve_external_imports(value));
+  const w_seed_frontend_status process_status =
+      w_seed_frontend_run(&value->input, &value->output, &value->result);
+  CHECK(process_status == W_SEED_FRONTEND_OK);
+  CHECK(value->result.written.imports == 1u &&
+        value->result.written.import_items == 3u &&
+        value->result.written.functions == 1u &&
+        value->result.written.parameters == 2u);
+  const w_seed_frontend_function *function = &value->functions[0];
+  CHECK(function->is_async && function->parameter_count == 2u &&
+        function->return_type != W_SEED_FRONTEND_NONE &&
+        function->return_type < value->result.written.types);
+  const w_seed_frontend_type *return_type =
+      &value->types[function->return_type];
+  CHECK(return_type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+        frontend_text_is(return_type->spelling, "ProcessExitCode") &&
+        return_type->external_module_index == 0u &&
+        return_type->external_symbol_index == 2u);
+  CHECK(value->parameters[0].type_index < value->result.written.types &&
+        value->parameters[1].type_index < value->result.written.types);
+  CHECK(value->types[value->parameters[0].type_index].external_module_index ==
+            0u &&
+        value->types[value->parameters[0].type_index].external_symbol_index ==
+            0u &&
+        frontend_text_is(value->types[value->parameters[0].type_index].spelling,
+                          "ProcessArguments"));
+  CHECK(value->types[value->parameters[1].type_index].external_module_index ==
+            0u &&
+        value->types[value->parameters[1].type_index].external_symbol_index ==
+            1u &&
+        frontend_text_is(value->types[value->parameters[1].type_index].spelling,
+                          "ProcessContext"));
+  uint32_t case_expression = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      CHECK(case_expression == W_SEED_FRONTEND_NONE);
+      case_expression = (uint32_t)index;
+    }
+  }
+  CHECK(case_expression != W_SEED_FRONTEND_NONE);
+  const w_seed_frontend_expression *case_value =
+      &value->expressions[case_expression];
+  CHECK(case_value->supported && case_value->enum_index ==
+            W_SEED_FRONTEND_NONE &&
+        case_value->enum_case_index == W_SEED_FRONTEND_NONE &&
+        case_value->resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL &&
+        case_value->resolved_external_module_index == 0u &&
+        case_value->resolved_external_symbol_index == 3u &&
+        frontend_text_is(case_value->member_name, "success"));
+  CHECK(receipt_contains(value, "|external=0:2|enum-base=",
+                         strlen("|external=0:2|enum-base=")) &&
+        receipt_contains(value, "enum-case=", strlen("enum-case=")));
+  for (size_t type_index = 0u; type_index < value->result.written.types;
+       type_index += 1u) {
+    const w_seed_frontend_type *type = &value->types[type_index];
+    const bool module_none =
+        type->external_module_index == W_SEED_FRONTEND_NONE;
+    const bool symbol_none =
+        type->external_symbol_index == W_SEED_FRONTEND_NONE;
+    CHECK(module_none == symbol_none);
+    if (!module_none) {
+      CHECK(type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+            type->external_module_index < value->input.external_module_count);
+      const w_seed_frontend_external_module *module =
+          &value->external_modules[type->external_module_index];
+      CHECK(type->external_symbol_index < module->symbol_count &&
+            module->symbols[type->external_symbol_index].kind ==
+                W_SEED_FRONTEND_EXTERNAL_TYPE &&
+            module->symbols[type->external_symbol_index].exported);
+    }
+  }
+  const size_t canonical_receipt_bytes = value->result.receipt_bytes;
+  const w_seed_frontend_counts canonical_required = value->result.required;
+  uint8_t canonical_receipt[TEST_RECEIPT];
+  CHECK(canonical_receipt_bytes <= sizeof(canonical_receipt));
+  (void)memcpy(canonical_receipt, value->receipt, canonical_receipt_bytes);
+
+  /* Re-running the same resolver input must reproduce the exact receipt. */
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.receipt_bytes == canonical_receipt_bytes &&
+        memcmp(value->receipt, canonical_receipt, canonical_receipt_bytes) ==
+            0);
+
+  w_seed_frontend_counts measured;
+  w_seed_frontend_result measured_result;
+  CHECK(w_seed_frontend_measure(&value->input, &measured, &measured_result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(counts_equal(&measured, &value->result.required) &&
+        measured_result.required.receipt_bytes == value->result.receipt_bytes);
+
+  /* A short receipt buffer is a pre-emit capacity barrier.  It must preserve
+   * every caller-owned output slot and still report the same requirement. */
+  const size_t receipt_capacity = value->output.receipt_capacity;
+  CHECK(canonical_receipt_bytes > 0u && canonical_receipt_bytes < receipt_capacity);
+  fixture_fill_output(value, 0xa5u);
+  value->output.receipt_capacity = canonical_receipt_bytes - 1u;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_CAPACITY);
+  CHECK(counts_equal(&value->result.required, &canonical_required) &&
+        value->result.receipt_bytes == canonical_receipt_bytes &&
+        fixture_output_is(value, 0xa5u, true));
+  value->output.receipt_capacity = receipt_capacity;
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+        W_SEED_FRONTEND_OK);
+  CHECK(value->result.receipt_bytes == canonical_receipt_bytes &&
+        memcmp(value->receipt, canonical_receipt, canonical_receipt_bytes) ==
+            0);
+
+  /* Alias spelling is source provenance, while external identity remains the
+   * resolver-owned 0:2 pair.  A valid alias mutation changes the receipt
+   * deterministically without changing the accepted ABI shape. */
+  static const char alias_variant_source[] =
+      "import { Arguments as ProcessArgs, Context as ProcessCtx, "
+      "ExitCode as ProcessStatus } from std.process\n"
+      "async fn run(args: ProcessArgs, ctx: ProcessCtx): ProcessStatus { "
+      "return .success }\n"
+      "entry(run)\n";
+  fixture *variant = &fixture_b;
+  CHECK(fixture_parse(variant, alias_variant_source));
+  fixture_configure_process_abi_external(variant);
+  CHECK(fixture_resolve_external_imports(variant));
+  CHECK(w_seed_frontend_run(&variant->input, &variant->output,
+                            &variant->result) == W_SEED_FRONTEND_OK);
+  CHECK(variant->result.receipt_bytes != canonical_receipt_bytes ||
+        memcmp(variant->receipt, canonical_receipt, canonical_receipt_bytes) !=
+            0);
+  const size_t variant_receipt_bytes = variant->result.receipt_bytes;
+  uint8_t variant_receipt[TEST_RECEIPT];
+  CHECK(variant_receipt_bytes <= sizeof(variant_receipt));
+  (void)memcpy(variant_receipt, variant->receipt, variant_receipt_bytes);
+  CHECK(w_seed_frontend_run(&variant->input, &variant->output,
+                            &variant->result) == W_SEED_FRONTEND_OK);
+  CHECK(variant->result.receipt_bytes == variant_receipt_bytes &&
+        memcmp(variant->receipt, variant_receipt, variant_receipt_bytes) == 0);
+
+  static const char canonical_negative_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  static const char wrong_type_source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "Context as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_NONCONST));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_MODULE));
+  CHECK(process_negative_fixture(value, wrong_type_source,
+                                 PROCESS_NEGATIVE_TYPE));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_RECEIVER));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_RETURN));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_PARAMETERS));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_EXPORT));
+  CHECK(process_negative_fixture(value, canonical_negative_source,
+                                 PROCESS_NEGATIVE_METADATA));
+
+  static const char duplicate_alias_source[] =
+      "import { Arguments as ProcessName, Context as ProcessName, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessName, ctx: ProcessName): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  static const char duplicate_value_type_source[] =
+      "import { Arguments as ProcessName, success as ProcessName, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessName, ctx: ProcessName): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n";
+  CHECK(test_process_abi_duplicate_import_aliases(duplicate_alias_source));
+  CHECK(test_process_abi_duplicate_import_aliases(
+      duplicate_value_type_source));
+  return true;
+}
+
 int main(void) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
@@ -4676,5 +4997,6 @@ int main(void) {
   if (!test_string_expression_projection()) return 1;
   if (!test_interpolated_string_projection()) return 1;
   if (!test_barrier_and_capacity()) return 1;
+  if (!test_process_abi_alias_and_exit_case()) return 1;
   return 0;
 }

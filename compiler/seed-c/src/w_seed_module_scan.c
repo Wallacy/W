@@ -135,6 +135,19 @@ static bool parse_import_path(const w_seed_source *source,
       module_scan_tokens lookahead = tokens;
       module_scan_token separator;
       if (!token_next(&lookahead, &separator)) return false;
+      if (token_is_text(source, &separator, "as")) {
+        /* Keep grouped aliases in the scanner's bounded import grammar.  The
+         * origin still records only the module path; the frontend owns the
+         * imported/local symbol pair. */
+        tokens = lookahead;
+        module_scan_token local_name;
+        if (!token_next(&tokens, &local_name) ||
+            !token_is_word(&local_name)) {
+          return false;
+        }
+        lookahead = tokens;
+        if (!token_next(&lookahead, &separator)) return false;
+      }
       if (token_is_text(source, &separator, ",")) {
         tokens = lookahead;
         need_name = true;
