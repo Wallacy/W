@@ -949,8 +949,29 @@ Grouped aliases resolve `Arguments`, `Context`, and `ExitCode` to stable
 external nominal identities; HIR14 owns and revalidates the canonical external
 table, payload-free `ExitCode.success`, and explicit native-process handler
 adapter. HLO0 and MLIR0 still reject that HIR without partial output.
-`directEntry`, ABI lowering, providers, runtime argument access, native
-execution, Windows, and `PROC-INPUT0` have not begun.
+Implementation of `directEntry`, ABI lowering, providers, runtime argument
+access, native process execution, and Windows process support remains pending.
+
+The next package is the W-1484 proof prerequisite, not process ABI lowering.
+The code review found these boundaries:
+
+- HIR14 preserves complete function bodies and local-call identities, but lacks
+  call-form and host-effect evidence. Unknown calls must remain conservative.
+- Keep the async entry's `suspension: may` separate from the proof that its
+  direct entry never suspends. Analyze whole declarations before specialization.
+  Resolve local-call dependencies to a fixed point, including recursive groups.
+- Synchronous `deinit` is already a language rule. It does not prove that HIR
+  preserves process ownership, required cleanup, or provider effects. Establish
+  those facts before publishing a direct-entry proof for opaque process owners.
+- Neither `.success`, parameter names, nor `adapter_kind` is proof evidence.
+  Keep native consumers rejecting process HIR until proof and ABI support exist.
+
+Select the proof representation before editing the schema. Acceptance requires
+independent verifier checks, conservative unknown-call handling, and adversarial
+constant-branch, transitive-call, cleanup, and forged-proof cases. This package
+uses `benchmarkDisposition: compiler-lifecycle`; it makes no performance claim.
+Stop after the bounded proof and its checks. `PROC-INPUT0` remains a separate
+executable milestone with the two runtime-input outcomes specified above.
 
 The broad English migration and physical documentation split should be staged
 with their owners, not bundled into unrelated compiler changes. Release
