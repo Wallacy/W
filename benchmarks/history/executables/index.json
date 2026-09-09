@@ -64,6 +64,11 @@
       "id": "restaurant-branch-w-0a9862a58747",
       "path": "02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4.json",
       "digest": "sha256:02088d7e4493c9cc2ed68cb73babb5e74e6006a2f636ccc552ce9ccb42ad7ac4"
+    },
+    {
+      "id": "restaurant-branch-w-2d4f8f2ed1b2",
+      "path": "353edb6f300c41d5244996fd9ffc81a734a30309c781d882390451ba394e547b.json",
+      "digest": "sha256:353edb6f300c41d5244996fd9ffc81a734a30309c781d882390451ba394e547b"
     }
   ]
 }
