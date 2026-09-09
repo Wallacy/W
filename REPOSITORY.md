@@ -86,12 +86,16 @@ Use a forma abaixo para incluir temporários legados:
 
 ```sh
 bun run cleanup --temp --legacy-temp
+bun run cleanup --temp --legacy-temp --temp-age-hours 24 --apply
 ```
 
 Essa forma aceita somente prefixos `mkdtemp` declarados pelo tooling. A árvore
-deve estar sem mudanças por pelo menos 24 horas. `--temp-age-hours N` aumenta
-esse limite. O cálculo usa o `mtime` mais recente da árvore. Esse escopo aceita
-somente dry-run. A combinação com `--apply` falha antes da coleta.
+deve estar sob `os.tmpdir()`, ser um diretório físico e estar sem mudanças por
+pelo menos 24 horas. `--temp-age-hours N` aumenta esse limite, mas nunca pode
+ser menor que 24. O cálculo usa o `mtime` mais recente da árvore. O default
+continua sendo dry-run; `--apply` exige essa forma explícita e revalida
+allowlist, localização, links, mounts, conteúdo e idade imediatamente antes
+de cada remoção.
 
 A rotina recusa links, junctions, reparse points, mounts e arquivos
 versionados. Ela também recusa targets externos, ancestrais e paths protegidos.
@@ -106,9 +110,10 @@ Execute o apply com um editor e sem mutação local concorrente. O preflight de
 batch e a revalidação imediata reduzem a janela TOCTOU. Eles não eliminam a
 corrida antes do `rm` recursivo.
 
-Não execute cleanup global automático. Os temporários legados ainda não têm
-owner records. Uma evolução futura deve usar um namespace por checkout e um
-owner record verificável.
+Não execute cleanup global automático. O prefixo W exato e o sufixo `mkdtemp`
+de seis caracteres são a evidência de ownership modelada hoje; nomes
+desconhecidos, paths aninhados ou escapes continuam recusados. Uma evolução
+futura pode usar um namespace por checkout e um owner record verificável.
 
 ## Dependências e comandos
 

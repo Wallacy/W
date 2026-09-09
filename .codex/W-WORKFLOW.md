@@ -56,13 +56,17 @@ reports the retained path and measured free space.
 The flag may occur more than once.
 
 Legacy temporary cleanup requires `--temp --legacy-temp`. It accepts only
-prefixes created by the repository. A directory must be unchanged for at least
-24 hours. Use `--temp-age-hours N` to increase this limit. This scope permits a
-dry run only. `--apply` fails before collection.
+exact repository-created prefixes with their modeled `mkdtemp` suffix. Every
+candidate must resolve under `os.tmpdir()` and be unchanged for at least
+24 hours. Use `--temp-age-hours N` to increase this limit; values below 24 are
+invalid. The default remains a dry run. Explicit `--apply` revalidates the
+closed allowlist, physical tree, mount proof, fingerprint, and age before
+removal.
 
-The legacy calculation uses the newest `mtime` in the tree. Temporary outputs
-do not yet have owner records. A future change must use a checkout namespace
-and a verifiable owner record.
+The legacy calculation uses the newest `mtime` in the tree. The exact W prefix
+and `mkdtemp` suffix are the ownership evidence currently modeled; unknown
+names, nested paths, and escapes remain refused. A future change may use a
+checkout namespace and a verifiable owner record.
 
 Workspace apply requires local mount proof. Linux uses `/proc/self/mountinfo`.
 Windows rejects junctions and reparse points during the scan. A platform

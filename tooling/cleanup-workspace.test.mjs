@@ -127,9 +127,15 @@ describe("cleanup argument contract", () => {
     ])).toThrow("at least 24");
     expect(() => parseCleanupArguments(["--apply", "--dry-run"])).toThrow("cannot be combined");
     expect(() => parseCleanupArguments(["--keep", "--apply"])).toThrow("requires a path");
-    expect(() => parseCleanupArguments([
-      "--temp", "--legacy-temp", "--apply",
-    ])).toThrow("dry-run only");
+    expect(parseCleanupArguments([
+      "--temp", "--legacy-temp", "--temp-age-hours", "24", "--apply",
+    ])).toMatchObject({
+      apply: true,
+      workspace: false,
+      temp: true,
+      legacyTemp: true,
+      tempMinAgeMs: 24 * hour,
+    });
   });
 });
 
@@ -327,16 +333,88 @@ describe("legacy temporary cleanup", () => {
     }))).rejects.toThrow("at least 24 hours");
   });
 
-  test("refuses programmatic apply for a legacy temporary plan", async () => {
+  test("keeps a stale candidate in a dry-run without removing it", async () => {
     const old = await makeOldTemporary("w-seed-parser-ABC123", 25);
     const plan = await collectCleanupPlan(options({ workspace: false, temp: true }));
-    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
-    expect(report.removed).toEqual([]);
-    expect(report.error).toBe("legacy temporary cleanup is dry-run only");
-    expect(report.refused).toEqual([
-      expect.objectContaining({ path: old, reason: "legacy temporary cleanup is dry-run only" }),
+    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([old]);
+    expect(formatCleanupReport(plan, false)).toEqual([
+      expect.stringContaining("cleanup mode=dry-run candidates=1"),
+      expect.stringContaining(`would-remove 18 bytes ${old}`),
     ]);
     expect(await exists(old)).toBe(true);
+  });
+
+  test("applies an explicitly authorized stale temporary plan", async () => {
+    const old = await makeOldTemporary("w-seed-parser-ABC123", 25);
+    const plan = await collectCleanupPlan(options({
+      workspace: false,
+      temp: true,
+      tempMinAgeMs: 24 * hour,
+    }));
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.error).toBeNull();
+    expect(report.refused).toEqual([]);
+    expect(report.removed.map((candidate) => candidate.path)).toEqual([old]);
+    expect(await exists(old)).toBe(false);
+  });
+
+  test("retains a recent directory while applying stale siblings", async () => {
+    const old = await makeOldTemporary("w-seed-parser-ABC123", 25);
+    const recent = await makeOldTemporary("w-owner-guard-DEF456", 1);
+    const plan = await collectCleanupPlan(options({ workspace: false, temp: true }));
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.removed.map((candidate) => candidate.path)).toEqual([old]);
+    expect(report.error).toBeNull();
+    expect(report.refused).toEqual([]);
+    expect(plan.retained).toEqual([
+      expect.objectContaining({ path: recent, reason: "temporary directory is newer than 24 hours" }),
+    ]);
+    expect(await exists(old)).toBe(false);
+    expect(await exists(recent)).toBe(true);
+  });
+
+  test("refuses a temporary candidate that escapes through a link", async () => {
+    const external = path.join(sandbox, "external-temp");
+    await makeFile(path.join(external, "outside.bin"), "outside");
+    const linked = path.join(temporary, "w-seed-parser-ABC123");
+    await symlink(external, linked, process.platform === "win32" ? "junction" : "dir");
+
+    const plan = await collectCleanupPlan(options({ workspace: false, temp: true }));
+    expect(plan.candidates).toEqual([]);
+    expect(plan.refused).toEqual([
+      expect.objectContaining({ path: linked }),
+    ]);
+    expect(plan.refused[0].reason).toMatch(/physical directory|outside its cleanup root/);
+    expect(await exists(external)).toBe(true);
+  });
+
+  test("refuses links and reparse points inside a stale temporary candidate", async () => {
+    const old = await makeOldTemporary("w-seed-parser-ABC123", 25);
+    const external = path.join(sandbox, "external-nested-temp");
+    await makeFile(path.join(external, "outside.bin"), "outside");
+    await symlink(external, path.join(old, "escape"), process.platform === "win32" ? "junction" : "dir");
+
+    const plan = await collectCleanupPlan(options({ workspace: false, temp: true }));
+    expect(plan.candidates).toEqual([]);
+    expect(plan.refused).toEqual([
+      expect.objectContaining({ path: old }),
+    ]);
+    expect(plan.refused[0].reason).toMatch(/link or reparse point/);
+    expect(await exists(external)).toBe(true);
+    expect(await exists(old)).toBe(true);
+  });
+
+  test("requires the temporary root to stay under os.tmpdir", async () => {
+    const outside = await mkdtemp(path.join(process.cwd(), "w-cleanup-temp-root-test-"));
+    try {
+      await expect(collectCleanupPlan(options({
+        workspace: false,
+        temp: true,
+        tempRoot: outside,
+      }))).rejects.toThrow("under os.tmpdir");
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });
 

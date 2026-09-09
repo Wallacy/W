@@ -260,6 +260,20 @@ async function tempTargets(tempRoot) {
   return targets;
 }
 
+async function resolveTemporaryRoots(tempRoot) {
+  const requestedTempRoot = path.resolve(tempRoot);
+  const rootStats = await lstat(requestedTempRoot);
+  if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) {
+    throw new Error("The temporary root must be a physical directory.");
+  }
+  const systemTempRoot = await realpath(path.resolve(os.tmpdir()));
+  const physicalTempRoot = await realpath(requestedTempRoot);
+  if (!isWithin(systemTempRoot, physicalTempRoot, true)) {
+    throw new Error("The temporary root must be under os.tmpdir().");
+  }
+  return { physicalTempRoot, systemTempRoot };
+}
+
 function trackedPathIntersects(candidate, workspaceRoot, trackedPaths) {
   const candidateRelative = toPosix(path.relative(workspaceRoot, candidate));
   return trackedPaths.some((trackedPath) =>
@@ -271,13 +285,14 @@ function fingerprintPart(stats, relativePath) {
   return [relativePath, type, stats.dev, stats.ino, stats.size, stats.mtimeMs].join("\0");
 }
 
-async function scanCandidate(candidate, root) {
+async function scanCandidate(candidate, root, boundary = root) {
   const rootStats = await lstat(candidate);
   if (!rootStats.isDirectory() || rootStats.isSymbolicLink()) {
     throw new Error("target is not a physical directory");
   }
   const physical = await realpath(candidate);
-  if (!samePath(physical, candidate) || !isWithin(root, physical)) {
+  if (!samePath(physical, candidate) || !isWithin(root, physical) ||
+      !isWithin(boundary, physical)) {
     throw new Error("target resolves outside its cleanup root");
   }
 
@@ -390,7 +405,8 @@ export async function collectCleanupPlan({
   gitRoot,
 } = {}) {
   const workspacePhysical = await realpath(path.resolve(workspaceRoot));
-  const tempPhysical = await realpath(path.resolve(tempRoot));
+  const { physicalTempRoot: tempPhysical, systemTempRoot } =
+    await resolveTemporaryRoots(tempRoot);
   validateRootPair(workspacePhysical, tempPhysical);
   const verifiedGitRoot = gitRoot === undefined ? readGitRoot(workspacePhysical) : path.resolve(gitRoot);
   if (!samePath(verifiedGitRoot, workspacePhysical)) {
@@ -434,7 +450,11 @@ export async function collectCleanupPlan({
       continue;
     }
     try {
-      const scan = await scanCandidate(target.path, root);
+      const scan = await scanCandidate(
+        target.path,
+        root,
+        target.scope === "temp" ? systemTempRoot : root,
+      );
       if (target.rule?.marker === "cmake" && !await hasCMakeMarker(target.path)) {
         plan.refused.push({ ...target, reason: "target has no CMakeCache.txt output marker" });
         continue;
@@ -465,13 +485,90 @@ function scanMatches(candidate, scan) {
     candidate.fingerprint === scan.fingerprint;
 }
 
+function isDirectChild(root, target) {
+  const relative = path.relative(path.resolve(root), path.resolve(target));
+  return relative !== "" && !path.isAbsolute(relative) &&
+    !relative.includes(path.sep);
+}
+
+function temporaryCandidateInvariant(candidate, tempRoot, systemTempRoot) {
+  if (!candidate || typeof candidate.path !== "string") {
+    throw new Error("temporary candidate path is unclear");
+  }
+  if (!isWithin(systemTempRoot, tempRoot, true)) {
+    throw new Error("temporary root is outside os.tmpdir()");
+  }
+  if (!isDirectChild(tempRoot, candidate.path) ||
+      !matchesTempDirectoryName(path.basename(candidate.path))) {
+    throw new Error("temporary candidate is outside the exact W temp allowlist");
+  }
+}
+
+function temporaryAgeReason(nowMs, newestMtimeMs, tempMinAgeMs) {
+  if (!Number.isFinite(nowMs) || !Number.isFinite(newestMtimeMs) ||
+      !Number.isFinite(tempMinAgeMs) || tempMinAgeMs < DEFAULT_TEMP_MIN_AGE_MS) {
+    return "temporary age cannot be verified";
+  }
+  if (nowMs - newestMtimeMs < tempMinAgeMs) {
+    const hours = Math.floor(tempMinAgeMs / (60 * 60 * 1000));
+    return `temporary directory is newer than ${hours} hours`;
+  }
+  return null;
+}
+
+async function validateTemporaryApplyPlan(plan) {
+  const candidates = Array.isArray(plan?.candidates) ? plan.candidates : [];
+  const temporaryRequested = plan?.scopes?.temp === true ||
+    candidates.some((candidate) => candidate?.scope === "temp");
+  if (!temporaryRequested) return null;
+  if (!Number.isFinite(plan?.tempMinAgeMs) ||
+      plan.tempMinAgeMs < DEFAULT_TEMP_MIN_AGE_MS) {
+    throw new Error("temporary age threshold must be at least 24 hours");
+  }
+  if (typeof plan?.tempRoot !== "string") {
+    throw new Error("temporary root is unclear");
+  }
+  const { physicalTempRoot, systemTempRoot } =
+    await resolveTemporaryRoots(plan.tempRoot);
+  if (!samePath(physicalTempRoot, plan.tempRoot)) {
+    throw new Error("temporary root changed after planning");
+  }
+  return { physicalTempRoot, systemTempRoot };
+}
+
+function applyCandidateRoots(candidate, plan, temporaryContext) {
+  if (!candidate || (candidate.scope !== "workspace" && candidate.scope !== "temp")) {
+    throw new Error("candidate has an unknown cleanup scope");
+  }
+  if (typeof candidate.path !== "string") throw new Error("candidate path is unclear");
+  const root = candidate.scope === "workspace" ? plan.workspaceRoot : plan.tempRoot;
+  if (typeof root !== "string" || !isWithin(root, candidate.path)) {
+    throw new Error("target left its cleanup root");
+  }
+  if (candidate.scope === "temp") {
+    temporaryCandidateInvariant(candidate, root, temporaryContext.systemTempRoot);
+  }
+  return {
+    root,
+    boundary: candidate.scope === "temp" ? temporaryContext.systemTempRoot : root,
+  };
+}
+
 export async function applyCleanupPlan(plan, { mountProof } = {}) {
   const report = { removed: [], refused: [], error: null };
 
-  if (plan.scopes?.temp || plan.candidates.some((candidate) => candidate.scope === "temp")) {
-    report.error = "legacy temporary cleanup is dry-run only";
+  if (!plan || !Array.isArray(plan.candidates)) {
+    report.error = "cleanup plan is malformed";
+    return report;
+  }
+
+  let temporaryContext;
+  try {
+    temporaryContext = await validateTemporaryApplyPlan(plan);
+  } catch (error) {
+    report.error = `temporary cleanup plan is invalid: ${error.message}`;
     for (const candidate of plan.candidates) {
-      report.refused.push({ ...candidate, reason: "legacy temporary cleanup is dry-run only" });
+      report.refused.push({ ...candidate, reason: report.error });
     }
     return report;
   }
@@ -497,24 +594,29 @@ export async function applyCleanupPlan(plan, { mountProof } = {}) {
   }
 
   const batchFailures = new Map();
-  for (const candidate of plan.candidates) {
-    const root = candidate.scope === "workspace" ? plan.workspaceRoot : plan.tempRoot;
+  for (let index = 0; index < plan.candidates.length; index += 1) {
+    const candidate = plan.candidates[index];
     try {
-      if (!isWithin(root, candidate.path)) throw new Error("target left its cleanup root");
+      const { root, boundary } = applyCandidateRoots(candidate, plan, temporaryContext);
       const mountPoint = proof.mountPoints.find((item) =>
         mountIntersectsCandidate(candidate.path, item));
       if (mountPoint !== undefined) throw new Error(`mountpoint exists: ${mountPoint}`);
-      const current = await scanCandidate(candidate.path, root);
+      const current = await scanCandidate(candidate.path, root, boundary);
       if (!scanMatches(candidate, current)) throw new Error("target changed after the dry-run scan");
+      if (candidate.scope === "temp") {
+        const ageReason = temporaryAgeReason(Date.now(), current.newestMtimeMs, plan.tempMinAgeMs);
+        if (ageReason !== null) throw new Error(ageReason);
+      }
     } catch (error) {
-      batchFailures.set(pathKey(candidate.path), error.message);
+      batchFailures.set(index, error.message);
     }
   }
   if (batchFailures.size !== 0) {
-    for (const candidate of plan.candidates) {
+    for (let index = 0; index < plan.candidates.length; index += 1) {
+      const candidate = plan.candidates[index];
       report.refused.push({
         ...candidate,
-        reason: batchFailures.get(pathKey(candidate.path)) ??
+        reason: batchFailures.get(index) ??
           "batch preflight failed before removal",
       });
     }
@@ -523,11 +625,14 @@ export async function applyCleanupPlan(plan, { mountProof } = {}) {
 
   for (let index = 0; index < plan.candidates.length; index += 1) {
     const candidate = plan.candidates[index];
-    const root = candidate.scope === "workspace" ? plan.workspaceRoot : plan.tempRoot;
     try {
-      if (!isWithin(root, candidate.path)) throw new Error("target left its cleanup root");
-      const current = await scanCandidate(candidate.path, root);
+      const { root, boundary } = applyCandidateRoots(candidate, plan, temporaryContext);
+      const current = await scanCandidate(candidate.path, root, boundary);
       if (!scanMatches(candidate, current)) throw new Error("target changed after batch preflight");
+      if (candidate.scope === "temp") {
+        const ageReason = temporaryAgeReason(Date.now(), current.newestMtimeMs, plan.tempMinAgeMs);
+        if (ageReason !== null) throw new Error(ageReason);
+      }
       await rm(candidate.path, { recursive: true, force: false, maxRetries: 0 });
       report.removed.push(candidate);
     } catch (error) {
@@ -598,9 +703,6 @@ export function parseCleanupArguments(argv) {
   if (options.tempMinAgeMs !== undefined && !options.temp) {
     throw new Error("--temp-age-hours is valid only with --temp.");
   }
-  if (options.apply && options.temp) {
-    throw new Error("Legacy temporary cleanup is dry-run only.");
-  }
   return options;
 }
 
@@ -610,7 +712,7 @@ function formatBytes(bytes) {
 
 function printUsage() {
   console.log("Usage: bun tooling/cleanup-workspace.mjs [--workspace] [--temp --legacy-temp] [--temp-age-hours N] [--keep <path>]... [--apply]");
-  console.log("The command is a dry-run unless --apply is present. Legacy temporary candidates must be at least 24 hours old.");
+  console.log("The command is a dry-run unless --apply is present. Legacy temporary candidates must be exact W outputs under os.tmpdir and at least 24 hours old; --apply revalidates every candidate before removal.");
 }
 
 export function formatCleanupReport(plan, applied) {
