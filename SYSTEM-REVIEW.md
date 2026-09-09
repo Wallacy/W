@@ -916,6 +916,34 @@ selected, not an always-running goal.
 | 14 | Web UI and terminal provider selection | P3 / M then L | WVUI0 questions resolved for one provider; real typed command and close/security witness |
 | 15 | Mapping/device/LLM performance integration | P3 / L | One measured useful workload per chosen provider; no core-language expansion from a capability list |
 
+### Runtime-input package boundary
+
+Bundle 6 must preserve the `native-process@1` entry contract. A raw
+`fn(value: i64)` entry is not an acceptable shortcut: the bounded native
+process adapters are `fn(): ()` and a handler using the explicit
+`std.process` `Arguments`, `Context`, and `ExitCode` types.
+
+Split the work into two finite packages when one reviewable bundle would be
+too large:
+
+1. `PROC-ABI0` resolves exactly the required `std.process` imports, records
+   the three external nominal types and the handler compatibility in the
+   frontend and verified HIR, and rejects every wider external surface. It
+   makes no runtime-execution claim.
+2. `PROC-INPUT0` lowers `Arguments.isEmpty` and `ExitCode.success` /
+   `ExitCode.failure` for Linux/WSL. One compiled artifact must print
+   `missing\n` and exit 2 with no forwarded arguments, then print
+   `received\n` and exit 0 with `-- payload`. The artifact must be reused
+   unchanged, the branch condition must come from runtime `argc`, and runtime
+   arguments must not enter source, semantic, or provenance digests.
+
+The first executable case may use an `async fn` body with no suspension only
+after proving the W-1484 `directEntry: available` facet. It still receives
+both root-scoped process owners. `Context` can remain unused in this slice;
+general `OsString`, argument access, async I/O, loops, Windows UTF-16 ABI, and
+the complete `std.process@1` provider remain later packages. Evidence is
+compiler-lifecycle correctness only, never a runtime or performance claim.
+
 The broad English migration and physical documentation split should be staged
 with their owners, not bundled into unrelated compiler changes. Release
 qualification, dependency updates and cleanup are routine bounded maintenance,

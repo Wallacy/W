@@ -189,8 +189,9 @@ constant `/` and `%` retain `llvm.sdiv`/`llvm.srem`; dynamic/runtime forms and
 faulting constants fail closed. The Restaurant short-entry fixture produces
 `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. Helpers are reachability-only,
 and no `PanicEvent`, runtime payload, cleanup, native Windows, timing, or
-benchmark result is claimed. W-1541 implements the bounded short default entry;
-named entries and parameterized inline entry bodies remain gaps.
+benchmark result is claimed. W-1541 implements the bounded short default entry
+while preserving the existing `entry(functionName)` path. Additional named
+entry descriptors and parameterized inline entry bodies remain gaps.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
