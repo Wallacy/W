@@ -49,6 +49,22 @@ performance. A local Release build measured its `w.exe` at 10,078,208 B before
 post-validation cleanup; the generated tool artifact was discarded afterward.
 This is a tool-build fact, not a baseline or benchmark of the produced
 executable.
+
+W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
+HIR0 `w-seed-hir0-12` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
+Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
+Helpers are emitted only for reachable operations, and existing HIR call
+evaluation remains left-to-right and once-only. Constant overflow and faulting
+constant `/` or `%` fail closed. Safe constant `/` and `%` emit `llvm.sdiv` and
+`llvm.srem`, while dynamic/runtime `/` and `%`, unary negation, power, other
+widths, named numeric APIs, and general panic runtime remain outside this cut.
+The named-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
+Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
+proves only bounded nonzero process/fault termination with no later success
+output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
+The seed parser still accepts `entry(main)` only. The specification's
+recommended `entry {}` form is a separate gap. This is compiler-lifecycle
+correctness-only evidence with no timing or benchmark result.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
@@ -165,6 +181,13 @@ correctness evidence, with no general CFG, target, or performance claim.
 The runner also keeps minimal/no-else microproofs and equivalent learner,
 idiomatic, and frontier source-style candidates for correctness only; frontier
 is exploratory, with no timing, result, or ranking claim.
+W-1540 is the current ARITH0 cut: checked runtime `+`, `-`, and `*` use
+signed-overflow intrinsics and a trap boundary in MLIR15/Windows6. Safe
+constant `/` and `%` retain `llvm.sdiv`/`llvm.srem`; dynamic/runtime forms and
+faulting constants fail closed. The Restaurant named-entry fixture produces
+`Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. Helpers are reachability-only,
+and no `PanicEvent`, runtime payload, cleanup, native Windows, timing, or
+benchmark result is claimed. `entry {}` remains a parser gap.
 Os nomes target/handler são byte strings
 derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
 source provenance nem identifier válido.
@@ -354,7 +377,7 @@ mudarem; `bun check` é a seleção rápida.
 | Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v14 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64`, BOOL0 short-circuit e SCALAR-IF0 bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
+| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v15 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64`, BOOL0, SCALAR-IF0 e ARITH0 bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
 | [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |

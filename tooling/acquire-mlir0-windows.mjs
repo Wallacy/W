@@ -42,7 +42,7 @@ export function validateManifest(manifest) {
   pushError(errors, manifest.version === 1, "manifest.version must be 1")
   pushError(errors, manifest.status === "external-evaluation",
     "manifest.status must be external-evaluation")
-  pushError(errors, manifest.artifact?.schema === "w-seed-mlir0-13" &&
+  pushError(errors, manifest.artifact?.schema === "w-seed-mlir0-15" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "manifest artifact scope is invalid")
   pushError(errors, manifest.host?.platform === "windows" &&

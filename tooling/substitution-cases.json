@@ -3657,6 +3657,61 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-mlir0-checked-i64-arithmetic",
+      "reviewItem": "checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.",
+      "decisions": [
+        "W-1540"
+      ],
+      "task": "Lower checked signed-i64 arithmetic through verified HIR0 and LLVM dialect MLIR, then execute safe and faulting witnesses.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn serve(isOpen: Bool, guests: i64): i64 {",
+          "  return if isOpen { guests + 1 } else { guests - 1 }",
+          "}",
+          "fn main() {",
+          "  let open = serve(isOpen: true, guests: 5)",
+          "  let closed = serve(isOpen: false, guests: 2)",
+          "  print(\"Open ${open}; closed ${closed}\")",
+          "}",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "wrapped-runtime-arithmetic",
+          "language": "w-rejected",
+          "source": [
+            "return left + right"
+          ],
+          "expectedDifference": "Wrapping would publish a result after signed overflow instead of reaching the bounded trap boundary."
+        },
+        {
+          "name": "eager-all-helpers",
+          "language": "w-rejected",
+          "source": [
+            "declare every arithmetic helper before reachability"
+          ],
+          "expectedDifference": "Demand-driven helper emission keeps unused Hello and dead-function artifacts free of checked helpers."
+        },
+        {
+          "name": "runtime-division-remainder",
+          "language": "w-rejected",
+          "source": [
+            "return value / divisor",
+            "return value % divisor"
+          ],
+          "expectedDifference": "Dynamic and runtime division or remainder remain outside this cut, while safe fully constant trees retain LLVM sdiv or srem."
+        }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

@@ -1040,13 +1040,15 @@ to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
 W-1538 advances HIR0 to `w-seed-hir0-10`, MLIR0 to `w-seed-mlir0-13`, and the
 Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6. W-1539 advances
 HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
-`w-seed-mlir0-windows-5`; Native0 remains v6.
+`w-seed-mlir0-windows-5`; Native0 remains v6. W-1540 advances HIR0 to
+`w-seed-hir0-12`, MLIR0 to `w-seed-mlir0-15`, and the Windows label to
+`w-seed-mlir0-windows-6`; Native0 remains v6.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
 top-level Unit `if` diamonds using `llvm.cond_br`/`llvm.br`. It accepts bounded
-String interpolation with panic-free
-signed-`i64` arithmetic, constant Bool, compile-time-known String values, and
+String interpolation with checked signed-`i64` `+`, `-`, and `*`, safe constant
+`/` and `%`, constant Bool, compile-time-known String values, and
 later reads of typed immutable binding initializers. The multi-function path
 also emits real internal `llvm.call` operations for bounded acyclic Unit calls
 with `i64`/Bool parameters. It also emits typed scalar `llvm.return` and
@@ -1161,6 +1163,34 @@ baseline or benchmark of the produced Restaurant executable. This is
 compiler-lifecycle correctness evidence, not general scalar CFG, ABI,
 target-coverage or performance evidence.
 
+### ARITH0 checked signed-`i64` arithmetic (W-1540)
+
+ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded
+source → frontend → HIR0 → MLIR0 route. HIR0 is `w-seed-hir0-12`, MLIR0 is
+`w-seed-mlir0-15`, the Windows artifact label is
+`w-seed-mlir0-windows-6`, and Native0 remains v6. Runtime arithmetic calls
+LLVM signed-overflow intrinsics. An overflow edge calls the LLVM trap
+intrinsic and ends at `llvm.unreachable`, so the process returns nonzero and
+does not publish later success output. This proves only bounded process/fault
+termination. It does not prove `PanicEvent`, runtime payload, cleanup, or a
+general panic runtime.
+
+Existing HIR evaluation retains left-to-right and once-only call behavior.
+Checked helpers are emitted only for reachable arithmetic trees. Hello and the
+dead-function witness emit no checked helper or dead text. Constant overflow
+and faulting constant `/` or `%` are rejected. A safe fully constant `/` or
+`%` emits `llvm.sdiv` or `llvm.srem`. Dynamic/runtime `/` and `%`, unary
+negation, power, other widths, named numeric APIs, and general numeric
+surfaces remain unsupported.
+
+`fixtures/restaurant-checked-arithmetic.w` uses named `entry(main)` and
+produces exact `Open 6; closed 1\n` on Linux/WSL with LLVM 20.1.2. No native
+Windows evidence is claimed. The specification recommends `entry {}`, but
+the seed parser currently accepts `entry(name)` only. Entry-block syntax is a
+separate gap. The bundle keeps caller-owned all-or-nothing, capacity, alias,
+receipt, and digest invariants. Its `benchmarkDisposition` is
+`compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
 executable for Hello, Restaurant binding, Restaurant literal, linear output,
@@ -1173,11 +1203,10 @@ frontier (two diamonds calling distinct service helpers). All three candidates
 require the exact Restaurant stdout; `frontier` is an exploration role only,
 not a ranking or benchmark result. The diamond artifact requires a typed `i1`
 condition, `llvm.cond_br`, two arm-to-one-join `llvm.br` edges, both branch
-payloads, one post-join body, and real calls. It
-also executes all five integer binary operators, a negative
-result, a literal percent sign, NUL in both text and a String value, and
-multiple ordered integer fields. It
-requires byte-identical MLIR for the equivalent static Restaurant forms,
+payloads, one post-join body, and real calls. It also executes the checked
+runtime integer operators, safe constant `/` and `%`, a negative result, a
+literal percent sign, NUL in both text and a String value, and multiple ordered
+integer fields. It requires byte-identical MLIR for the equivalent static Restaurant forms,
 exact stdout, empty stderr, and exit zero. It preserves
 MLIR em trivia e rejeita comentário com `print`, noop, limits excedidos e formas
 fora do subset sem artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa

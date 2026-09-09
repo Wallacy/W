@@ -183,6 +183,49 @@ static const char MLIR0_RUNTIME_HELPERS[] =
     "    llvm.return %append_final : i64\n"
     "  }\n";
 
+/* Language-level signed-i64 arithmetic is routed through these closed
+ * helpers. The LLVM overflow intrinsics produce the mathematical result and
+ * an overflow flag; the flagged edge terminates at the bounded fault
+ * boundary, so no wrapped result can reach user output or a later value. */
+static const char MLIR0_CHECKED_I64_ADD_HELPER[] =
+    "  llvm.func internal @w_seed_checked_add_i64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.sadd.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "  ^checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_I64_SUBTRACT_HELPER[] =
+    "  llvm.func internal @w_seed_checked_subtract_i64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.ssub.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "  ^checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_I64_MULTIPLY_HELPER[] =
+    "  llvm.func internal @w_seed_checked_multiply_i64(%left: i64, %right: i64) -> i64 {\n"
+    "    %pair = \"llvm.intr.smul.with.overflow\"(%left, %right) : (i64, i64) -> !llvm.struct<(i64, i1)>\n"
+    "    %value = llvm.extractvalue %pair[0] : !llvm.struct<(i64, i1)>\n"
+    "    %overflow = llvm.extractvalue %pair[1] : !llvm.struct<(i64, i1)>\n"
+    "    llvm.cond_br %overflow, ^checked_overflow, ^checked_ok\n"
+    "  ^checked_overflow:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^checked_ok:\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -249,6 +292,9 @@ static const char MLIR0_BOOL_HELPER[] =
 #define MLIR0_DYNAMIC_REQUIRED_MAX_BYTES                                      \
   ((sizeof(MLIR0_SCHEMA_COMMENT) - 1u) +                                     \
    (sizeof(MLIR0_RUNTIME_HELPERS) - 1u) +                              \
+   (sizeof(MLIR0_CHECKED_I64_ADD_HELPER) - 1u) +                        \
+   (sizeof(MLIR0_CHECKED_I64_SUBTRACT_HELPER) - 1u) +                   \
+   (sizeof(MLIR0_CHECKED_I64_MULTIPLY_HELPER) - 1u) +                   \
    (sizeof(MLIR0_BOOL_HELPER) - 1u) + MLIR0_DYNAMIC_SKELETON_MAX_BYTES + \
    ((size_t)MLIR0_MAX_STDOUT_BYTES * MLIR0_ESCAPE_BYTES_PER_INPUT) +         \
    ((size_t)MLIR0_DYNAMIC_MAX_ACTIONS * MLIR0_DYNAMIC_ACTION_MAX_BYTES) +    \
@@ -470,7 +516,20 @@ typedef struct {
   mlir0_dynamic_action actions[MLIR0_DYNAMIC_MAX_ACTIONS];
   size_t action_count;
   bool has_bool;
+  bool has_checked_add;
+  bool has_checked_subtract;
+  bool has_checked_multiply;
+  bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
+
+static void note_checked_binary_operator(
+    w_seed_hir0_binary_operator operation, bool *has_add, bool *has_subtract,
+    bool *has_multiply);
+
+static bool mark_reachable_value_tree(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
+    bool *has_subtract, bool *has_multiply, size_t depth);
 
 static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
                                      const uint8_t *bytes, size_t length) {
@@ -618,6 +677,15 @@ static bool build_dynamic_plan(
   }
   if (candidate.action_count == 0u || candidate.text_bytes == 0u)
     return false;
+  for (size_t action_index = 0u; action_index < candidate.action_count;
+       action_index += 1u)
+    if (candidate.actions[action_index].kind != MLIR0_DYNAMIC_TEXT &&
+        !mark_reachable_value_tree(
+            program, candidate.actions[action_index].value_index,
+            candidate.reachable_values, &candidate.has_checked_add,
+            &candidate.has_checked_subtract, &candidate.has_checked_multiply,
+            0u))
+      return false;
   *plan = candidate;
   return true;
 }
@@ -625,11 +693,11 @@ static bool build_dynamic_plan(
 static const char *binary_operation(w_seed_hir0_binary_operator operation) {
   switch (operation) {
     case W_SEED_HIR0_BINARY_ADD:
-      return "llvm.add";
+      return NULL;
     case W_SEED_HIR0_BINARY_SUBTRACT:
-      return "llvm.sub";
+      return NULL;
     case W_SEED_HIR0_BINARY_MULTIPLY:
-      return "llvm.mul";
+      return NULL;
     case W_SEED_HIR0_BINARY_DIVIDE:
       return "llvm.sdiv";
     case W_SEED_HIR0_BINARY_REMAINDER:
@@ -650,6 +718,107 @@ static const char *binary_operation(w_seed_hir0_binary_operator operation) {
   return NULL;
 }
 
+static const char *checked_binary_helper(
+    w_seed_hir0_binary_operator operation) {
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      return "@w_seed_checked_add_i64";
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      return "@w_seed_checked_subtract_i64";
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      return "@w_seed_checked_multiply_i64";
+    default:
+      return NULL;
+  }
+}
+
+static void note_checked_binary_operator(
+    w_seed_hir0_binary_operator operation, bool *has_add, bool *has_subtract,
+    bool *has_multiply) {
+  if (has_add == NULL || has_subtract == NULL || has_multiply == NULL)
+    return;
+  if (operation == W_SEED_HIR0_BINARY_ADD)
+    *has_add = true;
+  else if (operation == W_SEED_HIR0_BINARY_SUBTRACT)
+    *has_subtract = true;
+  else if (operation == W_SEED_HIR0_BINARY_MULTIPLY)
+    *has_multiply = true;
+}
+
+static bool mark_reachable_value_tree(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
+    bool *has_subtract, bool *has_multiply, size_t depth) {
+  if (program == NULL || reachable == NULL || has_add == NULL ||
+      has_subtract == NULL || has_multiply == NULL || depth > 256u ||
+      value_index >= program->value_count ||
+      value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  if (reachable[value_index]) return true;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count) return false;
+  reachable[value_index] = true;
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    return value->binding_index < program->binding_count &&
+           mark_reachable_value_tree(
+               program, program->bindings[value->binding_index].initializer_value,
+               reachable, has_add, has_subtract, has_multiply, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
+    return value->left_value != W_SEED_HIR0_NONE &&
+           mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     depth + 1u);
+  if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+    if (value->first_interpolation_segment >
+            program->interpolation_segment_count ||
+        value->interpolation_segment_count >
+            program->interpolation_segment_count -
+                value->first_interpolation_segment)
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+         ordinal += 1u) {
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[value->first_interpolation_segment +
+                                           ordinal];
+      if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+          !mark_reachable_value_tree(program, segment->value_index, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     depth + 1u))
+        return false;
+    }
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    note_checked_binary_operator(value->binary_operator, has_add, has_subtract,
+                                 has_multiply);
+    return mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     depth + 1u) &&
+           mark_reachable_value_tree(program, value->right_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     depth + 1u);
+  }
+  return true;
+}
+
+static bool append_checked_i64_helpers(
+    bool has_add, bool has_subtract, bool has_multiply, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (has_add &&
+      !append_literal(artifact, capacity, offset, MLIR0_CHECKED_I64_ADD_HELPER))
+    return false;
+  if (has_subtract &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_I64_SUBTRACT_HELPER))
+    return false;
+  if (has_multiply &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_I64_MULTIPLY_HELPER))
+    return false;
+  return true;
+}
+
 static bool append_program_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, uint8_t *artifact, size_t capacity,
@@ -657,6 +826,47 @@ static bool append_program_value_operand(
 
 static const char *program_type_name(const w_seed_hir0_program *program,
                                      uint32_t type_index);
+
+static bool append_binary_value_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count ||
+      program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_I64)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  const char *helper = checked_binary_helper(value->binary_operator);
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, " = "))
+    return false;
+  if (helper != NULL)
+    return append_literal(artifact, capacity, offset, "llvm.call ") &&
+           append_literal(artifact, capacity, offset, helper) &&
+           append_literal(artifact, capacity, offset, "(") &&
+           append_program_value_operand(program, value->left_value,
+                                        function_index, artifact, capacity,
+                                        offset) &&
+           append_literal(artifact, capacity, offset, ", ") &&
+           append_program_value_operand(program, value->right_value,
+                                        function_index, artifact, capacity,
+                                        offset) &&
+           append_literal(artifact, capacity, offset,
+                          ") : (i64, i64) -> i64\n");
+  const char *operation = binary_operation(value->binary_operator);
+  return operation != NULL &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " ") &&
+         append_program_value_operand(program, value->left_value,
+                                     function_index, artifact, capacity,
+                                     offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand(program, value->right_value,
+                                     function_index, artifact, capacity,
+                                     offset) &&
+         append_literal(artifact, capacity, offset, " : i64\n");
+}
 
 static bool append_program_block_argument_name(
     const w_seed_hir0_program *program, uint32_t block_argument_index,
@@ -683,10 +893,13 @@ static bool append_program_block_argument_name(
 }
 
 static bool append_value_operations(const w_seed_hir0_program *program,
+                                    const mlir0_dynamic_plan *plan,
                                     uint8_t *artifact, size_t capacity,
                                     size_t *offset) {
-  if (program == NULL || artifact == NULL || offset == NULL) return false;
+  if (program == NULL || plan == NULL || artifact == NULL || offset == NULL)
+    return false;
   for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (!plan->reachable_values[index]) continue;
     const w_seed_hir0_value *value = &program->values[index];
     if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
       if (!append_literal(artifact, capacity, offset, "    %v") ||
@@ -705,19 +918,8 @@ static bool append_value_operations(const w_seed_hir0_program *program,
                               : " = llvm.mlir.constant(false) : i1\n"))
         return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-      const char *operation = binary_operation(value->binary_operator);
-      if (operation == NULL ||
-          !append_literal(artifact, capacity, offset, "    %v") ||
-          !append_size(artifact, capacity, offset, index) ||
-          !append_literal(artifact, capacity, offset, " = ") ||
-          !append_literal(artifact, capacity, offset, operation) ||
-          !append_literal(artifact, capacity, offset, " ") ||
-          !append_program_value_operand(program, value->left_value, 0u,
-                                         artifact, capacity, offset) ||
-          !append_literal(artifact, capacity, offset, ", ") ||
-          !append_program_value_operand(program, value->right_value, 0u,
-                                         artifact, capacity, offset) ||
-          !append_literal(artifact, capacity, offset, " : i64\n"))
+      if (!append_binary_value_operation(program, (uint32_t)index, 0u,
+                                         artifact, capacity, offset))
         return false;
     }
   }
@@ -828,6 +1030,10 @@ static bool build_dynamic_artifact(
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_checked_i64_helpers(plan.has_checked_add,
+                                  plan.has_checked_subtract,
+                                  plan.has_checked_multiply, artifact,
+                                  capacity, &offset) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
     return false;
@@ -852,7 +1058,7 @@ static bool build_dynamic_artifact(
                  "    %buffer = llvm.alloca %capacity x i8 : (i64) -> !llvm.ptr\n")) ||
       !append_literal(artifact, capacity, &offset,
                       "    %text_base = llvm.mlir.addressof @w_seed_mlir0_text : !llvm.ptr\n") ||
-      !append_value_operations(program, artifact, capacity, &offset) ||
+      !append_value_operations(program, &plan, artifact, capacity, &offset) ||
       !append_literal(artifact, capacity, &offset,
                       "    %cursor0 = llvm.mlir.constant(0 : i64) : i64\n") ||
       !append_dynamic_actions(&plan, artifact, capacity, &offset))
@@ -920,8 +1126,152 @@ typedef struct {
   size_t action_count;
   size_t call_first_action[W_SEED_NATIVE_SUBSET0_MAX_CALLS];
   size_t call_action_count[W_SEED_NATIVE_SUBSET0_MAX_CALLS];
+  bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
+  bool omitted_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
   bool has_bool;
+  bool has_checked_add;
+  bool has_checked_subtract;
+  bool has_checked_multiply;
+  bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
+
+/* The program selector verifies every function so malformed dead code cannot
+ * cross the adapter boundary.  Emission, however, starts at the named entry
+ * and follows only local function calls from reached bodies.  This keeps
+ * helper declarations demand-driven: an unused function containing checked
+ * arithmetic does not make that helper part of the reachable artifact. */
+static bool mark_program_reachable_functions(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    bool reachable[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS], size_t depth) {
+  if (program == NULL || reachable == NULL ||
+      function_index >= program->function_count ||
+      function_index >= W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
+      depth > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS)
+    return false;
+  if (reachable[function_index]) return true;
+  reachable[function_index] = true;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->first_block >= program->block_count ||
+      function->block_count == 0u ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  for (size_t block_ordinal = 0u; block_ordinal < function->block_count;
+       block_ordinal += 1u) {
+    const size_t block_index = (size_t)function->first_block + block_ordinal;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->owner_function != function_index ||
+        (size_t)block->first_instruction > program->instruction_count ||
+        block->instruction_count >
+            program->instruction_count - block->first_instruction)
+      return false;
+    for (size_t instruction_ordinal = 0u;
+         instruction_ordinal < block->instruction_count;
+         instruction_ordinal += 1u) {
+      const w_seed_hir0_instruction *instruction =
+          &program->instructions[(size_t)block->first_instruction +
+                                 instruction_ordinal];
+      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL) continue;
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->callee_identity >= program->identity_count) return false;
+      const w_seed_hir0_identity *callee =
+          &program->identities[call->callee_identity];
+      if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION) continue;
+      if (callee->target_index >= program->function_count ||
+          !mark_program_reachable_functions(
+              program, callee->target_index, reachable, depth + 1u))
+        return false;
+    }
+  }
+  return true;
+}
+
+static bool mark_program_reachable_values(
+    const w_seed_hir0_program *program,
+    const bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS],
+    bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
+    bool *has_subtract, bool *has_multiply) {
+  if (program == NULL || reachable_functions == NULL || reachable == NULL ||
+      has_add == NULL ||
+      has_subtract == NULL || has_multiply == NULL)
+    return false;
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    if (!reachable_functions[function_index]) continue;
+    const w_seed_hir0_function *function = &program->functions[function_index];
+    if (function->first_block >= program->block_count ||
+        function->block_count >
+            program->block_count - function->first_block)
+      return false;
+    for (size_t block_ordinal = 0u; block_ordinal < function->block_count;
+         block_ordinal += 1u) {
+      const size_t block_index = (size_t)function->first_block + block_ordinal;
+      const w_seed_hir0_block *block = &program->blocks[block_index];
+      if ((size_t)block->first_instruction > program->instruction_count ||
+          block->instruction_count >
+              program->instruction_count - block->first_instruction ||
+          block->terminator_index >= program->terminator_count)
+        return false;
+      for (size_t instruction_ordinal = 0u;
+           instruction_ordinal < block->instruction_count;
+           instruction_ordinal += 1u) {
+        const w_seed_hir0_instruction *instruction =
+            &program->instructions[(size_t)block->first_instruction +
+                                   instruction_ordinal];
+        if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+          if (instruction->binding_index >= program->binding_count ||
+              !mark_reachable_value_tree(
+                  program,
+                  program->bindings[instruction->binding_index]
+                      .initializer_value,
+                  reachable, has_add, has_subtract, has_multiply, 0u))
+            return false;
+          continue;
+        }
+        if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+            instruction->call_index >= program->call_count)
+          return false;
+        const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+        if (call->first_argument > program->argument_count ||
+            call->argument_count >
+                program->argument_count - call->first_argument)
+          return false;
+        for (size_t argument_ordinal = 0u;
+             argument_ordinal < call->argument_count; argument_ordinal += 1u)
+          if (!mark_reachable_value_tree(
+                  program,
+                  program->arguments[(size_t)call->first_argument +
+                                     argument_ordinal]
+                      .value_index,
+                  reachable, has_add, has_subtract, has_multiply, 0u))
+            return false;
+      }
+      const w_seed_hir0_terminator *terminator =
+          &program->terminators[block->terminator_index];
+      if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+        if (!mark_reachable_value_tree(
+                program, terminator->value_index, reachable, has_add,
+                has_subtract, has_multiply, 0u))
+          return false;
+      } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+        if (terminator->incoming_value != W_SEED_HIR0_NONE &&
+            !mark_reachable_value_tree(
+                program, terminator->incoming_value, reachable, has_add,
+                has_subtract, has_multiply, 0u))
+          return false;
+      } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+                 !mark_reachable_value_tree(
+                     program, terminator->value_index, reachable, has_add,
+                     has_subtract, has_multiply, 0u)) {
+        return false;
+      } else if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+                 terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
 
 static bool program_plan_append_text(mlir0_program_plan *plan,
                                      const uint8_t *bytes, size_t length) {
@@ -1014,12 +1364,26 @@ static bool build_program_plan(const w_seed_hir0_program *program,
     return false;
   mlir0_program_plan candidate;
   (void)memset(&candidate, 0, sizeof(candidate));
+  if (program->entry_count != 1u ||
+      !mark_program_reachable_functions(
+          program, program->entries[0].target_function,
+          candidate.reachable_functions, 0u))
+    return false;
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
     const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->owner_block >= program->block_count)
+      return false;
+    const uint32_t owner_function =
+        program->blocks[call->owner_block].owner_function;
+    if (owner_function >= program->function_count)
+      return false;
     if (call->callee_identity >= program->identity_count) return false;
     const w_seed_hir0_identity *callee =
         &program->identities[call->callee_identity];
+    if (!candidate.reachable_functions[owner_function]) {
+      continue;
+    }
     candidate.call_first_action[call_index] = candidate.action_count;
     if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
       if (call->argument_count != 1u ||
@@ -1036,6 +1400,24 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   }
   if (candidate.action_count == 0u || candidate.text_bytes == 0u)
     return false;
+  for (size_t function_index = 0u;
+       function_index < program->function_count; function_index += 1u) {
+    candidate.omitted_functions[function_index] =
+        !candidate.reachable_functions[function_index];
+  }
+  if (!mark_program_reachable_values(
+          program, candidate.reachable_functions, candidate.reachable_values,
+          &candidate.has_checked_add, &candidate.has_checked_subtract,
+          &candidate.has_checked_multiply))
+    return false;
+  candidate.has_bool = false;
+  for (size_t action_index = 0u; action_index < candidate.action_count;
+       action_index += 1u)
+    if (candidate.actions[action_index].kind == MLIR0_DYNAMIC_BOOL &&
+        candidate.actions[action_index].value_index <
+            W_SEED_NATIVE_SUBSET0_MAX_VALUES &&
+        candidate.reachable_values[candidate.actions[action_index].value_index])
+      candidate.has_bool = true;
   *plan = candidate;
   return true;
 }
@@ -1149,27 +1531,14 @@ static bool append_program_value_tree(
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-    const char *operation = binary_operation(value->binary_operator);
-    if (operation == NULL ||
-        !append_program_value_tree(program, value->left_value, function_index,
+    if (!append_program_value_tree(program, value->left_value, function_index,
                                    emitted, artifact, capacity, offset,
                                    depth + 1u) ||
         !append_program_value_tree(program, value->right_value, function_index,
                                    emitted, artifact, capacity, offset,
                                    depth + 1u) ||
-        !append_literal(artifact, capacity, offset, "    %v") ||
-        !append_size(artifact, capacity, offset, value_index) ||
-        !append_literal(artifact, capacity, offset, " = ") ||
-        !append_literal(artifact, capacity, offset, operation) ||
-        !append_literal(artifact, capacity, offset, " ") ||
-        !append_program_value_operand(program, value->left_value,
-                                      function_index, artifact, capacity,
-                                      offset) ||
-        !append_literal(artifact, capacity, offset, ", ") ||
-        !append_program_value_operand(program, value->right_value,
-                                      function_index, artifact, capacity,
-                                      offset) ||
-        !append_literal(artifact, capacity, offset, " : i64\n"))
+        !append_binary_value_operation(program, value_index, function_index,
+                                       artifact, capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -1694,7 +2063,8 @@ static bool build_program_artifact(
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL ||
-      (!selection->has_local_calls && !selection->has_cfg) ||
+      (!selection->has_local_calls && !selection->has_cfg &&
+       selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
@@ -1723,6 +2093,10 @@ static bool build_program_artifact(
        !append_literal(artifact, capacity, &offset,
                        MLIR0_WINDOWS_BUFFER_GLOBAL)) ||
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_checked_i64_helpers(plan.has_checked_add,
+                                  plan.has_checked_subtract,
+                                  plan.has_checked_multiply, artifact,
+                                  capacity, &offset) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
     return false;
@@ -1736,7 +2110,8 @@ static bool build_program_artifact(
     return false;
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
-    if (!append_program_function(program, &plan, function, artifact, capacity,
+    if (!plan.omitted_functions[function] &&
+        !append_program_function(program, &plan, function, artifact, capacity,
                                  &offset))
       return false;
   if (!append_literal(
@@ -1941,7 +2316,8 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (program_selection.has_local_calls || program_selection.has_cfg) {
+  if (program_selection.has_local_calls || program_selection.has_cfg ||
+      program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
@@ -1989,7 +2365,8 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (program_selection.has_local_calls || program_selection.has_cfg) {
+  if (program_selection.has_local_calls || program_selection.has_cfg ||
+      program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;

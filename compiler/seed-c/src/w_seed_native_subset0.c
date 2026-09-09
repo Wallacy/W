@@ -285,6 +285,28 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
   }
 }
 
+/* A constant arithmetic tree is still checked here so the native selector
+ * cannot turn a constant overflow into a runtime program. Binding reads are
+ * intentionally not considered constant by this syntactic predicate; their
+ * initializers are checked independently when the binding is selected. */
+static bool program_value_is_constant_i64(
+    const w_seed_hir0_program *program, uint32_t value_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER)
+    return false;
+  return program_value_is_constant_i64(program, value->left_value,
+                                       depth + 1u) &&
+         program_value_is_constant_i64(program, value->right_value,
+                                       depth + 1u);
+}
+
 static bool resolve_binding_value(
     const w_seed_hir0_program *program, const w_seed_hir0_value *read,
     const w_seed_hir0_binding *const *bindings, size_t binding_count,
@@ -394,6 +416,13 @@ static bool interpolation_maximum_bytes(
                     program, (uint32_t)(effective - program->values), 0u,
                     &ignored))
               return false;
+          } else if (!program_value_lowerable(
+                         program, (uint32_t)(effective - program->values),
+                         program->blocks[program->instructions[current_instruction]
+                                            .owner_block]
+                             .owner_function,
+                         false, 0u)) {
+            return false;
           }
           bytes = 20u;
           break;
@@ -780,9 +809,23 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                       owner_function, false, depth + 1u) &&
              program_value_lowerable(program, value->right_value,
                                       owner_function, false, depth + 1u);
-    int64_t ignored = 0;
-    return type == W_SEED_HIR0_TYPE_I64 &&
-           evaluate_i64(program, value_index, 0u, &ignored);
+    if (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+        type != W_SEED_HIR0_TYPE_I64 ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u) ||
+        !program_value_lowerable(program, value->right_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) {
+      if (!program_value_is_constant_i64(program, value_index, 0u))
+        return false;
+    }
+    if (program_value_is_constant_i64(program, value_index, 0u)) {
+      int64_t ignored = 0;
+      if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+    }
+    return true;
   }
   return false;
 }

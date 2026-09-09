@@ -11,6 +11,8 @@ const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-l
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
+const restaurantCheckedArithmeticFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-checked-arithmetic.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -54,7 +56,7 @@ function validateManifest(manifest) {
   assert(manifest && manifest.$schema === "w-seed-mlir0-toolchain-1" &&
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
-  assert(manifest.artifact?.schema === "w-seed-mlir0-13" &&
+  assert(manifest.artifact?.schema === "w-seed-mlir0-15" &&
     manifest.artifact?.scope === "unit-cfg-nested-diamond",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
@@ -252,6 +254,8 @@ try {
   const directCallPath = resolve(artifactDirectory, "direct-call.w")
   const scalarReturnPath = resolve(artifactDirectory, "scalar-return.w")
   const boolReturnPath = resolve(artifactDirectory, "bool-return.w")
+  const deadUnusedPath = resolve(artifactDirectory, "dead-unused.w")
+  const checkedOverflowPath = resolve(artifactDirectory, "checked-overflow.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -299,6 +303,15 @@ try {
     'fn kitchenOpen(): Bool { return true }\n' +
     'fn main() { let open = kitchenOpen() ' +
     'print("Open ${open}") }\nentry(main)\n')
+  await writeFile(deadUnusedPath,
+    'fn deadArithmetic(value: i64): i64 { return value + 1 }\n' +
+    'fn secret() { print("secret") }\n' +
+    'fn dead() { secret() }\n' +
+    'fn main() { print("Hello, world!") }\nentry(main)\n')
+  await writeFile(checkedOverflowPath,
+    'fn addOne(value: i64): i64 { return value + 1 }\n' +
+    'fn main() { let result = addOne(value: 9223372036854775807) ' +
+    'print("success ${result}") }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -323,6 +336,8 @@ try {
         "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
         "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
         "utf8") },
+    { name: "restaurant-checked-arithmetic", source: restaurantCheckedArithmeticFixture,
+      expected: Buffer.from("Open 6; closed 1\n", "utf8") },
     { name: "two-calls", source: twoCallsPath,
       expected: Buffer.from("a\nb\n", "utf8") },
     { name: "typed-arithmetic", source: arithmeticPath,
@@ -345,6 +360,8 @@ try {
       expected: Buffer.from("Table 42\n", "utf8") },
     { name: "bool-return", source: boolReturnPath,
       expected: Buffer.from("Open true\n", "utf8") },
+    { name: "dead-unused", source: deadUnusedPath,
+      expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -380,6 +397,34 @@ try {
     assert(Buffer.from(execution.stdout).equals(product.expected),
       `${product.name} stdout is not exact payload plus LF`)
   }
+  const overflowGenerated = run(seedGate, [checkedOverflowPath])
+  assert(overflowGenerated.exitCode === 0 && overflowGenerated.stderr.length === 0 &&
+    overflowGenerated.stdout.length > 0,
+  `checked-overflow source route failed with ${overflowGenerated.exitCode}: ` +
+    overflowGenerated.stderrText.trim())
+  const overflowInput = resolve(artifactDirectory, "checked-overflow.mlir")
+  const overflowVerified = resolve(artifactDirectory, "checked-overflow.verified.mlir")
+  const overflowLlvm = resolve(artifactDirectory, "checked-overflow.ll")
+  const overflowExecutable = resolve(artifactDirectory, "checked-overflow.native")
+  await writeFile(overflowInput, overflowGenerated.stdout)
+  const overflowInputForTool = isWindows ? wslPath(overflowInput) : overflowInput
+  const overflowVerifiedForTool = isWindows ? wslPath(overflowVerified) : overflowVerified
+  const overflowLlvmForTool = isWindows ? wslPath(overflowLlvm) : overflowLlvm
+  const overflowExecutableForTool = isWindows ? wslPath(overflowExecutable) : overflowExecutable
+  invokeTool(tool("mlirOpt"), [overflowInputForTool, "-o", overflowVerifiedForTool,
+    "--verify-each"], "checked-overflow mlir-opt")
+  invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", overflowVerifiedForTool,
+    "-o", overflowLlvmForTool], "checked-overflow mlir-translate")
+  invokeTool(tool("clang"), ["-x", "ir", `--target=${targetTriple}`,
+    overflowLlvmForTool, "-o", overflowExecutableForTool],
+  "checked-overflow clang LLVM IR")
+  const overflowExecution = invokeProgram(overflowExecutableForTool, [],
+    "checked-overflow generated executable")
+  assert(overflowExecution.exitCode !== 0,
+    "checked-overflow generated executable returned success")
+  assert(overflowExecution.stdout.length === 0 &&
+    !Buffer.from(overflowExecution.stdout).includes(Buffer.from("success")),
+  "checked-overflow published output after the trap")
   assert(artifacts.get("restaurant-binding").equals(
     artifacts.get("restaurant-literal")),
   "Restaurant literal and binding MLIR artifacts differ")
@@ -390,8 +435,9 @@ try {
     "Restaurant payload did not change MLIR")
   assert(!artifacts.get("hello").equals(artifacts.get("empty")),
     "empty payload did not change MLIR")
-  for (const name of ["restaurant-interpolation", "typed-arithmetic",
-    "percent-interpolation", "nul-interpolation", "minimum-i64"]) {
+  for (const name of ["restaurant-interpolation", "restaurant-checked-arithmetic",
+    "typed-arithmetic", "percent-interpolation", "nul-interpolation",
+    "minimum-i64"]) {
     const artifact = artifacts.get(name)
     assert(artifact.includes("@w_seed_append_i64") &&
       !artifact.includes("snprintf") && !artifact.includes("%ld") &&
@@ -404,22 +450,46 @@ try {
       !artifact.includes("snprintf") && !artifact.includes("vararg"),
     `${name} did not retain typed Boolean lowering`)
   }
-  assert(artifacts.get("typed-bindings").includes("llvm.mul %v0, %v1 : i64"),
-    "typed binding arithmetic was precomputed before MLIR")
+  const checkedArithmeticArtifact = artifacts.get("restaurant-checked-arithmetic")
+    assert(checkedArithmeticArtifact.includes(
+    "llvm.call @w_seed_checked_add_i64") &&
+    checkedArithmeticArtifact.includes("llvm.call @w_seed_checked_subtract_i64") &&
+    checkedArithmeticArtifact.includes("llvm.intr.sadd.with.overflow") &&
+    checkedArithmeticArtifact.includes("llvm.intr.ssub.with.overflow") &&
+    !checkedArithmeticArtifact.includes("llvm.add %v") &&
+      !checkedArithmeticArtifact.includes("llvm.sub %v"),
+  "Restaurant checked arithmetic did not retain checked add/sub lowering")
+  const typedArithmeticArtifact = artifacts.get("typed-arithmetic")
+  assert(typedArithmeticArtifact.includes("llvm.sdiv %v") &&
+    typedArithmeticArtifact.includes("llvm.srem %v"),
+  "constant division and remainder did not retain LLVM arithmetic lowering")
+  assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
+    !artifacts.get("dead-unused").includes("@w_seed_checked_") &&
+    !artifacts.get("dead-unused").includes("@w_fn_0(") &&
+    !artifacts.get("dead-unused").includes("@w_fn_1(") &&
+    !artifacts.get("dead-unused").includes("@w_fn_2(") &&
+    !artifacts.get("dead-unused").includes("\\73\\65\\63\\72\\65\\74"),
+  "unreachable function, text, or checked arithmetic helper was emitted")
+  assert(artifacts.get("typed-bindings").includes(
+    "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : (i64, i64) -> i64"),
+  "typed binding arithmetic was precomputed before MLIR")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
-    artifacts.get("direct-call").includes("llvm.mul %v4, %v5 : i64") &&
+    artifacts.get("direct-call").includes(
+      "llvm.call @w_seed_checked_multiply_i64(%v4, %v5) : " +
+      "(i64, i64) -> i64") &&
     artifacts.get("direct-call").includes("%p0") &&
     artifacts.get("direct-call").includes("%p1"),
   "direct W call was flattened, reordered during evaluation, or precomputed")
   assert(artifacts.get("direct-call").indexOf("llvm.mlir.constant(true)") <
-    artifacts.get("direct-call").indexOf("llvm.mul %v4, %v5 : i64"),
+    artifacts.get("direct-call").indexOf(
+      "llvm.call @w_seed_checked_multiply_i64(%v4"),
   "named argument evaluation did not preserve source order")
   assert(artifacts.get("scalar-return").includes(
     "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr) -> i64") &&
     artifacts.get("scalar-return").includes("%call0 = llvm.call @w_fn_0") &&
     artifacts.get("scalar-return").includes("llvm.return %v") &&
     artifacts.get("scalar-return").includes("@w_seed_append_i64") &&
-    artifacts.get("scalar-return").includes("llvm.mul"),
+    artifacts.get("scalar-return").includes("w_seed_checked_multiply_i64"),
   "scalar return was flattened, precomputed, or disconnected from interpolation")
   assert(artifacts.get("bool-return").includes(
     "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr) -> i1") &&
@@ -492,6 +562,17 @@ try {
       `fn value(): i64 { return 42 }\nfn relay(): i64 { return value() }\n` +
       `fn main() { let result = relay() print("\${result}") }\nentry(main)\n`],
     ["nested-if-too-deep.w", nestedIfTooDeep],
+    ["constant-arithmetic-overflow.w",
+      `fn main() { let value = 9223372036854775807 + 1 ` +
+      `print("\${value}") }\nentry(main)\n`],
+    ["runtime-division.w",
+      `fn divide(value: i64): i64 { return value / 2 }\n` +
+      `fn main() { let result = divide(value: 5) ` +
+      `print("\${result}") }\nentry(main)\n`],
+    ["runtime-remainder.w",
+      `fn remainder(value: i64): i64 { return value % 2 }\n` +
+      `fn main() { let result = remainder(value: 5) ` +
+      `print("\${result}") }\nentry(main)\n`],
     ["scalar-cfg.w",
       `fn main(): i64 { if true { print("x") } return 1 }\nentry(main)\n`],
     ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],
