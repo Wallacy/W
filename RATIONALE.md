@@ -200,6 +200,7 @@ O corpus compara, no mínimo:
 - checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
+- caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
 
 ### 1.1 Cobertura de substituições
 
@@ -7798,6 +7799,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend, current HIR0 `w-seed-hir0-13`, and MLIR0 `w-seed-mlir0-15` with Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. Unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 | W-1541 | bounded short default entry through the seed compiler | `entry { statements }` lowers through parser, frontend15 and HIR13 as one private zero-argument Unit function plus one explicit `.default` descriptor. The private `<entry.default>` identity is not source-addressable. `entry(functionName)` remains valid. Duplicate default descriptors fail closed. The canonical Hello and checked-arithmetic Restaurant fixtures use the short form. | `source-backed-current` only for the bounded seed compiler and Linux/WSL public `w run` witness. Focused parser, frontend and HIR tests prove shape, direct target identity, measure/emit parity, trivia-independent semantics, provenance distinction and forged-mode rejection. HLO0/HLO1 and MLIR0 gates consume the same short-entry Hello. No named entry, parameterized inline body, custom return, typed error, async short entry, native Windows execution, general runtime, timing, or benchmark result is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1542 | bounded external `std.process` identity in frontend16 | Frontend16 accepts grouped imports with explicit local aliases, preserves each external nominal type as a resolver-owned `(external_module_index, external_symbol_index)` pair independent of source spelling, and recognizes only the canonical exported constant `std.process.ExitCode.success` with no payload. Duplicate local import aliases and malformed or inconsistent external metadata fail closed. This cut ends at frontend records; verified HIR, handler compatibility, direct-entry proof, lowering, runtime arguments, native execution, Windows, and performance remain gaps. | `source-backed-current` only for the bounded parser, module-scan, and frontend implementation plus focused adversarial C tests. HIR0/HLO0/MLIR0 passing tests are regression evidence, not external-process support. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
+| W-1543 | bounded `std.process` identity and handler adapter in verified HIR14 | HIR14 deep-copies the canonical `std.process` module, its three nominal types, and the constant zero-parameter `ExitCode.success` member into caller-owned records. Nominal types and the external enum-case value retain resolver-owned pairs. An explicit entry adapter verifies the exact async two-parameter `Arguments`, `Context` to `ExitCode` handler cut without inferring `directEntry`. Canonical external identity enters the semantic digest; alias spelling remains provenance. | `source-backed-current` only for frontend16 to verified HIR14 and focused adversarial C tests. HLO0 and MLIR0 reject the process HIR without partial output. Argument access, providers, ABI lowering, runtime input, native execution, Windows, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10606,7 +10608,8 @@ performance, ABI, target-coverage or general-CFG claim.
 
 ARITH0 closes the next bounded arithmetic gap after SCALAR-IF0. Runtime
 signed-`i64` `+`, `-`, and `*` now travel from source through the frontend and
-verified HIR0 to MLIR0. The current HIR0 schema is `w-seed-hir0-13`. The MLIR0 schema is
+verified HIR0 to MLIR0. W-1540 introduced `w-seed-hir0-13`; W-1543 advances
+the current HIR schema to `w-seed-hir0-14`. The MLIR0 schema is
 `w-seed-mlir0-15`, with Windows label `w-seed-mlir0-windows-6`. Native0 stays
 v6 because its public records and receipt layout do not change.
 
@@ -10697,3 +10700,36 @@ buffer with unchanged caller-owned output. Existing HIR0, HLO0, and MLIR0 tests
 were rerun only to exclude regressions. The verified-HIR half of `PROC-ABI0`,
 handler compatibility, `directEntry`, lowering, process input, native execution,
 Windows, and performance remain separate work.
+
+#### W-1543 — bounded process identity and handler adapter in verified HIR14
+
+The frontend identity pair is useful to later compiler stages only if the HIR
+owns and revalidates the declaration graph that gives the pair meaning. HIR14
+therefore copies the canonical `std.process` module and four-symbol table into
+caller-owned storage. The first three symbols are exported nominal types. The
+fourth is the exported constant, zero-parameter `ExitCode.success` member with
+matching receiver and return type. The HIR has no pointer back to the source,
+frontend output, or resolver tables.
+
+Nominal type records and the external enum-case value retain atomic module and
+symbol indices. The verifier checks the copied table order, canonical names,
+kind, export/const state, arity, receiver and return metadata before accepting
+any pair. These facts and the explicit entry adapter discriminator participate
+in the semantic digest and receipt. Source aliases and trivia remain provenance,
+so changing only `ProcessArguments`/`ProcessContext`/`ProcessExitCode` spelling
+does not change program semantics.
+
+The adapter is explicit because inferring a native entry from a function name
+or from the presence of process types would silently create ABI behavior. The
+bounded row accepts one declared async handler with required value parameters
+`Arguments` then `Context`, an `ExitCode` result, and a sole return of canonical
+`.success`. Const, throws, unsafe, borrow, anonymous-entry, wider body, and wider
+external forms are unsupported in this implementation cut rather than rejected
+by the language design.
+
+Tests cover copied lifetime, alias semantic/provenance separation, mutated or
+reordered identities, handler and member forgeries, capacity/alias barriers,
+receipt/digest integrity, and downstream rejection. HLO0 and MLIR0 intentionally
+publish no process artifact yet. `directEntry`, argument access, capability use,
+provider/runtime state, ABI lowering, native execution, Windows, and performance
+remain later milestones.

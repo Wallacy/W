@@ -51,7 +51,7 @@ This is a tool-build fact, not a baseline or benchmark of the produced
 executable.
 
 W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
-HIR0 `w-seed-hir0-13` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
+HIR0 `w-seed-hir0-14` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
 Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
 Helpers are emitted only for reachable operations, and existing HIR call
 evaluation remains left-to-right and once-only. Constant overflow and faulting
@@ -62,7 +62,8 @@ The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
 Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
 proves only bounded nonzero process/fault termination with no later success
 output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
-W-1541 also closes the bounded `entry {}` path through frontend15 and HIR13.
+W-1541 also closes the bounded `entry {}` path introduced through frontend15
+and HIR13; the current HIR schema is HIR14.
 The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
@@ -74,6 +75,12 @@ case is the exported, constant, payload-free `ExitCode.success`. Duplicate
 local aliases and malformed resolver metadata fail closed. This evidence stops
 at frontend records: verified HIR, handler compatibility, runtime arguments,
 lowering, native execution, Windows, and performance remain gaps.
+W-1543 completes the verified-HIR half of `PROC-ABI0`. HIR14 deep-copies and
+independently verifies the canonical external module/symbol table, nominal type
+pairs, `ExitCode.success`, and an explicit native-process entry adapter. Alias
+spelling changes provenance but not the semantic digest. HLO0 and MLIR0 still
+reject this HIR without partial output; `directEntry`, ABI lowering, providers,
+runtime input, native execution, Windows, and performance remain gaps.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

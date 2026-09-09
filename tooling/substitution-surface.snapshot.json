@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:ce050731dca19bd826c16b06648323c4ad9853108f6de2ccb6a7194e287600be",
+  "corpusDigest": "sha256:2f0d749472b15bb05afe6ce0295163641f60909128f5ce9a0e9ae359501632c2",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5218,6 +5218,66 @@
             "utf8Bytes": 40,
             "codePoints": 40,
             "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-proc-abi0-verified-hir",
+      "task": {
+        "utf8Bytes": 125,
+        "codePoints": 125,
+        "nonWhitespaceCodePoints": 109,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:d8d90f6a12f2aad1312446b87ea2dd0a3023cbc20ba5cdda96300dcdc18807a9",
+        "metrics": {
+          "utf8Bytes": 228,
+          "codePoints": 228,
+          "nonWhitespaceCodePoints": 195,
+          "lines": 9,
+          "surfaceLexemes": 42
+        }
+      },
+      "alternatives": [
+        {
+          "name": "resolver-pointer-in-hir",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:e66b33635ac1dd460dbc372458cac06a28f4078044c23ac2db41facf9363f816",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "inferred-process-adapter",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:fd2d84a1937b88fe4a37a71f20cc4098c3ce8c576fcf6afd9ba5a7356e362f34",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "alias-sensitive-semantic-digest",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:57d6bb9d887ea8ffc30b56f0aa44d4ee2d22665134c98ebe1968ff264c88bd89",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 48,
             "lines": 1,
             "surfaceLexemes": 6
           }

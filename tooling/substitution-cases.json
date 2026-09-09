@@ -3884,6 +3884,96 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-proc-abi0-verified-hir",
+      "reviewItem": "caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.",
+      "decisions": [
+        "W-1543"
+      ],
+      "task": "Carry the bounded std.process handler from frontend16 into verified HIR14 without claiming ABI lowering or runtime execution.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import {",
+          "  Arguments as ProcessArguments,",
+          "  Context as ProcessContext,",
+          "  ExitCode as ProcessExitCode,",
+          "} from std.process",
+          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+          "  return .success",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "resolver-pointer-in-hir",
+          "language": "w-rejected",
+          "source": [
+            "HIR nominal identity = borrowed frontend resolver record"
+          ],
+          "expectedDifference": "Verified HIR owns canonical external records and remains valid after frontend and resolver storage is discarded."
+        },
+        {
+          "name": "inferred-process-adapter",
+          "language": "w-rejected",
+          "source": [
+            "adapter = infer from function name or nominal spelling"
+          ],
+          "expectedDifference": "The entry record carries an explicit native-process adapter discriminator verified against the exact bounded handler shape."
+        },
+        {
+          "name": "alias-sensitive-semantic-digest",
+          "language": "w-rejected",
+          "source": [
+            "semantic digest includes ProcessExitCode source alias"
+          ],
+          "expectedDifference": "Canonical external identity affects semantics; source alias spelling affects provenance only."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
+          "claim": "HIR14 publishes caller-owned external module/symbol records, nominal pairs, external enum-case identity, and an explicit entry adapter."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_external_records",
+          "claim": "The verifier independently checks the canonical copied std.process declaration graph."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_process_handler",
+          "claim": "The verifier accepts only the exact bounded native-process handler and explicit adapter row."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_process_hir_adversarial",
+          "claim": "Focused tests cover copied lifetime, alias digest separation, identity and handler forgeries, capacities, aliases, receipts, and digests."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hlo0.c",
+          "symbol": "test_process_hir_is_closed_to_hlo",
+          "claim": "HLO0 rejects a verified process HIR without changing measured counts, result, plan, or receipt."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_hir_is_closed_to_mlir",
+          "claim": "MLIR0 rejects a verified process HIR without changing counts, result, or output bytes."
+        }
+      ],
+      "checks": [
+        "Focused frontend16 and HIR14 units passed",
+        "HLO0 and MLIR0 reject the valid process HIR without partial output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

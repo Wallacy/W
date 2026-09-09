@@ -1047,8 +1047,8 @@ HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
 `w-seed-mlir0-windows-6`; Native0 remains v6. W-1541 advances frontend to
 `w-seed-frontend-15` and HIR0 to `w-seed-hir0-13`; MLIR0, its Windows label,
 and Native0 remain unchanged. W-1542 advances only the frontend to
-`w-seed-frontend-16`; HIR0, MLIR0, its Windows label, and Native0 remain
-unchanged.
+`w-seed-frontend-16`. W-1543 advances HIR0 to `w-seed-hir0-14`; MLIR0, its
+Windows label, and Native0 remain unchanged.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1172,7 +1172,8 @@ target-coverage or performance evidence.
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 
 ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded
-source → frontend → HIR0 → MLIR0 route. HIR0 is `w-seed-hir0-13`, MLIR0 is
+source → frontend → HIR0 → MLIR0 route. W-1540 introduced HIR13; current HIR0
+is `w-seed-hir0-14`. MLIR0 is
 `w-seed-mlir0-15`, the Windows artifact label is
 `w-seed-mlir0-windows-6`, and Native0 remains v6. Runtime arithmetic calls
 LLVM signed-overflow intrinsics. An overflow edge calls the LLVM trap
@@ -1203,7 +1204,7 @@ and one `.default` descriptor. The function carries `is_anonymous_entry`. The
 entry carries `is_body` and a direct `target_function` index. The internal
 `<entry.default>` identity is not source-addressable.
 
-HIR13 copies and verifies those facts. Its text measurement counts the private
+HIR13 introduced copying and verification of those facts. Its text measurement counts the private
 name used by both the function and entry target. Parser, frontend, and HIR tests
 cover the short shape, measure/emit parity, semantic/provenance digests, mode
 forgeries, and duplicate default rejection. The canonical Hello fixture passes
@@ -1231,9 +1232,33 @@ metadata, deterministic receipts, alias-sensitive provenance, and receipt
 capacity preservation.
 
 This is the frontend portion of `PROC-ABI0`, not a complete process ABI. HIR13
-does not yet publish these external identities, and this cut does not prove
+did not publish these external identities; W-1543 adds that bounded HIR step.
+This frontend cut by itself does not prove
 handler compatibility, `directEntry`, argument access, lowering, runtime
 input, native execution, Windows, or performance.
+
+### External process identity and handler adapter in HIR14 (W-1543)
+
+HIR14 deep-copies one canonical `std.process` module and exactly four symbols:
+the exported `Arguments`, `Context`, and `ExitCode` types plus the exported
+constant zero-parameter `ExitCode.success` value. Nominal types and the
+external enum-case value retain atomic module/symbol pairs. The verifier checks
+the copied names, kinds, export/const state, arity, receiver and return metadata
+without consulting frontend or resolver storage.
+
+The entry record carries an explicit native-process adapter kind. The bounded
+row accepts exactly one same-module declared async handler with two required
+value parameters (`Arguments`, then `Context`), an `ExitCode` return, and a sole
+return of canonical `.success`. Wider effects, ownership and body shapes are
+unsupported in this seed cut. Alias spelling does not change the semantic
+digest, while source spelling remains in provenance.
+
+Counts, capacities, copied text, both external arrays, receipt and digests are
+covered by the caller-owned overlap and all-or-nothing barriers. Focused tests
+mutate the copied graph and adapter independently. HLO0 and MLIR0 deliberately
+reject a valid process HIR without output mutation. `directEntry`, argument
+access, providers, ABI lowering, runtime input, native execution, Windows, and
+performance remain gaps.
 
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
