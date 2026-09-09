@@ -57,6 +57,17 @@ sidecar-free. The runner builds `build/w-windows/w.exe` once as a bootstrap
 outside sample directories and leaves it retained. A pre-existing bootstrap
 may be replaced during that Release build. Sample directories and target EXEs
 are removed after each run.
+C, Rust and W retained correctness artifacts are checked by a bounded in-process
+PE32+ verifier: COFF symbols, CodeView/PDB data, certificate directories,
+out-of-bounds sections, overlay bytes and release sidecars fail closed. A
+POGO-only debug directory is accepted and measured as linker optimization
+metadata, not source-level debug symbols. This cleanliness statement applies
+only to new results produced by the current runner; immutable history retains
+its original provenance and is not retroactively certified. New runner-bound
+records carry `artifact.cleanliness` with exact zero counts for COFF symbols,
+CodeView entries, sidecars and overlay bytes plus bounded POGO entries and
+payload sizes when present. Historical records omit this field and remain
+uncertified.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
 remains exploratory and measurement-only. W remains contextual/non-ranking
 until process-tree accounting makes its compile CPU/RSS comparable. Local measurements remain ignored under `benchmarks/results/`;

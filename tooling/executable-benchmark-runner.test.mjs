@@ -14,6 +14,7 @@ import {
   publishRecord,
   resolveResultPath,
   runBenchmark,
+  validatePeX64,
 } from "./executable-benchmark-runner.mjs";
 import {
   C_RELEASE_FLAGS,
@@ -90,15 +91,79 @@ const TEST_ENVIRONMENT = {
   logicalCores: "8",
   ramBytes: "17179869184",
 };
+const EXPECTED_PE_ARTIFACT_CLEANLINESS = {
+  coffSymbols: { pointer: "0", count: "0" },
+  codeView: { count: "0", sizeBytes: "0" },
+  debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
+  certificateDirectory: { pointer: "0", sizeBytes: "0" },
+  sectionData: "in-bounds",
+  sidecars: { count: "0" },
+  overlay: { sizeBytes: "0" },
+};
+const { sidecars: _sidecars, ...EXPECTED_PE_IMAGE_CLEANLINESS } = EXPECTED_PE_ARTIFACT_CLEANLINESS;
 
-function fakePeX64() {
-  const bytes = Buffer.alloc(0x200);
+function fakePeX64({
+  symbolTablePointer = 0,
+  symbolCount = 0,
+  debugRva = 0,
+  debugSize = 0,
+  certificatePointer = 0,
+  certificateSize = 0,
+  overlay = Buffer.alloc(0),
+  rawPointer = 0x200,
+  rawSize = 0x200,
+  sectionCount = 1,
+  optionalHeaderSize = 0xf0,
+  directoryCount = 16,
+  sizeOfHeaders = 0x200,
+  debugType,
+  debugPayloadSize = 16,
+  debugPayloadRva = 0x1040,
+  debugPayloadPointer = 0x240,
+} = {}) {
+  const peOffset = 0x80;
+  const fileHeader = peOffset + 4;
+  const optionalHeader = fileHeader + 20;
+  const sectionTable = optionalHeader + optionalHeaderSize;
+  const sectionTableEnd = sectionTable + sectionCount * 40;
+  const rawEnd = rawPointer + rawSize;
+  const bytes = Buffer.alloc(Math.max(sizeOfHeaders, sectionTableEnd, rawEnd) + overlay.length);
   bytes[0] = 0x4d;
   bytes[1] = 0x5a;
-  bytes.writeUInt32LE(0x80, 0x3c);
-  bytes.writeUInt32LE(0x00004550, 0x80);
-  bytes.writeUInt16LE(0x8664, 0x84);
-  bytes.writeUInt16LE(0x20b, 0x98);
+  bytes.writeUInt32LE(peOffset, 0x3c);
+  bytes.writeUInt32LE(0x00004550, peOffset);
+  bytes.writeUInt16LE(0x8664, fileHeader);
+  bytes.writeUInt16LE(sectionCount, fileHeader + 2);
+  bytes.writeUInt32LE(symbolTablePointer, fileHeader + 8);
+  bytes.writeUInt32LE(symbolCount, fileHeader + 12);
+  bytes.writeUInt16LE(optionalHeaderSize, fileHeader + 16);
+  bytes.writeUInt16LE(0x20b, optionalHeader);
+  bytes.writeUInt32LE(sizeOfHeaders, optionalHeader + 60);
+  bytes.writeUInt32LE(directoryCount, optionalHeader + 108);
+  bytes.writeUInt32LE(debugRva, optionalHeader + 112 + 6 * 8);
+  bytes.writeUInt32LE(debugSize, optionalHeader + 112 + 6 * 8 + 4);
+  bytes.writeUInt32LE(certificatePointer, optionalHeader + 112 + 4 * 8);
+  bytes.writeUInt32LE(certificateSize, optionalHeader + 112 + 4 * 8 + 4);
+  for (let index = 0; index < sectionCount; index += 1) {
+    const section = sectionTable + index * 40;
+    Buffer.from(`.text${index}\0`, "ascii").copy(bytes, section, 0, 8);
+    if (index === 0) {
+      bytes.writeUInt32LE(rawSize, section + 8);
+      bytes.writeUInt32LE(0x1000, section + 12);
+      bytes.writeUInt32LE(rawSize, section + 16);
+      bytes.writeUInt32LE(rawPointer, section + 20);
+    }
+  }
+  if (debugType !== undefined) {
+    const debugEntry = rawPointer;
+    bytes.writeUInt32LE(0x1000, optionalHeader + 112 + 6 * 8);
+    bytes.writeUInt32LE(28, optionalHeader + 112 + 6 * 8 + 4);
+    bytes.writeUInt32LE(debugType, debugEntry + 12);
+    bytes.writeUInt32LE(debugPayloadSize, debugEntry + 16);
+    bytes.writeUInt32LE(debugPayloadRva, debugEntry + 20);
+    bytes.writeUInt32LE(debugPayloadPointer, debugEntry + 24);
+  }
+  if (overlay.length > 0) Buffer.from(overlay).copy(bytes, rawEnd);
   return bytes;
 }
 
@@ -106,7 +171,7 @@ function fakeResourceUsage() {
   return { cpuTime: { user: 1, system: 1 }, maxRSS: 4096 };
 }
 
-function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined, symbolSidecar = false }) {
+function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined, symbolSidecar = false, peOptions = {} }) {
   const compiler = path.resolve(`fake-${language === "c" ? "gcc" : "rustc"}.exe`);
   const calls = [];
   const sampleDirectories = new Set();
@@ -148,8 +213,8 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
     if (outputIndex >= 0) {
       const artifact = args[outputIndex + 1];
       sampleDirectories.add(options.cwd);
-      await writeFile(artifact, fakePeX64());
-      if (language === "rust" && symbolSidecar) {
+      await writeFile(artifact, fakePeX64(peOptions));
+      if (symbolSidecar) {
         await writeFile(artifact.replace(/\.exe$/iu, ".pdb"), Buffer.from("debug symbols", "utf8"));
       }
       return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), resourceUsage: fakeResourceUsage() };
@@ -168,7 +233,7 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
   return { compiler, calls, sampleDirectories, executor };
 }
 
-function fakeWRunnerExecutor(target, { symbolSidecar = false } = {}) {
+function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } = {}) {
   const calls = [];
   const sampleDirectories = new Set();
   const publicW = {
@@ -203,7 +268,7 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false } = {}) {
       assert.deepEqual(args.slice(0, 6), ["build", path.resolve(target === "restaurant-branch" ? "compiler/seed-c/fixtures/restaurant-if.w" : "benchmarks/executable/hello.w"), "--target", "x86_64-pc-windows-msvc", "--output", args[5]]);
       const output = args[5];
       sampleDirectories.add(options.cwd);
-      await writeFile(output, fakePeX64());
+      await writeFile(output, fakePeX64(peOptions));
       if (symbolSidecar) await writeFile(output.replace(/\.exe$/iu, ".pdb"), Buffer.from("debug symbols", "utf8"));
       return result(0);
     }
@@ -229,6 +294,58 @@ function assertNoFakeSampleDirectories(fake) {
   for (const directory of fake.sampleDirectories) assert.equal(existsSync(directory), false, `temporary sample remains: ${directory}`);
 }
 
+test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certificate, overlay and malformed metadata", () => {
+  for (const language of ["w", "c", "rust"]) {
+    assert.deepEqual(validatePeX64(fakePeX64(), language), EXPECTED_PE_IMAGE_CLEANLINESS);
+    assert.deepEqual(validatePeX64(fakePeX64({ debugType: 13 }), language), {
+      ...EXPECTED_PE_IMAGE_CLEANLINESS,
+      debugDirectory: {
+        presence: "pogo-only",
+        sizeBytes: "28",
+        entries: [{ type: "pogo", typeCode: 13, sizeBytes: "16" }],
+      },
+    });
+    const codeViewBytesInSection = fakePeX64();
+    Buffer.from("RSDS", "ascii").copy(codeViewBytesInSection, 0x200);
+    assert.doesNotThrow(() => validatePeX64(codeViewBytesInSection, language), `${language} section bytes are not a debug directory`);
+
+    for (const [options, message] of [
+      [{ symbolTablePointer: 0x200 }, /COFF symbol table/u],
+      [{ symbolCount: 1 }, /COFF symbol table/u],
+      [{ debugRva: 0x200 }, /PE debug data/u],
+      [{ debugSize: 28 }, /PE debug data/u],
+      [{ debugType: 2 }, /CodeView debug data/u],
+      [{ debugType: 1 }, /unsupported PE debug data type 1/u],
+      [{ debugType: 13, debugPayloadPointer: 0 }, /invalid POGO debug payload/u],
+      [{ debugType: 13, debugPayloadRva: 0x2000 }, /invalid POGO debug payload 0 RVA range/u],
+      [{ certificatePointer: 0x400 }, /PE certificate directory/u],
+      [{ certificateSize: 1 }, /PE certificate directory/u],
+      [{ overlay: Buffer.from("RSDS synthetic CodeView overlay", "ascii") }, /overlay bytes/u],
+      [{ directoryCount: 6 }, /invalid PE data-directory count/u],
+      [{ directoryCount: 17 }, /invalid PE data-directory count/u],
+      [{ sectionCount: 0 }, /no PE sections/u],
+    ]) {
+      assert.throws(() => validatePeX64(fakePeX64(options), language), message, `${language} must reject ${message}`);
+    }
+
+    const invalidOffset = fakePeX64();
+    invalidOffset.writeUInt32LE(0xfffffff0, 0x3c);
+    assert.throws(() => validatePeX64(invalidOffset, language), /truncated or invalid PE\/COFF header/u);
+
+    const shortOptionalHeader = fakePeX64();
+    shortOptionalHeader.writeUInt16LE(0xa0, 0x94);
+    assert.throws(() => validatePeX64(shortOptionalHeader, language), /optional header is too small/u);
+
+    const shortSectionTable = fakePeX64().subarray(0, 0x1af);
+    shortSectionTable.writeUInt32LE(0x1a0, 0xd4);
+    assert.throws(() => validatePeX64(shortSectionTable, language), /truncated or invalid PE section table/u);
+
+    const outOfBoundsSection = fakePeX64();
+    outOfBoundsSection.writeUInt32LE(0x1000, 0x198);
+    assert.throws(() => validatePeX64(outOfBoundsSection, language), /truncated or invalid PE section 0 raw data/u);
+  }
+});
+
 async function ownedRunDirectories() {
   return new Set((await readdir(os.tmpdir())).filter((name) => name.startsWith("w-executable-run-")));
 }
@@ -245,6 +362,7 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(record.run.warmup.length, 1);
     assert.equal(record.run.raw.length, 9);
     assert.equal(record.correctness.oracleId, "hello:exact-output");
+    assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
     assert.equal(record.artifactTarget, language === "c" ? "x86_64-w64-mingw32" : "x86_64-pc-windows-msvc");
     assert.match(record.protocol.resourceScope, /direct compiler process only/u);
     assert.match(record.protocol.directProcessDisclosure, /per-direct-child timeout.*SIGKILL.*descendant termination.*Job Object/iu);
@@ -296,6 +414,47 @@ test("Rust release measurement rejects an unexpected PDB sidecar", async () => {
   assertNoFakeSampleDirectories(fake);
 });
 
+test("C release measurement rejects an unexpected release sidecar", async () => {
+  const fake = fakeRunnerExecutor({ language: "c", symbolSidecar: true });
+  await assert.rejects(
+    () => runBenchmark({ language: "c", warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies("c", fake)),
+    /C compiler produced unexpected release sidecars: .*\.exe, .*\.pdb/iu,
+  );
+  assertNoFakeSampleDirectories(fake);
+});
+
+test("PE cleanliness is checked on the retained correctness artifact before execution and sizing", async () => {
+  for (const language of ["c", "rust"]) {
+    const fake = fakeRunnerExecutor({ language, peOptions: { debugRva: 0x200, debugSize: 28 } });
+    await assert.rejects(
+      () => runBenchmark({ language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake)),
+      /invalid PE debug directory RVA range/u,
+    );
+    assert.equal(fake.calls.filter((call) => call.args.length === 0).length, 0, `${language} must reject before execution`);
+    assert.equal(fake.calls.filter((call) => call.args.includes("-o")).length, 1, `${language} must reject before measured samples`);
+    assertNoFakeSampleDirectories(fake);
+  }
+
+  const fake = fakeWRunnerExecutor("hello", { peOptions: { overlay: Buffer.from("RSDS synthetic CodeView overlay", "ascii") } });
+  await assert.rejects(
+    () => runBenchmark({ language: "w", warmup: 1, samples: 9, publish: false }, {
+      executor: fake.executor,
+      commit: TEST_COMMIT,
+      environment: TEST_ENVIRONMENT,
+      runnerDigest: TEST_DIGEST,
+      catalogDigest: TEST_DIGEST,
+      testOnly: true,
+      testOnlyPlatform: { platform: "win32", arch: "x64" },
+      windowsToolchain: fake.windowsToolchain,
+      publicW: fake.publicW,
+    }),
+    /contains overlay bytes/u,
+  );
+  assert.equal(fake.calls.filter((call) => call.args.length === 0).length, 0, "W must reject before execution");
+  assert.equal(fake.calls.filter((call) => call.args[0] === "build").length, 1, "W must reject before measured samples");
+  assertNoFakeSampleDirectories(fake);
+});
+
 test("restaurant-branch W uses public w build with a retained correctness artifact and separate run series", async () => {
   const fake = fakeWRunnerExecutor("restaurant-branch");
   let publicBuilds = 0;
@@ -317,8 +476,10 @@ test("restaurant-branch W uses public w build with a retained correctness artifa
   assert.equal(record.language, "w");
   assert.equal(record.identity.recipe, "public-w-build-release");
   assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
+  assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
   assert.equal(record.compile.raw.length, 9);
   assert.equal(record.run.raw.length, 9);
+  assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
   assert.equal(publicBuilds, 1, "public w.exe must be built once outside the compile samples");
   const compileCalls = fake.calls.filter((call) => call.args[0] === "build");
   assert.equal(compileCalls.length, 11);

@@ -135,6 +135,15 @@ test("CLI record consumes its candidate only after isolated publication succeeds
     const rustReference = fixtureDocuments.history.records.find((reference) => reference.id.startsWith("hello-rust-"));
     const rustRecord = JSON.parse(fs.readFileSync(path.join(destinationHistory, rustReference.path), "utf8"));
     rustRecord.id = "hello-rust-cli-fixture";
+    rustRecord.artifact.cleanliness = {
+      coffSymbols: { pointer: "0", count: "0" },
+      codeView: { count: "0", sizeBytes: "0" },
+      debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] },
+      certificateDirectory: { pointer: "0", sizeBytes: "0" },
+      sectionData: "in-bounds",
+      sidecars: { count: "0" },
+      overlay: { sizeBytes: "0" },
+    };
     rustRecord.provenance.observedAt = "2026-09-08T00:00:01.000Z";
     rustRecord.provenance.catalogDigest = "sha256:" + crypto.createHash("sha256")
       .update(fs.readFileSync(path.join(fixture, "benchmarks", "executable-catalog.json")))
