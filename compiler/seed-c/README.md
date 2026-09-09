@@ -15,8 +15,10 @@ default e o cache aceita somente `23` ou `11`; `11` é uma lane explícita de
 recovery/compatibilidade. O CMake exige o standard e mantém extensões off.
 GCC/Clang usam `-std=c23`; uma toolchain que só aceita `-std=c2x` pode rodar
 correctness com disclosure `c2x-preview (correctness-only; not a final C23
-result)`, sem ranking final C23. Não há fallback silencioso para C11. MSVC sem
-C23 gera SKIP no gate principal ou roda recovery quando isso for solicitado.
+result)`, sem ranking final C23. Não há fallback silencioso para C11. No
+Windows, MSVC usa `/std:clatest` somente na lane `c23-msvc-preview`, com
+correctness-only e sem resultado C23 final. A lane `c11-recovery` exige
+solicitação explícita.
 
 O código continua compilável em C11 recovery. Essa escolha não cria requisito
 C23 para uma ABI C externa. C permanece backend de validation, differential e
@@ -1191,9 +1193,11 @@ an x64 PE. The cache has role `development-and-release-only`,
 `bundledWithW: false`, and its extracted size is not a W package budget. This is
 candidate evidence, not general support. Unicode source paths, the general
 ABI/runtime, packaging, CI, cross-compilation, and other targets remain gaps.
-The builder tries C23 first; this host's MSVC/CMake rejects that dialect, so
-the current local evidence uses the explicit `--c11-recovery` option. There is
-no implicit standard fallback. The builder reads each fixture before execution,
+The builder preserves C23 as the request and maps it to the MSVC
+`/std:clatest` preview lane. The receipt labels this lane
+`c23-msvc-preview`, correctness-only and not a final C23 result. The current
+local evidence uses the explicit `--c11-recovery` option. There is no implicit
+standard fallback. The builder reads each fixture before execution,
 records its SHA-256, and runs exact Hello and Restaurant smokes from the staged
 executable before it atomically installs `build/w-windows/w.exe` and
 `build/w-windows/receipt.json`. The receipt is local evidence only, and is not

@@ -45,8 +45,12 @@ The default toolchain profile is `release`.
 | benchmark | Release | reproducible-pinned | no |
 | size-experimental | MinSizeRel | size-comparison-only | no |
 
-The primary C standard is `23`.
-The explicit recovery standard is `11`.
+The primary C standard request is `23`.
+The MSVC request lane is `c23-msvc-preview` via
+`/std:clatest`. It is
+correctness-only; not a final C23 result.
+The explicit recovery standard is `11`
+in lane `c11-recovery`.
 The recovery option is `--c11-recovery`.
 The builder does not select recovery implicitly.
 The `benchmark` profile is a constrained, probed recipe. It requires

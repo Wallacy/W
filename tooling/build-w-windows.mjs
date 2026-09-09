@@ -72,6 +72,17 @@ export const PROFILE_RECIPES = Object.freeze({
   }),
 })
 
+export const C_LANES = Object.freeze({
+  c23: "c23-msvc-preview",
+  c11: "c11-recovery",
+})
+
+export function cLaneForStandard(cStandard) {
+  if (cStandard === "23") return C_LANES.c23
+  if (cStandard === "11") return C_LANES.c11
+  throw new Error(`unknown Windows builder C standard: ${cStandard}`)
+}
+
 const REPRODUCIBILITY_SPEC = Object.freeze({
   compilerOptions: Object.freeze([
     "/options:strict",
@@ -210,6 +221,7 @@ export function parseBuildArguments(argv) {
     selectedProfile,
     c11Recovery,
     cStandard: c11Recovery ? "11" : "23",
+    cLane: cLaneForStandard(c11Recovery ? "11" : "23"),
   }
 }
 
@@ -563,7 +575,13 @@ export function validateReceipt(receipt) {
       "receipt CMake build type does not match the selected profile")
   add(receipt.cStandard === "23" || receipt.cStandard === "11",
     "receipt C standard is invalid")
-  add(receipt.cLane === (receipt.cStandard === "11" ? "c11-recovery" : "c23-primary"),
+  let expectedLane
+  try {
+    expectedLane = cLaneForStandard(receipt.cStandard)
+  } catch {
+    expectedLane = undefined
+  }
+  add(receipt.cLane === expectedLane,
     "receipt C lane is invalid")
 
   add(hasExactKeys(receipt.source, ["head", "dirty"]) &&
@@ -706,7 +724,7 @@ function makeReceipt({
       cmakeBuildType: recipe.cmakeBuildType,
     },
     cStandard,
-    cLane: cStandard === "11" ? "c11-recovery" : "c23-primary",
+    cLane: cLaneForStandard(cStandard),
     source: {
       head: gitState.head,
       dirty: gitState.dirty,
@@ -905,8 +923,14 @@ async function main() {
   const startingGitState = readGitState()
   if (recipe.reproducible && startingGitState.dirty)
     fail("benchmark profile requires a clean Git worktree before build")
-  if (options.cStandard === "11")
-    console.log("W Windows build: C23 is the primary standard; using explicit C11 recovery")
+  if (options.cStandard === "11") {
+    console.log("W Windows build: C23 is the primary request; using explicit C11 recovery")
+  } else {
+    console.log(
+      "W Windows build: C23 request uses MSVC /std:clatest preview " +
+      "(correctness-only; not a final C23 result)",
+    )
+  }
 
   const manifest = JSON.parse(await readFile(manifestPath, "utf8"))
   const manifestErrors = validateManifest(manifest)
@@ -1012,7 +1036,8 @@ async function main() {
     const installedStats = await lstat(binaryPath)
     console.log(`W Windows build: profile=${options.profile} cmakeBuildType=${recipe.cmakeBuildType} ` +
       `wExe=${binaryPath} bytes=${installedStats.size} receipt=${receiptPath} ` +
-      `sdk=${sdk.version} compiler=${compiler.version} cStandard=${options.cStandard}`)
+      `sdk=${sdk.version} compiler=${compiler.version} cStandard=${options.cStandard} ` +
+      `cLane=${options.cLane}`)
     console.log(`W Windows build: staged smoke passed=${installedReceipt.smoke.map((item) => item.id).join(",")}`)
   } finally {
     if (stageDirectory !== undefined)

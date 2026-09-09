@@ -89,7 +89,11 @@
     ],
     "cStandard": {
       "primary": "23",
+      "primaryLane": "c23-msvc-preview",
+      "primaryMode": "/std:clatest",
+      "primaryDisclosure": "correctness-only; not a final C23 result",
       "recovery": "11",
+      "recoveryLane": "c11-recovery",
       "recoveryOption": "--c11-recovery",
       "implicitFallback": false
     },

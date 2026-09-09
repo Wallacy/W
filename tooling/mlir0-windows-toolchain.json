@@ -84,8 +84,8 @@
       "cStandard": "23",
       "recoveryCStandard": "11",
       "makeProgram": "explicit-ninja-path",
-      "cStandardPolicy": "C23-primary; C11-explicit-recovery-only",
-      "cStandardEvidence": "MSVC 19.51.36256.0 CMake generation rejected C23; use --c11-recovery explicitly",
+      "cStandardPolicy": "C23-requested; MSVC-clatest-preview-correctness-only; C11-explicit-recovery-only",
+      "cStandardEvidence": "MSVC /std:clatest is a correctness-only preview and not a final C23 result; use --c11-recovery explicitly for C11",
       "nativeRun": true,
       "toolchainRoles": ["mlir-opt", "mlir-translate", "llc", "lld-link"],
       "linkLibraries": ["kernel32.lib"]
