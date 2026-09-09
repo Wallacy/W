@@ -10,9 +10,10 @@ if(NOT W_SEED_C_STANDARD STREQUAL "23" AND NOT W_SEED_C_STANDARD STREQUAL "11")
     "W_SEED_C_STANDARD must be 23 (primary) or 11 (explicit recovery), got '${W_SEED_C_STANDARD}'")
 endif()
 
-# CMake does not provide an MSVC mapping for C23 yet. MSVC's supported
+# CMake does not provide an MSVC mapping for final C23 yet. MSVC's supported
 # latest-C mode is the closest standards-mode flag and keeps the canonical
-# C23 request intact instead of downgrading the project to C17 or C11.
+# C23 request intact. The Windows builder records this mode as a correctness-
+# only preview, not as a final C23 result.
 if(MSVC AND W_SEED_C_STANDARD STREQUAL "23")
   set(CMAKE_C23_STANDARD_COMPILE_OPTION "/std:clatest")
 endif()

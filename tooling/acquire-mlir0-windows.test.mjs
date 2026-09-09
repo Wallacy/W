@@ -48,7 +48,7 @@ describe("native Windows MLIR0 acquisition contract", () => {
     expect(manifest.buildBoundary.configuration.recoveryCStandard).toBe("11")
     expect(manifest.buildBoundary.configuration.makeProgram).toBe("explicit-ninja-path")
     expect(manifest.buildBoundary.configuration.cStandardPolicy)
-      .toBe("C23-primary; C11-explicit-recovery-only")
+      .toBe("C23-requested; MSVC-clatest-preview-correctness-only; C11-explicit-recovery-only")
     expect(manifest.buildBoundary.configuration.toolchainRoles).toEqual([
       "mlir-opt", "mlir-translate", "llc", "lld-link",
     ])

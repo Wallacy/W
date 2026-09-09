@@ -36261,15 +36261,17 @@ This remains a `candidate` route, not general Windows support. Backend, bounded
 runtime surface, host adapter, and the local SDK/link step have evidence; general
 W ABI/runtime, Unicode source paths, packaging, CI, cross-compilation, and other
 targets remain gaps. The source reader has no proof for Unicode source paths, so
-that behavior is not claimed. The builder tried primary C23 and MSVC/CMake
-rejected that dialect; the local evidence therefore uses the explicit
-`--c11-recovery` path. C11 is recovery only, not a silent fallback. Linux/WSL W-1521 remains the separate
+that behavior is not claimed. The builder preserves C23 as the requested
+standard. MSVC maps that request to `/std:clatest`, which the receipt records as
+`c23-msvc-preview` for correctness only, not as a final C23 result. Existing
+local evidence therefore uses the explicit `--c11-recovery` path. C11 is
+recovery only, not a silent fallback. Linux/WSL W-1521 remains the separate
 20.1.2/update-required route. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only; no timing or performance result is published.
 
 **Example:** a local candidate build keeps the heavy cache external. The primary
-command tries C23 and fails closed when this host rejects it; the exact current
-evidence recipe is an explicit C11 recovery:
+command requests C23 and records the MSVC preview lane; the exact current
+evidence recipe remains an explicit C11 recovery:
 
 ```text
 bun tooling/command-runner.mjs --command build:w-windows
@@ -36357,9 +36359,10 @@ does not silently use another recipe. The benchmark disposition is
 `compiler-lifecycle`, correctness and recipe evidence only. It records no
 timing or performance result.
 
-The primary C standard remains C23. This host's MSVC/CMake route rejects C23,
-so a successful local build uses the explicit C11 recovery lane. Recovery is
-never selected silently.
+The primary C standard request remains C23. On MSVC, CMake maps that request to
+`/std:clatest`. The builder records this as the `c23-msvc-preview` lane. This
+lane is correctness-only and is not a final C23 result. `--c11-recovery`
+selects the distinct `c11-recovery` lane. Recovery is never selected silently.
 
 The builder validates the external materialized toolchain, Windows SDK, and
 compiler identity before configure. It stages `w.exe` outside the persistent
@@ -36383,8 +36386,9 @@ and benchmark additionally requires a clean worktree.
 
 The profile recipes and receipt contract are machine-readable in
 `tooling/toolchain-distribution.json` and enforced by the builder script and its
-focused tests. The implementation remains bounded to
-Windows x86_64 and the existing C11 recovery evidence. It does not promote
+focused tests. The implementation remains bounded to Windows x86_64 and the
+existing C11 recovery evidence. The C23 request lane is preview-only and does
+not promote
 general W support, packaging, cross-compilation, or a public W build command.
 The Hello PE below 1 KiB remains an opportunity below the benchmark gate and is
 not acted on by this bundle.
@@ -36851,8 +36855,9 @@ GCC e Clang que aceitam `-std=c23` usam essa spelling. Uma toolchain antiga que
 aceita somente `-std=c2x` pode executar correctness, com o disclosure
 `c2x-preview (correctness-only; not a final C23 result)`, e nunca pode publicar
 resultado ou ranking final rotulado C23. Não há fallback silencioso para C11.
-MSVC sem C23 participa somente da lane de recovery explicitamente solicitada ou
-gera `SKIP` claro no gate principal.
+MSVC usa `/std:clatest` somente como a lane `c23-msvc-preview`. Essa lane é
+correctness-only e não é resultado C23 final. A lane `c11-recovery` exige
+solicitação explícita, e não há fallback silencioso.
 
 O código do seed continua compilável na lane C11 recovery. O artefato
 conservador permanece source-compatible entre as duas lanes. Headers de

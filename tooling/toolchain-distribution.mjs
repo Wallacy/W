@@ -104,7 +104,11 @@ function validate() {
   }
   exact(windowsBuilder?.cStandard, {
     primary: "23",
+    primaryLane: "c23-msvc-preview",
+    primaryMode: "/std:clatest",
+    primaryDisclosure: "correctness-only; not a final C23 result",
     recovery: "11",
+    recoveryLane: "c11-recovery",
     recoveryOption: "--c11-recovery",
     implicitFallback: false,
   }, "Windows builder C standard policy")
@@ -322,8 +326,12 @@ The default toolchain profile is ${tick}${windowsBuilder.defaultProfile}${tick}.
 ${windowsBuilder.profiles.map((profile) =>
     `| ${profile.id} | ${profile.cmakeBuildType} | ${profile.purpose} | ${profile.default ? "yes" : "no"} |`).join("\n")}
 
-The primary C standard is ${tick}${windowsBuilder.cStandard.primary}${tick}.
-The explicit recovery standard is ${tick}${windowsBuilder.cStandard.recovery}${tick}.
+The primary C standard request is ${tick}${windowsBuilder.cStandard.primary}${tick}.
+The MSVC request lane is ${tick}${windowsBuilder.cStandard.primaryLane}${tick} via
+${tick}${windowsBuilder.cStandard.primaryMode}${tick}. It is
+${windowsBuilder.cStandard.primaryDisclosure}.
+The explicit recovery standard is ${tick}${windowsBuilder.cStandard.recovery}${tick}
+in lane ${tick}${windowsBuilder.cStandard.recoveryLane}${tick}.
 The recovery option is ${tick}${windowsBuilder.cStandard.recoveryOption}${tick}.
 The builder does not select recovery implicitly.
 The ${tick}benchmark${tick} profile is a constrained, probed recipe. It requires

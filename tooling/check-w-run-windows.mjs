@@ -192,10 +192,13 @@ assert(manifestErrors.length === 0, manifestErrors.join("; "))
 assert(manifest.buildBoundary?.configuration?.cStandard === "23" &&
   manifest.buildBoundary?.configuration?.recoveryCStandard === "11" &&
   manifest.buildBoundary?.configuration?.cStandardPolicy ===
-    "C23-primary; C11-explicit-recovery-only",
+    "C23-requested; MSVC-clatest-preview-correctness-only; C11-explicit-recovery-only",
 "Windows C standard policy is not explicit")
 const cStandard = "11"
-console.log("W RUN Windows: C23 primary is unsupported by this MSVC/CMake; using explicit C11 recovery")
+console.log(
+  "W RUN Windows: C23 request is an MSVC /std:clatest preview only; " +
+  "using explicit C11 recovery",
+)
 assert(outsideRepository(defaultCacheDirectory()),
   "default toolchain cache must be outside the repository")
 assert(manifest.runtimeBoundary?.network === "forbidden" &&

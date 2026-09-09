@@ -69,9 +69,10 @@ The mandatory Linux and Windows CI jobs use Bun 1.4.0 and have not run.
 This evidence does not establish hosted CI success or general cross-target support.
 
 The primary Windows build command is `bun tooling/command-runner.mjs --command build:w-windows`. It selects the `release`
-toolchain profile by default. It tries C23 and fails closed when this host's
-MSVC/CMake rejects that dialect. To reproduce the current evidence, use
-exactly `bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery`.
+toolchain profile by default. It preserves C23 as the request and records the
+MSVC `/std:clatest` mode as `c23-msvc-preview`, correctness-only and not a final
+C23 result. To reproduce the current C11 evidence, use exactly
+`bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery`.
 
 The builder also accepts exactly one `--profile` value: `development` maps to
 CMake `Debug`, `release` maps to `Release`, `benchmark` maps to a

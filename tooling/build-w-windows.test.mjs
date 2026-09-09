@@ -18,6 +18,7 @@ import {
   SMOKE_CASES,
   assertStableGitHead,
   atomicInstallOutput,
+  cLaneForStandard,
   cmakeProfileArguments,
   createBuildReceipt,
   parseBuildArguments,
@@ -42,6 +43,7 @@ function sha256(bytes) {
 function sampleReceipt(binaryText = "sample w executable", options = {}) {
   const artifact = Buffer.from(binaryText)
   const profile = options.profile ?? "release"
+  const cStandard = options.cStandard ?? "11"
   const reproducibility = options.reproducibility ?? {
     required: false,
     compilerFlags: [],
@@ -72,7 +74,7 @@ function sampleReceipt(binaryText = "sample w executable", options = {}) {
   })
   return createBuildReceipt({
     profile,
-    cStandard: "11",
+    cStandard,
     gitState: { head: "a".repeat(40), dirty: false },
     manifest,
     materialized: { tools: materializedTools },
@@ -124,6 +126,7 @@ describe("native Windows builder profiles and receipt", () => {
     expect(parseBuildArguments([])).toMatchObject({
       profile: "release",
       cStandard: "23",
+      cLane: "c23-msvc-preview",
       c11Recovery: false,
     })
     expect(profileRecipe("development").cmakeBuildType).toBe("Debug")
@@ -133,7 +136,14 @@ describe("native Windows builder profiles and receipt", () => {
     expect(profileRecipe("size-experimental").cmakeBuildType).toBe("MinSizeRel")
     expect(parseBuildArguments([
       "--c11-recovery", "--profile", "size-experimental",
-    ])).toMatchObject({ profile: "size-experimental", cStandard: "11" })
+    ])).toMatchObject({
+      profile: "size-experimental",
+      cStandard: "11",
+      cLane: "c11-recovery",
+    })
+    expect(cLaneForStandard("23")).toBe("c23-msvc-preview")
+    expect(cLaneForStandard("11")).toBe("c11-recovery")
+    expect(() => cLaneForStandard("17")).toThrow()
   })
 
   test("rejects missing, unknown, duplicate, and joined profile options", () => {
@@ -210,6 +220,16 @@ describe("native Windows builder profiles and receipt", () => {
     const forgedText = JSON.parse(serialized)
     forgedText.windowsSdk.version = "/WX"
     expect(validateReceipt(forgedText).join(";")).toContain("receipt must not contain absolute paths")
+  })
+
+  test("labels the MSVC latest-C request as a non-final C23 preview", () => {
+    const receipt = sampleReceipt("sample C23 preview executable", { cStandard: "23" })
+    expect(receipt).toMatchObject({ cStandard: "23", cLane: "c23-msvc-preview" })
+    expect(validateReceipt(receipt)).toEqual([])
+
+    const forgedPrimary = JSON.parse(JSON.stringify(receipt))
+    forgedPrimary.cLane = "c23-primary"
+    expect(validateReceipt(forgedPrimary).join(";")).toContain("receipt C lane is invalid")
   })
 
   test("builds the complete benchmark recipe and quotes CMake path flags", () => {
