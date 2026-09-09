@@ -10,10 +10,10 @@ function reordered(majorUnits, currency) {
 
 describe("R1 call-label-order host oracle", () => {
   test("both label orders preserve the Money outcome", () => {
-    const expected = { minorUnits: 4200, currency: "cr" };
+    const expected = { minorUnits: 4200, currency: "ww" };
 
-    expect(fixedOrder(42, "cr")).toEqual(expected);
-    expect(reordered(42, "cr")).toEqual(expected);
+    expect(fixedOrder(42, "ww")).toEqual(expected);
+    expect(reordered(42, "ww")).toEqual(expected);
   });
 
   test("label permutations share one call shape and collide as overloads", () => {

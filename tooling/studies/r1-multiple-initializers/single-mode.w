@@ -1,6 +1,6 @@
 // R1 Last Light initializer study: one initializer with a mode value.
 
-enum Currency { cr }
+enum Currency { ww }
 
 enum MoneyInput {
   minorUnits(i128)

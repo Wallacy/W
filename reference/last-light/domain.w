@@ -140,7 +140,7 @@ export struct Receipt {
 }
 
 export enum Currency {
-  cr
+  ww
   usd
   brl
 }

@@ -1,6 +1,6 @@
 // R1 Last Light initializer study: disjoint initializer shapes.
 
-enum Currency { cr }
+enum Currency { ww }
 
 struct Money {
   let minorUnits: i128
