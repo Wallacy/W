@@ -18,7 +18,7 @@
       "role": "selected",
       "language": "w",
       "path": "fixed-order.w",
-      "digest": "sha256:350968dabb80925842559b3ec31975e0a1f8e6557a02fbe35cde4431f110a056",
+      "digest": "sha256:fb008567cb0e55dd5c01fabbb42a8f4b79e95affd8a3d20dfb3f53d34d55d7df",
       "changedConstructs": [
         "label-first declaration",
         "initializer selection",
@@ -30,7 +30,7 @@
       "role": "alternative",
       "language": "w",
       "path": "reordered.w",
-      "digest": "sha256:9f4bac427ccdf639a8389d82bf5bfd99710fefd4cfb6979e18859a74cd495e7f",
+      "digest": "sha256:39a405954dd364cd2769a3e021ae8bb4079646bc2cf86445613595d338cd8526",
       "changedConstructs": [
         "reordered labels within one segment",
         "same call shape"
@@ -42,16 +42,16 @@
     {
       "id": "primary-money-call",
       "majorUnits": 42,
-      "currency": "cr",
+      "currency": "ww",
       "expected": {
         "minorUnits": 4200,
-        "currency": "cr"
+        "currency": "ww"
       }
     },
     {
       "id": "adversarial-default-and-overload",
       "majorUnits": 42,
-      "currency": "cr",
+      "currency": "ww",
       "addedDefault": "currency",
       "addedOverload": [
         "currency",
@@ -114,7 +114,7 @@
   },
   "oracle": {
     "path": "oracle.test.mjs",
-    "digest": "sha256:4a7a8af2522da09a6a76d15e3485e33a8fa4882aa608c3131eadbf0f5455572c"
+    "digest": "sha256:a532cb134ca51f7508e7df10b407b8251b90546087e3e580037fc7aeacc5679c"
   },
   "evidence": {
     "current": [

@@ -141,7 +141,7 @@
     {
       "id": "R1-associated-members",
       "path": "tooling/studies/r1-associated-members/bundle.json",
-      "digest": "sha256:2a71a839f0a21a7b287d6bc8d028cc7462a25b6826cc885946f183959fb083da"
+      "digest": "sha256:5be2e363ce91779391c88cd58994aed4e37d43aeed03e278ce48d3813e7391b9"
     },
     {
       "id": "R1-atom2-atomic-contract",
@@ -171,7 +171,7 @@
     {
       "id": "R1-call-label-order",
       "path": "tooling/studies/r1-call-label-order/bundle.json",
-      "digest": "sha256:0f3fde4b5df7bd27eaf22e3d0e125be8acccc62ca1d6ee93cc34e8778217c847"
+      "digest": "sha256:a101537003051d77cba96fcaf48c176f37da2419cae68f98fb766da1e16b84ae"
     },
     {
       "id": "R1-callable-model-last-light",
@@ -196,7 +196,7 @@
     {
       "id": "R1-contract-envelopes-last-light",
       "path": "tooling/studies/r1-contract-envelopes/bundle.json",
-      "digest": "sha256:b089c5f788eefe15963f1d4efdebafad4d02bf32a401e4af06e4a984161238ea"
+      "digest": "sha256:8f1b8bc74357895eac6e8215f379f069e4982318223a1b178a9385dd19de9779"
     },
     {
       "id": "R1-control-flow-last-light",
@@ -271,12 +271,12 @@
     {
       "id": "R1-multiple-initializers",
       "path": "tooling/studies/r1-multiple-initializers/bundle.json",
-      "digest": "sha256:93a4e30163998fd586665604e41725d05e463a2dcaada385b090dee7da039cf5"
+      "digest": "sha256:a8418d6b50f5b1b2c8cba96ac8e085cd465b92e8b1837cf625e8d8852cbfe197"
     },
     {
       "id": "R1-pattern-surface",
       "path": "tooling/studies/r1-pattern-surface/bundle.json",
-      "digest": "sha256:75b160e77dce93dc32ad8360eab0657866d54efa6ddedf2373c131e2bce45c0b"
+      "digest": "sha256:b82c82d01d930b2adb38f96eefd6e392096b82af21ea81c74efe204e0b640eef"
     },
     {
       "id": "R1-pkg1-project-transaction",
@@ -301,7 +301,7 @@
     {
       "id": "R1-refinement-subject",
       "path": "tooling/studies/r1-refinement-subject/bundle.json",
-      "digest": "sha256:f9e35b7fcb1fadcae23c7654c62efab0a4f1a6b75360ecb51d887610bf15ff71"
+      "digest": "sha256:d3629cd951dee41e2d78a0491aed814865b90bda3b2afb67f3713dcea91574c6"
     },
     {
       "id": "R1-sec0-security-model",

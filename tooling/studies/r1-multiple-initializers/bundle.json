@@ -9,7 +9,7 @@
   "sourceBase": {
     "path": "../../../reference/last-light/domain.w",
     "symbol": "Money",
-    "digest": "sha256:7caca1c77bc66e3d98a8f88eee030cb7a64377e54981cb3fc9f9d2378f7710e5"
+    "digest": "sha256:13030d31b2805748975e212780b8102288962eb9c776278434638862f5b633bd"
   },
   "variants": [
     {
@@ -17,7 +17,7 @@
       "role": "selected",
       "language": "w",
       "path": "multiple.w",
-      "digest": "sha256:5bc081153c15acbdebbb3e07dbb66a1c37c11be204f340a152d520ff7d49c0b0",
+      "digest": "sha256:e3f97d549b735d9764252fe2afa6efd5fb75ae208fc579202f8748bbd4f9000f",
       "changedConstructs": [
         "two initializers with disjoint external labels",
         "uniform Type(...) construction",
@@ -29,7 +29,7 @@
       "role": "alternative",
       "language": "w",
       "path": "single-mode.w",
-      "digest": "sha256:9569e76c6983aeff57ac8f515f423ff6e5d9cd65f0da0d65b8628271008c7282",
+      "digest": "sha256:e0c75cb2fe8b287f678f40ab8592f14880846d8ee000dcb3ef9d28658411da58",
       "changedConstructs": [
         "one initializer shape",
         "enum mode value selects the invariant",
@@ -41,7 +41,7 @@
       "role": "alternative",
       "language": "w",
       "path": "factories.w",
-      "digest": "sha256:d03d65931932aec3f4a463aa70a221a32fb57aff470ed84b7101ff246af5e95d",
+      "digest": "sha256:021ee032cc5f198a1ffcae96c0296d4320b953f160d1d6c9edd6fe8751fca7db",
       "changedConstructs": [
         "one canonical initializer",
         "named associated factory for major units",

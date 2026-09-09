@@ -1,7 +1,7 @@
 // R1 Last Light call-label-order study variant.
 
 enum Currency {
-  cr
+  ww
 }
 
 struct Money {
