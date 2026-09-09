@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:87dde3566e71fb786bb0b7587d1fd697a93915abd1d38dd356d1fda8a973343f",
+  "corpusDigest": "sha256:d2a41615005ce76e434a171169f811fbd42fe135e7caf75ed79016a18d65e028",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -4968,6 +4968,198 @@
             "nonWhitespaceCodePoints": 39,
             "lines": 2,
             "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-scalar-if-value",
+      "task": {
+        "utf8Bytes": 127,
+        "codePoints": 127,
+        "nonWhitespaceCodePoints": 108,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:acacac9703c3539af94fc995488f1299b1bb04947111118415019263ff274045",
+        "metrics": {
+          "utf8Bytes": 316,
+          "codePoints": 316,
+          "nonWhitespaceCodePoints": 262,
+          "lines": 9,
+          "surfaceLexemes": 77
+        }
+      },
+      "alternatives": [
+        {
+          "name": "eager-select",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:a1643f038280195cea00ecda85e56d98d5276afa9bb0f5217e2f08dfaab5d429",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "fake-logical",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:ef33c0c868cb3ca59fabd74907e7e429755e1238392def844e18917c3dc07392",
+          "metrics": {
+            "utf8Bytes": 44,
+            "codePoints": 44,
+            "nonWhitespaceCodePoints": 36,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "general-cfg",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:d82806b48e3e8b610f7a75326ab15de4952a026494a4ca51cab86bbcf421fd57",
+          "metrics": {
+            "utf8Bytes": 52,
+            "codePoints": 52,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "runtime-arithmetic",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:c3b466cc9b8e0f47e8f130ea688a4f01a15d9e02da43f1adf3d274e34245dbaf",
+          "metrics": {
+            "utf8Bytes": 59,
+            "codePoints": 59,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-mlir0-checked-i64-arithmetic",
+      "task": {
+        "utf8Bytes": 122,
+        "codePoints": 122,
+        "nonWhitespaceCodePoints": 106,
+        "lines": 1,
+        "surfaceLexemes": 21
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c65327b96860259023bcb7be07b5cc1947c692482245f494911ee23213f13608",
+        "metrics": {
+          "utf8Bytes": 241,
+          "codePoints": 241,
+          "nonWhitespaceCodePoints": 191,
+          "lines": 8,
+          "surfaceLexemes": 62
+        }
+      },
+      "alternatives": [
+        {
+          "name": "wrapped-runtime-arithmetic",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:3fa3810dc07439dd95b3fec83aa51d99b4d95b0a0f7a9659c3f50dd5da1b4011",
+          "metrics": {
+            "utf8Bytes": 19,
+            "codePoints": 19,
+            "nonWhitespaceCodePoints": 16,
+            "lines": 1,
+            "surfaceLexemes": 4
+          }
+        },
+        {
+          "name": "eager-all-helpers",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:b0b365e885c655fa9d19458457ca920f158708e3f08600212a34ac946d822fa4",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 6
+          }
+        },
+        {
+          "name": "runtime-division-remainder",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:a1ed18b4f3cb9a545dd5a9271214d76588cdb3cd4ae269f701365ddc1441df11",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 38,
+            "lines": 2,
+            "surfaceLexemes": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-short-default-entry",
+      "task": {
+        "utf8Bytes": 129,
+        "codePoints": 129,
+        "nonWhitespaceCodePoints": 112,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:5d5cdf2338596fcd4efa25bcd2ff0d6f8310e45fa3f8ff151db3a2745515e0d2",
+        "metrics": {
+          "utf8Bytes": 34,
+          "codePoints": 34,
+          "nonWhitespaceCodePoints": 28,
+          "lines": 3,
+          "surfaceLexemes": 7
+        }
+      },
+      "alternatives": [
+        {
+          "name": "magic-main",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:2da6c75ba11445c3114903fe29485e82be4090890a71c36253dea16aebd6a02d",
+          "metrics": {
+            "utf8Bytes": 36,
+            "codePoints": 36,
+            "nonWhitespaceCodePoints": 31,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "source-addressable-synthetic-function",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:4621079ea6256e1c91c34bb641c12c53c3610009c85fa10e48607b5dde59118f",
+          "metrics": {
+            "utf8Bytes": 42,
+            "codePoints": 42,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 2,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "duplicate-default",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:4efc9246ea90f5303b09f19136a7043856f2f542789b70325b98a1451ab6605e",
+          "metrics": {
+            "utf8Bytes": 17,
+            "codePoints": 17,
+            "nonWhitespaceCodePoints": 14,
+            "lines": 2,
+            "surfaceLexemes": 6
           }
         }
       ]

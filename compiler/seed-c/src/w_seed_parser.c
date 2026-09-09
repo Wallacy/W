@@ -3078,6 +3078,14 @@ static bool parse_entry(w_seed_parser *parser) {
   if (push_node(parser, W_SEED_CST_ENTRY, start) == W_SEED_CST_NONE)
     return false;
   (void)consume_text(parser, "entry", NULL);
+  if (current_is_text(parser, "{")) {
+    if (!parse_block(parser, false)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    pop_node(parser, parser->last_token_end);
+    return true;
+  }
   if (!expect_text(parser, "(", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
       !current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
     append_missing(parser, current_span(parser).start_byte,

@@ -198,6 +198,7 @@ O corpus compara, no mínimo:
 - bounded Bool short-circuit lowering against eager RHS evaluation, duplicated calls, and general CFG.
 - bounded scalar `if` value against eager arm evaluation, fake logical encoding, and general scalar CFG.
 - checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.
+- short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 
 ### 1.1 Cobertura de substituições
 
@@ -7793,7 +7794,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1538 | bounded Bool short-circuit through verified HIR0 and MLIR0 | BOOL0 lowers the existing `!`, `&&`, and `||` syntax through HIR0 `w-seed-hir0-10`. `!` is a typed Bool unary value; each `&&`/`||` is a structured diamond whose skip arm contributes literal `false`/`true`, whose other arm evaluates the RHS once, and whose join has one Bool block argument read. HIR verification covers logical branch/jump metadata, incoming edge values, owner/range/dominance, capacities, aliases, receipts, and digests. MLIR0 `w-seed-mlir0-13`, with Windows label `w-seed-mlir0-windows-4`, emits `llvm.xor`, `llvm.cond_br`, and branch-carried `i1` values. Native0 stays v6 because its published records and receipt interface do not change. | `source-backed-current` only for the bounded logical-diamond subset. Focused HIR0, MLIR0, and Native0 units and the Linux/WSL plus native Windows Restaurant short-circuit gates passed with exact stdout `Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n`. Evidence includes nested logic, RHS Bool calls with named arguments, skip/evaluate paths, and malformed edge/value/alias/capacity rejection with transactional outputs. General scalar CFG, user `if` values beyond this logical form, mutation, loops, other value domains/targets, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 
 | W-1539 | bounded scalar `if` values through verified HIR0 and MLIR0 | SCALAR-IF0 accepts the existing `if condition { scalar } else { scalar }` only in an immutable `let` initializer or scalar `return`; the Bool condition and both same-typed `i64`/Bool, one-expression, side-effect-free arms are verified through frontend14/HIR11. HIR uses `BRANCH.result_type` `0` for Unit, `3` for logical Bool, and `2`/`3` for scalar `i64`/Bool with logical metadata unset; scalar diamonds carry exactly one typed join argument and one incoming from each arm. MLIR14/Windows5 emits real `llvm.cond_br` and typed `llvm.br` join edges, never `llvm.select` or eager arm evaluation. Native0 remains v6. W-390 checked-overflow arithmetic remains blocked, so the earlier `seats +/- 1` sketch is not a witness; the source-backed Restaurant fixture carries direct parameters. | `source-backed-current` only for the bounded scalar-if return/immutable-let subset. Focused frontend14/HIR11/MLIR14/Native0 checks and the native Windows Release public route passed both condition directions with exact stdout `Open 5; closed 2\n`, exit zero and empty stderr. A local Release build measured `w.exe` at 10,078,208 B before post-validation cleanup; the generated tool artifact was discarded afterward. This is a local tool build fact, not a historical baseline, benchmark sample, ranking or produced-workload measurement. Missing else (`W-PARSE-0021`), non-Bool condition (`W-SEM-0001`), mismatched arms (`W-TYPE-0120`), String/aggregate, calls/effects, nested/else-if, mutation and loops remain rejected or unsupported. Linux/WSL, C/Rust, general scalar CFG, ABI, targets and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
-| W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend, HIR0 `w-seed-hir0-12`, and MLIR0 `w-seed-mlir0-15` with Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The named-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. `entry {}` remains a parser gap, and unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, `entry {}`, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
+| W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend, current HIR0 `w-seed-hir0-13`, and MLIR0 `w-seed-mlir0-15` with Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. Unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
+| W-1541 | bounded short default entry through the seed compiler | `entry { statements }` lowers through parser, frontend15 and HIR13 as one private zero-argument Unit function plus one explicit `.default` descriptor. The private `<entry.default>` identity is not source-addressable. `entry(functionName)` remains valid. Duplicate default descriptors fail closed. The canonical Hello and checked-arithmetic Restaurant fixtures use the short form. | `source-backed-current` only for the bounded seed compiler and Linux/WSL public `w run` witness. Focused parser, frontend and HIR tests prove shape, direct target identity, measure/emit parity, trivia-independent semantics, provenance distinction and forged-mode rejection. HLO0/HLO1 and MLIR0 gates consume the same short-entry Hello. No named entry, parameterized inline body, custom return, typed error, async short entry, native Windows execution, general runtime, timing, or benchmark result is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10602,7 +10604,7 @@ performance, ABI, target-coverage or general-CFG claim.
 
 ARITH0 closes the next bounded arithmetic gap after SCALAR-IF0. Runtime
 signed-`i64` `+`, `-`, and `*` now travel from source through the frontend and
-verified HIR0 to MLIR0. The HIR0 schema is `w-seed-hir0-12`. The MLIR0 schema is
+verified HIR0 to MLIR0. The current HIR0 schema is `w-seed-hir0-13`. The MLIR0 schema is
 `w-seed-mlir0-15`, with Windows label `w-seed-mlir0-windows-6`. Native0 stays
 v6 because its public records and receipt layout do not change.
 
@@ -10623,12 +10625,10 @@ Dynamic or runtime `/` and `%` remain rejected in this cut, as do their
 faulting constant forms.
 
 The source-backed fixture is
-`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w`. It uses named
-`entry(main)` because the seed parser currently accepts that form. The fixture
-produces exact `Open 6; closed 1\n` with exit zero and empty stderr on the
+`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w`. It uses `entry {}`
+and produces exact `Open 6; closed 1\n` with exit zero and empty stderr on the
 Linux/WSL route with LLVM 20.1.2. No native Windows execution was observed for
-this decision. The specification recommends `entry {}`, but that parser gap is
-deferred to a separate cut.
+this decision.
 
 The C units and `bun tooling/check-mlir0.mjs` also retain the caller-owned
 all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-
@@ -10636,3 +10636,32 @@ digest checks. They are compiler-lifecycle correctness checks only. No timing
 or benchmark result was collected. Unary negation, power, other integer widths,
 named numeric APIs, general panic runtime, general CFG, ABI, and runtime
 division or remainder remain gaps.
+
+#### W-1541 — bounded short default entry through the seed compiler
+
+The previous seed route implemented only `entry(functionName)`, although W-049
+and W-508 already select `entry { ... }` for a simple default handler. W-1541
+closes that bounded implementation gap without adding new language syntax.
+
+The parser attaches a normal block to the entry CST node. Frontend15 lowers the
+block through the ordinary statement and expression normalizers. It synthesizes
+one private Unit function with no parameters. Explicit `is_anonymous_entry`,
+`is_body`, and `target_function` fields prevent inference from spelling. The
+internal `<entry.default>` name contains characters that a W source word cannot
+contain, so source code cannot reference or collide with it.
+
+HIR13 copies the private identity and entry mode. The verifier checks module,
+target, identity, Unit return, zero parameters, spans, dense ranges, aliases,
+capacities, receipt, and digests. A regression review found that the first
+implementation measured the empty public target instead of the private target
+name. The corrected measure counts the same private name used by emission.
+The HIR test proves semantic digest stability across trivia and a distinct
+provenance digest.
+
+The canonical Hello fixture now uses the short form. The public Linux/WSL
+runner produces exact `Hello, world!\n`. HLO0 and HLO1 consume the same fixture.
+The checked-arithmetic Restaurant fixture also uses the short form and produces
+exact `Open 6; closed 1\n` through the MLIR0 Linux/WSL gate. A second default
+entry fails at the root entry boundary. Named handlers, inline parameters,
+custom returns, typed errors, async short entries, native Windows execution,
+general runtime, and performance remain outside this cut.

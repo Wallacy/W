@@ -36612,6 +36612,12 @@ effects, nested scalar `if`, `else if`, `var`, mutation and loops. Missing
 `else` retains `W-PARSE-0021`; a non-Bool condition uses `W-SEM-0001`; and
 incompatible arm types use `W-TYPE-0120`, each once.
 
+```w
+fn selectedCount(isOpen: Bool, openCount: i64, closedCount: i64): i64 {
+  return if isOpen { openCount } else { closedCount }
+}
+```
+
 The scalar arm subset is deliberately narrower than general W expressions.
 Literals, parameters and already verified immutable scalar reads are eligible
 when the existing bounded value rules prove them. Runtime arithmetic is not
@@ -36664,7 +36670,13 @@ faulting process terminates nonzero before later success output. This is a
 bounded process and fault-termination proof. It is not a `PanicEvent`, runtime
 payload, or general panic-runtime proof.
 
-HIR0 advances to `w-seed-hir0-12`. MLIR0 advances to
+```w
+fn adjustedGuests(isOpen: Bool, guests: i64): i64 {
+  return if isOpen { guests + 1 } else { guests - 1 }
+}
+```
+
+HIR0 now uses `w-seed-hir0-13`. MLIR0 uses
 `w-seed-mlir0-15`, with the Windows artifact label
 `w-seed-mlir0-windows-6`. Native0 remains `w-seed-native0-6`. Existing HIR
 argument evaluation keeps left-to-right and once-only call semantics. The
@@ -36682,21 +36694,57 @@ integer widths, named numeric APIs, and general panic runtime remain outside
 the cut.
 
 The source-backed fixture
-`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses the named
-`entry(main)` form and requires exact stdout `Open 6; closed 1\n`, exit zero,
-and empty stderr through the Linux/WSL LLVM 20.1.2 route. No native Windows
-evidence is claimed. The specification recommends `entry {}` but the seed
-parser currently accepts only `entry(name)`. Entry-block syntax is a separate
-future cut. The focused route is `benchmarkDisposition: compiler-lifecycle`
-and correctness-only, with no timing or benchmark result.
+`compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
+requires exact stdout `Open 6; closed 1\n`, exit zero, and empty stderr through
+the Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. The
+focused route is `benchmarkDisposition: compiler-lifecycle` and
+correctness-only, with no timing or benchmark result.
+
+#### 26.4.1.24 W-1541 — bounded short default entry through the seed compiler (Forma vigente)
+
+The seed compiler accepts `entry { statements }` as the recommended
+zero-argument `.default` descriptor. The parser retains the body as a normal W
+block. Frontend15 synthesizes one private Unit function with no parameters and
+records `is_anonymous_entry`, `is_body`, and the direct target function index.
+The internal `<entry.default>` identity cannot be written as a W identifier and
+does not create a public `main` symbol. `entry(functionName)` remains valid.
+
+```w
+entry {
+  print("Hello, world!")
+}
+```
+
+HIR13 copies the private identity and explicit entry mode into caller-owned
+storage. Its verifier requires the anonymous function to return Unit, have no
+parameters, belong to the same module, and match the entry target. Measure and
+emit include the synthesized function name exactly twice: once for the function
+and once for the descriptor target. Semantic digests ignore source trivia.
+Provenance digests retain source differences. Existing capacity, alias,
+receipt, and all-or-nothing invariants remain unchanged.
+
+Only one default descriptor is accepted in a source. A second named or short
+default entry is rejected after the first entry boundary. The short form does
+not declare parameters, a custom return, typed errors, async behavior, or a
+named entry. Those forms continue to use a declared function and the applicable
+entry surface.
+
+The canonical Hello fixture and the checked-arithmetic Restaurant fixture now
+use `entry {}`. The public Linux/WSL `w run` route executes Hello with exact
+stdout `Hello, world!\n`. The MLIR0 gate executes the Restaurant fixture with
+exact stdout `Open 6; closed 1\n`. Both require exit zero and empty stderr. The
+Windows MLIR artifact is structurally generated, but no new native Windows
+execution is claimed. This cut is `benchmarkDisposition: compiler-lifecycle`,
+correctness-only, with no timing or benchmark result.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
 
 ```w
-fn main() { print("Hello, world!") }
-entry(main)
+entry {
+  print("Hello, world!")
+}
 ```
 
 **W-1495 — execução RUN0 interna bounded verified-HLO0 (Forma histórica; W-1505

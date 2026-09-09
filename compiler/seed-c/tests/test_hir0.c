@@ -2160,7 +2160,51 @@ static bool test_signed_comparison_values(void) {
   return true;
 }
 
+static bool test_short_entry_hir(void) {
+  static const char SOURCE[] =
+      "entry { print(message: \"Hello, world!\", suffix: \"!\") }\n";
+  static const char COMMENTED[] =
+      "// trivia\nentry {   print(message: \"Hello, world!\", suffix: \"!\")   }\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.function_count == 1u &&
+        fixture.hir_program.entry_count == 1u);
+  const w_seed_hir0_function function = fixture.hir_functions[0];
+  const w_seed_hir0_entry entry = fixture.hir_entries[0];
+  CHECK(function.is_anonymous_entry && function.parameter_count == 0u &&
+        function.return_type == 0u && entry.is_body &&
+        entry.target_function == 0u && entry.target_identity == 1u);
+  CHECK(function.name.count == strlen("<entry.default>") &&
+        entry.target_name.count == function.name.count &&
+        memcmp(fixture.hir_text + function.name.offset, "<entry.default>",
+               function.name.count) == 0 &&
+        memcmp(fixture.hir_text + entry.target_name.offset,
+               fixture.hir_text + function.name.offset, function.name.count) ==
+            0);
+  uint8_t semantic[32];
+  uint8_t provenance[32];
+  (void)memcpy(semantic, fixture.hir_result.semantic_digest, sizeof(semantic));
+  (void)memcpy(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance));
+
+  fixture.hir_functions[0].is_anonymous_entry = false;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[0] = function;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_entries[0].is_body = false;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_entries[0] = entry;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  CHECK(lower(COMMENTED));
+  CHECK(memcmp(semantic, fixture.hir_result.semantic_digest, sizeof(semantic)) ==
+        0);
+  CHECK(memcmp(provenance, fixture.hir_result.provenance_digest,
+               sizeof(provenance)) != 0);
+  return true;
+}
+
 int main(void) {
+  if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;

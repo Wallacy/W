@@ -21,6 +21,12 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS \
   (W_SEED_FRONTEND_MAX_CST_NODES * 2u)
 
+/* This spelling is an implementation identity only.  The angle brackets
+ * cannot occur in a source word, so a short entry cannot collide with a user
+ * function or become a source-addressable binding. */
+static const char FRONTEND_ANONYMOUS_ENTRY_NAME[] = "<entry.default>";
+static const char FRONTEND_DEFAULT_ENTRY_SLOT[] = ".default";
+
 typedef struct {
   const w_seed_frontend_document *document;
   size_t index;
@@ -3364,6 +3370,8 @@ static bool receipt_size_function(frontend_context *context,
          receipt_size_size(context, function->is_unsafe ? 1u : 0u) &&
          receipt_size_literal(context, "|borrows=") &&
          receipt_size_size(context, function->has_borrow_clause ? 1u : 0u) &&
+         receipt_size_literal(context, "|anonymous=") &&
+         receipt_size_size(context, function->is_anonymous_entry ? 1u : 0u) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -8828,6 +8836,7 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   value.is_unsafe = (node->flags & W_SEED_CST_FUNCTION_FLAG_UNSAFE) != 0u;
   value.has_borrow_clause =
       (node->flags & W_SEED_CST_FUNCTION_FLAG_BORROWS) != 0u;
+  value.is_anonymous_entry = false;
   value.span = node->raw_span;
   value.body_span = empty_span(node->raw_span.end_byte);
   value.first_parameter = (uint32_t)context->count.parameters;
@@ -8930,32 +8939,112 @@ static bool normalize_entry(frontend_context *context, uint32_t node_index,
   if (doc == NULL || entry_index == NULL) return false;
   const w_seed_cst_node *node = &doc->nodes[node_index];
   w_seed_frontend_entry value;
+  (void)memset(&value, 0, sizeof(value));
   value.module_index = (uint32_t)context->module_index;
-  value.target = name_after_keyword(doc, node->raw_span, "entry");
   value.span = node->raw_span;
   value.valid = false;
-  const uint32_t root = doc->parse.root;
-  uint32_t child_cursor = doc->nodes[root].first_child;
-  uint32_t child = W_SEED_CST_NONE;
-  size_t guard = 0;
-  while (next_child(doc, &child_cursor, &child) &&
-         guard < doc->parse.node_count) {
-    if (doc->nodes[child].kind == W_SEED_CST_FUNCTION &&
-        text_equal_text(name_after_keyword(doc, doc->nodes[child].raw_span, "fn"),
-                        value.target)) {
-      value.valid = true;
-      break;
+  value.target_function = W_SEED_FRONTEND_NONE;
+  const uint32_t block_node = first_direct_kind(doc, node_index,
+                                                 W_SEED_CST_BLOCK);
+  value.is_body = block_node != W_SEED_CST_NONE;
+
+  if (value.is_body) {
+    /* A short entry is lowered as one private, zero-argument Unit function.
+     * Reusing the ordinary block normalizer keeps statements and expressions
+     * on the same frontend path as a named function body. */
+    w_seed_frontend_function function;
+    (void)memset(&function, 0, sizeof(function));
+    function.module_index = (uint32_t)context->module_index;
+    function.name = (w_seed_frontend_text){FRONTEND_ANONYMOUS_ENTRY_NAME,
+                                           sizeof(FRONTEND_ANONYMOUS_ENTRY_NAME) - 1u};
+    function.exported = false;
+    function.span = node->raw_span;
+    function.body_span = doc->nodes[block_node].raw_span;
+    function.first_parameter = (uint32_t)context->count.parameters;
+    function.parameter_count = 0u;
+    function.first_statement = (uint32_t)context->count.statements;
+    function.statement_count = 0u;
+    function.is_const = false;
+    function.const_body_supported = true;
+    function.is_async = false;
+    function.is_throws = false;
+    function.is_unsafe = false;
+    function.has_borrow_clause = false;
+    function.is_anonymous_entry = true;
+    const w_seed_frontend_type unit =
+        inferred_unit_type(empty_span(node->raw_span.end_byte));
+    if (!context_append_type(context, unit, &function.return_type)) return false;
+    if (!context_append_function(context, function, &value.target_function))
+      return false;
+    context->function_index = value.target_function;
+    context->function_node = node;
+    context->current_function_is_const = false;
+    context->current_const_body_active = false;
+    context->current_const_body_supported = true;
+    context->current_const_root_emitted = false;
+    if (!normalize_block_statements(context, block_node)) return false;
+    function.statement_count =
+        (uint32_t)(context->count.statements - function.first_statement);
+    if (context->emit && context->output != NULL &&
+        (size_t)value.target_function < context->output->function_capacity) {
+      context->output->functions[value.target_function] = function;
     }
-    guard += 1;
-  }
-  if (!value.valid) {
-    (void)context_append_fact(context, W_SEED_FRONTEND_FACT_INVALID_ENTRY,
-                              value.span, value.target);
+    if (!context->emit && !receipt_size_function(context, &function))
+      return false;
+    uint32_t function_symbol = W_SEED_FRONTEND_NONE;
+    if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_FUNCTION,
+                          value.target_function, function.name, false,
+                          function.span, function.return_type,
+                          &function_symbol))
+      return false;
+    value.target = (w_seed_frontend_text){NULL, 0u};
+    value.valid = true;
+  } else {
+    value.target = name_after_keyword(doc, node->raw_span, "entry");
+    const uint32_t root = doc->parse.root;
+    const size_t local_function_count =
+        count_root_children(doc, W_SEED_CST_FUNCTION);
+    if (context->count.functions < local_function_count) return false;
+    size_t function_ordinal = context->count.functions - local_function_count;
+    uint32_t child_cursor = doc->nodes[root].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0;
+    while (next_child(doc, &child_cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind != W_SEED_CST_FUNCTION) {
+        guard += 1u;
+        continue;
+      }
+      const w_seed_frontend_text candidate =
+          name_after_keyword(doc, doc->nodes[child].raw_span, "fn");
+      if (text_equal_text(candidate, value.target) &&
+          function_ordinal <= UINT32_MAX) {
+        value.target_function = (uint32_t)function_ordinal;
+        value.valid = !context->emit ||
+                      (context->output != NULL &&
+                       function_ordinal < context->output->function_capacity &&
+                       context->output->functions[function_ordinal]
+                               .module_index == value.module_index &&
+                       text_equal_text(
+                           context->output->functions[function_ordinal].name,
+                           value.target));
+        break;
+      }
+      function_ordinal += 1u;
+      guard += 1u;
+    }
+    if (!value.valid) {
+      (void)context_append_fact(context, W_SEED_FRONTEND_FACT_INVALID_ENTRY,
+                                value.span, value.target);
+    }
   }
   if (!context_append_entry(context, value, entry_index)) return false;
   uint32_t symbol_index = W_SEED_FRONTEND_NONE;
   if (!normalize_symbol(context, W_SEED_FRONTEND_SYMBOL_ENTRY, *entry_index,
-                        value.target, false, value.span,
+                        value.is_body
+                            ? (w_seed_frontend_text){NULL, 0u}
+                            : value.target,
+                        false, value.span,
                         W_SEED_FRONTEND_NONE, &symbol_index)) {
     return false;
   }
@@ -14084,6 +14173,15 @@ static bool normalize_document(frontend_context *context) {
       }
       case W_SEED_CST_ENTRY:
         if (!normalize_entry(context, child, &item_index)) return false;
+        if (context->emit && context->output != NULL &&
+            item_index < context->output->entry_capacity &&
+            context->output->entries[item_index].is_body) {
+          module.function_count += 1u;
+        } else if (!context->emit &&
+                   first_direct_kind(doc, child, W_SEED_CST_BLOCK) !=
+                       W_SEED_CST_NONE) {
+          module.function_count += 1u;
+        }
         module.entry_count += 1;
         break;
       case W_SEED_CST_TEST:
@@ -14742,7 +14840,10 @@ static bool detect_duplicate_declarations(frontend_context *context) {
     }
     const char *keyword = declaration_keyword(kind);
     const w_seed_frontend_text name =
-        name_after_keyword(doc, doc->nodes[child].raw_span, keyword);
+        kind == W_SEED_CST_ENTRY
+            ? (w_seed_frontend_text){FRONTEND_DEFAULT_ENTRY_SLOT,
+                                     sizeof(FRONTEND_DEFAULT_ENTRY_SLOT) - 1u}
+            : name_after_keyword(doc, doc->nodes[child].raw_span, keyword);
     uint32_t earlier_cursor = doc->nodes[doc->parse.root].first_child;
     uint32_t earlier = W_SEED_CST_NONE;
     size_t earlier_guard = 0;
@@ -14758,10 +14859,14 @@ static bool detect_duplicate_declarations(frontend_context *context) {
             earlier_kind == W_SEED_CST_ENUM ||
             earlier_kind == W_SEED_CST_CONST_DECLARATION))) {
         const char *earlier_keyword = declaration_keyword(earlier_kind);
-        if (text_equal_text(name_after_keyword(
-                                doc, doc->nodes[earlier].raw_span,
-                                earlier_keyword),
-                            name)) {
+        const w_seed_frontend_text earlier_name =
+            earlier_kind == W_SEED_CST_ENTRY
+                ? (w_seed_frontend_text){FRONTEND_DEFAULT_ENTRY_SLOT,
+                                         sizeof(FRONTEND_DEFAULT_ENTRY_SLOT) -
+                                             1u}
+                : name_after_keyword(doc, doc->nodes[earlier].raw_span,
+                                     earlier_keyword);
+        if (text_equal_text(earlier_name, name)) {
           (void)context_append_fact(
               context, W_SEED_FRONTEND_FACT_DUPLICATE_LOCAL_SYMBOL,
               doc->nodes[child].raw_span, name);
@@ -15517,6 +15622,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, function->is_unsafe ? 1u : 0u);
       receipt_write_literal(writer, "|borrows=");
       receipt_write_size(writer, function->has_borrow_clause ? 1u : 0u);
+      receipt_write_literal(writer, "|anonymous=");
+      receipt_write_size(writer, function->is_anonymous_entry ? 1u : 0u);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0u; index < context->count.expressions; index += 1u) {

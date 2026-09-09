@@ -3671,12 +3671,11 @@
           "fn serve(isOpen: Bool, guests: i64): i64 {",
           "  return if isOpen { guests + 1 } else { guests - 1 }",
           "}",
-          "fn main() {",
+          "entry {",
           "  let open = serve(isOpen: true, guests: 5)",
           "  let closed = serve(isOpen: false, guests: 2)",
           "  print(\"Open ${open}; closed ${closed}\")",
-          "}",
-          "entry(main)"
+          "}"
         ]
       },
       "alternatives": [
@@ -3705,6 +3704,99 @@
           ],
           "expectedDifference": "Dynamic and runtime division or remainder remain outside this cut, while safe fully constant trees retain LLVM sdiv or srem."
         }
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-short-default-entry",
+      "reviewItem": "short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.",
+      "decisions": [
+        "W-049",
+        "W-508",
+        "W-1541"
+      ],
+      "task": "Lower the recommended short default entry through the bounded seed compiler and execute canonical Hello and Restaurant witnesses.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "entry {",
+          "  print(\"Hello, world!\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "magic-main",
+          "language": "w-rejected",
+          "source": [
+            "fn main() { print(\"Hello, world!\") }"
+          ],
+          "expectedDifference": "A magic function name would execute an imported module without an explicit entry descriptor."
+        },
+        {
+          "name": "source-addressable-synthetic-function",
+          "language": "w-rejected",
+          "source": [
+            "fn entry_default() {}",
+            "entry(entry_default)"
+          ],
+          "expectedDifference": "The implementation identity is private and cannot collide with or become callable from W source."
+        },
+        {
+          "name": "duplicate-default",
+          "language": "w-rejected",
+          "source": [
+            "entry {}",
+            "entry {}"
+          ],
+          "expectedDifference": "A source has at most one default descriptor."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_parser.c",
+          "symbol": "parse_entry",
+          "claim": "The parser accepts a normal block directly after the entry keyword."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "normalize_entry",
+          "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_entry_records_ok",
+          "claim": "HIR13 validates the explicit short-entry mode and target function before emission."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_short_entry_hir",
+          "claim": "HIR tests cover the private identity, forged modes, and semantic/provenance digest behavior."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/hlo0-hello.w",
+          "symbol": "entry",
+          "claim": "The canonical Hello source uses the short default entry."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-checked-arithmetic.w",
+          "symbol": "entry",
+          "claim": "The Restaurant checked-arithmetic source uses the short default entry."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "helloFixture",
+          "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output."
+        }
+      ],
+      "checks": [
+        "Focused parser, frontend, HIR0, HLO0, HLO1, and MLIR0 checks passed",
+        "bun tooling/check-w-run.mjs — public Linux/WSL short-entry Hello passed with exact stdout"
       ],
       "measures": [
         "semantic-correctness",

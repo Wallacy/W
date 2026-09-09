@@ -507,7 +507,8 @@ static bool frontend_entry_records_ok(const w_seed_hir0_input *input) {
   for (size_t index = 0u; index < result->written.entries; index += 1u) {
     const w_seed_frontend_entry *entry = &output->entries[index];
     if (entry->module_index >= result->written.modules || !entry->valid ||
-        !text_valid(entry->target) || entry->target.length == 0u ||
+        entry->target_function == W_SEED_FRONTEND_NONE ||
+        (size_t)entry->target_function >= result->written.functions ||
         !frontend_span_ok(&input->frontend_input->documents[
                               output->modules[entry->module_index]
                                   .document_index],
@@ -517,15 +518,15 @@ static bool frontend_entry_records_ok(const w_seed_hir0_input *input) {
     if (index < module->first_entry ||
         index >= (size_t)module->first_entry + module->entry_count)
       return false;
-    bool found = false;
-    for (size_t function = 0u; function < result->written.functions; function += 1u) {
-      if (output->functions[function].module_index == entry->module_index &&
-          text_equal(output->functions[function].name, entry->target)) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return false;
+    const w_seed_frontend_function *function =
+        &output->functions[entry->target_function];
+    if (function->module_index != entry->module_index ||
+        (entry->is_body != function->is_anonymous_entry) ||
+        (entry->is_body
+             ? entry->target.length != 0u
+             : entry->target.length == 0u ||
+                   !text_equal(function->name, entry->target)))
+      return false;
   }
   return true;
 }
@@ -609,7 +610,9 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
     const w_seed_frontend_entry *source = &output->entries[entry];
     if (symbol->kind != W_SEED_FRONTEND_SYMBOL_ENTRY ||
         symbol->module_index != source->module_index ||
-        symbol->owner_index != entry || !text_equal(symbol->name, source->target) ||
+        symbol->owner_index != entry ||
+        (source->is_body ? symbol->name.length != 0u
+                         : !text_equal(symbol->name, source->target)) ||
         symbol->exported || symbol->type_index != W_SEED_FRONTEND_NONE ||
         !frontend_span_ok(&input->frontend_input->documents[0], symbol->span))
       return false;
@@ -1804,12 +1807,16 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
     if (output->statements[index].kind == W_SEED_FRONTEND_STMT_LET &&
         !add_text_size(output->statements[index].binding_name, &value))
       return false;
-  for (size_t index = 0u; index < result->written.entries; index += 1u)
-    if (!add_text_size(output->entries[index].target, &value) ||
+  for (size_t index = 0u; index < result->written.entries; index += 1u) {
+    const w_seed_frontend_entry *entry = &output->entries[index];
+    if ((size_t)entry->target_function >= result->written.functions ||
+        !add_text_size(output->functions[entry->target_function].name,
+                       &value) ||
         !add_text_size((w_seed_frontend_text){HIR0_SLOT_NAME,
                                               sizeof(HIR0_SLOT_NAME) - 1u},
                        &value))
       return false;
+  }
   const w_seed_frontend_host_prelude *scope = input->frontend_input->host_scope;
   for (size_t index = 0u; index < scope->symbol_count; index += 1u) {
     const w_seed_frontend_host_prelude_symbol *symbol = &scope->symbols[index];
@@ -2385,19 +2392,6 @@ static uint32_t hir_host_identity_index(const w_seed_hir0_counts *counts,
                                         size_t host_index) {
   return (uint32_t)(counts->modules + counts->functions + counts->entries +
                     host_index);
-}
-
-static bool function_for_entry(const w_seed_frontend_output *output,
-                               size_t function_count, size_t module_index,
-                               w_seed_frontend_text target, size_t *out) {
-  if (output == NULL || out == NULL) return false;
-  for (size_t function = 0u; function < function_count; function += 1u)
-    if (output->functions[function].module_index == module_index &&
-        text_equal(output->functions[function].name, target)) {
-      *out = function;
-      return true;
-    }
-  return false;
 }
 
 static bool binding_index_for_statement(
@@ -4378,6 +4372,7 @@ static void emit_records(const w_seed_hir0_input *input,
     target->is_throws = source->is_throws;
     target->is_unsafe = source->is_unsafe;
     target->has_borrow_clause = source->has_borrow_clause;
+    target->is_anonymous_entry = source->is_anonymous_entry;
     output->identities[function_identity_base + function] =
         (w_seed_hir0_identity){
             .kind = W_SEED_HIR0_IDENTITY_FUNCTION,
@@ -4575,20 +4570,20 @@ static void emit_records(const w_seed_hir0_input *input,
   const size_t entry_identity_base = counts->modules + counts->functions;
   for (size_t entry = 0u; entry < counts->entries; entry += 1u) {
     const w_seed_frontend_entry *source = &frontend->entries[entry];
-    size_t function = 0u;
-    (void)function_for_entry(frontend, counts->functions, source->module_index,
-                             source->target, &function);
+    const size_t function = source->target_function;
     w_seed_hir0_entry *target = &output->entries[entry];
     target->module_index = source->module_index;
     target->identity_index = (uint32_t)(entry_identity_base + entry);
     target->target_function = (uint32_t)function;
     target->target_identity = output->functions[function].identity_index;
-    append_text_unchecked(source->target, output->text_bytes, &text_offset,
+    append_text_unchecked(frontend->functions[function].name, output->text_bytes,
+                          &text_offset,
                           &target->target_name);
     append_text_unchecked((w_seed_frontend_text){HIR0_SLOT_NAME,
                                                  sizeof(HIR0_SLOT_NAME) - 1u},
                           output->text_bytes, &text_offset, &target->slot);
     target->source_span = source->span;
+    target->is_body = source->is_body;
     output->identities[entry_identity_base + entry] =
         (w_seed_hir0_identity){
             .kind = W_SEED_HIR0_IDENTITY_ENTRY,
@@ -4732,6 +4727,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_bool(&state, value->is_throws);
     digest_bool(&state, value->is_unsafe);
     digest_bool(&state, value->has_borrow_clause);
+    digest_bool(&state, value->is_anonymous_entry);
   }
   for (size_t index = 0u; index < counts->parameters; index += 1u) {
     const w_seed_hir0_parameter *value = &program->parameters[index];
@@ -4869,6 +4865,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->target_identity);
     digest_text(&state, program, value->target_name);
     digest_text(&state, program, value->slot);
+    digest_bool(&state, value->is_body);
   }
   for (size_t index = 0u; index < counts->bindings; index += 1u) {
     const w_seed_hir0_binding *value = &program->bindings[index];
@@ -5746,6 +5743,9 @@ static bool verify_records(const w_seed_hir0_program *program) {
         !range_valid(value->first_block, value->block_count,
                      program->block_count))
       return false;
+    if (value->is_anonymous_entry &&
+        (value->parameter_count != 0u || value->return_type != 0u))
+      return false;
     for (size_t parameter = 0u; parameter < value->parameter_count; parameter += 1u) {
       const w_seed_hir0_parameter *item =
           &program->parameters[(size_t)value->first_parameter + parameter];
@@ -6127,9 +6127,14 @@ static bool verify_records(const w_seed_hir0_program *program) {
         !hir_text_valid(program, value->target_name) || value->target_name.count == 0u ||
         !hir_text_equal(program, value->target_name,
                         program->functions[value->target_function].name) ||
+        value->is_body !=
+            program->functions[value->target_function].is_anonymous_entry ||
         !hir_text_is(program, value->slot, HIR0_SLOT_NAME) ||
         !span_valid(value->source_span,
                     program->modules[value->module_index].source_length))
+      return false;
+    if (!value->is_body &&
+        program->functions[value->target_function].is_anonymous_entry)
       return false;
     const w_seed_hir0_module *module = &program->modules[value->module_index];
     if (entry < module->first_entry ||

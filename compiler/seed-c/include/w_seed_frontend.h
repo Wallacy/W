@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-14"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-15"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -564,6 +564,8 @@ typedef struct {
   bool is_throws;
   bool is_unsafe;
   bool has_borrow_clause;
+  /* True only for the private function synthesized for `entry { ... }`. */
+  bool is_anonymous_entry;
 } w_seed_frontend_function;
 
 typedef struct {
@@ -571,6 +573,10 @@ typedef struct {
   w_seed_frontend_text target;
   w_seed_span span;
   bool valid;
+  /* `entry { ... }` owns the body directly and has no public target name. */
+  bool is_body;
+  /* Direct normalized relation to the function selected by this entry. */
+  uint32_t target_function;
 } w_seed_frontend_entry;
 
 typedef struct {

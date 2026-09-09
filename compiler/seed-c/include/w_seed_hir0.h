@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-12"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-13"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -178,6 +178,8 @@ typedef struct {
   bool is_throws;
   bool is_unsafe;
   bool has_borrow_clause;
+  /* True only for the private function synthesized from `entry { ... }`. */
+  bool is_anonymous_entry;
 } w_seed_hir0_function;
 
 typedef struct {
@@ -329,6 +331,8 @@ typedef struct {
   w_seed_hir0_text target_name;
   w_seed_hir0_text slot;
   w_seed_span source_span;
+  /* True when this descriptor owns an inline short-entry body. */
+  bool is_body;
 } w_seed_hir0_entry;
 
 typedef struct {

@@ -1539,6 +1539,37 @@ static bool test_phase2_prefix_forms(void) {
   return true;
 }
 
+static bool test_short_entry_shapes(void) {
+  static const char *const texts[] = {
+      "entry {}\n",
+      "entry { print(\"Hello, world!\") }\n",
+      "entry { let open = true if open { print(\"Open\") } }\n",
+  };
+  for (size_t index = 0; index < sizeof(texts) / sizeof(texts[0]); index += 1) {
+    fixture value;
+    CHECK(fixture_init(&value, texts[index],
+                       sizeof(value.nodes) / sizeof(value.nodes[0]),
+                       sizeof(value.issues) / sizeof(value.issues[0])));
+    CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+    CHECK(value.result.issue_count == 0);
+    CHECK(check_leaf_partition(&value));
+    CHECK(check_tree_links(&value));
+    const w_seed_cst_index entry = first_kind(&value, W_SEED_CST_ENTRY);
+    CHECK(entry != W_SEED_CST_NONE);
+    CHECK(count_direct_kind(&value, entry, W_SEED_CST_BLOCK) == 1);
+  }
+
+  fixture named;
+  CHECK(fixture_init(&named, "fn run() {}\nentry(run)\n",
+                     sizeof(named.nodes) / sizeof(named.nodes[0]),
+                     sizeof(named.issues) / sizeof(named.issues[0])));
+  CHECK(named.result.status == W_SEED_PARSE_COMPLETE);
+  const w_seed_cst_index named_entry = first_kind(&named, W_SEED_CST_ENTRY);
+  CHECK(named_entry != W_SEED_CST_NONE);
+  CHECK(count_direct_kind(&named, named_entry, W_SEED_CST_BLOCK) == 0);
+  return true;
+}
+
 static bool test_phase2_fatal_boundaries(void) {
   static const char *const texts[] = {
       "fn f(){}\nimport {x} from module.path\n",
@@ -1549,6 +1580,8 @@ static bool test_phase2_fatal_boundaries(void) {
       "entry(f)\ntest \"late\" for f {}\n",
       "entry(f)\nexport struct S {}\n",
       "entry(f)\nimport {x} from module.path\n",
+      "entry {}\nentry {}\n",
+      "fn run() {}\nentry(run)\nentry {}\n",
       "const value:T\n",
       "take value\n",
   };
@@ -3277,6 +3310,7 @@ int main(void) {
       test_phase2_parameter_and_argument_shapes() &&
       test_phase2_parameter_requirements() &&
       test_phase2_prefix_forms() &&
+      test_short_entry_shapes() &&
       test_phase2_fatal_boundaries() &&
       test_phase2_recovery_mutations() &&
       test_phase2_generic_contract_switch() &&
