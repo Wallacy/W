@@ -65,6 +65,9 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "hello/c": commonMetrics,
     "hello/rust": commonMetrics,
     "hello/w": commonMetrics,
+    "process-entry/c": commonMetrics,
+    "process-entry/rust": commonMetrics,
+    "process-entry/w": commonMetrics,
     "process-handler-lifecycle/c": commonMetrics,
     "process-handler-lifecycle/rust": commonMetrics,
     "process-handler-lifecycle/w": [...commonMetrics, "cpu-time"].sort(),
@@ -74,6 +77,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
   });
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
     entry.workloadId === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID ||
+    entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID ||
     entry.provenance.artifactCleanliness === "historical-unverified"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
@@ -136,7 +140,12 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
   assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
   assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID), false);
+  const liveMetrics = documents.catalog.bestMetrics.entries.filter(
+    (entry) => entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID,
+  );
+  assert.equal(liveMetrics.length, EXECUTABLE_LANGUAGES.length * 4);
+  assert.ok(liveMetrics.every((entry) =>
+    entry.provenance.artifactCleanliness === "verified-clean"));
 });
 
 test("structure taxonomy rejects unknown and contradictory classes", () => {
