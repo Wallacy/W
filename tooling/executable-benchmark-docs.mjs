@@ -185,6 +185,8 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   lines.push(
     "",
     "C MinGW and W rows are contextual and are not cross-ABI rankings; promotable Rust rows remain source-equivalence scoped.",
+    "Process-entry0 is contextual for all three languages and measures the [entire private composite](./README.md#private-process-entry-executable-measurements), not handler-only speed.",
+    "Zero CPU medians are excluded from best cells; a dash is not evidence of zero CPU cost.",
     "Category identity includes workload, source equivalence, platform, artifact target/ABI, profile, host, recipe class and readiness policy. Toolchain and recipe changes may improve the same cell.",
     `Machine source: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "benchmarks/executable-catalog.json")}.`,
   );

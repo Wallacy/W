@@ -34,5 +34,7 @@ Values include compact record-id prefixes; full per-metric provenance is in the 
 | restaurant-branch | w | x86_64-pc-windows-msvc; release; windows-windows-nt-42f9d519186ea6d6; restaurant-release; eq 50c256c2 | 3072 B (3.0 KiB) (0a9862a58747) | 202.5762 ms (0a9862a58747) | 15.2738 ms (0a9862a58747) | 3719168 B (3.55 MiB) (0a9862a58747) | — | historical-unverified |
 
 C MinGW and W rows are contextual and are not cross-ABI rankings; promotable Rust rows remain source-equivalence scoped.
+Process-entry0 is contextual for all three languages and measures the [entire private composite](./README.md#private-process-entry-executable-measurements), not handler-only speed.
+Zero CPU medians are excluded from best cells; a dash is not evidence of zero CPU cost.
 Category identity includes workload, source equivalence, platform, artifact target/ABI, profile, host, recipe class and readiness policy. Toolchain and recipe changes may improve the same cell.
 Machine source: [benchmarks/executable-catalog.json](./executable-catalog.json).
