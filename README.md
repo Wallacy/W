@@ -69,37 +69,28 @@ The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
 no timing or benchmark result.
-W-1542 advances the seed frontend to `w-seed-frontend-16` for the first bounded
-`PROC-ABI0` stage. Grouped aliases for `std.process` keep local spelling
-separate from resolver-owned nominal identity, and the only admitted external
-case is the exported, constant, payload-free `ExitCode.success`. Duplicate
-local aliases and malformed resolver metadata fail closed. This evidence stops
-at frontend records: verified HIR, handler compatibility, runtime arguments,
-lowering, native execution, Windows, and performance remain gaps.
-W-1543 completes the verified-HIR half of `PROC-ABI0`. HIR14 deep-copies and
-independently verifies the canonical external module/symbol table, nominal type
-pairs, `ExitCode.success`, and an explicit native-process entry adapter. Alias
-spelling changes provenance but not the semantic digest. HLO0 and MLIR0 still
-reject this HIR without partial output; `directEntry`, ABI lowering, providers,
-runtime input, native execution, Windows, and performance remain gaps.
-W-1544 prepares independent HIR15 `suspension` and `direct_entry` facts from
-the explicit CST `async` modifier and a whole-body bounded proof. Ordinary pure
-functions remain `NEVER`/`ABSENT`; the process handler remains `MAY`/`ABSENT`.
-The current bounded frontend/HIR0 analysis, emitter, and independent verifier
-are source-backed-current; focused HIR0 C units and compiler emitter gates pass.
-The 4 KiB/CST32768 proof adds no syntax or process execution claim. See
-[`DESIGN.md` §26.4.1.27](DESIGN.md) for the canonical contract. `sync`, process
-input, general ABI/provider/ownership runtime, native process execution,
-Windows, and performance remain outside this evidence.
-W-1546 adds HIR16 typed lifecycle and release facts for the exact verified
-`std.process@1` `Arguments` and `Context` owners. The bounded entry records a
-`RELEASE_HANDLER_OWNERS` normal-return cleanup range, and the verifier
-recomputes it from canonical external identity. `ExitCode` remains scalar
-copy, while String, unknown, opaque, and foreign values remain conservative.
-The provider, wrapper ABI implementation, root adapter, runtime input, native
-consumers, and HLO0/MLIR0 process lowering remain pending. This is
-compiler-lifecycle correctness evidence only, using Debug Ninja GCC 13.2.0
-with actual `-std=c2x` preview mode. It is not final C23 or runtime evidence.
+The bounded process track (W-1542–W-1546) now carries resolver-owned
+`std.process@1` identity from frontend16 through HIR16. The verifier accepts
+only the exact async handler with `Arguments` then `Context` owners, the
+canonical `.success` return, and a `RELEASE_HANDLER_OWNERS` cleanup range.
+The seed has a private `PROCESS_HANDLER` artifact with schema
+`w-seed-mlir0-process-handler-1` and Native0 `w-seed-native0-7`. The existing
+`EXECUTABLE` artifact stays byte-compatible. See
+[`DESIGN.md` §26.4.1.28](DESIGN.md).
+
+Run [`bun check --target process-entry0`](tooling/check-process-entry0.mjs) with
+the configured CMake build and external MLIR/LLVM tool cache. The strict
+23.1.0 Windows gate now passes source → verified HIR16/Native0 → MLIR → LLVM
+x64 COFF → GCC 13.2 private harness/PROCESS0 provider → Windows PE execution,
+including empty/nonempty selected vectors, exercised alias/trivia identity,
+source rejection, and cleanup fault cases. This is private-handler evidence;
+the runner cleans its temporary artifacts.
+
+Public `w run` still rejects process entries. The PROCESS0 provider kernel
+exists, but the public `std.process` ABI and entry/root adapter, OS-root
+acquisition, native UTF-16 startup/`argv[0]` policy, W-visible argument
+access, and process-handler body branching remain pending. No async/general
+provider or public process-support claim follows from the gate.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

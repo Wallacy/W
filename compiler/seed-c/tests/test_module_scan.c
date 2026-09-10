@@ -66,7 +66,10 @@ static bool test_forms_and_spans(void) {
       "import dep.path;\n"
       "import alias from package.menu;\n"
       "import * from wildcard.path\n"
-      "import {value as renamed,other as second} from kitchen.menu\n";
+      "import {\n"
+      "  value as renamed,\n"
+      "  other as second,\n"
+      "} from kitchen.menu\n";
   fixture value;
   CHECK(parse_text(&value, source));
   CHECK(value.parse.status == W_SEED_PARSE_COMPLETE &&
@@ -257,9 +260,13 @@ static bool test_invalid_inputs(void) {
       (w_seed_span){1u, 2u}, &path));
 
   static const char *const malformed_aliases[] = {
+      "import {} from kitchen.menu\n",
+      "import {,} from kitchen.menu\n",
+      "import {value,,other} from kitchen.menu\n",
       "import {value as,other} from kitchen.menu\n",
       "import {value as renamed as duplicate} from kitchen.menu\n",
       "import {value as renamed,as other} from kitchen.menu\n",
+      "import {value as renamed,} from kitchen.menu trailing\n",
   };
   for (size_t index = 0u;
        index < sizeof(malformed_aliases) / sizeof(malformed_aliases[0]);

@@ -608,6 +608,11 @@ add_executable(w_seed_process0_tests
 )
 target_link_libraries(w_seed_process0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_process_entry0_gate
+  tests/process_entry0_gate.c
+)
+target_link_libraries(w_seed_process_entry0_gate PRIVATE w_seed_source)
+
 add_executable(w_seed_run0_tests
   tests/test_run0.c
 )
@@ -680,6 +685,7 @@ if(MSVC)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_process0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_process_entry0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_run0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_cli_io_tests PRIVATE /W4 /WX)
@@ -1137,6 +1143,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_process_entry0_gate PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_run0_tests PRIVATE
     -Wall
     -Wextra
@@ -1194,6 +1209,9 @@ add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_process0_unit COMMAND w_seed_process0_tests)
+add_test(NAME w_seed_process_entry0_gate_compile
+  COMMAND w_seed_process_entry0_gate
+    ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/process-entry0.w)
 add_test(NAME w_seed_process0_selected_argv
   COMMAND w_seed_process0_tests --selected-argv alpha payload)
 add_test(NAME w_seed_run0_unit COMMAND w_seed_run0_tests)

@@ -1231,6 +1231,18 @@
         }
       ]
     },
+    "check:process-entry0": {
+      "description": "Execute the private compiled process handler with the real PROCESS0 provider.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-process-entry0.mjs"
+          ]
+        }
+      ]
+    },
     "check:mlir0-windows": {
       "description": "Internal check:mlir0-windows command.",
       "steps": [

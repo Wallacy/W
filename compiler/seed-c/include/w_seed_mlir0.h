@@ -19,6 +19,8 @@ extern "C" {
 #define W_SEED_MLIR0_WINDOWS_SCHEMA_VERSION "w-seed-mlir0-windows-6"
 #define W_SEED_MLIR0_TARGET_TRIPLE_LINUX "x86_64-unknown-linux-gnu"
 #define W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS "x86_64-pc-windows-msvc"
+#define W_SEED_MLIR0_PROCESS_SCHEMA_VERSION \
+  "w-seed-mlir0-process-handler-1"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
@@ -35,9 +37,18 @@ typedef struct {
   w_seed_mlir0_target_kind kind;
 } w_seed_mlir0_target;
 
+/* The executable artifact remains the zero value so existing callers and
+ * bytes are unchanged. The handler artifact is a private opaque-owner
+ * handler for supported targets; it has no CRT entry point or I/O. */
+typedef enum {
+  W_SEED_MLIR0_ARTIFACT_EXECUTABLE = 0,
+  W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER = 1,
+} w_seed_mlir0_artifact_kind;
+
 typedef struct {
   const w_seed_hir0_program *program;
   const w_seed_hir0_result *hir_result;
+  w_seed_mlir0_artifact_kind artifact_kind;
 } w_seed_mlir0_input;
 
 typedef enum {

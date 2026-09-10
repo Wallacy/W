@@ -126,7 +126,10 @@ static bool parse_import_path(const w_seed_source *source,
     while (true) {
       if (!token_next(&tokens, &token)) return false;
       if (token_is_text(source, &token, "}")) {
-        if (need_name || !saw_name) return false;
+        /* The parser permits one trailing comma, but the grouped list must
+         * still contain one complete item. Duplicate commas and comma-only
+         * lists remain rejected by the word check below. */
+        if (!saw_name) return false;
         break;
       }
       if (!need_name || !token_is_word(&token)) return false;

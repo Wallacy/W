@@ -132,6 +132,10 @@ static const w_seed_mlir0_target WINDOWS_TARGET = {
 static bool process_frontend_mode;
 static void configure_process_external(void);
 static bool resolve_process_import(void);
+static bool contains_bytes(const uint8_t *bytes, size_t length,
+                           const char *needle);
+static size_t find_bytes(const uint8_t *bytes, size_t length,
+                         const char *needle, size_t start);
 
 static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
   if (source_bytes == NULL || source_length == 0u ||
@@ -454,7 +458,15 @@ static bool lower_process_hir(const uint8_t *source_bytes,
 }
 
 static w_seed_mlir0_input mlir_input(void) {
-  return (w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result};
+  return (w_seed_mlir0_input){
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+}
+
+static w_seed_mlir0_input process_mlir_input(void) {
+  return (w_seed_mlir0_input){
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER};
 }
 
 static bool test_process_hir_is_closed_to_mlir(void) {
@@ -465,10 +477,11 @@ static bool test_process_hir_is_closed_to_mlir(void) {
       "ProcessExitCode { return .success }\n"
       "entry(run)\n";
   CHECK(lower_process_hir(SOURCE, sizeof(SOURCE) - 1u));
-  const w_seed_mlir0_input input = mlir_input();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   CHECK(fixture.hir_program.functions[0].direct_entry ==
         W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  /* HIR/MLIR consumption must not retain frontend or source storage. */
   (void)memset(fixture.source_bytes, 0, sizeof(fixture.source_bytes));
   (void)memset(&fixture.source, 0, sizeof(fixture.source));
   (void)memset(&fixture.document, 0, sizeof(fixture.document));
@@ -480,6 +493,7 @@ static bool test_process_hir_is_closed_to_mlir(void) {
   (void)memset(fixture.resolved_imports, 0,
                sizeof(fixture.resolved_imports));
 
+  const w_seed_mlir0_input input = mlir_input();
   w_seed_mlir0_counts counts = {0x11u};
   w_seed_mlir0_result measure_result;
   (void)memset(&measure_result, 0x44, sizeof(measure_result));
@@ -501,6 +515,137 @@ static bool test_process_hir_is_closed_to_mlir(void) {
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa5u);
   CHECK(memcmp(&emit_result, &emit_before, sizeof(emit_before)) == 0);
+
+  const w_seed_mlir0_input process_input = process_mlir_input();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(w_seed_mlir0_measure(&process_input, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_OK);
+  CHECK(counts.mlir_bytes != 0u &&
+        measure_result.required.mlir_bytes == counts.mlir_bytes);
+  (void)memset(output, 0xa5u, sizeof(output));
+  w_seed_mlir0_result process_result;
+  CHECK(w_seed_mlir0_emit(
+            &process_input, &TARGET,
+            &(w_seed_mlir0_output){output, counts.mlir_bytes}, &process_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(process_result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(output, process_result.written.mlir_bytes,
+                       "// " W_SEED_MLIR0_PROCESS_SCHEMA_VERSION "\n") &&
+        contains_bytes(output, process_result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(output, process_result.written.mlir_bytes,
+                       "llvm.func @w_seed_process_entry0_handler(%arguments: !llvm.ptr, %context: !llvm.ptr) -> i32") &&
+        contains_bytes(output, process_result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_entry0_context_drop(%context)") &&
+        contains_bytes(output, process_result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_entry0_arguments_drop(%arguments)") &&
+        !contains_bytes(output, process_result.written.mlir_bytes,
+                        "llvm.func @main") &&
+        !contains_bytes(output, process_result.written.mlir_bytes,
+                        "mainCRTStartup") &&
+        !contains_bytes(output, process_result.written.mlir_bytes,
+                        "GetStdHandle"));
+  const size_t context_call = find_bytes(
+      output, process_result.written.mlir_bytes,
+      "llvm.call @w_seed_process_entry0_context_drop", 0u);
+  const size_t arguments_call = find_bytes(
+      output, process_result.written.mlir_bytes,
+      "llvm.call @w_seed_process_entry0_arguments_drop", 0u);
+  CHECK(context_call != SIZE_MAX && arguments_call != SIZE_MAX &&
+        context_call < arguments_call);
+
+  (void)memset(output, 0xb6u, sizeof(output));
+  CHECK(w_seed_mlir0_emit(
+            &process_input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &process_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(contains_bytes(output, process_result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                       "\"") &&
+        !contains_bytes(output, process_result.written.mlir_bytes,
+                        "mainCRTStartup"));
+
+  (void)memset(output, 0xc7u, sizeof(output));
+  (void)memset(&process_result, 0x7cu, sizeof(process_result));
+  uint8_t process_snapshot[sizeof(process_result)];
+  (void)memcpy(process_snapshot, &process_result, sizeof(process_snapshot));
+  CHECK(w_seed_mlir0_emit(
+            &process_input, &TARGET,
+            &(w_seed_mlir0_output){output, counts.mlir_bytes - 1u},
+            &process_result) == W_SEED_MLIR0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xc7u);
+  CHECK(memcmp(&process_result, process_snapshot, sizeof(process_snapshot)) ==
+        0);
+
+  (void)memset(output, 0xd8u, sizeof(output));
+  (void)memset(&process_result, 0x8du, sizeof(process_result));
+  uint8_t process_alias_snapshot[sizeof(process_result)];
+  (void)memcpy(process_alias_snapshot, &process_result,
+               sizeof(process_alias_snapshot));
+  uint8_t external_symbols_snapshot[sizeof(fixture.hir_external_symbols)];
+  (void)memcpy(external_symbols_snapshot, fixture.hir_external_symbols,
+               sizeof(external_symbols_snapshot));
+  CHECK(w_seed_mlir0_emit(
+            &process_input, &TARGET,
+            &(w_seed_mlir0_output){(uint8_t *)&fixture.hir_external_symbols,
+                                   sizeof(fixture.hir_external_symbols)},
+            &process_result) == W_SEED_MLIR0_ALIAS);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xd8u);
+  CHECK(memcmp(&process_result, process_alias_snapshot,
+               sizeof(process_alias_snapshot)) == 0);
+  CHECK(memcmp(fixture.hir_external_symbols, external_symbols_snapshot,
+               sizeof(external_symbols_snapshot)) == 0);
+
+  (void)memset(output, 0xe9u, sizeof(output));
+  (void)memset(&process_result, 0x3au, sizeof(process_result));
+  uint8_t external_modules_snapshot[sizeof(fixture.hir_external_modules)];
+  (void)memcpy(external_modules_snapshot, fixture.hir_external_modules,
+               sizeof(external_modules_snapshot));
+  uint8_t module_alias_result_snapshot[sizeof(process_result)];
+  (void)memcpy(module_alias_result_snapshot, &process_result,
+               sizeof(module_alias_result_snapshot));
+  CHECK(w_seed_mlir0_emit(
+            &process_input, &TARGET,
+            &(w_seed_mlir0_output){(uint8_t *)&fixture.hir_external_modules,
+                                   sizeof(fixture.hir_external_modules)},
+            &process_result) == W_SEED_MLIR0_ALIAS);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xe9u);
+  CHECK(memcmp(&process_result, module_alias_result_snapshot,
+               sizeof(module_alias_result_snapshot)) == 0);
+  CHECK(memcmp(fixture.hir_external_modules, external_modules_snapshot,
+               sizeof(external_modules_snapshot)) == 0);
+
+  const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
+  fixture.hir_entries[0].adapter_kind =
+      W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT;
+  CHECK(w_seed_mlir0_measure(&process_input, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_entries[0] = saved_entry;
+  const w_seed_hir0_type saved_type = fixture.hir_types[4];
+  fixture.hir_types[4].release_contract =
+      W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN;
+  CHECK(w_seed_mlir0_measure(&process_input, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_types[4] = saved_type;
+  const w_seed_hir0_function saved_function = fixture.hir_functions[0];
+  fixture.hir_functions[0].direct_entry = W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+  CHECK(w_seed_mlir0_measure(&process_input, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_functions[0].is_throws = true;
+  CHECK(w_seed_mlir0_measure(&process_input, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_INVALID_HIR);
+  fixture.hir_functions[0] = saved_function;
+
+  const w_seed_mlir0_input invalid_kind = {
+      &fixture.hir_program, &fixture.hir_result,
+      (w_seed_mlir0_artifact_kind)-1};
+  CHECK(w_seed_mlir0_measure(&invalid_kind, &TARGET, &counts,
+                             &measure_result) == W_SEED_MLIR0_UNSUPPORTED);
   return true;
 }
 
@@ -1231,7 +1376,8 @@ static bool test_if_diamond_cfg(void) {
   (void)memset(rejected_output, 0xa1u, sizeof(rejected_output));
   const w_seed_mlir0_result rejected_snapshot = emitted;
   CHECK(w_seed_mlir0_emit(
-            &((w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result}),
+            &((w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result,
+                                   W_SEED_MLIR0_ARTIFACT_EXECUTABLE}),
             &TARGET, &(w_seed_mlir0_output){rejected_output,
                                             sizeof(rejected_output)},
             &emitted) == W_SEED_MLIR0_INVALID_HIR);
@@ -1980,7 +2126,8 @@ static bool test_linear_sequence(void) {
                sizeof(short_sequence_result));
   const w_seed_mlir0_result short_sequence_snapshot = short_sequence_result;
   CHECK(w_seed_mlir0_emit(
-            &(w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result},
+            &(w_seed_mlir0_input){&fixture.hir_program, &fixture.hir_result,
+                                  W_SEED_MLIR0_ARTIFACT_EXECUTABLE},
             &TARGET,
             &(w_seed_mlir0_output){short_sequence_output,
                                    mixed_counts.mlir_bytes - 1u},
@@ -2270,8 +2417,9 @@ static bool test_invalid_hir_and_target(void) {
   const w_seed_mlir0_result snapshot = result;
   w_seed_hir0_result forged_result = fixture.hir_result;
   forged_result.semantic_digest[0] ^= 1u;
-  const w_seed_mlir0_input forged_input = {&fixture.hir_program,
-                                           &forged_result};
+  const w_seed_mlir0_input forged_input = {
+      &fixture.hir_program, &forged_result,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   CHECK(w_seed_mlir0_emit(
             &forged_input, &TARGET,
             &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==

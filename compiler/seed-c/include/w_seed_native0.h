@@ -18,7 +18,7 @@ extern "C" {
 /* Native0 is the bounded source-to-MLIR0 adapter used by the seed gate. It
  * reads one explicit file path, retains no heap state, and uses only storage
  * supplied by its caller. */
-#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-6"
+#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-7"
 #define W_SEED_NATIVE0_MAX_SOURCE_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_PATH_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES 4096u
@@ -68,6 +68,8 @@ enum {
   W_SEED_NATIVE0_HIR_VALUE_RECORDS = 256,
   W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS = 128,
   W_SEED_NATIVE0_HIR_ENTRIES = W_SEED_NATIVE0_ENTRIES,
+  W_SEED_NATIVE0_HIR_EXTERNAL_MODULES = 2,
+  W_SEED_NATIVE0_HIR_EXTERNAL_SYMBOLS = 8,
   W_SEED_NATIVE0_HIR_TEXT = 4096,
   W_SEED_NATIVE0_HIR_VALUE_BYTES = 4096,
   W_SEED_NATIVE0_HIR_RECEIPT = 256,
@@ -119,6 +121,8 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_HOST_PARAMETERS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_ARGUMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_REQUIREMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_EXTERNAL_MODULES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_EXTERNAL_SYMBOLS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_VALUE_RECORDS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_TERMINATORS <= UINT32_MAX &&
@@ -152,6 +156,9 @@ typedef struct {
   size_t path_length;
   w_seed_frontend_text logical_source_id;
   w_seed_mlir0_target target;
+  /* EXECUTABLE is the byte-compatible historical artifact. PROCESS_HANDLER
+   * emits only the private opaque owner-entry ABI and never a host main. */
+  w_seed_mlir0_artifact_kind artifact_kind;
 } w_seed_native0_input;
 
 typedef w_seed_mlir0_output w_seed_native0_output;
@@ -209,6 +216,11 @@ typedef struct {
   w_seed_frontend_external_parameter host_parameters[2];
   w_seed_frontend_host_prelude_symbol host_symbols[2];
   w_seed_frontend_host_prelude host_scope;
+  /* The catalog is compiler-owned; these records are attached only when the
+   * typed module scanner resolves the exact std.process import. */
+  w_seed_frontend_external_symbol process_external_symbols[4];
+  w_seed_frontend_external_module process_external_modules[1];
+  w_seed_frontend_resolved_import process_resolved_imports[1];
   uint8_t const_bytes[W_SEED_NATIVE0_MAX_SOURCE_BYTES];
   uint8_t frontend_receipt[W_SEED_NATIVE0_FRONTEND_RECEIPT];
   w_seed_frontend_output output;
@@ -233,6 +245,10 @@ typedef struct {
       hir_interpolation_segments[W_SEED_NATIVE0_HIR_INTERPOLATION_SEGMENTS];
   w_seed_hir0_terminator hir_terminators[W_SEED_NATIVE0_HIR_TERMINATORS];
   w_seed_hir0_entry hir_entries[W_SEED_NATIVE0_HIR_ENTRIES];
+  w_seed_hir0_external_module
+      hir_external_modules[W_SEED_NATIVE0_HIR_EXTERNAL_MODULES];
+  w_seed_hir0_external_symbol
+      hir_external_symbols[W_SEED_NATIVE0_HIR_EXTERNAL_SYMBOLS];
   uint8_t hir_text[W_SEED_NATIVE0_HIR_TEXT];
   uint8_t hir_value_bytes[W_SEED_NATIVE0_HIR_VALUE_BYTES];
   uint8_t hir_receipt[W_SEED_NATIVE0_HIR_RECEIPT];

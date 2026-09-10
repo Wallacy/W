@@ -210,14 +210,16 @@ seed, adapter D0, ACQ0, OWN0 e as fatias verificadas HIR0/HLO0/HLO1/RUN0. Consul
 [`compiler/seed-c/README.md`](../compiler/seed-c/README.md) para a superfície
 local. Execute `bun check --target compiler` para os gates do bundle.
 
-O caminho C23 `source → parser → frontend → HIR0 verificada → HLO0 → HLO1`
-continua limitado aos subset e witnesses documentados. A rota nativa primária
-W-1522 é independente: `source → parser/frontend → HIR0 verificada → MLIR0 →
-mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1 e RUN0 são bootstrap,
-auditoria e recovery, não pré-requisitos dessa rota. MLIR0 v3 aceita somente a
-sequência NAT1 linear bounded como contrato histórico de W-1522. O adapter
-MLIR0 v5 corrente também aceita interpolação signed-`i64` com helpers
-internos de Display e texto counted; os HLO0/HLO1/RUN0 continuam single-print.
+The C23 route `source → parser → frontend → verified HIR0 → HLO0 → HLO1`
+remains limited to the documented subsets and witnesses. The W-1522 primary
+native route is independent: `source → parser/frontend → verified HIR0 → MLIR0 →
+mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1, and RUN0 are
+bootstrap, audit, and recovery, not prerequisites for that route. The current
+MLIR0 adapter is `w-seed-mlir0-15` and Native0 is `w-seed-native0-7`; the
+private `PROCESS_HANDLER` artifact uses
+`w-seed-mlir0-process-handler-1` without changing the `EXECUTABLE` artifact
+bytes. MLIR0 also accepts signed-`i64` interpolation with internal Display and
+counted-text helpers; HLO0/HLO1/RUN0 remain single-print.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

@@ -94,6 +94,18 @@ typedef struct {
   bool has_cfg;
 } w_seed_native_subset0_program;
 
+/* The process handler selection is deliberately separate from the executable
+ * print subset. Its borrowed parameters describe the already-verified root
+ * owners; the emitter uses the cleanup range in reverse initialization order. */
+typedef struct {
+  const w_seed_hir0_entry *entry;
+  const w_seed_hir0_function *function;
+  const w_seed_hir0_parameter *arguments_parameter;
+  const w_seed_hir0_parameter *context_parameter;
+  uint32_t arguments_parameter_ordinal;
+  uint32_t context_parameter_ordinal;
+} w_seed_native_subset0_process;
+
 w_seed_native_subset0_status w_seed_native_subset0_select(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
@@ -110,6 +122,13 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_program *selection);
+
+/* Select only the complete HIR16 native-process owner handler. This does not
+ * inspect source spelling and never admits an unverified or partial HIR. */
+w_seed_native_subset0_status w_seed_native_subset0_select_process(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection);
 
 #ifdef __cplusplus
 }
