@@ -6,15 +6,16 @@ Migrated cells are historical/unverified cleanliness, not current clean-run evid
 
 ## Workload readiness
 
-| Workload | Source/oracle | Benchmark lane |
-| --- | --- | --- |
-| hello | source-and-oracle-ready; oracle source-backed; [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | not-performance-ready |
-| restaurant-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | not-performance-ready |
-| restaurant-nested-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | deferred-to-M3b |
-| bool-short-circuit | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | deferred-to-M3b |
-| restaurant-interpolation | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b |
-| restaurant-scalar-if | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b |
-| restaurant-composition | not-materialized; oracle declared; — | planned |
+| Workload | Source/oracle | Benchmark lane | Execution witness |
+| --- | --- | --- | --- |
+| hello | source-and-oracle-ready; oracle source-backed; [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | not-performance-ready | — |
+| restaurant-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | not-performance-ready | — |
+| restaurant-nested-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | deferred-to-M3b | — |
+| bool-short-circuit | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | deferred-to-M3b | — |
+| restaurant-interpolation | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b | — |
+| restaurant-scalar-if | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b | — |
+| restaurant-composition | not-materialized; oracle declared; — | planned | — |
+| process-entry0 | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | exploratory-ready | private-process-handler; timed ["alpha","payload"]; correctness [] / ["alpha","payload"]; faults 6 |
 
 ## Best known cells
 

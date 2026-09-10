@@ -8,6 +8,14 @@ import {
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_PLATFORM_TARGET,
+  PROCESS_ENTRY0_CORRECTNESS_INPUTS,
+  PROCESS_ENTRY0_EXECUTION_KIND,
+  PROCESS_ENTRY0_FAULT_CASES,
+  PROCESS_ENTRY0_RECIPE,
+  PROCESS_ENTRY0_RECIPE_CLASS,
+  PROCESS_ENTRY0_SUPPORT_ROLES,
+  PROCESS_ENTRY0_TIMED_INPUT,
+  PROCESS_ENTRY0_WORKLOAD_ID,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
   executableHostIdentity,
@@ -30,7 +38,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
-  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries"]) {
+  for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
@@ -41,6 +49,45 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
+});
+
+test("process-entry0 catalog pins the private composite execution witness", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.execution.kind, PROCESS_ENTRY0_EXECUTION_KIND);
+  assert.equal(workload.execution.recipeClass, PROCESS_ENTRY0_RECIPE_CLASS);
+  assert.deepEqual(workload.execution.timedInput, PROCESS_ENTRY0_TIMED_INPUT);
+  assert.deepEqual(workload.execution.correctnessInputs, PROCESS_ENTRY0_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.execution.faultCases, PROCESS_ENTRY0_FAULT_CASES);
+  assert.ok(documents.schema.$defs.workload.properties.benchmarkStatus.enum.includes("exploratory-ready"));
+  const exploratory = clone(documents.catalog);
+  exploratory.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).benchmarkStatus = "exploratory-ready";
+  exploratory.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).blockers = [];
+  assert.deepEqual(validateExecutableCatalog(exploratory, exploratory), []);
+  exploratory.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).blockers = ["private-handler-benchmark-runner"];
+  assert.match(validateExecutableCatalog(exploratory, exploratory).join("\n"), /active measurement blockers/u);
+  assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
+  assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ENTRY0_RECIPE_CLASS));
+  assert.ok(workload.sources.every((source) => source.artifactTarget === EXECUTABLE_ARTIFACT_TARGET_MINGW));
+  assert.ok(workload.sources.every((source) => source.recipe !== PROCESS_ENTRY0_RECIPE || source.language === "w"));
+  const changedInput = clone(documents.catalog);
+  changedInput.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).execution.timedInput[0] = "beta";
+  assert.notEqual(
+    executableEquivalenceKey(documents.catalog, PROCESS_ENTRY0_WORKLOAD_ID, EXECUTABLE_PLATFORM_TARGET, "release", PROCESS_ENTRY0_RECIPE_CLASS),
+    executableEquivalenceKey(changedInput, PROCESS_ENTRY0_WORKLOAD_ID, EXECUTABLE_PLATFORM_TARGET, "release", PROCESS_ENTRY0_RECIPE_CLASS),
+  );
+  const staleSupport = clone(documents.catalog);
+  staleSupport.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).execution.supportSources[0].digest = digest;
+  assert.match(validateExecutableCatalog(staleSupport, staleSupport).join("\n"), /supportSources\[0\]\.digest is stale/);
+  const wrongHeader = clone(documents.catalog);
+  const supportSources = wrongHeader.workloads.find((item) => item.id === PROCESS_ENTRY0_WORKLOAD_ID).execution.supportSources;
+  supportSources[2].path = supportSources[1].path;
+  supportSources[2].digest = supportSources[1].digest;
+  assert.match(validateExecutableCatalog(wrongHeader, wrongHeader).join("\n"), /provider header consumed/u);
+  const privateRecipe = clone(documents.catalog);
+  privateRecipe.workloads.find((item) => item.id === "hello").sources[0].recipe = PROCESS_ENTRY0_RECIPE;
+  assert.match(validateExecutableCatalog(privateRecipe, privateRecipe).join("\n"), /private to process-entry0/);
+  assert.deepEqual(PROCESS_ENTRY0_SUPPORT_ROLES, ["harness-c", "provider-c", "provider-header"]);
 });
 
 function sample(index) {

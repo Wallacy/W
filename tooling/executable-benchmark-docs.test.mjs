@@ -13,6 +13,8 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.match(rendered, /historical-unverified/u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
+  assert.match(rendered, /\x7c process-entry0 \x7c.*private-process-handler; timed \["alpha","payload"\]/u);
+  assert.match(rendered, /Execution witness/u);
   assert.doesNotMatch(rendered, /history|best-known|recorded evidence/iu);
 });
 

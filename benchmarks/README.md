@@ -9,7 +9,8 @@ Neither bundle produces a language or product-runtime result.
 ### Executable benchmark catalog (M3a)
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
-catalog of executable workloads. It keeps stable IDs for `hello`, the five
+catalog of executable workloads. It keeps stable IDs for `hello`,
+`process-entry0`, the five
 source-backed Restaurant witnesses, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 also has a public `w build` Release source-to-PE candidate plus C and Rust
@@ -72,8 +73,34 @@ measurements remain ignored under `benchmarks/results/`; only a rerun from a
 clean committed HEAD may update the compact catalog, and raw results are
 consumed after successful publication.
 
+#### Private process-entry executable measurements
+
+The W-1546 `process-entry0` workload is a separate executable-catalog lane.
+Run `bun benchmark run --target process-entry0 --language w|c|rust`. Each
+private composite combines its handler with the shared C harness and PROCESS0
+provider;
+correctness checks cover empty and nonempty caller-selected CRT byte vectors
+plus six fault cases before timing, and only successful `[alpha,payload]` is
+timed. Runtime timing covers the full shared CRT startup, harness, PROCESS0
+provider, and handler path, not handler-only speed. Compile timing spans handler
+and support compilation plus the final link, excluding compiler bootstrap.
+Catalog artifact size and digest refer to the final GCC-linked
+`x86_64-w64-mingw32` PE; source/support closure, recipe, and toolchain
+provenance identify the composite, while W and Rust handler COFF origin triples
+are disclosed separately as MSVC-origin. The private C/Rust/W recipes pin
+shared Release optimization and stripping flags. GCC LTO can optimize the C
+handler together with its support; W and Rust cross a native COFF boundary.
+Rust fat LTO does not extend across that boundary into the GCC-built support.
+Direct-child CPU/RSS counters do not
+aggregate descendants. These are descriptive `exploratory`,
+`measurement-only`, `not-evaluated` artifact measurements, not language-track
+results; W-1546's deferred language comparison does not defer this catalog
+work. Published live cells are kept in [`EXECUTABLES.md`](EXECUTABLES.md);
+this README does not duplicate measured values. No result or number is claimed
+until a validated run exists.
+
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
-`run --target hello|restaurant-branch --language w|c|rust --output benchmarks/results/<new>.json`
+`run --target hello|restaurant-branch|process-entry0 --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/live-best/projection consistency, and `update <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one

@@ -37071,7 +37071,10 @@ W-1546 classification is `benchmarkDisposition: deferred`, taskId
 `argument-access-lowering`, and `language-benchmark-runner`. Stop that task
 when an unchanged W artifact consumes runtime input with matched C/Rust
 recipes and the W `learner`, `idiomatic`, and `frontier` forms have been
-checked.
+checked. Separate private process-entry artifact measurements remain
+exploratory and are documented in the
+[`executable benchmark protocol`](benchmarks/README.md#private-process-entry-executable-measurements);
+they do not defer or replace the language-track stop condition.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
