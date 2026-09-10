@@ -935,7 +935,12 @@ bounded decode, byte-exact vectors, flow credits and fault/drain evidence
 not new syntax proposals. Optional providers and real HUM0 observations retain
 their separate DH4/DH5 gates.
 
-### Current handoff — paused
+### Current handoff — process lifecycle
+
+The [use-case readiness matrix](USE-CASE-READINESS.md) distinguishes language
+expressibility, platform contracts, and real application evidence. It adds
+games and interactive presentation to the review without changing syntax or
+promoting a target.
 
 W-1545 closes the Channel contract and CH0 oracle correction. Its maintained
 owners are DESIGN §12.9, `streams.w`, CHEATSHEET, and `tooling/channel-*`.
@@ -944,10 +949,10 @@ documentation, and evidence projections. No compiler or native runtime code
 changed in this bundle. The native cancellation and performance gaps remain
 explicit above.
 
-Work is paused at the user's request. On continuation, use the existing
-bounded compiler plan below: establish process-owner lifecycle and effect
-facts before `PROC-INPUT0`. Do not restart the broad audit or infer that all
-targets and execution witnesses are complete.
+W-1546 implements bounded HIR16 process-owner lifecycle facts and cleanup
+obligations before `PROC-INPUT0`. The producer and verifier establish a handler
+direct-entry proof, not a process provider or native ABI. The separate
+use-case readiness review does not promote target support.
 
 The 2026-09-04 property bundle records W-1536: an explicit single observer can
 synthesize plain logical storage, while named composition remains available for
@@ -1068,44 +1073,42 @@ general `OsString`, argument access, async I/O, loops, Windows UTF-16 ABI, and
 the complete `std.process@1` provider remain later packages. Evidence is
 compiler-lifecycle correctness only, never a runtime or performance claim.
 
-Current checkpoint: W-1543 closes `PROC-ABI0` through verified HIR14. W-1544
-is source-backed-current for the bounded HIR15 analysis and verification that
-prepares the W-1484 direct-entry prerequisite for `PROC-INPUT0`.
-HIR14 remains the historical W-1543 process-identity record.
-The HIR15 implementation adds independent `suspension` and `direct_entry`
-fields, digest coverage, function-count guards, and a 4 KiB scratch bound. The
-whole-body analysis, fixed-point propagation, emitter publication, and
-independent verifier recomputation are source-backed-current through the named
-implementation symbols and focused C/emitter gates. HLO0 and MLIR0 still reject
-process HIR without partial output. ABI lowering, providers, runtime argument
-access, native process execution, and Windows process support remain later work.
+Current checkpoint: W-1543 supplies process identities, W-1544 supplies bounded
+whole-body direct-entry analysis, and W-1546 supplies HIR16 lifecycle facts.
+HIR16 binds type lifecycle, the versioned process wrapper-release contract, and
+the exact cleanup-owner parameter range into the semantic digest. Its verifier
+recomputes these facts before accepting the direct-entry proof.
 
-The next compiler slice must establish process-owner lifecycle and effect facts
-before direct process-entry lowering. The completed proof retains these limits:
+The completed proof retains these limits:
 
-- HIR15 preserves complete function bodies and local-call identities but still
-  lacks call-form and host-effect evidence. Unknown hosts and local async calls
-  must remain conservative.
+- HIR16 preserves complete function bodies and local-call identities but still
+  lacks general call-form and host-effect evidence. Unknown hosts and local
+  async calls remain conservative.
 - Keep the async entry's `suspension: may` separate from the proof that its
   direct entry never suspends. Analyze whole declarations before specialization.
   Resolve local-call dependencies to a fixed point, including recursive groups.
 - Ordinary pure functions publish `NEVER`/`ABSENT`. Explicit `async` comes from
   the CST and may publish `AVAILABLE` only after the whole-body proof. The
-  process handler remains `MAY`/`ABSENT`.
-- Synchronous `deinit` is already a language rule. It does not prove that HIR
-  preserves process ownership, required cleanup, or provider effects. Establish
-  those facts before publishing a direct-entry proof for opaque process owners.
+  bounded process handler now publishes `MAY`/`AVAILABLE`.
+- The accepted process shape has one module, function, and entry, two required
+  owners, and only `return .success`. Normal return retains both cleanup
+  obligations even when the parameters are unused.
+- The compiler-owned `std.process@1` wrapper-release axiom is not inferred from
+  synchronous `deinit`. Root acquisition, drain, and reclamation remain separate
+  adapter obligations. No provider release, throwing exit, or cancellation exit
+  has executed in this package.
 - Neither `.success`, parameter names, nor `adapter_kind` is proof evidence.
   Keep native consumers rejecting process HIR until proof and ABI support exist.
 
-Acceptance covers independent verifier checks, conservative unknown-call
-handling, and adversarial constant-branch, transitive-call, recursive-group,
-cleanup, empty-storage, and forged-proof cases. This package
-uses `benchmarkDisposition: compiler-lifecycle`; it makes no performance claim.
-Stop after the bounded proof and its checks. `PROC-INPUT0` remains a separate
-executable milestone with the two runtime-input outcomes specified above.
+Acceptance includes forged lifecycle and cleanup facts with recomputed valid
+digests, conservative unknown-call handling, and unchanged native rejection.
+Four focal CTest units pass: HIR0, HLO0, MLIR0, and Native0. The local build uses
+GCC 13.2.0, Debug, and actual `-std=c2x`, not final C23 evidence. This package
+uses `benchmarkDisposition: compiler-lifecycle` and makes no performance claim.
+`PROC-INPUT0` remains the next separate executable milestone with the two
+runtime-input outcomes specified above.
 
-Validation checkpoint: the Werror build and five focal CTest units pass.
+Earlier W-1544 regression evidence: the Werror build and five focal CTest units pass.
 Hello, checked-arithmetic Restaurant, and nested-if Restaurant pass the native
 WSL MLIR/LLVM pipeline with exact stdout, empty stderr, and exit 0. These are
 regressions of the existing executable subset, not `sync` or process-input
