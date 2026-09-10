@@ -1354,6 +1354,53 @@ HLO0, MLIR0, and Native0 CTests pass in Debug Ninja with GCC 13.2.0 using
 actual `-std=c2x` preview mode. That is correctness-only evidence, not final
 C23 or performance evidence.
 
+### PROCESS0 provider kernel (post-W-1546)
+
+`include/w_seed_process0.h` and `src/w_seed_process0.c` provide a small
+seed-only, caller-owned process-input kernel. The caller supplies an explicit
+selected vector with one encoding: length-delimited POSIX bytes or UTF-16
+units. The kernel preserves order, empty arguments, malformed UTF-8 bytes, and
+lone UTF-16 surrogates without copying or discovering an OS startup vector.
+`argv[0]` remains a caller-selection policy. The descriptor table and backing
+storage must stay immutable and live until root finalization.
+
+Root initialization validates ranges and destructive output overlap before
+publishing two distinct root-scoped wrappers. `Arguments` exposes only count,
+borrowed get, and exact native contains. `Context` is intentionally a zero-
+authority wrapper with no projections, tasks, providers, or I/O. Each wrapper
+drop is one-shot and invalidates only that wrapper. Stale copied records and
+generations are rejected while the C storage contract holds.
+Root finalization is separate and requires
+both wrapper obligations to be released. Borrow views end before finalization
+or reuse. This is provider correctness evidence, not W execution or the public
+`std.process` ABI. Strict W-text conversion, compiler binding, native entry,
+root acquisition, and runtime lowering remain pending.
+The root and wrapper records remain address-stable through finalization.
+They do not define the future movable W-value ABI. Pointer provenance, borrow
+lifetimes, and exclusive mutation remain explicit C-caller obligations.
+
+`tests/test_process0.c` covers synthetic POSIX/UTF-16 vectors, invalid bytes,
+lone surrogates, empty and out-of-range access, kind and generation barriers,
+all-or-nothing malformed/overlap initialization, and an explicitly selected
+`argc`/`argv` slice. Its `benchmarkDisposition` is `deferred`: this package
+publishes no timing. The deferred task id is
+`process-arguments-native-access-benchmark`. Its blockers are argument-access
+lowering, a native entry/root adapter, and an executable benchmark runner. The
+stop condition is one compiled W program reading runtime arguments under
+matched C/Rust provider, semantic, and optimization profiles. W measurements
+then cover learner, idiomatic, and frontier forms. Existing C correctness
+tests are not that benchmark.
+
+With the existing CMake build directory configured, run the focused checks:
+
+```text
+cmake --build build --target w_seed_process0_tests
+ctest --test-dir build -R w_seed_process0 --output-on-failure
+```
+
+The compiler suite also discovers these CTests through the existing seed
+source-reader gate. No separate command registry entry is required.
+
 ### Native Windows x86_64 candidate (W-1532)
 
 The same MLIR0 subset has bounded native evidence for target
