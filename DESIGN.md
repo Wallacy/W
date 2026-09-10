@@ -30776,15 +30776,17 @@ not synthesize this binding. The complete planned subject set is bare symbol,
 `artifact` remains reserved until capsule and registry identities are stable.
 
 An executable locator containing a path separator resolves relative to the
-package/test root, or as the supplied absolute path. On Windows, an absent
-extension may try the exact path and then `.exe`; on ELF and Mach-O hosts it
-tries the exact path only. A bare locator resolves once through a frozen PATH
-snapshot. Empty/current-directory PATH entries, `PATHEXT`, file associations,
+package/test root, or as the supplied absolute path. A bare locator such as
+`"reference"` resolves once through a frozen, ordered PATH snapshot. Each PATH
+entry is joined with the locator; Windows tries the exact candidate and then a
+fixed `.exe` candidate when the locator has no extension, while ELF and Mach-O
+hosts try the exact candidate only. This `.exe` rule belongs to W and does not
+consult `PATHEXT`. Empty/current-directory PATH entries, file associations,
 shell fallback, and package installation are never consulted. The selected
 regular file must validate as a native image for the execution provider's
 target and ABI. Text, shebang files, `.bat`, `.cmd`, and any other interpreted
 carrier are rejected by `executable`. Exact bytes and file identity are checked
-again at launch; a changed or ambiguous candidate fails closed.
+again at launch; a changed candidate fails closed.
 
 A script locator is always a path, never a PATH search. Runner selection is
 explicit `using executable` first, otherwise a closed target-specific extension
@@ -30796,8 +30798,10 @@ resolver authority in this first contract. JavaScript and TypeScript have no
 default because their runner and module modes are ambiguous. Explicit `using`
 may select them.
 
-The runner executable follows the same native-image and frozen-PATH rules as
-`for executable`. Each adapter fixes runner arguments, script position,
+The runner named by `using executable` follows the same path-or-frozen-PATH,
+fixed-Windows-`.exe`, and native-image rules as `for executable`; therefore
+`using executable "python"` is portable resolver syntax rather than an OS file
+association. Each adapter fixes runner arguments, script position,
 `argv[0]`, empty-argument behavior, native encoding, and quoting. The
 `.bat`/`.cmd` adapter is explicitly shell-capable and owns one versioned
 `cmd.exe /d /s /c` encoding; it cannot be treated as ordinary argv evidence.
