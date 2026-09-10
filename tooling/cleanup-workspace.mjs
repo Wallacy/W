@@ -439,6 +439,11 @@ export async function collectCleanupPlan({
     const key = pathKey(target.path);
     if (seen.has(key)) continue;
     seen.add(key);
+    /* A selected parent already owns every nested allowlisted output. Keeping
+     * both would double-count bytes and make apply report ENOENT after the
+     * parent is removed. Retained/refused parents do not suppress a child. */
+    if (plan.candidates.some((candidate) =>
+      isWithin(candidate.path, target.path, true))) continue;
     const root = target.scope === "workspace" ? workspacePhysical : tempPhysical;
     if (!isWithin(root, target.path) ||
         (target.scope === "workspace" && hasProtectedWorkspaceIntersection(target.path, workspacePhysical))) {
