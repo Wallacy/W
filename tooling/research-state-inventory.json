@@ -24,7 +24,7 @@
         "reference/syntax-atlas/rejected.w-rejected.txt",
         "reference/syntax-atlas/reserved.w-reserved.txt"
       ],
-      "artifactsDigest": "sha256:ec6ff8567e1c4c146ddf3238cac5c9cc2d114cbb9189592f982ba3808be7a431"
+      "artifactsDigest": "sha256:74e1ac5e998b34a5dec2403cf3eaa4b8a9f1e1ccdb5e867afd64a919a84018ae"
     },
     {
       "id": "drc0",
@@ -170,7 +170,7 @@
         "tooling/studies/gen1-incremental-suspension/bundle.json",
         "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt"
       ],
-      "artifactsDigest": "sha256:cb0edeef1dc8198c189872760992914973bc23aab68696f4ae2a3682109e9d11"
+      "artifactsDigest": "sha256:d955baf6c8d98addb92b59c20b12e12231c2e12f3b505477aa65a3d198ab40b5"
     },
     {
       "id": "syn1",

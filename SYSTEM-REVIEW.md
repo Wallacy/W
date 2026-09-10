@@ -837,19 +837,35 @@ stop condition and a current state.
 |---|---|---|
 | DH0 — current-doc coherence: §5.2 `call:` versus §21/§22.2, let/var/property/default-label examples, and §20.8.3 platform scope | Complete for the audited slice; authored corrections and projections validated | Every affected authored example uses the canonical opener, carrier, label, and current matrix scope; stale manual wording is removed or linked. |
 | DH1 — ownership/access composition: concrete object versus generic `T`, property projection/receiver, `inout` writeback on normal/throw/cancel, hooks and exclusive access | design interaction audited; execution-evidence pending | `property-inout-exit-witness` records one finite positive and one negative trace without assuming hidden copies; implementation gaps remain named and no new syntax is added. |
-| DH2 — execution/services composition: `sync` proof, first-result selection plus structured drain, cancellation/noncooperative children, boundedness/backpressure/close | Audited; receiver-close clarification and runtime evidence queued | Close `channel-receiver-close-contract`, then obtain the drain and waiter-budget witnesses below; no runtime claim is promoted without a product witness. |
-| DH3 — target contract closure: desktop Windows/Linux/macOS primary, cross-compile edges separate, Wasm/GPU/FPGA capability-limited, and compiler → ABI/linker/SDK → runtime/provider → execution/metrics mapping | design-audit (matrix reviewed; no support promotion) | Every claimed edge has a witness, or an unavailable witness is recorded as a gap; no target is promoted by catalog breadth. |
+| DH2 — execution/services composition: `sync` proof, first-result selection plus structured drain, cancellation/noncooperative children, boundedness/backpressure/close | W-1545 receiver contract and CH0/source checks closed; execution evidence pending | Obtain the drain and waiter-budget witnesses below. No runtime claim is promoted without a product witness. |
+| DH3 — target contract closure: native desktop/server, mobile, WebAssembly, embedded and accelerators; browser/provider and BPF/FPGA/HDL/ASIC extensions remain separate | Matrix and extension boundaries audited; no support promotion | Map compiler → ABI/linker/SDK → runtime/provider → execution/metrics for each claimed capability. Record missing witnesses and the nine native cross-compilation edges separately. |
 | DH4 — freeze/readiness wording: zero unclassified families is not zero studies; WVUI0/optional-provider research stays separate from core; no feature-count completeness | Audited; core contracts and optional studies remain distinct | Freeze text states these distinctions and contains no completeness or support inference. |
 | DH5 — human ratification: HUM0 requires real observations; automated review never fabricates human records | evidence-required (real observations needed) | Actual observations are cited, or the record remains explicitly evidence-required with its blocker. |
 
-Current focal checks pass: 44 execution-ergonomics tests, 126 host cases,
-401/401 design-example sections, and `git diff --check`. These checks do not
-execute W property observers, cancellation, or providers. The W-1544
-classification passes at 1,544 decisions (`source-backed-current`
-127, `oracle-backed-current` 505, `implementation-evidence-gap` 822,
-`superseded` 82, `rejected` 8). The index and 109/109 substitution cases
-pass. FRC passes its eight oracle tests, six cases, and nested parse. The study
-registry is current, and all eight documentation gates pass.
+Performance is the primary optimization objective. Binary size, memory use and
+compiler latency remain independent measured objectives. Compare equivalent W,
+C23 and Rust programs with pinned production recipes. Keep the learner,
+idiomatic and frontier variants. A smaller binary alone never justifies slower
+execution or weaker safety semantics.
+
+Concurrency measurements must include throughput, tail latency, allocation,
+peak task-frame and waiter bytes, and cancellation-to-quiescence. Queue
+capacity alone does not measure memory boundedness. Track native measurements
+only after correctness and independent outcome checks. CH0 is a host oracle,
+not a W runtime benchmark.
+
+The target authority is DESIGN §20.8, with evidence in
+[`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md). The matrix has one evidence-only
+target and fifteen candidates, not sixteen supported targets. Browser hosting
+is not implied by WASI support. BPF and hardware synthesis remain planned
+extensions requiring separate verification or timing contracts (§23.6). They
+are not silently excluded from the ambition or included in native executable
+support.
+
+Design examples, source parsing, host oracles and projection checks validate
+different surfaces. None executes W property observers, channel cancellation
+or providers. Classification totals in [`DESIGN-INDEX.md`](DESIGN-INDEX.md)
+measure classified decisions, not implemented features or language completeness.
 
 Editorial reconciliation has `benchmarkDisposition: not-applicable`. New
 language-execution proof tasks remain `deferred` until their exact code path,
@@ -881,14 +897,24 @@ partial array is published before structured drain; committed effects remain
 visible. This remains an evidence task for scheduler/provider drain, cancellation,
 and native execution; FST0 stays host-only.
 
-Two finite DH2 follow-ups remain. Neither introduces new syntax:
+DH2 separates the contract correction from its execution witnesses:
 
-- P1, `channel-receiver-close-contract`: reconcile §12.9.4/§12.9.8 with CH0's
-  `receiverBusy` rejection for close during a pending receive. Specify endpoint
-  exclusivity and provider lifetime, not merely move-only ownership. The
-  candidate sequence is cancel/join receive, then close and drain. Include a
-  legal sequence and a rejected overlap before changing the normative contract.
-  This is a design clarification, not only a missing runtime test.
+- Closed, `channel-receiver-close-contract`: W-1545 specifies an exclusive mutable
+  receiver, cancellation before close, and join before ending a child borrow.
+  Rendezvous pairing reserves admission but does not commit an item.
+  Cancellation revokes only that permit. Its later send returns `.closed(T)`
+  without globally closing the channel. CH0 rejects overlapping receives,
+  close and drop while a waiter, pairing or unconsumed frame remains. It
+  preserves unrevoked permits through last-sender close. The
+  [behavior tests](tooling/channel-reference.test.mjs) also check unchanged
+  state on rejection and independent queue drain versus frame cleanup.
+  Normative borrow checking, lowering and provider drain remain unimplemented.
+- P1, `channel-receiver-close-runtime`: reproduce the W-1545 interleavings in
+  compiled W with independent ownership and cleanup observations. Compare
+  learner, idiomatic and frontier variants only after correctness. This task
+  has `benchmarkDisposition: deferred`. Blockers are receiver borrow checking,
+  lowering, channel/scheduler/provider cancellation runtime, and a native
+  language benchmark runner.
 - P1, `channel-waiter-budget-witness`: prove that suspended-sender bookkeeping
   is charged to task/frame budgets. Capacity bounds accepted items and permits,
   not waiting tasks or transitive payload bytes. Exercise bounded admission,
@@ -900,6 +926,28 @@ Two finite DH2 follow-ups remain. Neither introduces new syntax:
 The queue audit found no additional service-mailbox ownership or structured-drain
 contradiction. Mailbox quotas and admission/cancellation phases remain governed
 by §13.5–§13.6. This bounded review is not proof of full-language completeness.
+
+Two more execution gates remain within DH2. Unified pipeline modes need child
+limits, ordering, cancellation/drain and transaction-outcome witnesses (§12.8/§12.13).
+Service streams and wWire need independent provider/codec interoperability,
+bounded decode, byte-exact vectors, flow credits and fault/drain evidence
+(§23.1.5/§23.2.1). These are implementation obligations under current contracts,
+not new syntax proposals. Optional providers and real HUM0 observations retain
+their separate DH4/DH5 gates.
+
+### Current handoff — paused
+
+W-1545 closes the Channel contract and CH0 oracle correction. Its maintained
+owners are DESIGN §12.9, `streams.w`, CHEATSHEET, and `tooling/channel-*`.
+Validation covers 21 host tests, 79 adversarial cases, source parsing,
+documentation, and evidence projections. No compiler or native runtime code
+changed in this bundle. The native cancellation and performance gaps remain
+explicit above.
+
+Work is paused at the user's request. On continuation, use the existing
+bounded compiler plan below: establish process-owner lifecycle and effect
+facts before `PROC-INPUT0`. Do not restart the broad audit or infer that all
+targets and execution witnesses are complete.
 
 The 2026-09-04 property bundle records W-1536: an explicit single observer can
 synthesize plain logical storage, while named composition remains available for

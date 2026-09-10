@@ -865,16 +865,25 @@ Aceite:
 - `mirrorReadableBytes` mantém os dois pumps em children estruturados;
 - `Channel<send: T>` pode ser copiado somente com `copy`;
 - `Channel<receive: T>` é único e move-only;
+- `receive()` e `close()` usam receiver mut e mantêm o cursor exclusivo até
+  settlement, cancellation drain ou join;
+- duas operações de receiver, `close`, move ou drop sobre um receive pendente
+  são rejeitados pelo loan, sem error `busy` ou lock público;
 - o channel aceita somente payload `transferable` owned;
 - `view T` não entra na fila;
 - capacity zero faz rendezvous;
 - capacity positiva limita itens e permits aceitos;
 - `send` suspende e `trySend` devolve `.full` sem ultrapassar waiters;
 - `.full(T)` e `.closed(T)` devolvem o owner;
+- cancellation antes do commit do item remove o waiter e, em rendezvous,
+  revoga somente o permit pareado;
+- `.closed(T)` de um permit revogado devolve o owner sem provar close global;
 - destruir um permit libera a capacity;
 - o último sender fecha o channel;
 - `receiver.close()` rejeita admission nova e drena itens aceitos;
+- close gracioso preserva permits já emitidos;
 - destruir o receiver descarta o buffer e acorda producers;
+- o receiver só é destruído depois do drain de registrations e pairings;
 - sends sequenciais por sender preservam ordem;
 - sends concorrentes não ganham uma ordem global fictícia;
 - commit de send acontece antes de receive devolver o item;

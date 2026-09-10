@@ -4125,6 +4125,91 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-channel-receiver-close",
+      "reviewItem": "exclusive Channel receiver cursor, graceful close, cancellation, and capacity-zero rendezvous permit ownership",
+      "decisions": [
+        "W-1545"
+      ],
+      "task": "Exercise the mutable receiver contract and the cancel-to-join recovery path without claiming compiler or runtime evidence.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "let (sender, initialReceiver) = Channel<String>.open(capacity: 0)",
+          "var receiver = take initialReceiver",
+          "let pending = async receiver.receive()",
+          "let permit = try await sender.reserve()",
+          "pending#cancel(reason: .userRequest)",
+          "switch await (take pending)#outcome() {",
+          "  case .canceled(_): ()",
+          "  case .success(_): panic(\"canceled receive produced an item\")",
+          "  case .error(_): panic(\"nonthrowing receive produced an error\")",
+          "}",
+          "do {",
+          "  try (take permit).send(value: \"returned\")",
+          "  panic(\"revoked rendezvous permit accepted an item\")",
+          "} catch .closed(let returned) {",
+          "  expect returned == \"returned\"",
+          "}",
+          "receiver.close()",
+          "expect await receiver.receive() == .none"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "overlapping-receiver-cursors",
+          "language": "w-rejected",
+          "source": [
+            "var receiver = take initialReceiver",
+            "let left = async receiver.receive()",
+            "let right = async receiver.receive()"
+          ],
+          "expectedDifference": "The exclusive receiver loan rejects the second cursor call while the first registration is pending."
+        },
+        {
+          "name": "close-before-receive-drain",
+          "language": "w-rejected",
+          "source": [
+            "var receiver = take initialReceiver",
+            "let pending = async receiver.receive()",
+            "receiver.close()"
+          ],
+          "expectedDifference": "close requires cancellation and join of this borrowed child; no public busy error replaces the borrower rule."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "DESIGN.md",
+          "symbol": "W-1545",
+          "claim": "Channel receive and close use a mutable receiver with an exclusive loan through cancellation and provider drain."
+        },
+        {
+          "path": "reference/last-light/streams.w",
+          "symbol": "recoverCanceledRendezvousPermit",
+          "claim": "A cancel-to-join path returns an item through a revoked capacity-zero permit while the receiver remains usable until explicit close."
+        },
+        {
+          "path": "reference/last-light/README.md",
+          "symbol": "Passa-Pratos de Capacidade Finita",
+          "claim": "The acceptance slice records exclusive receiver lifetime, graceful permit preservation, and revoke-only rendezvous cancellation."
+        },
+        {
+          "path": "CHEATSHEET.md",
+          "symbol": "canceling a rendezvous returns the permit owner",
+          "claim": "The executable usage example observes the canceled task, catches .closed, checks the returned owner, and then observes terminal receive."
+        }
+      ],
+      "checks": [
+        "CH0 behavior tests and the adversarial corpus validate receiver lifecycle and permit outcomes as a host contract oracle",
+        "Tree-sitter parsing of reference/last-light/streams.w and CHEATSHEET snippets passed; no W compiler/runtime conformance is claimed"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

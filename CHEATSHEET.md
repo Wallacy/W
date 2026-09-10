@@ -1505,6 +1505,55 @@ test "relay returns the item after receiver abort" for relay {
 `RelayError` preserves the rejected payload in its `send` case. Source failures
 use a separate case. Cancellation remains a control outcome, not an error case.
 
+A receive endpoint is a mutable cursor. Rebind it as `var` when the scope must
+receive, close, and receive again. The `mut` receiver makes overlapping cursor
+calls visible to the compiler.
+
+<!-- w-example role=executable use=Channel,ChannelPermit observable=value -->
+```w
+test "graceful close preserves an issued permit" {
+  let (sender, initialReceiver) = Channel<String>.open(capacity: 1)
+  var receiver = take initialReceiver
+  let permit = try await sender.reserve()
+  receiver.close()
+  do {
+    try (take permit).send(value: "accepted")
+  } catch .closed(_) {
+    panic("graceful close revoked an issued permit")
+  }
+  expect await receiver.receive() == .some("accepted")
+  expect await receiver.receive() == .none
+}
+```
+
+<!-- w-example role=executable use=Channel,Task,ChannelPermit observable=value -->
+```w
+test "canceling a rendezvous returns the permit owner" {
+  let (sender, initialReceiver) = Channel<String>.open(capacity: 0)
+  var receiver = take initialReceiver
+  let pending = async receiver.receive()
+  let permit = try await sender.reserve()
+  pending#cancel(reason: .userRequest)
+  switch await (take pending)#outcome() {
+    case .canceled(_): ()
+    case .success(_): panic("canceled receive produced an item")
+    case .error(_): panic("nonthrowing receive produced an error")
+  }
+  do {
+    try (take permit).send(value: "returned")
+    panic("revoked rendezvous permit accepted an item")
+  } catch .closed(let returned) {
+    expect returned == "returned"
+  }
+  receiver.close()
+  expect await receiver.receive() == .none
+}
+```
+
+The first example keeps an issued permit through graceful close. The second
+revokes only the paired rendezvous permit after receive cancellation. The
+channel remains usable until the explicit close.
+
 ## Shared state, atomics, and locks
 
 <!-- w-example role=executable use=Ledger,Published,publish observable=value -->

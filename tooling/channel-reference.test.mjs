@@ -21,6 +21,25 @@ function receive(id) {
   return { op: "beginReceive", receive: `receive-${id}` }
 }
 
+function committedFrame(capacity, strategy) {
+  const operations = [open(capacity, strategy), item("frame")]
+  if (capacity === 0) {
+    operations.push(
+      receive("frame"),
+      send("frame"),
+      { op: "progressAdmission" },
+    )
+  } else {
+    operations.push(
+      send("frame"),
+      { op: "progressAdmission" },
+      receive("frame"),
+      { op: "progressReceive" },
+    )
+  }
+  return operations
+}
+
 function closeConsumed(ids, senders = ["out"]) {
   return [
     ...senders.map((sender) => ({ op: "dropSender", sender })),
@@ -277,4 +296,326 @@ test("an aborted permit remains a linear resource until used or dropped", () => 
     { op: "finish" },
   ])
   assert.equal(released.status, "accepted")
+})
+
+test("a canceled rendezvous permit closes only its own send and frees the receiver", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const oldPermit = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-first" },
+      item("old"),
+      { op: "permitSend", permit: "permit-first", item: "old" },
+      { op: "dropReturnedItem", item: "old", reason: "caller" },
+    ])
+    assert.equal(oldPermit.status, "accepted")
+    assert.equal(oldPermit.state.lifecycle, "open")
+    assert.equal(oldPermit.state.permits["permit-first"], "usedAfterAbort")
+    assert.equal(oldPermit.state.terminalItems.old, "dropped:caller")
+
+    const canceledWhileReplacementWaits = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-first" },
+      receive("second"),
+      item("old"),
+      { op: "permitSend", permit: "permit-first", item: "old" },
+      { op: "dropReturnedItem", item: "old", reason: "caller" },
+    ])
+    assert.equal(canceledWhileReplacementWaits.status, "accepted")
+    assert.equal(canceledWhileReplacementWaits.state.receiveWaiter, "receive-second")
+    assert.equal(
+      canceledWhileReplacementWaits.state.outcomes.some(
+        (outcome) => outcome.operation === "send" &&
+          outcome.outcome === "closed" &&
+          outcome.item === "old",
+      ),
+      true,
+    )
+    assert.equal(canceledWhileReplacementWaits.state.terminalItems.old, "dropped:caller")
+
+    const replacement = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-first" },
+      receive("second"),
+      item("old"),
+      { op: "permitSend", permit: "permit-first", item: "old" },
+      { op: "dropReturnedItem", item: "old", reason: "caller" },
+      item("new"),
+      send("new"),
+      { op: "progressAdmission" },
+      { op: "consumeReceive", receive: "receive-second" },
+      { op: "dropSender", sender: "out" },
+      { op: "releaseReceiver" },
+      { op: "finish" },
+    ])
+    assert.equal(replacement.status, "accepted")
+    assert.equal(replacement.state.frames["receive-second"], "consumed")
+    assert.equal(
+      replacement.state.outcomes.some(
+        (outcome) => outcome.operation === "send" &&
+          outcome.outcome === "closed" &&
+          outcome.item === "old",
+      ),
+      true,
+    )
+    assert.equal(replacement.state.terminalItems.old, "dropped:caller")
+    assert.equal(replacement.state.terminalItems.new, "consumed")
+    assert.equal(replacement.state.receiveWaiter, null)
+  }
+})
+
+test("a paired rendezvous receiver remains busy until cancellation", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const waitingClose = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "closeReceiver" },
+    ])
+    assert.equal(waitingClose.status, "rejected")
+    assert.equal(waitingClose.error, "receiverBusy")
+    assert.equal(waitingClose.state.receiveWaiter, "receive-first")
+
+    const waitingAbort = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "abortReceiver" },
+    ])
+    assert.equal(waitingAbort.status, "rejected")
+    assert.equal(waitingAbort.error, "receiverBusy")
+    assert.equal(waitingAbort.state.receiverLive, true)
+
+    const waitingDuplicate = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      receive("second"),
+    ])
+    assert.equal(waitingDuplicate.status, "rejected")
+    assert.equal(waitingDuplicate.error, "receiverAlreadyWaiting")
+    assert.equal(waitingDuplicate.state.receiveWaiter, "receive-first")
+    assert.equal(waitingDuplicate.state.events.includes("receive:receive-second:waiting"), false)
+    assert.equal(
+      waitingDuplicate.state.outcomes.some((outcome) => outcome.receive === "receive-second"),
+      false,
+    )
+
+    const close = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "closeReceiver" },
+    ])
+    assert.equal(close.status, "rejected")
+    assert.equal(close.error, "receiverBusy")
+    assert.equal(close.state.receiveWaiter, null)
+    assert.equal(close.state.permits["permit-first"], "issued")
+
+    const abort = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "abortReceiver" },
+    ])
+    assert.equal(abort.status, "rejected")
+    assert.equal(abort.error, "receiverBusy")
+    assert.equal(abort.state.receiverLive, true)
+    assert.equal(abort.state.permits["permit-first"], "issued")
+
+    const duplicate = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      receive("second"),
+    ])
+    assert.equal(duplicate.status, "rejected")
+    assert.equal(duplicate.error, "receiverAlreadyWaiting")
+    assert.equal(duplicate.state.receiveWaiter, null)
+    assert.equal(duplicate.state.events.includes("receive:receive-second:waiting"), false)
+    assert.equal(
+      duplicate.state.outcomes.some((outcome) => outcome.receive === "receive-second"),
+      false,
+    )
+  }
+})
+
+test("canceling a paired permit allows graceful drain without resurrecting a waiter", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const replacement = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-first" },
+      receive("second"),
+      { op: "dropPermit", permit: "permit-first" },
+      item("new"),
+      send("new"),
+      { op: "progressAdmission" },
+      { op: "consumeReceive", receive: "receive-second" },
+      { op: "dropSender", sender: "out" },
+      { op: "releaseReceiver" },
+      { op: "finish" },
+    ])
+    assert.equal(replacement.status, "accepted")
+    assert.equal(replacement.state.permits["permit-first"], "dropped")
+    assert.equal(replacement.state.terminalItems.new, "consumed")
+    assert.equal(replacement.state.frames["receive-second"], "consumed")
+
+    const result = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-first" },
+      { op: "closeReceiver" },
+      { op: "dropSender", sender: "out" },
+      { op: "dropPermit", permit: "permit-first" },
+      { op: "releaseReceiver" },
+      { op: "finish" },
+    ])
+    assert.equal(result.status, "accepted")
+    assert.equal(result.state.lifecycle, "drained")
+    assert.equal(result.state.permits["permit-first"], "dropped")
+    assert.equal(result.state.receiveWaiter, null)
+    assert.equal(result.state.outcomes.some((outcome) => outcome.outcome === "none"), false)
+  }
+})
+
+test("last-sender close preserves an unrevoked rendezvous permit", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const result = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "dropSender", sender: "out" },
+      item("meal"),
+      { op: "permitSend", permit: "permit-first", item: "meal" },
+      { op: "consumeReceive", receive: "receive-first" },
+      { op: "releaseReceiver" },
+      { op: "finish" },
+    ])
+    assert.equal(result.status, "accepted")
+    assert.equal(result.state.lifecycle, "drained")
+    assert.equal(result.state.permits["permit-first"], "used")
+    assert.equal(result.state.terminalItems.meal, "consumed")
+  }
+})
+
+test("finish reports an active rendezvous receive independently of permit state", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const result = runChannelOperations([
+      open(0, strategy),
+      receive("first"),
+      { op: "beginReserve", sender: "out", waiter: "reserve-first", permit: "permit-first" },
+      { op: "progressAdmission" },
+      { op: "dropSender", sender: "out" },
+      { op: "finish" },
+    ])
+    assert.equal(result.status, "rejected")
+    assert.equal(result.error, "receiverObligationsRemain")
+  }
+})
+
+test("rendezvous item commit keeps receiver-owned cancellation cleanup", () => {
+  for (const strategy of ["ring", "mutex"]) {
+    const result = runChannelOperations([
+      open(0, strategy),
+      item("meal"),
+      receive("meal"),
+      send("meal"),
+      { op: "progressAdmission" },
+      { op: "cancelReceive", receive: "receive-meal" },
+    ])
+    assert.equal(result.status, "accepted")
+    assert.equal(result.state.frames["receive-meal"], "dropped")
+    assert.equal(result.state.terminalItems.meal, "dropped:receive-cancel:receive-meal")
+    assert.equal(
+      result.state.outcomes.some((outcome) => outcome.outcome === "commitWonCancellation"),
+      true,
+    )
+  }
+})
+
+test("an owned receive frame keeps the receiver cursor busy without state mutation", () => {
+  for (const capacity of [0, 1]) {
+    for (const strategy of ["ring", "mutex"]) {
+      const prefix = committedFrame(capacity, strategy)
+      const before = runChannelOperations(prefix)
+      assert.equal(before.status, "accepted")
+      assert.equal(before.state.frames["receive-frame"], "owned")
+
+      const blocked = [
+        ["beginReceive", receive("second"), "receiverAlreadyWaiting"],
+        ["closeReceiver", { op: "closeReceiver" }, "receiverBusy"],
+        ["abortReceiver", { op: "abortReceiver" }, "receiverBusy"],
+        ["releaseReceiver", { op: "releaseReceiver" }, "receiverBusy"],
+      ]
+      for (const [operationName, operation, expectedError] of blocked) {
+        const result = runChannelOperations([...prefix, operation])
+        assert.equal(result.status, "rejected", `${capacity}/${strategy}/${operationName}`)
+        assert.equal(result.error, expectedError, `${capacity}/${strategy}/${operationName}`)
+        assert.deepEqual(result.state, before.state, `${capacity}/${strategy}/${operationName}`)
+      }
+    }
+  }
+})
+
+test("receiver authority resumes after consume, frame drop, or post-commit cancellation", () => {
+  for (const capacity of [0, 1]) {
+    for (const strategy of ["ring", "mutex"]) {
+      for (const cleanup of ["consumeReceive", "dropReceiveFrame", "cancelReceive"]) {
+        const operation = { op: cleanup, receive: "receive-frame" }
+        const result = runChannelOperations([
+          ...committedFrame(capacity, strategy),
+          operation,
+          receive("next"),
+          { op: "cancelReceive", receive: "receive-next" },
+          { op: "closeReceiver" },
+          { op: "dropSender", sender: "out" },
+          { op: "releaseReceiver" },
+          { op: "finish" },
+        ])
+        assert.equal(result.status, "accepted", `${capacity}/${strategy}/${cleanup}`)
+        assert.notEqual(result.state.frames["receive-frame"], "owned")
+        assert.equal(result.state.frames["receive-next"], undefined)
+        assert.equal(result.state.lifecycle, "drained")
+        assert.equal(result.state.receiverLive, false)
+      }
+    }
+  }
+})
+
+test("last-sender close drains around an owned frame but release waits for cleanup", () => {
+  for (const capacity of [0, 1]) {
+    for (const strategy of ["ring", "mutex"]) {
+      const drained = runChannelOperations([
+        ...committedFrame(capacity, strategy),
+        { op: "dropSender", sender: "out" },
+      ])
+      assert.equal(drained.status, "accepted", `${capacity}/${strategy}/dropSender`)
+      assert.equal(drained.state.lifecycle, "drained")
+      assert.equal(drained.state.receiverLive, true)
+      assert.equal(drained.state.frames["receive-frame"], "owned")
+
+      const release = runChannelOperations([
+        ...committedFrame(capacity, strategy),
+        { op: "dropSender", sender: "out" },
+        { op: "releaseReceiver" },
+      ])
+      assert.equal(release.status, "rejected", `${capacity}/${strategy}/releaseReceiver`)
+      assert.equal(release.error, "receiverBusy")
+      assert.deepEqual(release.state, drained.state)
+    }
+  }
 })

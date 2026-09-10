@@ -3,6 +3,13 @@
 import * from std.io
 import streaming from std.stream
 import {
+  Course,
+  Guest,
+  GuestCount,
+  GuestName,
+  Order,
+} from domain
+import {
   BrigadeError,
   MixingJob,
   MixingResult,
@@ -226,7 +233,8 @@ export async fn handOffAtRendezvous(
 export async fn closeAfterReservedOrder(
   order: take Order,
 ): Order throws QueueError {
-  let (output, input) = Channel<Order>.open(capacity: 1)
+  let (output, initialInput) = Channel<Order>.open(capacity: 1)
+  var input = take initialInput
   let permit = try await output.reserve()
   input.close()
   try (take permit).send(value: take order)
@@ -235,6 +243,47 @@ export async fn closeAfterReservedOrder(
     panic("graceful close revoked an accepted permit")
   }
   return receivedOrder
+}
+
+export async fn recoverCanceledRendezvousPermit(
+  order: take Order,
+): Order throws QueueError {
+  let (output, initialInput) = Channel<Order>.open(capacity: 0)
+  var input = take initialInput
+  let pending = async input.receive()
+  let permit = try await output.reserve()
+
+  pending#cancel(reason: .userRequest)
+  switch await (take pending)#outcome() {
+    case .canceled(_): ()
+    case .success(_): panic("canceled receive produced an item")
+    case .error(_): panic("nonthrowing receive produced an error")
+  }
+
+  do {
+    try (take permit).send(value: take order)
+    panic("a revoked rendezvous permit accepted an item")
+  } catch .closed(let returnedOrder) {
+    input.close()
+    guard let _ = await input.receive() else {
+      return returnedOrder
+    }
+    panic("closing an open channel exposed a stale rendezvous item")
+  }
+}
+
+test "canceled rendezvous returns the original owner" for
+recoverCanceledRendezvousPermit {
+  let original = Order(
+    id: 1545,
+    guest: Guest(id: 1, name: try GuestName("Rendezvous")),
+    guests: try GuestCount(1),
+    course: .quietSalad,
+    notes: .none,
+  )
+  let returned = try await recoverCanceledRendezvousPermit(order: take original)
+  expect returned.id == 1545
+  expect returned.guest.id == 1
 }
 
 export async fn recoverAfterReceiverAbort(
@@ -254,8 +303,10 @@ export async fn recoverAfterReceiverAbort(
 
 // Compile-fail assays:
 // let _ = Channel<view String>.open(capacity: 1) // A view is not transferable.
-// let left = async input.receive()          // The receiver is not shareable.
-// let right = async input.receive()
+// var input = take input0
+// let left = async input.receive()          // The exclusive cursor is pending.
+// let right = async input.receive()         // Overlapping receiver loan.
+// input.close()                             // Requires the loan to be joined.
 // output.close()                             // Senders cannot close globally.
 // borrowedLines.append(line)                // The view would cross the next iteration.
 // let next = try await lines.next()         // Rejected when `line` is used again later.

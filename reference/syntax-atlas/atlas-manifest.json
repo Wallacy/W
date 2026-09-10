@@ -2785,11 +2785,11 @@
         {
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn serveOneByOne",
-          "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997"
+          "digest": "sha256:ff777cb4611159e4f67d71e588d64dd03ce45ae457358cc963a8af9948daa968"
         }
       ],
-      "snippetDigest": "sha256:376065174dbdef34a29fbbcb7c0b88c2fffae5e97e7512f98700ce90bc95f4a0",
-      "snippetBytes": 654
+      "snippetDigest": "sha256:88e27439ffb0ec32ef30b747245988aac70fa5c6319feae28ec74c8d3690f90e",
+      "snippetBytes": 656
     },
     {
       "id": "entry-declaration",
@@ -2915,6 +2915,6 @@
   ],
   "generated": {
     "coverage": "SYNTAX-COVERAGE.md",
-    "coverageDigest": "sha256:f3b90ebd70341cfac5a6d5287cbcbf5d19ad3d60e199c0aab4553b28ad52671c"
+    "coverageDigest": "sha256:5efd84cd7b03607305eb7d76112e4cb7817cbe22203c44bb095fb7d7221669ba"
   }
 }

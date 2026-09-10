@@ -671,7 +671,7 @@
           "id": "order-window",
           "path": "reference/last-light/streams.w",
           "symbol": "export async fn runBoundedOrderWindow",
-          "digest": "sha256:54216881a091d4ac28695ad6ab26f815789d2ae3a164ef9642b3ba81fd564997",
+          "digest": "sha256:ff777cb4611159e4f67d71e588d64dd03ce45ae457358cc963a8af9948daa968",
           "claim": "Bounded order window and completion ordering"
         }
       ],
@@ -679,13 +679,13 @@
         {
           "id": "channel-cases",
           "path": "tooling/channel-cases.json",
-          "digest": "sha256:b09a65f63d8ffe333bb8b73cdee09a1ec9297c1d97429fc0d9d7fa2d10882c1d",
+          "digest": "sha256:882e44e0442311b98036318dbed7d98b3b374b8921d3281130523b42d6f645f9",
           "claim": "Bounded channel admission, ownership, cancellation, and close cases"
         },
         {
           "id": "channel-reference",
           "path": "tooling/channel-reference.test.mjs",
-          "digest": "sha256:d16adc7c6a61642186c115f004458b91963263070e45a1a1b8a927ef9e9bc136",
+          "digest": "sha256:f3cda48611307f7b37345dd3c79f2ff212d5420e1d78306b3d72ba4dbb86051a",
           "claim": "Independent channel lifecycle assertions"
         }
       ],
