@@ -10910,12 +10910,15 @@ receipt remain distinct from `w test` results.
 
 `executable` and `script` are separate subject tags because a native image and
 an interpreted carrier have different startup, trust, identity, and measurement
-boundaries. Native executable resolution may use an explicit path or a frozen
-PATH snapshot. It never uses PATHEXT, file associations, a shell, or a text
-shebang. Script resolution always starts from explicit script bytes. Explicit
-`using executable` overrides the closed extension table. Shebang content is
-recorded but intentionally does not select the runner in the first contract;
-this avoids platform-dependent `/usr/bin/env`, quoting, and `env -S` behavior.
+boundaries. Native executable resolution may use an explicit path or a frozen,
+ordered PATH snapshot. Windows has one fixed exact-then-`.exe` rule for an
+extensionless locator; this is part of W's resolver and never consults PATHEXT.
+Resolution never uses file associations, a shell, or a text shebang. Script
+resolution always starts from explicit script bytes. Explicit `using
+executable` overrides the closed extension table and resolves its runner with
+the same path-or-frozen-PATH native-image algorithm. Shebang content is recorded
+but intentionally does not select the runner in the first contract; this avoids
+platform-dependent `/usr/bin/env`, quoting, and `env -S` behavior.
 
 The extension defaults are convenience, not reproducibility authority. Strong
 evidence still binds the resolved native runner bytes, target, provider,
