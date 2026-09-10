@@ -20,6 +20,8 @@ enum {
 
 static const char MLIR0_SCHEMA_COMMENT[] =
     "// " W_SEED_MLIR0_SCHEMA_VERSION "\n";
+static const char MLIR0_PROCESS_SCHEMA_COMMENT[] =
+    "// " W_SEED_MLIR0_PROCESS_SCHEMA_VERSION "\n";
 static const char MLIR0_PREFIX[] =
     "module attributes {llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
     "\"} {\n"
@@ -2174,6 +2176,51 @@ static bool build_program_artifact(
   return true;
 }
 
+static bool build_process_handler_artifact(
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (!target_is_supported(target) || artifact == NULL || written == NULL ||
+      digest == NULL)
+    return false;
+  const bool windows = target_is_windows(target);
+  const char *triple = windows ? W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                               : W_SEED_MLIR0_TARGET_TRIPLE;
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_SCHEMA_COMMENT) ||
+      !append_literal(artifact, capacity, &offset,
+                      "module attributes {llvm.target_triple = \"") ||
+      !append_literal(artifact, capacity, &offset, triple) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "\"} {\n"
+          "  llvm.func @w_seed_process_entry0_context_drop(%context: !llvm.ptr) -> i32\n"
+          "  llvm.func @w_seed_process_entry0_arguments_drop(%arguments: !llvm.ptr) -> i32\n"
+          "  llvm.func @w_seed_process_entry0_handler(%arguments: !llvm.ptr, %context: !llvm.ptr) -> i32 {\n"
+          "    %zero = llvm.mlir.constant(0 : i32) : i32\n"
+          "    %context_status = llvm.call @w_seed_process_entry0_context_drop(%context) : (!llvm.ptr) -> i32\n"
+          "    %context_ok = llvm.icmp \"eq\" %context_status, %zero : i32\n"
+          "    llvm.cond_br %context_ok, ^context_released, ^release_fault\n"
+          "  ^context_released:\n"
+          "    %arguments_status = llvm.call @w_seed_process_entry0_arguments_drop(%arguments) : (!llvm.ptr) -> i32\n"
+          "    %arguments_ok = llvm.icmp \"eq\" %arguments_status, %zero : i32\n"
+          "    llvm.cond_br %arguments_ok, ^owners_released, ^release_fault\n"
+          "  ^owners_released:\n"
+          "    llvm.return %zero : i32\n"
+          "  ^release_fault:\n"
+          "    \"llvm.intr.trap\"() : () -> ()\n"
+          "    llvm.unreachable\n"
+          "  }\n"
+          "}\n"))
+    return false;
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
 typedef struct {
   const void *address;
   size_t count;
@@ -2268,6 +2315,10 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
       {program->terminators, program->terminator_capacity,
        sizeof(*program->terminators)},
       {program->entries, program->entry_capacity, sizeof(*program->entries)},
+      {program->external_modules, program->external_module_capacity,
+       sizeof(*program->external_modules)},
+      {program->external_symbols, program->external_symbol_capacity,
+       sizeof(*program->external_symbols)},
       {program->text_bytes, program->text_byte_capacity, sizeof(uint8_t)},
       {program->value_bytes, program->value_byte_capacity, sizeof(uint8_t)},
       {program->receipt, program->receipt_capacity, sizeof(uint8_t)},
@@ -2302,10 +2353,18 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       counts == NULL || result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
+  if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  const bool process_artifact =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
+  w_seed_native_subset0_process process_selection;
   w_seed_native_subset0_program program_selection;
-  const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select_program(input->program, input->hir_result,
-                                           &program_selection);
+  const w_seed_native_subset0_status selected = process_artifact
+      ? w_seed_native_subset0_select_process(input->program, input->hir_result,
+                                             &process_selection)
+      : w_seed_native_subset0_select_program(input->program, input->hir_result,
+                                             &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -2316,8 +2375,12 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (program_selection.has_local_calls || program_selection.has_cfg ||
-      program_selection.function_count > 1u) {
+  if (process_artifact) {
+    if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
+                                        &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
@@ -2351,10 +2414,18 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   if (input == NULL || input->program == NULL || input->hir_result == NULL ||
       result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
+  if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  const bool process_artifact =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
+  w_seed_native_subset0_process process_selection;
   w_seed_native_subset0_program program_selection;
-  const w_seed_native_subset0_status selected =
-      w_seed_native_subset0_select_program(input->program, input->hir_result,
-                                           &program_selection);
+  const w_seed_native_subset0_status selected = process_artifact
+      ? w_seed_native_subset0_select_process(input->program, input->hir_result,
+                                             &process_selection)
+      : w_seed_native_subset0_select_program(input->program, input->hir_result,
+                                             &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -2365,8 +2436,12 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
-  if (program_selection.has_local_calls || program_selection.has_cfg ||
-      program_selection.function_count > 1u) {
+  if (process_artifact) {
+    if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
+                                        &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;

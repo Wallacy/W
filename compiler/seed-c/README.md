@@ -1033,11 +1033,13 @@ público/pinado com fases separáveis e reproduzíveis. C11 é recovery explíci
 
 ## MLIR0 ponte nativa terminal para LLVM
 
-`include/w_seed_mlir0.h` e `src/w_seed_mlir0.c` formam um adapter seed-only que
-consome somente `w_seed_mlir0_input { program, hir_result }`. O header inclui
-HIR0 e a implementação não inclui, chama ou cria HLO0. W-1530 advances MLIR0
-to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0 remains
-`w-seed-native0-6`. W-1537 advances HIR0 to `w-seed-hir0-9`, MLIR0 to
+`include/w_seed_mlir0.h` and `src/w_seed_mlir0.c` form a seed-only adapter that
+consumes `w_seed_mlir0_input { program, hir_result, artifact_kind }`. The
+header includes HIR0, and the implementation does not include, call, or create
+HLO0. A zero `artifact_kind` selects the existing `EXECUTABLE` artifact.
+W-1530 advances
+MLIR0 to `w-seed-mlir0-9`; W-1531 advances it to `w-seed-mlir0-10`; Native0
+remains `w-seed-native0-6`. W-1537 advances HIR0 to `w-seed-hir0-9`, MLIR0 to
 `w-seed-mlir0-12`, and the Windows label to `w-seed-mlir0-windows-3`.
 W-1538 advances HIR0 to `w-seed-hir0-10`, MLIR0 to `w-seed-mlir0-13`, and the
 Windows label to `w-seed-mlir0-windows-4`; Native0 remains v6. W-1539 advances
@@ -1050,7 +1052,10 @@ and Native0 remain unchanged. W-1542 advances only the frontend to
 `w-seed-frontend-16`. W-1543 advances HIR0 to `w-seed-hir0-14`; W-1544
 advances the current HIR0 schema to `w-seed-hir0-15`. MLIR0, its Windows
 label, and Native0 remain unchanged. W-1546 advances the current HIR0 schema
-to `w-seed-hir0-16`; MLIR0, its Windows label, and Native0 remain unchanged.
+to `w-seed-hir0-16`, adds the private MLIR0 process-handler schema
+`w-seed-mlir0-process-handler-1`, and advances Native0 to `w-seed-native0-7`.
+The existing MLIR0 Windows label remains `w-seed-mlir0-windows-6`; the
+process-handler artifact is distinct from the executable artifact.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1063,7 +1068,7 @@ with `i64`/Bool parameters. It also emits typed scalar `llvm.return` and
 result-producing `llvm.call` operations for direct call-result bindings.
 Source argument evaluation order and declaration slot order remain distinct.
 Bool uses exact lowercase ASCII; String values keep their counted bytes,
-including NUL. The single selector still supports HLO0/HLO1/RUN0.
+including NUL. The executable selector still supports HLO0/HLO1/RUN0.
 
 `measure` e `emit` são caller-owned, bounded, sem heap, determinísticos e
 all-or-nothing; status, required, written e digest pertencem ao result.
@@ -1078,6 +1083,10 @@ and signed-`i64` decimal helpers, an on-demand Bool helper, and one checked
 `write`. Its generated MLIR contains no `snprintf`, `%ld`, or variadic call.
 There is no W-level `printInt`, C source generation, custom W dialect,
 TableGen, or object cache.
+
+The separate `PROCESS_HANDLER` mode and its process-entry gate are described
+in the W-1546 section below. The executable selector remains the only mode
+used by public `w run`.
 
 ### ICMP0 signed-`i64` comparisons (W-1537)
 
@@ -1257,10 +1266,11 @@ digest, while source spelling remains in provenance.
 
 Counts, capacities, copied text, both external arrays, receipt and digests are
 covered by the caller-owned overlap and all-or-nothing barriers. Focused tests
-mutate the copied graph and adapter independently. HLO0 and MLIR0 deliberately
-reject a valid process HIR without output mutation. `directEntry`, argument
-access, providers, ABI lowering, runtime input, native execution, Windows, and
-performance remain gaps.
+mutate the copied graph and adapter independently. At the W-1543 boundary,
+HLO0 and MLIR0 deliberately rejected a valid process HIR without output
+mutation. The current private handler mode is described in the W-1546 section
+below. `directEntry`, argument access, providers, ABI lowering, runtime input,
+native execution, Windows, and performance remained gaps at that boundary.
 
 O gate `bun check --target mlir0` comprova source → parser/frontend → HIR0 → MLIR0 →
 `mlir-opt` verify → `mlir-translate` LLVM IR → `clang -x ir` native link →
@@ -1313,7 +1323,9 @@ remain conservative. The process handler remains `MAY`/`ABSENT`.
 Scratch is 4 KiB under the inherited CST32768 bound, with preflight and
 verifier guards, no heap, and no 256-function capacity. The emitter derives
 facts before receipt/digest publication; the verifier rederives before
-comparison and never commits output. HLO0/MLIR0 reject process HIR. The
+comparison and never commits output. At the W-1544 boundary, HLO0/MLIR0
+rejected process HIR. The current private handler mode is described in the
+W-1546 section below. The
 bounded implementation is source-backed-current through
 `hir0_compute_body_never`, `hir0_publish_direct_entry_facts`, and
 `verify_direct_entry_facts`; focused C units `test_direct_entry_facts` and
@@ -1325,7 +1337,7 @@ runtime support, native process execution, Windows, or timing claim is made.
 See the canonical contract in
 [`DESIGN.md`](../../DESIGN.md) §26.4.1.27.
 
-### Process-owner lifecycle facts in HIR16 (W-1546)
+### Process-owner lifecycle facts and private handler artifact in HIR16 (W-1546)
 
 HIR16 adds closed, independently verified lifecycle facts to each type:
 `UNKNOWN`, `VALUE_COPY`, or `ENTRY_ROOT_OWNER`. A separate release fact is
@@ -1347,12 +1359,47 @@ drop assumptions do not grant the proof.
 
 The existing whole-body `neverSuspend` proof remains mandatory. The process
 handler may report `MAY`/`AVAILABLE` only for this complete bounded shape.
-HLO0 and MLIR0 still reject process HIR without partial output. This milestone
-does not provide a process provider, wrapper ABI implementation, root adapter,
-runtime input, native process lowering, or execution. The focused HIR0,
-HLO0, MLIR0, and Native0 CTests pass in Debug Ninja with GCC 13.2.0 using
-actual `-std=c2x` preview mode. That is correctness-only evidence, not final
-C23 or performance evidence.
+HLO0 remains closed to process HIR. MLIR0 now has a separate
+`PROCESS_HANDLER` artifact mode with schema
+`w-seed-mlir0-process-handler-1`; Native0 advances to `w-seed-native0-7`.
+The zero-valued `EXECUTABLE` mode preserves the previous artifact bytes.
+
+Native0 resolves the compiler-owned `std.process@1` catalog and selects only
+the verified one-module handler. The private handler exposes opaque
+`Arguments*` and `Context*` parameters with an `int32` result. It calls
+`w_seed_process_entry0_context_drop` before
+`w_seed_process_entry0_arguments_drop`, checks both statuses, and traps on a
+release failure. It emits no `main`, I/O, or root-finalization operation.
+The handler selector does not use function-name spelling and rejects unknown
+external identities or unverified HIR.
+
+This artifact is a test-harness input, not public process support. Public
+`w run` still rejects process entries. The PROCESS0 provider kernel is
+implemented separately; the public `std.process` ABI, public entry/root
+adapter, OS-root acquisition/finalization, W-visible argument access,
+process-handler body branching, and general runtime ABI remain pending.
+
+The fixture, C harness, and command `bun check --target process-entry0` form
+the native gate. With the strict MLIR/LLVM 23.1.0 manifest, configured CMake
+build, and GCC 13.2 `x86_64-w64-mingw32`, it passes source → frontend →
+verified HIR16/Native0 selection → MLIR `mlir-opt` verification → LLVM IR →
+`llc` x64 COFF → GCC C-ABI private harness plus the real PROCESS0 provider →
+Windows PE execution. The same artifact runs with empty and nonempty
+caller-selected CRT byte vectors; the exercised alias/trivia variant emits
+byte-identical MLIR. Synchronous, non-success, and missing-entry source cases
+reject with exit 1 and empty stdout; omitted/no-op release exposes harness exit
+11; stale-generation, reversed-argument, wrong-context/arguments, and
+reordered-generated-call cases reach the generated trap (Bun-visible exit 29)
+with empty output. The runner deletes temporary artifacts.
+Focused scanner, MLIR0, and Native0 unit checks pass in the same configured
+build.
+
+This is private-handler evidence, not public process support. It does not
+establish native Windows UTF-16 startup-vector behavior or an `argv[0]` policy,
+or async/general provider/runtime behavior. Existing HIR lifecycle evidence
+remains `source-backed-current` and compiler-lifecycle correctness narrative,
+with no timing or result. Benchmark disposition, blockers, and stop condition
+are canonical in [`DESIGN.md`](../../DESIGN.md) §26.4.1.28.
 
 ### PROCESS0 provider kernel (post-W-1546)
 
@@ -1373,8 +1420,9 @@ generations are rejected while the C storage contract holds.
 Root finalization is separate and requires
 both wrapper obligations to be released. Borrow views end before finalization
 or reuse. This is provider correctness evidence, not W execution or the public
-`std.process` ABI. Strict W-text conversion, compiler binding, native entry,
-root acquisition, and runtime lowering remain pending.
+`std.process` ABI. Strict W-text conversion, compiler binding, public native
+entry/root adaptation, OS-root acquisition, and runtime lowering remain
+pending.
 The root and wrapper records remain address-stable through finalization.
 They do not define the future movable W-value ABI. Pointer provenance, borrow
 lifetimes, and exclusive mutation remain explicit C-caller obligations.

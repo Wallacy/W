@@ -38,6 +38,101 @@ static bool input_shape_valid(const w_seed_native0_input *input) {
              W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES;
 }
 
+static bool source_span_is(const w_seed_source *source, w_seed_span span,
+                           const uint8_t *literal, size_t literal_bytes) {
+  if (source == NULL || literal == NULL) return false;
+  w_seed_byte_view slice;
+  w_seed_source_error error;
+  if (!w_seed_source_slice(source, span, &slice, &error) ||
+      slice.length != literal_bytes)
+    return false;
+  return literal_bytes == 0u || memcmp(slice.data, literal, literal_bytes) == 0;
+}
+
+static void configure_process_catalog(w_seed_native0_storage *storage) {
+  if (storage == NULL) return;
+  static const w_seed_frontend_text empty = {NULL, 0u};
+  storage->process_external_symbols[0] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"Arguments", 9u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Arguments", 9u},
+      .is_const = false,
+      .receiver_type = empty};
+  storage->process_external_symbols[1] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"Context", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Context", 7u},
+      .is_const = false,
+      .receiver_type = empty};
+  storage->process_external_symbols[2] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"ExitCode", 8u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_TYPE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = false,
+      .receiver_type = empty};
+  storage->process_external_symbols[3] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"success", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  storage->process_external_modules[0] = (w_seed_frontend_external_module){
+      .module_id = (w_seed_frontend_text){"std.process", 11u},
+      .symbols = storage->process_external_symbols,
+      .symbol_count = 4u};
+}
+
+/* Resolve the process catalog from parser-owned import records rather than
+ * source substring or function-name recognition. A non-empty import graph
+ * without this one exact supported edge fails closed in Native0. */
+static w_seed_native0_status configure_external_catalog(
+    w_seed_native0_storage *storage, bool *has_process_import) {
+  if (storage == NULL || has_process_import == NULL)
+    return W_SEED_NATIVE0_INVALID;
+  *has_process_import = false;
+  w_seed_module_origin origins[W_SEED_NATIVE0_IMPORTS];
+  w_seed_module_scan_result scan_result;
+  const w_seed_module_scan_status scan_status = w_seed_module_scan(
+      &storage->source, storage->nodes, storage->parse.node_count,
+      &storage->parse, origins, W_SEED_NATIVE0_IMPORTS, &scan_result);
+  if (scan_status == W_SEED_MODULE_SCAN_CAPACITY)
+    return W_SEED_NATIVE0_CAPACITY;
+  if (scan_status != W_SEED_MODULE_SCAN_OK) return W_SEED_NATIVE0_UNSUPPORTED;
+  if (scan_result.written == 0u) return W_SEED_NATIVE0_OK;
+  if (scan_result.written != 1u) return W_SEED_NATIVE0_UNSUPPORTED;
+
+  w_seed_span path_span;
+  if (!w_seed_module_scan_import_path_span(
+          &storage->source, storage->nodes, storage->parse.node_count,
+          origins[0].declaration_span, &path_span) ||
+      !source_span_is(&storage->source, path_span,
+                      (const uint8_t *)"std.process", 11u))
+    return W_SEED_NATIVE0_UNSUPPORTED;
+
+  configure_process_catalog(storage);
+  storage->process_resolved_imports[0] =
+      (w_seed_frontend_resolved_import){
+          .source_document_index = 0u,
+          .direct_import_ordinal = origins[0].direct_import_ordinal,
+          .import_declaration_span = origins[0].declaration_span,
+          .target_kind = W_SEED_FRONTEND_RESOLVED_IMPORT_EXTERNAL_MODULE,
+          .target_index = 0u};
+  *has_process_import = true;
+  return W_SEED_NATIVE0_OK;
+}
+
 /* Reject every output/result alias that could be invalidated by the storage
  * reset or by the final publication. Input views into storage are rejected as
  * well because the storage is cleared before acquisition. */
@@ -130,15 +225,21 @@ static w_seed_native0_status prepare_frontend(
       .nodes = storage->nodes,
       .node_count = storage->parse.node_count,
       .parse = storage->parse};
+  bool has_process_import = false;
+  const w_seed_native0_status catalog_status =
+      configure_external_catalog(storage, &has_process_import);
+  if (catalog_status != W_SEED_NATIVE0_OK) return catalog_status;
   storage->input = (w_seed_frontend_input){
       .documents = &storage->document,
       .document_count = 1u,
-      .external_modules = NULL,
-      .external_module_count = 0u,
+      .external_modules =
+          has_process_import ? storage->process_external_modules : NULL,
+      .external_module_count = has_process_import ? 1u : 0u,
       .host_scope = &storage->host_scope,
-      .import_resolution_complete = false,
-      .resolved_imports = NULL,
-      .resolved_import_count = 0u};
+      .import_resolution_complete = has_process_import,
+      .resolved_imports =
+          has_process_import ? storage->process_resolved_imports : NULL,
+      .resolved_import_count = has_process_import ? 1u : 0u};
   storage->output = (w_seed_frontend_output){
       .modules = storage->modules,
       .module_capacity = W_SEED_NATIVE0_MODULES,
@@ -265,6 +366,10 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
       .terminator_capacity = W_SEED_NATIVE0_HIR_TERMINATORS,
       .entries = storage->hir_entries,
       .entry_capacity = W_SEED_NATIVE0_HIR_ENTRIES,
+      .external_modules = storage->hir_external_modules,
+      .external_module_capacity = W_SEED_NATIVE0_HIR_EXTERNAL_MODULES,
+      .external_symbols = storage->hir_external_symbols,
+      .external_symbol_capacity = W_SEED_NATIVE0_HIR_EXTERNAL_SYMBOLS,
       .text_bytes = storage->hir_text,
       .text_byte_capacity = sizeof(storage->hir_text),
       .value_bytes = storage->hir_value_bytes,
@@ -318,6 +423,9 @@ w_seed_native0_status w_seed_native0_run(
   if (input == NULL || storage == NULL || output == NULL || result == NULL)
     return W_SEED_NATIVE0_INVALID;
   if (!input_shape_valid(input)) return W_SEED_NATIVE0_SOURCE;
+  if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER)
+    return W_SEED_NATIVE0_UNSUPPORTED;
   if (output->capacity > W_SEED_MLIR0_MAX_BYTES ||
       (output->capacity != 0u && output->bytes == NULL))
     return W_SEED_NATIVE0_CAPACITY;
@@ -334,7 +442,9 @@ w_seed_native0_status w_seed_native0_run(
   if (status != W_SEED_NATIVE0_OK) return status;
 
   const w_seed_mlir0_input mlir_input = {
-      &storage->hir_program, &storage->hir_result};
+      .program = &storage->hir_program,
+      .hir_result = &storage->hir_result,
+      .artifact_kind = input->artifact_kind};
   w_seed_mlir0_result mlir_result;
   const w_seed_native0_status mlir_status = map_mlir_status(
       w_seed_mlir0_emit(&mlir_input, &input->target,

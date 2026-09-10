@@ -10821,58 +10821,43 @@ latency, and size axes remain future work.
 
 W-1546 is the narrow amendment to DESIGN §§14.5.1–14.5.2. It specializes the
 §9.11 cleanup rule for `std.process@1` without changing the general W-1484
-proof. The amendment covers the lifecycle of the two wrappers that the
-`native-process@1` entry can already pass. `Arguments` and `Context` are
-root-scoped, non-`Copy` owners. Adoption and passing do not allocate or copy
-underlying OS data. Release occurs at the handler owner-scope exit, including
-each structured exit, exactly once, and invalidates the wrapper. It is
-`neverSuspend`, nonthrowing, nonblocking, and non-reentrant. It
-does not perform admission, consume quota, use fallback, acquire new
-authority, or create a hidden `Task`.
+proof. The normative owner lifecycle, identity, and cleanup facts remain in
+[`DESIGN.md`](DESIGN.md) §26.4.1.28. This section records why the next private
+artifact boundary is useful and what its evidence can establish.
 
-This contract does not turn release into shutdown. It does not shut down the
-root, wait for provider work, or reclaim root backing storage while loans,
-children, or provider registrations remain. Root creation, OS-data
-acquisition, capability acquisition, and structured drain remain separate
-adapter obligations. This contract does not prove those obligations pure or
-nonblocking. `Context` projections retain their W-1298 lifecycle contracts.
-`ExitCode` remains a trivial `Copy` value, not an owner.
+The private `PROCESS_HANDLER` mode keeps the zero-valued `EXECUTABLE` artifact
+unchanged. It avoids inferring a CRT `main`, I/O, or public runtime entry from
+a function name or a foreign signature. Its opaque owner pointers let the
+generated handler exercise the compiler-owned release order before a public
+process entry/root adapter exists. The C harness owns the PROCESS0 root and
+finalizes it after the handler returns. This ordering is an implementation
+seam, not a public W ABI.
 
-The compiler may use this contract as a versioned axiom while the provider is
-missing. Binding requires the fixed compiler-owned `std.process@1`
-owner-release contract identity, its drop ABI, and verified external identity.
-The verifier recomputes this relation from canonical records. Names, resolver
-metadata, `adapter_kind`, and `.success` do not grant the axiom. The contract
-does not require copied source bytes or a general provenance subsystem.
+HIR16 remains `source-backed-current` for the bounded producer, independent
+verification, typed lifecycle facts, and the normal-return cleanup obligation.
+The accepted HIR shape has one module, one function, one entry, two owners,
+and the sole `.success` return. It has no throw or cancellation witness.
+`PROCESS0` is the implemented caller-owned provider kernel. The public
+`std.process` ABI, OS-root acquisition/finalization, public entry adapter,
+W-visible argument access, and process-handler body branching remain separate
+gaps.
 
-HIR16 now records typed lifecycle and release facts per type, plus explicit
-`RELEASE_HANDLER_OWNERS` obligations for the handler parameter range. The
-producer is `hir0_publish_process_lifecycle_facts`. The independent verifier
-is `verify_process_lifecycle_facts`, after record and identity checks and
-before direct-entry rederivation. Complete-body analysis remains mandatory.
-The only accepted process shape is the existing one-module, one-function,
-one-entry handler with two owner parameters and the sole `return .success`
-normal return. This subset has no throw or cancellation witness.
+The source implementation adds schema
+`w-seed-mlir0-process-handler-1` and Native0 `w-seed-native0-7`. The fixture,
+gate source, harness, and reproducer are pinned in the W-1546 `sourceRefs`
+entry in
+[`tooling/design-freeze-classification.json`](tooling/design-freeze-classification.json).
+`bun check --target process-entry0` passes with the strict MLIR/LLVM 23.1.0
+manifest, configured CMake build, and GCC 13.2 `x86_64-w64-mingw32` through
+the private Windows PE handler path. See the
+[`seed C W-1546 implementation section`](compiler/seed-c/README.md#process-owner-lifecycle-facts-and-private-handler-artifact-in-hir16-w-1546)
+for the pipeline and exercised case matrix. The result is private-handler
+evidence, not native Windows UTF-16 startup-vector or `argv[0]` policy, public
+`w run` process support, or an async/general provider/runtime claim. The
+focused MLIR0 and Native0 CTests also pass in the existing Debug Ninja/GCC
+13.2 build using `-std=c2x` as compiler-unit evidence.
 
-Only that validated process handler may advance from `MAY`/`ABSENT` to
-`MAY`/`AVAILABLE`. `Arguments` and `Context` use
-`ENTRY_ROOT_OWNER` with `PROCESS_V1_WRAPPER_RELEASE`, while `ExitCode`, Unit,
-`i64`, and Bool use `VALUE_COPY` with `NONE`. String, unknown, opaque, and
-foreign types remain `UNKNOWN`. The verifier rejects forged release or String
-lifecycle facts and shortened or rebound cleanup ranges, including resealed
-mutants. HLO0 and MLIR0 still reject process HIR.
-
-This evidence is `source-backed-current` only for the bounded compiler
-producer, verifier, lifecycle facts, and normal-return cleanup obligation.
-The general contract covers structured exits, but this HIR0 cut proves only
-normal return. Provider proof, the wrapper ABI implementation, root
-acquisition, root drain and reclamation, runtime input, and native consumers
-remain pending. W-1544 remains the historical HIR15 direct-entry boundary and
-does not supply this lifecycle proof. W-1546 does not execute `PROC-INPUT0`.
-
-Rejected alternatives are inferring the contract from synchronous spelling or
-a foreign `fn` signature, making release drain the root, using hidden globals,
-and adding a source-bytes provenance subsystem. The classification is
-`source-backed-current` for the bounded compiler lifecycle evidence, with
-`benchmarkDisposition: compiler-lifecycle`, correctness-only, and no timing or
-result.
+Rejected alternatives are implicit CRT/public entry inference, hidden globals,
+and making wrapper release drain the root. The HIR-only fact evidence remains
+compiler-lifecycle correctness narrative. Benchmark disposition, blockers,
+and stop condition are canonical in DESIGN §26.4.1.28.

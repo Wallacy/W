@@ -21,6 +21,8 @@ static const char TEST_PATH[] = "w_seed_native0_test.w";
 static w_seed_native0_storage storage;
 static const w_seed_mlir0_target TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
+static const w_seed_mlir0_target WINDOWS_TARGET = {
+    W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC};
 
 static bool write_source(const uint8_t *bytes, size_t length) {
   FILE *file = fopen(TEST_PATH, "wb");
@@ -35,12 +37,30 @@ static w_seed_native0_status run_source(
     const uint8_t *bytes, size_t length, const char *identity,
     size_t identity_length, uint8_t *output_bytes, size_t output_capacity,
     w_seed_native0_result *result) {
-  if (!write_source(bytes, length)) return W_SEED_NATIVE0_SOURCE;
   const w_seed_native0_input input = {
       .path = TEST_PATH,
       .path_length = sizeof(TEST_PATH) - 1u,
       .logical_source_id = {identity, identity_length},
-      .target = TARGET};
+      .target = TARGET,
+      .artifact_kind = W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  if (!write_source(bytes, length)) return W_SEED_NATIVE0_SOURCE;
+  const w_seed_native0_output output = {output_bytes, output_capacity};
+  return w_seed_native0_run(&input, &storage, &output, result);
+}
+
+static w_seed_native0_status run_source_mode(
+    const uint8_t *bytes, size_t length, const char *identity,
+    size_t identity_length, const w_seed_mlir0_target *target,
+    w_seed_mlir0_artifact_kind artifact_kind, uint8_t *output_bytes,
+    size_t output_capacity, w_seed_native0_result *result) {
+  if (target == NULL) return W_SEED_NATIVE0_INVALID;
+  const w_seed_native0_input input = {
+      .path = TEST_PATH,
+      .path_length = sizeof(TEST_PATH) - 1u,
+      .logical_source_id = {identity, identity_length},
+      .target = *target,
+      .artifact_kind = artifact_kind};
+  if (!write_source(bytes, length)) return W_SEED_NATIVE0_SOURCE;
   const w_seed_native0_output output = {output_bytes, output_capacity};
   return w_seed_native0_run(&input, &storage, &output, result);
 }
@@ -64,6 +84,16 @@ static size_t count_bytes(const uint8_t *bytes, size_t length,
   for (size_t offset = 0u; offset + needle_length <= length; offset += 1u)
     if (memcmp(bytes + offset, needle, needle_length) == 0) count += 1u;
   return count;
+}
+
+static size_t find_bytes(const uint8_t *bytes, size_t length,
+                         const char *needle, size_t start) {
+  if (bytes == NULL || needle == NULL || start > length) return SIZE_MAX;
+  const size_t needle_length = strlen(needle);
+  if (needle_length == 0u || needle_length > length - start) return SIZE_MAX;
+  for (size_t offset = start; offset + needle_length <= length; offset += 1u)
+    if (memcmp(bytes + offset, needle, needle_length) == 0) return offset;
+  return SIZE_MAX;
 }
 
 static bool append_source_text(char *buffer, size_t capacity, size_t *offset,
@@ -118,7 +148,7 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-6") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-7") == 0);
   CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-15") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
@@ -217,6 +247,144 @@ static bool test_products(void) {
                        "\\4b\\69\\74\\63\\68\\65\\6e\\20\\63\\6c\\6f\\73\\65\\64\\0a") &&
         count_bytes(cfg_bytes, cfg_result.mlir.written.mlir_bytes,
                     "\\41\\66\\74\\65\\72\\20\\73\\65\\72\\76\\69\\63\\65\\0a") == 1u);
+  return true;
+}
+
+static bool test_process_handler_catalog_and_artifact(void) {
+  static const uint8_t canonical[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn launch(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(launch)\n";
+  static const uint8_t variant[] =
+      "// aliases and trivia must not change the handler artifact\n"
+      "import { Arguments as A, Context as C, ExitCode as E } from std.process\n"
+      "async fn renamed(args: A, ctx: C): E { return .success }\n"
+      "// the entry function name is not an ABI selector\n"
+      "entry(renamed)\n";
+  static const uint8_t unknown_module[] =
+      "import { Arguments, Context, ExitCode } from std.other\n"
+      "async fn launch(args: Arguments, ctx: Context): ExitCode { "
+      "return .success }\nentry(launch)\n";
+  static uint8_t canonical_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t variant_bytes[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t windows_bytes[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result canonical_result;
+  w_seed_native0_result variant_result;
+  w_seed_native0_result windows_result;
+
+  CHECK(run_source_mode(
+            canonical, sizeof(canonical) - 1u, "process-canonical", 17u,
+            &TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER, canonical_bytes,
+            sizeof(canonical_bytes), &canonical_result) == W_SEED_NATIVE0_OK);
+  CHECK(storage.input.external_module_count == 1u &&
+        storage.input.resolved_import_count == 1u &&
+        storage.hir_program.external_module_count == 1u &&
+        storage.hir_program.external_symbol_count == 4u &&
+        storage.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        storage.hir_program.entries[0].adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        storage.hir_program.entries[0].cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS);
+  CHECK(contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "// " W_SEED_MLIR0_PROCESS_SCHEMA_VERSION "\n") &&
+        contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.func @w_seed_process_entry0_handler") &&
+        contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_process_entry0_context_drop(%context)") &&
+        contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.call @w_seed_process_entry0_arguments_drop(%arguments)") &&
+        !contains_bytes(canonical_bytes,
+                        canonical_result.mlir.written.mlir_bytes,
+                        "llvm.func @main") &&
+        !contains_bytes(canonical_bytes,
+                        canonical_result.mlir.written.mlir_bytes,
+                        "GetStdHandle"));
+  const size_t context_call = find_bytes(
+      canonical_bytes, canonical_result.mlir.written.mlir_bytes,
+      "llvm.call @w_seed_process_entry0_context_drop", 0u);
+  const size_t arguments_call = find_bytes(
+      canonical_bytes, canonical_result.mlir.written.mlir_bytes,
+      "llvm.call @w_seed_process_entry0_arguments_drop", 0u);
+  CHECK(context_call != SIZE_MAX && arguments_call != SIZE_MAX &&
+        context_call < arguments_call);
+
+  CHECK(run_source_mode(
+            variant, sizeof(variant) - 1u, "process-variant", 15u, &TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER, variant_bytes,
+            sizeof(variant_bytes), &variant_result) == W_SEED_NATIVE0_OK);
+  CHECK(variant_result.mlir.written.mlir_bytes ==
+            canonical_result.mlir.written.mlir_bytes &&
+        memcmp(variant_bytes, canonical_bytes,
+               canonical_result.mlir.written.mlir_bytes) == 0 &&
+        memcmp(variant_result.mlir.mlir_sha256,
+               canonical_result.mlir.mlir_sha256,
+               sizeof(canonical_result.mlir.mlir_sha256)) == 0);
+
+  CHECK(run_source_mode(
+            canonical, sizeof(canonical) - 1u, "process-windows", 15u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER,
+            windows_bytes, sizeof(windows_bytes), &windows_result) ==
+        W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(windows_bytes, windows_result.mlir.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS
+                       "\"") &&
+        !contains_bytes(windows_bytes, windows_result.mlir.written.mlir_bytes,
+                        "mainCRTStartup"));
+
+  (void)memset(canonical_bytes, 0xa5u, sizeof(canonical_bytes));
+  (void)memset(&canonical_result, 0x5au, sizeof(canonical_result));
+  uint8_t executable_snapshot[sizeof(canonical_result)];
+  (void)memcpy(executable_snapshot, &canonical_result,
+               sizeof(executable_snapshot));
+  CHECK(run_source_mode(
+            canonical, sizeof(canonical) - 1u, "process-default", 15u,
+            &TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE, canonical_bytes,
+            sizeof(canonical_bytes), &canonical_result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(canonical_bytes); index += 1u)
+    CHECK(canonical_bytes[index] == 0xa5u);
+  CHECK(memcmp(&canonical_result, executable_snapshot,
+               sizeof(executable_snapshot)) == 0);
+
+  (void)memset(canonical_bytes, 0xb6u, sizeof(canonical_bytes));
+  (void)memset(&canonical_result, 0x6bu, sizeof(canonical_result));
+  uint8_t unknown_snapshot[sizeof(canonical_result)];
+  (void)memcpy(unknown_snapshot, &canonical_result, sizeof(unknown_snapshot));
+  CHECK(run_source_mode(
+            unknown_module, sizeof(unknown_module) - 1u, "process-unknown",
+            15u, &TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER,
+            canonical_bytes, sizeof(canonical_bytes), &canonical_result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(canonical_bytes); index += 1u)
+    CHECK(canonical_bytes[index] == 0xb6u);
+  CHECK(memcmp(&canonical_result, unknown_snapshot,
+               sizeof(unknown_snapshot)) == 0);
+
+  (void)memset(canonical_bytes, 0xc7u, sizeof(canonical_bytes));
+  (void)memset(&canonical_result, 0x7cu, sizeof(canonical_result));
+  uint8_t invalid_kind_snapshot[sizeof(canonical_result)];
+  (void)memcpy(invalid_kind_snapshot, &canonical_result,
+               sizeof(invalid_kind_snapshot));
+  CHECK(run_source_mode(
+            canonical, sizeof(canonical) - 1u, "process-kind", 12u, &TARGET,
+            (w_seed_mlir0_artifact_kind)-1, canonical_bytes,
+            sizeof(canonical_bytes), &canonical_result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(canonical_bytes); index += 1u)
+    CHECK(canonical_bytes[index] == 0xc7u);
+  CHECK(memcmp(&canonical_result, invalid_kind_snapshot,
+               sizeof(invalid_kind_snapshot)) == 0);
   return true;
 }
 
@@ -510,7 +678,8 @@ static bool test_failures_and_capacity(void) {
       missing_path,
       sizeof(missing_path) - 1u,
       {"missing-id", 10u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   (void)memset(output, 0x8au, sizeof(output));
   (void)memset(&result, 0x8bu, sizeof(result));
   const w_seed_native0_result missing_snapshot = result;
@@ -577,7 +746,8 @@ static bool test_aliases(void) {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {"alias-id", 8u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   union {
     w_seed_native0_output output;
     w_seed_native0_result result;
@@ -619,7 +789,8 @@ static bool test_aliases(void) {
       path_alias,
       sizeof(path_alias) - 1u,
       {"path-alias", 10u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   (void)memset(&alias_snapshot, 0xe1u, sizeof(alias_snapshot));
   const w_seed_native0_result path_snapshot = alias_snapshot;
   CHECK(w_seed_native0_run(
@@ -635,7 +806,8 @@ static bool test_aliases(void) {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {identity_alias, sizeof(identity_alias) - 1u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   (void)memset(&alias_snapshot, 0xf1u, sizeof(alias_snapshot));
   const w_seed_native0_result identity_snapshot = alias_snapshot;
   CHECK(w_seed_native0_run(
@@ -654,7 +826,8 @@ static bool test_aliases(void) {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {"input-storage", 13u},
-      TARGET}};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE}};
   (void)memset(output, 0x31u, sizeof(output));
   (void)memset(&alias_snapshot, 0x32u, sizeof(alias_snapshot));
   const w_seed_native0_result input_storage_result_snapshot = alias_snapshot;
@@ -678,7 +851,8 @@ static bool test_aliases(void) {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {"input-result", 12u},
-      TARGET}};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE}};
   (void)memset(output, 0x41u, sizeof(output));
   (void)memset(&alias_snapshot, 0x42u, sizeof(alias_snapshot));
   const w_seed_native0_result input_result_snapshot = alias_snapshot;
@@ -703,7 +877,8 @@ static bool test_aliases(void) {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {"output-storage", 15u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   const w_seed_native0_output output_storage_snapshot =
       output_storage_alias.output;
   (void)memset(&alias_snapshot, 0x52u, sizeof(alias_snapshot));
@@ -728,7 +903,8 @@ static bool test_aliases(void) {
       (const char *)storage.source_bytes,
       7u,
       {(const char *)storage.const_bytes, 8u},
-      TARGET};
+      TARGET,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   (void)memset(&alias_snapshot, 0x62u, sizeof(alias_snapshot));
   const w_seed_native0_result path_storage_result_snapshot = alias_snapshot;
   CHECK(w_seed_native0_run(
@@ -784,7 +960,8 @@ static bool test_signed_comparison_products(void) {
 int main(void) {
   (void)fprintf(stderr, "native0 storage bytes: %llu\n",
                 (unsigned long long)sizeof(w_seed_native0_storage));
-  const bool products = test_signed_comparison_products() && test_products();
+  const bool products = test_signed_comparison_products() && test_products() &&
+                        test_process_handler_catalog_and_artifact();
   const bool logical = products && test_logical_native_selector() &&
                        test_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

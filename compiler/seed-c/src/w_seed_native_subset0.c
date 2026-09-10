@@ -1206,3 +1206,127 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
       .has_cfg = has_cfg};
   return W_SEED_NATIVE_SUBSET0_OK;
 }
+
+w_seed_native_subset0_status w_seed_native_subset0_select_process(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+
+  /* HIR verification has already rederived the external identity, lifecycle,
+   * direct-entry, and complete-body facts. Keep this selector conservative and
+   * require the exact HIR16 process handler shape before emitting an ABI. */
+  if (program->module_count != 1u || program->external_module_count != 1u ||
+      program->external_symbol_count != 4u || program->function_count != 1u ||
+      program->parameter_count != 2u || program->block_count != 1u ||
+      program->instruction_count != 0u || program->binding_count != 0u ||
+      program->call_count != 0u || program->argument_count != 0u ||
+      program->value_count != 1u ||
+      program->interpolation_segment_count != 0u ||
+      program->terminator_count != 1u || program->entry_count != 1u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_external_module *external_module =
+      &program->external_modules[0];
+  if (external_module->module_index != 0u ||
+      external_module->first_symbol != 0u ||
+      external_module->symbol_count != 4u ||
+      !text_is(program, external_module->module_id,
+               (const uint8_t *)"std.process", 11u))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  size_t arguments_symbol = SIZE_MAX;
+  size_t context_symbol = SIZE_MAX;
+  size_t exit_code_symbol = SIZE_MAX;
+  size_t success_symbol = SIZE_MAX;
+  for (size_t symbol_index = 0u;
+       symbol_index < program->external_symbol_count; symbol_index += 1u) {
+    const w_seed_hir0_external_symbol *symbol =
+        &program->external_symbols[symbol_index];
+    if (symbol->module_index != 0u || symbol->parameter_count != 0u)
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+    if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+        text_is(program, symbol->name, (const uint8_t *)"Arguments", 9u))
+      arguments_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+             text_is(program, symbol->name, (const uint8_t *)"Context", 7u))
+      context_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+             text_is(program, symbol->name, (const uint8_t *)"ExitCode", 8u))
+      exit_code_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
+             text_is(program, symbol->name, (const uint8_t *)"success", 7u))
+      success_symbol = symbol_index;
+  }
+  if (arguments_symbol == SIZE_MAX || context_symbol == SIZE_MAX ||
+      exit_code_symbol == SIZE_MAX || success_symbol == SIZE_MAX)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (entry->target_function >= program->function_count ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
+      entry->cleanup_obligation !=
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      entry->cleanup_owner_parameter_count != 2u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  const w_seed_hir0_function *function =
+      &program->functions[entry->target_function];
+  if (function->first_parameter >= program->parameter_count ||
+      function->parameter_count != 2u ||
+      function->first_parameter >
+          program->parameter_count - function->parameter_count ||
+      !function->is_async || function->is_const || function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
+      function->return_type >= program->type_count)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_type *return_type = &program->types[function->return_type];
+  if (return_type->kind != W_SEED_HIR0_TYPE_NOMINAL ||
+      return_type->external_module_index != 0u ||
+      return_type->external_symbol_index != (uint32_t)exit_code_symbol ||
+      return_type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      return_type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const uint32_t first_parameter = function->first_parameter;
+  const w_seed_hir0_parameter *arguments_parameter =
+      &program->parameters[first_parameter];
+  const w_seed_hir0_parameter *context_parameter =
+      &program->parameters[(size_t)first_parameter + 1u];
+  if (entry->first_cleanup_owner_parameter != first_parameter ||
+      arguments_parameter->owner_function != entry->target_function ||
+      context_parameter->owner_function != entry->target_function ||
+      arguments_parameter->ordinal != 0u || context_parameter->ordinal != 1u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_type *arguments_type =
+      &program->types[arguments_parameter->type_index];
+  const w_seed_hir0_type *context_type =
+      &program->types[context_parameter->type_index];
+  if (arguments_type->kind != W_SEED_HIR0_TYPE_NOMINAL ||
+      arguments_type->external_module_index != 0u ||
+      arguments_type->external_symbol_index != (uint32_t)arguments_symbol ||
+      arguments_type->lifecycle != W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      arguments_type->release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      context_type->kind != W_SEED_HIR0_TYPE_NOMINAL ||
+      context_type->external_module_index != 0u ||
+      context_type->external_symbol_index != (uint32_t)context_symbol ||
+      context_type->lifecycle != W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      context_type->release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  (void)memset(selection, 0, sizeof(*selection));
+  selection->entry = entry;
+  selection->function = function;
+  selection->arguments_parameter = arguments_parameter;
+  selection->context_parameter = context_parameter;
+  selection->arguments_parameter_ordinal = 0u;
+  selection->context_parameter_ordinal = 1u;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}

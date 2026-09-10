@@ -37033,13 +37033,45 @@ calls, opaque owners, `String`, malformed metadata, and forged or wrong-version
 facts remain conservative. Names, adapter identity, `.success`, or a generic
 synchronous-drop assumption do not grant the proof.
 
-HLO0 and MLIR0 still return `UNSUPPORTED` for process HIR without partial
-output. HIR16 does not enable native process execution. The provider, ABI
-witness, runtime input, root adapter, and separate native cleanup remain
-pending. This is `source-backed-current` evidence for the bounded compiler
-producer, verifier, typed facts, and cleanup obligation only. Its
-`benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no
-timing or performance result.
+The native extension selects a distinct `PROCESS_HANDLER` artifact in MLIR0.
+Its schema is `w-seed-mlir0-process-handler-1`, and Native0 advances to
+`w-seed-native0-7`. The existing zero-valued `EXECUTABLE` artifact remains
+byte-compatible with the previous Native0 contract. Native0 resolves the
+compiler-owned `std.process@1` catalog and selects only the verified handler.
+The handler artifact uses opaque `Arguments*` and `Context*` parameters with an
+`int32` result. It calls
+`w_seed_process_entry0_context_drop` before
+`w_seed_process_entry0_arguments_drop`, checks both statuses, and traps on a
+release failure. It has no `main`, I/O, or root-finalization operation.
+
+HLO0 remains closed to process HIR. The handler artifact is a private input to
+the process-entry harness, not public `w run` process support or a general W
+ABI. The public default `w run` route still rejects process entries. The public
+`std.process` ABI, public entry/root adapter, OS-root acquisition and
+finalization, W-visible argument access, process-handler body branching, and
+`Context` capabilities remain outside this cut. The PROCESS0 provider kernel
+exists separately.
+
+The native gate `bun check --target process-entry0` passes with the strict
+MLIR/LLVM 23.1.0 manifest, configured CMake build, and GCC 13.2
+`x86_64-w64-mingw32`: source → frontend → verified HIR16/Native0 selection →
+MLIR verification → LLVM IR → x64 COFF → GCC C-ABI private harness and the
+real PROCESS0 provider → Windows PE execution. It is private-handler evidence;
+the focused scanner, MLIR0, and Native0 unit checks pass in the same configured
+build. The full case matrix and reproducer requirements are kept in the
+[`seed C W-1546 implementation section`](compiler/seed-c/README.md#process-owner-lifecycle-facts-and-private-handler-artifact-in-hir16-w-1546).
+It does not establish native Windows UTF-16 startup-vector behavior or an
+`argv[0]` policy, nor promote W-visible argument access or handler-body
+branching, public `w run` process support, or async/general provider/runtime
+claims. The HIR16 producer, verifier, typed facts, and normal-return cleanup
+obligation remain `source-backed-current`. The HIR-only fact evidence remains
+compiler-lifecycle correctness narrative, with no timing claim. The current
+W-1546 classification is `benchmarkDisposition: deferred`, taskId
+`process-entry-native-handler-benchmark`, and blockers `public-entry-root-adapter`,
+`argument-access-lowering`, and `language-benchmark-runner`. Stop that task
+when an unchanged W artifact consumes runtime input with matched C/Rust
+recipes and the W `learner`, `idiomatic`, and `frontier` forms have been
+checked.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
