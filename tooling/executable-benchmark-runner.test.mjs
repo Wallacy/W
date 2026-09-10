@@ -43,9 +43,10 @@ test("benchmark arguments select a language and keep the fixed raw count", () =>
   assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
     target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
   });
-  assert.deepEqual(parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), {
-    target: "process-entry0", language: "c", output: undefined, warmup: 1, samples: 9, help: false,
+  assert.deepEqual(parseBenchmarkArguments(["--target", "process-handler-lifecycle", "--language", "c"]), {
+    target: "process-handler-lifecycle", language: "c", output: undefined, warmup: 1, samples: 9, help: false,
   });
+  assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
 });
 
@@ -301,7 +302,7 @@ function fakeRunnerDependencies(language, fake) {
 }
 
 function fakeProcessRunnerExecutor() {
-  const fake = fakeRunnerExecutor({ language: "c", target: "process-entry0" });
+  const fake = fakeRunnerExecutor({ language: "c", target: "process-handler-lifecycle" });
   const baseExecutor = fake.executor;
   fake.executor = async (command, args, options = {}) => {
     if (args.includes("-o")) return baseExecutor(command, args, options);
@@ -419,20 +420,20 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
   }
 });
 
-test("process-entry0 keeps the pinned runtime vector and isolates fault trials", async () => {
+test("process-handler-lifecycle keeps the pinned runtime vector and isolates fault trials", async () => {
   const fake = fakeProcessRunnerExecutor();
   const previousFault = process.env.W_SEED_PROCESS_ENTRY0_FAULT;
   process.env.W_SEED_PROCESS_ENTRY0_FAULT = "wrong-context";
   let record;
   try {
-    ({ record } = await runBenchmark({ target: "process-entry0", language: "c", warmup: 1, samples: 9, publish: false }, {
+    ({ record } = await runBenchmark({ target: "process-handler-lifecycle", language: "c", warmup: 1, samples: 9, publish: false }, {
       ...fakeRunnerDependencies("c", fake),
     }));
   } finally {
     if (previousFault === undefined) delete process.env.W_SEED_PROCESS_ENTRY0_FAULT;
     else process.env.W_SEED_PROCESS_ENTRY0_FAULT = previousFault;
   }
-  assert.equal(record.workloadId, "process-entry0");
+  assert.equal(record.workloadId, "process-handler-lifecycle");
   assert.equal(record.artifactTarget, "x86_64-w64-mingw32");
   assert.equal(record.identity.recipeClass, "process-entry0-private-handler");
   assert.match(record.protocol.resourceScope, /pinned \[alpha, payload\].*Fault witnesses.*not timed/u);

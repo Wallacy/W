@@ -21,6 +21,10 @@
       "type": "string",
       "pattern": "^[1-9][0-9]*$"
     },
+    "structureClass": {
+      "type": "string",
+      "enum": ["public-end-to-end", "integration-linkage", "transient-internal"]
+    },
     "metric": {
       "type": "object",
       "additionalProperties": false,
@@ -77,8 +81,9 @@
     "processExecution": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["kind", "recipeClass", "timedInput", "correctnessInputs", "faultCases", "supportSources"],
+      "required": ["structureClass", "kind", "recipeClass", "timedInput", "correctnessInputs", "faultCases", "supportSources"],
       "properties": {
+        "structureClass": { "const": "transient-internal" },
         "kind": { "const": "private-process-handler" },
         "recipeClass": { "const": "process-entry0-private-handler" },
         "timedInput": { "const": ["alpha", "payload"] },
@@ -95,9 +100,10 @@
     "workload": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"],
+      "required": ["id", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"],
       "properties": {
         "id": { "type": "string" },
+        "structureClass": { "$ref": "#/$defs/structureClass" },
         "status": { "enum": ["source-oracle-ready", "planned", "blocked"] },
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
         "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
@@ -112,9 +118,15 @@
       },
       "allOf": [
         {
-          "if": { "properties": { "id": { "const": "process-entry0" } } },
-          "then": { "required": ["execution"] },
-          "else": { "not": { "required": ["execution"] } }
+          "if": { "properties": { "id": { "const": "process-handler-lifecycle" } } },
+          "then": {
+            "required": ["execution"],
+            "properties": { "structureClass": { "const": "integration-linkage" } }
+          },
+          "else": {
+            "not": { "required": ["execution"] },
+            "properties": { "structureClass": { "const": "public-end-to-end" } }
+          }
         }
       ]
     },

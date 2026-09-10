@@ -123,7 +123,7 @@ function executionSummary(workload) {
   const execution = workload.execution;
   if (!execution) return "—";
   const correctness = execution.correctnessInputs.map((input) => JSON.stringify(input)).join(" / ");
-  return `${execution.kind}; timed ${JSON.stringify(execution.timedInput)}; correctness ${correctness}; faults ${execution.faultCases.length}`;
+  return `${execution.structureClass}; ${execution.kind}; timed ${JSON.stringify(execution.timedInput)}; correctness ${correctness}; faults ${execution.faultCases.length}`;
 }
 
 function bestSort(left, right) {
@@ -169,11 +169,11 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "",
     "## Workload readiness",
     "",
-    "| Workload | Source/oracle | Benchmark lane | Execution witness |",
-    "| --- | --- | --- | --- |",
+    "| Workload | Structure | Source/oracle | Benchmark lane | Execution witness |",
+    "| --- | --- | --- | --- | --- |",
   ];
   for (const workload of catalog.workloads) {
-    lines.push(`| ${workload.id} | ${workload.sourceReadiness}; oracle ${workload.oracle.status}; ${sourceLinks(workload)} | ${workload.benchmarkStatus} | ${executionSummary(workload)} |`);
+    lines.push(`| ${workload.id} | ${workload.structureClass} | ${workload.sourceReadiness}; oracle ${workload.oracle.status}; ${sourceLinks(workload)} | ${workload.benchmarkStatus} | ${executionSummary(workload)} |`);
   }
   lines.push("", "## Best known cells", "", "Values include compact record-id prefixes; full per-metric provenance is in the machine catalog.", "", "| Workload | Language | Category | Artifact | Compile | Run | Peak RSS | CPU | Cleanliness |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const group of rows) {
@@ -185,7 +185,8 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   lines.push(
     "",
     "C MinGW and W rows are contextual and are not cross-ABI rankings; promotable Rust rows remain source-equivalence scoped.",
-    "Process-entry0 is contextual for all three languages and measures the [entire private composite](./README.md#private-process-entry-executable-measurements), not handler-only speed.",
+    "Structure classes are machine-checked: public-end-to-end covers user-visible workloads, integration-linkage covers composite linkage, and transient-internal covers ephemeral implementation witnesses. The field identifies the measured or intended subject, not readiness or completeness.",
+    "Process-handler-lifecycle is contextual for all three languages and measures the [entire private composite](./README.md#private-process-handler-lifecycle-executable-measurements), not handler-only speed. Its handler receives Arguments and Context but does not read arguments; timed vectors test provider construction and lifecycle, not W-visible argument processing.",
     "Zero CPU medians are excluded from best cells; a dash is not evidence of zero CPU cost.",
     "Category identity includes workload, source equivalence, platform, artifact target/ABI, profile, host, recipe class and readiness policy. Toolchain and recipe changes may improve the same cell.",
     `Machine source: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "benchmarks/executable-catalog.json")}.`,
