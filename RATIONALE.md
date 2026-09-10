@@ -201,6 +201,7 @@ O corpus compara, no mínimo:
 - short default entry against a magic main function, source-addressable synthetic identity, and duplicate default descriptors.
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
+- independent suspension and direct-entry facts for explicit async declarations, ordinary pure callers, conservative unknown calls, and process-handler exclusion.
 
 ### 1.1 Cobertura de substituições
 
@@ -4565,8 +4566,9 @@ chunk fingerprints e runtime measurement map tratam relocation e ASLR sem
 alegar raw in-memory hash. Benchmark de source rebuild versus exact capsule
 reuse/link mede cache granularity, storage, network e redução de compile time.
 
-TEV0 preserva o cruzamento já descrito entre `@example`, fence `w test`, teste
-co-localizado e `*.test.w`. Todos baixam para `TestDescriptor` e `TestPlan`.
+TEV0 preserva o cruzamento já descrito entre casos `call:` independentes
+conforme §5.2, fence `w test`, teste co-localizado e `*.test.w`. Todos baixam
+para `TestDescriptor` e `TestPlan`.
 Cada descriptor exige stable ID, owner declaration, origin carrier, source map,
 kind, fixtures/effects, oracle ou expected diagnostic/outcome, target/profile,
 seed/limits e body/plan digest. Evidence é keyed por source, release, artifact,
@@ -7796,10 +7798,11 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1538 | bounded Bool short-circuit through verified HIR0 and MLIR0 | BOOL0 lowers the existing `!`, `&&`, and `||` syntax through HIR0 `w-seed-hir0-10`. `!` is a typed Bool unary value; each `&&`/`||` is a structured diamond whose skip arm contributes literal `false`/`true`, whose other arm evaluates the RHS once, and whose join has one Bool block argument read. HIR verification covers logical branch/jump metadata, incoming edge values, owner/range/dominance, capacities, aliases, receipts, and digests. MLIR0 `w-seed-mlir0-13`, with Windows label `w-seed-mlir0-windows-4`, emits `llvm.xor`, `llvm.cond_br`, and branch-carried `i1` values. Native0 stays v6 because its published records and receipt interface do not change. | `source-backed-current` only for the bounded logical-diamond subset. Focused HIR0, MLIR0, and Native0 units and the Linux/WSL plus native Windows Restaurant short-circuit gates passed with exact stdout `Override checked\nClosed allowed true\nCapacity checked\nOpen allowed true\n`. Evidence includes nested logic, RHS Bool calls with named arguments, skip/evaluate paths, and malformed edge/value/alias/capacity rejection with transactional outputs. General scalar CFG, user `if` values beyond this logical form, mutation, loops, other value domains/targets, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 
 | W-1539 | bounded scalar `if` values through verified HIR0 and MLIR0 | SCALAR-IF0 accepts the existing `if condition { scalar } else { scalar }` only in an immutable `let` initializer or scalar `return`; the Bool condition and both same-typed `i64`/Bool, one-expression, side-effect-free arms are verified through frontend14/HIR11. HIR uses `BRANCH.result_type` `0` for Unit, `3` for logical Bool, and `2`/`3` for scalar `i64`/Bool with logical metadata unset; scalar diamonds carry exactly one typed join argument and one incoming from each arm. MLIR14/Windows5 emits real `llvm.cond_br` and typed `llvm.br` join edges, never `llvm.select` or eager arm evaluation. Native0 remains v6. W-390 checked-overflow arithmetic remains blocked, so the earlier `seats +/- 1` sketch is not a witness; the source-backed Restaurant fixture carries direct parameters. | `source-backed-current` only for the bounded scalar-if return/immutable-let subset. Focused frontend14/HIR11/MLIR14/Native0 checks and the native Windows Release public route passed both condition directions with exact stdout `Open 5; closed 2\n`, exit zero and empty stderr. A local Release build measured `w.exe` at 10,078,208 B before post-validation cleanup; the generated tool artifact was discarded afterward. This is a local tool build fact, not a historical baseline, benchmark sample, ranking or produced-workload measurement. Missing else (`W-PARSE-0021`), non-Bool condition (`W-SEM-0001`), mismatched arms (`W-TYPE-0120`), String/aggregate, calls/effects, nested/else-if, mutation and loops remain rejected or unsupported. Linux/WSL, C/Rust, general scalar CFG, ABI, targets and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
-| W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend, current HIR0 `w-seed-hir0-13`, and MLIR0 `w-seed-mlir0-15` with Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. Unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
+| W-1540 | checked signed-`i64` `+`, `-`, and `*` through verified HIR0 and MLIR0 | ARITH0 admits checked runtime signed-`i64` `+`, `-`, and `*` from source through frontend and current HIR0 `w-seed-hir0-15`, with MLIR0 `w-seed-mlir0-15` and Windows label `w-seed-mlir0-windows-6`. Runtime operations use LLVM signed-overflow intrinsics and a trap boundary. Existing HIR call evaluation remains left-to-right and once-only. Helpers are emitted only for reachable value trees. Safe fully constant `/` and `%` remain admitted as `llvm.sdiv` and `llvm.srem`; constant overflow, faulting constants, and dynamic/runtime `/` and `%` fail closed. Native0 remains v6 and caller-owned all-or-nothing, capacity, alias, receipt, semantic-digest, and provenance-digest invariants remain unchanged. The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. No native Windows evidence, `PanicEvent`, runtime payload, cleanup, timing, or benchmark result is claimed. Unary negation, power, other widths, named numeric APIs, and general panic runtime remain outside this cut. | `source-backed-current` only for the bounded ARITH0 source → frontend → HIR0 → MLIR0 route and the checked Linux/WSL native witness. Focused C units and `bun tooling/check-mlir0.mjs` prove runtime `+`, `-`, and `*`, exact safe constant `/` and `%` output `10 -6 16 4 2\n`, helper reachability, constant-overflow rejection, runtime overflow nonzero fault termination without later success output, and dynamic/faulting division and remainder rejection. The fixture proves exact `Open 6; closed 1\n` with empty stderr. Windows, general panic runtime, `PanicEvent`, runtime payload, cleanup, `/` or `%` with runtime operands, unary negation, power, other widths, named numeric APIs, general CFG, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 | W-1541 | bounded short default entry through the seed compiler | `entry { statements }` lowers through parser, frontend15 and HIR13 as one private zero-argument Unit function plus one explicit `.default` descriptor. The private `<entry.default>` identity is not source-addressable. `entry(functionName)` remains valid. Duplicate default descriptors fail closed. The canonical Hello and checked-arithmetic Restaurant fixtures use the short form. | `source-backed-current` only for the bounded seed compiler and Linux/WSL public `w run` witness. Focused parser, frontend and HIR tests prove shape, direct target identity, measure/emit parity, trivia-independent semantics, provenance distinction and forged-mode rejection. HLO0/HLO1 and MLIR0 gates consume the same short-entry Hello. No named entry, parameterized inline body, custom return, typed error, async short entry, native Windows execution, general runtime, timing, or benchmark result is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1542 | bounded external `std.process` identity in frontend16 | Frontend16 accepts grouped imports with explicit local aliases, preserves each external nominal type as a resolver-owned `(external_module_index, external_symbol_index)` pair independent of source spelling, and recognizes only the canonical exported constant `std.process.ExitCode.success` with no payload. Duplicate local import aliases and malformed or inconsistent external metadata fail closed. This cut ends at frontend records; verified HIR, handler compatibility, direct-entry proof, lowering, runtime arguments, native execution, Windows, and performance remain gaps. | `source-backed-current` only for the bounded parser, module-scan, and frontend implementation plus focused adversarial C tests. HIR0/HLO0/MLIR0 passing tests are regression evidence, not external-process support. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1543 | bounded `std.process` identity and handler adapter in verified HIR14 | HIR14 deep-copies the canonical `std.process` module, its three nominal types, and the constant zero-parameter `ExitCode.success` member into caller-owned records. Nominal types and the external enum-case value retain resolver-owned pairs. An explicit entry adapter verifies the exact async two-parameter `Arguments`, `Context` to `ExitCode` handler cut without inferring `directEntry`. Canonical external identity enters the semantic digest; alias spelling remains provenance. | `source-backed-current` only for frontend16 to verified HIR14 and focused adversarial C tests. HLO0 and MLIR0 reject the process HIR without partial output. Argument access, providers, ABI lowering, runtime input, native execution, Windows, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
+| W-1544 | bounded direct-entry facts in verified HIR15 | HIR15 carries independent `suspension` (`NEVER`/`MAY`) and `direct_entry` (`ABSENT`/`AVAILABLE`) facts. The frontend `normalize_function` assigns `is_async` from the explicit CST modifier. `hir0_compute_body_never` performs the bounded whole-body fixed-point analysis; `hir0_publish_direct_entry_facts` derives the two facts and `verify_direct_entry_facts` independently recomputes them before accepting the caller-owned HIR. Ordinary pure functions are `NEVER`/`ABSENT`; an explicit async declaration is `MAY` and receives `AVAILABLE` only after its complete body proves `neverSuspend`. Local ordinary calls and recursive groups propagate without a termination claim. Unknown hosts and local async calls without call form or summary deny the proof. A `String` parameter, return, or value and opaque owners without effects/lifecycle facts also deny it. Focused frontend/HIR0/HLO0/Native0/MLIR0 CTest gates and compiler emitter gates pass for this bounded compiler-lifecycle route; HLO0 and MLIR0 continue to reject process HIR without partial output. | `source-backed-current` only for bounded HIR fact derivation, publication, independent verification, receipt/digest barriers, and fail-closed consumers. The 4 KiB scratch bitset inherits the CST32768 bound, with preflight/verifier guards, no heap, and no 256-function capacity. This evidence does not claim `sync` execution, the Restaurant process-input witness, general semantic checking, dual ABI, providers, ownership runtime, native process execution, Windows, or performance. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -9361,7 +9364,7 @@ em `pass`.
 O estado corrente é deliberadamente menor que uma claim de suporte. Existem
 zero targets `supported` e uma linha `evidence` para
 `x86_64-unknown-linux-gnu`, no scope
-`w-seed-mlir0-10-unit-cfg-diamond`. O backend
+`w-seed-mlir0-15-unit-cfg-nested-diamond`. O backend
 é `pass`. Runtime, host adapter, SDK profile, linker/sysroot/packaging e CI
 evidence são `partial`. As referências incluem fonte, unidade, gate e
 manifest MLIR0. Essa linha não alega target geral, SDK, packaging ou CI
@@ -10608,8 +10611,7 @@ performance, ABI, target-coverage or general-CFG claim.
 
 ARITH0 closes the next bounded arithmetic gap after SCALAR-IF0. Runtime
 signed-`i64` `+`, `-`, and `*` now travel from source through the frontend and
-verified HIR0 to MLIR0. W-1540 introduced `w-seed-hir0-13`; W-1543 advances
-the current HIR schema to `w-seed-hir0-14`. The MLIR0 schema is
+verified HIR0 to MLIR0. The current HIR schema is `w-seed-hir0-15`. The MLIR0 schema is
 `w-seed-mlir0-15`, with Windows label `w-seed-mlir0-windows-6`. Native0 stays
 v6 because its public records and receipt layout do not change.
 
@@ -10733,3 +10735,45 @@ receipt/digest integrity, and downstream rejection. HLO0 and MLIR0 intentionally
 publish no process artifact yet. `directEntry`, argument access, capability use,
 provider/runtime state, ABI lowering, native execution, Windows, and performance
 remain later milestones.
+
+#### W-1544 — bounded direct-entry facts in verified HIR15
+
+W-1544 separates the common function suspension summary from the W-1484
+direct-entry facet. HIR15 carries `suspension: NEVER|MAY` and
+`direct_entry: ABSENT|AVAILABLE` as independent fields. `is_async` comes only
+from an explicit `async` modifier in the CST. An ordinary pure function is
+`NEVER`/`ABSENT`. An explicit `async fn` remains `MAY` and receives
+`AVAILABLE` only after its complete body proves `neverSuspend` before
+specialization.
+
+The bounded proof resolves local ordinary calls and recursive groups with a
+monotone fixed point. It does not prove termination. An unknown host and a
+local async call without an explicit call form or summary deny the proof. A
+`String` parameter, return, or value is a nominal lifecycle boundary and denies
+the proof even without a call. An opaque owner without effects/lifecycle facts
+also denies the proof. The process handler remains
+`MAY`/`ABSENT`, even when its current body is the pure `.success` shape. This
+package therefore does not add process ABI lowering or imply `sync` execution.
+
+The implementation target uses a 4 KiB scratch bitset from the inherited
+CST32768 bound. Preflight and the independent verifier guard the function
+count and scratch capacity. No heap allocation or 256-function capacity is
+introduced. The worst-case local propagation is `O(F * (F + E))`. The emitter
+derives facts before publishing the receipt and semantic digest. The read-only
+verifier rederives them before comparing fields, hashes, and receipt bytes. It
+does not commit output.
+
+Alternatives rejected for this cut are inferred async facts, cache-path or
+partial-body proof, termination-required recursion, process direct-entry, and
+ignoring host/`String` or opaque-owner boundaries. The R0 case in
+[`tooling/substitution-cases.json`](tooling/substitution-cases.json) keeps those
+mutations explicit. HLO0 and MLIR0 continue to reject process HIR without
+partial output. W-1544 is the proof prerequisite for `PROC-INPUT0`; it does not
+execute that witness, add `sync`/`await` syntax, or close the general W-1484
+semantic checker, dual ABI, providers, ownership runtime, diagnostics, or
+performance gaps. See the canonical logical-contract/source-shape fixture in
+[`DESIGN.md`](DESIGN.md) §26.4.1.27. Its `benchmarkDisposition` is
+`compiler-lifecycle`, correctness-only, with no timing or result. The bounded
+HIR analysis, emitter, verifier, and focused C-unit facts are source-backed
+current; native process-input execution and the general W-1484 contract remain
+gaps.

@@ -1684,7 +1684,7 @@ compiler-lifecycle correctness evidence only; no general CFG, target or
 performance claim follows.
 
 W-1540 adds ARITH0 for checked signed-`i64` runtime `+`, `-`, and `*` through
-the verified HIR route, currently HIR14, and MLIR15/Windows6. LLVM
+the verified HIR route, currently HIR15, and MLIR15/Windows6. LLVM
 signed-overflow intrinsics and a trap boundary
 terminate overflowed processes nonzero before later success output. Helpers are
 reachability-only. Constant overflow and faulting constant `/` or `%` fail
@@ -1694,7 +1694,7 @@ forms remain outside the cut. The short-entry Restaurant fixture produces
 `PanicEvent`, runtime payload, cleanup, timing, or benchmark result claim.
 Unary negation, power, other widths, named numeric APIs, and general panic
 runtime remain gaps. W-1541 implements the bounded `entry {}` path introduced
-through frontend15 and HIR13; the current HIR schema is HIR14. The canonical
+through frontend15 and HIR13; the current HIR schema is HIR15. The canonical
 Hello fixture executes through public
 Linux/WSL `w run`; `entry(functionName)` remains valid. This is
 compiler-lifecycle correctness-only evidence.

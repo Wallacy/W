@@ -124,6 +124,10 @@ typedef struct {
 
 static hir_fixture fixture;
 
+static w_seed_hir0_input hir_input(void);
+static void fill_hir_output(uint8_t value);
+static bool hir_output_is_byte(uint8_t value);
+
 static const char CANONICAL_SOURCE[] =
     "fn main() { print(message: \"Hello, world!\", suffix: \"!\") }\n"
     "entry(main)\n";
@@ -456,6 +460,10 @@ static bool test_process_hir(void) {
         fixture.hir_program.types[6].external_symbol_index == 2u);
   CHECK(fixture.hir_program.functions[0].is_async &&
         fixture.hir_program.functions[0].return_type == 6u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
         fixture.hir_program.parameters[0].type_index == 4u &&
         fixture.hir_program.parameters[1].type_index == 5u &&
         fixture.hir_program.entries[0].adapter_kind ==
@@ -508,6 +516,246 @@ static bool test_process_hir(void) {
   CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_values[0] = saved_value;
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_direct_entry_facts(void) {
+  static const char PURE_SOURCE[] =
+      "async fn quote(count: i64): i64 { return count + 1 }\n"
+      "entry { }\n";
+  CHECK(lower(PURE_SOURCE));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  static const char EMPTY_ASYNC_SOURCE[] =
+      "async fn empty() { }\n"
+      "entry { }\n";
+  CHECK(lower(EMPTY_ASYNC_SOURCE));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  /* A zero-count frontend family may omit its caller-owned storage. */
+  CHECK(fixture_parse(EMPTY_ASYNC_SOURCE));
+  configure_host();
+  fixture.output.statements = NULL;
+  fixture.output.statement_capacity = 0u;
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  CHECK(fixture.result.written.statements == 0u);
+  setup_hir_output();
+  const w_seed_hir0_input empty_input = hir_input();
+  w_seed_hir0_counts empty_counts;
+  w_seed_hir0_result empty_measure;
+  CHECK(w_seed_hir0_measure(&empty_input, &empty_counts, &empty_measure) ==
+        W_SEED_HIR0_OK);
+  CHECK(empty_counts.blocks == 2u && empty_counts.terminators == 2u);
+  CHECK(w_seed_hir0_run(&empty_input, &fixture.hir_output,
+                        &fixture.hir_result) == W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(fixture.hir_program.functions[0].direct_entry ==
+        W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  static const char HELPER_SOURCE[] =
+      "fn baseTotal(count: i64): i64 { return count + 1 }\n"
+      "fn orderTotal(count: i64): i64 { "
+      "let subtotal = baseTotal(count: count) return subtotal }\n"
+      "async fn quote(count: i64): i64 { "
+      "let total = orderTotal(count: count) return total }\n"
+      "entry { }\n";
+  CHECK(lower(HELPER_SOURCE));
+  CHECK(fixture.hir_program.function_count == 4u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[2].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[2].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  static const char REVERSED_HELPER_SOURCE[] =
+      "async fn reverseQuote(count: i64): i64 { "
+      "let total = reverseTotal(count: count) return total }\n"
+      "fn reverseTotal(count: i64): i64 { "
+      "let subtotal = reverseBase(count: count) return subtotal }\n"
+      "fn reverseBase(count: i64): i64 { return count + 1 }\n"
+      "entry { }\n";
+  CHECK(lower(REVERSED_HELPER_SOURCE));
+  CHECK(fixture.hir_program.function_count == 4u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[2].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[2].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+
+  static const char POISONED_REVERSED_SOURCE[] =
+      "fn unrelated(value: Bool): Bool { return value }\n"
+      "async fn reverseQuote(count: i64): i64 { "
+      "let total = reverseTotal(count: count) return total }\n"
+      "fn reverseTotal(count: i64): i64 { "
+      "let subtotal = reverseBase(count: count) return subtotal }\n"
+      "fn reverseBase(count: i64): i64 { "
+      "print(message: \"poison\", suffix: \"\") return count }\n"
+      "fn cycleA(value: Bool): Bool { "
+      "let next = cycleB(value: value) return next }\n"
+      "fn cycleB(value: Bool): Bool { "
+      "print(message: \"cycle\", suffix: \"\") "
+      "let next = cycleA(value: value) return next }\n"
+      "entry { }\n";
+  CHECK(lower(POISONED_REVERSED_SOURCE));
+  CHECK(fixture.hir_program.function_count == 7u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[2].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[2].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[3].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[4].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[5].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY);
+
+  static const char HOST_SOURCE[] =
+      "async fn announce() { "
+      "print(message: \"order\", suffix: \"\") }\n"
+      "entry { }\n";
+  CHECK(lower(HOST_SOURCE));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+
+  static const char STRING_SOURCE[] =
+      "async fn retain(value: String) { let echoed = value }\n"
+      "entry { }\n";
+  CHECK(lower(STRING_SOURCE));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+
+  static const char ASYNC_BRANCH_SOURCE[] =
+      "async fn maybe(): Bool { return true }\n"
+      "async fn choose() { "
+      "if false { let selected = maybe() } "
+      "else { let fallback = true } }\n"
+      "entry { }\n";
+  CHECK(lower(ASYNC_BRANCH_SOURCE));
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+
+  static const char RECURSIVE_SOURCE[] =
+      "fn left(value: Bool): Bool { let next = right(value: value) return next }\n"
+      "fn right(value: Bool): Bool { let next = left(value: value) return next }\n"
+      "async fn choose(value: Bool): Bool { "
+      "let next = left(value: value) return next }\n"
+      "entry { }\n";
+  CHECK(lower(RECURSIVE_SOURCE));
+  CHECK(fixture.hir_program.function_count == 4u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[1].suspension ==
+            W_SEED_HIR0_SUSPENSION_NEVER &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[1].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        fixture.hir_program.functions[2].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  const w_seed_hir0_function saved = fixture.hir_functions[2];
+  fixture.hir_functions[2].suspension = W_SEED_HIR0_SUSPENSION_NEVER;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[2] = saved;
+  fixture.hir_functions[2].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[2] = saved;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool check_direct_entry_effect_barrier(
+    const char *source, w_seed_frontend_status expected_status) {
+  CHECK(fixture_parse(source));
+  configure_host();
+  const w_seed_frontend_status status =
+      w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
+  CHECK(status == expected_status);
+  for (size_t fact = 0u; fact < fixture.result.written.facts; fact += 1u)
+    CHECK(fixture.facts[fact].kind !=
+              W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL &&
+          fixture.facts[fact].kind !=
+              W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  const w_seed_hir0_input input = hir_input();
+  (void)memset(&fixture.hir_counts, 0x6au, sizeof(fixture.hir_counts));
+  const w_seed_hir0_counts counts_before = fixture.hir_counts;
+  (void)memset(&fixture.hir_result, 0x5au, sizeof(fixture.hir_result));
+  const w_seed_hir0_result result_before = fixture.hir_result;
+  CHECK(w_seed_hir0_measure(&input, &fixture.hir_counts, &fixture.hir_result) ==
+        W_SEED_HIR0_FRONTEND);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_FRONTEND);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&fixture.hir_counts, &counts_before, sizeof(counts_before)) ==
+            0 &&
+        memcmp(&fixture.hir_result, &result_before, sizeof(result_before)) ==
+            0);
+  return true;
+}
+
+static bool test_direct_entry_effect_barrier(void) {
+  static const char UNSUPPORTED_EFFECT_SOURCE[] =
+      "async fn value(): i64 { return 1 }\n"
+      "async fn wait(): i64 { return await value() }\n"
+      "entry { }\n";
+  CHECK(check_direct_entry_effect_barrier(UNSUPPORTED_EFFECT_SOURCE,
+                                          W_SEED_FRONTEND_UNSUPPORTED));
+
+  static const char DEFER_EFFECT_SOURCE[] =
+      "async fn cleanup() { }\n"
+      "async fn deferWork() { defer async { await cleanup() } }\n"
+      "entry { }\n";
+  CHECK(check_direct_entry_effect_barrier(DEFER_EFFECT_SOURCE,
+                                          W_SEED_FRONTEND_BARRIER));
   return true;
 }
 
@@ -2761,6 +3009,8 @@ static bool test_short_entry_hir(void) {
 int main(void) {
   if (!test_process_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;
+  if (!test_direct_entry_facts()) return 1;
+  if (!test_direct_entry_effect_barrier()) return 1;
   if (!test_short_entry_hir()) return 1;
   if (!test_signed_comparison_values()) return 1;
   if (!test_canonical_and_copy_boundary()) return 1;

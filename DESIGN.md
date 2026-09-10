@@ -331,8 +331,8 @@ type FixedCode = String<(.graphemes.count == 10)>
 type SmallBuffer = Array<u8><(.count <= 64)>
 
 struct Bounds {
-  min: usize
-  max: usize
+  let min: usize
+  let max: usize
 }
 
 type BoundedString<_ bounds: Bounds> =
@@ -356,7 +356,7 @@ enum KitchenStage {
 }
 
 struct StagePlan<_ stages: StaticList<KitchenStage>> {
-  orderId: OrderId
+  let orderId: OrderId
 }
 
 fn standardPlan(
@@ -456,16 +456,16 @@ enum StaticArgument {
 }
 
 struct StaticSlot {
-  name: Symbol
-  kind: StaticKind
-  defaultValue: ConstValue?
-  externalLabel: Symbol?
-  associatedExposure: AssociatedExposure
+  let name: Symbol
+  let kind: StaticKind
+  let defaultValue: ConstValue?
+  let externalLabel: Symbol?
+  let associatedExposure: AssociatedExposure
 }
 
 struct StaticContract {
-  head: StaticHead
-  arguments: Array<StaticArgument>
+  let head: StaticHead
+  let arguments: Array<StaticArgument>
 }
 ```
 
@@ -2965,7 +2965,7 @@ Um initializer usado em avaliação compile-time declara `const init`:
 
 ```w
 struct Cell {
-  value: u8
+  let value: u8
 
   const init(value: u8) {
     self.value = value
@@ -3816,8 +3816,8 @@ export enum KitchenError: Error {
 }
 
 export struct Order {
-  id: OrderId
-  guests: u16
+  let id: OrderId
+  let guests: u16
 }
 
 export protocol KitchenApi {
@@ -4437,8 +4437,8 @@ Um `struct` sem `init` explícito é transparente na interface source:
 
 ```w
 export struct Guest {
-  id: GuestId
-  name: GuestName
+  let id: GuestId
+  let name: GuestName
 }
 ```
 
@@ -4457,7 +4457,7 @@ necessários:
 
 ```w
 export struct PidController {
-  proportionalGain: f64
+  let proportionalGain: f64
   var accumulatedError: f64
 
   export init(proportionalGain: f64) throws KitchenError { ... }
@@ -4473,9 +4473,9 @@ constructor por consequência:
 
 ```w
 export object StockReservation {
-  id: ReservationId
-  export ingredients: Array<Ingredient>
-  releaser: ServiceRef<PantryLeaseApi>
+  let id: ReservationId
+  export let ingredients: Array<Ingredient>
+  let releaser: ServiceRef<PantryLeaseApi>
 
   export take async fn release() throws PantryError { ... }
 }
@@ -5677,8 +5677,8 @@ um objeto runtime. `struct`, `object` e `enum` podem declarar associated members
 
 ```w
 export struct Money {
-  minorUnits: i128
-  currency: Currency
+  let minorUnits: i128
+  let currency: Currency
 
   export const zeroCredits = Money(minorUnits: 0, currency: .ww)
 }
@@ -5718,7 +5718,7 @@ export protocol Sequence<Element> {
 export struct Menu: Sequence {
   alias Element = Dish
   const empty = Menu(dishes: [])
-  dishes: Array<Dish>
+  let dishes: Array<Dish>
 
   static fn from(items: Array<Dish>): Menu { return Menu(dishes: items) }
   fn first(): Dish? { ... }
@@ -5805,9 +5805,9 @@ Um tipo com invariantes declara um initializer:
 
 ```w
 export struct PidController {
-  proportionalGain: f64
-  integralGain: f64
-  derivativeGain: f64
+  let proportionalGain: f64
+  let integralGain: f64
+  let derivativeGain: f64
   var accumulatedError: f64
   var previousError: f64
 
@@ -5843,9 +5843,9 @@ O initializer sintetizado conserva essa separação entre evaluation e instalaç
 
 ```w
 struct Defaults {
-  first: Int
-  second: Int = fallback()
-  third: Int
+  let first: Int
+  let second: Int = fallback()
+  let third: Int
 }
 
 Defaults(third: thirdEffect(), first: firstEffect())
@@ -6886,7 +6886,7 @@ export const fn isValidStagePath(stages: StaticList<ServiceStage>): Bool {
 export struct StagePath<
   _ stages: StaticList<ServiceStage><(isValidStagePath(.member))>,
 > {
-  orderId: OrderId
+  let orderId: OrderId
 }
 ```
 
@@ -6927,7 +6927,7 @@ export enum OvenSessionState {
 }
 
 export struct OvenSession<_ state: OvenSessionState> {
-  id: OvenId
+  let id: OvenId
 
   init(id: OvenId) {
     self.id = id
@@ -7053,8 +7053,8 @@ Uma API publica um snapshot quando o código chamador precisa observar o estado:
 
 ```w
 struct StageSnapshot {
-  stage: ServiceStage
-  revision: u64
+  let stage: ServiceStage
+  let revision: u64
 }
 
 enum MoveOrderResult {
@@ -7404,7 +7404,7 @@ Uma conformance fornece o witness explicitamente:
 
 ```w
 struct Menu {
-  dishes: Array<Dish>
+  let dishes: Array<Dish>
 }
 
 extension Menu: Sequence {
@@ -8668,8 +8668,8 @@ Queries de tipo não são call-like. `type of Subject` retorna `TypeId` e
 
 ```w
 export struct MenuCard: Hashable & Reflectable {
-  title: String
-  course: Course
+  let title: String
+  let course: Course
 }
 
 let menuCardId = type of MenuCard
@@ -8912,8 +8912,8 @@ não usa `@derive`, decorators ou macros:
 
 ```w
 struct ReservationKey: Hashable & Reflectable {
-  table: TableId
-  sequence: u64
+  let table: TableId
+  let sequence: u64
 }
 ```
 
@@ -8943,8 +8943,8 @@ Generic constraints ficam explícitas:
 
 ```w
 struct Pair<Left: Hashable, Right: Hashable>: Hashable {
-  left: Left
-  right: Right
+  let left: Left
+  let right: Right
 }
 ```
 
@@ -9656,8 +9656,8 @@ fn expiredHandle(root: take shared MenuSection): weak MenuSection? {
   return weakRoot
 }
 
-let liveTitle = titleWhileLive(copy root)
-let expired = expiredHandle(take root)
+let liveTitle = titleWhileLive(root: copy root)
+let expired = expiredHandle(root: take root)
 if let expiredOwner = expired {
   record(copy expiredOwner.title)
 } else {
@@ -9686,9 +9686,9 @@ vigente antes de 1.0.
 
 ```w
 object MenuSection {
-  title: String
-  parent: weak MenuSection?
-  children: Array<shared MenuSection>
+  let title: String
+  let parent: weak MenuSection?
+  let children: Array<shared MenuSection>
 }
 ```
 
@@ -10868,8 +10868,8 @@ storage em `Bytes` não cria uma serialização reversível:
 
 ```w
 struct SensorLease {
-  device: c.ptr<Sensor>
-  limit: usize
+  let device: c.ptr<Sensor>
+  let limit: usize
 }
 
 let duplicate = copy lease             // preserva o pointer tipado
@@ -12008,9 +12008,9 @@ instance ou o provider:
 
 ```w
 struct BudgetExceeded: Copy & Equatable {
-  limitBytes: usize
-  committedBytes: usize
-  requestedBytes: usize
+  let limitBytes: usize
+  let committedBytes: usize
+  let requestedBytes: usize
 }
 ```
 
@@ -12357,7 +12357,8 @@ task, context e domain, não cria `Task` ou child, não suspende a task, não
 bloqueia thread e não reentra o event loop. Ela não exige blocking authority,
 quota, provider ou fallback runtime e não acrescenta `blocksThread`. Uma call
 bare de callable `maySuspend` continua error, nunca warning. O compiler ainda
-não implementa o facet e o lowering:
+não implementa o facet e o lowering geral de function types, WInterface e
+dual-entry ABI. W-1544 materializa somente a prova local bounded no HIR15:
 
 ```w
 let x = await func()
@@ -12414,6 +12415,11 @@ dinâmico e `sync` como no-op sobre função ordinary.
 [`DRC0`](tooling/studies/drc0-design-research-closure/) fecha a escolha de
 design como SYNC1 sem afirmar semantic checker, interface/type/HIR, dual-entry
 lowering/ABI, diagnostics ou evidência cross-module/erasure.
+
+W-1544 materializa somente a prova bounded desses facets no verified HIR15.
+W-1484 continua a forma vigente geral de `sync` e mantém missing o semantic
+checker, a análise cross-module/erasure, o dual-entry lowering/ABI, providers,
+ownership runtime, diagnostics e execução.
 
 
 ### 12.3 `Task` e ownership
@@ -15587,8 +15593,8 @@ protocol TableTransaction {
 }
 
 struct TableTransactionContract {
-  isolation: database.Isolation
-  access: database.TransactionAccess
+  let isolation: database.Isolation
+  let access: database.TransactionAccess
 }
 
 protocol TableLedgerApi:
@@ -16310,13 +16316,13 @@ export enum WorkState {
 }
 
 export struct WorkSnapshot<Progress> {
-  id: WorkId
-  revision: u64
-  attempt: u32
-  state: WorkState
-  progress: Progress?
-  cancellation: Cancellation?
-  suspension: WorkSuspension?
+  let id: WorkId
+  let revision: u64
+  let attempt: u32
+  let state: WorkState
+  let progress: Progress?
+  let cancellation: Cancellation?
+  let suspension: WorkSuspension?
 }
 
 export enum WorkOutcome<Output, Failure: Error> {
@@ -16747,10 +16753,10 @@ export enum StepBackoff {
 }
 
 export struct StepRetry<Failure: Error> {
-  maximumAttempts: u16<(1...)>
-  backoff: StepBackoff
-  attemptTimeout: Duration<(0...)>?
-  retryWhen: fn(ref Failure): Bool
+  let maximumAttempts: u16<(1...)>
+  let backoff: StepBackoff
+  let attemptTimeout: Duration<(0...)>?
+  let retryWhen: fn(ref Failure): Bool
 }
 
 extension<P> WorkContext<P> {
@@ -16903,8 +16909,8 @@ Eventos usam um binding tipado e versionado:
 
 ```w
 export struct WorkEventBinding<Payload> {
-  name: String
-  version: u32<(1...)>
+  let name: String
+  let version: u32<(1...)>
 }
 
 export enum WaitOutcome<Payload> {
@@ -18125,8 +18131,8 @@ try await output.writeAll(payload)
 
 ```w
 export struct WriteAllError<Cause: Error>: Error {
-  cause: Cause
-  committed: usize
+  let cause: Cause
+  let committed: usize
 }
 ```
 
@@ -21135,8 +21141,8 @@ Uma conformance manual usa fronteiras scoped para fechar cada container:
 
 ```w
 struct Ticket: json.Codable {
-  id: u64
-  displayName: String
+  let id: u64
+  let displayName: String
 
   fn encode(to writer: inout json.Writer) throws json.EncodeError {
     try writer.withObject((object) => {
@@ -22993,14 +22999,14 @@ resultado. Properties omitidas não existem no tipo projetado.
 
 ```w
 struct MenuCourse {
-  title: String
-  allergens: Array<String>
-  supplierContract: String
+  let title: String
+  let allergens: Array<String>
+  let supplierContract: String
 }
 
 struct PublicCourse {
-  title: ref String
-  allergens: view Array<String>
+  let title: ref String
+  let allergens: view Array<String>
 }
 
 fn publicCourse(course: ref MenuCourse): PublicCourse {
@@ -23300,9 +23306,9 @@ enum Utf8Reason {
 }
 
 struct Utf8Error: Error {
-  offset: usize
-  length: usize
-  reason: Utf8Reason
+  let offset: usize
+  let length: usize
+  let reason: Utf8Reason
 }
 ```
 
@@ -24379,7 +24385,7 @@ protocol Hashable: Equatable {
 }
 
 struct GuestId: Hashable {
-  raw: u64
+  let raw: u64
 
   fn hash(into hasher: inout Hasher) {
     hasher.append(raw)
@@ -24392,8 +24398,8 @@ implementação quando todos os fields semânticos atendem aos contratos:
 
 ```w
 struct Coordinate: Hashable {
-  x: i32
-  y: i32
+  let x: i32
+  let y: i32
 } // síntese: x e depois y
 ```
 
@@ -25052,7 +25058,7 @@ reflection física e address exposure usam o carrier declarado.
 
 ```w
 struct PublicReading {
-  value: Int<(1...128)> // layout de Int no struct
+  let value: Int<(1...128)> // layout de Int no struct
 }
 
 fn local(values: take Array<Int<(1...128)>>): Int {
@@ -26044,7 +26050,7 @@ foreign intrinsic from "std.url-record@1" {
 }
 
 export struct URL {
-  record: URLRecord
+  let record: URLRecord
 
   export init(_ input: String) throws UrlParseError {
     self.record = unsafe { try parseURL(input) }
@@ -27860,7 +27866,7 @@ eixos que não têm status `pass`.
 
 O estado atual tem zero targets `supported`. `x86_64-unknown-linux-gnu` é a
 única linha `evidence`, com `verificationLevel: null` e scope
-`w-seed-mlir0-10-unit-cfg-diamond`. Seu backend tem status
+`w-seed-mlir0-15-unit-cfg-nested-diamond`. Seu backend tem status
 `pass`. Runtime,
 hostAdapter, SDK profile, linker/sysroot/packaging e CI evidence são
 `partial`. A evidence cobre a fonte, a unidade, o gate e o manifest MLIR0.
@@ -30042,8 +30048,9 @@ Modified executable page e self-modifying code ou JIT sem policy explícita são
 adversarial cases da pesquisa. Um fingerprint de section ou chunk não é um
 receipt de integridade raw da memória em execução.
 
-**TEV0 — Test/evidence (W-1518 design contract; implementation evidence missing):** `@example`, fence `w test`, teste
-co-localizado e `*.test.w` baixam para o mesmo `TestDescriptor` e `TestPlan`.
+**TEV0 — Test/evidence (W-1518 design contract; implementation evidence missing):** casos
+`call:` independentes conforme §5.2, fence `w test`, teste co-localizado e
+`*.test.w` baixam para o mesmo `TestDescriptor` e `TestPlan`.
 Esta direção não cria syntax nova. O `TestDescriptor` e o `TestPlan` exigem
 stable ID, owner declaration, origin carrier, source map, kind, fixtures e
 effects, oracle ou expected diagnostic/outcome, target/profile, seed/limits e
@@ -30591,12 +30598,11 @@ facilidade de remover o framework.
 
 ### 22.2 Documentação e testes
 
-`///` e `/** ... */` documentam a próxima declaração. Blocos `@example` são
-doctests unitários. Fences `w test` são doctests multi-step. Testes
-co-localizados usam:
+`///` e `/** ... */` documentam a próxima declaração. Casos unitários
+independentes começam por `call:` conforme §5.2. Fences `w test` são doctests
+multi-step. Testes co-localizados usam:
 
 ```text
-@example
 call: clamp(2, to: 0...3)
 result: 2
 ```
@@ -36676,8 +36682,7 @@ fn adjustedGuests(isOpen: Bool, guests: i64): i64 {
 }
 ```
 
-W-1540 introduced HIR0 `w-seed-hir0-13`; the current schema is HIR14 under
-W-1543. MLIR0 uses
+The current HIR0 schema is `w-seed-hir0-15`. MLIR0 uses
 `w-seed-mlir0-15`, with the Windows artifact label
 `w-seed-mlir0-windows-6`. Native0 remains `w-seed-native0-6`. Existing HIR
 argument evaluation keeps left-to-right and once-only call semantics. The
@@ -36833,6 +36838,69 @@ reject a valid process HIR without publishing partial output. This decision
 does not prove `directEntry`, argument access, process providers, ABI lowering,
 runtime input, native execution, Windows behavior, or performance; those remain
 separate `PROC-INPUT0` and later milestones.
+
+#### 26.4.1.27 W-1544 — bounded direct-entry facts in verified HIR15 (Current form)
+
+W-1544 adds two independent facts to each caller-owned HIR function record:
+`suspension` is `NEVER` or `MAY`, and `direct_entry` is `ABSENT` or
+`AVAILABLE`. `is_async` comes only from the explicit `async` modifier in the
+CST. The verifier must not infer the declaration kind from either fact.
+
+An ordinary pure function publishes `suspension: NEVER` and
+`direct_entry: ABSENT`. An explicit `async fn` publishes
+`suspension: MAY`; it can publish `direct_entry: AVAILABLE` only when the
+complete declaration body proves `neverSuspend` before specialization. A
+logical-contract/source-shape excerpt for the bounded proof is:
+
+```w
+fn orderTotal(count: i64): i64 {
+  return count + 1
+}
+
+async fn quote(count: i64): i64 {
+  let total = orderTotal(count: count)
+  return total
+}
+
+entry {
+  print("HIR15 facts")
+}
+```
+
+The excerpt defines source shape and fact separation. It does not claim that
+`sync` executes in the current seed product. `orderTotal` is an ordinary pure
+helper with `NEVER`/`ABSENT`; `quote` remains a non-entry explicit async
+declaration with `MAY`/`AVAILABLE` when its whole body is proven. The short
+default entry is separate, so the proof does not depend on reachability.
+The proof resolves local ordinary calls and recursive groups by a monotone
+fixed point and does not prove termination. Unknown hosts and local async calls
+without an explicit call form or summary remove the proof. A `String` parameter,
+return, or value is a nominal lifecycle boundary and removes the proof even
+without a call. Opaque owners without effects/lifecycle facts also remove the
+proof.
+The process handler remains `suspension: MAY` and `direct_entry: ABSENT`.
+
+The implementation target uses a scratch bitset bounded to 4 KiB by the
+inherited CST limit of 32768 nodes. Preflight and the independent verifier
+guard the function count and scratch bound. The path adds no heap allocation,
+no 256-function capacity, and no new `sync` or `await` syntax. Worst-case
+local propagation is `O(F * (F + E))` for `F` functions and `E` call edges.
+The emitter derives the facts before it publishes the HIR receipt and semantic
+digest. The read-only verifier rederives them before it compares fields,
+digests, and receipt bytes. The verifier never commits output.
+
+HLO0 and MLIR0 continue to reject process HIR without partial output. The
+bounded frontend-to-HIR0 analysis, emitter publication, and read-only verifier
+are source-backed-current through `normalize_function`,
+`hir0_compute_body_never`, `hir0_publish_direct_entry_facts`, and
+`verify_direct_entry_facts`; the focused `test_direct_entry_facts` and
+`test_direct_entry_effect_barrier` C units and the corresponding compiler
+emitter gates pass. This evidence covers compiler-lifecycle fact derivation,
+verification, receipt/digest barriers, and fail-closed consumers only. It does
+not execute `sync`, the Restaurant process-input witness, or general ABI,
+providers, ownership runtime, native process execution, Windows, or
+performance. Its `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only, with no timing claim.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

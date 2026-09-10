@@ -11,6 +11,11 @@ enum {
   HIR0_DIGEST_BYTES = 32,
   HIR0_RECEIPT_SCHEMA_BYTES = 16,
   HIR0_RECEIPT_COUNT_FIELDS = 21,
+  /* Every frontend function owns a CST function node.  Reuse that existing
+   * source bound for verifier scratch instead of adding an arbitrary HIR
+   * ceiling or allocating. */
+  HIR0_DIRECT_FUNCTION_BITSET_BYTES =
+      (W_SEED_FRONTEND_MAX_CST_NODES + 7u) / 8u,
   HIR0_RECEIPT_BYTES = HIR0_RECEIPT_SCHEMA_BYTES +
                        HIR0_RECEIPT_COUNT_FIELDS * 8 + HIR0_DIGEST_BYTES * 2,
 };
@@ -196,7 +201,7 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
   return false;
 }
 
-/* HIR14 accepts only resolver-owned nominal types from the bounded external
+/* HIR15 accepts only resolver-owned nominal types from the bounded external
  * process table. The pair is atomic. A partial pair is never a type identity. */
 static bool frontend_external_type_pair_valid(
     const w_seed_hir0_input *input, uint32_t module_index,
@@ -337,6 +342,7 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
       (result->written.receipt_bytes != 0u && output->receipt == NULL) ||
        frontend_input->documents == NULL || frontend_input->document_count != 1u ||
        frontend_input->document_count > W_SEED_FRONTEND_MAX_DOCUMENTS ||
+      result->written.functions > W_SEED_FRONTEND_MAX_CST_NODES ||
       frontend_input->external_module_count >
           W_SEED_FRONTEND_MAX_EXTERNAL_MODULES ||
       frontend_input->resolved_import_count >
@@ -1626,7 +1632,8 @@ static bool frontend_statement_relations_ok(const w_seed_hir0_input *input,
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || if_total == NULL ||
       input->frontend_output->functions == NULL ||
-      input->frontend_output->statements == NULL ||
+      (input->frontend_output->statements == NULL &&
+       input->frontend_result->written.statements != 0u) ||
       function_index >= input->frontend_result->written.functions)
     return false;
   const w_seed_frontend_output *output = input->frontend_output;
@@ -1951,9 +1958,13 @@ static bool frontend_statement_and_expression_cfg_ok(
         .logical_total = &logical_count,
         .has_value_return = false,
     };
-    if (!hir0_walk_statement_chain(&walk, function->first_statement, false,
-                                   0u) ||
-        relation_if_count != function_if_count ||
+    /* An empty declaration (notably `entry {}` used as a separate test
+     * entry) owns no statement record; its first_statement is the append
+     * cursor at the end of the shared table. */
+    const bool walked =
+        function->statement_count == 0u ||
+        hir0_walk_statement_chain(&walk, function->first_statement, false, 0u);
+    if (!walked || relation_if_count != function_if_count ||
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
         (return_kind != W_SEED_FRONTEND_TYPE_UNIT &&
          (!walk.has_value_return || function_if_count != 0u)))
@@ -2005,7 +2016,7 @@ static bool frontend_external_type_is(const w_seed_hir0_input *input,
          frontend_external_type_pair_valid(input, module_index, symbol_index);
 }
 
-/* This is the complete HIR14 process-handler contract. It is a bounded
+/* This is the complete HIR15 process-handler contract. It is a bounded
  * consumer shape, not a general language or directEntry proof. */
 static bool frontend_process_handler_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_output == NULL ||
@@ -4837,6 +4848,9 @@ static void emit_records(const w_seed_hir0_input *input,
     target->is_unsafe = source->is_unsafe;
     target->has_borrow_clause = source->has_borrow_clause;
     target->is_anonymous_entry = source->is_anonymous_entry;
+    /* Start conservative; the whole-body proof publishes the final facts. */
+    target->suspension = W_SEED_HIR0_SUSPENSION_MAY;
+    target->direct_entry = W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
     output->identities[function_identity_base + function] =
         (w_seed_hir0_identity){
             .kind = W_SEED_HIR0_IDENTITY_FUNCTION,
@@ -4939,7 +4953,9 @@ static void emit_records(const w_seed_hir0_input *input,
         .frontend = frontend,
         .frontend_result = frontend_result};
     const size_t function_block_count = hir0_region_block_count(
-        &layout, source->first_statement, 0u);
+        &layout, source->statement_count == 0u ? W_SEED_FRONTEND_NONE
+                                               : source->first_statement,
+        0u);
     w_seed_hir0_function *target_function = &output->functions[function];
     target_function->first_block = (uint32_t)block_cursor;
     target_function->block_count = (uint32_t)function_block_count;
@@ -4981,8 +4997,12 @@ static void emit_records(const w_seed_hir0_input *input,
         .value_index = &value_index,
         .interpolation_segment_index = &interpolation_segment_index,
         .block_argument_index = &block_argument_index};
+    const uint32_t first_statement =
+        frontend->functions[function].statement_count == 0u
+            ? W_SEED_FRONTEND_NONE
+            : frontend->functions[function].first_statement;
     hir0_emit_chain_layout_m2(
-        &context, frontend->functions[function].first_statement,
+        &context, first_statement,
         target_function->first_block, W_SEED_HIR0_NONE, true, 0u);
   }
   size_t binding_cursor = 0u;
@@ -5004,8 +5024,12 @@ static void emit_records(const w_seed_hir0_input *input,
         .value_index = &value_index,
         .interpolation_segment_index = &interpolation_segment_index,
         .block_argument_index = &block_argument_index};
+    const uint32_t first_statement =
+        frontend->functions[function].statement_count == 0u
+            ? W_SEED_FRONTEND_NONE
+            : frontend->functions[function].first_statement;
     hir0_emit_chain_values_m2(
-        &context, frontend->functions[function].first_statement,
+        &context, first_statement,
         target_function->first_block, 0u, &binding_cursor);
   }
   for (size_t function = 0u; function < counts->functions; function += 1u) {
@@ -5026,8 +5050,12 @@ static void emit_records(const w_seed_hir0_input *input,
         .value_index = &value_index,
         .interpolation_segment_index = &interpolation_segment_index,
         .block_argument_index = &block_argument_index};
+    const uint32_t first_statement =
+        frontend->functions[function].statement_count == 0u
+            ? W_SEED_FRONTEND_NONE
+            : frontend->functions[function].first_statement;
     hir0_emit_chain_terms_m2(
-        &context, frontend->functions[function].first_statement,
+        &context, first_statement,
         target_function->first_block, 0u);
   }
   /* Entry identities and records are dense after functions. */
@@ -5209,6 +5237,8 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_bool(&state, value->is_unsafe);
     digest_bool(&state, value->has_borrow_clause);
     digest_bool(&state, value->is_anonymous_entry);
+    digest_u32(&state, (uint32_t)value->suspension);
+    digest_u32(&state, (uint32_t)value->direct_entry);
   }
   for (size_t index = 0u; index < counts->parameters; index += 1u) {
     const w_seed_hir0_parameter *value = &program->parameters[index];
@@ -5478,7 +5508,8 @@ static bool basic_program_shape(const w_seed_hir0_program *program,
       result->status != W_SEED_HIR0_OK ||
       result->schema[sizeof(result->schema) - 1u] != '\0' ||
       memcmp(result->schema, W_SEED_HIR0_SCHEMA_VERSION,
-             sizeof(W_SEED_HIR0_SCHEMA_VERSION)) != 0)
+             sizeof(W_SEED_HIR0_SCHEMA_VERSION)) != 0 ||
+      program->function_count > W_SEED_FRONTEND_MAX_CST_NODES)
     return false;
 #define HIR0_PROGRAM(field, count_field, capacity_field, type)                 \
   if (program->count_field > program->capacity_field ||                       \
@@ -6353,6 +6384,345 @@ static bool verify_process_handler(const w_seed_hir0_program *program) {
          hir_text_is(program, value->member_name, HIR0_PROCESS_SUCCESS);
 }
 
+static bool hir0_function_bit_get(const uint8_t *bits, size_t function) {
+  return bits != NULL &&
+         (bits[function / 8u] & (uint8_t)(1u << (function % 8u))) != 0u;
+}
+
+static void hir0_function_bit_set(uint8_t *bits, size_t function, bool value) {
+  if (bits == NULL) return;
+  const uint8_t mask = (uint8_t)(1u << (function % 8u));
+  if (value)
+    bits[function / 8u] |= mask;
+  else
+    bits[function / 8u] &= (uint8_t)~mask;
+}
+
+static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
+  switch (kind) {
+    case W_SEED_HIR0_VALUE_CONST_STRING:
+    case W_SEED_HIR0_VALUE_BINDING_READ:
+    case W_SEED_HIR0_VALUE_PARAMETER_READ:
+    case W_SEED_HIR0_VALUE_CONST_I64:
+    case W_SEED_HIR0_VALUE_CONST_BOOL:
+    case W_SEED_HIR0_VALUE_BINARY_I64:
+    case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
+    case W_SEED_HIR0_VALUE_CALL_RESULT:
+    case W_SEED_HIR0_VALUE_UNARY_BOOL:
+    case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
+    case W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE:
+      return true;
+    default:
+      /* A future value kind needs an explicit suspension/effect review before
+       * it can participate in a direct-entry proof. */
+      return false;
+  }
+}
+
+static bool hir0_instruction_kind_is_closed(w_seed_hir0_instruction_kind kind) {
+  switch (kind) {
+    case W_SEED_HIR0_INSTRUCTION_CALL:
+    case W_SEED_HIR0_INSTRUCTION_BINDING:
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
+  switch (kind) {
+    case W_SEED_HIR0_TERMINATOR_RETURN_UNIT:
+    case W_SEED_HIR0_TERMINATOR_RETURN_VALUE:
+    case W_SEED_HIR0_TERMINATOR_BRANCH:
+    case W_SEED_HIR0_TERMINATOR_JUMP:
+      return true;
+    default:
+      return false;
+  }
+}
+
+/* String and nominal values have ownership/lifecycle obligations that HIR15
+ * cannot witness.  An invalid or future type is blocked conservatively too;
+ * verifier shape checks reject it before this helper is used on input HIR. */
+static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
+                                 uint32_t type_index) {
+  if (program == NULL || type_index == W_SEED_HIR0_NONE ||
+      (size_t)type_index >= program->type_count)
+    return true;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  switch (type->kind) {
+    case W_SEED_HIR0_TYPE_UNIT:
+    case W_SEED_HIR0_TYPE_I64:
+    case W_SEED_HIR0_TYPE_BOOL:
+      return false;
+    case W_SEED_HIR0_TYPE_STRING:
+    case W_SEED_HIR0_TYPE_NOMINAL:
+    default:
+      return true;
+  }
+}
+
+/* Return the declaration owning a call without trusting the duplicated block
+ * relation.  Shape verification has already checked that the two relations
+ * agree; the conservative NONE result is used by the emitter if an internal
+ * preflight invariant is ever broken. */
+static uint32_t hir0_call_owner_function(const w_seed_hir0_program *program,
+                                         size_t call_index) {
+  if (program == NULL || call_index >= program->call_count) return W_SEED_HIR0_NONE;
+  const w_seed_hir0_call *call = &program->calls[call_index];
+  if (call->owner_instruction >= program->instruction_count ||
+      call->owner_block >= program->block_count)
+    return W_SEED_HIR0_NONE;
+  const w_seed_hir0_instruction *instruction =
+      &program->instructions[call->owner_instruction];
+  if (instruction->owner_block != call->owner_block) return W_SEED_HIR0_NONE;
+  const w_seed_hir0_block *block = &program->blocks[call->owner_block];
+  return block->owner_function < program->function_count
+             ? block->owner_function
+             : W_SEED_HIR0_NONE;
+}
+
+/* Values are emitted in preorder.  Their owner relation points either to a
+ * declaration anchor or to an earlier parent value/segment.  Walk that finite
+ * chain iteratively so direct-entry analysis never recurses on caller data. */
+static uint32_t hir0_value_owner_function(const w_seed_hir0_program *program,
+                                          uint32_t value_index) {
+  if (program == NULL || value_index == W_SEED_HIR0_NONE ||
+      (size_t)value_index >= program->value_count)
+    return W_SEED_HIR0_NONE;
+  uint32_t current = value_index;
+  for (size_t depth = 0u; depth <= W_SEED_HIR0_MAX_NESTING; depth += 1u) {
+    if ((size_t)current >= program->value_count) return W_SEED_HIR0_NONE;
+    const w_seed_hir0_value *value = &program->values[current];
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_ARGUMENT) {
+      if (value->owner_index >= program->argument_count) return W_SEED_HIR0_NONE;
+      const w_seed_hir0_argument *argument =
+          &program->arguments[value->owner_index];
+      return hir0_call_owner_function(program,
+                                      argument->owner_call);
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING) {
+      if (value->owner_index >= program->binding_count) return W_SEED_HIR0_NONE;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[value->owner_index];
+      if (binding->owner_block >= program->block_count) return W_SEED_HIR0_NONE;
+      const w_seed_hir0_block *block = &program->blocks[binding->owner_block];
+      return block->owner_function < program->function_count
+                 ? block->owner_function
+                 : W_SEED_HIR0_NONE;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_TERMINATOR) {
+      if (value->owner_index >= program->terminator_count)
+        return W_SEED_HIR0_NONE;
+      const w_seed_hir0_terminator *terminator =
+          &program->terminators[value->owner_index];
+      if (terminator->owner_block >= program->block_count)
+        return W_SEED_HIR0_NONE;
+      const w_seed_hir0_block *block =
+          &program->blocks[terminator->owner_block];
+      return block->owner_function < program->function_count
+                 ? block->owner_function
+                 : W_SEED_HIR0_NONE;
+    }
+    if (value->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINARY ||
+        value->owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY) {
+      if (value->owner_index == W_SEED_HIR0_NONE ||
+          (size_t)value->owner_index >= program->value_count)
+        return W_SEED_HIR0_NONE;
+      current = value->owner_index;
+      continue;
+    }
+    if (value->owner_kind ==
+        W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT) {
+      if (value->owner_index >= program->interpolation_segment_count)
+        return W_SEED_HIR0_NONE;
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[value->owner_index];
+      if (segment->owner_value == W_SEED_HIR0_NONE ||
+          (size_t)segment->owner_value >= program->value_count)
+        return W_SEED_HIR0_NONE;
+      current = segment->owner_value;
+      continue;
+    }
+    return W_SEED_HIR0_NONE;
+  }
+  return W_SEED_HIR0_NONE;
+}
+
+/* Compute the greatest fixed point of bodies that are proven never to
+ * suspend.  The bitset is scratch only; no published HIR field participates
+ * in this calculation.  Base classification scans F functions, V values,
+ * I instructions, T terminators, and C calls; value-owner walks are bounded
+ * by W_SEED_HIR0_MAX_NESTING.  The local-ordinary dependency relation is then
+ * propagated in at most F passes, for O(F*(F+E)) worst-case propagation where
+ * E is the call count. */
+static void hir0_compute_body_never(const w_seed_hir0_program *program,
+                                    uint8_t *body_never) {
+  (void)memset(body_never, 0xff, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
+  for (size_t function = 0u; function < program->function_count; function += 1u) {
+    const w_seed_hir0_function *value = &program->functions[function];
+    if (hir0_type_is_blocked(program, value->return_type))
+      hir0_function_bit_set(body_never, function, false);
+    for (size_t parameter = 0u; parameter < value->parameter_count;
+         parameter += 1u) {
+      const size_t parameter_index = (size_t)value->first_parameter + parameter;
+      if (parameter_index >= program->parameter_count ||
+          hir0_type_is_blocked(
+              program, program->parameters[parameter_index].type_index))
+        hir0_function_bit_set(body_never, function, false);
+    }
+  }
+
+  /* An opaque value or result is a lifecycle/provider boundary.  It is not a
+   * proof that suspension occurs; it is information insufficient for this
+   * seed's direct-entry witness, so the body is conservatively MAY. */
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (!hir0_value_kind_is_closed(value->kind)) {
+      (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
+      continue;
+    }
+    if (!hir0_type_is_blocked(program, value->type_index)) continue;
+    const uint32_t owner =
+        hir0_value_owner_function(program, (uint32_t)value_index);
+    if (owner == W_SEED_HIR0_NONE) {
+      (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
+      continue;
+    }
+    hir0_function_bit_set(body_never, owner, false);
+  }
+  for (size_t block = 0u; block < program->block_count; block += 1u) {
+    const w_seed_hir0_block *value = &program->blocks[block];
+    if (value->owner_function >= program->function_count) continue;
+    for (size_t argument = 0u; argument < value->block_argument_count;
+         argument += 1u) {
+      const size_t index = (size_t)value->first_block_argument + argument;
+      if (index < program->block_argument_count &&
+          hir0_type_is_blocked(program,
+                               program->block_arguments[index].type_index))
+        hir0_function_bit_set(body_never, value->owner_function, false);
+    }
+  }
+  for (size_t instruction = 0u; instruction < program->instruction_count;
+       instruction += 1u) {
+    const w_seed_hir0_instruction *value = &program->instructions[instruction];
+    if (!hir0_instruction_kind_is_closed(value->kind)) {
+      (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
+      continue;
+    }
+    if (hir0_type_is_blocked(program, value->result_type) &&
+        value->owner_block < program->block_count) {
+      const uint32_t owner = program->blocks[value->owner_block].owner_function;
+      if (owner < program->function_count)
+        hir0_function_bit_set(body_never, owner, false);
+    }
+  }
+  for (size_t terminator = 0u; terminator < program->terminator_count;
+       terminator += 1u) {
+    const w_seed_hir0_terminator *value = &program->terminators[terminator];
+    if (!hir0_terminator_kind_is_closed(value->kind)) {
+      (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
+      continue;
+    }
+    if (hir0_type_is_blocked(program, value->result_type) &&
+        value->owner_block < program->block_count) {
+      const uint32_t owner = program->blocks[value->owner_block].owner_function;
+      if (owner < program->function_count)
+        hir0_function_bit_set(body_never, owner, false);
+    }
+  }
+
+  /* Host identities have no suspension/effect witness in HIR15.  Any local
+   * async target also lacks a call-form discriminator, so a bare HIR call
+   * cannot be reinterpreted as `sync`. */
+  for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
+    const uint32_t owner = hir0_call_owner_function(program, call_index);
+    if (owner == W_SEED_HIR0_NONE) continue;
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->callee_identity >= program->identity_count) {
+      hir0_function_bit_set(body_never, owner, false);
+      continue;
+    }
+    const w_seed_hir0_identity *identity =
+        &program->identities[call->callee_identity];
+    if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+        identity->target_index >= program->function_count) {
+      hir0_function_bit_set(body_never, owner, false);
+      continue;
+    }
+    const w_seed_hir0_function *target =
+        &program->functions[identity->target_index];
+    if (target->is_async || target->is_anonymous_entry)
+      hir0_function_bit_set(body_never, owner, false);
+  }
+
+  for (size_t pass = 0u; pass < program->function_count; pass += 1u) {
+    bool changed = false;
+    for (size_t call_index = 0u; call_index < program->call_count;
+         call_index += 1u) {
+      const uint32_t owner = hir0_call_owner_function(program, call_index);
+      if (owner == W_SEED_HIR0_NONE || !hir0_function_bit_get(body_never, owner))
+        continue;
+      const w_seed_hir0_call *call = &program->calls[call_index];
+      if (call->callee_identity >= program->identity_count) continue;
+      const w_seed_hir0_identity *identity =
+          &program->identities[call->callee_identity];
+      if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          identity->target_index >= program->function_count)
+        continue;
+      const size_t target = identity->target_index;
+      if (!program->functions[target].is_async &&
+          !program->functions[target].is_anonymous_entry &&
+          !hir0_function_bit_get(body_never, target)) {
+        hir0_function_bit_set(body_never, owner, false);
+        changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+}
+
+static void hir0_publish_direct_entry_facts(
+    const w_seed_hir0_program *program, w_seed_hir0_output *output) {
+  uint8_t body_never[HIR0_DIRECT_FUNCTION_BITSET_BYTES];
+  hir0_compute_body_never(program, body_never);
+  for (size_t function = 0u; function < program->function_count; function += 1u) {
+    const w_seed_hir0_function *value = &program->functions[function];
+    const bool never = hir0_function_bit_get(body_never, function);
+    output->functions[function].suspension =
+        value->is_async || !never ? W_SEED_HIR0_SUSPENSION_MAY
+                                  : W_SEED_HIR0_SUSPENSION_NEVER;
+    output->functions[function].direct_entry =
+        value->is_async && !value->is_const && !value->is_anonymous_entry &&
+                never
+            ? W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE
+            : W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+  }
+}
+
+static bool verify_direct_entry_facts(const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  uint8_t body_never[HIR0_DIRECT_FUNCTION_BITSET_BYTES];
+  hir0_compute_body_never(program, body_never);
+  for (size_t function = 0u; function < program->function_count; function += 1u) {
+    const w_seed_hir0_function *value = &program->functions[function];
+    const bool never = hir0_function_bit_get(body_never, function);
+    const w_seed_hir0_suspension_kind expected_suspension =
+        value->is_async || !never ? W_SEED_HIR0_SUSPENSION_MAY
+                                  : W_SEED_HIR0_SUSPENSION_NEVER;
+    const w_seed_hir0_direct_entry_kind expected_direct_entry =
+        value->is_async && !value->is_const && !value->is_anonymous_entry &&
+                never
+            ? W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE
+            : W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+    if (value->suspension != expected_suspension ||
+        value->direct_entry != expected_direct_entry)
+      return false;
+  }
+  return true;
+}
+
 static bool verify_records(const w_seed_hir0_program *program) {
   size_t expected_instructions = 0u;
   const bool has_external_process =
@@ -6426,6 +6796,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
     const w_seed_hir0_function *value = &program->functions[function];
     if (value->module_index >= program->module_count ||
         value->identity_index != program->module_count + function ||
+        value->suspension > W_SEED_HIR0_SUSPENSION_MAY ||
+        value->direct_entry > W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
         !hir_text_valid(program, value->name) || value->name.count == 0u ||
         (value->return_type != 0u &&
          (!hir_type_index_valid(program, value->return_type) ||
@@ -7015,6 +7387,7 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->written.external_symbols != counts.external_symbols ||
        !verify_records(program))
     return false;
+  if (!verify_direct_entry_facts(program)) return false;
   uint8_t semantic_digest[32];
   uint8_t provenance_digest[32];
   digest_program(program, &counts, semantic_digest);
@@ -7089,6 +7462,10 @@ w_seed_hir0_status w_seed_hir0_run(const w_seed_hir0_input *input,
   /* All branches of emission are proven by collect() and the alias/capacity
    * preflight above. From this first write onward the commit is infallible. */
   emit_records(input, &counts, output);
+  /* The proof consumes only the now-complete caller-owned HIR. Its bounded
+   * scratch and preflight-proven finite relations keep this post-emission
+   * step infallible. */
+  hir0_publish_direct_entry_facts(&program, output);
   digest_program(&program, &counts, candidate_result.semantic_digest);
   digest_provenance(&program, &counts, candidate_result.provenance_digest);
   write_receipt_unchecked(output->receipt, &counts,

@@ -1047,8 +1047,9 @@ HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
 `w-seed-mlir0-windows-6`; Native0 remains v6. W-1541 advances frontend to
 `w-seed-frontend-15` and HIR0 to `w-seed-hir0-13`; MLIR0, its Windows label,
 and Native0 remain unchanged. W-1542 advances only the frontend to
-`w-seed-frontend-16`. W-1543 advances HIR0 to `w-seed-hir0-14`; MLIR0, its
-Windows label, and Native0 remain unchanged.
+`w-seed-frontend-16`. W-1543 advances HIR0 to `w-seed-hir0-14`; W-1544
+advances the current HIR0 schema to `w-seed-hir0-15`. MLIR0, its Windows
+label, and Native0 remain unchanged.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1172,8 +1173,8 @@ target-coverage or performance evidence.
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 
 ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded
-source → frontend → HIR0 → MLIR0 route. W-1540 introduced HIR13; current HIR0
-is `w-seed-hir0-14`. MLIR0 is
+source → frontend → HIR0 → MLIR0 route. The current HIR0 schema is
+`w-seed-hir0-15`. MLIR0 is
 `w-seed-mlir0-15`, the Windows artifact label is
 `w-seed-mlir0-windows-6`, and Native0 remains v6. Runtime arithmetic calls
 LLVM signed-overflow intrinsics. An overflow edge calls the LLVM trap
@@ -1292,6 +1293,36 @@ NAT1. HLO0, HLO1 e RUN0 continuam bootstrap, auditoria e recovery e rejeitam
 multi-call. O bundle tem
 `benchmarkDisposition: compiler-lifecycle`, correctness-only, sem timing ou
 result.
+
+### Direct-entry facts in HIR15 (W-1544)
+
+W-1544 adds two independent fields to each HIR0 function record:
+`suspension` is `NEVER` or `MAY`, and `direct_entry` is `ABSENT` or
+`AVAILABLE`. The explicit `async` modifier in the CST supplies `is_async`.
+The verifier does not infer the declaration kind from either field.
+
+The bounded gate is source → HIR0 measure/emit → independent read-only
+verification. Ordinary pure functions are `NEVER`/`ABSENT`; explicit async
+functions remain `MAY` and receive `AVAILABLE` only after a complete-body
+`neverSuspend` proof. Local ordinary calls and recursive groups use a bounded
+fixed point; unknown hosts, local async calls without call form or summary,
+`String` parameters/returns/values, and opaque owners without lifecycle facts
+remain conservative. The process handler remains `MAY`/`ABSENT`.
+
+Scratch is 4 KiB under the inherited CST32768 bound, with preflight and
+verifier guards, no heap, and no 256-function capacity. The emitter derives
+facts before receipt/digest publication; the verifier rederives before
+comparison and never commits output. HLO0/MLIR0 reject process HIR. The
+bounded implementation is source-backed-current through
+`hir0_compute_body_never`, `hir0_publish_direct_entry_facts`, and
+`verify_direct_entry_facts`; focused C units `test_direct_entry_facts` and
+`test_direct_entry_effect_barrier` plus compiler emitter gates pass. The later
+`PROC-INPUT0` run is separate and must
+reuse one artifact (`missing\n`/exit 2 without arguments;
+`received\n`/exit 0 with `-- payload`). No `sync` execution, general ABI/provider/
+runtime support, native process execution, Windows, or timing claim is made.
+See the canonical contract in
+[`DESIGN.md`](../../DESIGN.md) §26.4.1.27.
 
 ### Native Windows x86_64 candidate (W-1532)
 
