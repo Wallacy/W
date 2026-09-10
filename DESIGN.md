@@ -21989,6 +21989,32 @@ Depois do grace period, a fault policy do host decide o boundary. Retornar
 `ExitCode` seleciona somente o status normal; typed error, panic, signal fatal e
 forced boundary continuam outcomes distintos.
 
+**W-1546 — process-owner release:** the compiler-trusted `std.process@1`
+contract covers only adoption, passing, and release of the existing
+`Arguments` and `Context` wrapper handles. These values are root-scoped,
+non-`Copy` owners. Adoption and passing do not allocate or copy underlying OS
+data. Release occurs at the handler owner-scope exit, including each
+structured exit, exactly once, and invalidates the wrapper. It is
+`neverSuspend`, nonthrowing, nonblocking, and does not re-enter the event loop.
+It does not perform admission, consume quota, use fallback, acquire new
+authority, or create a hidden `Task`.
+
+Release does not shut down the root, wait for provider work, or reclaim root
+backing storage while loans, children, or provider registrations remain. Root
+creation, OS-data and capability acquisition, and structured root drain remain
+separate adapter obligations. This contract does not prove those obligations
+pure or nonblocking. The provider and ABI remain required and missing. This is
+a versioned compiler axiom, not provider-free execution.
+
+Binding requires the fixed compiler-owned `std.process@1` owner-release
+contract identity, its drop ABI, and verified external identity. Canonical
+names, arbitrary metadata, `adapter_kind`, or `.success` do not grant the
+contract. `Context` projections retain their W-1298 lifecycle contracts.
+`ExitCode` remains a trivial `Copy` value, not a root owner. General
+destructors and foreign signatures do not inherit these guarantees. Native
+consumers continue to reject process HIR until a provider and ABI witness
+exist.
+
 `std/process/contracts.w` é a projection source deste contrato. `filesystem`
 expõe somente a raiz `fs.FileSystem` concedida pelo product; não expõe cwd ou
 namespace ambiental. `clock` expõe somente `time.Clock` monotônico; não concede
@@ -36946,6 +36972,74 @@ not execute `sync`, the Restaurant process-input witness, or general ABI,
 providers, ownership runtime, native process execution, Windows, or
 performance. Its `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only, with no timing claim.
+
+#### 26.4.1.28 W-1546 — bounded process-owner lifecycle facts in verified HIR16 (Current form)
+
+W-1546 advances the caller-owned HIR schema to `w-seed-hir0-16`. It records
+typed lifecycle and release facts on every HIR type. The closed lifecycle enum
+is `UNKNOWN`, `VALUE_COPY`, or `ENTRY_ROOT_OWNER`. The closed release enum is
+`NONE`, `UNKNOWN`, or `PROCESS_V1_WRAPPER_RELEASE`. The verifier recomputes
+these fields from canonical external records. It never treats published facts
+as proof inputs.
+
+**Exemplo:** the bounded accepted handler keeps the existing source shape:
+
+<!-- w-example role=logical-contract -->
+```w
+// excerpt-kind: bounded HIR16 logical contract
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {
+  return .success
+}
+entry(run)
+```
+
+This example has one module, one function, one entry, two owner parameters,
+and the sole normal `.success` return. It does not demonstrate provider
+execution or a throw or cancellation path.
+
+The only process identities that receive owner facts are the verified
+`std.process@1` records for `Arguments` and `Context`. Their fixed,
+compiler-owned release identity binds
+`stdProcessArgumentsDrop` and `stdProcessContextDrop` to
+`wrapper-release-v1`. `ExitCode` receives `VALUE_COPY` and `NONE`. Unit,
+`i64`, and `Bool` retain scalar copy facts. `String`, unknown, opaque, and
+foreign types remain `UNKNOWN`.
+
+HIR16 also records an entry cleanup obligation. The bounded process entry
+uses `RELEASE_HANDLER_OWNERS` with the exact two-parameter range beginning at
+the handler's first parameter. This means each listed owner is released once
+on the supported normal handler return. Root acquisition, root drain, child
+and provider settlement, and root-memory reclamation remain outside HIR.
+
+The general W-1546 contract covers every structured owner exit. This HIR0
+subset has only the existing one-module, one-function, one-entry shape with
+two owner parameters and the sole `.success` normal return. It has no throw or
+cancellation witness. The producer is
+`hir0_publish_process_lifecycle_facts`. The verifier runs
+`verify_process_lifecycle_facts` after structural, bounds, and identity checks,
+then before direct-entry rederivation. Emission publishes these facts before
+the existing direct-entry fields and digests. Its post-write path remains
+infallible.
+
+The existing whole-body proof remains mandatory. A complete bounded process
+handler may therefore carry `suspension: MAY` and `direct_entry: AVAILABLE`
+only after lifecycle and cleanup facts validate. Unknown hosts, local async
+calls, opaque owners, `String`, malformed metadata, and forged or wrong-version
+facts remain conservative. Names, adapter identity, `.success`, or a generic
+synchronous-drop assumption do not grant the proof.
+
+HLO0 and MLIR0 still return `UNSUPPORTED` for process HIR without partial
+output. HIR16 does not enable native process execution. The provider, ABI
+witness, runtime input, root adapter, and separate native cleanup remain
+pending. This is `source-backed-current` evidence for the bounded compiler
+producer, verifier, typed facts, and cleanup obligation only. Its
+`benchmarkDisposition` is `compiler-lifecycle`, correctness-only, with no
+timing or performance result.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

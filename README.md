@@ -51,7 +51,7 @@ This is a tool-build fact, not a baseline or benchmark of the produced
 executable.
 
 W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
-HIR0, now `w-seed-hir0-15`, and MLIR0 `w-seed-mlir0-15`/Windows6; Native0
+HIR0, now `w-seed-hir0-16`, and MLIR0 `w-seed-mlir0-15`/Windows6; Native0
 remains v6.
 Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
 Helpers are emitted only for reachable operations, and existing HIR call
@@ -64,7 +64,7 @@ Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
 proves only bounded nonzero process/fault termination with no later success
 output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
 W-1541 also closes the bounded `entry {}` path introduced through frontend15
-and HIR13; the current HIR schema is HIR15 after W-1544.
+and HIR13; the current HIR schema is HIR16 after W-1546.
 The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
@@ -91,6 +91,15 @@ The 4 KiB/CST32768 proof adds no syntax or process execution claim. See
 [`DESIGN.md` §26.4.1.27](DESIGN.md) for the canonical contract. `sync`, process
 input, general ABI/provider/ownership runtime, native process execution,
 Windows, and performance remain outside this evidence.
+W-1546 adds HIR16 typed lifecycle and release facts for the exact verified
+`std.process@1` `Arguments` and `Context` owners. The bounded entry records a
+`RELEASE_HANDLER_OWNERS` normal-return cleanup range, and the verifier
+recomputes it from canonical external identity. `ExitCode` remains scalar
+copy, while String, unknown, opaque, and foreign values remain conservative.
+The provider, wrapper ABI implementation, root adapter, runtime input, native
+consumers, and HLO0/MLIR0 process lowering remain pending. This is
+compiler-lifecycle correctness evidence only, using Debug Ninja GCC 13.2.0
+with actual `-std=c2x` preview mode. It is not final C23 or runtime evidence.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

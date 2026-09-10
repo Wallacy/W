@@ -1049,7 +1049,8 @@ HIR0 to `w-seed-hir0-11`, MLIR0 to `w-seed-mlir0-14`, and the Windows label to
 and Native0 remain unchanged. W-1542 advances only the frontend to
 `w-seed-frontend-16`. W-1543 advances HIR0 to `w-seed-hir0-14`; W-1544
 advances the current HIR0 schema to `w-seed-hir0-15`. MLIR0, its Windows
-label, and Native0 remain unchanged.
+label, and Native0 remain unchanged. W-1546 advances the current HIR0 schema
+to `w-seed-hir0-16`; MLIR0, its Windows label, and Native0 remain unchanged.
 MLIR0 re-verifies HIR
 through the private `native_subset0` helper. The current path retains the
 linear NAT1 form and adds actual labeled LLVM-dialect blocks for bounded
@@ -1323,6 +1324,35 @@ reuse one artifact (`missing\n`/exit 2 without arguments;
 runtime support, native process execution, Windows, or timing claim is made.
 See the canonical contract in
 [`DESIGN.md`](../../DESIGN.md) §26.4.1.27.
+
+### Process-owner lifecycle facts in HIR16 (W-1546)
+
+HIR16 adds closed, independently verified lifecycle facts to each type:
+`UNKNOWN`, `VALUE_COPY`, or `ENTRY_ROOT_OWNER`. A separate release fact is
+`NONE`, `UNKNOWN`, or `PROCESS_V1_WRAPPER_RELEASE`. Only the exact copied
+`std.process@1` external identities for `Arguments` and `Context` receive
+`ENTRY_ROOT_OWNER` and the compiler-owned
+`stdProcessArgumentsDrop`/`stdProcessContextDrop` `wrapper-release-v1`
+contract. Unit, `i64`, `Bool`, and `ExitCode` remain `VALUE_COPY`. String,
+unknown, opaque, and foreign types remain conservative.
+
+Each entry also carries a cleanup obligation and exact owner parameter range.
+The bounded process shape uses `RELEASE_HANDLER_OWNERS` for its two owner
+parameters on the supported normal return. The general contract covers
+structured exits, but this seed shape has no throw or cancellation witness.
+`hir0_publish_process_lifecycle_facts` publishes the facts before digests, and
+`verify_process_lifecycle_facts` recomputes them after structural and identity
+verification. Names, adapter identity, `.success`, and generic synchronous
+drop assumptions do not grant the proof.
+
+The existing whole-body `neverSuspend` proof remains mandatory. The process
+handler may report `MAY`/`AVAILABLE` only for this complete bounded shape.
+HLO0 and MLIR0 still reject process HIR without partial output. This milestone
+does not provide a process provider, wrapper ABI implementation, root adapter,
+runtime input, native process lowering, or execution. The focused HIR0,
+HLO0, MLIR0, and Native0 CTests pass in Debug Ninja with GCC 13.2.0 using
+actual `-std=c2x` preview mode. That is correctness-only evidence, not final
+C23 or performance evidence.
 
 ### Native Windows x86_64 candidate (W-1532)
 

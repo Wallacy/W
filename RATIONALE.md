@@ -7805,6 +7805,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1543 | bounded `std.process` identity and handler adapter in verified HIR14 | HIR14 deep-copies the canonical `std.process` module, its three nominal types, and the constant zero-parameter `ExitCode.success` member into caller-owned records. Nominal types and the external enum-case value retain resolver-owned pairs. An explicit entry adapter verifies the exact async two-parameter `Arguments`, `Context` to `ExitCode` handler cut without inferring `directEntry`. Canonical external identity enters the semantic digest; alias spelling remains provenance. | `source-backed-current` only for frontend16 to verified HIR14 and focused adversarial C tests. HLO0 and MLIR0 reject the process HIR without partial output. Argument access, providers, ABI lowering, runtime input, native execution, Windows, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1544 | bounded direct-entry facts in verified HIR15 | HIR15 carries independent `suspension` (`NEVER`/`MAY`) and `direct_entry` (`ABSENT`/`AVAILABLE`) facts. The frontend `normalize_function` assigns `is_async` from the explicit CST modifier. `hir0_compute_body_never` performs the bounded whole-body fixed-point analysis; `hir0_publish_direct_entry_facts` derives the two facts and `verify_direct_entry_facts` independently recomputes them before accepting the caller-owned HIR. Ordinary pure functions are `NEVER`/`ABSENT`; an explicit async declaration is `MAY` and receives `AVAILABLE` only after its complete body proves `neverSuspend`. Local ordinary calls and recursive groups propagate without a termination claim. Unknown hosts and local async calls without call form or summary deny the proof. A `String` parameter, return, or value and opaque owners without effects/lifecycle facts also deny it. Focused frontend/HIR0/HLO0/Native0/MLIR0 CTest gates and compiler emitter gates pass for this bounded compiler-lifecycle route; HLO0 and MLIR0 continue to reject process HIR without partial output. | `source-backed-current` only for bounded HIR fact derivation, publication, independent verification, receipt/digest barriers, and fail-closed consumers. The 4 KiB scratch bitset inherits the CST32768 bound, with preflight/verifier guards, no heap, and no 256-function capacity. This evidence does not claim `sync` execution, the Restaurant process-input witness, general semantic checking, dual ABI, providers, ownership runtime, native process execution, Windows, or performance. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1545 | exclusive Channel receiver cursor, close lifetime, and capacity-zero permit cancellation | The Channel receiver API is `mut async fn receive(): T?` and `mut fn close()`. Its exclusive loan starts at call staging and covers registration, suspension, settlement, cancellation, provider drain, and borrowed-child join. Capacity-zero `reserve` pairing is admission only, not item/receive commit. Pre-commit cancellation removes the waiter and revokes only its paired permit. A later send consumes that permit and returns the item in `.closed(T)` without proving global channel close. Graceful close preserves issued permits, normal unused permit drop unpairs/requeues, and a revoked permit cannot resurrect a waiter. | `oracle-backed-current` only for the CH0 contract oracle plus the authored Last Light and CHEATSHEET source examples. Borrow checker/lowering, channel runtime, scheduler/provider cancellation, typed-drop, native execution, and native performance remain implementation-evidence gaps. `benchmarkDisposition: deferred`; task `channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation, latency, and size axes remain future work. |
+| W-1546 | owner-release contract for `std.process@1` | `Arguments` and `Context` adopt, pass, and release existing root-scoped non-`Copy` wrapper handles. Adoption and passing do not allocate or copy underlying OS data. Release invalidates the wrapper exactly once at handler owner-scope exit, including structured exits, and is `neverSuspend`, nonthrowing, nonblocking, and non-reentrant. It does not shut down the root, wait for provider work, reclaim root backing storage while loans, children, or provider registrations remain, admit work, consume quota, use fallback, acquire new authority, or create a hidden `Task`. Root creation, OS acquisition, capabilities, and structured drain remain adapter obligations. `ExitCode` remains a trivial `Copy` value. | `source-backed-current` only for the bounded HIR16 compiler producer, typed lifecycle/release facts, independent verification, and normal-return cleanup obligation. The provider, ABI witness, root adapter, runtime, and native consumers remain pending. The compiler uses only the fixed compiler-owned `std.process@1` identity and wrapper-release ABI. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10815,3 +10816,63 @@ scheduler/provider cancellation, and native execution blockers remain.
 `benchmarkDisposition: deferred`; task
 `channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation,
 latency, and size axes remain future work.
+
+#### W-1546 — `std.process@1` owner-release contract and bounded HIR16 evidence
+
+W-1546 is the narrow amendment to DESIGN §§14.5.1–14.5.2. It specializes the
+§9.11 cleanup rule for `std.process@1` without changing the general W-1484
+proof. The amendment covers the lifecycle of the two wrappers that the
+`native-process@1` entry can already pass. `Arguments` and `Context` are
+root-scoped, non-`Copy` owners. Adoption and passing do not allocate or copy
+underlying OS data. Release occurs at the handler owner-scope exit, including
+each structured exit, exactly once, and invalidates the wrapper. It is
+`neverSuspend`, nonthrowing, nonblocking, and non-reentrant. It
+does not perform admission, consume quota, use fallback, acquire new
+authority, or create a hidden `Task`.
+
+This contract does not turn release into shutdown. It does not shut down the
+root, wait for provider work, or reclaim root backing storage while loans,
+children, or provider registrations remain. Root creation, OS-data
+acquisition, capability acquisition, and structured drain remain separate
+adapter obligations. This contract does not prove those obligations pure or
+nonblocking. `Context` projections retain their W-1298 lifecycle contracts.
+`ExitCode` remains a trivial `Copy` value, not an owner.
+
+The compiler may use this contract as a versioned axiom while the provider is
+missing. Binding requires the fixed compiler-owned `std.process@1`
+owner-release contract identity, its drop ABI, and verified external identity.
+The verifier recomputes this relation from canonical records. Names, resolver
+metadata, `adapter_kind`, and `.success` do not grant the axiom. The contract
+does not require copied source bytes or a general provenance subsystem.
+
+HIR16 now records typed lifecycle and release facts per type, plus explicit
+`RELEASE_HANDLER_OWNERS` obligations for the handler parameter range. The
+producer is `hir0_publish_process_lifecycle_facts`. The independent verifier
+is `verify_process_lifecycle_facts`, after record and identity checks and
+before direct-entry rederivation. Complete-body analysis remains mandatory.
+The only accepted process shape is the existing one-module, one-function,
+one-entry handler with two owner parameters and the sole `return .success`
+normal return. This subset has no throw or cancellation witness.
+
+Only that validated process handler may advance from `MAY`/`ABSENT` to
+`MAY`/`AVAILABLE`. `Arguments` and `Context` use
+`ENTRY_ROOT_OWNER` with `PROCESS_V1_WRAPPER_RELEASE`, while `ExitCode`, Unit,
+`i64`, and Bool use `VALUE_COPY` with `NONE`. String, unknown, opaque, and
+foreign types remain `UNKNOWN`. The verifier rejects forged release or String
+lifecycle facts and shortened or rebound cleanup ranges, including resealed
+mutants. HLO0 and MLIR0 still reject process HIR.
+
+This evidence is `source-backed-current` only for the bounded compiler
+producer, verifier, lifecycle facts, and normal-return cleanup obligation.
+The general contract covers structured exits, but this HIR0 cut proves only
+normal return. Provider proof, the wrapper ABI implementation, root
+acquisition, root drain and reclamation, runtime input, and native consumers
+remain pending. W-1544 remains the historical HIR15 direct-entry boundary and
+does not supply this lifecycle proof. W-1546 does not execute `PROC-INPUT0`.
+
+Rejected alternatives are inferring the contract from synchronous spelling or
+a foreign `fn` signature, making release drain the root, using hidden globals,
+and adding a source-bytes provenance subsystem. The classification is
+`source-backed-current` for the bounded compiler lifecycle evidence, with
+`benchmarkDisposition: compiler-lifecycle`, correctness-only, and no timing or
+result.

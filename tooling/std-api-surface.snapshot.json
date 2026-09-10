@@ -7041,14 +7041,14 @@
           "structured-callback-drain"
         ]
       },
-      "catalogedDeclarationsDigest": "0ebe14cc792dd660401a14462a68cf2eeceb414f3f208963197fb6dea99f0f1c",
+      "catalogedDeclarationsDigest": "29cbeb905ac6a723afcff755f02e857f62429adf56b6ef9703b050b1cb9e3e6b",
       "apis": [
         {
           "symbol": "Arguments",
           "kind": "struct",
           "signature": "export struct Arguments",
           "declarationDigest": "ce29f8b84a7e312b4420dc25e6c3b000e5fabcf773d97fc044ef170335292720",
-          "line": 134,
+          "line": 149,
           "profile": "process-arguments",
           "members": [
             {
@@ -7057,7 +7057,7 @@
               "overloads": [
                 {
                   "signature": "export let count: usize",
-                  "line": 141
+                  "line": 156
                 }
               ],
               "profile": "process-arguments"
@@ -7068,7 +7068,7 @@
               "overloads": [
                 {
                   "signature": "export let isEmpty: Bool",
-                  "line": 145
+                  "line": 160
                 }
               ],
               "profile": "process-arguments"
@@ -7078,7 +7078,7 @@
               "overloads": [
                 {
                   "signature": "export fn get(index: usize): ref OsString?",
-                  "line": 149
+                  "line": 164
                 }
               ],
               "profile": "process-arguments"
@@ -7088,11 +7088,11 @@
               "overloads": [
                 {
                   "signature": "export fn contains(native value: ref OsString): Bool",
-                  "line": 153
+                  "line": 168
                 },
                 {
                   "signature": "export fn contains(value: ref String): Bool",
-                  "line": 160
+                  "line": 175
                 }
               ],
               "profile": "process-arguments"
@@ -7102,7 +7102,7 @@
               "overloads": [
                 {
                   "signature": "export fn iterator(): some Iterator<ref OsString>",
-                  "line": 188
+                  "line": 203
                 }
               ],
               "profile": "process-arguments"
@@ -7115,7 +7115,7 @@
           "kind": "struct",
           "signature": "export struct Context",
           "declarationDigest": "8fff33832af6960f83d57ac0a456abfea8eada9b4acdb43cfaba746c3719f7b5",
-          "line": 335,
+          "line": 350,
           "profile": "process-context",
           "members": [
             {
@@ -7124,7 +7124,7 @@
               "overloads": [
                 {
                   "signature": "export let stdin: Input",
-                  "line": 342
+                  "line": 357
                 }
               ],
               "profile": "process-input"
@@ -7135,7 +7135,7 @@
               "overloads": [
                 {
                   "signature": "export let stdout: Output",
-                  "line": 348
+                  "line": 363
                 }
               ],
               "profile": "process-output"
@@ -7146,7 +7146,7 @@
               "overloads": [
                 {
                   "signature": "export let stderr: Output",
-                  "line": 354
+                  "line": 369
                 }
               ],
               "profile": "process-output"
@@ -7157,7 +7157,7 @@
               "overloads": [
                 {
                   "signature": "export let filesystem: fs.FileSystem",
-                  "line": 360
+                  "line": 375
                 }
               ],
               "profile": "process-context"
@@ -7168,7 +7168,7 @@
               "overloads": [
                 {
                   "signature": "export let network: net.Network",
-                  "line": 364
+                  "line": 379
                 }
               ],
               "profile": "process-context"
@@ -7178,11 +7178,11 @@
               "overloads": [
                 {
                   "signature": "export fn clock(): time.Clock",
-                  "line": 368
+                  "line": 383
                 },
                 {
                   "signature": "export fn clock( hostSuspend policy: time.HostSuspendPolicy<[.included, .excluded]>, ): time.Clock throws time.ClockSelectionError",
-                  "line": 372
+                  "line": 387
                 }
               ],
               "profile": "time-clock"
@@ -7193,7 +7193,7 @@
               "overloads": [
                 {
                   "signature": "export let signals: SignalRegistry",
-                  "line": 380
+                  "line": 395
                 }
               ],
               "profile": "process-signals"
@@ -7204,7 +7204,7 @@
               "overloads": [
                 {
                   "signature": "export let services: Services",
-                  "line": 386
+                  "line": 401
                 }
               ],
               "profile": "process-services"
@@ -7215,7 +7215,7 @@
               "overloads": [
                 {
                   "signature": "export let deadline: time.Deadline",
-                  "line": 392
+                  "line": 407
                 }
               ],
               "profile": "process-context"
@@ -7237,7 +7237,7 @@
           "kind": "struct",
           "signature": "export struct Input: ByteSource<IoError>",
           "declarationDigest": "d4b765df72d0d5989b2a7e40ddd3587bd510eb4fe54e18b82fb60eda66abf5a4",
-          "line": 193,
+          "line": 208,
           "profile": "process-input",
           "members": [
             {
@@ -7245,7 +7245,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn read( appendTo destination: inout Bytes, maximum: usize<(1...)>, ): ReadStep throws IoError",
-                  "line": 200
+                  "line": 215
                 }
               ],
               "profile": "process-input"
@@ -7255,7 +7255,7 @@
               "overloads": [
                 {
                   "signature": "export fn lines( maximumBytes: usize<(1...)>, ): some Stream<String, InputError>",
-                  "line": 213
+                  "line": 228
                 }
               ],
               "profile": "process-input"
@@ -7277,7 +7277,7 @@
           "kind": "struct",
           "signature": "export struct Output: ByteSink<IoError>",
           "declarationDigest": "893c04a0e6901c6bc636ac1c37e2ffa04224daf00e77a1051f91182f9cdadb0c",
-          "line": 247,
+          "line": 262,
           "profile": "process-output",
           "members": [
             {
@@ -7285,7 +7285,7 @@
               "overloads": [
                 {
                   "signature": "export mut async fn write( source: view Bytes, ): WriteStep throws IoError",
-                  "line": 254
+                  "line": 269
                 }
               ],
               "profile": "process-output"
@@ -7295,7 +7295,7 @@
               "overloads": [
                 {
                   "signature": "export async fn writeAll( text source: view String, ): () throws WriteAllError<IoError>",
-                  "line": 262
+                  "line": 277
                 }
               ],
               "profile": "process-output"
@@ -7308,7 +7308,7 @@
           "kind": "struct",
           "signature": "export struct Services",
           "declarationDigest": "0974bbd8ba372eaa3e155c0bdf51fda7970dfd668825ec470a575c6de64b7ae8",
-          "line": 319,
+          "line": 334,
           "profile": "process-services",
           "members": [
             {
@@ -7316,7 +7316,7 @@
               "overloads": [
                 {
                   "signature": "export async fn drain(deadline: time.Deadline)",
-                  "line": 326
+                  "line": 341
                 }
               ],
               "profile": "process-services"
@@ -7347,7 +7347,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistration",
           "declarationDigest": "6dde87f5c0b43b311d31a4cc4147a1bc4c3b79973fd31c1057ded1aebe4a24aa",
-          "line": 295,
+          "line": 310,
           "profile": "process-signals",
           "members": [
             {
@@ -7355,7 +7355,7 @@
               "overloads": [
                 {
                   "signature": "export fn replace( handler: some async fn(Signal, Context): (), ): () throws SignalError",
-                  "line": 302
+                  "line": 317
                 }
               ],
               "profile": "process-signals"
@@ -7365,7 +7365,7 @@
               "overloads": [
                 {
                   "signature": "export fn cancel()",
-                  "line": 308
+                  "line": 323
                 }
               ],
               "profile": "process-signals"
@@ -7378,7 +7378,7 @@
           "kind": "struct",
           "signature": "export struct SignalRegistry",
           "declarationDigest": "a5764a6146ced7f02f11dbc98f20bbe7044318e822a5e58e2f47d0852cc340dd",
-          "line": 273,
+          "line": 288,
           "profile": "process-signals",
           "members": [
             {
@@ -7386,7 +7386,7 @@
               "overloads": [
                 {
                   "signature": "export fn register( signals: view Array<Signal>, handler: some async fn(Signal, Context): (), ): SignalRegistration throws SignalError",
-                  "line": 280
+                  "line": 295
                 }
               ],
               "profile": "process-signals"

@@ -563,6 +563,8 @@ static bool test_process_hir_is_closed_to_hlo(void) {
   CHECK(lower_process(SOURCE));
   const w_seed_hlo0_input input = hlo_input();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(fixture.hir_program.functions[0].direct_entry ==
+        W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
   discard_frontend();
 
   w_seed_hlo0_counts counts = {0x11u, 0x22u, 0x33u};

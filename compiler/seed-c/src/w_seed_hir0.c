@@ -31,6 +31,11 @@ static const char HIR0_PROCESS_ARGUMENTS[] = "Arguments";
 static const char HIR0_PROCESS_CONTEXT[] = "Context";
 static const char HIR0_PROCESS_EXIT_CODE[] = "ExitCode";
 static const char HIR0_PROCESS_SUCCESS[] = "success";
+/* This literal binds the semantic digest to the compiler-owned, versioned
+ * wrapper-release ABI axiom.  It is not evidence that a provider ran. */
+static const char HIR0_PROCESS_RELEASE_ABI[] =
+    "std.process@1/{stdProcessArgumentsDrop,"
+    "stdProcessContextDrop}:wrapper-release-v1";
 
 static w_seed_hir0_label_kind hir_label_kind(
     w_seed_frontend_label_kind kind) {
@@ -201,7 +206,7 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
   return false;
 }
 
-/* HIR15 accepts only resolver-owned nominal types from the bounded external
+/* HIR16 accepts only resolver-owned nominal types from the bounded external
  * process table. The pair is atomic. A partial pair is never a type identity. */
 static bool frontend_external_type_pair_valid(
     const w_seed_hir0_input *input, uint32_t module_index,
@@ -2016,7 +2021,7 @@ static bool frontend_external_type_is(const w_seed_hir0_input *input,
          frontend_external_type_pair_valid(input, module_index, symbol_index);
 }
 
-/* This is the complete HIR15 process-handler contract. It is a bounded
+/* This is the complete HIR16 process-handler contract. It is a bounded
  * consumer shape, not a general language or directEntry proof. */
 static bool frontend_process_handler_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_output == NULL ||
@@ -4720,25 +4725,33 @@ static void emit_records(const w_seed_hir0_input *input,
       .owner_module = W_SEED_HIR0_NONE,
       .name = {0u, 2u},
       .external_module_index = W_SEED_HIR0_NONE,
-      .external_symbol_index = W_SEED_HIR0_NONE};
+      .external_symbol_index = W_SEED_HIR0_NONE,
+      .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+      .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[1] = (w_seed_hir0_type){
       .kind = W_SEED_HIR0_TYPE_STRING,
       .owner_module = W_SEED_HIR0_NONE,
       .name = {2u, 6u},
       .external_module_index = W_SEED_HIR0_NONE,
-      .external_symbol_index = W_SEED_HIR0_NONE};
+      .external_symbol_index = W_SEED_HIR0_NONE,
+      .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+      .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[2] = (w_seed_hir0_type){
       .kind = W_SEED_HIR0_TYPE_I64,
       .owner_module = W_SEED_HIR0_NONE,
       .name = {8u, 3u},
       .external_module_index = W_SEED_HIR0_NONE,
-      .external_symbol_index = W_SEED_HIR0_NONE};
+      .external_symbol_index = W_SEED_HIR0_NONE,
+      .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+      .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[3] = (w_seed_hir0_type){
       .kind = W_SEED_HIR0_TYPE_BOOL,
       .owner_module = W_SEED_HIR0_NONE,
       .name = {11u, 4u},
       .external_module_index = W_SEED_HIR0_NONE,
-      .external_symbol_index = W_SEED_HIR0_NONE};
+      .external_symbol_index = W_SEED_HIR0_NONE,
+      .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+      .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   /* output_capacity_ok proves these storage preconditions. */
   (void)memcpy(output->text_bytes, HIR0_UNIT_NAME, 2u);
   (void)memcpy(output->text_bytes + 2u, HIR0_STRING_NAME, 6u);
@@ -4785,7 +4798,9 @@ static void emit_records(const w_seed_hir0_input *input,
           .owner_module = W_SEED_HIR0_NONE,
           .name = output->external_symbols[symbol].name,
           .external_module_index = 0u,
-          .external_symbol_index = (uint32_t)symbol};
+          .external_symbol_index = (uint32_t)symbol,
+          .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
+          .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
     }
   /* Module, function, and entry identities have deterministic dense ranges. */
   for (size_t module = 0u; module < counts->modules; module += 1u) {
@@ -5079,6 +5094,9 @@ static void emit_records(const w_seed_hir0_input *input,
     target->adapter_kind = counts->external_modules == 0u
                                ? W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT
                                : W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS;
+    target->cleanup_obligation = W_SEED_HIR0_ENTRY_CLEANUP_NONE;
+    target->first_cleanup_owner_parameter = W_SEED_HIR0_NONE;
+    target->cleanup_owner_parameter_count = 0u;
     output->identities[entry_identity_base + entry] =
         (w_seed_hir0_identity){
             .kind = W_SEED_HIR0_IDENTITY_ENTRY,
@@ -5219,6 +5237,15 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_text(&state, program, value->name);
     digest_u32(&state, value->external_module_index);
     digest_u32(&state, value->external_symbol_index);
+    digest_u32(&state, (uint32_t)value->lifecycle);
+    digest_u32(&state, (uint32_t)value->release_contract);
+    if (value->release_contract ==
+        W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE) {
+      digest_u32(&state, (uint32_t)(sizeof(HIR0_PROCESS_RELEASE_ABI) - 1u));
+      w_seed_sha256_update(
+          &state, (const uint8_t *)HIR0_PROCESS_RELEASE_ABI,
+          sizeof(HIR0_PROCESS_RELEASE_ABI) - 1u);
+    }
   }
   for (size_t index = 0u; index < counts->functions; index += 1u) {
     const w_seed_hir0_function *value = &program->functions[index];
@@ -5381,6 +5408,9 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_text(&state, program, value->slot);
     digest_bool(&state, value->is_body);
     digest_u32(&state, (uint32_t)value->adapter_kind);
+    digest_u32(&state, (uint32_t)value->cleanup_obligation);
+    digest_u32(&state, value->first_cleanup_owner_parameter);
+    digest_u32(&state, value->cleanup_owner_parameter_count);
   }
   for (size_t index = 0u; index < counts->bindings; index += 1u) {
     const w_seed_hir0_binding *value = &program->bindings[index];
@@ -6384,6 +6414,207 @@ static bool verify_process_handler(const w_seed_hir0_program *program) {
          hir_text_is(program, value->member_name, HIR0_PROCESS_SUCCESS);
 }
 
+/* Recompute the typed lifecycle classification from the already closed
+ * external identity records.  Published lifecycle fields are deliberately
+ * not consulted here: the same relation is used by emission and by the
+ * independent verifier. */
+static bool hir0_expected_type_lifecycle(
+    const w_seed_hir0_program *program, uint32_t type_index,
+    w_seed_hir0_lifecycle_kind *lifecycle,
+    w_seed_hir0_release_contract_kind *release_contract) {
+  if (program == NULL || lifecycle == NULL || release_contract == NULL ||
+      type_index >= program->type_count)
+    return false;
+  *lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN;
+  *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  switch (type->kind) {
+    case W_SEED_HIR0_TYPE_UNIT:
+    case W_SEED_HIR0_TYPE_I64:
+    case W_SEED_HIR0_TYPE_BOOL:
+      *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
+      *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
+      return true;
+    case W_SEED_HIR0_TYPE_STRING:
+      /* String ownership is outside this bounded proof. */
+      return true;
+    case W_SEED_HIR0_TYPE_NOMINAL:
+      if (type_index < 4u || type_index >= 7u ||
+          !hir_type_index_valid(program, type_index))
+        return true;
+      if (type->external_symbol_index == 0u ||
+          type->external_symbol_index == 1u) {
+        *lifecycle = W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER;
+        *release_contract =
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE;
+      } else if (type->external_symbol_index == 2u) {
+        *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
+        *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
+      }
+      return true;
+    default:
+      return true;
+  }
+}
+
+/* Derive the one supported process cleanup obligation from the complete
+ * handler shape.  This is an exact parameter range in the caller-owned HIR;
+ * no cleanup list is synthesized from liveness or adapter spelling. */
+static bool hir0_expected_entry_cleanup(
+    const w_seed_hir0_program *program, size_t entry_index,
+    w_seed_hir0_entry_cleanup_kind *cleanup_obligation,
+    uint32_t *first_cleanup_owner_parameter,
+    uint32_t *cleanup_owner_parameter_count) {
+  if (cleanup_obligation == NULL || first_cleanup_owner_parameter == NULL ||
+      cleanup_owner_parameter_count == NULL || program == NULL ||
+      entry_index >= program->entry_count)
+    return false;
+  *cleanup_obligation = W_SEED_HIR0_ENTRY_CLEANUP_NONE;
+  *first_cleanup_owner_parameter = W_SEED_HIR0_NONE;
+  *cleanup_owner_parameter_count = 0u;
+  if (program->external_module_count == 0u) return true;
+  if (!verify_process_handler(program) || entry_index != 0u) return false;
+  const w_seed_hir0_function *function = &program->functions[0];
+  *cleanup_obligation = W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS;
+  *first_cleanup_owner_parameter = function->first_parameter;
+  *cleanup_owner_parameter_count = 2u;
+  return true;
+}
+
+/* This is the complete, independently recomputed process-owner witness used
+ * by direct-entry analysis.  The root is not drained or reclaimed here; the
+ * obligation covers exactly one normal-return wrapper release per handler
+ * owner. */
+static bool hir0_process_entry_lifecycle_ready(
+    const w_seed_hir0_program *program) {
+  if (program == NULL || program->external_module_count != 1u ||
+      program->type_count < 7u ||
+      !verify_process_handler(program))
+    return false;
+  for (uint32_t type = 4u; type < 7u; type += 1u) {
+    w_seed_hir0_lifecycle_kind lifecycle;
+    w_seed_hir0_release_contract_kind release_contract;
+    if (!hir0_expected_type_lifecycle(program, type, &lifecycle,
+                                      &release_contract) ||
+        ((type == 4u || type == 5u) &&
+         (lifecycle != W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+          release_contract !=
+              W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)) ||
+        (type == 6u &&
+         (lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+          release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE)))
+      return false;
+  }
+  w_seed_hir0_entry_cleanup_kind cleanup_obligation;
+  uint32_t first_cleanup_owner_parameter;
+  uint32_t cleanup_owner_parameter_count;
+  if (!hir0_expected_entry_cleanup(
+          program, 0u, &cleanup_obligation, &first_cleanup_owner_parameter,
+          &cleanup_owner_parameter_count) ||
+      cleanup_obligation != W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      first_cleanup_owner_parameter != program->functions[0].first_parameter ||
+      cleanup_owner_parameter_count != 2u)
+    return false;
+  for (size_t ordinal = 0u; ordinal < cleanup_owner_parameter_count;
+       ordinal += 1u) {
+    const size_t parameter_index =
+        (size_t)first_cleanup_owner_parameter + ordinal;
+    if (parameter_index >= program->parameter_count) return false;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[parameter_index];
+    w_seed_hir0_lifecycle_kind lifecycle;
+    w_seed_hir0_release_contract_kind release_contract;
+    if (parameter->owner_function != 0u || parameter->ordinal != ordinal ||
+        !hir0_expected_type_lifecycle(program, parameter->type_index,
+                                      &lifecycle, &release_contract) ||
+        lifecycle != W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+        release_contract !=
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
+      return false;
+  }
+  return true;
+}
+
+/* Publish fields only after all records exist.  There is no fallible path
+ * after the first output write; invalid internal relations remain UNKNOWN and
+ * therefore cannot publish a direct-entry proof. */
+static void hir0_publish_process_lifecycle_facts(
+    const w_seed_hir0_program *program, w_seed_hir0_output *output) {
+  if (program == NULL || output == NULL) return;
+  for (size_t type_index = 0u; type_index < program->type_count;
+       type_index += 1u) {
+    w_seed_hir0_lifecycle_kind lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN;
+    w_seed_hir0_release_contract_kind release_contract =
+        W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN;
+    (void)hir0_expected_type_lifecycle(program, (uint32_t)type_index,
+                                       &lifecycle, &release_contract);
+    output->types[type_index].lifecycle = lifecycle;
+    output->types[type_index].release_contract = release_contract;
+  }
+  for (size_t entry_index = 0u; entry_index < program->entry_count;
+       entry_index += 1u) {
+    w_seed_hir0_entry_cleanup_kind cleanup_obligation =
+        W_SEED_HIR0_ENTRY_CLEANUP_NONE;
+    uint32_t first_cleanup_owner_parameter = W_SEED_HIR0_NONE;
+    uint32_t cleanup_owner_parameter_count = 0u;
+    (void)hir0_expected_entry_cleanup(
+        program, entry_index, &cleanup_obligation,
+        &first_cleanup_owner_parameter, &cleanup_owner_parameter_count);
+    output->entries[entry_index].cleanup_obligation = cleanup_obligation;
+    output->entries[entry_index].first_cleanup_owner_parameter =
+        first_cleanup_owner_parameter;
+    output->entries[entry_index].cleanup_owner_parameter_count =
+        cleanup_owner_parameter_count;
+  }
+}
+
+/* Validate published lifecycle fields without using them as proof inputs.
+ * This runs after verify_records has established all ranges and identities. */
+static bool verify_process_lifecycle_facts(
+    const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  for (size_t type_index = 0u; type_index < program->type_count;
+       type_index += 1u) {
+    w_seed_hir0_lifecycle_kind lifecycle;
+    w_seed_hir0_release_contract_kind release_contract;
+    if (program->types[type_index].lifecycle >
+            W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+        program->types[type_index].release_contract >
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+        !hir0_expected_type_lifecycle(program, (uint32_t)type_index,
+                                      &lifecycle, &release_contract) ||
+        program->types[type_index].lifecycle != lifecycle ||
+        program->types[type_index].release_contract != release_contract)
+      return false;
+  }
+  for (size_t entry_index = 0u; entry_index < program->entry_count;
+       entry_index += 1u) {
+    w_seed_hir0_entry_cleanup_kind cleanup_obligation;
+    uint32_t first_cleanup_owner_parameter;
+    uint32_t cleanup_owner_parameter_count;
+    if (!hir0_expected_entry_cleanup(
+            program, entry_index, &cleanup_obligation,
+            &first_cleanup_owner_parameter, &cleanup_owner_parameter_count) ||
+        program->entries[entry_index].cleanup_obligation !=
+            cleanup_obligation ||
+        program->entries[entry_index].first_cleanup_owner_parameter !=
+            first_cleanup_owner_parameter ||
+        program->entries[entry_index].cleanup_owner_parameter_count !=
+            cleanup_owner_parameter_count)
+      return false;
+  }
+  if (program->external_module_count == 0u) return true;
+  if (!hir0_process_entry_lifecycle_ready(program)) return false;
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (entry->cleanup_obligation !=
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      entry->cleanup_owner_parameter_count != 2u ||
+      entry->first_cleanup_owner_parameter !=
+          program->functions[entry->target_function].first_parameter)
+    return false;
+  return true;
+}
+
 static bool hir0_function_bit_get(const uint8_t *bits, size_t function) {
   return bits != NULL &&
          (bits[function / 8u] & (uint8_t)(1u << (function % 8u))) != 0u;
@@ -6441,9 +6672,10 @@ static bool hir0_terminator_kind_is_closed(w_seed_hir0_terminator_kind kind) {
   }
 }
 
-/* String and nominal values have ownership/lifecycle obligations that HIR15
- * cannot witness.  An invalid or future type is blocked conservatively too;
- * verifier shape checks reject it before this helper is used on input HIR. */
+/* String and unknown nominal values still have ownership/lifecycle obligations
+ * that the bounded HIR16 witness cannot establish. An invalid or future type
+ * is blocked conservatively too; verifier shape checks reject it before this
+ * helper is used on input HIR. */
 static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
                                  uint32_t type_index) {
   if (program == NULL || type_index == W_SEED_HIR0_NONE ||
@@ -6460,6 +6692,25 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     default:
       return true;
   }
+}
+
+/* Process owner types are admitted only for the one complete bounded handler
+ * whose exact release obligation has been recomputed.  This does not relax
+ * the generic String/nominal barrier or admit any unknown call/effect. */
+static bool hir0_type_is_blocked_for_function(
+    const w_seed_hir0_program *program, size_t function_index,
+    uint32_t type_index) {
+  if (!hir0_type_is_blocked(program, type_index)) return false;
+  if (program == NULL || function_index >= program->function_count ||
+      !hir0_process_entry_lifecycle_ready(program) || function_index != 0u)
+    return true;
+  w_seed_hir0_lifecycle_kind lifecycle;
+  w_seed_hir0_release_contract_kind release_contract;
+  if (!hir0_expected_type_lifecycle(program, type_index, &lifecycle,
+                                    &release_contract))
+    return true;
+  return lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+         lifecycle != W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER;
 }
 
 /* Return the declaration owning a call without trusting the duplicated block
@@ -6561,14 +6812,15 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
   (void)memset(body_never, 0xff, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
   for (size_t function = 0u; function < program->function_count; function += 1u) {
     const w_seed_hir0_function *value = &program->functions[function];
-    if (hir0_type_is_blocked(program, value->return_type))
+    if (hir0_type_is_blocked_for_function(program, function,
+                                         value->return_type))
       hir0_function_bit_set(body_never, function, false);
     for (size_t parameter = 0u; parameter < value->parameter_count;
          parameter += 1u) {
       const size_t parameter_index = (size_t)value->first_parameter + parameter;
       if (parameter_index >= program->parameter_count ||
-          hir0_type_is_blocked(
-              program, program->parameters[parameter_index].type_index))
+          hir0_type_is_blocked_for_function(
+              program, function, program->parameters[parameter_index].type_index))
         hir0_function_bit_set(body_never, function, false);
     }
   }
@@ -6583,6 +6835,8 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
       (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
       continue;
     }
+    /* Keep the scalar fast path: lifecycle ownership only matters once the
+     * value crosses the existing blocked-type boundary. */
     if (!hir0_type_is_blocked(program, value->type_index)) continue;
     const uint32_t owner =
         hir0_value_owner_function(program, (uint32_t)value_index);
@@ -6590,6 +6844,8 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
       (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
       continue;
     }
+    if (!hir0_type_is_blocked_for_function(program, owner, value->type_index))
+      continue;
     hir0_function_bit_set(body_never, owner, false);
   }
   for (size_t block = 0u; block < program->block_count; block += 1u) {
@@ -6599,8 +6855,9 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
          argument += 1u) {
       const size_t index = (size_t)value->first_block_argument + argument;
       if (index < program->block_argument_count &&
-          hir0_type_is_blocked(program,
-                               program->block_arguments[index].type_index))
+          hir0_type_is_blocked_for_function(
+              program, value->owner_function,
+              program->block_arguments[index].type_index))
         hir0_function_bit_set(body_never, value->owner_function, false);
     }
   }
@@ -6611,7 +6868,11 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
       (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
       continue;
     }
-    if (hir0_type_is_blocked(program, value->result_type) &&
+    if (hir0_type_is_blocked_for_function(
+            program, value->owner_block < program->block_count
+                         ? program->blocks[value->owner_block].owner_function
+                         : W_SEED_HIR0_NONE,
+            value->result_type) &&
         value->owner_block < program->block_count) {
       const uint32_t owner = program->blocks[value->owner_block].owner_function;
       if (owner < program->function_count)
@@ -6625,7 +6886,11 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
       (void)memset(body_never, 0, HIR0_DIRECT_FUNCTION_BITSET_BYTES);
       continue;
     }
-    if (hir0_type_is_blocked(program, value->result_type) &&
+    if (hir0_type_is_blocked_for_function(
+            program, value->owner_block < program->block_count
+                         ? program->blocks[value->owner_block].owner_function
+                         : W_SEED_HIR0_NONE,
+            value->result_type) &&
         value->owner_block < program->block_count) {
       const uint32_t owner = program->blocks[value->owner_block].owner_function;
       if (owner < program->function_count)
@@ -6633,7 +6898,7 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
     }
   }
 
-  /* Host identities have no suspension/effect witness in HIR15.  Any local
+  /* Host identities have no suspension/effect witness in HIR16.  Any local
    * async target also lacks a call-form discriminator, so a bare HIR call
    * cannot be reinterpreted as `sync`. */
   for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
@@ -6695,7 +6960,9 @@ static void hir0_publish_direct_entry_facts(
                                   : W_SEED_HIR0_SUSPENSION_NEVER;
     output->functions[function].direct_entry =
         value->is_async && !value->is_const && !value->is_anonymous_entry &&
-                never
+                never &&
+                (program->external_module_count == 0u ||
+                 hir0_process_entry_lifecycle_ready(program))
             ? W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE
             : W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
   }
@@ -6713,7 +6980,9 @@ static bool verify_direct_entry_facts(const w_seed_hir0_program *program) {
                                   : W_SEED_HIR0_SUSPENSION_NEVER;
     const w_seed_hir0_direct_entry_kind expected_direct_entry =
         value->is_async && !value->is_const && !value->is_anonymous_entry &&
-                never
+                never &&
+                (program->external_module_count == 0u ||
+                 hir0_process_entry_lifecycle_ready(program))
             ? W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE
             : W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
     if (value->suspension != expected_suspension ||
@@ -7387,6 +7656,7 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->written.external_symbols != counts.external_symbols ||
        !verify_records(program))
     return false;
+  if (!verify_process_lifecycle_facts(program)) return false;
   if (!verify_direct_entry_facts(program)) return false;
   uint8_t semantic_digest[32];
   uint8_t provenance_digest[32];
@@ -7462,9 +7732,10 @@ w_seed_hir0_status w_seed_hir0_run(const w_seed_hir0_input *input,
   /* All branches of emission are proven by collect() and the alias/capacity
    * preflight above. From this first write onward the commit is infallible. */
   emit_records(input, &counts, output);
-  /* The proof consumes only the now-complete caller-owned HIR. Its bounded
-   * scratch and preflight-proven finite relations keep this post-emission
-   * step infallible. */
+  /* collect() and the capacity/alias preflight prove the helper domains over
+   * this now-complete caller-owned HIR. Its bounded scratch and those finite
+   * relations keep this post-emission step infallible. */
+  hir0_publish_process_lifecycle_facts(&program, output);
   hir0_publish_direct_entry_facts(&program, output);
   digest_program(&program, &counts, candidate_result.semantic_digest);
   digest_provenance(&program, &counts, candidate_result.provenance_digest);

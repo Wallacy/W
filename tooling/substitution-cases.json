@@ -4127,6 +4127,136 @@
       ]
     },
     {
+      "id": "R0-proc-abi0-hir16-lifecycle",
+      "reviewItem": "typed process-owner lifecycle, fixed wrapper-release identity, and normal-return cleanup obligations in verified HIR16.",
+      "decisions": [
+        "W-1546"
+      ],
+      "task": "Carry the exact std.process handler into HIR16 lifecycle facts without claiming provider execution, ABI lowering, or native process input.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import {",
+          "  Arguments as ProcessArguments,",
+          "  Context as ProcessContext,",
+          "  ExitCode as ProcessExitCode,",
+          "} from std.process",
+          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+          "  return .success",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "name-only-owner-proof",
+          "language": "text",
+          "source": [
+            "direct_entry = AVAILABLE from run(args: Arguments, ctx: Context)"
+          ],
+          "expectedDifference": "The proof requires independently verified canonical external identity, typed lifecycle facts, the fixed release contract, and the exact cleanup range; names and signature spelling are insufficient."
+        },
+        {
+          "name": "generic-synchronous-drop-waiver",
+          "language": "text",
+          "source": [
+            "all nonasync deinit calls are neverSuspend and nonblocking"
+          ],
+          "expectedDifference": "Only the compiler-owned versioned std.process@1 wrapper-release contract grants these effects; String, unknown, opaque, and foreign types remain UNKNOWN."
+        },
+        {
+          "name": "root-drain-as-wrapper-drop",
+          "language": "text",
+          "source": [
+            "stdProcessArgumentsDrop = release wrapper and drain entry root"
+          ],
+          "expectedDifference": "Wrapper release invalidates only the existing owner. Root acquisition, structured drain, child/provider settlement, and root reclamation remain separate adapter obligations."
+        },
+        {
+          "name": "forged-lifecycle-cleanup-facts",
+          "language": "text",
+          "source": [
+            "publish ENTRY_ROOT_OWNER without PROCESS_V1_WRAPPER_RELEASE",
+            "publish RELEASE_HANDLER_OWNERS with a rebound or duplicate owner"
+          ],
+          "expectedDifference": "The verifier recomputes lifecycle and cleanup relations from canonical records and rejects forged, wrong-version, omitted, duplicated, or rebound owners."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
+          "claim": "HIR16 publishes the closed lifecycle, release-contract, and entry-cleanup fields in caller-owned records."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_lifecycle_kind",
+          "claim": "The lifecycle enum distinguishes UNKNOWN, VALUE_COPY, and ENTRY_ROOT_OWNER without a generic ownership waiver."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_release_contract_kind",
+          "claim": "The release enum keeps the compiler-owned PROCESS_V1_WRAPPER_RELEASE identity versioned and closed."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_entry_cleanup_kind",
+          "claim": "Each entry records the cleanup kind and exact owner-parameter range separately from root drain and reclamation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_publish_process_lifecycle_facts",
+          "claim": "The producer derives process lifecycle and normal-return cleanup facts before direct-entry fields and digest publication."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_process_lifecycle_facts",
+          "claim": "The verifier independently recomputes lifecycle and cleanup facts after structural and canonical identity validation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "HIR0_PROCESS_RELEASE_ABI",
+          "claim": "The semantic digest binds the exact std.process@1 wrapper-release-v1 drop symbols without claiming provider execution."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_process_hir_adversarial",
+          "claim": "The HIR unit covers scalar and unknown lifecycle facts, exact process owner facts, resealed forged release or String lifecycle values, and shortened or rebound cleanup-range mutations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hlo0.c",
+          "symbol": "test_process_hir_is_closed_to_hlo",
+          "claim": "HLO0 rejects valid process HIR without partial output even when HIR direct-entry is AVAILABLE."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_process_hir_is_closed_to_mlir",
+          "claim": "MLIR0 rejects valid process HIR without partial output even when HIR direct-entry is AVAILABLE."
+        },
+        {
+          "path": "std/process/contracts.w",
+          "symbol": "stdProcessArgumentsDrop",
+          "claim": "The projected contract names the fixed nonthrowing, neverSuspend, nonblocking owner-release operation and keeps provider and ABI implementation pending."
+        },
+        {
+          "path": "std/process/contracts.w",
+          "symbol": "stdProcessContextDrop",
+          "claim": "The Context wrapper uses the same owner-scope release contract while root shutdown remains separate."
+        }
+      ],
+      "checks": [
+        "Four focused HIR0, HLO0, MLIR0, and Native0 CTests pass in the existing Debug Ninja build with GCC 13.2.0 and actual -std=c2x preview mode",
+        "Resealed lifecycle, release-contract, String-copy, and cleanup-owner mutations reject while restored canonical HIR verifies",
+        "HLO0 and MLIR0 remain UNSUPPORTED for process HIR without partial output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-channel-receiver-close",
       "reviewItem": "exclusive Channel receiver cursor, graceful close, cancellation, and capacity-zero rendezvous permit ownership",
       "decisions": [
