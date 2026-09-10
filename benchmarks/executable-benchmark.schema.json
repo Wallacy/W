@@ -48,8 +48,8 @@
         "recipeClass": { "type": "string" },
         "platformTarget": { "const": "windows-x64" },
         "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
-        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-until-process-tree-accounting", "contextual-non-ranking-across-abi", "promotable-after-equivalence"] },
-        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "contextual-only-until-process-tree-accounting", "deferred-to-M3b"] }
+        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-until-process-tree-accounting", "contextual-non-ranking-across-abi", "promotable-after-equivalence", "contextual-non-ranking-private-composite"] },
+        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "contextual-only-until-process-tree-accounting", "deferred-to-M3b", "exploratory-private-composite"] }
       }
     },
     "oracle": {
@@ -64,6 +64,34 @@
         "stderr": { "type": ["string", "null"] }
       }
     },
+    "processSupportSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "digest"],
+      "properties": {
+        "role": { "enum": ["harness-c", "provider-c", "provider-header"] },
+        "path": { "type": "string" },
+        "digest": { "$ref": "#/$defs/digest" }
+      }
+    },
+    "processExecution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "recipeClass", "timedInput", "correctnessInputs", "faultCases", "supportSources"],
+      "properties": {
+        "kind": { "const": "private-process-handler" },
+        "recipeClass": { "const": "process-entry0-private-handler" },
+        "timedInput": { "const": ["alpha", "payload"] },
+        "correctnessInputs": { "const": [[], ["alpha", "payload"]] },
+        "faultCases": { "const": ["missing", "noop-success", "stale-generation", "reversed-arguments", "wrong-context", "wrong-arguments"] },
+        "supportSources": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/processSupportSource" }
+        }
+      }
+    },
     "workload": {
       "type": "object",
       "additionalProperties": false,
@@ -73,14 +101,22 @@
         "status": { "enum": ["source-oracle-ready", "planned", "blocked"] },
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
         "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
-        "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "planned"] },
+        "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "exploratory-ready", "planned"] },
         "lane": { "const": "equivalent" },
         "scope": { "type": "string" },
         "oracle": { "$ref": "#/$defs/oracle" },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
         "blockedLanguages": { "type": "array", "items": { "enum": ["w", "c", "rust"] } },
-        "blockers": { "type": "array", "items": { "type": "string" } }
-      }
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "execution": { "$ref": "#/$defs/processExecution" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "id": { "const": "process-entry0" } } },
+          "then": { "required": ["execution"] },
+          "else": { "not": { "required": ["execution"] } }
+        }
+      ]
     },
     "resultContract": {
       "type": "object",

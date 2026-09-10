@@ -119,6 +119,13 @@ function sourceLinks(workload) {
     : "—";
 }
 
+function executionSummary(workload) {
+  const execution = workload.execution;
+  if (!execution) return "—";
+  const correctness = execution.correctnessInputs.map((input) => JSON.stringify(input)).join(" / ");
+  return `${execution.kind}; timed ${JSON.stringify(execution.timedInput)}; correctness ${correctness}; faults ${execution.faultCases.length}`;
+}
+
 function bestSort(left, right) {
   return compareText(String(left?.workloadId ?? ""), String(right?.workloadId ?? "")) ||
     compareText(String(left?.language ?? ""), String(right?.language ?? "")) ||
@@ -162,11 +169,11 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "",
     "## Workload readiness",
     "",
-    "| Workload | Source/oracle | Benchmark lane |",
-    "| --- | --- | --- |",
+    "| Workload | Source/oracle | Benchmark lane | Execution witness |",
+    "| --- | --- | --- | --- |",
   ];
   for (const workload of catalog.workloads) {
-    lines.push(`| ${workload.id} | ${workload.sourceReadiness}; oracle ${workload.oracle.status}; ${sourceLinks(workload)} | ${workload.benchmarkStatus} |`);
+    lines.push(`| ${workload.id} | ${workload.sourceReadiness}; oracle ${workload.oracle.status}; ${sourceLinks(workload)} | ${workload.benchmarkStatus} | ${executionSummary(workload)} |`);
   }
   lines.push("", "## Best known cells", "", "Values include compact record-id prefixes; full per-metric provenance is in the machine catalog.", "", "| Workload | Language | Category | Artifact | Compile | Run | Peak RSS | CPU | Cleanliness |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | --- |");
   for (const group of rows) {

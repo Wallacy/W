@@ -403,6 +403,102 @@
         "provider",
         "cross-language-source-variants"
       ]
+    },
+    {
+      "id": "process-entry0",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Measure the private process-entry handler with the shared C harness and caller-owned PROCESS0 provider; this is contextual, non-ranking composite evidence and has no public w-build fallback.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-entry0.w",
+          "digest": "sha256:d569eccfbac576a921031858a14e1064ca16b8ff27489790d0d81c0378f0afca",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "private-process-handler",
+          "recipeClass": "process-entry0-private-handler",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-private-composite",
+          "eligibility": "exploratory-private-composite"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/process_entry0.c",
+          "digest": "sha256:813922d89aae2129b250fb644233a15596f3b3344c36e6c97632c52f093a48b5",
+          "entry": "w_seed_process_entry0_handler",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "gcc-c23-or-c2x",
+          "recipeClass": "process-entry0-private-handler",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-private-composite",
+          "eligibility": "exploratory-private-composite"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/process_entry0.rs",
+          "digest": "sha256:8242a340123a9dabcec26fc061848dcac16141e285687ec7b7253a7fdc104115",
+          "entry": "w_seed_process_entry0_handler",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "process-entry0-private-handler",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-private-composite",
+          "eligibility": "exploratory-private-composite"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [],
+      "execution": {
+        "kind": "private-process-handler",
+        "recipeClass": "process-entry0-private-handler",
+        "timedInput": ["alpha", "payload"],
+        "correctnessInputs": [[], ["alpha", "payload"]],
+        "faultCases": [
+          "missing",
+          "noop-success",
+          "stale-generation",
+          "reversed-arguments",
+          "wrong-context",
+          "wrong-arguments"
+        ],
+        "supportSources": [
+          {
+            "role": "harness-c",
+            "path": "compiler/seed-c/tests/process_entry0_harness.c",
+            "digest": "sha256:61fc586991204414bd0b902ce852fec341b6dbfcf842895701f38e2b66505638"
+          },
+          {
+            "role": "provider-c",
+            "path": "compiler/seed-c/src/w_seed_process0.c",
+            "digest": "sha256:6e6ac9321fd7cd06cf9ccf8bdb06e31f17d27e5bee1e7a9b54daf9503b86f2eb"
+          },
+          {
+            "role": "provider-header",
+            "path": "compiler/seed-c/include/w_seed_process0.h",
+            "digest": "sha256:309fab3813ba1238d5219b7e8b5b11209003015f119b7cbe23b05dd93ea9ef11"
+          }
+        ]
+      }
     }
   ],
   "resultContract": {

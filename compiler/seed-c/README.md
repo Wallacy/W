@@ -1398,8 +1398,19 @@ This is private-handler evidence, not public process support. It does not
 establish native Windows UTF-16 startup-vector behavior or an `argv[0]` policy,
 or async/general provider/runtime behavior. Existing HIR lifecycle evidence
 remains `source-backed-current` and compiler-lifecycle correctness narrative,
-with no timing or result. Benchmark disposition, blockers, and stop condition
-are canonical in [`DESIGN.md`](../../DESIGN.md) §26.4.1.28.
+with no timing or result. Separate executable-catalog measurements may use
+`bun benchmark run --target process-entry0 --language w|c|rust` for the private
+handler plus shared C harness and PROCESS0 provider: empty/nonempty vectors and
+six fault cases are checked before timing successful `[alpha,payload]`. The
+runtime interval covers shared CRT startup, harness, provider, and handler, not
+handler-only speed; compile timing spans handler/support compilation and final
+link, excluding compiler bootstrap. The final artifact is GCC-linked MinGW,
+with W/Rust MSVC-origin COFF disclosed and direct-child CPU/RSS limits recorded;
+this remains exploratory artifact evidence, not a public process or language-track
+result. Benchmark disposition,
+blockers, and stop condition remain canonical in [`DESIGN.md`](../../DESIGN.md)
+§26.4.1.28; the measurement protocol is in the
+[`private process-entry benchmark section`](../../benchmarks/README.md#private-process-entry-executable-measurements).
 
 ### PROCESS0 provider kernel (post-W-1546)
 

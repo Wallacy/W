@@ -43,6 +43,9 @@ test("benchmark arguments select a language and keep the fixed raw count", () =>
   assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
     target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
   });
+  assert.deepEqual(parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), {
+    target: "process-entry0", language: "c", output: undefined, warmup: 1, samples: 9, help: false,
+  });
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
 });
 
@@ -183,7 +186,7 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
   const calls = [];
   const sampleDirectories = new Set();
   const executor = async (command, args, options = {}) => {
-    calls.push({ command, args: [...args], cwd: options.cwd, stdin: options.stdin, timeout: options.timeout, killSignal: options.killSignal });
+    calls.push({ command, args: [...args], cwd: options.cwd, stdin: options.stdin, env: options.env, timeout: options.timeout, killSignal: options.killSignal });
     const timedOut = () => ({
       exitCode: null,
       signalCode: "SIGKILL",
@@ -297,6 +300,23 @@ function fakeRunnerDependencies(language, fake) {
   };
 }
 
+function fakeProcessRunnerExecutor() {
+  const fake = fakeRunnerExecutor({ language: "c", target: "process-entry0" });
+  const baseExecutor = fake.executor;
+  fake.executor = async (command, args, options = {}) => {
+    if (args.includes("-o")) return baseExecutor(command, args, options);
+    if (command === fake.compiler) return baseExecutor(command, args, options);
+    fake.calls.push({ command, args: [...args], cwd: options.cwd, stdin: options.stdin, env: options.env, timeout: options.timeout, killSignal: options.killSignal });
+    const fault = options.env?.W_SEED_PROCESS_ENTRY0_FAULT;
+    if (path.extname(command).toLowerCase() === ".exe") {
+      const exitCode = fault === "missing" || fault === "noop-success" ? 11 : fault ? 29 : 0;
+      return { exitCode, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), resourceUsage: fakeResourceUsage() };
+    }
+    return baseExecutor(command, args, options);
+  };
+  return fake;
+}
+
 function assertNoFakeSampleDirectories(fake) {
   for (const directory of fake.sampleDirectories) assert.equal(existsSync(directory), false, `temporary sample remains: ${directory}`);
 }
@@ -397,6 +417,34 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     }
     assertNoFakeSampleDirectories(fake);
   }
+});
+
+test("process-entry0 keeps the pinned runtime vector and isolates fault trials", async () => {
+  const fake = fakeProcessRunnerExecutor();
+  const previousFault = process.env.W_SEED_PROCESS_ENTRY0_FAULT;
+  process.env.W_SEED_PROCESS_ENTRY0_FAULT = "wrong-context";
+  let record;
+  try {
+    ({ record } = await runBenchmark({ target: "process-entry0", language: "c", warmup: 1, samples: 9, publish: false }, {
+      ...fakeRunnerDependencies("c", fake),
+    }));
+  } finally {
+    if (previousFault === undefined) delete process.env.W_SEED_PROCESS_ENTRY0_FAULT;
+    else process.env.W_SEED_PROCESS_ENTRY0_FAULT = previousFault;
+  }
+  assert.equal(record.workloadId, "process-entry0");
+  assert.equal(record.artifactTarget, "x86_64-w64-mingw32");
+  assert.equal(record.identity.recipeClass, "process-entry0-private-handler");
+  assert.match(record.protocol.resourceScope, /pinned \[alpha, payload\].*Fault witnesses.*not timed/u);
+  const runtimeCalls = fake.calls.filter((call) => path.extname(call.command).toLowerCase() === ".exe" && !call.args.includes("-o") && call.command !== fake.compiler);
+  assert.equal(runtimeCalls.length, 18, "two correctness vectors, six faults and ten timed runs are required");
+  const normalCalls = runtimeCalls.filter((call) => call.env?.W_SEED_PROCESS_ENTRY0_FAULT === undefined);
+  assert.equal(normalCalls.length, 12, "normal correctness and timed runs must clear the fault selector");
+  assert.ok(normalCalls.every((call) => call.env !== undefined), "normal runs must receive an explicit sanitized environment");
+  assert.ok(normalCalls.some((call) => call.args.length === 2 && call.args[0] === "alpha" && call.args[1] === "payload"));
+  assert.ok(runtimeCalls.filter((call) => call.env?.W_SEED_PROCESS_ENTRY0_FAULT !== undefined).every((call) =>
+    ["missing", "noop-success", "stale-generation", "reversed-arguments", "wrong-context", "wrong-arguments"].includes(call.env.W_SEED_PROCESS_ENTRY0_FAULT)));
+  assertNoFakeSampleDirectories(fake);
 });
 
 test("restaurant-branch C and Rust records use target-specific source, oracle and identity metadata", async () => {

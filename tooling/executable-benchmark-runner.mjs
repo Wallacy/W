@@ -20,6 +20,14 @@ import {
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
+  PROCESS_ENTRY0_CORRECTNESS_INPUTS,
+  PROCESS_ENTRY0_EXECUTION_KIND,
+  PROCESS_ENTRY0_FAULT_CASES,
+  PROCESS_ENTRY0_RECIPE,
+  PROCESS_ENTRY0_RECIPE_CLASS,
+  PROCESS_ENTRY0_SUPPORT_ROLES,
+  PROCESS_ENTRY0_TIMED_INPUT,
+  PROCESS_ENTRY0_WORKLOAD_ID,
   ROOT,
   executableEquivalenceKey,
   executableHostIdentity,
@@ -48,7 +56,7 @@ export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const DEFAULT_TARGET = "hello";
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch"]);
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_ENTRY0_WORKLOAD_ID]);
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
@@ -59,6 +67,24 @@ const PUBLIC_W_BUILD_SCRIPT = path.resolve(ROOT, "tooling", "build-w-windows.mjs
 const PUBLIC_W_BUILD_DIRECTORY = path.resolve(ROOT, "build", "w-windows");
 const PUBLIC_W_EXECUTABLE = path.join(PUBLIC_W_BUILD_DIRECTORY, "w.exe");
 const PUBLIC_W_RECEIPT = path.join(PUBLIC_W_BUILD_DIRECTORY, "receipt.json");
+const PROCESS_ENTRY0_GATE_TARGET = "w_seed_process_entry0_gate";
+const PROCESS_ENTRY0_GATE = path.resolve(ROOT, "build", `${PROCESS_ENTRY0_GATE_TARGET}.exe`);
+const PROCESS_ENTRY0_FAULT_ENV = "W_SEED_PROCESS_ENTRY0_FAULT";
+const PROCESS_ENTRY0_HANDLER_SYMBOL = "w_seed_process_entry0_handler";
+const PROCESS_ENTRY0_GENERATED_TRAP_EXIT_CODE = 0x1d;
+const PROCESS_ENTRY0_HARNESS_FAILURE_EXIT_CODE = 11;
+const PROCESS_ENTRY0_INCLUDE_DIRECTORY = path.resolve(ROOT, "compiler", "seed-c", "include");
+const PROCESS_ENTRY0_SUPPORT_ROOT = path.resolve(ROOT, "compiler", "seed-c");
+const PROCESS_ENTRY0_RUST_OBJECT_FLAGS = Object.freeze([
+  "-C", "opt-level=3",
+  "-C", "lto=fat",
+  "-C", "codegen-units=1",
+  "-C", "panic=abort",
+  "-C", "debuginfo=0",
+  "-C", "strip=symbols",
+  "-C", "link-dead-code=no",
+]);
+const PROCESS_ENTRY0_GCC_ORIGIN_TARGET = EXECUTABLE_ARTIFACT_TARGET_MINGW;
 const C_COMPILER_NAMES = ["gcc", "clang", "cc"];
 const RUST_TARGET = EXECUTABLE_ARTIFACT_TARGET_MSVC;
 const PE_DOS_HEADER_SIZE = 0x40;
@@ -212,9 +238,9 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target hello|restaurant-branch (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target hello|restaurant-branch|process-entry0 (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC ABI.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry0 uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC-origin handler object.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -234,7 +260,7 @@ function sha256Json(value) {
 function commandResult(result) {
   if (!isObject(result)) fail("executor must return a result object");
   return {
-    exitCode: result.exitCode === null || Number.isInteger(result.exitCode) ? result.exitCode : 3,
+    exitCode: result.exitCode === null || Number.isInteger(result.exitCode) ? result.exitCode : null,
     signalCode: result.signalCode ?? null,
     exitedDueToTimeout: result.exitedDueToTimeout === true,
     stdout: bufferValue(result.stdout),
@@ -271,12 +297,19 @@ function timeoutFailure(result, label, timeout) {
 
 async function executeChild(executor, command, args, options, label) {
   const timeout = options?.timeout ?? EXECUTABLE_CHILD_TIMEOUT_MS;
-  const result = commandResult(await executor(command, args, {
-    ...options,
-    timeout,
-    killSignal: options?.killSignal ?? EXECUTABLE_CHILD_KILL_SIGNAL,
-  }));
+  let result;
+  try {
+    result = commandResult(await executor(command, args, {
+      ...options,
+      timeout,
+      killSignal: options?.killSignal ?? EXECUTABLE_CHILD_KILL_SIGNAL,
+    }));
+  } catch (error) {
+    fail(`${label} child infrastructure error: ${error?.message ?? String(error)}`);
+  }
   timeoutFailure(result, label, timeout);
+  if (result.exitCode === null) fail(`${label} child did not return an exit code`);
+  if (result.signalCode !== null) fail(`${label} child was terminated by ${result.signalCode}`);
   return result;
 }
 
@@ -320,9 +353,15 @@ function sampleFrom(start, end, usages, label) {
   };
 }
 
-async function timedStep(executor, command, args, cwd, label) {
+async function timedStep(executor, command, args, cwd, label, options = {}) {
   const start = process.hrtime.bigint();
-  const result = await executeChild(executor, command, args, { cwd, stdout: "pipe", stderr: "pipe", windowsHide: true }, label);
+  const result = await executeChild(executor, command, args, {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+    windowsHide: true,
+    ...options,
+  }, label);
   const end = process.hrtime.bigint();
   return {
     ...result,
@@ -602,6 +641,260 @@ async function sourcePath(catalog, target, language) {
   return { workload, source, filePath };
 }
 
+function isProcessEntry0(target) {
+  return target === PROCESS_ENTRY0_WORKLOAD_ID;
+}
+
+function processExecution(workload) {
+  const execution = workload?.execution;
+  if (!isObject(execution) || execution.kind !== PROCESS_ENTRY0_EXECUTION_KIND ||
+      execution.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS ||
+      JSON.stringify(execution.timedInput) !== JSON.stringify(PROCESS_ENTRY0_TIMED_INPUT) ||
+      JSON.stringify(execution.correctnessInputs) !== JSON.stringify(PROCESS_ENTRY0_CORRECTNESS_INPUTS) ||
+      JSON.stringify(execution.faultCases) !== JSON.stringify(PROCESS_ENTRY0_FAULT_CASES)) {
+    fail("process-entry0 catalog execution descriptor is not the ratified private handler contract");
+  }
+  return execution;
+}
+
+async function resolveProcessSupportSources(workload) {
+  const execution = processExecution(workload);
+  if (!Array.isArray(execution.supportSources) || execution.supportSources.length !== PROCESS_ENTRY0_SUPPORT_ROLES.length) {
+    fail("process-entry0 support-source descriptor is incomplete");
+  }
+  const resolved = [];
+  for (const [index, descriptor] of execution.supportSources.entries()) {
+    const role = PROCESS_ENTRY0_SUPPORT_ROLES[index];
+    if (!isObject(descriptor) || descriptor.role !== role || typeof descriptor.path !== "string") {
+      fail(`process-entry0 support source ${role} is malformed`);
+    }
+    const filePath = path.resolve(ROOT, descriptor.path);
+    if (!isContained(PROCESS_ENTRY0_SUPPORT_ROOT, filePath)) {
+      fail(`process-entry0 support source ${role} escapes compiler/seed-c`);
+    }
+    const stats = await regularFile(filePath, `process-entry0 ${role}`);
+    if (await sha256File(filePath) !== descriptor.digest) {
+      fail(`process-entry0 ${role} source digest is stale`);
+    }
+    resolved.push({ role, descriptor, filePath, stats });
+  }
+  return resolved;
+}
+
+function processSupportSource(sources, role) {
+  const source = sources.find((item) => item.role === role);
+  if (!source) fail(`process-entry0 support source is missing ${role}`);
+  return source;
+}
+
+function clearProcessFaultEnvironment(base = process.env) {
+  const environment = { ...base };
+  delete environment[PROCESS_ENTRY0_FAULT_ENV];
+  return environment;
+}
+
+function processFaultEnvironment(fault) {
+  const environment = clearProcessFaultEnvironment();
+  environment[PROCESS_ENTRY0_FAULT_ENV] = fault;
+  return environment;
+}
+
+async function prepareProcessGate(executor, dependencies = {}, publish = false) {
+  if (dependencies.processGate !== undefined) {
+    if (dependencies.testOnly !== true || publish) {
+      fail("processGate fixtures require testOnly:true with publish:false");
+    }
+    if (typeof dependencies.processGate !== "string" || !path.isAbsolute(dependencies.processGate)) {
+      fail("processGate must identify an absolute gate executable");
+    }
+    await regularFile(dependencies.processGate, "process-entry0 gate executable");
+    return {
+      executable: dependencies.processGate,
+      digest: await sha256File(dependencies.processGate),
+      buildProfile: "Release",
+      prepared: "test-fixture",
+    };
+  }
+  const cmake = Bun.which("cmake");
+  const ninja = Bun.which("ninja");
+  if (!cmake || !ninja) fail("process-entry0 requires CMake and Ninja for the existing build/");
+  const buildNinja = path.resolve(ROOT, "build", "build.ninja");
+  await regularFile(buildNinja, "existing process-entry0 build/build.ninja");
+  const buildDescription = await readFile(buildNinja, "utf8");
+  if (!buildDescription.includes(PROCESS_ENTRY0_GATE_TARGET)) {
+    fail("existing build has no process-entry0 gate target; regenerate build/ before benchmarking");
+  }
+  const buildCache = path.resolve(ROOT, "build", "CMakeCache.txt");
+  await regularFile(buildCache, "existing process-entry0 build/CMakeCache.txt");
+  const buildCacheText = await readFile(buildCache, "utf8");
+  if (!/^CMAKE_BUILD_TYPE:STRING=Release$/mu.test(buildCacheText)) {
+    fail("process-entry0 requires the existing single-config build/ CMAKE_BUILD_TYPE=Release");
+  }
+  const build = await timedStep(executor, cmake, [
+    "--build", path.resolve(ROOT, "build"), "--target", PROCESS_ENTRY0_GATE_TARGET,
+    "--", "-j", "2",
+  ], ROOT, "process-entry0 Release gate build");
+  requireSuccess(build, "process-entry0 Release gate build");
+  await regularFile(PROCESS_ENTRY0_GATE, "process-entry0 gate executable");
+  return {
+    executable: PROCESS_ENTRY0_GATE,
+    digest: await sha256File(PROCESS_ENTRY0_GATE),
+    buildProfile: "Release",
+    prepared: "existing-build",
+  };
+}
+
+function verifyProcessHandlerArtifact(bytes, label = "process-entry0 MLIR") {
+  const text = bytes.toString("utf8");
+  if (!text.startsWith("// w-seed-mlir0-process-handler-1\n")) fail(`${label} has no process schema marker`);
+  if (!text.includes(`llvm.target_triple = \"${RUST_TARGET}\"`)) fail(`${label} has the wrong target triple`);
+  const signature = "llvm.func @w_seed_process_entry0_handler(%arguments: !llvm.ptr, %context: !llvm.ptr) -> i32";
+  if (!text.includes(signature)) fail(`${label} has the wrong handler signature`);
+  const contextCall = "llvm.call @w_seed_process_entry0_context_drop(%context)";
+  const argumentsCall = "llvm.call @w_seed_process_entry0_arguments_drop(%arguments)";
+  if (text.split(contextCall).length - 1 !== 1 || text.split(argumentsCall).length - 1 !== 1 ||
+      text.indexOf(contextCall) >= text.indexOf(argumentsCall)) {
+    fail(`${label} does not release context before arguments exactly once`);
+  }
+  if (!text.includes("llvm.intr.trap") || !text.includes("llvm.unreachable") ||
+      !text.includes("llvm.return %zero : i32")) {
+    fail(`${label} does not check both adapter statuses before returning`);
+  }
+  for (const forbidden of [
+    "@main", "mainCRTStartup", "GetStdHandle", "WriteFile", "ExitProcess",
+    "w_seed_process0", "root_finalize", "entry_invoke", "llvm.mlir.global",
+  ]) {
+    if (text.includes(forbidden)) fail(`${label} contains forbidden ${forbidden}`);
+  }
+  return text;
+}
+
+async function processSampleFiles(directory, paths, label) {
+  const expected = new Set(paths.map((item) => path.basename(item)));
+  const produced = (await readdir(directory)).sort();
+  const expectedNames = [...expected].sort();
+  if (JSON.stringify(produced) !== JSON.stringify(expectedNames)) {
+    fail(`${label} produced unexpected sidecars or intermediates: ${produced.join(", ")}`);
+  }
+}
+
+function processCCompileArgs(toolchain, sourcePath, objectPath) {
+  return [
+    ...dialectArgs(toolchain.dialect),
+    ...cReleaseFlags({ wholeProgram: false }),
+    "-I", PROCESS_ENTRY0_INCLUDE_DIRECTORY,
+    "-c", sourcePath, "-o", objectPath,
+  ];
+}
+
+function processLinkArgs(objectPaths, artifact) {
+  return [
+    ...cReleaseFlags({ wholeProgram: false }),
+    "-static", "-static-libgcc", "-o", artifact, ...objectPaths,
+  ];
+}
+
+async function compileProcessHandler(context, retain) {
+  const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
+  const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
+  const handlerObject = path.join(sampleDirectory, "process-entry0-handler.obj");
+  const harnessObject = path.join(sampleDirectory, "process-entry0-harness.obj");
+  const providerObject = path.join(sampleDirectory, "process-entry0-provider.obj");
+  const handlerSteps = [];
+  const compileSteps = [];
+  try {
+    if (context.language === "w") {
+      const rawPath = path.join(sampleDirectory, "process-entry0.mlir");
+      const verifiedPath = path.join(sampleDirectory, "process-entry0.verified.mlir");
+      const llvmPath = path.join(sampleDirectory, "process-entry0.ll");
+      const gate = await timedStep(context.executor, context.processGate.executable, [context.source.filePath], sampleDirectory, "W process handler gate", { env: clearProcessFaultEnvironment() });
+      requireSuccess(gate, "W process handler gate");
+      if (gate.stderr.length !== 0 || gate.stdout.length === 0) fail("W process handler gate did not emit exactly one MLIR artifact");
+      verifyProcessHandlerArtifact(gate.stdout, "W process handler MLIR");
+      await writeFile(rawPath, gate.stdout);
+      handlerSteps.push(gate);
+
+      const optimized = await timedStep(context.executor, context.tools["mlir-opt.exe"], [
+        rawPath, "-o", verifiedPath, ...W_MLIR_OPT_FLAGS,
+      ], sampleDirectory, "W process handler mlir-opt", { env: clearProcessFaultEnvironment() });
+      requireSuccess(optimized, "W process handler mlir-opt");
+      handlerSteps.push(optimized);
+
+      const translated = await timedStep(context.executor, context.tools["mlir-translate.exe"], [
+        "--mlir-to-llvmir", verifiedPath, "-o", llvmPath,
+      ], sampleDirectory, "W process handler mlir-translate", { env: clearProcessFaultEnvironment() });
+      requireSuccess(translated, "W process handler mlir-translate");
+      handlerSteps.push(translated);
+
+      const lowered = await timedStep(context.executor, context.tools["llc.exe"], [
+        ...W_LLC_FLAGS, llvmPath, "-o", handlerObject,
+      ], sampleDirectory, "W process handler llc", { env: clearProcessFaultEnvironment() });
+      requireSuccess(lowered, "W process handler llc");
+      handlerSteps.push(lowered);
+      await regularFile(rawPath, "W process handler raw MLIR");
+      await regularFile(verifiedPath, "W process handler verified MLIR");
+      await regularFile(llvmPath, "W process handler LLVM IR");
+    } else if (context.language === "c") {
+      const handler = await timedStep(context.executor, context.processLinker.command,
+        processCCompileArgs(context.processLinker, context.source.filePath, handlerObject),
+        sampleDirectory, "C process handler", { env: clearProcessFaultEnvironment() });
+      requireSuccess(handler, "C process handler");
+      handlerSteps.push(handler);
+    } else if (context.language === "rust") {
+      const handler = await timedStep(context.executor, context.languageToolchain.command, [
+        context.source.filePath,
+        "--edition=2024",
+        "--crate-type=lib",
+        ...PROCESS_ENTRY0_RUST_OBJECT_FLAGS,
+        `--target=${RUST_TARGET}`,
+        "--emit=obj",
+        "-o", handlerObject,
+      ], sampleDirectory, "Rust process handler", { env: clearProcessFaultEnvironment() });
+      requireSuccess(handler, "Rust process handler");
+      handlerSteps.push(handler);
+    } else {
+      fail(`unsupported process-entry0 language: ${context.language}`);
+    }
+
+    const harness = processSupportSource(context.processSupportSources, "harness-c");
+    const provider = processSupportSource(context.processSupportSources, "provider-c");
+    const harnessStep = await timedStep(context.executor, context.processLinker.command,
+      processCCompileArgs(context.processLinker, harness.filePath, harnessObject),
+      sampleDirectory, "PROCESS0 harness", { env: clearProcessFaultEnvironment() });
+    requireSuccess(harnessStep, "PROCESS0 harness");
+    compileSteps.push(harnessStep);
+    const providerStep = await timedStep(context.executor, context.processLinker.command,
+      processCCompileArgs(context.processLinker, provider.filePath, providerObject),
+      sampleDirectory, "PROCESS0 provider", { env: clearProcessFaultEnvironment() });
+    requireSuccess(providerStep, "PROCESS0 provider");
+    compileSteps.push(providerStep);
+    const linkStep = await timedStep(context.executor, context.processLinker.command,
+      processLinkArgs([handlerObject, harnessObject, providerObject], artifact),
+      sampleDirectory, "PROCESS0 private handler link", { env: clearProcessFaultEnvironment() });
+    requireSuccess(linkStep, "PROCESS0 private handler link");
+    compileSteps.push(linkStep);
+    const allSteps = [...handlerSteps, ...compileSteps];
+    const first = allSteps[0];
+    const last = allSteps[allSteps.length - 1];
+    const sample = chainSample(allSteps, first.start, last.end, "process-entry0 composite compile");
+    const artifactStats = await regularFile(artifact, "process-entry0 PE artifact");
+    if (artifactStats.size <= 0) fail("process-entry0 PE artifact is empty");
+    const intermediatePaths = [artifact, handlerObject, harnessObject, providerObject];
+    if (context.language === "w") intermediatePaths.push(
+      path.join(sampleDirectory, "process-entry0.mlir"),
+      path.join(sampleDirectory, "process-entry0.verified.mlir"),
+      path.join(sampleDirectory, "process-entry0.ll"),
+    );
+    await processSampleFiles(sampleDirectory, intermediatePaths, "process-entry0 composite compile");
+    if (retain) return { sampleDirectory, artifact, sample };
+    await rm(sampleDirectory, { recursive: true, force: true });
+    return { sampleDirectory: undefined, artifact: undefined, sample };
+  } catch (error) {
+    await rm(sampleDirectory, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 async function compileW(context, retain) {
   const sampleDirectory = await mkdtemp(path.join(context.tempRoot, SAMPLE_DIRECTORY_PREFIX));
   const artifact = path.join(sampleDirectory, `${context.source.workload.id}-${context.language}.exe`);
@@ -682,6 +975,7 @@ async function compileRust(context, retain) {
 }
 
 async function compileSource(context, retain) {
+  if (isProcessEntry0(context.target)) return compileProcessHandler(context, retain);
   if (context.language === "w") return compileW(context, retain);
   if (context.language === "c") return compileC(context, retain);
   if (context.language === "rust") return compileRust(context, retain);
@@ -697,6 +991,59 @@ async function runArtifact(executor, artifact, language = "w", target = DEFAULT_
     stderr: step.stderr,
     exitCode: step.exitCode,
   };
+}
+
+async function runProcessArtifact(context, artifact, argumentsVector, label) {
+  if (!Array.isArray(argumentsVector) || argumentsVector.some((item) => typeof item !== "string")) {
+    fail(`${label} runtime vector must contain only strings`);
+  }
+  const step = await timedStep(context.executor, artifact, argumentsVector,
+    path.dirname(artifact), label, { env: clearProcessFaultEnvironment() });
+  if (step.exitCode !== 0) {
+    const detail = outputText(step.stderr) || outputText(step.stdout);
+    fail(`${label} returned exit ${step.exitCode}: ${detail.slice(-1200)}`);
+  }
+  if (step.stdout.length !== 0 || step.stderr.length !== 0) {
+    fail(`${label} wrote process output`);
+  }
+  return {
+    sample: sampleFrom(step.start, step.end, [step.usage], label),
+    stdout: step.stdout,
+    stderr: step.stderr,
+    exitCode: step.exitCode,
+  };
+}
+
+async function runProcessFault(context, artifact, argumentsVector, fault, expectedExitCode, label) {
+  const result = await executeChild(context.executor, artifact, argumentsVector, {
+    cwd: path.dirname(artifact),
+    env: processFaultEnvironment(fault),
+    stdout: "pipe",
+    stderr: "pipe",
+    windowsHide: true,
+  }, label);
+  if (result.exitCode !== expectedExitCode) {
+    fail(`${label} returned ${String(result.exitCode)} instead of expected ${expectedExitCode}`);
+  }
+  if (result.stdout.length !== 0 || result.stderr.length !== 0) {
+    fail(`${label} wrote process output`);
+  }
+  return result;
+}
+
+async function processCorrectness(context, compiled) {
+  const vectors = context.processExecution.correctnessInputs;
+  for (const [index, vector] of vectors.entries()) {
+    await runProcessArtifact(context, compiled.artifact, vector,
+      `process-entry0 correctness vector ${index === 0 ? "empty" : "timed"}`);
+  }
+  for (const fault of context.processExecution.faultCases) {
+    const expected = fault === "missing" || fault === "noop-success"
+      ? PROCESS_ENTRY0_HARNESS_FAILURE_EXIT_CODE
+      : PROCESS_ENTRY0_GENERATED_TRAP_EXIT_CODE;
+    await runProcessFault(context, compiled.artifact, [], fault, expected,
+      `process-entry0 fault ${fault}`);
+  }
 }
 
 function assertOracle(execution, oracle, target, label) {
@@ -861,6 +1208,10 @@ async function correctnessBuild(context) {
     const bytes = await readFile(compiled.artifact);
     const artifactCleanliness = validatePeX64(bytes, context.language);
     artifactCleanliness.sidecars = { count: "0" };
+    if (isProcessEntry0(context.target)) {
+      await processCorrectness(context, compiled);
+      return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
+    }
     const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
     const oracle = context.source.workload.oracle;
     assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
@@ -891,7 +1242,86 @@ function protocol(language) {
   };
 }
 
+function processProtocol() {
+  const compileScope = "Private process-entry0 compile wall-clock spans the complete selected handler pipeline (W source gate through Native0/HIR16/MLIR, MLIR optimization, LLVM translation, object lowering, or the direct C/Rust handler object) plus fresh shared PROCESS0 harness/provider compilation and the final GCC PE link. Direct child CPU counters are summed and peak RSS is the maximum across these explicit pipeline steps; descendants of any child are not aggregated.";
+  return {
+    warmupMinimum: 1,
+    rawMinimum: 9,
+    rawParity: "odd",
+    arithmeticMeanRounding: "floor-integer",
+    stopRule: "fixed-count",
+    wallClock: "monotonic-nanoseconds",
+    processIsolation: "fresh-process-per-sample",
+    order: "compile-series-then-run-series",
+    resourceScope: `${compileScope} Runtime samples execute the final private handler PE directly with the pinned [alpha, payload] vector; the empty vector is correctness-only. Fault witnesses are correctness-only and are not timed.`,
+    knownNoiseControls: [
+      "warmup-discarded",
+      "fresh-process-per-sample",
+      "fixed-variant-order",
+      "pinned-runtime-vector",
+      "fault-environment-cleared-for-timed-runs",
+    ],
+    unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
+    directProcessDisclosure: `Bun direct-process CPU and RSS counters cover each spawned compiler, lowering tool, linker and runtime process only; process-tree CPU/RSS are not aggregated. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim. ${EXECUTABLE_TIMEOUT_STATUS}`,
+  };
+}
+
 function recipeFor(context) {
+  if (isProcessEntry0(context.target)) {
+    const sharedFlags = [
+      ...dialectArgs(context.processLinker.dialect),
+      ...cReleaseFlags({ wholeProgram: false }),
+    ];
+    const sourceRecipe = context.source.source.recipe;
+    const handlerOriginTarget = context.language === "w"
+      ? RUST_TARGET
+      : context.language === "rust" ? RUST_TARGET : PROCESS_ENTRY0_GCC_ORIGIN_TARGET;
+    const handler = context.language === "w"
+      ? {
+        kind: "native0-mlir0-handler-object",
+        gateTarget: PROCESS_ENTRY0_GATE_TARGET,
+        gateProfile: "Release",
+        mlirOptFlags: [...W_MLIR_OPT_FLAGS],
+        mlirTranslateFlags: ["--mlir-to-llvmir"],
+        llcFlags: [...W_LLC_FLAGS],
+        originTarget: handlerOriginTarget,
+      }
+      : context.language === "rust"
+        ? {
+          kind: "rustc-handler-object",
+          flags: ["--edition=2024", "--crate-type=lib", ...PROCESS_ENTRY0_RUST_OBJECT_FLAGS, `--target=${RUST_TARGET}`, "--emit=obj"],
+          originTarget: handlerOriginTarget,
+        }
+        : {
+          kind: "gcc-handler-object",
+          flags: [...sharedFlags],
+          originTarget: handlerOriginTarget,
+        };
+    return {
+      id: sourceRecipe,
+      kind: PROCESS_ENTRY0_EXECUTION_KIND,
+      recipeClass: PROCESS_ENTRY0_RECIPE_CLASS,
+      handlerSymbol: PROCESS_ENTRY0_HANDLER_SYMBOL,
+      handler,
+      supportSources: context.processSupportSources.map(({ role, descriptor }) => ({
+        role, path: descriptor.path, digest: descriptor.digest,
+      })),
+      sharedHarnessProvider: {
+        compiler: path.basename(context.processLinker.command).replace(/\.exe$/iu, ""),
+        target: PROCESS_ENTRY0_GCC_ORIGIN_TARGET,
+        flags: sharedFlags,
+        linkFlags: [...cReleaseFlags({ wholeProgram: false }), "-static", "-static-libgcc"],
+        handlerCallAbi: "opaque-ptr-int32-status",
+        dropOrder: ["context", "arguments"],
+      },
+      finalArtifactTarget: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      runtimeVectors: {
+        timed: [...context.processExecution.timedInput],
+        correctness: context.processExecution.correctnessInputs.map((vector) => [...vector]),
+      },
+      faultCases: [...context.processExecution.faultCases],
+    };
+  }
   if (context.language === "w") {
     return {
       command: "w.exe",
@@ -928,6 +1358,55 @@ function recipeFor(context) {
 }
 
 function toolchainProvenance(context) {
+  if (isProcessEntry0(context.target)) {
+    const supportSources = context.processSupportSources.map(({ role, descriptor, filePath, stats }) => ({
+      role, path: descriptor.path, digest: descriptor.digest,
+      observedDigest: descriptor.digest,
+      sizeBytes: String(stats.size),
+      file: path.basename(filePath),
+    }));
+    const process = {
+      executionKind: PROCESS_ENTRY0_EXECUTION_KIND,
+      finalArtifactTarget: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      handlerSymbol: PROCESS_ENTRY0_HANDLER_SYMBOL,
+      sourceDigest: context.source.source.digest,
+      supportSources,
+      finalLink: {
+        driver: path.basename(context.processLinker.command).replace(/\.exe$/iu, ""),
+        version: context.processLinker.version,
+        target: context.processLinker.target,
+        flags: [...cReleaseFlags({ wholeProgram: false }), "-static", "-static-libgcc"],
+      },
+    };
+    if (context.language === "w") {
+      process.handlerOrigin = {
+        compiler: "w_seed_process_entry0_gate",
+        gateDigest: context.processGate.digest,
+        gateProfile: context.processGate.buildProfile,
+        target: RUST_TARGET,
+        manifestDigest: context.windowsToolchain.manifestDigest,
+        materializedTools: Object.fromEntries(Object.entries(context.windowsToolchain.materialized.tools)
+          .filter(([name]) => context.tools[name] !== undefined)
+          .map(([name, record]) => [name, { relativePath: record.relativePath, sizeBytes: record.sizeBytes, sha256: record.sha256, version: record.version }])),
+      };
+    } else if (context.language === "rust") {
+      process.handlerOrigin = {
+        compiler: context.languageToolchain.command,
+        compilerVersion: context.languageToolchain.version,
+        host: context.languageToolchain.host,
+        target: RUST_TARGET,
+        flags: [...PROCESS_ENTRY0_RUST_OBJECT_FLAGS],
+      };
+    } else {
+      process.handlerOrigin = {
+        compiler: context.processLinker.command,
+        compilerVersion: context.processLinker.version,
+        target: PROCESS_ENTRY0_GCC_ORIGIN_TARGET,
+        flags: [...dialectArgs(context.processLinker.dialect), ...cReleaseFlags({ wholeProgram: false })],
+      };
+    }
+    return process;
+  }
   if (context.language === "w") {
     return {
       compiler: "w.exe",
@@ -963,7 +1442,9 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
   const recipe = recipeFor(context);
   const recipeDigest = sha256Json(recipe);
   const toolchain = context.languageToolchain;
-  const artifactTarget = source.artifactTarget;
+  const artifactTarget = isProcessEntry0(context.target)
+    ? EXECUTABLE_ARTIFACT_TARGET_MINGW
+    : source.artifactTarget;
   const result = {
     $schema: "./executable-benchmark.schema.json",
     schema: EXECUTABLE_RESULT_SCHEMA,
@@ -1002,7 +1483,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       sizeBytes: correctness.artifactSizeBytes,
       cleanliness: correctness.artifactCleanliness,
     },
-    protocol: protocol(context.language),
+    protocol: isProcessEntry0(context.target) ? processProtocol() : protocol(context.language),
     environment: context.environment,
     compile: sampleSeries(compileWarmup, compileRaw),
     run: sampleSeries(runWarmup, runRaw),
@@ -1030,6 +1511,33 @@ async function currentCommit(executor) {
   const value = outputText(result.stdout).trim();
   if (!/^[0-9a-f]{40}$/u.test(value)) fail("Git HEAD provenance must be a full lowercase commit identity");
   return value;
+}
+
+function processSelectedToolchain(language, languageToolchain, processLinker, processGate) {
+  if (language === "w") {
+    return {
+      language,
+      identity: `process-entry0-w-${processGate.digest.slice("sha256:".length)}-gcc-${identityToken(processLinker.version, "GCC version")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "final artifact target")}`,
+      version: processGate.buildProfile,
+      target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      originTarget: RUST_TARGET,
+    };
+  }
+  if (language === "c") {
+    return {
+      ...processLinker,
+      identity: `process-entry0-c-${identityToken(path.basename(processLinker.command).replace(/\.exe$/iu, ""), "C private handler compiler")}-${identityToken(processLinker.version, "C private handler compiler version")}-${identityToken(processLinker.dialect.name, "C private handler dialect")}-portable-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "final artifact target")}`,
+      target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      originTarget: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      wholeProgram: false,
+    };
+  }
+  return {
+    ...languageToolchain,
+    identity: `process-entry0-rust-${identityToken(languageToolchain.identity, "Rust private handler toolchain")}-${identityToken(processLinker.version, "GCC version")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "final artifact target")}`,
+    target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+    originTarget: RUST_TARGET,
+  };
 }
 
 export async function resolveResultPath(output, cwd = process.cwd()) {
@@ -1096,6 +1604,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   if (!Number.isSafeInteger(warmup) || warmup < 1) fail("warmup must be at least one");
   if (!Number.isSafeInteger(samples) || samples < 9 || samples % 2 === 0) fail("samples must be odd and at least nine");
   const publish = options.publish !== false;
+  const processTarget = isProcessEntry0(target);
   measurementPlatform(dependencies, publish);
   if (language === "w") {
     const legacyFallbacks = ["gate", "buildPrivateGate"]
@@ -1109,7 +1618,15 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const catalogErrors = validateExecutableCatalog(catalog, documents);
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
   const source = await sourcePath(catalog, target, language);
-  if (language === "w" && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
+  const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;
+  const processSupportSources = processTarget ? await resolveProcessSupportSources(source.workload) : undefined;
+  if (processTarget && source.source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) {
+    fail("process-entry0 source must select the private handler recipe class");
+  }
+  if (processTarget && language === "w" && source.source.recipe !== PROCESS_ENTRY0_RECIPE) {
+    fail("process-entry0 W source must select the private handler recipe");
+  }
+  if (language === "w" && !processTarget && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
     fail(`${target} W cannot run: catalog recipe ${source.source.recipe} has no retained-artifact and separate compile-run benchmark support`);
   }
   const runnerDigest = dependencies.runnerDigest ?? await sha256File(path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"));
@@ -1121,7 +1638,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     ? dependencies.windowsToolchain ?? await resolveWindowsToolchain()
     : undefined;
   const publicW = language === "w"
-    ? normalizePublicW(dependencies.publicW ?? (typeof dependencies.buildPublicW === "function"
+    ? processTarget ? undefined : normalizePublicW(dependencies.publicW ?? (typeof dependencies.buildPublicW === "function"
       ? await dependencies.buildPublicW(executor)
       : await buildPublicW(executor)))
     : undefined;
@@ -1130,12 +1647,22 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     : language === "rust"
       ? await resolveRustCompiler(executor, dependencies, target)
       : undefined;
+  const processLinker = processTarget
+    ? language === "c"
+      ? { ...languageToolchain, wholeProgram: false }
+      : await resolveCCompiler(executor, dependencies, target)
+    : undefined;
+  const processGate = processTarget && language === "w"
+    ? await prepareProcessGate(executor, dependencies, publish)
+    : undefined;
   let tempRoot;
   const retained = [];
   try {
     tempRoot = await mkdtemp(path.join(os.tmpdir(), RUN_DIRECTORY_PREFIX));
     console.error(`executable benchmark: measurement temp=${tempRoot}`);
-    const selectedToolchain = language === "w"
+    const selectedToolchain = processTarget
+      ? processSelectedToolchain(language, languageToolchain, processLinker, processGate)
+      : language === "w"
       ? {
         language: "w",
         identity: publicWToolchainIdentity(publicW),
@@ -1153,6 +1680,10 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       publicW,
       language,
       languageToolchain: selectedToolchain,
+      processExecution: processExecutionDescriptor,
+      processSupportSources,
+      processLinker,
+      processGate,
       environment,
       commit,
       runnerDigest,
@@ -1168,15 +1699,28 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     const runWarmup = [];
     const runRaw = [];
     const oracle = source.workload.oracle;
-    for (let round = 0; round < warmup; round += 1) {
-      const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
-      assertOracle(execution, oracle, target, `${language} ${target} warmup`);
-      runWarmup.push(execution.sample);
-    }
-    for (let round = 0; round < samples; round += 1) {
-      const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
-      assertOracle(execution, oracle, target, `${language} ${target} raw`);
-      runRaw.push(execution.sample);
+    if (processTarget) {
+      for (let round = 0; round < warmup; round += 1) {
+        const execution = await runProcessArtifact(context, correctness.compiled.artifact,
+          context.processExecution.timedInput, `process-entry0 timed warmup ${round + 1}`);
+        runWarmup.push(execution.sample);
+      }
+      for (let round = 0; round < samples; round += 1) {
+        const execution = await runProcessArtifact(context, correctness.compiled.artifact,
+          context.processExecution.timedInput, `process-entry0 timed raw ${round + 1}`);
+        runRaw.push(execution.sample);
+      }
+    } else {
+      for (let round = 0; round < warmup; round += 1) {
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
+        assertOracle(execution, oracle, target, `${language} ${target} warmup`);
+        runWarmup.push(execution.sample);
+      }
+      for (let round = 0; round < samples; round += 1) {
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
+        assertOracle(execution, oracle, target, `${language} ${target} raw`);
+        runRaw.push(execution.sample);
+      }
     }
     const record = makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, runRaw, new Date().toISOString());
     if (publish) {
