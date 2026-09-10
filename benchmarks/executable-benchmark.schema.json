@@ -68,6 +68,33 @@
         "stderr": { "type": ["string", "null"] }
       }
     },
+    "processEntryOracleCase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["arguments", "exitCode", "stdout", "stderr"],
+      "properties": {
+        "arguments": { "type": "array", "items": { "type": "string" } },
+        "exitCode": { "type": "integer", "minimum": 0 },
+        "stdout": { "type": "string" },
+        "stderr": { "type": "string" }
+      }
+    },
+    "processEntryOracle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "status", "timedInput", "cases"],
+      "properties": {
+        "kind": { "const": "argument-dependent-output" },
+        "status": { "const": "source-backed" },
+        "timedInput": { "type": "array", "items": { "type": "string" } },
+        "cases": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": { "$ref": "#/$defs/processEntryOracleCase" }
+        }
+      }
+    },
     "processSupportSource": {
       "type": "object",
       "additionalProperties": false,
@@ -110,7 +137,12 @@
         "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "exploratory-ready", "planned"] },
         "lane": { "const": "equivalent" },
         "scope": { "type": "string" },
-        "oracle": { "$ref": "#/$defs/oracle" },
+        "oracle": {
+          "oneOf": [
+            { "$ref": "#/$defs/oracle" },
+            { "$ref": "#/$defs/processEntryOracle" }
+          ]
+        },
         "sources": { "type": "array", "items": { "$ref": "#/$defs/source" } },
         "blockedLanguages": { "type": "array", "items": { "enum": ["w", "c", "rust"] } },
         "blockers": { "type": "array", "items": { "type": "string" } },
@@ -127,6 +159,11 @@
             "not": { "required": ["execution"] },
             "properties": { "structureClass": { "const": "public-end-to-end" } }
           }
+        },
+        {
+          "if": { "properties": { "id": { "const": "process-entry" } } },
+          "then": { "properties": { "oracle": { "$ref": "#/$defs/processEntryOracle" } } },
+          "else": { "properties": { "oracle": { "$ref": "#/$defs/oracle" } } }
         }
       ]
     },
@@ -222,14 +259,41 @@
     },
     "correctness": {
       "type": "object",
-      "additionalProperties": false,
-      "required": ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"],
-      "properties": {
-        "oracleId": { "type": "string" },
-        "exitCode": { "type": "integer" },
-        "stdoutDigest": { "$ref": "#/$defs/digest" },
-        "stderrDigest": { "$ref": "#/$defs/digest" }
-      }
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "required": ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"],
+          "properties": {
+            "oracleId": { "type": "string" },
+            "exitCode": { "type": "integer" },
+            "stdoutDigest": { "$ref": "#/$defs/digest" },
+            "stderrDigest": { "$ref": "#/$defs/digest" }
+          }
+        },
+        {
+          "additionalProperties": false,
+          "required": ["oracleId", "cases"],
+          "properties": {
+            "oracleId": { "type": "string" },
+            "cases": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["arguments", "exitCode", "stdoutDigest", "stderrDigest"],
+                "properties": {
+                  "arguments": { "type": "array", "items": { "type": "string" } },
+                  "exitCode": { "type": "integer", "minimum": 0 },
+                  "stdoutDigest": { "$ref": "#/$defs/digest" },
+                  "stderrDigest": { "$ref": "#/$defs/digest" }
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "artifact": {
       "type": "object",

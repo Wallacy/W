@@ -412,6 +412,98 @@
       ]
     },
     {
+      "id": "process-entry",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Run the public process entry with no arguments or at least one argument, preserving its exact output and exit contract.",
+      "oracle": {
+        "kind": "argument-dependent-output",
+        "status": "source-backed",
+        "timedInput": [
+          "payload"
+        ],
+        "cases": [
+          {
+            "arguments": [],
+            "exitCode": 2,
+            "stdout": "missing\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              ""
+            ],
+            "exitCode": 0,
+            "stdout": "received\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              "payload"
+            ],
+            "exitCode": 0,
+            "stdout": "received\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-input0.w",
+          "digest": "sha256:170ddb55171527d30edb87287cf5430a5772e7a8519284bd8cc564b4009ae938",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-entry-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/process_entry.c",
+          "digest": "sha256:9946d808e1d7d19c557917fe8845d6d54dd54fe0a19e18fafe4566ee3b9d6226",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "gcc-c23-or-c2x",
+          "recipeClass": "process-entry-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-across-abi",
+          "eligibility": "correctness-only-until-c23"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/process_entry.rs",
+          "digest": "sha256:b09f1f2b9660b63942b87c80c2c43e63d3fdfd92341e8f1f01850523eea7704a",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "process-entry-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "process-tree-accounting"
+      ]
+    },
+    {
       "id": "process-handler-lifecycle",
       "structureClass": "integration-linkage",
       "status": "source-oracle-ready",
