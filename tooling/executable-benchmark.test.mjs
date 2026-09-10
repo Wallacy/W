@@ -9,6 +9,12 @@ import {
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_STRUCTURE_CLASSES,
+  PROCESS_ENTRY_CORRECTNESS_INPUTS,
+  PROCESS_ENTRY_ORACLE_CASES,
+  PROCESS_ENTRY_ORACLE_KIND,
+  PROCESS_ENTRY_RECIPE_CLASS,
+  PROCESS_ENTRY_TIMED_INPUT,
+  PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -114,6 +120,23 @@ test("process-handler-lifecycle catalog pins the private composite execution wit
   privateRecipe.workloads.find((item) => item.id === "hello").sources[0].recipe = PROCESS_ENTRY0_RECIPE;
   assert.match(validateExecutableCatalog(privateRecipe, privateRecipe).join("\n"), /private to process-handler-lifecycle/);
   assert.deepEqual(PROCESS_ENTRY0_SUPPORT_ROLES, ["harness-c", "provider-c", "provider-header"]);
+});
+
+test("process-entry catalog pins the public argument-dependent contract", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ENTRY_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.oracle.kind, PROCESS_ENTRY_ORACLE_KIND);
+  assert.deepEqual(workload.oracle.timedInput, PROCESS_ENTRY_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, PROCESS_ENTRY_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), PROCESS_ENTRY_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
+  assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ENTRY_RECIPE_CLASS));
+  assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
+  assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
+  assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID), false);
 });
 
 test("structure taxonomy rejects unknown and contradictory classes", () => {

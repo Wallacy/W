@@ -21,7 +21,22 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-interpolation",
   "restaurant-scalar-if",
   "restaurant-composition",
+  "process-entry",
   "process-handler-lifecycle",
+]);
+export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
+export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
+export const PROCESS_ENTRY_RECIPE_CLASS = "process-entry-release";
+export const PROCESS_ENTRY_TIMED_INPUT = Object.freeze(["payload"]);
+export const PROCESS_ENTRY_CORRECTNESS_INPUTS = Object.freeze([
+  Object.freeze([]),
+  Object.freeze([""]),
+  PROCESS_ENTRY_TIMED_INPUT,
+]);
+export const PROCESS_ENTRY_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: PROCESS_ENTRY_CORRECTNESS_INPUTS[0], exitCode: 2, stdout: "missing\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENTRY_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "received\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENTRY_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "received\n", stderr: "" }),
 ]);
 export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
 export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
@@ -378,6 +393,7 @@ function checkSource(source, location, workload, root, errors) {
   if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) push(errors, location + ".recipe is private to process-handler-lifecycle.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
+  if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");
@@ -394,7 +410,37 @@ function checkSource(source, location, workload, root, errors) {
   if (workload.status !== "source-oracle-ready") push(errors, location + " cannot be present on a non-ready workload.");
 }
 
-function checkOracle(oracle, location, workloadStatus, errors) {
+function checkOracleCase(testCase, location, errors) {
+  if (!exactKeys(testCase, location, ["arguments", "exitCode", "stdout", "stderr"], errors)) return;
+  if (!checkProcessInputVector(testCase.arguments, location + ".arguments", errors)) return;
+  if (!Number.isSafeInteger(testCase.exitCode) || testCase.exitCode < 0) push(errors, location + ".exitCode must be a non-negative safe integer.");
+  if (typeof testCase.stdout !== "string" || typeof testCase.stderr !== "string") push(errors, location + " output must be strings.");
+}
+
+function checkProcessEntryOracle(oracle, location, workloadStatus, errors) {
+  if (!exactKeys(oracle, location, ["kind", "status", "timedInput", "cases"], errors)) return;
+  if (oracle.kind !== PROCESS_ENTRY_ORACLE_KIND) push(errors, location + ".kind must identify argument-dependent process output.");
+  if (oracle.status !== "source-backed") push(errors, location + ".status must be source-backed for the materialized process-entry witness.");
+  if (checkProcessInputVector(oracle.timedInput, location + ".timedInput", errors) &&
+      JSON.stringify(oracle.timedInput) !== JSON.stringify(PROCESS_ENTRY_TIMED_INPUT)) {
+    push(errors, location + ".timedInput must remain the selected [payload] vector.");
+  }
+  if (!Array.isArray(oracle.cases) || oracle.cases.length !== PROCESS_ENTRY_ORACLE_CASES.length) {
+    push(errors, location + ".cases must contain the no-argument, empty-argument and payload cases.");
+  } else {
+    for (const [index, testCase] of oracle.cases.entries()) checkOracleCase(testCase, location + ".cases[" + index + "]", errors);
+    if (JSON.stringify(oracle.cases) !== JSON.stringify(PROCESS_ENTRY_ORACLE_CASES)) {
+      push(errors, location + ".cases must preserve the fixed process-entry input/output contract.");
+    }
+  }
+  if (workloadStatus === "source-oracle-ready" && oracle.status !== "source-backed") push(errors, location + " must be source-backed for a ready workload.");
+}
+
+function checkOracle(oracle, location, workloadStatus, errors, workloadId) {
+  if (workloadId === PROCESS_ENTRY_WORKLOAD_ID) {
+    checkProcessEntryOracle(oracle, location, workloadStatus, errors);
+    return;
+  }
   if (!exactKeys(oracle, location, ["kind", "status", "exitCode", "stdout", "stderr"], errors)) return;
   if (oracle.kind !== "exact-output") push(errors, location + ".kind must be exact-output.");
   if (!["declared", "source-backed"].includes(oracle.status)) push(errors, location + ".status is invalid.");
@@ -494,7 +540,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (workload.status !== "source-oracle-ready" && workload.benchmarkStatus !== "planned") push(errors, location + ".benchmarkStatus must remain planned without a source-backed witness.");
     if (workload.lane !== "equivalent") push(errors, location + ".lane must be equivalent.");
     if (workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) checkProcessExecution(workload.execution, location + ".execution", root, errors);
-    checkOracle(workload.oracle, location + ".oracle", workload.status, errors);
+    checkOracle(workload.oracle, location + ".oracle", workload.status, errors, workload.id);
     if (!Array.isArray(workload.sources)) push(errors, location + ".sources must be an array.");
     if (!Array.isArray(workload.blockedLanguages)) {
       push(errors, location + ".blockedLanguages must be an array.");
@@ -788,6 +834,31 @@ function checkArtifactCleanliness(cleanliness, name, errors) {
   if (cleanliness.sectionData !== "in-bounds") push(errors, `${name}.sectionData must be in-bounds.`);
 }
 
+function checkProcessEntryCorrectness(correctness, workload, name, errors) {
+  if (!exactKeys(correctness, name, ["oracleId", "cases"], errors)) return;
+  requiredString(correctness.oracleId, name + ".oracleId", errors);
+  if (workload && correctness.oracleId !== `${workload.id}:${PROCESS_ENTRY_ORACLE_KIND}`) {
+    push(errors, name + ".oracleId must identify the workload argument-dependent output oracle.");
+  }
+  const oracleCases = workload?.oracle?.cases;
+  if (!Array.isArray(correctness.cases) || !Array.isArray(oracleCases) || correctness.cases.length !== oracleCases.length) {
+    push(errors, name + ".cases must contain one digest record for every source-backed oracle case.");
+    return;
+  }
+  for (const [index, testCase] of correctness.cases.entries()) {
+    const caseName = `${name}.cases[${index}]`;
+    if (!exactKeys(testCase, caseName, ["arguments", "exitCode", "stdoutDigest", "stderrDigest"], errors)) continue;
+    checkProcessInputVector(testCase.arguments, caseName + ".arguments", errors);
+    if (JSON.stringify(testCase.arguments) !== JSON.stringify(oracleCases[index].arguments)) push(errors, caseName + ".arguments must match the source-backed oracle case.");
+    if (testCase.exitCode !== oracleCases[index].exitCode) push(errors, caseName + ".exitCode must match the source-backed oracle case.");
+    digest(testCase.stdoutDigest, caseName + ".stdoutDigest", errors);
+    digest(testCase.stderrDigest, caseName + ".stderrDigest", errors);
+    if (testCase.stdoutDigest !== exactOutputDigest(oracleCases[index].stdout) || testCase.stderrDigest !== exactOutputDigest(oracleCases[index].stderr)) {
+      push(errors, caseName + " output digests must match the source-backed oracle case.");
+    }
+  }
+}
+
 export function validateExecutableResult(result, catalog = loadExecutableDocuments().catalog, options = {}) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "workloadId", "language", "platformTarget", "artifactTarget", "profile", "quality", "claim", "verdict", "equivalenceKey", "identity", "correctness", "artifact", "protocol", "environment", "compile", "run", "provenance"];
@@ -831,7 +902,9 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
       : result.identity.recipe !== source?.recipe || result.identity.recipeClass !== source?.recipeClass || result.identity.eligibility !== source?.eligibility || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget;
     if (source && identityMismatch) push(errors, "executable result identity must match catalog target, recipe, recipe class and eligibility.");
   }
-  if (exactKeys(result.correctness, "executable result.correctness", ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"], errors)) {
+  if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID) {
+    checkProcessEntryCorrectness(result.correctness, workload, "executable result.correctness", errors);
+  } else if (exactKeys(result.correctness, "executable result.correctness", ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"], errors)) {
     requiredString(result.correctness.oracleId, "executable result.correctness.oracleId", errors);
     if (workload && result.correctness.oracleId !== `${workload.id}:exact-output`) push(errors, "executable result.correctness.oracleId must identify the workload exact-output oracle.");
     if (!Number.isSafeInteger(result.correctness.exitCode) || result.correctness.exitCode < 0) push(errors, "executable result.correctness.exitCode must be a non-negative safe integer.");

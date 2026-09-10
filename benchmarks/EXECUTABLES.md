@@ -15,6 +15,7 @@ Migrated cells are historical/unverified cleanliness, not current clean-run evid
 | restaurant-interpolation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b | — |
 | restaurant-scalar-if | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b | — |
 | restaurant-composition | public-end-to-end | not-materialized; oracle declared; — | planned | — |
+| process-entry | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | not-performance-ready | — |
 | process-handler-lifecycle | integration-linkage | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | exploratory-ready | transient-internal; private-process-handler; timed ["alpha","payload"]; correctness [] / ["alpha","payload"]; faults 6 |
 
 ## Best known cells

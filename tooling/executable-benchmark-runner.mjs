@@ -20,6 +20,11 @@ import {
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
+  PROCESS_ENTRY_CORRECTNESS_INPUTS,
+  PROCESS_ENTRY_ORACLE_CASES,
+  PROCESS_ENTRY_ORACLE_KIND,
+  PROCESS_ENTRY_TIMED_INPUT,
+  PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -56,7 +61,7 @@ export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const DEFAULT_TARGET = "hello";
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID]);
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_ENTRY_WORKLOAD_ID, PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID]);
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
@@ -238,9 +243,9 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target hello|restaurant-branch|process-handler-lifecycle (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target hello|restaurant-branch|process-entry|process-handler-lifecycle (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC-origin handler object.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -657,6 +662,17 @@ function processExecution(workload) {
   return execution;
 }
 
+function processEntryOracle(workload) {
+  const oracle = workload?.oracle;
+  if (!isObject(oracle) || oracle.kind !== PROCESS_ENTRY_ORACLE_KIND || oracle.status !== "source-backed" ||
+      JSON.stringify(oracle.timedInput) !== JSON.stringify(PROCESS_ENTRY_TIMED_INPUT) ||
+      JSON.stringify(oracle.cases) !== JSON.stringify(PROCESS_ENTRY_ORACLE_CASES) ||
+      JSON.stringify(oracle.cases.map((testCase) => testCase.arguments)) !== JSON.stringify(PROCESS_ENTRY_CORRECTNESS_INPUTS)) {
+    fail("process-entry catalog oracle is not the ratified public argument/output contract");
+  }
+  return oracle;
+}
+
 async function resolveProcessSupportSources(workload) {
   const execution = processExecution(workload);
   if (!Array.isArray(execution.supportSources) || execution.supportSources.length !== PROCESS_ENTRY0_SUPPORT_ROLES.length) {
@@ -982,9 +998,12 @@ async function compileSource(context, retain) {
   fail(`unsupported language: ${context.language}`);
 }
 
-async function runArtifact(executor, artifact, language = "w", target = DEFAULT_TARGET) {
-  const step = await timedStep(executor, artifact, [], path.dirname(artifact), `${language} ${target} run`);
-  requireSuccess(step, `${language} ${target} executable`);
+async function runArtifact(executor, artifact, language = "w", target = DEFAULT_TARGET, argumentsVector = []) {
+  if (!Array.isArray(argumentsVector) || argumentsVector.some((item) => typeof item !== "string")) {
+    fail(`${language} ${target} executable arguments must contain only strings`);
+  }
+  const step = await timedStep(executor, artifact, argumentsVector, path.dirname(artifact), `${language} ${target} run`);
+  if (target !== PROCESS_ENTRY_WORKLOAD_ID) requireSuccess(step, `${language} ${target} executable`);
   return {
     sample: sampleFrom(step.start, step.end, [step.usage], `${language} ${target} run`),
     stdout: step.stdout,
@@ -1047,7 +1066,9 @@ async function processCorrectness(context, compiled) {
 }
 
 function assertOracle(execution, oracle, target, label) {
-  if (oracle?.status !== "source-backed" || oracle?.kind !== "exact-output") fail(`${label} requires a source-backed exact-output oracle`);
+  if (!isObject(oracle) || !Number.isSafeInteger(oracle.exitCode) || typeof oracle.stdout !== "string" || typeof oracle.stderr !== "string") {
+    fail(`${label} requires a source-backed executable oracle`);
+  }
   if (execution.exitCode !== oracle.exitCode || !execution.stdout.equals(Buffer.from(oracle.stdout, "utf8")) || !execution.stderr.equals(Buffer.from(oracle.stderr, "utf8"))) {
     fail(`${label} output does not match the ${target} exact-output oracle`);
   }
@@ -1212,9 +1233,18 @@ async function correctnessBuild(context) {
       await processCorrectness(context, compiled);
       return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
     }
-    const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
-    const oracle = context.source.workload.oracle;
-    assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
+    const oracle = context.target === PROCESS_ENTRY_WORKLOAD_ID
+      ? processEntryOracle(context.source.workload)
+      : context.source.workload.oracle;
+    if (context.target === PROCESS_ENTRY_WORKLOAD_ID) {
+      for (const [index, testCase] of oracle.cases.entries()) {
+        const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target, testCase.arguments);
+        assertOracle(execution, testCase, context.target, `${context.language} ${context.target} correctness case ${index}`);
+      }
+    } else {
+      const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
+      assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
+    }
     return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
   } catch (error) {
     await rm(compiled.sampleDirectory, { recursive: true, force: true });
@@ -1222,10 +1252,11 @@ async function correctnessBuild(context) {
   }
 }
 
-function protocol(language) {
+function protocol(language, workload = undefined) {
   const compileScope = language === "w"
     ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
+  const processEntry = workload?.id === PROCESS_ENTRY_WORKLOAD_ID;
   return {
     warmupMinimum: 1,
     rawMinimum: 9,
@@ -1235,8 +1266,12 @@ function protocol(language) {
     wallClock: "monotonic-nanoseconds",
     processIsolation: "fresh-process-per-sample",
     order: "compile-series-then-run-series",
-    resourceScope: `${compileScope} Run is the direct target process only; descendants are not aggregated.`,
-    knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order"],
+    resourceScope: processEntry
+      ? `${compileScope} Run is the direct target process only; descendants are not aggregated. Correctness executes the no-argument, empty-argument and payload cases before timing; runtime samples use the pinned [payload] vector.`
+      : `${compileScope} Run is the direct target process only; descendants are not aggregated.`,
+    knownNoiseControls: processEntry
+      ? ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order", "pinned-runtime-vector", "correctness-before-timing"]
+      : ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order"],
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
     directProcessDisclosure: `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
   };
@@ -1472,18 +1507,28 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       recipeDigest,
       eligibility: source.eligibility,
     },
-    correctness: {
-      oracleId: `${context.target}:exact-output`,
-      exitCode: workload.oracle.exitCode,
-      stdoutDigest: exactOutputDigest(workload.oracle.stdout),
-      stderrDigest: exactOutputDigest(workload.oracle.stderr),
-    },
+    correctness: context.target === PROCESS_ENTRY_WORKLOAD_ID
+      ? {
+        oracleId: `${context.target}:${PROCESS_ENTRY_ORACLE_KIND}`,
+        cases: workload.oracle.cases.map((testCase) => ({
+          arguments: [...testCase.arguments],
+          exitCode: testCase.exitCode,
+          stdoutDigest: exactOutputDigest(testCase.stdout),
+          stderrDigest: exactOutputDigest(testCase.stderr),
+        })),
+      }
+      : {
+        oracleId: `${context.target}:exact-output`,
+        exitCode: workload.oracle.exitCode,
+        stdoutDigest: exactOutputDigest(workload.oracle.stdout),
+        stderrDigest: exactOutputDigest(workload.oracle.stderr),
+      },
     artifact: {
       digest: correctness.artifactDigest,
       sizeBytes: correctness.artifactSizeBytes,
       cleanliness: correctness.artifactCleanliness,
     },
-    protocol: isProcessHandlerLifecycle(context.target) ? processProtocol() : protocol(context.language),
+    protocol: isProcessHandlerLifecycle(context.target) ? processProtocol() : protocol(context.language, workload),
     environment: context.environment,
     compile: sampleSeries(compileWarmup, compileRaw),
     run: sampleSeries(runWarmup, runRaw),
@@ -1698,7 +1743,14 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     for (let round = 0; round < samples; round += 1) compileRaw.push((await compileSource(context, false)).sample);
     const runWarmup = [];
     const runRaw = [];
-    const oracle = source.workload.oracle;
+    const oracle = target === PROCESS_ENTRY_WORKLOAD_ID
+      ? processEntryOracle(source.workload)
+      : source.workload.oracle;
+    const timedOracleCase = target === PROCESS_ENTRY_WORKLOAD_ID
+      ? oracle.cases.find((testCase) => JSON.stringify(testCase.arguments) === JSON.stringify(oracle.timedInput))
+      : undefined;
+    const timedArguments = timedOracleCase?.arguments ?? [];
+    const timedExpected = timedOracleCase ?? oracle;
     if (processTarget) {
       for (let round = 0; round < warmup; round += 1) {
         const execution = await runProcessArtifact(context, correctness.compiled.artifact,
@@ -1712,13 +1764,13 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       }
     } else {
       for (let round = 0; round < warmup; round += 1) {
-        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
-        assertOracle(execution, oracle, target, `${language} ${target} warmup`);
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments);
+        assertOracle(execution, timedExpected, target, `${language} ${target} warmup`);
         runWarmup.push(execution.sample);
       }
       for (let round = 0; round < samples; round += 1) {
-        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target);
-        assertOracle(execution, oracle, target, `${language} ${target} raw`);
+        const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments);
+        assertOracle(execution, timedExpected, target, `${language} ${target} raw`);
         runRaw.push(execution.sample);
       }
     }

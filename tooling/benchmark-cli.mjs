@@ -14,7 +14,12 @@ import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./e
 import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", "process-handler-lifecycle"]);
+const RUN_TARGETS = Object.freeze([
+  "hello",
+  "restaurant-branch",
+  "process-entry",
+  "process-handler-lifecycle",
+]);
 
 function fail(message) {
   throw new Error(`benchmark: ${message}`);
@@ -89,7 +94,7 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|update|check>",
     "",
     "  list",
-    "  run --target hello|restaurant-branch|process-handler-lifecycle --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target hello|restaurant-branch|process-entry|process-handler-lifecycle --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
     "  update <result.json>    (lower-is-better live-catalog update; consumes a local result on success)",
     "  check",

@@ -15,11 +15,15 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-handler-lifecycle", "--language", "w"]), {
     command: "run", target: "process-handler-lifecycle", language: "w", output: "benchmarks/results/process-handler-lifecycle-w.local.json", warmup: 1, samples: 9,
   });
+  assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "process-entry", "--language", "w"]), {
+    command: "run", target: "process-entry", language: "w", output: "benchmarks/results/process-entry-w.local.json", warmup: 1, samples: 9,
+  });
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["record", "benchmarks/results/local.json"]), /unknown command/);
   assert.match(benchmarkUsage(), /<list\|run\|validate\|update\|check>/u);
   assert.match(benchmarkUsage(), /update <result\.json>/u);
   assert.match(benchmarkUsage(), /process-handler-lifecycle/u);
+  assert.match(benchmarkUsage(), /process-entry/u);
   assert.doesNotMatch(benchmarkUsage(), /process-entry0/u);
 });
 
