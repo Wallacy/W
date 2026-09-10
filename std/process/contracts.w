@@ -62,6 +62,15 @@ foreign intrinsic from "std.process@1" {
     _ handle: ref ArgumentsHandle,
     _ value: ref String,
   ): Bool
+  // W-1546 owner release for std.process@1. This drops only the existing
+  // root-scoped wrapper handle exactly once and invalidates that wrapper. The
+  // contract is neverSuspend, nonthrowing, nonblocking and non-reentrant on
+  // every structured owner exit. It
+  // does not shut down the root, await provider work, admit work, consume
+  // quota, use fallback, acquire authority, reclaim root backing storage while
+  // loans, children or provider registrations remain, or create a hidden
+  // Task. Provider and ABI implementation remain missing. A foreign fn
+  // spelling alone does not prove these effects.
   fn stdProcessArgumentsDrop(_ handle: inout ArgumentsHandle)
 
   async fn stdProcessInputRead(
@@ -128,6 +137,12 @@ foreign intrinsic from "std.process@1" {
   fn stdProcessContextSignals(_ handle: ref ContextHandle): SignalRegistryHandle
   fn stdProcessContextServices(_ handle: ref ContextHandle): ServicesHandle
   fn stdProcessContextDeadline(_ handle: ref ContextHandle): time.Deadline
+  // W-1546 uses the same fixed owner-release contract for Context. Release
+  // ends at the handler owner-scope, including structured exits, not root
+  // shutdown. It does not wait for
+  // provider work or reclaim root backing storage while loans, children or
+  // provider registrations remain. Context projections keep their own
+  // lifecycle contracts. Provider and ABI implementation remain missing.
   fn stdProcessContextDrop(_ handle: inout ContextHandle)
 }
 

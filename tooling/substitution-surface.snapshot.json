@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c5958953f91e21dc8d8346b463f0d7ec83391d0d2d7ff91ada0183430745c16f",
+  "corpusDigest": "sha256:1c58733fbc8da27cae706a204b5827df7c9f16f90ae7a3046877d40db4271889",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5376,6 +5376,78 @@
             "nonWhitespaceCodePoints": 56,
             "lines": 3,
             "surfaceLexemes": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-proc-abi0-hir16-lifecycle",
+      "task": {
+        "utf8Bytes": 138,
+        "codePoints": 138,
+        "nonWhitespaceCodePoints": 120,
+        "lines": 1,
+        "surfaceLexemes": 24
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:d8d90f6a12f2aad1312446b87ea2dd0a3023cbc20ba5cdda96300dcdc18807a9",
+        "metrics": {
+          "utf8Bytes": 228,
+          "codePoints": 228,
+          "nonWhitespaceCodePoints": 195,
+          "lines": 9,
+          "surfaceLexemes": 42
+        }
+      },
+      "alternatives": [
+        {
+          "name": "name-only-owner-proof",
+          "language": "text",
+          "sourceDigest": "sha256:0f30cdc5e7c294cdd832ca54d4c7007e80ea161fd76e879ee6bfa918c68400e1",
+          "metrics": {
+            "utf8Bytes": 64,
+            "codePoints": 64,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "generic-synchronous-drop-waiver",
+          "language": "text",
+          "sourceDigest": "sha256:b6aa4b6a4665ed85e18b81411a08388f6f53066e80f738a00b405399fd19e497",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "root-drain-as-wrapper-drop",
+          "language": "text",
+          "sourceDigest": "sha256:91d35f973729783c63dab8f047610d6d15c30095ebe985fb45f57ce3a7bd2c59",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "forged-lifecycle-cleanup-facts",
+          "language": "text",
+          "sourceDigest": "sha256:c1d8d6634f5b633f0b6133715915b3f48d29f719efcd2bfef04b041246b98dd1",
+          "metrics": {
+            "utf8Bytes": 124,
+            "codePoints": 124,
+            "nonWhitespaceCodePoints": 113,
+            "lines": 2,
+            "surfaceLexemes": 12
           }
         }
       ]

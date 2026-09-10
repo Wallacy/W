@@ -467,6 +467,8 @@ static bool test_process_hir_is_closed_to_mlir(void) {
   CHECK(lower_process_hir(SOURCE, sizeof(SOURCE) - 1u));
   const w_seed_mlir0_input input = mlir_input();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(fixture.hir_program.functions[0].direct_entry ==
+        W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
   (void)memset(fixture.source_bytes, 0, sizeof(fixture.source_bytes));
   (void)memset(&fixture.source, 0, sizeof(fixture.source));
   (void)memset(&fixture.document, 0, sizeof(fixture.document));

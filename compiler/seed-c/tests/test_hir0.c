@@ -6,6 +6,13 @@
 #include <stdio.h>
 #include <string.h>
 
+/* Test-only seam for resealing an in-memory HIR mutation. This keeps the
+ * production digest helpers private while distinguishing lifecycle rejection
+ * from the ordinary unchanged-digest mutation checks below. The included
+ * translation unit supplies the public HIR symbols, so the archive object is
+ * not extracted a second time at link. */
+#include "../src/w_seed_hir0.c"
+
 #define CHECK(condition)                                                       \
   do {                                                                         \
     if (!(condition)) {                                                        \
@@ -431,6 +438,20 @@ static bool lower_process(const char *source) {
   return true;
 }
 
+static void reseal_hir_fixture(void) {
+  uint8_t semantic_digest[32];
+  uint8_t provenance_digest[32];
+  digest_program(&fixture.hir_program, &fixture.hir_counts, semantic_digest);
+  digest_provenance(&fixture.hir_program, &fixture.hir_counts,
+                    provenance_digest);
+  (void)memcpy(fixture.hir_result.semantic_digest, semantic_digest,
+               sizeof(semantic_digest));
+  (void)memcpy(fixture.hir_result.provenance_digest, provenance_digest,
+               sizeof(provenance_digest));
+  write_receipt_unchecked(fixture.hir_receipt, &fixture.hir_counts,
+                          semantic_digest, provenance_digest);
+}
+
 static bool test_process_hir(void) {
   static const char canonical[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -458,16 +479,48 @@ static bool test_process_hir(void) {
         fixture.hir_program.types[4].external_symbol_index == 0u &&
         fixture.hir_program.types[5].external_symbol_index == 1u &&
         fixture.hir_program.types[6].external_symbol_index == 2u);
+  CHECK(fixture.hir_program.types[0].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        fixture.hir_program.types[0].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
+        fixture.hir_program.types[1].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_UNKNOWN &&
+        fixture.hir_program.types[1].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN &&
+        fixture.hir_program.types[2].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        fixture.hir_program.types[2].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
+        fixture.hir_program.types[3].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        fixture.hir_program.types[3].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE &&
+        fixture.hir_program.types[4].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER &&
+        fixture.hir_program.types[4].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE &&
+        fixture.hir_program.types[5].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER &&
+        fixture.hir_program.types[5].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE &&
+        fixture.hir_program.types[6].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        fixture.hir_program.types[6].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE);
   CHECK(fixture.hir_program.functions[0].is_async &&
         fixture.hir_program.functions[0].return_type == 6u &&
         fixture.hir_program.functions[0].suspension ==
             W_SEED_HIR0_SUSPENSION_MAY &&
         fixture.hir_program.functions[0].direct_entry ==
-            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
         fixture.hir_program.parameters[0].type_index == 4u &&
         fixture.hir_program.parameters[1].type_index == 5u &&
         fixture.hir_program.entries[0].adapter_kind ==
-            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS);
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        fixture.hir_program.entries[0].cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS &&
+        fixture.hir_program.entries[0].first_cleanup_owner_parameter == 0u &&
+        fixture.hir_program.entries[0].cleanup_owner_parameter_count == 2u);
   CHECK(fixture.hir_program.values[0].kind ==
             W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
         fixture.hir_program.values[0].type_index == 6u &&
@@ -1234,6 +1287,66 @@ static bool test_process_hir_adversarial(void) {
   const w_seed_hir0_parameter saved_parameter = fixture.hir_parameters[0];
   const w_seed_hir0_entry saved_entry = fixture.hir_entries[0];
   const w_seed_hir0_terminator saved_terminator = fixture.hir_terminators[0];
+
+  /* Lifecycle and cleanup facts are not trusted merely because the canonical
+   * names, profile, and success case remain intact. */
+  fixture.hir_types[4].lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
+  fixture.hir_functions[0].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  fixture.hir_functions[0] = saved_function;
+  fixture.hir_types[4].release_contract =
+      W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  fixture.hir_entries[0].cleanup_obligation =
+      W_SEED_HIR0_ENTRY_CLEANUP_NONE;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  fixture.hir_entries[0].first_cleanup_owner_parameter = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  fixture.hir_entries[0].cleanup_owner_parameter_count = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  /* Reseal each mutant with the production-private digest helpers. This
+   * makes the following failures exercise lifecycle verification itself,
+   * rather than only the unchanged-digest barrier. */
+  fixture.hir_types[4].release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
+  fixture.hir_functions[0].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[4] = saved_type;
+  fixture.hir_functions[0] = saved_function;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  w_seed_hir0_type saved_string_type = fixture.hir_types[1];
+  fixture.hir_types[1].lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
+  fixture.hir_types[1].release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_types[1] = saved_string_type;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].first_cleanup_owner_parameter = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_entries[0].cleanup_owner_parameter_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_entries[0] = saved_entry;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
   fixture.hir_external_modules[0].module_id.count = 10u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));

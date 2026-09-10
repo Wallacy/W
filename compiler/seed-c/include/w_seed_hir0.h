@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-15"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-16"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -149,6 +149,31 @@ typedef enum {
   W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE,
 } w_seed_hir0_direct_entry_kind;
 
+/* HIR-owned lifecycle facts are deliberately closed.  UNKNOWN is retained
+ * for strings, opaque nominals, and any future type; it is never a permission
+ * to treat an owner as a scalar. */
+typedef enum {
+  W_SEED_HIR0_LIFECYCLE_UNKNOWN = 0,
+  W_SEED_HIR0_LIFECYCLE_VALUE_COPY,
+  W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER,
+} w_seed_hir0_lifecycle_kind;
+
+/* A release contract is a compiler-owned, versioned external ABI fact.  The
+ * process value is limited to the exact closed std.process@1 records and does
+ * not claim that the provider has been implemented or executed. */
+typedef enum {
+  W_SEED_HIR0_RELEASE_CONTRACT_NONE = 0,
+  W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN,
+  W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE,
+} w_seed_hir0_release_contract_kind;
+
+/* Normal-return cleanup obligations are separate from root drain/reclamation
+ * performed by the native adapter outside the handler. */
+typedef enum {
+  W_SEED_HIR0_ENTRY_CLEANUP_NONE = 0,
+  W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS,
+} w_seed_hir0_entry_cleanup_kind;
+
 typedef struct {
   uint32_t offset;
   uint32_t count;
@@ -180,6 +205,9 @@ typedef struct {
    * records and is independent of source-local aliases. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
+  /* Independently rederived from the closed external identity contract. */
+  w_seed_hir0_lifecycle_kind lifecycle;
+  w_seed_hir0_release_contract_kind release_contract;
 } w_seed_hir0_type;
 
 typedef struct {
@@ -198,7 +226,7 @@ typedef struct {
   bool is_const;
   w_seed_hir0_text receiver_type;
   w_seed_hir0_text return_type;
-  /* HIR15 accepts only zero-parameter external symbols. */
+  /* HIR16 accepts only zero-parameter external symbols. */
   uint32_t parameter_count;
 } w_seed_hir0_external_symbol;
 
@@ -400,6 +428,11 @@ typedef struct {
   /* Explicit adapter compatibility. Consumers must not infer this from
    * function names or signature spelling. */
   w_seed_hir0_entry_adapter_kind adapter_kind;
+  /* The handler releases each listed root owner exactly once on the supported
+   * normal return. Root drain and memory reclamation remain outside HIR. */
+  w_seed_hir0_entry_cleanup_kind cleanup_obligation;
+  uint32_t first_cleanup_owner_parameter;
+  uint32_t cleanup_owner_parameter_count;
 } w_seed_hir0_entry;
 
 typedef struct {
