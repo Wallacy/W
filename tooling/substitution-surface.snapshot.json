@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:1c58733fbc8da27cae706a204b5827df7c9f16f90ae7a3046877d40db4271889",
+  "corpusDigest": "sha256:c09d3f059be9d1005e90a7da0fc37e389aff7beec41b22e0c53eb11cd05d8a06",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5448,6 +5448,78 @@
             "nonWhitespaceCodePoints": 113,
             "lines": 2,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-process-input0-public-windows",
+      "task": {
+        "utf8Bytes": 181,
+        "codePoints": 181,
+        "nonWhitespaceCodePoints": 155,
+        "lines": 1,
+        "surfaceLexemes": 30
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:031c707426b2cebef14e54b083cbd9898c706951483e1a58ca90761691906d9d",
+        "metrics": {
+          "utf8Bytes": 306,
+          "codePoints": 306,
+          "nonWhitespaceCodePoints": 266,
+          "lines": 6,
+          "surfaceLexemes": 64
+        }
+      },
+      "alternatives": [
+        {
+          "name": "source-name-dispatch",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:33320e805d5a7722ed1cb0a9bf2e7d5e267f8df294e14da245f8fcba06dae56d",
+          "metrics": {
+            "utf8Bytes": 125,
+            "codePoints": 125,
+            "nonWhitespaceCodePoints": 105,
+            "lines": 2,
+            "surfaceLexemes": 31
+          }
+        },
+        {
+          "name": "private-handler-widening",
+          "language": "text",
+          "sourceDigest": "sha256:85d831467d80acc260c0f01da47f4c38d555cf3fbb8d712c4b51c4d199e16d8e",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "ambient-crt-argv",
+          "language": "text",
+          "sourceDigest": "sha256:c926c3b6179cb25640ed858c1f38f7c56f629324d0fe0cc632fb7c426fe8f641",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "general-windows-argv-claim",
+          "language": "text",
+          "sourceDigest": "sha256:b193bbb8d843aa238ad3f9daee93643801c5d9b738cfa190b8efefe9afde4eba",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 11
           }
         }
       ]

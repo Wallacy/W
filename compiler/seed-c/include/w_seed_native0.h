@@ -157,7 +157,8 @@ typedef struct {
   w_seed_frontend_text logical_source_id;
   w_seed_mlir0_target target;
   /* EXECUTABLE is the byte-compatible historical artifact. PROCESS_HANDLER
-   * emits only the private opaque owner-entry ABI and never a host main. */
+   * emits only the private opaque owner-entry ABI and never a host main.
+   * PROCESS_EXECUTABLE emits the bounded public Windows process adapter. */
   w_seed_mlir0_artifact_kind artifact_kind;
 } w_seed_native0_input;
 
@@ -218,7 +219,8 @@ typedef struct {
   w_seed_frontend_host_prelude host_scope;
   /* The catalog is compiler-owned; these records are attached only when the
    * typed module scanner resolves the exact std.process import. */
-  w_seed_frontend_external_symbol process_external_symbols[4];
+  w_seed_frontend_external_parameter process_external_parameters[1];
+  w_seed_frontend_external_symbol process_external_symbols[6];
   w_seed_frontend_external_module process_external_modules[1];
   w_seed_frontend_resolved_import process_resolved_imports[1];
   uint8_t const_bytes[W_SEED_NATIVE0_MAX_SOURCE_BYTES];

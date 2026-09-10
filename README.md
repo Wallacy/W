@@ -69,14 +69,15 @@ The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
 no timing or benchmark result.
-The bounded process track (W-1542–W-1546) now carries resolver-owned
+The bounded process track (W-1542–W-1547) now carries resolver-owned
 `std.process@1` identity from frontend16 through HIR16. The verifier accepts
-only the exact async handler with `Arguments` then `Context` owners, the
-canonical `.success` return, and a `RELEASE_HANDLER_OWNERS` cleanup range.
+only closed process shapes with `Arguments` then `Context` owners and a
+`RELEASE_HANDLER_OWNERS` cleanup range.
 The seed has a private `PROCESS_HANDLER` artifact with schema
 `w-seed-mlir0-process-handler-1` and Native0 `w-seed-native0-7`. The existing
-`EXECUTABLE` artifact stays byte-compatible. See
-[`DESIGN.md` §26.4.1.28](DESIGN.md).
+default executable bytes stay compatible. W-1547 adds the distinct
+`w-seed-mlir0-process-executable-1` Windows artifact for one exact
+`args.isEmpty` branch. See [`DESIGN.md` §26.4.1.29](DESIGN.md).
 
 Run [`bun check --target process-entry0`](tooling/check-process-entry0.mjs) with
 the configured CMake build and external MLIR/LLVM tool cache. The strict
@@ -86,11 +87,15 @@ including empty/nonempty selected vectors, exercised alias/trivia identity,
 source rejection, and cleanup fault cases. This is private-handler evidence;
 the runner cleans its temporary artifacts.
 
-Public `w run` still rejects process entries. The PROCESS0 provider kernel
-exists, but the public `std.process` ABI and entry/root adapter, OS-root
-acquisition, native UTF-16 startup/`argv[0]` policy, W-visible argument
-access, and process-handler body branching remain pending. No async/general
-provider or public process-support claim follows from the gate.
+The native Windows `w run` and `w build` routes now accept the exact
+[`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) witness. The
+same 3,584-byte PE writes `missing\n` and exits 2 without arguments, or writes
+`received\n` and exits 0 with one argument (including an empty argument), with
+empty stderr. It skips `argv[0]`, creates the private process root, and releases
+Context then Arguments before root finalization. This is bounded correctness
+evidence, not a benchmark: full Windows quoting, argument text/indexing,
+general process bodies, async runtime, other platforms, and the stable public
+`std.process` ABI remain pending.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

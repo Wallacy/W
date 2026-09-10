@@ -388,6 +388,80 @@ static bool test_process_handler_catalog_and_artifact(void) {
   return true;
 }
 
+static bool test_process_input0_public_artifact(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(2) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  static uint8_t explicit_output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  w_seed_native0_result explicit_result;
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-input0", 14u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE, output,
+            sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.external_symbol_count == 6u &&
+        storage.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION
+                       "\n") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.func @mainCRTStartup") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_process_arguments_is_empty") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_process_context_drop") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_process_arguments_drop") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_process_root_finalize"));
+
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-input0", 14u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+            explicit_output, sizeof(explicit_output), &explicit_result) ==
+        W_SEED_NATIVE0_OK);
+  CHECK(explicit_result.mlir.written.mlir_bytes ==
+            result.mlir.written.mlir_bytes &&
+        memcmp(explicit_output, output,
+               result.mlir.written.mlir_bytes) == 0 &&
+        memcmp(explicit_result.mlir.mlir_sha256, result.mlir.mlir_sha256,
+               sizeof(result.mlir.mlir_sha256)) == 0);
+
+  (void)memset(explicit_output, 0xa5, sizeof(explicit_output));
+  (void)memset(&explicit_result, 0x5a, sizeof(explicit_result));
+  const w_seed_native0_result short_snapshot = explicit_result;
+  CHECK(result.mlir.written.mlir_bytes > 0u &&
+        run_source_mode(
+            source, sizeof(source) - 1u, "process-input0", 14u,
+            &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE,
+            explicit_output, result.mlir.written.mlir_bytes - 1u,
+            &explicit_result) == W_SEED_NATIVE0_CAPACITY);
+  for (size_t index = 0u; index < sizeof(explicit_output); index += 1u)
+    CHECK(explicit_output[index] == 0xa5u);
+  CHECK(memcmp(&explicit_result, &short_snapshot,
+               sizeof(explicit_result)) == 0);
+
+  (void)memset(explicit_output, 0xb6, sizeof(explicit_output));
+  (void)memset(&explicit_result, 0x6b, sizeof(explicit_result));
+  const w_seed_native0_result target_snapshot = explicit_result;
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-input0", 14u, &TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, explicit_output,
+            sizeof(explicit_output), &explicit_result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(explicit_output); index += 1u)
+    CHECK(explicit_output[index] == 0xb6u);
+  CHECK(memcmp(&explicit_result, &target_snapshot,
+               sizeof(explicit_result)) == 0);
+  return true;
+}
+
 static bool test_logical_native_selector(void) {
   static const uint8_t source[] =
       "fn rhs(flag: Bool): Bool { return !flag }\n"
@@ -961,7 +1035,8 @@ int main(void) {
   (void)fprintf(stderr, "native0 storage bytes: %llu\n",
                 (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_signed_comparison_products() && test_products() &&
-                        test_process_handler_catalog_and_artifact();
+                        test_process_handler_catalog_and_artifact() &&
+                        test_process_input0_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
                        test_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

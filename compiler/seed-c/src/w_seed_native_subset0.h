@@ -130,6 +130,15 @@ w_seed_native_subset0_status w_seed_native_subset0_select_process(
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_process *selection);
 
+/* Select only the complete public process-input witness. This is a separate
+ * boundary from the private owner-only handler because the public witness
+ * carries the verified Arguments.isEmpty branch and print calls. */
+w_seed_native_subset0_status
+w_seed_native_subset0_select_process_executable(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection);
+
 #ifdef __cplusplus
 }
 #endif

@@ -1330,3 +1330,61 @@ w_seed_native_subset0_status w_seed_native_subset0_select_process(
   selection->context_parameter_ordinal = 1u;
   return W_SEED_NATIVE_SUBSET0_OK;
 }
+
+w_seed_native_subset0_status
+w_seed_native_subset0_select_process_executable(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_native_subset0_process *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+
+  /* HIR verification has already rederived the exact public process-input
+   * witness. Keep this consumer boundary explicit so a private four-symbol
+   * handler cannot be emitted as a public executable by accident. */
+  if (program->module_count != 1u || program->external_module_count != 1u ||
+      program->external_symbol_count != 6u || program->function_count != 1u ||
+      program->parameter_count != 2u || program->block_count != 3u ||
+      program->instruction_count != 2u || program->binding_count != 0u ||
+      program->call_count != 2u || program->argument_count != 2u ||
+      program->value_count != 7u || program->terminator_count != 3u ||
+      program->entry_count != 1u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (entry->target_function != 0u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
+      entry->cleanup_obligation !=
+          W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
+      entry->first_cleanup_owner_parameter != 0u ||
+      entry->cleanup_owner_parameter_count != 2u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_function *function = &program->functions[0];
+  if (function->first_parameter != 0u || function->parameter_count != 2u ||
+      function->first_block != 0u || function->block_count != 3u ||
+      !function->is_async || function->is_const || function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_parameter *arguments_parameter = &program->parameters[0];
+  const w_seed_hir0_parameter *context_parameter = &program->parameters[1];
+  if (arguments_parameter->owner_function != 0u ||
+      arguments_parameter->ordinal != 0u ||
+      context_parameter->owner_function != 0u ||
+      context_parameter->ordinal != 1u)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  (void)memset(selection, 0, sizeof(*selection));
+  selection->entry = entry;
+  selection->function = function;
+  selection->arguments_parameter = arguments_parameter;
+  selection->context_parameter = context_parameter;
+  selection->arguments_parameter_ordinal = 0u;
+  selection->context_parameter_ordinal = 1u;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}

@@ -2176,6 +2176,427 @@ static bool build_program_artifact(
   return true;
 }
 
+/* The public process-input artifact is a deliberately closed Windows root
+ * adapter. It parses the UTF-16 command line into a borrowed descriptor table,
+ * publishes two explicit root-scoped owners, executes the one verified HIR
+ * branch, then releases Context before Arguments and finalizes the root. The
+ * integer-array layout is private to this artifact and is not a W-value ABI. */
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS0[] =
+    "  llvm.func @GetCommandLineW() -> !llvm.ptr\n"
+    "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
+    "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
+    "  llvm.func @ExitProcess(%code: i32)\n"
+    "  llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr, %items: !llvm.ptr) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %two = llvm.mlir.constant(2 : i64) : i64\n"
+    "    %three = llvm.mlir.constant(3 : i64) : i64\n"
+    "    %max = llvm.mlir.constant(256 : i64) : i64\n"
+    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %zero16 = llvm.mlir.constant(0 : i16) : i16\n"
+    "    %space16 = llvm.mlir.constant(32 : i16) : i16\n"
+    "    %tab16 = llvm.mlir.constant(9 : i16) : i16\n"
+    "    %quote16 = llvm.mlir.constant(34 : i16) : i16\n"
+    "    %encoding = llvm.mlir.constant(2 : i64) : i64\n"
+    "    %false = llvm.mlir.constant(false) : i1\n"
+    "    %true = llvm.mlir.constant(true) : i1\n"
+    "    llvm.br ^scan(%zero, %false, %false, %zero, %zero, %false : i64, i1, i1, i64, i64, i1)\n"
+    "  ^scan(%index: i64, %started: i1, %quoted: i1, %token_start: i64, %argument_count: i64, %seen_program: i1):\n"
+    "    %address = llvm.getelementptr %command_line[%index] : (!llvm.ptr, i64) -> !llvm.ptr, i16\n"
+    "    %character = llvm.load %address : !llvm.ptr -> i16\n"
+    "    %at_end = llvm.icmp \"eq\" %character, %zero16 : i16\n"
+    "    llvm.cond_br %at_end, ^scan_end(%index, %started, %quoted, %token_start, %argument_count, %seen_program : i64, i1, i1, i64, i64, i1), ^scan_character(%index, %started, %quoted, %token_start, %argument_count, %seen_program, %character : i64, i1, i1, i64, i64, i1, i16)\n"
+    "  ^scan_end(%end_index: i64, %end_started: i1, %end_quoted: i1, %end_token_start: i64, %end_argument_count: i64, %end_seen_program: i1):\n"
+    "    llvm.cond_br %end_started, ^finish_token(%end_index, %end_token_start, %end_argument_count, %end_seen_program : i64, i64, i64, i1), ^finish_scan(%end_seen_program, %end_argument_count : i1, i64)\n"
+    "  ^scan_character(%character_index: i64, %character_started: i1, %character_quoted: i1, %character_token_start: i64, %character_argument_count: i64, %character_seen_program: i1, %scan_character_value: i16):\n"
+    "    %is_space = llvm.icmp \"eq\" %scan_character_value, %space16 : i16\n"
+    "    %is_tab = llvm.icmp \"eq\" %scan_character_value, %tab16 : i16\n"
+    "    %is_whitespace = llvm.or %is_space, %is_tab : i1\n"
+    "    %not_quoted = llvm.xor %character_quoted, %true : i1\n"
+    "    %is_separator = llvm.and %is_whitespace, %not_quoted : i1\n"
+    "    llvm.cond_br %is_separator, ^separator(%character_index, %character_started, %character_quoted, %character_token_start, %character_argument_count, %character_seen_program : i64, i1, i1, i64, i64, i1), ^non_separator(%character_index, %character_started, %character_quoted, %character_token_start, %character_argument_count, %character_seen_program, %scan_character_value : i64, i1, i1, i64, i64, i1, i16)\n"
+    "  ^separator(%separator_index: i64, %separator_started: i1, %separator_quoted: i1, %separator_token_start: i64, %separator_argument_count: i64, %separator_seen_program: i1):\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS1[] =
+    "    llvm.cond_br %separator_started, ^finish_token(%separator_index, %separator_token_start, %separator_argument_count, %separator_seen_program : i64, i64, i64, i1), ^separator_skip(%separator_index, %separator_argument_count, %separator_seen_program : i64, i64, i1)\n"
+    "  ^separator_skip(%skip_index: i64, %skip_argument_count: i64, %skip_seen_program: i1):\n"
+    "    %skip_next = llvm.add %skip_index, %one : i64\n"
+    "    llvm.br ^scan(%skip_next, %false, %false, %zero, %skip_argument_count, %skip_seen_program : i64, i1, i1, i64, i64, i1)\n"
+    "  ^non_separator(%ordinary_index: i64, %ordinary_started: i1, %ordinary_quoted: i1, %ordinary_token_start: i64, %ordinary_argument_count: i64, %ordinary_seen_program: i1, %ordinary_character: i16):\n"
+    "    %is_quote = llvm.icmp \"eq\" %ordinary_character, %quote16 : i16\n"
+    "    llvm.cond_br %is_quote, ^quote(%ordinary_index, %ordinary_started, %ordinary_quoted, %ordinary_token_start, %ordinary_argument_count, %ordinary_seen_program : i64, i1, i1, i64, i64, i1), ^ordinary(%ordinary_index, %ordinary_started, %ordinary_quoted, %ordinary_token_start, %ordinary_argument_count, %ordinary_seen_program : i64, i1, i1, i64, i64, i1)\n"
+    "  ^quote(%quote_index: i64, %quote_started: i1, %quote_quoted: i1, %quote_token_start: i64, %quote_argument_count: i64, %quote_seen_program: i1):\n"
+    "    %quote_next_started = llvm.select %quote_started, %quote_started, %true : i1, i1\n"
+    "    %quote_next_quoted = llvm.xor %quote_quoted, %true : i1\n"
+    "    %quote_next_index = llvm.add %quote_index, %one : i64\n"
+    "    %quote_next_start = llvm.select %quote_started, %quote_token_start, %quote_index : i1, i64\n"
+    "    llvm.br ^scan(%quote_next_index, %quote_next_started, %quote_next_quoted, %quote_next_start, %quote_argument_count, %quote_seen_program : i64, i1, i1, i64, i64, i1)\n"
+    "  ^ordinary(%plain_index: i64, %plain_started: i1, %plain_quoted: i1, %plain_token_start: i64, %plain_argument_count: i64, %plain_seen_program: i1):\n"
+    "    %ordinary_next_start = llvm.select %plain_started, %plain_token_start, %plain_index : i1, i64\n"
+    "    %ordinary_next_index = llvm.add %plain_index, %one : i64\n"
+    "    llvm.br ^scan(%ordinary_next_index, %true, %plain_quoted, %ordinary_next_start, %plain_argument_count, %plain_seen_program : i64, i1, i1, i64, i64, i1)\n"
+    "  ^finish_token(%finish_index: i64, %finish_token_start: i64, %finish_argument_count: i64, %finish_seen_program: i1):\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS1B[] =
+    "    llvm.cond_br %finish_seen_program, ^store_argument(%finish_index, %finish_token_start, %finish_argument_count : i64, i64, i64), ^mark_program(%finish_index : i64)\n"
+    "  ^mark_program(%program_end: i64):\n"
+    "    %program_end_address = llvm.getelementptr %command_line[%program_end] : (!llvm.ptr, i64) -> !llvm.ptr, i16\n"
+    "    %program_end_character = llvm.load %program_end_address : !llvm.ptr -> i16\n"
+    "    %program_at_end = llvm.icmp \"eq\" %program_end_character, %zero16 : i16\n"
+    "    %program_next = llvm.add %program_end, %one : i64\n"
+    "    llvm.cond_br %program_at_end, ^valid_count(%zero : i64), ^scan(%program_next, %false, %false, %zero, %zero, %true : i64, i1, i1, i64, i64, i1)\n"
+    "  ^store_argument(%argument_end: i64, %argument_start: i64, %stored_argument_count: i64):\n"
+    "    %too_many = llvm.icmp \"uge\" %stored_argument_count, %max : i64\n"
+    "    llvm.cond_br %too_many, ^invalid, ^store_argument_fields(%argument_end, %argument_start, %stored_argument_count : i64, i64, i64)\n"
+    "  ^store_argument_fields(%field_end: i64, %field_start: i64, %field_argument_count: i64):\n"
+    "    %field_offset = llvm.mul %field_argument_count, %three : i64\n"
+    "    %field_encoding_address = llvm.getelementptr %items[%field_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i64\n"
+    "    llvm.store %encoding, %field_encoding_address : i64, !llvm.ptr\n"
+    "    %field_data_offset = llvm.add %field_offset, %one : i64\n"
+    "    %field_data_address = llvm.getelementptr %items[%field_data_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i64\n"
+    "    %field_data = llvm.getelementptr %command_line[%field_start] : (!llvm.ptr, i64) -> !llvm.ptr, i16\n"
+    "    %field_data_int = llvm.ptrtoint %field_data : !llvm.ptr to i64\n"
+    "    llvm.store %field_data_int, %field_data_address : i64, !llvm.ptr\n"
+    "    %field_length_offset = llvm.add %field_offset, %two : i64\n"
+    "    %field_length_address = llvm.getelementptr %items[%field_length_offset] : (!llvm.ptr, i64) -> !llvm.ptr, i64\n"
+    "    %field_length = llvm.sub %field_end, %field_start : i64\n"
+    "    llvm.store %field_length, %field_length_address : i64, !llvm.ptr\n"
+    "    %stored_next = llvm.add %field_argument_count, %one : i64\n"
+    "    %field_end_address = llvm.getelementptr %command_line[%field_end] : (!llvm.ptr, i64) -> !llvm.ptr, i16\n"
+    "    %field_end_character = llvm.load %field_end_address : !llvm.ptr -> i16\n"
+    "    %field_at_end = llvm.icmp \"eq\" %field_end_character, %zero16 : i16\n"
+    "    %field_next = llvm.add %field_end, %one : i64\n"
+    "    llvm.cond_br %field_at_end, ^valid_count(%stored_next : i64), ^scan(%field_next, %false, %false, %zero, %stored_next, %true : i64, i1, i1, i64, i64, i1)\n"
+    "  ^finish_scan(%finished_seen_program: i1, %finished_argument_count: i64):\n"
+    "    llvm.cond_br %finished_seen_program, ^valid_count(%finished_argument_count : i64), ^invalid\n"
+    "  ^valid_count(%valid_argument_count: i64):\n"
+    "    llvm.return %valid_argument_count : i64\n"
+    "  ^invalid:\n"
+    "    llvm.return %minus_one : i64\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_process_root_init(%vector: !llvm.ptr, %root: !llvm.ptr, %arguments: !llvm.ptr, %context: !llvm.ptr) -> i1 {\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS2[] =
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %two = llvm.mlir.constant(2 : i64) : i64\n"
+    "    %seven = llvm.mlir.constant(7 : i64) : i64\n"
+    "    %vector_items_address = llvm.getelementptr %vector[%one] : (!llvm.ptr, i64) -> !llvm.ptr, i64\n"
+    "    %vector_items = llvm.load %vector_items_address : !llvm.ptr -> i64\n"
+    "    %vector_count_address = llvm.getelementptr %vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %vector_count = llvm.load %vector_count_address : !llvm.ptr -> i64\n"
+    "    %root_self = llvm.ptrtoint %root : !llvm.ptr to i64\n"
+    "    %root_self_address = llvm.getelementptr %root[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %root_self, %root_self_address : i64, !llvm.ptr\n"
+    "    %root_items_address = llvm.getelementptr %root[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %vector_items, %root_items_address : i64, !llvm.ptr\n"
+    "    %root_count_address = llvm.getelementptr %root[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %vector_count, %root_count_address : i64, !llvm.ptr\n"
+    "    %root_encoding_address = llvm.getelementptr %root[3] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %two, %root_encoding_address : i64, !llvm.ptr\n"
+    "    %root_generation_address = llvm.getelementptr %root[4] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %root_generation_address : i64, !llvm.ptr\n"
+    "    %arguments_int = llvm.ptrtoint %arguments : !llvm.ptr to i64\n"
+    "    %arguments_owner_address = llvm.getelementptr %root[5] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %arguments_int, %arguments_owner_address : i64, !llvm.ptr\n"
+    "    %context_int = llvm.ptrtoint %context : !llvm.ptr to i64\n"
+    "    %context_owner_address = llvm.getelementptr %root[6] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %context_int, %context_owner_address : i64, !llvm.ptr\n"
+    "    %root_flags_address = llvm.getelementptr %root[7] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %seven, %root_flags_address : i64, !llvm.ptr\n"
+    "    %arguments_self_address = llvm.getelementptr %arguments[0] : (!llvm.ptr) -> !llvm.ptr, i64\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS3[] =
+    "    llvm.store %arguments_int, %arguments_self_address : i64, !llvm.ptr\n"
+    "    %root_int = llvm.ptrtoint %root : !llvm.ptr to i64\n"
+    "    %arguments_root_address = llvm.getelementptr %arguments[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %root_int, %arguments_root_address : i64, !llvm.ptr\n"
+    "    %arguments_generation_address = llvm.getelementptr %arguments[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %arguments_generation_address : i64, !llvm.ptr\n"
+    "    %arguments_kind_address = llvm.getelementptr %arguments[3] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %arguments_kind_address : i64, !llvm.ptr\n"
+    "    %arguments_live_address = llvm.getelementptr %arguments[4] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %arguments_live_address : i64, !llvm.ptr\n"
+    "    %context_self_address = llvm.getelementptr %context[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %context_int, %context_self_address : i64, !llvm.ptr\n"
+    "    %context_root_address = llvm.getelementptr %context[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %root_int, %context_root_address : i64, !llvm.ptr\n"
+    "    %context_generation_address = llvm.getelementptr %context[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %context_generation_address : i64, !llvm.ptr\n"
+    "    %context_kind_address = llvm.getelementptr %context[3] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %two, %context_kind_address : i64, !llvm.ptr\n"
+    "    %context_live_address = llvm.getelementptr %context[4] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %one, %context_live_address : i64, !llvm.ptr\n"
+    "    %initialized = llvm.mlir.constant(true) : i1\n"
+    "    llvm.return %initialized : i1\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_process_arguments_is_empty(%arguments: !llvm.ptr) -> i1 {\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS4[] =
+    "    %root_pointer_address = llvm.getelementptr %arguments[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %root_pointer = llvm.load %root_pointer_address : !llvm.ptr -> i64\n"
+    "    %root = llvm.inttoptr %root_pointer : i64 to !llvm.ptr\n"
+    "    %count_address = llvm.getelementptr %root[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %count = llvm.load %count_address : !llvm.ptr -> i64\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %empty = llvm.icmp \"eq\" %count, %zero : i64\n"
+    "    llvm.return %empty : i1\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_process_context_drop(%context: !llvm.ptr) -> i1 {\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS5[] =
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %root_live_mask = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %context_live_mask = llvm.mlir.constant(4 : i64) : i64\n"
+    "    %live_address = llvm.getelementptr %context[4] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %live = llvm.load %live_address : !llvm.ptr -> i64\n"
+    "    %live_ok = llvm.icmp \"eq\" %live, %one : i64\n"
+    "    %root_pointer_address = llvm.getelementptr %context[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %root_pointer = llvm.load %root_pointer_address : !llvm.ptr -> i64\n"
+    "    %root = llvm.inttoptr %root_pointer : i64 to !llvm.ptr\n"
+    "    %flags_address = llvm.getelementptr %root[7] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %flags = llvm.load %flags_address : !llvm.ptr -> i64\n"
+    "    %root_live = llvm.and %flags, %root_live_mask : i64\n"
+    "    %root_live_ok = llvm.icmp \"eq\" %root_live, %root_live_mask : i64\n"
+    "    %context_live = llvm.and %flags, %context_live_mask : i64\n"
+    "    %context_live_ok = llvm.icmp \"eq\" %context_live, %context_live_mask : i64\n"
+    "    %active = llvm.and %live_ok, %root_live_ok : i1\n"
+    "    %valid = llvm.and %active, %context_live_ok : i1\n"
+    "    llvm.cond_br %valid, ^drop, ^invalid\n"
+    "  ^drop:\n"
+    "    %new_flags = llvm.xor %flags, %context_live_mask : i64\n"
+    "    llvm.store %new_flags, %flags_address : i64, !llvm.ptr\n"
+    "    llvm.store %zero, %live_address : i64, !llvm.ptr\n"
+    "    %dropped = llvm.mlir.constant(true) : i1\n"
+    "    llvm.return %dropped : i1\n"
+    "  ^invalid:\n"
+    "    %not_dropped = llvm.mlir.constant(false) : i1\n"
+    "    llvm.return %not_dropped : i1\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_process_arguments_drop(%arguments: !llvm.ptr) -> i1 {\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS6[] =
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %root_live_mask = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %arguments_live_mask = llvm.mlir.constant(2 : i64) : i64\n"
+    "    %live_address = llvm.getelementptr %arguments[4] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %live = llvm.load %live_address : !llvm.ptr -> i64\n"
+    "    %live_ok = llvm.icmp \"eq\" %live, %one : i64\n"
+    "    %root_pointer_address = llvm.getelementptr %arguments[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %root_pointer = llvm.load %root_pointer_address : !llvm.ptr -> i64\n"
+    "    %root = llvm.inttoptr %root_pointer : i64 to !llvm.ptr\n"
+    "    %flags_address = llvm.getelementptr %root[7] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %flags = llvm.load %flags_address : !llvm.ptr -> i64\n"
+    "    %root_live = llvm.and %flags, %root_live_mask : i64\n"
+    "    %root_live_ok = llvm.icmp \"eq\" %root_live, %root_live_mask : i64\n"
+    "    %arguments_live = llvm.and %flags, %arguments_live_mask : i64\n"
+    "    %arguments_live_ok = llvm.icmp \"eq\" %arguments_live, %arguments_live_mask : i64\n"
+    "    %active = llvm.and %live_ok, %root_live_ok : i1\n"
+    "    %valid = llvm.and %active, %arguments_live_ok : i1\n"
+    "    llvm.cond_br %valid, ^drop, ^invalid\n"
+    "  ^drop:\n"
+    "    %new_flags = llvm.xor %flags, %arguments_live_mask : i64\n"
+    "    llvm.store %new_flags, %flags_address : i64, !llvm.ptr\n"
+    "    llvm.store %zero, %live_address : i64, !llvm.ptr\n"
+    "    %dropped = llvm.mlir.constant(true) : i1\n"
+    "    llvm.return %dropped : i1\n"
+    "  ^invalid:\n"
+    "    %not_dropped = llvm.mlir.constant(false) : i1\n"
+    "    llvm.return %not_dropped : i1\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_process_root_finalize(%root: !llvm.ptr) -> i1 {\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_HELPERS7[] =
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %root_live = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %root_int = llvm.ptrtoint %root : !llvm.ptr to i64\n"
+    "    %self_address = llvm.getelementptr %root[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %self = llvm.load %self_address : !llvm.ptr -> i64\n"
+    "    %self_ok = llvm.icmp \"eq\" %self, %root_int : i64\n"
+    "    %flags_address = llvm.getelementptr %root[7] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %flags = llvm.load %flags_address : !llvm.ptr -> i64\n"
+    "    %owners_released = llvm.icmp \"eq\" %flags, %root_live : i64\n"
+    "    %valid = llvm.and %self_ok, %owners_released : i1\n"
+    "    llvm.cond_br %valid, ^finalize, ^invalid\n"
+    "  ^finalize:\n"
+    "    llvm.store %zero, %self_address : i64, !llvm.ptr\n"
+    "    %items_address = llvm.getelementptr %root[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %zero, %items_address : i64, !llvm.ptr\n"
+    "    %count_address = llvm.getelementptr %root[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %zero, %count_address : i64, !llvm.ptr\n"
+    "    llvm.store %zero, %flags_address : i64, !llvm.ptr\n"
+    "    %finalized = llvm.mlir.constant(true) : i1\n"
+    "    llvm.return %finalized : i1\n"
+    "  ^invalid:\n"
+    "    %not_finalized = llvm.mlir.constant(false) : i1\n"
+    "    llvm.return %not_finalized : i1\n"
+    "  }\n"
+    "  llvm.func internal @w_seed_write(%buffer: !llvm.ptr, %count: i64) -> i64 {\n"
+    "    %zero32 = llvm.mlir.constant(0 : i32) : i32\n"
+    "    %zero64 = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %stdout = llvm.mlir.constant(-11 : i32) : i32\n"
+    "    %count32 = llvm.trunc %count : i64 to i32\n"
+    "    %written_address = llvm.alloca %one x i32 : (i64) -> !llvm.ptr\n"
+    "    llvm.store %zero32, %written_address : i32, !llvm.ptr\n"
+    "    %null = llvm.inttoptr %zero64 : i64 to !llvm.ptr\n"
+    "    %handle = llvm.call @GetStdHandle(%stdout) : (i32) -> !llvm.ptr\n"
+    "    %write_ok = llvm.call @WriteFile(%handle, %buffer, %count32, %written_address, %null) : (!llvm.ptr, !llvm.ptr, i32, !llvm.ptr, !llvm.ptr) -> i32\n"
+    "    %written = llvm.load %written_address : !llvm.ptr -> i32\n"
+    "    %write_ok_flag = llvm.icmp \"ne\" %write_ok, %zero32 : i32\n"
+    "    %write_complete = llvm.icmp \"eq\" %written, %count32 : i32\n"
+    "    %write_valid = llvm.and %write_ok_flag, %write_complete : i1\n"
+    "    %write_result = llvm.select %write_valid, %count, %zero64 : i1, i64\n"
+    "    llvm.return %write_result : i64\n"
+    "  }\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_MAIN0[] =
+    "  llvm.mlir.global private constant @w_seed_process_missing(\"missing\\0A\") : !llvm.array<8 x i8>\n"
+    "  llvm.mlir.global private constant @w_seed_process_received(\"received\\0A\") : !llvm.array<9 x i8>\n"
+    "  llvm.mlir.global internal @w_seed_process_items() : !llvm.array<768 x i64> {\n"
+    "    %items_zero = llvm.mlir.zero : !llvm.array<768 x i64>\n"
+    "    llvm.return %items_zero : !llvm.array<768 x i64>\n"
+    "  }\n"
+    "  llvm.func @mainCRTStartup() {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
+    "    %two = llvm.mlir.constant(2 : i64) : i64\n"
+    "    %three = llvm.mlir.constant(3 : i64) : i64\n"
+    "    %eight = llvm.mlir.constant(8 : i64) : i64\n"
+    "    %nine = llvm.mlir.constant(9 : i64) : i64\n"
+    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %failure = llvm.mlir.constant(3 : i32) : i32\n"
+    "    %missing_status = llvm.mlir.constant(2 : i32) : i32\n"
+    "    %success_status = llvm.mlir.constant(0 : i32) : i32\n"
+    "    %vector_words = llvm.mlir.constant(3 : i64) : i64\n"
+    "    %root_words = llvm.mlir.constant(8 : i64) : i64\n"
+    "    %owner_words = llvm.mlir.constant(5 : i64) : i64\n"
+    "    %items_base = llvm.mlir.addressof @w_seed_process_items : !llvm.ptr\n"
+    "    %items = llvm.getelementptr %items_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<768 x i64>\n"
+    "    %vector = llvm.alloca %vector_words x i64 : (i64) -> !llvm.ptr\n"
+    "    %root = llvm.alloca %root_words x i64 : (i64) -> !llvm.ptr\n"
+    "    %arguments = llvm.alloca %owner_words x i64 : (i64) -> !llvm.ptr\n"
+    "    %context = llvm.alloca %owner_words x i64 : (i64) -> !llvm.ptr\n"
+    "    %command_line = llvm.call @GetCommandLineW() : () -> !llvm.ptr\n"
+    "    %null = llvm.inttoptr %zero : i64 to !llvm.ptr\n"
+    "    %command_line_missing = llvm.icmp \"eq\" %command_line, %null : !llvm.ptr\n"
+    "    llvm.cond_br %command_line_missing, ^early_fault, ^capture\n"
+    "  ^capture:\n"
+    "    %argument_count = llvm.call @w_seed_process_count_arguments(%command_line, %items) : (!llvm.ptr, !llvm.ptr) -> i64\n"
+    "    %parse_failed = llvm.icmp \"eq\" %argument_count, %minus_one : i64\n"
+    "    llvm.cond_br %parse_failed, ^early_fault, ^vector_items\n"
+    "  ^vector_items:\n"
+    "    %has_items = llvm.icmp \"ne\" %argument_count, %zero : i64\n"
+    "    llvm.cond_br %has_items, ^vector_nonempty, ^vector_empty\n"
+    "  ^vector_nonempty:\n"
+    "    %items_pointer = llvm.ptrtoint %items : !llvm.ptr to i64\n"
+    "    %vector_items_address = llvm.getelementptr %vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %items_pointer, %vector_items_address : i64, !llvm.ptr\n"
+    "    llvm.br ^vector_ready\n"
+    "  ^vector_empty:\n"
+    "    %vector_items_address_empty = llvm.getelementptr %vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %zero, %vector_items_address_empty : i64, !llvm.ptr\n"
+    "    llvm.br ^vector_ready\n"
+    "  ^vector_ready:\n"
+    "    %vector_encoding_address = llvm.getelementptr %vector[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %two, %vector_encoding_address : i64, !llvm.ptr\n"
+    "    %vector_count_address = llvm.getelementptr %vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    llvm.store %argument_count, %vector_count_address : i64, !llvm.ptr\n"
+    "    %root_initialized = llvm.call @w_seed_process_root_init(%vector, %root, %arguments, %context) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i1\n"
+    "    llvm.cond_br %root_initialized, ^evaluate, ^early_fault\n"
+    "  ^evaluate:\n"
+    "    %is_empty = llvm.call @w_seed_process_arguments_is_empty(%arguments) : (!llvm.ptr) -> i1\n"
+    "    llvm.cond_br %is_empty, ^print_missing, ^print_received\n"
+    "  ^print_missing:\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_MAIN0B[] =
+    "    %missing_base = llvm.mlir.addressof @w_seed_process_missing : !llvm.ptr\n"
+    "    %missing_data = llvm.getelementptr %missing_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<8 x i8>\n"
+    "    %missing_written = llvm.call @w_seed_write(%missing_data, %eight) : (!llvm.ptr, i64) -> i64\n"
+    "    %missing_ok = llvm.icmp \"eq\" %missing_written, %eight : i64\n"
+    "    %missing_result = llvm.select %missing_ok, %missing_status, %failure : i1, i32\n"
+    "    llvm.br ^release_context(%missing_result : i32)\n"
+    "  ^print_received:\n"
+    "    %received_base = llvm.mlir.addressof @w_seed_process_received : !llvm.ptr\n"
+    "    %received_data = llvm.getelementptr %received_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<9 x i8>\n"
+    "    %received_written = llvm.call @w_seed_write(%received_data, %nine) : (!llvm.ptr, i64) -> i64\n"
+    "    %received_ok = llvm.icmp \"eq\" %received_written, %nine : i64\n"
+    "    %received_result = llvm.select %received_ok, %success_status, %failure : i1, i32\n"
+    "    llvm.br ^release_context(%received_result : i32)\n"
+    "  ^release_context(%exit_status: i32):\n";
+
+static const char MLIR0_PROCESS_EXECUTABLE_MAIN1[] =
+    "    %context_released = llvm.call @w_seed_process_context_drop(%context) : (!llvm.ptr) -> i1\n"
+    "    llvm.cond_br %context_released, ^release_arguments(%exit_status : i32), ^release_fault\n"
+    "  ^release_arguments(%arguments_exit_status: i32):\n"
+    "    %arguments_released = llvm.call @w_seed_process_arguments_drop(%arguments) : (!llvm.ptr) -> i1\n"
+    "    llvm.cond_br %arguments_released, ^finalize_root(%arguments_exit_status : i32), ^release_fault\n"
+    "  ^finalize_root(%finalize_exit_status: i32):\n"
+    "    %root_finalized = llvm.call @w_seed_process_root_finalize(%root) : (!llvm.ptr) -> i1\n"
+    "    llvm.cond_br %root_finalized, ^exit(%finalize_exit_status : i32), ^release_fault\n"
+    "  ^exit(%code: i32):\n"
+    "    llvm.call @ExitProcess(%code) : (i32) -> ()\n"
+    "    llvm.return\n"
+    "  ^early_fault:\n"
+    "    llvm.call @ExitProcess(%failure) : (i32) -> ()\n"
+    "    llvm.return\n"
+    "  ^release_fault:\n"
+    "    llvm.call @ExitProcess(%failure) : (i32) -> ()\n"
+    "    llvm.return\n"
+    "  }\n";
+
+static bool build_process_executable_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *selection,
+    const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
+    size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || selection == NULL || !target_is_windows(target) ||
+      artifact == NULL || written == NULL || digest == NULL)
+    return false;
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset,
+                      "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION
+                      "\n") ||
+      !append_literal(artifact, capacity, &offset,
+                      "module attributes {llvm.target_triple = \"") ||
+      !append_literal(artifact, capacity, &offset,
+                      W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS) ||
+      !append_literal(artifact, capacity, &offset, "\"} {\n") ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS0) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS1) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS1B) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS2) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS3) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS4) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS5) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS6) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_HELPERS7) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_MAIN0) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_MAIN0B) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_PROCESS_EXECUTABLE_MAIN1) ||
+      !append_literal(artifact, capacity, &offset, "}\n"))
+    return false;
+  *written = offset;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  return true;
+}
+
 static bool build_process_handler_artifact(
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
@@ -2354,17 +2775,25 @@ w_seed_mlir0_status w_seed_mlir0_measure(
       counts == NULL || result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
   if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
-      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER)
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE)
     return W_SEED_MLIR0_UNSUPPORTED;
   const bool process_artifact =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
-  w_seed_native_subset0_process process_selection;
-  w_seed_native_subset0_program program_selection;
-  const w_seed_native_subset0_status selected = process_artifact
-      ? w_seed_native_subset0_select_process(input->program, input->hir_result,
-                                             &process_selection)
-      : w_seed_native_subset0_select_program(input->program, input->hir_result,
-                                             &program_selection);
+  const bool process_executable =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  w_seed_native_subset0_process process_selection = {0};
+  w_seed_native_subset0_program program_selection = {0};
+  const w_seed_native_subset0_status selected =
+      process_artifact
+          ? w_seed_native_subset0_select_process(input->program,
+                                                 input->hir_result,
+                                                 &process_selection)
+          : process_executable
+                ? w_seed_native_subset0_select_process_executable(
+                      input->program, input->hir_result, &process_selection)
+                : w_seed_native_subset0_select_program(
+                      input->program, input->hir_result, &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -2372,12 +2801,19 @@ w_seed_mlir0_status w_seed_mlir0_measure(
   if (input_aliases_outputs(input, target, NULL, counts, result))
     return W_SEED_MLIR0_ALIAS;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  if (process_executable && !target_is_windows(target))
+    return W_SEED_MLIR0_UNSUPPORTED;
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
   if (process_artifact) {
     if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
                                         &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (process_executable) {
+    if (!build_process_executable_artifact(
+            input->program, &process_selection, target, artifact,
+            sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.function_count > 1u) {
@@ -2415,17 +2851,25 @@ w_seed_mlir0_status w_seed_mlir0_emit(
       result == NULL)
     return W_SEED_MLIR0_INVALID_HIR;
   if (input->artifact_kind != W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
-      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER)
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER &&
+      input->artifact_kind != W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE)
     return W_SEED_MLIR0_UNSUPPORTED;
   const bool process_artifact =
       input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER;
-  w_seed_native_subset0_process process_selection;
-  w_seed_native_subset0_program program_selection;
-  const w_seed_native_subset0_status selected = process_artifact
-      ? w_seed_native_subset0_select_process(input->program, input->hir_result,
-                                             &process_selection)
-      : w_seed_native_subset0_select_program(input->program, input->hir_result,
-                                             &program_selection);
+  const bool process_executable =
+      input->artifact_kind == W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  w_seed_native_subset0_process process_selection = {0};
+  w_seed_native_subset0_program program_selection = {0};
+  const w_seed_native_subset0_status selected =
+      process_artifact
+          ? w_seed_native_subset0_select_process(input->program,
+                                                 input->hir_result,
+                                                 &process_selection)
+          : process_executable
+                ? w_seed_native_subset0_select_process_executable(
+                      input->program, input->hir_result, &process_selection)
+                : w_seed_native_subset0_select_program(
+                      input->program, input->hir_result, &program_selection);
   if (selected == W_SEED_NATIVE_SUBSET0_INVALID)
     return W_SEED_MLIR0_INVALID_HIR;
   if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
@@ -2433,12 +2877,19 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   if (input_aliases_outputs(input, target, output, NULL, result))
     return W_SEED_MLIR0_ALIAS;
   if (!target_is_supported(target)) return W_SEED_MLIR0_UNSUPPORTED;
+  if (process_executable && !target_is_windows(target))
+    return W_SEED_MLIR0_UNSUPPORTED;
   uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   uint8_t digest[MLIR0_DIGEST_BYTES];
   size_t written = 0u;
   if (process_artifact) {
     if (!build_process_handler_artifact(target, artifact, sizeof(artifact),
                                         &written, digest))
+      return W_SEED_MLIR0_INVALID_HIR;
+  } else if (process_executable) {
+    if (!build_process_executable_artifact(
+            input->program, &process_selection, target, artifact,
+            sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
              program_selection.function_count > 1u) {

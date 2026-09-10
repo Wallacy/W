@@ -256,6 +256,14 @@ ICMP0 did not rerun Linux LLVM 23 or the hosted jobs.
 Existing syntax, ownership, nesting, stdout limits, and native
 recipes remain unchanged. The gates make no timing or cross-target claim.
 
+W-1547 extends `bun check --target w-run-windows` with the bounded public
+`std.process` fixture. The gate runs the source with no argument, one normal
+argument, and one empty argument; it then builds one PE and executes those same
+artifact bytes both empty and nonempty. Exact `missing\n`/exit 2 and
+`received\n`/exit 0 outputs, empty stderr, PE x64 identity, and temporary-file
+cleanup are required. The reported process PE byte count is diagnostic gate
+feedback, not benchmark history.
+
 Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
 owner selection, backend, linker, runtime ou o runner `w run` geral.

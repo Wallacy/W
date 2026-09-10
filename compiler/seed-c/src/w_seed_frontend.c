@@ -11502,15 +11502,17 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
     const w_seed_frontend_text case_name =
         text_from_span(parser->document, member.span);
     /* PROC-ABI0 has one deliberately finite external enum projection.  The
-     * shorthand `.success` is valid only when the expected type is the
-     * resolver-owned std.process ExitCode nominal and the matching external
-     * value has no payload.  Keep the module/symbol pair on the expression;
-     * never infer it from the spelling of the alias. */
+     * shorthand `.success` and `.failure(code)` are valid only when the
+     * expected type is the resolver-owned std.process ExitCode nominal and
+     * the matching external value has the verified provider signature. Keep
+     * the module/symbol pair on the expression; never infer it from the
+     * spelling of the alias. */
     if (parser->has_expected_type &&
         parser->expected_type.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
         external_simple_type_identity_valid(parser->context,
                                             parser->expected_type) &&
-        text_equal(case_name, "success")) {
+        (text_equal(case_name, "success") ||
+         text_equal(case_name, "failure"))) {
       uint32_t external_module_index = W_SEED_FRONTEND_NONE;
       uint32_t external_symbol_index = W_SEED_FRONTEND_NONE;
       const w_seed_frontend_external_symbol *external_case = NULL;
@@ -11540,6 +11542,18 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           found_case && external_case != NULL && found_type &&
           external_type != NULL && external_case->return_type.length != 0u &&
           text_equal_text(external_case->return_type, external_type->name);
+      const bool success_case = text_equal(case_name, "success");
+      const bool failure_case = text_equal(case_name, "failure");
+      const bool valid_signature =
+          (success_case && external_case != NULL && external_case->is_const &&
+           external_case->parameter_count == 0u) ||
+          (failure_case && external_case != NULL && external_case->is_const &&
+           external_case->parameter_count == 1u &&
+           external_case->parameters != NULL &&
+           external_case->parameters[0].label_kind ==
+               W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY &&
+           text_equal_text(external_case->parameters[0].name,
+                           (w_seed_frontend_text){"code", 4u}));
       const bool valid_case =
           found_case && external_case != NULL && external_module != NULL &&
           found_type && external_type != NULL &&
@@ -11547,14 +11561,19 @@ static bool expression_parse_primary(frontend_expression_parser *parser,
           type_symbol_index == parser->expected_type.external_symbol_index &&
           text_equal(external_module->module_id, "std.process") &&
           text_equal(external_type->name, "ExitCode") &&
-          external_case->is_const &&
-          external_case->parameter_count == 0u &&
+          valid_signature &&
           case_returns_owner_type;
       if (valid_case) {
         value->is_enum_case = true;
         value->is_external_enum_case = true;
         value->enum_index = W_SEED_FRONTEND_NONE;
         value->enum_case_index = W_SEED_FRONTEND_NONE;
+        value->is_external_member = true;
+        value->external_member_module_index = external_module_index;
+        value->external_member_symbol_index = external_symbol_index;
+        value->external_member_symbol = external_case;
+        value->has_name = true;
+        value->name = case_name;
         if (!expression_append(
                 parser, W_SEED_FRONTEND_EXPR_ENUM_CASE, span,
                 text_from_span(parser->document, span),
@@ -11837,16 +11856,20 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     size_t argument_count = 0;
     bool labels_valid = true;
     const bool enum_case_constructor = value->is_enum_case;
+    const bool external_enum_case =
+        enum_case_constructor && value->is_external_enum_case;
     const w_seed_frontend_text diagnostic_declaration =
         enum_case_constructor
             ? diagnostic_enum_case_name(parser->context, value->enum_case_index)
             : value->name;
     bool enum_constructor_diagnostic_emitted = false;
     const size_t enum_constructor_parameter_count =
-        enum_case_constructor
-            ? enum_case_parameter_count(parser->context,
-                                        value->enum_case_index)
-            : 0;
+        external_enum_case && value->external_member_symbol != NULL
+            ? value->external_member_symbol->parameter_count
+            : enum_case_constructor
+                  ? enum_case_parameter_count(parser->context,
+                                              value->enum_case_index)
+                  : 0;
     if (enum_case_constructor) enum_case_constructor_called = true;
     const w_seed_frontend_document *signature_doc = NULL;
     uint32_t signature_node = W_SEED_CST_NONE;
@@ -11928,7 +11951,11 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       bool expected_found = false;
       bool enum_label_valid = false;
       bool enum_label_previous = false;
-      if (enum_case_constructor) {
+      if (external_enum_case) {
+        expected_found = external_argument_expected(
+            parser->context, value->external_member_symbol, argument_count,
+            label, &expected);
+      } else if (enum_case_constructor) {
         expected_found = enum_case_argument_expected(
             parser->context, value->enum_case_index, argument_count, label,
             &expected, &enum_label_valid, &enum_label_previous);
@@ -11988,7 +12015,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                 parser->context, value->span, diagnostic_declaration, label,
                 accepted_forms, accepted_count);
           }
-        } else if (enum_case_constructor && !enum_label_valid) {
+        } else if (enum_case_constructor && !external_enum_case &&
+                   !enum_label_valid) {
           labels_valid = false;
           if (!enum_constructor_diagnostic_emitted) {
             if (enum_label_previous) {
@@ -12215,7 +12243,8 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     }
     value->is_integer_literal = false;
   }
-  if (value->is_enum_case && !enum_case_constructor_called &&
+  if (value->is_enum_case && !value->is_external_enum_case &&
+      !enum_case_constructor_called &&
       enum_case_parameter_count(parser->context, value->enum_case_index) != 0) {
     (void)context_append_fact(parser->context,
                               W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
@@ -14777,6 +14806,54 @@ static bool resolve_frontend_links(frontend_context *context) {
       continue;
     w_seed_frontend_expression *callee =
         &context->output->expressions[expression->left];
+    if (callee->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      /* External enum cases carry their provider identity on the case
+       * expression itself.  A constructor call must copy that identity to
+       * the CALL record so dry sizing and emitted receipts agree. */
+      if (!callee->supported ||
+          callee->resolved_callee_kind !=
+              W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL ||
+          callee->resolved_external_module_index ==
+              W_SEED_FRONTEND_NONE ||
+          callee->resolved_external_symbol_index ==
+              W_SEED_FRONTEND_NONE ||
+          (size_t)callee->resolved_external_module_index >=
+              context->input.external_module_count) {
+        expression->supported = false;
+        continue;
+      }
+      const w_seed_frontend_external_module *module =
+          &context->input
+               .external_modules[callee->resolved_external_module_index];
+      if ((size_t)callee->resolved_external_symbol_index >=
+              module->symbol_count ||
+          module->symbols == NULL) {
+        expression->supported = false;
+        continue;
+      }
+      const w_seed_frontend_external_symbol *symbol =
+          &module->symbols[callee->resolved_external_symbol_index];
+      expression->resolved_function_index = W_SEED_FRONTEND_NONE;
+      expression->resolved_callee_kind =
+          W_SEED_FRONTEND_CALLEE_EXTERNAL_MODULE_SYMBOL;
+      expression->resolved_host_symbol_index = W_SEED_FRONTEND_NONE;
+      expression->resolved_external_module_index =
+          callee->resolved_external_module_index;
+      expression->resolved_external_symbol_index =
+          callee->resolved_external_symbol_index;
+      for (uint32_t offset = 0; offset < expression->argument_count;
+           offset += 1u) {
+        const size_t argument_index =
+            (size_t)expression->first_argument + offset;
+        if (argument_index >= context->count.arguments) return false;
+        w_seed_frontend_argument *argument =
+            &context->output->arguments[argument_index];
+        argument->resolved_parameter_ordinal = external_argument_ordinal(
+            symbol->parameters, symbol->parameter_count, offset,
+            argument->label);
+      }
+      continue;
+    }
     if (callee->kind == W_SEED_FRONTEND_EXPR_MEMBER) {
       /* A receiver-aware external member is the only non-identifier callee
        * accepted by this seed. Its receiver must already be a lexical

@@ -203,6 +203,8 @@ O corpus compara, no mínimo:
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
 - independent suspension and direct-entry facts for explicit async declarations, ordinary pure callers, conservative unknown calls, and process-handler exclusion.
 - exclusive Channel receiver cursor, graceful close, cancellation, and capacity-zero rendezvous permit ownership.
+- typed process-owner lifecycle, fixed wrapper-release identity, and normal-return cleanup obligations in verified HIR16.
+- bounded public Windows process input, exit status, and root-owner cleanup through verified HIR16 and a direct MLIR executable adapter.
 
 ### 1.1 Cobertura de substituições
 
@@ -7806,6 +7808,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1544 | bounded direct-entry facts in verified HIR15 | HIR15 carries independent `suspension` (`NEVER`/`MAY`) and `direct_entry` (`ABSENT`/`AVAILABLE`) facts. The frontend `normalize_function` assigns `is_async` from the explicit CST modifier. `hir0_compute_body_never` performs the bounded whole-body fixed-point analysis; `hir0_publish_direct_entry_facts` derives the two facts and `verify_direct_entry_facts` independently recomputes them before accepting the caller-owned HIR. Ordinary pure functions are `NEVER`/`ABSENT`; an explicit async declaration is `MAY` and receives `AVAILABLE` only after its complete body proves `neverSuspend`. Local ordinary calls and recursive groups propagate without a termination claim. Unknown hosts and local async calls without call form or summary deny the proof. A `String` parameter, return, or value and opaque owners without effects/lifecycle facts also deny it. Focused frontend/HIR0/HLO0/Native0/MLIR0 CTest gates and compiler emitter gates pass for this bounded compiler-lifecycle route; HLO0 and MLIR0 continue to reject process HIR without partial output. | `source-backed-current` only for bounded HIR fact derivation, publication, independent verification, receipt/digest barriers, and fail-closed consumers. The 4 KiB scratch bitset inherits the CST32768 bound, with preflight/verifier guards, no heap, and no 256-function capacity. This evidence does not claim `sync` execution, the Restaurant process-input witness, general semantic checking, dual ABI, providers, ownership runtime, native process execution, Windows, or performance. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1545 | exclusive Channel receiver cursor, close lifetime, and capacity-zero permit cancellation | The Channel receiver API is `mut async fn receive(): T?` and `mut fn close()`. Its exclusive loan starts at call staging and covers registration, suspension, settlement, cancellation, provider drain, and borrowed-child join. Capacity-zero `reserve` pairing is admission only, not item/receive commit. Pre-commit cancellation removes the waiter and revokes only its paired permit. A later send consumes that permit and returns the item in `.closed(T)` without proving global channel close. Graceful close preserves issued permits, normal unused permit drop unpairs/requeues, and a revoked permit cannot resurrect a waiter. | `oracle-backed-current` only for the CH0 contract oracle plus the authored Last Light and CHEATSHEET source examples. Borrow checker/lowering, channel runtime, scheduler/provider cancellation, typed-drop, native execution, and native performance remain implementation-evidence gaps. `benchmarkDisposition: deferred`; task `channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation, latency, and size axes remain future work. |
 | W-1546 | owner-release contract for `std.process@1` | `Arguments` and `Context` adopt, pass, and release existing root-scoped non-`Copy` wrapper handles. Adoption and passing do not allocate or copy underlying OS data. Release invalidates the wrapper exactly once at handler owner-scope exit, including structured exits, and is `neverSuspend`, nonthrowing, nonblocking, and non-reentrant. It does not shut down the root, wait for provider work, reclaim root backing storage while loans, children, or provider registrations remain, admit work, consume quota, use fallback, acquire new authority, or create a hidden `Task`. Root creation, OS acquisition, capabilities, and structured drain remain adapter obligations. `ExitCode` remains a trivial `Copy` value. | `source-backed-current` only for the bounded HIR16 compiler producer, typed lifecycle/release facts, independent verification, and normal-return cleanup obligation. The provider, ABI witness, root adapter, runtime, and native consumers remain pending. The compiler uses only the fixed compiler-owned `std.process@1` identity and wrapper-release ABI. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1547 | bounded public Windows process input and exit | The exact HIR16 process witness adds `Arguments.isEmpty`, `ExitCode.failure(2)`, two `print(String)` arms, and a direct-entry proof. Native0 selects a distinct `w-seed-mlir0-process-executable-1` Windows artifact with `mainCRTStartup`, `GetCommandLineW`, a private bounded UTF-16 descriptor table, root/Arguments/Context ownership, Context→Arguments→root cleanup, `WriteFile`, and `ExitProcess`. The same artifact emits `missing\n`/exit 2 without arguments and `received\n`/exit 0 with one argument, including an empty argument. | `source-backed-current` only for this bounded Windows x86_64 source→verified-HIR→MLIR/LLVM→PE route and exact public `w run`/`w build` gate. Native0 covers automatic/explicit selection, short capacity, Linux rejection, and output transactionality. Full Windows quoting, argument text/indexing, general bodies, throws/cancellation, Context capabilities, general async/runtime, other OS adapters, cross-compilation, stable public ABI, and performance remain gaps. `benchmarkDisposition: deferred`; the 3,584-byte PE is a gate observation, not a benchmark baseline. |
+| W-1548 | external subjects shared by `w test` and `w bench` | The same `test` declaration lowers to `TestDescriptor`/`TestPlan`; `w test` runs its correctness oracle, while `w bench` must run the same oracle before warmup or sampling. Future tagged subjects include native `executable` and interpreted `script`. Executables resolve by explicit path or one frozen PATH snapshot and must validate as native target images; scripts resolve only by path and use explicit `using executable` or a closed extension map. OS associations, PATHEXT, implicit shell fallback, installation, mutable identity, and direct cross-target fallback are rejected. | `implementation-evidence-gap`. Current grammar accepts only an identifier after `for`; no external subject, `process.Command`, native `w test`/`w bench`, provider receipt, or process-tree cleanup is implemented. Script adapters, especially `.bat`/`.cmd`, remain versioned shell-capable boundaries. Test and benchmark evidence lanes stay distinct and non-ranking across different subject classes. `benchmarkDisposition: deferred`; no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10865,5 +10869,65 @@ and stop condition are canonical in DESIGN §26.4.1.28.
 The executable catalog measures the same private seam separately as
 `process-handler-lifecycle`. The workload is `integration-linkage`, and its
 private handler descriptor is `transient-internal`. It receives arguments but
-does not read them. The catalog reserves `process-entry` for a future public
-end-to-end executable that observes native input and returns an OS exit code.
+does not read them. At the W-1546 boundary the catalog reserved `process-entry`
+for a future public end-to-end executable; W-1547 now supplies the first bounded
+correctness witness for that class, without yet publishing benchmark samples.
+
+#### W-1547 — bounded public Windows process entry
+
+W-1547 deliberately adds a new public executable artifact instead of widening
+the W-1546 private handler ABI. That separation preserves the earlier handler
+bytes and keeps OS startup, argument acquisition, output, exit, and root
+lifecycle in one target adapter. The compiler selects it from verified HIR
+identity and shape, never from source spelling or a function name.
+
+The initial witness asks only whether the native argument vector is empty. A
+full Windows command-line decoder would add complex backslash-before-quote
+semantics before any source program can observe argument text, so this cut
+keeps that behavior an explicit gap. It still skips `argv[0]`, distinguishes no
+arguments from one empty argument, and retains a bounded 256-descriptor UTF-16
+table. The table moved from a large stack allocation to a private zeroed
+executable global: startup is single-use, and this avoids pulling `__chkstk` or
+the C runtime into an otherwise `kernel32.lib`-only artifact. It is not a W
+global, a reusable library ABI, or permission for mutable runtime singletons.
+
+The public `w run` and `w build` routes now prove the same generated PE with two
+runtime inputs. This is stronger than the earlier private C harness because the
+artifact owns the Windows startup boundary and W-visible branch. It remains
+narrower than general process support: no argument text/indexing, arbitrary
+handler CFG, throws, cancellation, Context capability, other target adapter,
+or stable public ABI is claimed. The locally observed 3,584-byte PE is useful
+size feedback but is not retained as benchmark history or promoted to a
+cross-language result.
+
+#### W-1548 — external test subjects and one `w test`/`w bench` plan
+
+W-1548 keeps benchmark execution attached to an ordinary `test` descriptor.
+Adding a second benchmark declaration would duplicate the oracle and invite
+correctness drift. `w bench` therefore selects benchmark-eligible tests, runs
+their oracle first, and only then applies warmup/sample policy. The lane and
+receipt remain distinct from `w test` results.
+
+`executable` and `script` are separate subject tags because a native image and
+an interpreted carrier have different startup, trust, identity, and measurement
+boundaries. Native executable resolution may use an explicit path or a frozen
+PATH snapshot. It never uses PATHEXT, file associations, a shell, or a text
+shebang. Script resolution always starts from explicit script bytes. Explicit
+`using executable` overrides the closed extension table. Shebang content is
+recorded but intentionally does not select the runner in the first contract;
+this avoids platform-dependent `/usr/bin/env`, quoting, and `env -S` behavior.
+
+The extension defaults are convenience, not reproducibility authority. Strong
+evidence still binds the resolved native runner bytes, target, provider,
+arguments, environment, cwd, inputs, outputs, termination, and cleanup. The
+Windows `.bat`/`.cmd` adapter is explicitly shell-capable and must own a
+versioned `cmd.exe` encoding. It cannot be compared as if it had an ordinary
+argv boundary. A future implementation must also add process groups or Windows
+Job Objects before claiming descendant cleanup or timeout isolation.
+
+This decision is design-only. The existing grammar continues to accept only an
+identifier subject, and the current Bun executable benchmark runner is not the
+native W test engine. Rejected alternatives are implicit OS associations,
+ambient current-directory search, automatic package installation, treating a
+script as a native executable, a generic shell fallback, and cross-target
+direct launch without a provider receipt.
