@@ -48,8 +48,27 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(documents.catalog.comparabilityAxes, EXECUTABLE_COMPARABILITY_AXES);
   assert.equal(documents.catalog.resultContract.recordsPath, "benchmarks/results");
   assert.equal(documents.catalog.bestMetricsContract.schema, EXECUTABLE_BEST_SCHEMA);
-  assert.equal(documents.catalog.bestMetrics.entries.length, 24);
-  assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.provenance.artifactCleanliness === "historical-unverified"));
+  const metricsByCell = Object.fromEntries(
+    Object.entries(Object.groupBy(
+      documents.catalog.bestMetrics.entries,
+      (entry) => `${entry.workloadId}/${entry.language}`,
+    )).map(([cell, entries]) => [cell, entries.map((entry) => entry.metric).sort()]),
+  );
+  const commonMetrics = ["artifact-size", "compile-latency", "peak-working-set", "run-wall-time"];
+  assert.deepEqual(metricsByCell, {
+    "hello/c": commonMetrics,
+    "hello/rust": commonMetrics,
+    "hello/w": commonMetrics,
+    "process-handler-lifecycle/c": commonMetrics,
+    "process-handler-lifecycle/rust": commonMetrics,
+    "process-handler-lifecycle/w": [...commonMetrics, "cpu-time"].sort(),
+    "restaurant-branch/c": commonMetrics,
+    "restaurant-branch/rust": commonMetrics,
+    "restaurant-branch/w": commonMetrics,
+  });
+  assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
+    entry.workloadId === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID ||
+    entry.provenance.artifactCleanliness === "historical-unverified"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
