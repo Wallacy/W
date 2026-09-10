@@ -14,7 +14,7 @@ import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./e
 import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", "process-entry0"]);
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", "process-handler-lifecycle"]);
 
 function fail(message) {
   throw new Error(`benchmark: ${message}`);
@@ -89,12 +89,12 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|update|check>",
     "",
     "  list",
-    "  run --target hello|restaurant-branch|process-entry0 --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target hello|restaurant-branch|process-handler-lifecycle --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
     "  update <result.json>    (lower-is-better live-catalog update; consumes a local result on success)",
     "  check",
     "",
-    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-entry0 selects its private handler plus shared PROCESS0 harness/provider recipe and remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-handler-lifecycle selects its private handler plus shared PROCESS0 harness/provider recipe and remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 
@@ -196,6 +196,7 @@ async function listCommand(root = ROOT) {
     bestMetrics: documents.catalog.bestMetrics.entries.length,
     workloads: documents.catalog.workloads.map((workload) => ({
       id: workload.id,
+      structureClass: workload.structureClass,
       sourceReadiness: workload.sourceReadiness,
       benchmarkStatus: workload.benchmarkStatus,
       languages: workload.sources.map((source) => source.language),

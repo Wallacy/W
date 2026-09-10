@@ -8,6 +8,11 @@ export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
 export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/4";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
+export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
+  "public-end-to-end",
+  "integration-linkage",
+  "transient-internal",
+]);
 export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "hello",
   "restaurant-branch",
@@ -16,9 +21,11 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-interpolation",
   "restaurant-scalar-if",
   "restaurant-composition",
-  "process-entry0",
+  "process-handler-lifecycle",
 ]);
-export const PROCESS_ENTRY0_WORKLOAD_ID = "process-entry0";
+export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
+export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
+export const PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS = "transient-internal";
 export const PROCESS_ENTRY0_EXECUTION_KIND = "private-process-handler";
 export const PROCESS_ENTRY0_RECIPE = "private-process-handler";
 export const PROCESS_ENTRY0_RECIPE_CLASS = "process-entry0-private-handler";
@@ -319,10 +326,13 @@ function checkProcessSupportSource(source, name, root, errors) {
 }
 
 function checkProcessExecution(execution, name, root, errors) {
-  const keys = ["kind", "recipeClass", "timedInput", "correctnessInputs", "faultCases", "supportSources"];
+  const keys = ["structureClass", "kind", "recipeClass", "timedInput", "correctnessInputs", "faultCases", "supportSources"];
   if (!exactKeys(execution, name, keys, errors)) return;
+  if (execution.structureClass !== PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS) {
+    push(errors, name + ".structureClass must identify the transient/internal execution descriptor.");
+  }
   if (execution.kind !== PROCESS_ENTRY0_EXECUTION_KIND) push(errors, name + ".kind must identify the private process handler execution.");
-  if (execution.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, name + ".recipeClass must identify the private process-entry0 handler class.");
+  if (execution.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, name + ".recipeClass must identify the private handler implementation class.");
   if (checkProcessInputVector(execution.timedInput, name + ".timedInput", errors) &&
       JSON.stringify(execution.timedInput) !== JSON.stringify(PROCESS_ENTRY0_TIMED_INPUT)) {
     push(errors, name + ".timedInput must remain the selected [alpha, payload] vector.");
@@ -365,9 +375,9 @@ function checkSource(source, location, workload, root, errors) {
     push(errors, location + ".recipe is not a supported recipe for " + source.language + ".");
   }
   requiredString(source.recipeClass, location + ".recipeClass", errors);
-  if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_ENTRY0_WORKLOAD_ID) push(errors, location + ".recipe is private to process-entry0.");
-  if (workload?.id === PROCESS_ENTRY0_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
-  if (workload?.id === PROCESS_ENTRY0_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
+  if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) push(errors, location + ".recipe is private to process-handler-lifecycle.");
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");
@@ -462,13 +472,18 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
   const workloads = Array.isArray(catalog.workloads) ? catalog.workloads : [];
   for (const [index, workload] of workloads.entries()) {
     const location = "executable catalog.workloads[" + index + "]";
-    const workloadKeys = ["id", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
-    if (workload?.id === PROCESS_ENTRY0_WORKLOAD_ID) workloadKeys.push("execution");
+    const workloadKeys = ["id", "structureClass", "status", "sourceReadiness", "demoEvidence", "benchmarkStatus", "lane", "scope", "oracle", "sources", "blockedLanguages", "blockers"];
+    if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) workloadKeys.push("execution");
     if (!exactKeys(workload, location, workloadKeys, errors)) continue;
     if (workloadIds.has(workload.id)) push(errors, location + ".id must be unique.");
     workloadIds.add(workload.id);
     if (workload.id !== EXECUTABLE_WORKLOAD_IDS[index]) push(errors, location + ".id is not in the stable catalog order.");
     if (!requiredString(workload.id, location + ".id", errors) || !requiredString(workload.scope, location + ".scope", errors)) continue;
+    if (!EXECUTABLE_STRUCTURE_CLASSES.includes(workload.structureClass)) push(errors, location + ".structureClass is invalid.");
+    const expectedStructureClass = workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID
+      ? PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS
+      : "public-end-to-end";
+    if (workload.structureClass !== expectedStructureClass) push(errors, location + ".structureClass must be " + expectedStructureClass + ".");
     if (!["source-oracle-ready", "planned", "blocked"].includes(workload.status)) push(errors, location + ".status is invalid.");
     if (!["source-and-oracle-ready", "not-materialized"].includes(workload.sourceReadiness)) push(errors, location + ".sourceReadiness is invalid.");
     if (!["bounded-w-demo", "not-run"].includes(workload.demoEvidence)) push(errors, location + ".demoEvidence is invalid.");
@@ -478,7 +493,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (workload.status === "source-oracle-ready" && workload.benchmarkStatus === "planned") push(errors, location + ".benchmarkStatus must not be planned for a source-backed witness.");
     if (workload.status !== "source-oracle-ready" && workload.benchmarkStatus !== "planned") push(errors, location + ".benchmarkStatus must remain planned without a source-backed witness.");
     if (workload.lane !== "equivalent") push(errors, location + ".lane must be equivalent.");
-    if (workload.id === PROCESS_ENTRY0_WORKLOAD_ID) checkProcessExecution(workload.execution, location + ".execution", root, errors);
+    if (workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) checkProcessExecution(workload.execution, location + ".execution", root, errors);
     checkOracle(workload.oracle, location + ".oracle", workload.status, errors);
     if (!Array.isArray(workload.sources)) push(errors, location + ".sources must be an array.");
     if (!Array.isArray(workload.blockedLanguages)) {
@@ -528,12 +543,12 @@ function sourceFor(workload, language) {
 }
 
 function artifactTargetFor(workload, language) {
-  if (workload?.id === PROCESS_ENTRY0_WORKLOAD_ID) return EXECUTABLE_ARTIFACT_TARGET_MINGW;
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return EXECUTABLE_ARTIFACT_TARGET_MINGW;
   return language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
 }
 
 function sourcePolicy(workload, language, recipe) {
-  if (workload?.id === PROCESS_ENTRY0_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
   if (language === "c") return SOURCE_ELIGIBILITY.c;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
   return recipe === "public-w-build-release"

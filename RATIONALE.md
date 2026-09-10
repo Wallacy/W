@@ -10861,3 +10861,9 @@ Rejected alternatives are implicit CRT/public entry inference, hidden globals,
 and making wrapper release drain the root. The HIR-only fact evidence remains
 compiler-lifecycle correctness narrative. Benchmark disposition, blockers,
 and stop condition are canonical in DESIGN §26.4.1.28.
+
+The executable catalog measures the same private seam separately as
+`process-handler-lifecycle`. The workload is `integration-linkage`, and its
+private handler descriptor is `transient-internal`. It receives arguments but
+does not read them. The catalog reserves `process-entry` for a future public
+end-to-end executable that observes native input and returns an OS exit code.

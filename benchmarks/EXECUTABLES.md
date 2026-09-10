@@ -6,16 +6,16 @@ Migrated cells are historical/unverified cleanliness, not current clean-run evid
 
 ## Workload readiness
 
-| Workload | Source/oracle | Benchmark lane | Execution witness |
-| --- | --- | --- | --- |
-| hello | source-and-oracle-ready; oracle source-backed; [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | not-performance-ready | — |
-| restaurant-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | not-performance-ready | — |
-| restaurant-nested-branch | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | deferred-to-M3b | — |
-| bool-short-circuit | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | deferred-to-M3b | — |
-| restaurant-interpolation | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b | — |
-| restaurant-scalar-if | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b | — |
-| restaurant-composition | not-materialized; oracle declared; — | planned | — |
-| process-entry0 | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | exploratory-ready | private-process-handler; timed ["alpha","payload"]; correctness [] / ["alpha","payload"]; faults 6 |
+| Workload | Structure | Source/oracle | Benchmark lane | Execution witness |
+| --- | --- | --- | --- | --- |
+| hello | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | not-performance-ready | — |
+| restaurant-branch | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | not-performance-ready | — |
+| restaurant-nested-branch | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | deferred-to-M3b | — |
+| bool-short-circuit | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | deferred-to-M3b | — |
+| restaurant-interpolation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b | — |
+| restaurant-scalar-if | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b | — |
+| restaurant-composition | public-end-to-end | not-materialized; oracle declared; — | planned | — |
+| process-handler-lifecycle | integration-linkage | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | exploratory-ready | transient-internal; private-process-handler; timed ["alpha","payload"]; correctness [] / ["alpha","payload"]; faults 6 |
 
 ## Best known cells
 
@@ -26,15 +26,13 @@ Values include compact record-id prefixes; full per-metric provenance is in the 
 | hello | c | x86_64-w64-mingw32; release; windows-windows-nt-42f9d519186ea6d6; hello-release; eq deb4f0df | 19456 B (19.0 KiB) (602aa1924f28) | 209.0802 ms (861b4afff72c) | 22.1156 ms (861b4afff72c) | 4669440 B (4.45 MiB) (602aa1924f28) | — | historical-unverified |
 | hello | rust | x86_64-pc-windows-msvc; release; windows-windows-nt-42f9d519186ea6d6; hello-release; eq deb4f0df | 113152 B (110.5 KiB) (4a7b86390bd8) | 237.4533 ms (5667ee42e006) | 18.5136 ms (4a7b86390bd8) | 4763648 B (4.54 MiB) (4a7b86390bd8) | — | historical-unverified |
 | hello | w | x86_64-pc-windows-msvc; release; windows-windows-nt-42f9d519186ea6d6; hello-release; eq deb4f0df | 2560 B (2.5 KiB) (1afde29ccb38) | 171.9469 ms (d834927505d5) | 15.8529 ms (d834927505d5) | 3715072 B (3.54 MiB) (1afde29ccb38) | — | historical-unverified |
-| process-entry0 | c | x86_64-w64-mingw32; release; windows-windows-nt-42f9d519186ea6d6; process-entry0-private-handler; eq 0717fcfd | 20480 B (20.0 KiB) (a888bea12f9f) | 1.0790145 s (a888bea12f9f) | 19.1053 ms (a888bea12f9f) | 5324800 B (5.08 MiB) (a888bea12f9f) | — | verified-clean |
-| process-entry0 | rust | x86_64-w64-mingw32; release; windows-windows-nt-42f9d519186ea6d6; process-entry0-private-handler; eq 0717fcfd | 21504 B (21.0 KiB) (6c7e5440bd56) | 1.0718922 s (6c7e5440bd56) | 18.0522 ms (6c7e5440bd56) | 5324800 B (5.08 MiB) (6c7e5440bd56) | — | verified-clean |
-| process-entry0 | w | x86_64-w64-mingw32; release; windows-windows-nt-42f9d519186ea6d6; process-entry0-private-handler; eq 0717fcfd | 20992 B (20.5 KiB) (04db586e657a) | 1.1106101 s (04db586e657a) | 17.6155 ms (04db586e657a) | 5324800 B (5.08 MiB) (04db586e657a) | — | verified-clean |
 | restaurant-branch | c | x86_64-w64-mingw32; release; windows-windows-nt-42f9d519186ea6d6; restaurant-release; eq 50c256c2 | 19456 B (19.0 KiB) (90ff03d3ba04) | 291.4917 ms (90ff03d3ba04) | 16.4601 ms (90ff03d3ba04) | 4673536 B (4.46 MiB) (90ff03d3ba04) | — | historical-unverified |
 | restaurant-branch | rust | x86_64-pc-windows-msvc; release; windows-windows-nt-42f9d519186ea6d6; restaurant-release; eq 50c256c2 | 114688 B (112.0 KiB) (d54108567a8d) | 1.4136568 s (d54108567a8d) | 21.4716 ms (7dc01230fb5b) | 4763648 B (4.54 MiB) (7dc01230fb5b) | — | historical-unverified |
 | restaurant-branch | w | x86_64-pc-windows-msvc; release; windows-windows-nt-42f9d519186ea6d6; restaurant-release; eq 50c256c2 | 3072 B (3.0 KiB) (0a9862a58747) | 202.5762 ms (0a9862a58747) | 15.2738 ms (0a9862a58747) | 3719168 B (3.55 MiB) (0a9862a58747) | — | historical-unverified |
 
 C MinGW and W rows are contextual and are not cross-ABI rankings; promotable Rust rows remain source-equivalence scoped.
-Process-entry0 is contextual for all three languages and measures the [entire private composite](./README.md#private-process-entry-executable-measurements), not handler-only speed.
+Structure classes are machine-checked: public-end-to-end covers user-visible workloads, integration-linkage covers composite linkage, and transient-internal covers ephemeral implementation witnesses. The field identifies the measured or intended subject, not readiness or completeness.
+Process-handler-lifecycle is contextual for all three languages and measures the [entire private composite](./README.md#private-process-handler-lifecycle-executable-measurements), not handler-only speed. Its handler receives Arguments and Context but does not read arguments; timed vectors test provider construction and lifecycle, not W-visible argument processing.
 Zero CPU medians are excluded from best cells; a dash is not evidence of zero CPU cost.
 Category identity includes workload, source equivalence, platform, artifact target/ABI, profile, host, recipe class and readiness policy. Toolchain and recipe changes may improve the same cell.
 Machine source: [benchmarks/executable-catalog.json](./executable-catalog.json).

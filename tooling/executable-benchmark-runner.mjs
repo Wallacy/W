@@ -27,7 +27,7 @@ import {
   PROCESS_ENTRY0_RECIPE_CLASS,
   PROCESS_ENTRY0_SUPPORT_ROLES,
   PROCESS_ENTRY0_TIMED_INPUT,
-  PROCESS_ENTRY0_WORKLOAD_ID,
+  PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
   ROOT,
   executableEquivalenceKey,
   executableHostIdentity,
@@ -56,7 +56,7 @@ export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const DEFAULT_TARGET = "hello";
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_ENTRY0_WORKLOAD_ID]);
+const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID]);
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
@@ -238,9 +238,9 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target hello|restaurant-branch|process-entry0 (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target hello|restaurant-branch|process-handler-lifecycle (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry0 uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC-origin handler object.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024 with the MSVC-origin handler object.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -641,8 +641,8 @@ async function sourcePath(catalog, target, language) {
   return { workload, source, filePath };
 }
 
-function isProcessEntry0(target) {
-  return target === PROCESS_ENTRY0_WORKLOAD_ID;
+function isProcessHandlerLifecycle(target) {
+  return target === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID;
 }
 
 function processExecution(workload) {
@@ -652,7 +652,7 @@ function processExecution(workload) {
       JSON.stringify(execution.timedInput) !== JSON.stringify(PROCESS_ENTRY0_TIMED_INPUT) ||
       JSON.stringify(execution.correctnessInputs) !== JSON.stringify(PROCESS_ENTRY0_CORRECTNESS_INPUTS) ||
       JSON.stringify(execution.faultCases) !== JSON.stringify(PROCESS_ENTRY0_FAULT_CASES)) {
-    fail("process-entry0 catalog execution descriptor is not the ratified private handler contract");
+    fail("process-handler-lifecycle catalog execution descriptor is not the ratified private handler contract");
   }
   return execution;
 }
@@ -660,21 +660,21 @@ function processExecution(workload) {
 async function resolveProcessSupportSources(workload) {
   const execution = processExecution(workload);
   if (!Array.isArray(execution.supportSources) || execution.supportSources.length !== PROCESS_ENTRY0_SUPPORT_ROLES.length) {
-    fail("process-entry0 support-source descriptor is incomplete");
+    fail("process-handler-lifecycle support-source descriptor is incomplete");
   }
   const resolved = [];
   for (const [index, descriptor] of execution.supportSources.entries()) {
     const role = PROCESS_ENTRY0_SUPPORT_ROLES[index];
     if (!isObject(descriptor) || descriptor.role !== role || typeof descriptor.path !== "string") {
-      fail(`process-entry0 support source ${role} is malformed`);
+      fail(`process-handler-lifecycle support source ${role} is malformed`);
     }
     const filePath = path.resolve(ROOT, descriptor.path);
     if (!isContained(PROCESS_ENTRY0_SUPPORT_ROOT, filePath)) {
-      fail(`process-entry0 support source ${role} escapes compiler/seed-c`);
+      fail(`process-handler-lifecycle support source ${role} escapes compiler/seed-c`);
     }
-    const stats = await regularFile(filePath, `process-entry0 ${role}`);
+    const stats = await regularFile(filePath, `process-handler-lifecycle ${role}`);
     if (await sha256File(filePath) !== descriptor.digest) {
-      fail(`process-entry0 ${role} source digest is stale`);
+      fail(`process-handler-lifecycle ${role} source digest is stale`);
     }
     resolved.push({ role, descriptor, filePath, stats });
   }
@@ -683,7 +683,7 @@ async function resolveProcessSupportSources(workload) {
 
 function processSupportSource(sources, role) {
   const source = sources.find((item) => item.role === role);
-  if (!source) fail(`process-entry0 support source is missing ${role}`);
+  if (!source) fail(`process-handler-lifecycle support source is missing ${role}`);
   return source;
 }
 
@@ -707,7 +707,7 @@ async function prepareProcessGate(executor, dependencies = {}, publish = false) 
     if (typeof dependencies.processGate !== "string" || !path.isAbsolute(dependencies.processGate)) {
       fail("processGate must identify an absolute gate executable");
     }
-    await regularFile(dependencies.processGate, "process-entry0 gate executable");
+    await regularFile(dependencies.processGate, "process-handler-lifecycle gate executable");
     return {
       executable: dependencies.processGate,
       digest: await sha256File(dependencies.processGate),
@@ -717,25 +717,25 @@ async function prepareProcessGate(executor, dependencies = {}, publish = false) 
   }
   const cmake = Bun.which("cmake");
   const ninja = Bun.which("ninja");
-  if (!cmake || !ninja) fail("process-entry0 requires CMake and Ninja for the existing build/");
+  if (!cmake || !ninja) fail("process-handler-lifecycle requires CMake and Ninja for the existing build/");
   const buildNinja = path.resolve(ROOT, "build", "build.ninja");
-  await regularFile(buildNinja, "existing process-entry0 build/build.ninja");
+  await regularFile(buildNinja, "existing process-handler-lifecycle build/build.ninja");
   const buildDescription = await readFile(buildNinja, "utf8");
   if (!buildDescription.includes(PROCESS_ENTRY0_GATE_TARGET)) {
-    fail("existing build has no process-entry0 gate target; regenerate build/ before benchmarking");
+    fail("existing build has no process-entry0 gate target for process-handler-lifecycle; regenerate build/ before benchmarking");
   }
   const buildCache = path.resolve(ROOT, "build", "CMakeCache.txt");
-  await regularFile(buildCache, "existing process-entry0 build/CMakeCache.txt");
+  await regularFile(buildCache, "existing process-handler-lifecycle build/CMakeCache.txt");
   const buildCacheText = await readFile(buildCache, "utf8");
   if (!/^CMAKE_BUILD_TYPE:STRING=Release$/mu.test(buildCacheText)) {
-    fail("process-entry0 requires the existing single-config build/ CMAKE_BUILD_TYPE=Release");
+    fail("process-handler-lifecycle requires the existing single-config build/ CMAKE_BUILD_TYPE=Release");
   }
   const build = await timedStep(executor, cmake, [
     "--build", path.resolve(ROOT, "build"), "--target", PROCESS_ENTRY0_GATE_TARGET,
     "--", "-j", "2",
-  ], ROOT, "process-entry0 Release gate build");
-  requireSuccess(build, "process-entry0 Release gate build");
-  await regularFile(PROCESS_ENTRY0_GATE, "process-entry0 gate executable");
+  ], ROOT, "process-handler-lifecycle Release gate build");
+  requireSuccess(build, "process-handler-lifecycle Release gate build");
+  await regularFile(PROCESS_ENTRY0_GATE, "process-handler-lifecycle gate executable");
   return {
     executable: PROCESS_ENTRY0_GATE,
     digest: await sha256File(PROCESS_ENTRY0_GATE),
@@ -853,7 +853,7 @@ async function compileProcessHandler(context, retain) {
       requireSuccess(handler, "Rust process handler");
       handlerSteps.push(handler);
     } else {
-      fail(`unsupported process-entry0 language: ${context.language}`);
+      fail(`unsupported process-handler-lifecycle language: ${context.language}`);
     }
 
     const harness = processSupportSource(context.processSupportSources, "harness-c");
@@ -975,7 +975,7 @@ async function compileRust(context, retain) {
 }
 
 async function compileSource(context, retain) {
-  if (isProcessEntry0(context.target)) return compileProcessHandler(context, retain);
+  if (isProcessHandlerLifecycle(context.target)) return compileProcessHandler(context, retain);
   if (context.language === "w") return compileW(context, retain);
   if (context.language === "c") return compileC(context, retain);
   if (context.language === "rust") return compileRust(context, retain);
@@ -1035,14 +1035,14 @@ async function processCorrectness(context, compiled) {
   const vectors = context.processExecution.correctnessInputs;
   for (const [index, vector] of vectors.entries()) {
     await runProcessArtifact(context, compiled.artifact, vector,
-      `process-entry0 correctness vector ${index === 0 ? "empty" : "timed"}`);
+      `process-handler-lifecycle correctness vector ${index === 0 ? "empty" : "timed"}`);
   }
   for (const fault of context.processExecution.faultCases) {
     const expected = fault === "missing" || fault === "noop-success"
       ? PROCESS_ENTRY0_HARNESS_FAILURE_EXIT_CODE
       : PROCESS_ENTRY0_GENERATED_TRAP_EXIT_CODE;
     await runProcessFault(context, compiled.artifact, [], fault, expected,
-      `process-entry0 fault ${fault}`);
+      `process-handler-lifecycle fault ${fault}`);
   }
 }
 
@@ -1208,7 +1208,7 @@ async function correctnessBuild(context) {
     const bytes = await readFile(compiled.artifact);
     const artifactCleanliness = validatePeX64(bytes, context.language);
     artifactCleanliness.sidecars = { count: "0" };
-    if (isProcessEntry0(context.target)) {
+    if (isProcessHandlerLifecycle(context.target)) {
       await processCorrectness(context, compiled);
       return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
     }
@@ -1243,7 +1243,7 @@ function protocol(language) {
 }
 
 function processProtocol() {
-  const compileScope = "Private process-entry0 compile wall-clock spans the complete selected handler pipeline (W source gate through Native0/HIR16/MLIR, MLIR optimization, LLVM translation, object lowering, or the direct C/Rust handler object) plus fresh shared PROCESS0 harness/provider compilation and the final GCC PE link. Direct child CPU counters are summed and peak RSS is the maximum across these explicit pipeline steps; descendants of any child are not aggregated.";
+  const compileScope = "Private process-handler-lifecycle compile wall-clock spans the complete selected handler pipeline (W source gate through Native0/HIR16/MLIR, MLIR optimization, LLVM translation, object lowering, or the direct C/Rust handler object) plus fresh shared PROCESS0 harness/provider compilation and the final GCC PE link. Direct child CPU counters are summed and peak RSS is the maximum across these explicit pipeline steps; descendants of any child are not aggregated.";
   return {
     warmupMinimum: 1,
     rawMinimum: 9,
@@ -1267,7 +1267,7 @@ function processProtocol() {
 }
 
 function recipeFor(context) {
-  if (isProcessEntry0(context.target)) {
+  if (isProcessHandlerLifecycle(context.target)) {
     const sharedFlags = [
       ...dialectArgs(context.processLinker.dialect),
       ...cReleaseFlags({ wholeProgram: false }),
@@ -1358,7 +1358,7 @@ function recipeFor(context) {
 }
 
 function toolchainProvenance(context) {
-  if (isProcessEntry0(context.target)) {
+  if (isProcessHandlerLifecycle(context.target)) {
     const supportSources = context.processSupportSources.map(({ role, descriptor, filePath, stats }) => ({
       role, path: descriptor.path, digest: descriptor.digest,
       observedDigest: descriptor.digest,
@@ -1442,7 +1442,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
   const recipe = recipeFor(context);
   const recipeDigest = sha256Json(recipe);
   const toolchain = context.languageToolchain;
-  const artifactTarget = isProcessEntry0(context.target)
+  const artifactTarget = isProcessHandlerLifecycle(context.target)
     ? EXECUTABLE_ARTIFACT_TARGET_MINGW
     : source.artifactTarget;
   const result = {
@@ -1483,7 +1483,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       sizeBytes: correctness.artifactSizeBytes,
       cleanliness: correctness.artifactCleanliness,
     },
-    protocol: isProcessEntry0(context.target) ? processProtocol() : protocol(context.language),
+    protocol: isProcessHandlerLifecycle(context.target) ? processProtocol() : protocol(context.language),
     environment: context.environment,
     compile: sampleSeries(compileWarmup, compileRaw),
     run: sampleSeries(runWarmup, runRaw),
@@ -1604,7 +1604,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   if (!Number.isSafeInteger(warmup) || warmup < 1) fail("warmup must be at least one");
   if (!Number.isSafeInteger(samples) || samples < 9 || samples % 2 === 0) fail("samples must be odd and at least nine");
   const publish = options.publish !== false;
-  const processTarget = isProcessEntry0(target);
+  const processTarget = isProcessHandlerLifecycle(target);
   measurementPlatform(dependencies, publish);
   if (language === "w") {
     const legacyFallbacks = ["gate", "buildPrivateGate"]
@@ -1621,10 +1621,10 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;
   const processSupportSources = processTarget ? await resolveProcessSupportSources(source.workload) : undefined;
   if (processTarget && source.source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) {
-    fail("process-entry0 source must select the private handler recipe class");
+    fail("process-handler-lifecycle source must select the private handler recipe class");
   }
   if (processTarget && language === "w" && source.source.recipe !== PROCESS_ENTRY0_RECIPE) {
-    fail("process-entry0 W source must select the private handler recipe");
+    fail("process-handler-lifecycle W source must select the private handler recipe");
   }
   if (language === "w" && !processTarget && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
     fail(`${target} W cannot run: catalog recipe ${source.source.recipe} has no retained-artifact and separate compile-run benchmark support`);
@@ -1702,12 +1702,12 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     if (processTarget) {
       for (let round = 0; round < warmup; round += 1) {
         const execution = await runProcessArtifact(context, correctness.compiled.artifact,
-          context.processExecution.timedInput, `process-entry0 timed warmup ${round + 1}`);
+          context.processExecution.timedInput, `process-handler-lifecycle timed warmup ${round + 1}`);
         runWarmup.push(execution.sample);
       }
       for (let round = 0; round < samples; round += 1) {
         const execution = await runProcessArtifact(context, correctness.compiled.artifact,
-          context.processExecution.timedInput, `process-entry0 timed raw ${round + 1}`);
+          context.processExecution.timedInput, `process-handler-lifecycle timed raw ${round + 1}`);
         runRaw.push(execution.sample);
       }
     } else {

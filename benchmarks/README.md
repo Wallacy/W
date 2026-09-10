@@ -10,7 +10,7 @@ Neither bundle produces a language or product-runtime result.
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
-`process-entry0`, the five
+`process-handler-lifecycle`, the five
 source-backed Restaurant witnesses, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 also has a public `w build` Release source-to-PE candidate plus C and Rust
@@ -41,6 +41,16 @@ complete timing. Recorded measurement evidence is `exploratory`,
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
+
+Each workload declares one machine-checked `structureClass`. `public-end-to-end`
+identifies a user-visible workload and its complete executable path.
+`integration-linkage` identifies a composite that links implementation pieces
+for integration evidence. `transient-internal` identifies an ephemeral
+execution descriptor or implementation witness. Hello and Restaurant workloads
+use `public-end-to-end`. `process-handler-lifecycle` uses `integration-linkage`,
+and its private execution descriptor uses `transient-internal`. The field
+identifies the measured subject or intended subject. It does not identify
+readiness or completeness.
 
 ### M3b executable candidate evidence
 
@@ -73,15 +83,19 @@ measurements remain ignored under `benchmarks/results/`; only a rerun from a
 clean committed HEAD may update the compact catalog, and raw results are
 consumed after successful publication.
 
-#### Private process-entry executable measurements
+#### Private process-handler lifecycle executable measurements
 
-The W-1546 `process-entry0` workload is a separate executable-catalog lane.
-Run `bun benchmark run --target process-entry0 --language w|c|rust`. Each
+The W-1546 `process-handler-lifecycle` workload is a separate executable-catalog lane.
+Run `bun benchmark run --target process-handler-lifecycle --language w|c|rust`. Each
 private composite combines its handler with the shared C harness and PROCESS0
 provider;
+`process-entry` remains reserved for a future public autonomous end-to-end
+workload and is not a compatibility alias.
 correctness checks cover empty and nonempty caller-selected CRT byte vectors
 plus six fault cases before timing, and only successful `[alpha,payload]` is
-timed. Runtime timing covers the full shared CRT startup, harness, PROCESS0
+timed. The handler receives `Arguments` and `Context` values but does not read
+the arguments. The timed vector tests provider construction and handler
+lifecycle, not W-visible argument processing. Runtime timing covers the full shared CRT startup, harness, PROCESS0
 provider, and handler path, not handler-only speed. Compile timing spans handler
 and support compilation plus the final link, excluding compiler bootstrap.
 Catalog artifact size and digest refer to the final GCC-linked
@@ -100,7 +114,7 @@ this README does not duplicate measured values. No result or number is claimed
 until a validated run exists.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
-`run --target hello|restaurant-branch|process-entry0 --language w|c|rust --output benchmarks/results/<new>.json`
+`run --target hello|restaurant-branch|process-handler-lifecycle --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/live-best/projection consistency, and `update <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one
