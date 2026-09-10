@@ -1,7 +1,8 @@
 # Build e products do Última Luz
 
-> **Status:** projeção do design vigente. W ainda não possui compiler, runtime
-> ou package manager.
+> **Status:** projeção do design vigente. W tem execução limitada do compiler
+> para alguns witnesses nativos; runtime geral, providers, SDKs e package
+> manager continuam pendentes.
 
 Este documento aplica o contrato canônico de
 [`DESIGN.md`](../../DESIGN.md) ao produto de referência. Ele não cria regras
@@ -134,8 +135,10 @@ compute     -> simulação, treino, kernels e benchmark
 Um plano operacional não é um artifact. O build produz uma recipe por product,
 target spec, profile e toolchain-plan row.
 
-Somente o source e a grammar existem. Todos os products dependem de runtime e
-SDK futuros. A tabela define gates, não suporte entregue.
+These Last Light product graphs remain design projections. Bounded compiler
+execution exists for selected native witnesses; every full product still
+depends on runtime, providers and SDKs. The table defines gates, not delivered
+support.
 
 ### 3.1 Runtime graphs
 
@@ -341,6 +344,60 @@ destroy.
 
 O contrato normativo está em [DESIGN.md](../../DESIGN.md#204-abi-e-runtime).
 Este laboratório valida o contrato sem duplicá-lo.
+
+### 3.5 Shared modules and surface witnesses
+
+The reuse plan starts with a common domain boundary and target-compatible
+reachable subsets. The candidate core is `domain.w`, `collections.w`,
+`command.w`, `failure.w`, `enum_contracts.w`, `state_transitions.w`, `units.w`,
+`numerics.w` and `simulation.w`. These files are not thereby proven pure,
+portable or GPU/firmware-safe: `domain.w` owns strings, `command.w` reaches
+text support, and `simulation.w` currently imports `billing.w` and `kitchen.w`
+and uses `Array` and `String`. Extraction or narrowing is a later implementation task.
+
+The intended invariant is equivalent domain outcomes across surfaces, not
+identical bytes, pixels or frames. `presentation.w` currently combines
+`AppResponse` with text/ANSI rendering, while `gateway.w` combines typed
+dispatch with HTTP/document adapters. A later refactor may separate those
+layers; this plan does not claim that separation already exists.
+Camera motion and other presentation-only input may stay adapter-local;
+sharing business rules does not require dispatching every frame through services.
+
+| Route | Existing product/entry or candidate | Reachable source and smallest witness |
+|---|---|---|
+| CLI, TUI, local server | `last-light-native` / `entry(runNative)`; `last-light-tui` / `LastLightTui` | `app.w`, `platform/*`, `gateway.w`, `presentation.w`; first runtime-input and CLI witness, then TUI/server provider evidence |
+| HTTP worker and Wi-Fi edge | `last-light-worker` / `LastLightWorker`; `last-light-wifi` / `LastLightWifi` | `worker_app.w`, `gateway.w`, `http_documents.w`, `wifi*.w`; real bounded request, disconnect and cleanup |
+| Headless simulation | `last-light-simulation` / `LastLightSimulation` | `simulation.w` plus domain/service dependencies; fixed-input deterministic oracle |
+| Native 2D/3D game | Candidate only; no registered product or fictitious entry | Reuse domain outcomes and a narrowed simulation subset; CPU frame/input/resize/close witness before GPU or audio |
+| Browser/WebView UI | Candidate study only (WVUI0); no selected product or provider | Typed command/result bridge; real browser/WebView lifecycle and frame/input smoke test |
+| Mobile app/game | `last-light-mobile` / `LastLightMobile`; `app.resume`, `app.suspend`, `app.notification` are `hostBindings` | `mobile_app.w` plus shared domain; device install, input, suspend/resume and resource-loss witness |
+| Audio device | `last-light-audio` / `LastLightAudio` | `audio.w`, `audio_app.w`; provider, deadline, allocation and shutdown evidence (the `std/audio` provider is absent) |
+| Firmware/device | `last-light-controller` / `LastLightController`; tick/interrupt are `hostBindings` | `controller_app.w`, `hardware.w`, `horizon.w`; board/emulator, MMIO, interrupt and placement witness |
+| Accelerator compute | `last-light-accelerators`, export `ai_harness::lastLightKernels`, no entry | `ai_harness.w`; restricted kernel/device-result witness; compute does not imply graphics presentation |
+| Scientific/ML and telemetry | `last-light-ai-lab` / `LastLightAiLab`; `last-light-observatory` / `LastLightObservatory` | `ai_lab_app.w`, `ai_harness.w`, `observatory_app.w`; numerical reference, training/inference step and real telemetry/service evidence |
+| Libraries and FFI | `last-light-horizon-w`, `last-light-horizon-c`; exports, no entry or host | `horizon.w`, `abi.w`; ABI/layout evidence, plus load/unload for dynamic libraries and tamper rejection for trusted distribution |
+| Server benchmark | `last-light-benchmark` / `LastLightBenchmark` | `benchmark_app.w`; real HTTP/database workload, failure behavior and matched production-profile measurements |
+| Notebook/Python, build/test, distribution | Candidate adapters plus existing benchmark/build catalog | `pyn3_oracle.w`, `benchmark_app.w`, `build.w`; real provider, diagnostics, artifact and cross-target witnesses |
+| BPF/FPGA/HDL/ASIC | Research route only; no Last Light product | Separate restricted verifier/synthesis/timing contracts and target evidence; do not infer support from module declarations |
+
+An `entry` is the link-selected lifecycle root for a product. `hostBindings`
+are additional host callback slots, such as mobile lifecycle or device tick;
+they are not interchangeable entries. A library or kernel export is likewise
+not an artificial entry. Products must select only the modules reachable on
+their host/target; process, services, audio callbacks, firmware and accelerator
+kernels have different authority and effect envelopes. HTTP remains unable to
+invoke the process shutdown authority.
+
+The staging order is: existing runtime-input and CLI evidence; extraction or
+narrowing plus the headless scenario; a CPU game frame/input adapter; then
+independent GPU and audio providers. Reuse the existing
+[executable catalog](../../benchmarks/EXECUTABLES.md) and
+[WBench](../../benchmarks/README.md) for
+correctness, compile/startup, frame-tail, memory and size measurements where
+applicable. The first finite scenario is `runtime input -> domain transition
+-> surface output`; its headless trace must agree on semantic outcome before
+any pixel or frame parity claim. No universal engine, compulsory service layer
+or new framework is implied.
 
 ## 4. Targets
 

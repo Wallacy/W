@@ -20,6 +20,11 @@ profiles e artifacts.
 O record `workspace` data-only e o record `package` principal estão no único
 [`build.w`](build.w); o workspace é owner de resolution e deployments.
 
+For the planned reuse boundary and surface-specific witnesses, see
+[Shared modules and surface witnesses](BUILD.md#35-shared-modules-and-surface-witnesses)
+in the build plan. It distinguishes declared products from new surface
+candidates, and source examples from missing runtime/provider evidence.
+
 ## Limite de benchmark BMD1
 
 O runner BMD1 usa somente
