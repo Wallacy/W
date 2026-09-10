@@ -202,6 +202,7 @@ O corpus compara, no mínimo:
 - external process nominal identity against alias-spelling identity, first-match duplicate imports, and forged ExitCode success metadata.
 - caller-owned external identity, handler compatibility, alias-independent semantics, and downstream fail-closed behavior.
 - independent suspension and direct-entry facts for explicit async declarations, ordinary pure callers, conservative unknown calls, and process-handler exclusion.
+- exclusive Channel receiver cursor, graceful close, cancellation, and capacity-zero rendezvous permit ownership.
 
 ### 1.1 Cobertura de substituições
 
@@ -7803,6 +7804,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1542 | bounded external `std.process` identity in frontend16 | Frontend16 accepts grouped imports with explicit local aliases, preserves each external nominal type as a resolver-owned `(external_module_index, external_symbol_index)` pair independent of source spelling, and recognizes only the canonical exported constant `std.process.ExitCode.success` with no payload. Duplicate local import aliases and malformed or inconsistent external metadata fail closed. This cut ends at frontend records; verified HIR, handler compatibility, direct-entry proof, lowering, runtime arguments, native execution, Windows, and performance remain gaps. | `source-backed-current` only for the bounded parser, module-scan, and frontend implementation plus focused adversarial C tests. HIR0/HLO0/MLIR0 passing tests are regression evidence, not external-process support. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1543 | bounded `std.process` identity and handler adapter in verified HIR14 | HIR14 deep-copies the canonical `std.process` module, its three nominal types, and the constant zero-parameter `ExitCode.success` member into caller-owned records. Nominal types and the external enum-case value retain resolver-owned pairs. An explicit entry adapter verifies the exact async two-parameter `Arguments`, `Context` to `ExitCode` handler cut without inferring `directEntry`. Canonical external identity enters the semantic digest; alias spelling remains provenance. | `source-backed-current` only for frontend16 to verified HIR14 and focused adversarial C tests. HLO0 and MLIR0 reject the process HIR without partial output. Argument access, providers, ABI lowering, runtime input, native execution, Windows, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1544 | bounded direct-entry facts in verified HIR15 | HIR15 carries independent `suspension` (`NEVER`/`MAY`) and `direct_entry` (`ABSENT`/`AVAILABLE`) facts. The frontend `normalize_function` assigns `is_async` from the explicit CST modifier. `hir0_compute_body_never` performs the bounded whole-body fixed-point analysis; `hir0_publish_direct_entry_facts` derives the two facts and `verify_direct_entry_facts` independently recomputes them before accepting the caller-owned HIR. Ordinary pure functions are `NEVER`/`ABSENT`; an explicit async declaration is `MAY` and receives `AVAILABLE` only after its complete body proves `neverSuspend`. Local ordinary calls and recursive groups propagate without a termination claim. Unknown hosts and local async calls without call form or summary deny the proof. A `String` parameter, return, or value and opaque owners without effects/lifecycle facts also deny it. Focused frontend/HIR0/HLO0/Native0/MLIR0 CTest gates and compiler emitter gates pass for this bounded compiler-lifecycle route; HLO0 and MLIR0 continue to reject process HIR without partial output. | `source-backed-current` only for bounded HIR fact derivation, publication, independent verification, receipt/digest barriers, and fail-closed consumers. The 4 KiB scratch bitset inherits the CST32768 bound, with preflight/verifier guards, no heap, and no 256-function capacity. This evidence does not claim `sync` execution, the Restaurant process-input witness, general semantic checking, dual ABI, providers, ownership runtime, native process execution, Windows, or performance. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
+| W-1545 | exclusive Channel receiver cursor, close lifetime, and capacity-zero permit cancellation | The Channel receiver API is `mut async fn receive(): T?` and `mut fn close()`. Its exclusive loan starts at call staging and covers registration, suspension, settlement, cancellation, provider drain, and borrowed-child join. Capacity-zero `reserve` pairing is admission only, not item/receive commit. Pre-commit cancellation removes the waiter and revokes only its paired permit. A later send consumes that permit and returns the item in `.closed(T)` without proving global channel close. Graceful close preserves issued permits, normal unused permit drop unpairs/requeues, and a revoked permit cannot resurrect a waiter. | `oracle-backed-current` only for the CH0 contract oracle plus the authored Last Light and CHEATSHEET source examples. Borrow checker/lowering, channel runtime, scheduler/provider cancellation, typed-drop, native execution, and native performance remain implementation-evidence gaps. `benchmarkDisposition: deferred`; task `channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation, latency, and size axes remain future work. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -10777,3 +10779,39 @@ performance gaps. See the canonical logical-contract/source-shape fixture in
 HIR analysis, emitter, verifier, and focused C-unit facts are source-backed
 current; native process-input execution and the general W-1484 contract remain
 gaps.
+
+#### W-1545 — exclusive Channel receiver cursor and rendezvous cancellation
+
+W-1545 aligns the Channel receiver with Stream's existing exclusive cursor.
+The public shape is `mut async fn receive(): T?` and `mut fn close()`. The
+exclusive loan begins when the call is staged and continues through waiter
+registration, suspension, item or terminal settlement, cancellation, and
+provider drain. A borrowed child holds it until join. Producer handles and the
+internal queue remain shared and are not frozen. Two receives, `close`, move,
+or drop cannot overlap that loan, so this is a borrower rule rather than a
+public lock or `busy` error.
+
+A capacity-zero `reserve()` publishes only a paired permit. It is not item or
+receive commit. If cancellation wins before item commit, the waiter is removed
+and only its paired permit is revoked. The channel may remain open. A later
+`permit.send` consumes that permit and returns the item in `.closed(T)`, where
+the result means admission for that operation was lost, not global channel
+close. Treating pairing as item commit would make parent cancellation and join
+depend on a permit the parent itself still holds. Revoking the reservation
+removes that dependency and preserves the item owner without copying it.
+Untouched permits survive graceful close. Normal unused permit drop unpairs and
+requeues the receive, while a revoked permit cannot resurrect it. Typed
+receiver destruction is permitted only after cancellation and registration
+drain. It does not perform an implicit await.
+
+`streams.w`, the Last Light acceptance slice, and the CHEATSHEET now show
+mutable receiver reuse, graceful close preserving an issued permit, and
+cancel-to-join recovery of an invalidated rendezvous permit. The classification
+is `oracle-backed-current` only for the CH0 contract oracle and these authored
+source examples. CH0 models endpoint and item obligations, not general borrower
+checking or scheduler joins. It is not compiler, runtime, scheduler, provider,
+native-runner, or performance evidence. The borrower/lowering, channel runtime,
+scheduler/provider cancellation, and native execution blockers remain.
+`benchmarkDisposition: deferred`; task
+`channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation,
+latency, and size axes remain future work.

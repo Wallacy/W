@@ -197,12 +197,12 @@ fn panicExample(_ message: String): String {
 // atlas:end restricted-expressions
 
 // atlas:begin stream-and-channel
-async fn consume(_ source: Stream<view String, AtlasError>, _ channel: Channel<receive: String>): String throws AtlasError {
+async fn consume(_ source: Stream<view String, AtlasError>, _ channel: mut ref Channel<receive: String>): String throws AtlasError {
   var result = ""
   for try await ref item in source {
     result = result + item
   }
-  await channel.close()
+  channel.close()
   return result
 }
 

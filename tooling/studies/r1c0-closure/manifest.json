@@ -246,12 +246,12 @@
     {
       "id": "R1-gen1-incremental-suspension",
       "path": "tooling/studies/gen1-incremental-suspension/bundle.json",
-      "digest": "sha256:d5d09412712687328dba4a3002f9ea57b7762302cebd4d0ddff7551eaef11102"
+      "digest": "sha256:3ab70e1e9c43c8e0efacd81f691f6f8df09321e1658326b4da2c87aeceda597a"
     },
     {
       "id": "R1-gen2-stream-yield",
       "path": "tooling/studies/gen2-stream-yield/bundle.json",
-      "digest": "sha256:cb331976e39b0ed59722f1d6db18ecb528821402e83e4c9fac6c1cca0bb0deec"
+      "digest": "sha256:7a9a13fdfe816bc4880dca20de8cac58190cd04f4ab9e115c9e40ca25d44ef26"
     },
     {
       "id": "R1-hrd0-hot-reload-dev",

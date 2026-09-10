@@ -94,6 +94,18 @@ function channelObligations(state) {
   return state.admission.length + state.buffer.length + activePermits(state).length
 }
 
+function hasPendingReceive(state) {
+  return state.receiveWaiter !== null ||
+    Object.values(state.receiveHistory).some(
+      (history) => history.state === "waiting" || history.state === "paired",
+    )
+}
+
+function receiverBusy(state) {
+  return hasPendingReceive(state) ||
+    Object.values(state.frames).some((frame) => frame.state === "owned")
+}
+
 function completePendingReceiveWithNone(state) {
   if (!state.receiveWaiter) return
   const receiveId = state.receiveWaiter
@@ -487,7 +499,7 @@ export function runChannelOperations(operations) {
 
       case "beginReceive": {
         if (!requireInitialized() || !requireReceiver()) break
-        if (state.receiveWaiter !== null) {
+        if (receiverBusy(state)) {
           fail("receiverAlreadyWaiting")
           break
         }
@@ -605,6 +617,23 @@ export function runChannelOperations(operations) {
             outcome: "commitWonCancellation",
             receive: operation.receive,
           })
+        } else if (history.state === "paired") {
+          const permit = Object.values(state.permits).find(
+            (candidate) => candidate.state === "issued" &&
+              candidate.capacity === 0 &&
+              candidate.receiver === operation.receive,
+          )
+          if (!permit) {
+            fail("pairedPermitUnavailable")
+            break
+          }
+          permit.state = "aborted"
+          history.state = "canceled"
+          state.outcomes.push({
+            operation: "receive",
+            outcome: "canceledBeforeCommit",
+            receive: operation.receive,
+          })
         } else {
           state.events.push(`receive:${operation.receive}:cancel-idempotent`)
         }
@@ -705,10 +734,7 @@ export function runChannelOperations(operations) {
 
       case "closeReceiver": {
         if (!requireInitialized() || !requireReceiver()) break
-        const pairedReceive = Object.values(state.receiveHistory).some(
-          (history) => history.state === "paired",
-        )
-        if (state.receiveWaiter !== null || pairedReceive) {
+        if (receiverBusy(state)) {
           fail("receiverBusy")
           break
         }
@@ -718,7 +744,7 @@ export function runChannelOperations(operations) {
 
       case "abortReceiver": {
         if (!requireInitialized() || !requireReceiver()) break
-        if (state.receiveWaiter !== null) {
+        if (receiverBusy(state)) {
           fail("receiverBusy")
           break
         }
@@ -762,6 +788,10 @@ export function runChannelOperations(operations) {
 
       case "releaseReceiver": {
         if (!requireInitialized() || !requireReceiver()) break
+        if (receiverBusy(state)) {
+          fail("receiverBusy")
+          break
+        }
         if (state.lifecycle !== "drained") {
           fail("receiverReleaseWouldAbort")
           break
@@ -787,6 +817,10 @@ export function runChannelOperations(operations) {
 
       case "finish": {
         if (!requireInitialized()) break
+        if (hasPendingReceive(state)) {
+          fail("receiverObligationsRemain")
+          break
+        }
         if (!["drained", "aborted"].includes(state.lifecycle)) {
           fail("channelNotTerminal")
           break

@@ -1075,7 +1075,7 @@ output.push(
   `| casos/operações de channel bounded CH0 | ` +
     `${channelCases}/${channelOperations} ` +
     `(${acceptedChannelCases} aceitos + ` +
-    `${channelCases - acceptedChannelCases} rejeitados; 12 testes host) |`,
+    `${channelCases - acceptedChannelCases} rejeitados; oracle host) |`,
 );
 output.push(
   `| casos/operações de contexto local CTX0 | ` +

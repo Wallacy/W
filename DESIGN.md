@@ -14012,6 +14012,25 @@ seja copiado por acidente.
 
 #### 12.9.4 Envio, recebimento e recuperação do owner
 
+**W-1545 — cursor exclusivo do receiver e cleanup de rendezvous (Forma
+vigente):** `receive` e `close` usam um receiver `mut`. A call de `receive`
+abre um loan exclusivo quando o invocation é staged. Esse loan inclui a
+registration do waiter, cada suspension, o commit do item ou do terminal, a
+cancellation e o provider drain. Em uma call direta, ele só é liberado quando
+a operação retorna depois do drain exigido. Se o receiver for emprestado a um
+child, o child retém o loan mesmo que `receive` já tenha retornado; nesse caso,
+ele só é liberado no join do child. Não existe liberação antecipada. O loan
+não congela producers nem a fila interna
+compartilhada. Assim, `send` e `reserve` continuam concorrentes nos
+endpoints `send`.
+
+Essa exclusividade temporal é necessária além de o endpoint ser move-only. Ela
+impede dois cursors sobre o mesmo receiver e impede `close`, move ou drop
+enquanto uma operação `receive` ainda possui registration ou owner de frame.
+Não existe um error `busy` ou um lock público para substituir essa prova. A
+conformance `Channel<receive: T>` a `Stream<T, Never>` usa esse mesmo cursor em
+`next()`, sem queue ou cursor adicional.
+
 Um envio normal suspende até obter admission. Ele move o item somente no ponto
 de commit:
 
@@ -14043,8 +14062,8 @@ extension<T> Channel<send: T> {
 }
 
 extension<T> Channel<receive: T> {
-  async fn receive(): T?
-  fn close()
+  mut async fn receive(): T?
+  mut fn close()
 }
 ```
 
@@ -14077,9 +14096,17 @@ async fn serveAll(input: take Channel<receive: Order>) {
 }
 ```
 
-Cancellation de um `receive` ainda não comprometido remove o waiter e deixa o
-item na fila. Depois do commit, o task frame possui o item e faz seu cleanup se
-a task terminar.
+Cancellation de um `receive` antes do commit do item remove a registration do
+waiter e deixa a fila disponível. Em `capacity: 0`, ela também revoga somente o
+permit pareado a esse waiter. O channel pode continuar `open`. Um
+`permit.send` posterior consome o permit revogado e devolve o item em
+`.closed(T)`. Nesse caso, `.closed(T)` informa que a admission daquela
+operação foi perdida. Ele não prova que o lifecycle inteiro do channel entrou
+em `closing`.
+
+Depois do commit do item, o task frame possui o owner e faz seu cleanup se a
+task terminar. Pairing de um permit de rendezvous é admission do permit, não
+commit do item nem commit de `receive`.
 
 #### 12.9.5 Reserva de capacity
 
@@ -14113,13 +14140,19 @@ O item ainda não existe durante `reserve()`. Por isso, `ChannelClosed` não
 carrega payload e é separado de `ChannelSendError<T>`.
 
 `ChannelPermit<T>` é move-only. Ele representa uma vaga ou, com capacity zero,
-um receiver já pareado. Destruir um permit não usado devolve a vaga. Cancellation
-antes do retorno de `reserve()` remove o waiter. Cancellation depois do retorno
-executa o cleanup do permit.
+um receiver já pareado. O pairing de capacity zero não transfere um item e não
+conclui `receive`. Destruir um permit não usado devolve a vaga. Em
+`capacity: 0`, o drop normal despareia e recoloca o waiter do receiver. Um
+permit já revogado por cancellation não pode ressuscitar esse waiter. Um
+permit revogado continua linear até ser consumido ou descartado, mas não retém
+vaga ou admission e não impede o drain gracioso.
+Cancellation antes do retorno de `reserve()` remove o waiter. Cancellation
+depois do retorno executa o cleanup do permit.
 
-Um close gracioso não revoga permits já emitidos. O receiver os drena ou espera
-que sejam descartados. Destruir o receiver é abortivo; nesse caso,
-`permit.send` devolve o item em `.closed`.
+Um close gracioso não revoga permits já emitidos, inclusive um permit de
+rendezvous cujo receiver ainda está vivo. O receiver os drena ou espera que
+sejam descartados. Destruir o receiver é abortivo; nesse caso, `permit.send`
+devolve o item em `.closed`.
 
 Manter um permit através de outro `await` reduz capacity e pode criar
 head-of-line blocking. O resource lens registra a duração, e o lint avisa por
@@ -14192,6 +14225,9 @@ Os pontos lineares são:
 | `receive` | ownership do item entra no consumer |
 | `close` | admission de novos sends e permits é proibida |
 
+O commit de `reserve` somente publica a vaga ou o pairing. Para
+`capacity: 0`, ele não publica um item e não encerra o loan do `receive`.
+
 #### 12.9.8 Close e lifetime
 
 O lifecycle é explícito e monotônico:
@@ -14208,8 +14244,17 @@ open → closing → drained
 - destruir o receiver causa `aborted`, descarta o buffer e acorda waiters;
 - senders não possuem uma operação que fecha globalmente um channel copiado.
 
-`receiver.close()` é idempotente. W não possui channel `nil`, send em channel
-não inicializado ou panic por close duplicado.
+`receiver.close()` é uma mutação síncrona, idempotente e não consuming. Ela não
+pode sobrepor um `receive` pendente. O caller cancela e faz join dessa operação
+antes de fechar o receiver. Destruição do receiver ocorre somente depois do
+cancel drain de qualquer registration, pairing, queue link ou waker. Ela é
+abortiva e não é um `close` assíncrono implícito.
+
+O fechamento pelo último sender é distinto de `receiver.close()`. Ele pode
+ocorrer enquanto `receive` aguarda, porque usa outro endpoint. Ele rejeita nova
+admission, preserva permits já emitidos e deixa o receiver observar `.none`
+somente depois do drain. W não possui channel `nil`, send em channel não
+inicializado ou panic por close duplicado.
 
 #### 12.9.9 Memory ordering
 

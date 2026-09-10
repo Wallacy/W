@@ -835,12 +835,12 @@ fn operatorSurface(_ payload: ref any Reflectable) {
 **current** · **tree-sitter-parse-only-provider-missing**
 
 ```w
-async fn consume(_ source: Stream<view String, AtlasError>, _ channel: Channel<receive: String>): String throws AtlasError {
+async fn consume(_ source: Stream<view String, AtlasError>, _ channel: mut ref Channel<receive: String>): String throws AtlasError {
   var result = ""
   for try await ref item in source {
     result = result + item
   }
-  await channel.close()
+  channel.close()
   return result
 }
 
