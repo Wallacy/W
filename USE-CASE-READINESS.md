@@ -6,6 +6,9 @@ queue, not a new language contract or a support claim.
 records compiler hosts, emitted targets, cross-compilation edges, and support
 evidence. A game is a use case, not a target triple.
 
+The Last Light source/entry/product reuse plan is maintained in
+[Shared modules and surface witnesses](reference/last-light/BUILD.md#35-shared-modules-and-surface-witnesses).
+
 ## Assessment rules
 
 Three questions remain separate: can the language express the program, is its
