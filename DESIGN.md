@@ -25541,11 +25541,11 @@ Um ranking externo não define semântica nem correção. O workflow separa a
 validação do workload da medição:
 
 ```text
-w benchmark validate last-light-benchmark \
+w bench validate last-light-benchmark \
   --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
 
-w benchmark run last-light-benchmark \
+w bench run last-light-benchmark \
   --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
   --evidence results/last-light.wbench
@@ -30736,6 +30736,95 @@ multi-process/hardware fault e performance continuam lanes separadas.
 Evidence não recebe um safe badge agregado. Registry e portal mostram facts por
 eixo e freshness. Attestation object é imutável e pode ser referenciado por
 subject digest. A ausência de provider receipt permanece uma lacuna.
+
+**W-1548 — external subjects shared by `w test` and `w bench` (current
+design; implementation evidence missing):** performance remains a distinct
+evidence lane, but it does not introduce a second source declaration. `w test`
+executes the correctness oracle of an eligible `test`; `w bench` first executes
+the same oracle and only then performs declared warmup and samples. Both lower
+to the same `TestDescriptor` and `TestPlan` with different lane policy.
+
+The future external-subject forms are closed and tagged:
+
+```w
+test "native reference accepts one item"
+  for executable "./reference" as reference {
+  let result = await process.spawn(command: reference, arguments: ["item"])
+  expect result.exitCode == .success
+}
+
+test "Python reference accepts one item"
+  for script "./reference.py" as reference {
+  let result = await process.spawn(command: reference, arguments: ["item"])
+  expect result.exitCode == .success
+}
+
+test "custom carrier accepts one item"
+  for script "./reference.data"
+  using executable "my-runner"
+  as reference {
+  let result = await process.spawn(command: reference, arguments: ["item"])
+  expect result.exitCode == .success
+}
+```
+
+The alias is an immutable test-only `process.Command` value. It contains no
+ambient process handle and grants no authority; `process.spawn` still requires
+the test fixture's explicit process capability. A module or symbol subject does
+not synthesize this binding. The complete planned subject set is bare symbol,
+`module`, `product`, `package`, `workspace`, `executable`, and `script`;
+`artifact` remains reserved until capsule and registry identities are stable.
+
+An executable locator containing a path separator resolves relative to the
+package/test root, or as the supplied absolute path. On Windows, an absent
+extension may try the exact path and then `.exe`; on ELF and Mach-O hosts it
+tries the exact path only. A bare locator resolves once through a frozen PATH
+snapshot. Empty/current-directory PATH entries, `PATHEXT`, file associations,
+shell fallback, and package installation are never consulted. The selected
+regular file must validate as a native image for the execution provider's
+target and ABI. Text, shebang files, `.bat`, `.cmd`, and any other interpreted
+carrier are rejected by `executable`. Exact bytes and file identity are checked
+again at launch; a changed or ambiguous candidate fails closed.
+
+A script locator is always a path, never a PATH search. Runner selection is
+explicit `using executable` first, otherwise a closed target-specific extension
+map: `.py` uses `python` on Windows and `python3` on POSIX hosts, `.sh` uses
+`bash`, `.ps1` uses `pwsh`, and `.bat`/`.cmd` use the versioned Windows
+`cmd.exe` adapter. Missing runners and unknown extensions fail closed. A
+shebang is recorded and may conflict with the chosen runner, but it is not
+resolver authority in this first contract. JavaScript and TypeScript have no
+default because their runner and module modes are ambiguous. Explicit `using`
+may select them.
+
+The runner executable follows the same native-image and frozen-PATH rules as
+`for executable`. Each adapter fixes runner arguments, script position,
+`argv[0]`, empty-argument behavior, native encoding, and quoting. The
+`.bat`/`.cmd` adapter is explicitly shell-capable and owns one versioned
+`cmd.exe /d /s /c` encoding; it cannot be treated as ordinary argv evidence.
+No other script form receives an implicit shell.
+
+The plan closes stdin, argv, environment, cwd, filesystem fixture, output
+limits, timeout, process-tree lifetime, and cleanup policy. Stdout and stderr
+are concurrently drained raw byte streams. Overflow, timeout, signal,
+cancellation, orphan descendants, mutation between resolution and launch, and
+cleanup failure are distinct outcomes. A receipt records subject/script bytes,
+runner bytes and resolved path, optional version probe, resolver snapshot,
+target/ABI, provider, argv/environment/cwd/input identities, exact exit form,
+and bounded stream bytes or their length and digest. Absolute paths are
+provenance, not subject identity.
+
+Cross-target execution always requires an explicit provider receipt and has no
+direct-launch fallback. Benchmark plans also declare whether startup, runner
+startup, stream drain, and teardown are inside the measured interval. Fresh
+process is the default; persistent service measurement is a separate explicit
+mode. Native executable, interpreted script, module, and service measurements
+remain different evidence categories and cannot be ranked as if they were the
+same workload boundary.
+
+This amendment does not change `entry`, module/source resolution, or the
+current parser production `test string (for identifier)? block`. Grammar,
+checker, `process.Command`, provider receipts, Windows Job Object/process-group
+cleanup, and native `w test`/`w bench` execution remain implementation gaps.
 
 ### 22.3 Lens de recursos
 
@@ -36960,8 +37049,10 @@ The emitter derives the facts before it publishes the HIR receipt and semantic
 digest. The read-only verifier rederives them before it compares fields,
 digests, and receipt bytes. The verifier never commits output.
 
-HLO0 and MLIR0 continue to reject process HIR without partial output. The
-bounded frontend-to-HIR0 analysis, emitter publication, and read-only verifier
+At the W-1544 boundary, HLO0 and MLIR0 rejected process HIR without partial
+output. W-1546 later adds the private MLIR handler and W-1547 adds its separate
+bounded public executable; HLO0 remains closed. The bounded frontend-to-HIR0
+analysis, emitter publication, and read-only verifier
 are source-backed-current through `normalize_function`,
 `hir0_compute_body_never`, `hir0_publish_direct_entry_facts`, and
 `verify_direct_entry_facts`; the focused `test_direct_entry_facts` and
@@ -37046,11 +37137,11 @@ release failure. It has no `main`, I/O, or root-finalization operation.
 
 HLO0 remains closed to process HIR. The handler artifact is a private input to
 the process-entry harness, not public `w run` process support or a general W
-ABI. The public default `w run` route still rejects process entries. The public
-`std.process` ABI, public entry/root adapter, OS-root acquisition and
-finalization, W-visible argument access, process-handler body branching, and
-`Context` capabilities remain outside this cut. The PROCESS0 provider kernel
-exists separately.
+ABI. At the W-1546 boundary the public default `w run` route rejected process
+entries. W-1547 adds a separate bounded public adapter; it does not retroactively
+turn this private handler into a public ABI. General `std.process` ABI,
+W-visible argument access, and `Context` capabilities remain outside W-1546.
+The PROCESS0 provider kernel exists separately.
 
 The native gate `bun check --target process-entry0` passes with the strict
 MLIR/LLVM 23.1.0 manifest, configured CMake build, and GCC 13.2
@@ -37078,6 +37169,88 @@ exploratory `integration-linkage` evidence. Their nested private handler is
 defines these classes and reserves `process-entry` for a future public
 end-to-end workload. These measurements do not defer or replace the
 language-track stop condition.
+
+#### 26.4.1.29 W-1547 — bounded public Windows process input and exit (Current form)
+
+W-1547 closes the first public process-entry slice without changing the
+private W-1546 handler artifact. The accepted source has exactly one module,
+one async process entry, parameters `Arguments` then `Context`, return type
+`ExitCode`, one `args.isEmpty` branch, one `print(String)` in each arm, and the
+returns `.failure(2)` and `.success` respectively:
+
+<!-- w-example role=executable use=print observable=effect -->
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+
+async fn run(
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode {
+  if args.isEmpty {
+    print("missing")
+    return .failure(2)
+  } else {
+    print("received")
+    return .success
+  }
+}
+
+entry(run)
+```
+
+Frontend and HIR retain exact resolver-owned identities for
+`Arguments.isEmpty` and `ExitCode.failure(code: i64)`. HIR16 represents the
+member read and enum-case payload as ordinary verified value records. The
+declared async function remains `suspension: MAY`, while the complete body
+receives `direct_entry: AVAILABLE`: module-owned constant strings and the exact
+compiler-known `print(String): Unit` host call cannot suspend a W task. The
+host call may block the current OS thread; no general host-call or async claim
+follows from this closed proof.
+
+Native0 selects the new `w-seed-mlir0-process-executable-1` artifact only for
+this verified HIR and `x86_64-pc-windows-msvc`. The generated artifact owns
+`mainCRTStartup`, captures `GetCommandLineW`, skips `argv[0]`, and publishes a
+bounded table of at most 256 borrowed UTF-16 argument descriptors. The table is
+one zero-initialized private executable global because startup executes once;
+it is not a W ABI or shared runtime singleton. The current parser proves only
+argument-count emptiness. It handles spaces, tabs, and simple quotes, but does
+not yet claim the complete Windows backslash-before-quote decoding contract or
+W-visible argument text.
+
+The adapter creates one private root plus distinct `Arguments` and `Context`
+owners, executes the verified branch, releases `Context`, releases `Arguments`,
+then finalizes the root. It uses `GetStdHandle`, `WriteFile`, and `ExitProcess`.
+The link is `lld-link /nodefaultlib` with `kernel32.lib` only; the argument table
+does not create an accidental CRT or `__chkstk` dependency. Normal no-argument
+execution writes exact UTF-8 `missing\n` and exits 2. The same artifact with one
+forwarded argument, including an empty string, writes `received\n` and exits 0.
+Stderr is empty in both cases.
+
+`w run <fixture>` and `w build <fixture> --target
+x86_64-pc-windows-msvc --output <new.exe>` use the same public Native0 route.
+The Windows gate builds a clean temporary `w.exe`, runs both source cases,
+builds one persistent PE, runs that same PE in both cases, verifies exact bytes
+and exit codes, and removes its temporary products. Focused Native0 tests also
+prove explicit versus automatic artifact selection is byte-identical, short
+capacity is all-or-nothing, and the process executable is rejected for the
+Linux target without output mutation. Existing default executables and the
+private process handler retain their prior modes and evidence.
+
+This is `source-backed-current` only for the bounded Windows x86_64 path above.
+General `Arguments` indexing/iteration/text decoding, full Windows command-line
+semantics, arbitrary process handler bodies, throws/cancellation, `Context`
+capabilities, general async runtime, Linux/macOS process adapters,
+cross-compilation, stable public ABI, and performance remain gaps.
+`benchmarkDisposition` remains `deferred` under task
+`process-entry-native-handler-benchmark`; W-1547 satisfies the earlier
+`public-entry-root-adapter` and bounded `argument-access-lowering` blockers for
+this single witness, but the general forms and language benchmark runner remain
+open. The 3,584-byte local PE observation is gate output, not a benchmark
+baseline or a cross-language ranking.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

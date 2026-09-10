@@ -4257,6 +4257,108 @@
       ]
     },
     {
+      "id": "R0-process-input0-public-windows",
+      "reviewItem": "bounded public Windows process input, exit status, and root-owner cleanup through verified HIR16 and a direct MLIR executable adapter.",
+      "decisions": [
+        "W-1547"
+      ],
+      "task": "Compile one exact async std.process handler into a public Windows PE that distinguishes an empty argument vector from one supplied argument without widening the private handler ABI.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import { Arguments as ProcessArguments, Context as ProcessContext, ExitCode as ProcessExitCode } from std.process",
+          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+          "  if args.isEmpty { print(\"missing\") return .failure(2) }",
+          "  else { print(\"received\") return .success }",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "source-name-dispatch",
+          "language": "w-rejected",
+          "source": [
+            "async fn run(args: Arguments, ctx: Context): ExitCode { ... }",
+            "// select the process adapter because the function is named run"
+          ],
+          "expectedDifference": "The adapter is selected only from verified external identities, entry shape, values, lifecycle facts, and direct-entry proof; spelling is not authority."
+        },
+        {
+          "name": "private-handler-widening",
+          "language": "text",
+          "source": [
+            "add mainCRTStartup and OS argument acquisition to PROCESS_HANDLER"
+          ],
+          "expectedDifference": "The public executable remains a distinct artifact so the private handler bytes and harness boundary stay stable."
+        },
+        {
+          "name": "ambient-crt-argv",
+          "language": "text",
+          "source": [
+            "link the C runtime and infer argv ownership from main"
+          ],
+          "expectedDifference": "The Windows adapter owns GetCommandLineW, a bounded descriptor table, explicit root owners, and kernel32-only startup."
+        },
+        {
+          "name": "general-windows-argv-claim",
+          "language": "text",
+          "source": [
+            "publish all parsed command-line substrings as W String values"
+          ],
+          "expectedDifference": "This cut proves only argv[0] exclusion and empty/nonempty count; complete Windows quoting and W text decoding remain gaps."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/process-input0.w",
+          "symbol": "run",
+          "claim": "The public witness branches on Arguments.isEmpty and returns failure(2) or success with distinct exact output."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "normalize_expression",
+          "claim": "The frontend recognizes only the closed Arguments.isEmpty member and ExitCode.failure(i64) external forms."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "HIR16 verifies external member and enum-case payload values, owners, types, ordinals, and canonical identities."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select_process_executable",
+          "claim": "The closed selector accepts only the verified one-module process body, lifecycle, cleanup, and direct-entry shape."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "build_process_executable_artifact",
+          "claim": "The Windows-only emitter owns startup, bounded argument descriptors, branch output, exit status, and Context-to-Arguments-to-root cleanup."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_process_input0_public_artifact",
+          "claim": "Native0 units prove automatic/explicit byte identity, output capacity transactionality, and Linux-target rejection."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "processInputFixture",
+          "claim": "The public Windows gate runs source and one built PE with no argument, a normal argument, and an empty argument under exact stdout/stderr/exit checks."
+        }
+      ],
+      "checks": [
+        "Focused HIR0, HLO0, HLO1, MLIR0, and Native0 units pass with process consumers fail-closed outside the new selector",
+        "bun check --target w-run-windows passes source execution and one persistent Windows PE for empty and nonempty runtime input",
+        "The PE links with /nodefaultlib and kernel32.lib only; no CRT or __chkstk dependency is admitted"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-channel-receiver-close",
       "reviewItem": "exclusive Channel receiver cursor, graceful close, cancellation, and capacity-zero rendezvous permit ownership",
       "decisions": [

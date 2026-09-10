@@ -672,11 +672,11 @@ w build last-light-benchmark \
   --profile benchmark \
   --locked
 
-w benchmark validate last-light-benchmark \
+w bench validate last-light-benchmark \
   --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20
 
-w benchmark run last-light-benchmark \
+w bench run last-light-benchmark \
   --deployment benchmark \
   --harness github:TechEmpower/FrameworkBenchmarks@57d92fbec6f8fd7431bc77326dd0484e60c96e20 \
   --evidence results/last-light.wbench

@@ -69,8 +69,11 @@ typedef enum {
   W_SEED_HIR0_VALUE_CALL_RESULT,
   W_SEED_HIR0_VALUE_UNARY_BOOL,
   W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ,
-  /* Payload-free member of the bounded external ExitCode enum. */
+  /* A member of the bounded external ExitCode enum. */
   W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE,
+  /* A closed external property read. The receiver is left_value and the
+   * external identity/member_name pair names the property. */
+  W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -80,6 +83,9 @@ typedef enum {
   W_SEED_HIR0_VALUE_OWNER_INTERPOLATION_SEGMENT,
   W_SEED_HIR0_VALUE_OWNER_TERMINATOR,
   W_SEED_HIR0_VALUE_OWNER_UNARY,
+  /* Append-only owners for the closed process external-value children. */
+  W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER,
+  W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -126,6 +132,14 @@ typedef enum {
   W_SEED_HIR0_EXTERNAL_VALUE = 0,
   W_SEED_HIR0_EXTERNAL_TYPE,
 } w_seed_hir0_external_kind;
+
+/* External parameters are closed ABI facts, not an open call-signature
+ * promise. The only non-empty contract currently represented is the bounded
+ * std.process.ExitCode.failure(code: i64) constructor. */
+typedef enum {
+  W_SEED_HIR0_EXTERNAL_PARAMETER_NONE = 0,
+  W_SEED_HIR0_EXTERNAL_PARAMETER_PROCESS_FAILURE_I64,
+} w_seed_hir0_external_parameter_abi;
 
 typedef enum {
   /* Existing/default zero-argument Unit entry adapter. */
@@ -226,8 +240,9 @@ typedef struct {
   bool is_const;
   w_seed_hir0_text receiver_type;
   w_seed_hir0_text return_type;
-  /* HIR16 accepts only zero-parameter external symbols. */
+  /* HIR16 accepts only the closed parameter ABI above. */
   uint32_t parameter_count;
+  w_seed_hir0_external_parameter_abi parameter_abi;
 } w_seed_hir0_external_symbol;
 
 typedef struct {
@@ -383,8 +398,10 @@ typedef struct {
   uint32_t byte_offset;
   uint32_t byte_count;
   w_seed_span source_span;
-  /* Present only for VALUE_EXTERNAL_ENUM_CASE. The pair identifies the
-   * caller-copied external symbol and member_name carries its canonical name. */
+  /* Present only for external member/enum values. The pair identifies the
+   * caller-copied external symbol and member_name carries its canonical name.
+   * For VALUE_EXTERNAL_ENUM_CASE, left_value is the explicit payload child for
+   * the closed failure constructor and NONE for success. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
   w_seed_hir0_text member_name;

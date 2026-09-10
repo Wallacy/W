@@ -26,6 +26,7 @@ const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
+const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
@@ -346,9 +347,16 @@ try {
     "Restaurant linear fixture")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
+  expectExact(binary, ["run", processInputFixture], 2,
+    Buffer.from("missing\n", "utf8"), "public process input without arguments")
+  expectExact(binary, ["run", processInputFixture, "--", "payload"], 0,
+    Buffer.from("received\n", "utf8"), "public process input with one argument")
+  expectExact(binary, ["run", processInputFixture, "--", ""], 0,
+    Buffer.from("received\n", "utf8"), "public process input with empty argument")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
+  const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
   const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
   expectExact(binary, ["build", helloFixture, "--target", targetTriple,
@@ -368,6 +376,22 @@ try {
     "build restaurant-if fixture")
   expectExact(buildRestaurantIf, [], 0, expectedIf,
     "execute built restaurant-if artifact")
+  expectExact(binary, ["build", processInputFixture, "--target", targetTriple,
+    "--output", buildProcessInput], 0, Buffer.alloc(0),
+    "build public process-input fixture")
+  const builtProcessInputStats = await lstat(buildProcessInput)
+  assert(builtProcessInputStats.isFile() &&
+    !builtProcessInputStats.isSymbolicLink(),
+    "build process-input did not produce a regular artifact")
+  assertPeX64(await readFile(buildProcessInput), "built process-input artifact")
+  expectExact(buildProcessInput, [], 2, Buffer.from("missing\n", "utf8"),
+    "execute built process-input artifact without arguments")
+  expectExact(buildProcessInput, ["payload"], 0,
+    Buffer.from("received\n", "utf8"),
+    "execute built process-input artifact with one argument")
+  expectExact(buildProcessInput,
+    Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
+    "reject process-input descriptor overflow without partial output")
   expectBuildFailure(binary, ["build", helloFixture, "--target",
     "x86_64-unknown-linux-gnu", "--output", buildWrongTarget],
     "reject unsupported build target")
@@ -422,7 +446,7 @@ try {
   const diskAfterRuns = await diskFree(buildDirectory)
   const residueAfter = await snapshotResidue()
   assertNoNewResidue(residueBefore, residueAfter)
-  console.log(`W RUN Windows: native E2E passed toolchain=${defaultCacheDirectory()} sdk=${sdk.version} vs=${visualStudio.installationPath} wExeBytes=${binaryStats.size} peBytes=${exeMatch[1]} diskFreeBefore=${diskBefore} diskFreeAfter=${diskAfterRuns}`)
+  console.log(`W RUN Windows: native E2E passed toolchain=${defaultCacheDirectory()} sdk=${sdk.version} vs=${visualStudio.installationPath} wExeBytes=${binaryStats.size} peBytes=${exeMatch[1]} processPeBytes=${builtProcessInputStats.size} diskFreeBefore=${diskBefore} diskFreeAfter=${diskAfterRuns}`)
 } finally {
   await rm(unsupportedBuildDirectory, { recursive: true, force: true })
   await rm(buildDirectory, { recursive: true, force: true })

@@ -1373,11 +1373,11 @@ release failure. It emits no `main`, I/O, or root-finalization operation.
 The handler selector does not use function-name spelling and rejects unknown
 external identities or unverified HIR.
 
-This artifact is a test-harness input, not public process support. Public
-`w run` still rejects process entries. The PROCESS0 provider kernel is
-implemented separately; the public `std.process` ABI, public entry/root
-adapter, OS-root acquisition/finalization, W-visible argument access,
-process-handler body branching, and general runtime ABI remain pending.
+This artifact remains a test-harness input, not the public process ABI. At the
+W-1546 boundary `w run` rejected process entries. W-1547 adds a separate
+bounded public executable adapter; it does not widen or replace this private
+handler. General `std.process` ABI, argument access, Context capabilities, and
+general runtime ABI remain pending.
 
 The fixture, C harness, and command `bun check --target process-entry0` form
 the native gate. With the strict MLIR/LLVM 23.1.0 manifest, configured CMake
@@ -1412,6 +1412,45 @@ result. Benchmark disposition,
 blockers, and stop condition remain canonical in [`DESIGN.md`](../../DESIGN.md)
 §26.4.1.28; the measurement protocol is in the
 [`private process-handler lifecycle benchmark section`](../../benchmarks/README.md#private-process-handler-lifecycle-executable-measurements).
+
+### Public Windows process-input executable (W-1547)
+
+The source fixture `fixtures/process-input0.w` is the first public executable
+that observes native process input. It imports the exact compiler-owned
+`std.process@1` identities, branches on `args.isEmpty`, prints `missing` and
+returns `.failure(2)` when empty, or prints `received` and returns `.success`
+when nonempty. Frontend and verified HIR16 represent the member read,
+`failure(code: i64)` payload, and both return paths without downstream source
+or name reconstruction.
+
+Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
+verified HIR on `x86_64-pc-windows-msvc`; the explicit artifact mode emits the
+same bytes and digest. The generated `mainCRTStartup` captures
+`GetCommandLineW`, skips the program token, and retains at most 256 borrowed
+UTF-16 descriptors. The descriptor table is a zero-initialized private PE
+global rather than a large stack frame, so the `/nodefaultlib` link needs only
+`kernel32.lib` and does not acquire `__chkstk`/CRT support. This storage is
+single-startup artifact state, not a W runtime ABI.
+
+The adapter constructs a private root and distinct Arguments/Context owner
+records, executes the verified body, releases Context, releases Arguments, and
+then finalizes the root. `WriteFile` and `ExitProcess` publish the exact result.
+The parser currently proves only empty versus nonempty arguments; it supports
+spaces, tabs, and simple quoted tokens but does not claim the complete Windows
+backslash-before-quote algorithm or expose argument text to W.
+
+`bun check --target w-run-windows` builds a temporary native `w.exe`, exercises
+`w run` with no argument, one normal argument, and one empty argument, then
+uses `w build` to create one PE and executes the same bytes both empty and
+nonempty. It requires exact stdout, empty stderr, exits 2/0, PE x64 identity,
+and cleanup. The focused Native0 unit additionally checks automatic/explicit
+selection identity, all-or-nothing short capacity, and Linux-target rejection.
+The local PE observed during this implementation is 3,584 bytes; that value is
+gate feedback, not a retained benchmark baseline.
+
+General argument decoding/indexing, arbitrary handler bodies, throws,
+cancellation, Context capabilities, general async/provider runtime, other OS
+adapters, cross-compilation, stable public ABI, and performance remain gaps.
 
 ### PROCESS0 provider kernel (post-W-1546)
 

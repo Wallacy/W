@@ -273,6 +273,13 @@ static bool fixture_frontend(const char *source) {
   return true;
 }
 
+static void configure_process_input_host(void) {
+  configure_host();
+  fixture.host_parameters[0].label_kind =
+      W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY;
+  fixture.host_symbols[1].parameter_count = 1u;
+}
+
 static void configure_process_external(void) {
   static const w_seed_frontend_text empty = {NULL, 0u};
   fixture.external_symbols[0] = (w_seed_frontend_external_symbol){
@@ -319,6 +326,35 @@ static void configure_process_external(void) {
   fixture.input.external_module_count = 1u;
 }
 
+static void configure_process_input_external(void) {
+  static const w_seed_frontend_text empty = {NULL, 0u};
+  configure_process_external();
+  fixture.external_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"code", 4u},
+      .type = (w_seed_frontend_text){"i64", 3u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  fixture.external_symbols[4] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"isEmpty", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Bool", 4u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture.external_symbols[5] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"failure", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = fixture.external_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture.external_modules[0].symbol_count = 6u;
+  (void)empty;
+}
+
 static bool resolve_process_import(void) {
   w_seed_module_origin origins[4];
   w_seed_module_scan_result scan_result;
@@ -342,6 +378,16 @@ static bool fixture_process_frontend(const char *source) {
   CHECK(fixture_parse(source));
   configure_host();
   configure_process_external();
+  CHECK(resolve_process_import());
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
+                            &fixture.result) == W_SEED_FRONTEND_OK);
+  return true;
+}
+
+static bool fixture_process_input0_frontend(const char *source) {
+  CHECK(fixture_parse(source));
+  configure_process_input_host();
+  configure_process_input_external();
   CHECK(resolve_process_import());
   CHECK(w_seed_frontend_run(&fixture.input, &fixture.output,
                             &fixture.result) == W_SEED_FRONTEND_OK);
@@ -435,6 +481,222 @@ static bool lower_process(const char *source) {
                                         &fixture.hir_program));
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_counts = measured;
+  return true;
+}
+
+static bool lower_process_input0(const char *source) {
+  CHECK(fixture_process_input0_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(measured.external_modules == 1u && measured.external_symbols == 6u &&
+        measured.types == 7u && measured.functions == 1u &&
+        measured.parameters == 2u && measured.blocks == 3u &&
+        measured.instructions == 2u && measured.calls == 2u &&
+        measured.arguments == 2u && measured.requirements == 1u &&
+        measured.values == 7u && measured.terminators == 3u &&
+        measured.entries == 1u && measured.value_bytes == 15u);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+typedef enum {
+  PROCESS_INPUT0_BAD_SOURCE_MEMBER,
+  PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE,
+  PROCESS_INPUT0_BAD_SOURCE_FAILURE_LABEL,
+  PROCESS_INPUT0_BAD_SOURCE_HANDLER_SIGNATURE,
+  PROCESS_INPUT0_BAD_CATALOG_MEMBER,
+  PROCESS_INPUT0_BAD_CATALOG_FAILURE_SIGNATURE,
+} process_input0_bad_case;
+
+static void reseal_hir_fixture(void);
+
+static bool expect_process_input0_rejected(const char *source,
+                                           process_input0_bad_case bad) {
+  CHECK(fixture_parse(source));
+  configure_process_input_host();
+  configure_process_input_external();
+  if (bad == PROCESS_INPUT0_BAD_CATALOG_MEMBER)
+    fixture.external_symbols[4].name = (w_seed_frontend_text){"empty", 5u};
+  if (bad == PROCESS_INPUT0_BAD_CATALOG_FAILURE_SIGNATURE) {
+    fixture.external_parameters[0].type =
+        (w_seed_frontend_text){"Bool", 4u};
+  }
+  CHECK(resolve_process_import());
+  const w_seed_frontend_status frontend_status =
+      w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result);
+  if (frontend_status != W_SEED_FRONTEND_OK) return true;
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  return true;
+}
+
+static bool test_process_input0_hir(void) {
+  static const char SOURCE[] =
+      "import {\n"
+      "  Arguments as ProcessArguments,\n"
+      "  Context as ProcessContext,\n"
+      "  ExitCode as ProcessExitCode,\n"
+      "} from std.process\n"
+      "\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode {\n"
+      "  if args.isEmpty {\n"
+      "    print(\"missing\")\n"
+      "    return .failure(2)\n"
+      "  } else {\n"
+      "    print(\"received\")\n"
+      "    return .success\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry(run)\n";
+  static const char BAD_MEMBER[] =
+      "import {\n"
+      "  Arguments as ProcessArguments,\n"
+      "  Context as ProcessContext,\n"
+      "  ExitCode as ProcessExitCode,\n"
+      "} from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode {\n"
+      "  if args.empty {\n"
+      "    print(\"missing\")\n"
+      "    return .failure(2)\n"
+      "  } else {\n"
+      "    print(\"received\")\n"
+      "    return .success\n"
+      "  }\n"
+      "}\n"
+      "entry(run)\n";
+  static const char BAD_FAILURE_VALUE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(3) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static const char BAD_FAILURE_LABEL[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(code: 2) } else { print(\"received\") "
+      "return .success } }\n"
+      "entry(run)\n";
+  static const char BAD_HANDLER_SIGNATURE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessExitCode): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(2) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input0(SOURCE));
+  CHECK(fixture.result.written.modules == 1u &&
+        fixture.result.written.types == 5u &&
+        fixture.result.written.symbols == 5u &&
+        fixture.result.written.functions == 1u &&
+        fixture.result.written.parameters == 2u &&
+        fixture.result.written.statements == 5u &&
+        fixture.result.written.expressions == 12u &&
+        fixture.result.written.arguments == 3u);
+  CHECK(fixture.input.external_modules[0].symbol_count == 6u &&
+        fixture.result.written.imports == 1u &&
+        fixture.result.written.import_items == 3u);
+  CHECK(fixture.output.expressions[1].kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+        fixture.output.expressions[1].resolved_external_module_index == 0u &&
+        fixture.output.expressions[1].resolved_external_symbol_index == 4u &&
+        text_equal(fixture.output.expressions[1].member_name,
+                   (w_seed_frontend_text){"isEmpty", 7u}) &&
+        fixture.output.expressions[5].kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
+        fixture.output.expressions[5].resolved_external_module_index == 0u &&
+        fixture.output.expressions[5].resolved_external_symbol_index == 5u &&
+        fixture.output.expressions[7].kind == W_SEED_FRONTEND_EXPR_CALL &&
+        fixture.output.expressions[7].resolved_external_module_index == 0u &&
+        fixture.output.expressions[7].resolved_external_symbol_index == 5u &&
+        fixture.output.expressions[6].kind == W_SEED_FRONTEND_EXPR_INTEGER &&
+        text_equal(fixture.output.expressions[6].spelling,
+                   (w_seed_frontend_text){"2", 1u}));
+  CHECK(fixture.hir_counts.external_modules == 1u &&
+        fixture.hir_counts.external_symbols == 6u &&
+        fixture.hir_counts.blocks == 3u && fixture.hir_counts.instructions == 2u &&
+        fixture.hir_counts.calls == 2u && fixture.hir_counts.arguments == 2u &&
+        fixture.hir_counts.requirements == 1u &&
+        fixture.hir_counts.values == 7u && fixture.hir_counts.terminators == 3u);
+  CHECK(fixture.hir_program.external_modules[0].symbol_count == 6u &&
+        fixture.hir_program.external_symbol_count == 6u &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        fixture.hir_program.entries[0].adapter_kind ==
+            W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS &&
+        fixture.hir_program.entries[0].cleanup_obligation ==
+            W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS &&
+        fixture.hir_program.terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_BRANCH &&
+        fixture.hir_program.terminators[0].value_index == 3u &&
+        fixture.hir_program.terminators[1].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        fixture.hir_program.terminators[1].value_index == 5u &&
+        fixture.hir_program.terminators[2].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        fixture.hir_program.terminators[2].value_index == 6u &&
+        fixture.hir_program.values[2].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        fixture.hir_program.values[3].kind ==
+            W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        fixture.hir_program.values[3].left_value == 2u &&
+        fixture.hir_program.values[3].external_symbol_index == 4u &&
+        fixture.hir_program.values[4].kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+        fixture.hir_program.values[4].integer_value == 2 &&
+        fixture.hir_program.values[5].kind ==
+            W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+        fixture.hir_program.values[5].left_value == 4u &&
+        fixture.hir_program.values[5].external_symbol_index == 5u &&
+        fixture.hir_program.values[6].kind ==
+            W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+        fixture.hir_program.values[6].left_value == W_SEED_HIR0_NONE &&
+        fixture.hir_program.values[6].external_symbol_index == 3u &&
+        hir_text_is(&fixture.hir_program, fixture.hir_program.values[3].member_name,
+                    "isEmpty") &&
+        hir_text_is(&fixture.hir_program, fixture.hir_program.values[5].member_name,
+                    "failure") &&
+        hir_text_is(&fixture.hir_program, fixture.hir_program.values[6].member_name,
+                    "success"));
+  CHECK(expect_process_input0_rejected(
+      BAD_MEMBER, PROCESS_INPUT0_BAD_SOURCE_MEMBER));
+  CHECK(expect_process_input0_rejected(
+      BAD_FAILURE_VALUE, PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE));
+  CHECK(expect_process_input0_rejected(
+      BAD_FAILURE_LABEL, PROCESS_INPUT0_BAD_SOURCE_FAILURE_LABEL));
+  CHECK(expect_process_input0_rejected(
+      BAD_HANDLER_SIGNATURE, PROCESS_INPUT0_BAD_SOURCE_HANDLER_SIGNATURE));
+  CHECK(expect_process_input0_rejected(SOURCE, PROCESS_INPUT0_BAD_CATALOG_MEMBER));
+  CHECK(expect_process_input0_rejected(
+      SOURCE, PROCESS_INPUT0_BAD_CATALOG_FAILURE_SIGNATURE));
+
+  /* The public MLIR adapter emits these verified HIR literals. Resealing a
+   * different byte sequence must not preserve the public witness identity. */
+  CHECK(lower_process_input0(SOURCE));
+  const uint8_t saved_literal_byte = fixture.hir_value_bytes[0];
+  fixture.hir_value_bytes[0] = 'x';
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_value_bytes[0] = saved_literal_byte;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
 }
 
@@ -3121,6 +3383,7 @@ static bool test_short_entry_hir(void) {
 
 int main(void) {
   if (!test_process_hir()) return 1;
+  if (!test_process_input0_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;
   if (!test_direct_entry_facts()) return 1;
   if (!test_direct_entry_effect_barrier()) return 1;
