@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-14"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-15"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -134,6 +134,21 @@ typedef enum {
   W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS,
 } w_seed_hir0_entry_adapter_kind;
 
+/* A function's common entry suspension summary.  An explicit async
+ * declaration publishes MAY even when its separate direct-entry proof is
+ * available. */
+typedef enum {
+  W_SEED_HIR0_SUSPENSION_NEVER = 0,
+  W_SEED_HIR0_SUSPENSION_MAY,
+} w_seed_hir0_suspension_kind;
+
+/* Explicit W-1484 direct-entry facet.  This is a proof result, not a product
+ * profile selection or an optimizer reachability fact. */
+typedef enum {
+  W_SEED_HIR0_DIRECT_ENTRY_ABSENT = 0,
+  W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE,
+} w_seed_hir0_direct_entry_kind;
+
 typedef struct {
   uint32_t offset;
   uint32_t count;
@@ -183,7 +198,7 @@ typedef struct {
   bool is_const;
   w_seed_hir0_text receiver_type;
   w_seed_hir0_text return_type;
-  /* HIR14 accepts only zero-parameter external symbols. */
+  /* HIR15 accepts only zero-parameter external symbols. */
   uint32_t parameter_count;
 } w_seed_hir0_external_symbol;
 
@@ -220,6 +235,10 @@ typedef struct {
   bool has_borrow_clause;
   /* True only for the private function synthesized from `entry { ... }`. */
   bool is_anonymous_entry;
+  /* Append-only W-1484 facts.  `suspension` is the common entry summary;
+   * `direct_entry` is independently rederived from the complete body. */
+  w_seed_hir0_suspension_kind suspension;
+  w_seed_hir0_direct_entry_kind direct_entry;
 } w_seed_hir0_function;
 
 typedef struct {

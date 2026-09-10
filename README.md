@@ -51,7 +51,8 @@ This is a tool-build fact, not a baseline or benchmark of the produced
 executable.
 
 W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
-HIR0 `w-seed-hir0-14` and MLIR0 `w-seed-mlir0-15`/Windows6; Native0 remains v6.
+HIR0, now `w-seed-hir0-15`, and MLIR0 `w-seed-mlir0-15`/Windows6; Native0
+remains v6.
 Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
 Helpers are emitted only for reachable operations, and existing HIR call
 evaluation remains left-to-right and once-only. Constant overflow and faulting
@@ -63,7 +64,7 @@ Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
 proves only bounded nonzero process/fault termination with no later success
 output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
 W-1541 also closes the bounded `entry {}` path introduced through frontend15
-and HIR13; the current HIR schema is HIR14.
+and HIR13; the current HIR schema is HIR15 after W-1544.
 The canonical Hello and checked-arithmetic Restaurant fixtures use the short
 form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
 passes end to end. This is compiler-lifecycle correctness-only evidence with
@@ -81,6 +82,15 @@ pairs, `ExitCode.success`, and an explicit native-process entry adapter. Alias
 spelling changes provenance but not the semantic digest. HLO0 and MLIR0 still
 reject this HIR without partial output; `directEntry`, ABI lowering, providers,
 runtime input, native execution, Windows, and performance remain gaps.
+W-1544 prepares independent HIR15 `suspension` and `direct_entry` facts from
+the explicit CST `async` modifier and a whole-body bounded proof. Ordinary pure
+functions remain `NEVER`/`ABSENT`; the process handler remains `MAY`/`ABSENT`.
+The current bounded frontend/HIR0 analysis, emitter, and independent verifier
+are source-backed-current; focused HIR0 C units and compiler emitter gates pass.
+The 4 KiB/CST32768 proof adds no syntax or process execution claim. See
+[`DESIGN.md` §26.4.1.27](DESIGN.md) for the canonical contract. `sync`, process
+input, general ABI/provider/ownership runtime, native process execution,
+Windows, and performance remain outside this evidence.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

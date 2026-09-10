@@ -810,8 +810,8 @@ The project owner requested prioritized remediation after this review. The
 review findings remain recorded above. Their implementation status is tracked
 here rather than in another task catalog.
 
-The economic workflow uses one Luna Max worker for a closed implementation
-bundle. The coordinator owns the contract, prioritization, and diff review.
+The coordinator/worker workflow follows [`AGENTS.md`](AGENTS.md); the coordinator
+owns the contract, prioritization, and diff review.
 The build-safety changes were committed separately from NCFG0/W-1535. That
 compiler bundle now has focused native evidence, as recorded below. No broader
 design recommendation is ratified merely by its inclusion in this queue.
@@ -825,6 +825,81 @@ design recommendation is ratified merely by its inclusion in this queue.
 | 9 — native CI | Queued | Require pinned native execution and distinguish unavailable local tools from failed CI prerequisites |
 | 5–6, 11–12 — documentation and navigation | Queued | Consolidate doctest rules, repair examples and readers, and update capability-specific status |
 | 10 — test quality | Queued, applied to new fixes now | Use behavior and known-bad mutations for changed tooling, then remove measured redundant checks |
+
+### Automatic design-hardening queue
+
+This finite hardening queue tracks document repairs, bounded audits, and
+execution proofs. It does not ratify complete-language, target, human, or
+runtime support. Each row has one
+stop condition and a current state.
+
+| ID / scope | Current state | Finite stop condition |
+|---|---|---|
+| DH0 — current-doc coherence: §5.2 `call:` versus §21/§22.2, let/var/property/default-label examples, and §20.8.3 platform scope | Complete for the audited slice; authored corrections and projections validated | Every affected authored example uses the canonical opener, carrier, label, and current matrix scope; stale manual wording is removed or linked. |
+| DH1 — ownership/access composition: concrete object versus generic `T`, property projection/receiver, `inout` writeback on normal/throw/cancel, hooks and exclusive access | design interaction audited; execution-evidence pending | `property-inout-exit-witness` records one finite positive and one negative trace without assuming hidden copies; implementation gaps remain named and no new syntax is added. |
+| DH2 — execution/services composition: `sync` proof, first-result selection plus structured drain, cancellation/noncooperative children, boundedness/backpressure/close | Audited; receiver-close clarification and runtime evidence queued | Close `channel-receiver-close-contract`, then obtain the drain and waiter-budget witnesses below; no runtime claim is promoted without a product witness. |
+| DH3 — target contract closure: desktop Windows/Linux/macOS primary, cross-compile edges separate, Wasm/GPU/FPGA capability-limited, and compiler → ABI/linker/SDK → runtime/provider → execution/metrics mapping | design-audit (matrix reviewed; no support promotion) | Every claimed edge has a witness, or an unavailable witness is recorded as a gap; no target is promoted by catalog breadth. |
+| DH4 — freeze/readiness wording: zero unclassified families is not zero studies; WVUI0/optional-provider research stays separate from core; no feature-count completeness | Audited; core contracts and optional studies remain distinct | Freeze text states these distinctions and contains no completeness or support inference. |
+| DH5 — human ratification: HUM0 requires real observations; automated review never fabricates human records | evidence-required (real observations needed) | Actual observations are cited, or the record remains explicitly evidence-required with its blocker. |
+
+Current focal checks pass: 44 execution-ergonomics tests, 126 host cases,
+401/401 design-example sections, and `git diff --check`. These checks do not
+execute W property observers, cancellation, or providers. The W-1544
+classification passes at 1,544 decisions (`source-backed-current`
+127, `oracle-backed-current` 505, `implementation-evidence-gap` 822,
+`superseded` 82, `rejected` 8). The index and 109/109 substitution cases
+pass. FRC passes its eight oracle tests, six cases, and nested parse. The study
+registry is current, and all eight documentation gates pass.
+
+Editorial reconciliation has `benchmarkDisposition: not-applicable`. New
+language-execution proof tasks remain `deferred` until their exact code path,
+product execution witness, target/provider capability, and independent outcome
+receipt exist; each missing item is an explicit blocker, not target support.
+
+Compiler follow-up `hir-direct-entry-propagation-cost` has
+`benchmarkDisposition: compiler-lifecycle`: verify reverse-chain/SCC correctness,
+measure scaling, and replace rescans only if material. Current HIR15 disclosure
+keeps the reverse-chain/SCC propagation component at `O(F*E)` within the bounded
+`O(F*(F+E))` analysis; neither is a performance proof.
+
+The finite DH1 witness must evaluate the receiver/path once. A positive observer
+trace covers `willGet`/`didGet` plus `willSet`/set/`didSet` once on normal, throw,
+and structured-cancel exits, with unchanged writeback and no hidden old copy;
+overlapping receivers are rejected, and `mut ref` has no set hooks. A computed or
+behavior `inout` getter is positive only with `Copy` or a fresh bounded,
+property-safe value; a non-`Copy` backing getter without that proof is rejected.
+Unique-owner transport applies to direct/plain stored places, not arbitrary
+behavior getters. The witness remains an implementation-evidence task for the
+general checker, property lowering, ownership, and cancellation runtime.
+
+The finite DH2 witness covers a fast winner and a foreign/noncooperative loser
+only across a physically terminable fault boundary. A deadline cannot terminate
+arbitrary user or foreign code: bounded-shutdown profiles reject unbounded
+adapters outside a killable boundary. Forced termination is a boundary failure,
+not `.canceled`, and cannot authorize premature reclamation. No success or
+partial array is published before structured drain; committed effects remain
+visible. This remains an evidence task for scheduler/provider drain, cancellation,
+and native execution; FST0 stays host-only.
+
+Two finite DH2 follow-ups remain. Neither introduces new syntax:
+
+- P1, `channel-receiver-close-contract`: reconcile §12.9.4/§12.9.8 with CH0's
+  `receiverBusy` rejection for close during a pending receive. Specify endpoint
+  exclusivity and provider lifetime, not merely move-only ownership. The
+  candidate sequence is cancel/join receive, then close and drain. Include a
+  legal sequence and a rejected overlap before changing the normative contract.
+  This is a design clarification, not only a missing runtime test.
+- P1, `channel-waiter-budget-witness`: prove that suspended-sender bookkeeping
+  is charged to task/frame budgets. Capacity bounds accepted items and permits,
+  not waiting tasks or transitive payload bytes. Exercise bounded admission,
+  `trySend` `.full`, close returning `.closed(T)`, and canceled frames cleaning
+  their staged values exactly once. Blockers are channel runtime, scheduler
+  budgets, ownership cleanup, and a native allocation witness. This execution
+  task has `benchmarkDisposition: deferred` until those paths exist.
+
+The queue audit found no additional service-mailbox ownership or structured-drain
+contradiction. Mailbox quotas and admission/cancellation phases remain governed
+by §13.5–§13.6. This bounded review is not proof of full-language completeness.
 
 The 2026-09-04 property bundle records W-1536: an explicit single observer can
 synthesize plain logical storage, while named composition remains available for
@@ -883,7 +958,8 @@ tree; it is not an active worker or background build.
 Final documentation checks passed: 1,535 classified decisions, 101 substitution
 cases, current index and substitution projections, 71 linked Markdown files,
 and `git diff --check`. These counts describe repository consistency, not
-language completeness. Property and ownership findings remain open.
+language completeness. Property and ownership findings remain implementation
+evidence pending after W-1536.
 
 The build-safety bundle has `benchmarkDisposition: deferred`. The follow-up
 task `windows-build-reproducibility` requires a clean, reviewed source baseline
@@ -944,34 +1020,49 @@ general `OsString`, argument access, async I/O, loops, Windows UTF-16 ABI, and
 the complete `std.process@1` provider remain later packages. Evidence is
 compiler-lifecycle correctness only, never a runtime or performance claim.
 
-Current checkpoint: W-1543 completes `PROC-ABI0` through verified HIR14.
-Grouped aliases resolve `Arguments`, `Context`, and `ExitCode` to stable
-external nominal identities; HIR14 owns and revalidates the canonical external
-table, payload-free `ExitCode.success`, and explicit native-process handler
-adapter. HLO0 and MLIR0 still reject that HIR without partial output.
-Implementation of `directEntry`, ABI lowering, providers, runtime argument
-access, native process execution, and Windows process support remains pending.
+Current checkpoint: W-1543 closes `PROC-ABI0` through verified HIR14. W-1544
+is source-backed-current for the bounded HIR15 analysis and verification that
+prepares the W-1484 direct-entry prerequisite for `PROC-INPUT0`.
+HIR14 remains the historical W-1543 process-identity record.
+The HIR15 implementation adds independent `suspension` and `direct_entry`
+fields, digest coverage, function-count guards, and a 4 KiB scratch bound. The
+whole-body analysis, fixed-point propagation, emitter publication, and
+independent verifier recomputation are source-backed-current through the named
+implementation symbols and focused C/emitter gates. HLO0 and MLIR0 still reject
+process HIR without partial output. ABI lowering, providers, runtime argument
+access, native process execution, and Windows process support remain later work.
 
-The next package is the W-1484 proof prerequisite, not process ABI lowering.
-The code review found these boundaries:
+The next compiler slice must establish process-owner lifecycle and effect facts
+before direct process-entry lowering. The completed proof retains these limits:
 
-- HIR14 preserves complete function bodies and local-call identities, but lacks
-  call-form and host-effect evidence. Unknown calls must remain conservative.
+- HIR15 preserves complete function bodies and local-call identities but still
+  lacks call-form and host-effect evidence. Unknown hosts and local async calls
+  must remain conservative.
 - Keep the async entry's `suspension: may` separate from the proof that its
   direct entry never suspends. Analyze whole declarations before specialization.
   Resolve local-call dependencies to a fixed point, including recursive groups.
+- Ordinary pure functions publish `NEVER`/`ABSENT`. Explicit `async` comes from
+  the CST and may publish `AVAILABLE` only after the whole-body proof. The
+  process handler remains `MAY`/`ABSENT`.
 - Synchronous `deinit` is already a language rule. It does not prove that HIR
   preserves process ownership, required cleanup, or provider effects. Establish
   those facts before publishing a direct-entry proof for opaque process owners.
 - Neither `.success`, parameter names, nor `adapter_kind` is proof evidence.
   Keep native consumers rejecting process HIR until proof and ABI support exist.
 
-Select the proof representation before editing the schema. Acceptance requires
-independent verifier checks, conservative unknown-call handling, and adversarial
-constant-branch, transitive-call, cleanup, and forged-proof cases. This package
+Acceptance covers independent verifier checks, conservative unknown-call
+handling, and adversarial constant-branch, transitive-call, recursive-group,
+cleanup, empty-storage, and forged-proof cases. This package
 uses `benchmarkDisposition: compiler-lifecycle`; it makes no performance claim.
 Stop after the bounded proof and its checks. `PROC-INPUT0` remains a separate
 executable milestone with the two runtime-input outcomes specified above.
+
+Validation checkpoint: the Werror build and five focal CTest units pass.
+Hello, checked-arithmetic Restaurant, and nested-if Restaurant pass the native
+WSL MLIR/LLVM pipeline with exact stdout, empty stderr, and exit 0. These are
+regressions of the existing executable subset, not `sync` or process-input
+execution. The wider Windows runtime and performance claims remain unsupported
+by this bundle. No raw native artifacts need retention after review.
 
 The broad English migration and physical documentation split should be staged
 with their owners, not bundled into unrelated compiler changes. Release

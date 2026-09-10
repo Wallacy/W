@@ -19,7 +19,7 @@
       "id": "FRC0-research-state-inventory",
       "role": "research-state-inventory",
       "path": "tooling/research-state-inventory.json",
-      "digest": "sha256:66d14faa6187e363ba8df353299846c699498e7c287961721cdc2ac4bd9321a7"
+      "digest": "sha256:283d726cfb4da56c66afe465cc88473edffa143e1b0d8b51a1340c5c1c2740fd"
     },
     {
       "id": "FRC0-machine",
@@ -43,7 +43,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:b42477e5ed2b2dadbcfffa3d29a6228198499865863c32c7c4654b912ea14327"
+      "digest": "sha256:610ec874c35ff7f21af55a4c48c6069216c38d130ec502e41b8c9b32fa2f8e0f"
     },
     {
       "id": "FRC0-oracle",
@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:4dc8a3f27f42d9aa27d157cbd55246f29648a99b2a188adccb7d96863ff7d4e6"
+      "digest": "sha256:863c4930d3a76427589309c1a37a07187b080ce81100f6f6812c117820a180fd"
     },
     {
       "id": "FRC0-study",
@@ -181,25 +181,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:0029081ac3f982f2ac07a38f9130218933d9a2a966c57ea7ccede6e9ce1dd3bf"
+      "digest": "sha256:2ee65fd21b2aecd42f27671766740b2de6339a0947d8fb45eee19143f42734ff"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:7d0ce7d98c15e0b6c3de1167acdd373ec9031f258b11fcde778b1e22c0bb7b98"
+      "digest": "sha256:48c11568b171c3d26d8eddf26bb1f45dd6ed3db5a41ba253d3e1aa2aecb8ec00"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:c81c1d799dd143b35cc5aedcf677930c4a7c23d2979adf7bf9e77109d0e857d7"
+      "digest": "sha256:5d5fb2384d227f09e98ad65fb8574fffb366aad6791b7c4b845456a5d1133f69"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:d242643a0450829d3c36ec19bffc47180bfd93c431e9eeeaf839fba65b41ecf5"
+      "digest": "sha256:c243bd365a3e11e5dd505ff30bc70fb04abae4f8e4436bcbaef784491491ebd6"
     }
   ],
   "evidence": {

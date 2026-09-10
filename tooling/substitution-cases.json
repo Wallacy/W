@@ -1552,7 +1552,7 @@
       "selected": {
         "language": "w",
         "source": [
-          "let root: shared MenuSection = MenuSection(title: \"Dinner\")",
+          "let root: shared MenuSection = MenuSection(title: \"Dinner\", parent: .none, children: [])",
           "let local: shared MenuSection = take draft",
           "let local: shared MenuSection = try MenuSection(allocator: memory, ...)"
         ]
@@ -1561,7 +1561,7 @@
         {
           "name": "explicit-default-share",
           "language": "w-rejected",
-          "source": ["let root = share(MenuSection(title: \"Dinner\"))"],
+          "source": ["let root = share(MenuSection(title: \"Dinner\", parent: .none, children: []))"],
           "expectedDifference": "The call form is retired before W 1.0; use a shared binding and take an existing owner."
         },
         {
@@ -1573,7 +1573,7 @@
         {
           "name": "contextual-argument-promotion",
           "language": "w-rejected",
-          "source": ["install(MenuSection(title: \"Dinner\")) // install expects shared MenuSection"],
+          "source": ["install(MenuSection(title: \"Dinner\", parent: .none, children: [])) // install expects shared MenuSection"],
           "expectedDifference": "An expected parameter type cannot insert allocation or change ownership during overload resolution."
         },
         {
@@ -3967,6 +3967,157 @@
       "checks": [
         "Focused frontend16 and HIR14 units passed",
         "HLO0 and MLIR0 reject the valid process HIR without partial output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-proc-abi0-hir15-direct-entry",
+      "reviewItem": "independent suspension and direct-entry facts for explicit async declarations, ordinary pure callers, conservative unknown calls, and process-handler exclusion.",
+      "decisions": [
+        "W-1544"
+      ],
+      "task": "Derive bounded HIR15 suspension and direct-entry facts for a whole-body local-call proof without claiming sync execution or process input execution.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn orderTotal(count: i64): i64 {",
+          "  return count + 1",
+          "}",
+          "async fn quote(count: i64): i64 {",
+          "  let total = orderTotal(count: count)",
+          "  return total",
+          "}",
+          "entry {",
+          "  print(\"HIR15 facts\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "inferred-async-fact",
+          "language": "w-rejected",
+          "source": [
+            "fn helper(): i64 { return 7 }",
+            "sync helper()"
+          ],
+          "expectedDifference": "is_async comes only from the explicit async modifier in the CST; a fact cannot infer an async declaration or grant direct_entry to an ordinary function."
+        },
+        {
+          "name": "cache-fast-path-may-suspend",
+          "language": "w-rejected",
+          "source": [
+            "async fn helper(): i64 {",
+            "  if cached { return 7 } else { return await remote() }",
+            "}"
+          ],
+          "expectedDifference": "A path-sensitive cache result cannot publish direct_entry: AVAILABLE when any complete-body path may suspend."
+        },
+        {
+          "name": "termination-required-for-recursive-group",
+          "language": "w-rejected",
+          "source": [
+            "async fn first(): i64 { return sync second() }",
+            "async fn second(): i64 { return sync first() }"
+          ],
+          "expectedDifference": "Fixed-point propagation may classify a local recursive group without proving termination; termination is not a required proof input."
+        },
+        {
+          "name": "process-handler-direct-entry",
+          "language": "w-rejected",
+          "source": [
+            "async fn run(args: Arguments, ctx: Context): ExitCode {",
+            "  return .success",
+            "}"
+          ],
+          "expectedDifference": "The process handler remains suspension: MAY and direct_entry: ABSENT until process ownership, effects, lifecycle, and ABI facts are closed."
+        },
+        {
+          "name": "host-string-without-summary",
+          "language": "w-rejected",
+          "source": [
+            "async fn announce() {",
+            "  print(message: \"order\", suffix: \"\")",
+            "}"
+          ],
+          "expectedDifference": "An unknown host call without call-form or effect summary denies the proof; a String parameter, return, or value is a nominal lifecycle boundary and also denies it."
+        },
+        {
+          "name": "opaque-owner-without-lifecycle",
+          "language": "w-rejected",
+          "source": [
+            "async fn helper(owner: Opaque): i64 {",
+            "  return sync owner.value()",
+            "}"
+          ],
+          "expectedDifference": "An opaque owner without effects and lifecycle facts denies the whole-body direct-entry proof."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_suspension_kind",
+          "claim": "HIR15 defines the independent NEVER and MAY suspension facts."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_direct_entry_kind",
+          "claim": "HIR15 defines the independent ABSENT and AVAILABLE direct-entry facts."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_function",
+          "claim": "Each caller-owned HIR function record carries both W-1484 facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "HIR0_DIRECT_FUNCTION_BITSET_BYTES",
+          "claim": "The HIR15 preparation derives scratch capacity from the inherited CST32768 bound."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_compute_body_never",
+          "claim": "The bounded whole-body analysis computes a scratch-only never-suspend fixed point without publishing a proof field during the calculation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_publish_direct_entry_facts",
+          "claim": "HIR15 publishes suspension and direct-entry facts from explicit async state and the complete-body result."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_direct_entry_facts",
+          "claim": "The verifier independently recomputes the expected suspension and direct-entry facts."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_type_is_blocked",
+          "claim": "The bounded HIR rejects String and other blocked nominal lifecycle types from direct-entry proof."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "normalize_function",
+          "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_direct_entry_facts",
+          "claim": "The C unit covers bounded fact publication, local-call propagation cases, and forged-fact rejection."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_direct_entry_effect_barrier",
+          "claim": "The C unit verifies unsupported effect/defer boundaries fail closed without mutating HIR output or result state."
+        }
+      ],
+      "checks": [
+        "Confirmed bounded proof: frontend async provenance, whole-body analysis, fact publication, and independent verifier recomputation",
+        "Confirmed focused C units: ordinary pure NEVER/ABSENT, explicit async MAY/AVAILABLE, conservative effect barriers, and process-handler MAY/ABSENT",
+        "Bounded native WSL regression is confirmed for retained Hello, checked-arithmetic, and nested-if routes; no sync or process-input execution result is claimed"
       ],
       "measures": [
         "semantic-correctness",
