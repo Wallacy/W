@@ -170,6 +170,20 @@ describe("workspace cleanup", () => {
     }
   });
 
+  test("coalesces an explicit child when the selected build root owns it", async () => {
+    const build = await makeCMakeBuild("build");
+    const windowsOutput = path.join(build, "w-windows");
+    await makeFile(path.join(windowsOutput, "w.exe"), "native executable");
+
+    const plan = await collectCleanupPlan(options());
+    expect(plan.candidates.map((candidate) => candidate.path)).toEqual([build]);
+    expect(plan.refused).toEqual([]);
+
+    const report = await applyCleanupPlan(plan, { mountProof: noMounts });
+    expect(report.refused).toEqual([]);
+    expect(await exists(build)).toBe(false);
+  });
+
   test("selects independent CMake outputs nested below build", async () => {
     const seed = await makeCMakeBuild(path.join("build", "seed-c"));
     const other = path.join(workspace, "build", "notes");
