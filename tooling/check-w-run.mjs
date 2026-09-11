@@ -15,6 +15,8 @@ const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaur
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
+const restaurantRuntimeDivremFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-runtime-divrem.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
 const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner.w")
@@ -503,6 +505,8 @@ try {
     "restaurant_direct_call.w")
   const restaurantScalarReturn = join(fixtureDirectory,
     "restaurant_scalar_return.w")
+  const runtimeDivisionZero = join(fixtureDirectory,
+    "runtime_division_zero.w")
   const empty = join(fixtureDirectory, "empty.w")
   const zero = join(fixtureDirectory, "zero.w")
   const oversize = join(fixtureDirectory, "oversize.w")
@@ -548,6 +552,10 @@ try {
     "fn tableNumber(): i64 { return 6 * 7 }\n" +
     "fn main() { let table = tableNumber() " +
     "print(\"Table ${table}\") }\nentry(main)\n")
+  await writeFile(runtimeDivisionZero,
+    "fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n" +
+    "fn main() { let result = divide(value: 8, by: 0) " +
+    "print(\"success ${result}\") }\nentry(main)\n")
   await writeFile(empty, "fn main() { print(\"\") }\nentry(main)\n")
   await writeFile(zero, Buffer.alloc(0))
   await writeFile(oversize, Buffer.alloc(4097, 0x70))
@@ -660,6 +668,13 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantScalarReturn)],
     Buffer.from("Table 42\n", "utf8"),
     "Restaurant scalar return")
+  expectSuccess(binary, ["run", toWsl(restaurantRuntimeDivremFixture)],
+    Buffer.from("Each 7; left 2\n", "utf8"),
+    "Restaurant checked runtime division/remainder")
+  const divisionFault = invoke(binary, ["run", toWsl(runtimeDivisionZero)])
+  assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
+    divisionFault.stderr.length === 0,
+  `runtime division by zero did not fail before output: ${resultSummary(divisionFault)}`)
   expectSuccess(binary, ["run", toWsl(empty)], Buffer.from("\n"),
     "empty payload")
   expectSuccess(binary, ["run", toWsl(twoCalls)], Buffer.from("a\nb\n"),

@@ -1222,15 +1222,33 @@ Existing HIR evaluation retains left-to-right and once-only call behavior.
 Checked helpers are emitted only for reachable arithmetic trees. Hello and the
 dead-function witness emit no checked helper or dead text. Constant overflow
 and faulting constant `/` or `%` are rejected. A safe fully constant `/` or
-`%` emits `llvm.sdiv` or `llvm.srem`. Dynamic/runtime `/` and `%`, unary
-negation, power, other widths, named numeric APIs, and general numeric
-surfaces remain unsupported.
+`%` emits `llvm.sdiv` or `llvm.srem`. W-1551 supersedes only the former
+dynamic/runtime `/` and `%` exclusion. Unary negation, power, other widths,
+named numeric APIs, and general numeric surfaces remain unsupported.
 
 `fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 produces exact `Open 6; closed 1\n` on Linux/WSL with LLVM 20.1.2. No native
 Windows evidence is claimed. The bundle keeps caller-owned all-or-nothing,
 capacity, alias, receipt, and digest invariants. Its `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+
+### Checked runtime signed-`i64` division and remainder (W-1551)
+
+The existing HIR binary value now crosses the native selector with runtime
+operands for `/` and `%`. No public record schema changes. Reachable division
+uses `w_seed_checked_divide_i64`, which traps before `llvm.sdiv` for a zero
+divisor or `i64.min / -1`. Reachable remainder uses
+`w_seed_checked_remainder_i64`, which traps on zero and returns zero for
+`i64.min % -1` before the ordinary `llvm.srem` path. Safe fully constant trees
+retain direct `llvm.sdiv`/`llvm.srem`; invalid constant trees still fail before
+emission. Both helpers are omitted when unreachable.
+
+`fixtures/restaurant-runtime-divrem.w` uses two parameterized W functions and
+the short entry form. It produces exact `Each 7; left 2\n` through Linux WRT0
+and native Windows. The Linux MLIR gate additionally executes zero-divisor and
+signed-overflow processes and requires nonzero termination with empty stdout.
+The checks do not claim `PanicEvent`, payload/cleanup semantics, other widths
+or targets, timing, ranking, or performance.
 
 ### Short default entry (W-1541)
 

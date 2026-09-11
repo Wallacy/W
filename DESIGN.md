@@ -36864,8 +36864,8 @@ function, call chain, text value, or arithmetic operation does not emit a
 function or helper. Hello and the dead-function witness therefore contain no
 checked helper. Constant overflow is rejected before MLIR emission. A safe
 fully constant `/` or `%` tree remains admitted and emits `llvm.sdiv` or
-`llvm.srem`. Dynamic or runtime `/` and `%` remain unsupported in this cut.
-Their faulting constant forms also fail closed. Unary negation, power, other
+`llvm.srem`. W-1551 supersedes only this cut's former rejection of dynamic or
+runtime `/` and `%`; faulting constant forms still fail closed. Unary negation, power, other
 integer widths, named numeric APIs, and general panic runtime remain outside
 the cut.
 
@@ -37359,6 +37359,41 @@ transitively or through linker convenience. W-1521 remains current for the
 bounded CLI and source contract, while W-1550 supersedes its former CRT/libc
 link implementation. `benchmarkDisposition` is `compiler-lifecycle`,
 correctness-only, with no timing, ranking, or performance result.
+
+#### 26.4.1.32 W-1551 — checked runtime signed-`i64` division and remainder (Current form)
+
+W-1551 closes runtime `/` and `%` for the existing bounded signed-`i64` value
+graph without changing the frontend, HIR0, MLIR0, or Native0 record schemas.
+Operands retain left-to-right, once-only evaluation. `/` returns a quotient
+toward zero and `%` keeps the dividend's sign, as already required by W-391.
+
+```w
+fn portion(total: i64, among guests: i64): i64 {
+  return total / guests
+}
+
+fn leftovers(total: i64, among guests: i64): i64 {
+  return total % guests
+}
+```
+
+Reachable runtime division calls a private checked helper. It tests a zero
+divisor and the `i64.min / -1` overflow pair before issuing `llvm.sdiv`; either
+invalid case reaches the existing trap boundary before user output. Reachable
+runtime remainder rejects a zero divisor and returns zero for
+`i64.min % -1` without issuing a faulting target instruction; all other pairs
+use `llvm.srem`. Safe fully constant trees keep their direct `llvm.sdiv` or
+`llvm.srem` lowering, while invalid constant trees remain compile-time
+unsupported. Divide and remainder helpers enter the artifact only when their
+runtime operations are reachable.
+
+The Restaurant fixture
+`compiler/seed-c/fixtures/restaurant-runtime-divrem.w` executes exact stdout
+`Each 7; left 2\n` through the Linux WRT0 route and the native Windows route.
+The Linux gate also proves zero-divisor and signed-overflow termination with
+empty stdout. This is bounded compiler-lifecycle correctness evidence. It does
+not establish `PanicEvent`, panic payloads or cleanup, other integer widths,
+named numeric APIs, other targets, timing, ranking, or performance.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

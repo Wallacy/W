@@ -228,6 +228,47 @@ static const char MLIR0_CHECKED_I64_MULTIPLY_HELPER[] =
     "    llvm.return %value : i64\n"
     "  }\n";
 
+static const char MLIR0_CHECKED_I64_DIVIDE_HELPER[] =
+    "  llvm.func internal @w_seed_checked_divide_i64(%left: i64, %right: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %minimum = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    %minimum_left = llvm.icmp \"eq\" %left, %minimum : i64\n"
+    "    %negative_one_right = llvm.icmp \"eq\" %right, %negative_one : i64\n"
+    "    %overflow = llvm.and %minimum_left, %negative_one_right : i1\n"
+    "    %invalid = llvm.or %zero_divisor, %overflow : i1\n"
+    "    llvm.cond_br %invalid, ^checked_fault, ^checked_ok\n"
+    "  ^checked_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^checked_ok:\n"
+    "    %value = llvm.sdiv %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
+static const char MLIR0_CHECKED_I64_REMAINDER_HELPER[] =
+    "  llvm.func internal @w_seed_checked_remainder_i64(%left: i64, %right: i64) -> i64 {\n"
+    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
+    "    %negative_one = llvm.mlir.constant(-1 : i64) : i64\n"
+    "    %minimum = llvm.mlir.constant(-9223372036854775808 : i64) : i64\n"
+    "    %zero_divisor = llvm.icmp \"eq\" %right, %zero : i64\n"
+    "    llvm.cond_br %zero_divisor, ^checked_fault, ^checked_nonzero\n"
+    "  ^checked_fault:\n"
+    "    \"llvm.intr.trap\"() : () -> ()\n"
+    "    llvm.unreachable\n"
+    "  ^checked_nonzero:\n"
+    "    %minimum_left = llvm.icmp \"eq\" %left, %minimum : i64\n"
+    "    %negative_one_right = llvm.icmp \"eq\" %right, %negative_one : i64\n"
+    "    %overflow_pair = llvm.and %minimum_left, %negative_one_right : i1\n"
+    "    llvm.cond_br %overflow_pair, ^checked_minimum, ^checked_ok\n"
+    "  ^checked_minimum:\n"
+    "    llvm.return %zero : i64\n"
+    "  ^checked_ok:\n"
+    "    %value = llvm.srem %left, %right : i64\n"
+    "    llvm.return %value : i64\n"
+    "  }\n";
+
 static const char MLIR0_BOOL_HELPER[] =
     "  llvm.func internal @w_seed_append_bool(%buffer: !llvm.ptr, %offset: i64, %value: i1) -> i64 {\n"
     "    %bool_one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -521,17 +562,20 @@ typedef struct {
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
+  bool has_checked_divide;
+  bool has_checked_remainder;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_dynamic_plan;
 
 static void note_checked_binary_operator(
     w_seed_hir0_binary_operator operation, bool *has_add, bool *has_subtract,
-    bool *has_multiply);
+    bool *has_multiply, bool *has_divide, bool *has_remainder);
 
 static bool mark_reachable_value_tree(
     const w_seed_hir0_program *program, uint32_t value_index,
     bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
-    bool *has_subtract, bool *has_multiply, size_t depth);
+    bool *has_subtract, bool *has_multiply, bool *has_divide,
+    bool *has_remainder, size_t depth);
 
 static bool dynamic_plan_append_text(mlir0_dynamic_plan *plan,
                                      const uint8_t *bytes, size_t length) {
@@ -686,10 +730,26 @@ static bool build_dynamic_plan(
             program, candidate.actions[action_index].value_index,
             candidate.reachable_values, &candidate.has_checked_add,
             &candidate.has_checked_subtract, &candidate.has_checked_multiply,
-            0u))
+            &candidate.has_checked_divide,
+            &candidate.has_checked_remainder, 0u))
       return false;
   *plan = candidate;
   return true;
+}
+
+static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
+                                        uint32_t value_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  return value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+         value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
+         mlir0_value_is_constant_i64(program, value->left_value, depth + 1u) &&
+         mlir0_value_is_constant_i64(program, value->right_value, depth + 1u);
 }
 
 static const char *binary_operation(w_seed_hir0_binary_operator operation) {
@@ -729,6 +789,10 @@ static const char *checked_binary_helper(
       return "@w_seed_checked_subtract_i64";
     case W_SEED_HIR0_BINARY_MULTIPLY:
       return "@w_seed_checked_multiply_i64";
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      return "@w_seed_checked_divide_i64";
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      return "@w_seed_checked_remainder_i64";
     default:
       return NULL;
   }
@@ -736,8 +800,9 @@ static const char *checked_binary_helper(
 
 static void note_checked_binary_operator(
     w_seed_hir0_binary_operator operation, bool *has_add, bool *has_subtract,
-    bool *has_multiply) {
-  if (has_add == NULL || has_subtract == NULL || has_multiply == NULL)
+    bool *has_multiply, bool *has_divide, bool *has_remainder) {
+  if (has_add == NULL || has_subtract == NULL || has_multiply == NULL ||
+      has_divide == NULL || has_remainder == NULL)
     return;
   if (operation == W_SEED_HIR0_BINARY_ADD)
     *has_add = true;
@@ -745,14 +810,20 @@ static void note_checked_binary_operator(
     *has_subtract = true;
   else if (operation == W_SEED_HIR0_BINARY_MULTIPLY)
     *has_multiply = true;
+  else if (operation == W_SEED_HIR0_BINARY_DIVIDE)
+    *has_divide = true;
+  else if (operation == W_SEED_HIR0_BINARY_REMAINDER)
+    *has_remainder = true;
 }
 
 static bool mark_reachable_value_tree(
     const w_seed_hir0_program *program, uint32_t value_index,
     bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
-    bool *has_subtract, bool *has_multiply, size_t depth) {
+    bool *has_subtract, bool *has_multiply, bool *has_divide,
+    bool *has_remainder, size_t depth) {
   if (program == NULL || reachable == NULL || has_add == NULL ||
-      has_subtract == NULL || has_multiply == NULL || depth > 256u ||
+      has_subtract == NULL || has_multiply == NULL || has_divide == NULL ||
+      has_remainder == NULL || depth > 256u ||
       value_index >= program->value_count ||
       value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES)
     return false;
@@ -764,13 +835,14 @@ static bool mark_reachable_value_tree(
     return value->binding_index < program->binding_count &&
            mark_reachable_value_tree(
                program, program->bindings[value->binding_index].initializer_value,
-               reachable, has_add, has_subtract, has_multiply, depth + 1u);
+               reachable, has_add, has_subtract, has_multiply, has_divide,
+               has_remainder, depth + 1u);
   }
   if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
     return value->left_value != W_SEED_HIR0_NONE &&
-           mark_reachable_value_tree(program, value->left_value, reachable,
+            mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
-                                     depth + 1u);
+                                     has_divide, has_remainder, depth + 1u);
   if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
     if (value->first_interpolation_segment >
             program->interpolation_segment_count ||
@@ -786,27 +858,31 @@ static bool mark_reachable_value_tree(
       if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
           !mark_reachable_value_tree(program, segment->value_index, reachable,
                                      has_add, has_subtract, has_multiply,
-                                     depth + 1u))
+                                     has_divide, has_remainder, depth + 1u))
         return false;
     }
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-    note_checked_binary_operator(value->binary_operator, has_add, has_subtract,
-                                 has_multiply);
+    if (!((value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+           value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) &&
+          mlir0_value_is_constant_i64(program, value_index, 0u)))
+      note_checked_binary_operator(value->binary_operator, has_add,
+                                   has_subtract, has_multiply, has_divide,
+                                   has_remainder);
     return mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
-                                     depth + 1u) &&
+                                     has_divide, has_remainder, depth + 1u) &&
            mark_reachable_value_tree(program, value->right_value, reachable,
                                      has_add, has_subtract, has_multiply,
-                                     depth + 1u);
+                                     has_divide, has_remainder, depth + 1u);
   }
   return true;
 }
 
 static bool append_checked_i64_helpers(
-    bool has_add, bool has_subtract, bool has_multiply, uint8_t *artifact,
-    size_t capacity, size_t *offset) {
+    bool has_add, bool has_subtract, bool has_multiply, bool has_divide,
+    bool has_remainder, uint8_t *artifact, size_t capacity, size_t *offset) {
   if (has_add &&
       !append_literal(artifact, capacity, offset, MLIR0_CHECKED_I64_ADD_HELPER))
     return false;
@@ -817,6 +893,14 @@ static bool append_checked_i64_helpers(
   if (has_multiply &&
       !append_literal(artifact, capacity, offset,
                       MLIR0_CHECKED_I64_MULTIPLY_HELPER))
+    return false;
+  if (has_divide &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_I64_DIVIDE_HELPER))
+    return false;
+  if (has_remainder &&
+      !append_literal(artifact, capacity, offset,
+                      MLIR0_CHECKED_I64_REMAINDER_HELPER))
     return false;
   return true;
 }
@@ -838,7 +922,13 @@ static bool append_binary_value_operation(
       program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_I64)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
-  const char *helper = checked_binary_helper(value->binary_operator);
+  const bool constant_division =
+      (value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
+       value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) &&
+      mlir0_value_is_constant_i64(program, value_index, 0u);
+  const char *helper = constant_division
+                           ? NULL
+                           : checked_binary_helper(value->binary_operator);
   if (!append_literal(artifact, capacity, offset, "    %v") ||
       !append_size(artifact, capacity, offset, value_index) ||
       !append_literal(artifact, capacity, offset, " = "))
@@ -1034,7 +1124,9 @@ static bool build_dynamic_artifact(
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
       !append_checked_i64_helpers(plan.has_checked_add,
                                   plan.has_checked_subtract,
-                                  plan.has_checked_multiply, artifact,
+                                  plan.has_checked_multiply,
+                                  plan.has_checked_divide,
+                                  plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))
@@ -1134,6 +1226,8 @@ typedef struct {
   bool has_checked_add;
   bool has_checked_subtract;
   bool has_checked_multiply;
+  bool has_checked_divide;
+  bool has_checked_remainder;
   bool reachable_values[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
 } mlir0_program_plan;
 
@@ -1192,10 +1286,11 @@ static bool mark_program_reachable_values(
     const w_seed_hir0_program *program,
     const bool reachable_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS],
     bool reachable[W_SEED_NATIVE_SUBSET0_MAX_VALUES], bool *has_add,
-    bool *has_subtract, bool *has_multiply) {
+    bool *has_subtract, bool *has_multiply, bool *has_divide,
+    bool *has_remainder) {
   if (program == NULL || reachable_functions == NULL || reachable == NULL ||
-      has_add == NULL ||
-      has_subtract == NULL || has_multiply == NULL)
+      has_add == NULL || has_subtract == NULL || has_multiply == NULL ||
+      has_divide == NULL || has_remainder == NULL)
     return false;
   for (size_t function_index = 0u;
        function_index < program->function_count; function_index += 1u) {
@@ -1224,9 +1319,10 @@ static bool mark_program_reachable_values(
           if (instruction->binding_index >= program->binding_count ||
               !mark_reachable_value_tree(
                   program,
-                  program->bindings[instruction->binding_index]
-                      .initializer_value,
-                  reachable, has_add, has_subtract, has_multiply, 0u))
+                   program->bindings[instruction->binding_index]
+                       .initializer_value,
+                   reachable, has_add, has_subtract, has_multiply, has_divide,
+                   has_remainder, 0u))
             return false;
           continue;
         }
@@ -1244,8 +1340,9 @@ static bool mark_program_reachable_values(
                   program,
                   program->arguments[(size_t)call->first_argument +
                                      argument_ordinal]
-                      .value_index,
-                  reachable, has_add, has_subtract, has_multiply, 0u))
+                       .value_index,
+                   reachable, has_add, has_subtract, has_multiply, has_divide,
+                   has_remainder, 0u))
             return false;
       }
       const w_seed_hir0_terminator *terminator =
@@ -1253,18 +1350,19 @@ static bool mark_program_reachable_values(
       if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
         if (!mark_reachable_value_tree(
                 program, terminator->value_index, reachable, has_add,
-                has_subtract, has_multiply, 0u))
+                has_subtract, has_multiply, has_divide, has_remainder, 0u))
           return false;
       } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
         if (terminator->incoming_value != W_SEED_HIR0_NONE &&
             !mark_reachable_value_tree(
                 program, terminator->incoming_value, reachable, has_add,
-                has_subtract, has_multiply, 0u))
+                has_subtract, has_multiply, has_divide, has_remainder, 0u))
           return false;
       } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
                  !mark_reachable_value_tree(
                      program, terminator->value_index, reachable, has_add,
-                     has_subtract, has_multiply, 0u)) {
+                     has_subtract, has_multiply, has_divide, has_remainder,
+                     0u)) {
         return false;
       } else if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
                  terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
@@ -1410,7 +1508,8 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   if (!mark_program_reachable_values(
           program, candidate.reachable_functions, candidate.reachable_values,
           &candidate.has_checked_add, &candidate.has_checked_subtract,
-          &candidate.has_checked_multiply))
+          &candidate.has_checked_multiply, &candidate.has_checked_divide,
+          &candidate.has_checked_remainder))
     return false;
   candidate.has_bool = false;
   for (size_t action_index = 0u; action_index < candidate.action_count;
@@ -2097,7 +2196,9 @@ static bool build_program_artifact(
       !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
       !append_checked_i64_helpers(plan.has_checked_add,
                                   plan.has_checked_subtract,
-                                  plan.has_checked_multiply, artifact,
+                                  plan.has_checked_multiply,
+                                  plan.has_checked_divide,
+                                  plan.has_checked_remainder, artifact,
                                   capacity, &offset) ||
       (plan.has_bool &&
        !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)))

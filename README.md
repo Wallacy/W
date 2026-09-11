@@ -57,8 +57,10 @@ Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
 Helpers are emitted only for reachable operations, and existing HIR call
 evaluation remains left-to-right and once-only. Constant overflow and faulting
 constant `/` or `%` fail closed. Safe constant `/` and `%` emit `llvm.sdiv` and
-`llvm.srem`, while dynamic/runtime `/` and `%`, unary negation, power, other
-widths, named numeric APIs, and general panic runtime remain outside this cut.
+`llvm.srem`. W-1551 adds checked dynamic/runtime `/` and `%` without changing
+the current record schemas: zero and `i64.min / -1` fault before output, while
+`i64.min % -1` returns zero. Unary negation, power, other widths, named numeric
+APIs, and general panic runtime remain outside this cut.
 The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
 Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
 proves only bounded nonzero process/fault termination with no later success
@@ -224,7 +226,10 @@ is exploratory, with no timing, result, or ranking claim.
 W-1540 is the current ARITH0 cut: checked runtime `+`, `-`, and `*` use
 signed-overflow intrinsics and a trap boundary in MLIR15/Windows6. Safe
 constant `/` and `%` retain `llvm.sdiv`/`llvm.srem`; dynamic/runtime forms and
-faulting constants fail closed. The Restaurant short-entry fixture produces
+faulting constants failed closed at that boundary. W-1551 now routes reachable
+runtime division and remainder through checked helpers, while safe constant
+trees retain direct operations. The Restaurant runtime-divrem fixture produces
+`Each 7; left 2\n` on Linux/WSL and native Windows. The earlier short-entry fixture produces
 `Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. Helpers are reachability-only,
 and no `PanicEvent`, runtime payload, cleanup, native Windows, timing, or
 benchmark result is claimed. W-1541 implements the bounded short default entry

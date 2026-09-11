@@ -15,6 +15,8 @@ const restaurantNestedScalarIfFixture = resolve(seedDirectory,
   "fixtures", "restaurant-nested-scalar-if.w")
 const restaurantCheckedArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-arithmetic.w")
+const restaurantRuntimeDivremFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-runtime-divrem.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -260,6 +262,14 @@ try {
   const boolReturnPath = resolve(artifactDirectory, "bool-return.w")
   const deadUnusedPath = resolve(artifactDirectory, "dead-unused.w")
   const checkedOverflowPath = resolve(artifactDirectory, "checked-overflow.w")
+  const runtimeMinimumRemainderPath = resolve(artifactDirectory,
+    "runtime-minimum-remainder.w")
+  const runtimeDivisionZeroPath = resolve(artifactDirectory,
+    "runtime-division-zero.w")
+  const runtimeDivisionOverflowPath = resolve(artifactDirectory,
+    "runtime-division-overflow.w")
+  const runtimeRemainderZeroPath = resolve(artifactDirectory,
+    "runtime-remainder-zero.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -311,12 +321,32 @@ try {
     'print("Open ${open}") }\nentry(main)\n')
   await writeFile(deadUnusedPath,
     'fn deadArithmetic(value: i64): i64 { return value + 1 }\n' +
+    'fn deadDivision(value: i64): i64 { return value / 2 }\n' +
+    'fn deadRemainder(value: i64): i64 { return value % 2 }\n' +
     'fn secret() { print("secret") }\n' +
     'fn dead() { secret() }\n' +
     'fn main() { print("Hello, world!") }\nentry(main)\n')
   await writeFile(checkedOverflowPath,
     'fn addOne(value: i64): i64 { return value + 1 }\n' +
     'fn main() { let result = addOne(value: 9223372036854775807) ' +
+    'print("success ${result}") }\nentry(main)\n')
+  await writeFile(runtimeMinimumRemainderPath,
+    'fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n' +
+    'fn main() { let result = remainder(' +
+    'value: 0 - 9223372036854775807 - 1, by: 0 - 1) ' +
+    'print("${result}") }\nentry(main)\n')
+  await writeFile(runtimeDivisionZeroPath,
+    'fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n' +
+    'fn main() { let result = divide(value: 8, by: 0) ' +
+    'print("success ${result}") }\nentry(main)\n')
+  await writeFile(runtimeDivisionOverflowPath,
+    'fn divide(value: i64, by divisor: i64): i64 { return value / divisor }\n' +
+    'fn main() { let result = divide(' +
+    'value: 0 - 9223372036854775807 - 1, by: 0 - 1) ' +
+    'print("success ${result}") }\nentry(main)\n')
+  await writeFile(runtimeRemainderZeroPath,
+    'fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n' +
+    'fn main() { let result = remainder(value: 8, by: 0) ' +
     'print("success ${result}") }\nentry(main)\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
@@ -368,6 +398,10 @@ try {
       expected: Buffer.from("Table 42\n", "utf8") },
     { name: "bool-return", source: boolReturnPath,
       expected: Buffer.from("Open true\n", "utf8") },
+    { name: "restaurant-runtime-divrem", source: restaurantRuntimeDivremFixture,
+      expected: Buffer.from("Each 7; left 2\n", "utf8") },
+    { name: "runtime-minimum-remainder", source: runtimeMinimumRemainderPath,
+      expected: Buffer.from("0\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -433,6 +467,35 @@ try {
   assert(overflowExecution.stdout.length === 0 &&
     !Buffer.from(overflowExecution.stdout).includes(Buffer.from("success")),
   "checked-overflow published output after the trap")
+  for (const fault of [
+    { name: "runtime-division-zero", source: runtimeDivisionZeroPath },
+    { name: "runtime-division-overflow", source: runtimeDivisionOverflowPath },
+    { name: "runtime-remainder-zero", source: runtimeRemainderZeroPath },
+  ]) {
+    const generated = run(seedGate, [fault.source])
+    assert(generated.exitCode === 0 && generated.stderr.length === 0 &&
+      generated.stdout.length > 0,
+    `${fault.name} source route did not emit checked MLIR`)
+    const input = resolve(artifactDirectory, `${fault.name}.mlir`)
+    const verified = resolve(artifactDirectory, `${fault.name}.verified.mlir`)
+    const llvm = resolve(artifactDirectory, `${fault.name}.ll`)
+    const executable = resolve(artifactDirectory, `${fault.name}.native`)
+    await writeFile(input, generated.stdout)
+    const inputForTool = isWindows ? wslPath(input) : input
+    const verifiedForTool = isWindows ? wslPath(verified) : verified
+    const llvmForTool = isWindows ? wslPath(llvm) : llvm
+    const executableForTool = isWindows ? wslPath(executable) : executable
+    invokeTool(tool("mlirOpt"), [inputForTool, "-o", verifiedForTool,
+      "--verify-each"], `${fault.name} mlir-opt`)
+    invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", verifiedForTool,
+      "-o", llvmForTool], `${fault.name} mlir-translate`)
+    invokeTool(tool("clang"), ["-x", "ir", `--target=${targetTriple}`,
+      llvmForTool, "-o", executableForTool], `${fault.name} clang LLVM IR`)
+    const execution = invokeProgram(executableForTool, [],
+      `${fault.name} generated executable`)
+    assert(execution.exitCode !== 0 && execution.stdout.length === 0,
+      `${fault.name} did not trap before publishing output`)
+  }
   assert(artifacts.get("restaurant-binding").equals(
     artifacts.get("restaurant-literal")),
   "Restaurant literal and binding MLIR artifacts differ")
@@ -476,11 +539,23 @@ try {
     !artifacts.get("dead-unused").includes("@w_fn_0(") &&
     !artifacts.get("dead-unused").includes("@w_fn_1(") &&
     !artifacts.get("dead-unused").includes("@w_fn_2(") &&
+    !artifacts.get("dead-unused").includes("@w_fn_3(") &&
+    !artifacts.get("dead-unused").includes("@w_fn_4(") &&
     !artifacts.get("dead-unused").includes("\\73\\65\\63\\72\\65\\74"),
   "unreachable function, text, or checked arithmetic helper was emitted")
   assert(artifacts.get("typed-bindings").includes(
     "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : (i64, i64) -> i64"),
   "typed binding arithmetic was precomputed before MLIR")
+  const runtimeDivremArtifact = artifacts.get("restaurant-runtime-divrem")
+  assert(runtimeDivremArtifact.includes(
+    "llvm.call @w_seed_checked_divide_i64") &&
+    runtimeDivremArtifact.includes("llvm.sdiv %left, %right") &&
+    runtimeDivremArtifact.includes(
+      "llvm.call @w_seed_checked_remainder_i64") &&
+    runtimeDivremArtifact.includes("llvm.srem %left, %right") &&
+    artifacts.get("runtime-minimum-remainder").includes(
+      "llvm.cond_br %overflow_pair, ^checked_minimum, ^checked_ok"),
+  "runtime division/remainder checks were omitted or precomputed")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5) : " +
@@ -601,14 +676,6 @@ try {
     ["constant-arithmetic-overflow.w",
       `fn main() { let value = 9223372036854775807 + 1 ` +
       `print("\${value}") }\nentry(main)\n`],
-    ["runtime-division.w",
-      `fn divide(value: i64): i64 { return value / 2 }\n` +
-      `fn main() { let result = divide(value: 5) ` +
-      `print("\${result}") }\nentry(main)\n`],
-    ["runtime-remainder.w",
-      `fn remainder(value: i64): i64 { return value % 2 }\n` +
-      `fn main() { let result = remainder(value: 5) ` +
-      `print("\${result}") }\nentry(main)\n`],
     ["scalar-cfg.w",
       `fn main(): i64 { if true { print("x") } return 1 }\nentry(main)\n`],
     ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],
