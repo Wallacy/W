@@ -20,7 +20,7 @@ export const dependencyCurrencyDocumentPath = path.join(
 );
 
 const EXPECTED_MANAGED = Object.freeze({
-  "bun-runtime": { version: "1.4.0" },
+  "bun-runtime": { version: "1.4.2" },
   "tree-sitter-cli": { version: "0.27.0" },
   "actions-checkout": {
     version: "7.0.1",
@@ -236,13 +236,13 @@ function validateSpecialEntries(value, errors) {
     errors.push("mlir0-llvm-clang entry is required");
   } else {
     if (mlir.current?.version !== "20.1.2") errors.push("MLIR0 current evidence must remain 20.1.2");
-    if (mlir.selected?.version !== "23.1.0") errors.push("MLIR0 selected successor must be 23.1.0");
-    if (mlir.selected?.tag !== "llvmorg-23.1.0") errors.push("MLIR0 selected tag must be llvmorg-23.1.0");
-    if (mlir.selected?.tagObject !== "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de") {
-      errors.push("MLIR0 selected tag object is not the verified llvmorg-23.1.0 tag");
+    if (mlir.selected?.version !== "23.1.1") errors.push("MLIR0 selected successor must be 23.1.1");
+    if (mlir.selected?.tag !== "llvmorg-23.1.1") errors.push("MLIR0 selected tag must be llvmorg-23.1.1");
+    if (mlir.selected?.tagObject !== "e7ce3600b55034ddf819638f395e3c475fad5be2") {
+      errors.push("MLIR0 selected tag object is not the verified llvmorg-23.1.1 tag");
     }
-    if (mlir.selected?.commit !== "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4") {
-      errors.push("MLIR0 selected commit is not the verified peeled llvmorg-23.1.0 commit");
+    if (mlir.selected?.commit !== "6dfe1677ab8dffbc6ec13d53a1e0215d75147689") {
+      errors.push("MLIR0 selected commit is not the verified peeled llvmorg-23.1.1 commit");
     }
     if (mlir.selected?.promotion !== "blocked") errors.push("MLIR0 successor promotion must remain blocked");
     if (mlir.requirements?.zeroPromotion !== true) errors.push("MLIR0 must declare zero promotion");
@@ -252,6 +252,19 @@ function validateSpecialEntries(value, errors) {
     if (!Array.isArray(mlir.components) || JSON.stringify(mlir.components) !== JSON.stringify(["MLIR", "LLVM", "Clang", "LLD"])) {
       errors.push("MLIR0 components must include MLIR, LLVM, Clang, and LLD");
     }
+    if (mlir.releaseWatch?.scheduleUrl !== "https://llvm.org/") errors.push("MLIR0 release watch must use the official LLVM schedule");
+    if (mlir.releaseWatch?.releaseApi !== "https://api.github.com/repos/llvm/llvm-project/releases?per_page=30") {
+      errors.push("MLIR0 release watch must use the official llvm-project release feed");
+    }
+    if (
+      mlir.releaseWatch?.nextScheduled?.version !== "23.1.2" ||
+      mlir.releaseWatch?.nextScheduled?.date !== "2026-09-22" ||
+      mlir.releaseWatch?.nextScheduled?.status !== "announced-not-released"
+    ) {
+      errors.push("MLIR0 next scheduled release must record 23.1.2 on 2026-09-22 without treating it as released");
+    }
+    if (mlir.releaseWatch?.workflow !== ".github/workflows/llvm-release-watch.yml") errors.push("MLIR0 release watch workflow path is invalid");
+    if (mlir.releaseWatch?.checker !== "tooling/check-llvm-release.mjs") errors.push("MLIR0 release watch checker path is invalid");
   }
   const unicode = byId.get("unicode-ucd");
   if (!unicode) {
@@ -361,8 +374,8 @@ export function validateDependencyCurrency(value, { root = repositoryRoot } = {}
   if (value.$schema !== DEPENDENCY_CURRENCY_SCHEMA) errors.push(`catalog.$schema must be ${DEPENDENCY_CURRENCY_SCHEMA}`);
   if (value.version !== 1) errors.push("catalog.version must be 1");
   if (value.status !== "operational-catalog") errors.push("catalog.status must be operational-catalog");
-  if (value.observedAt !== "2026-08-31" || !DATE_PATTERN.test(value.observedAt ?? "")) {
-    errors.push("catalog.observedAt must be 2026-08-31");
+  if (value.observedAt !== "2026-09-11" || !DATE_PATTERN.test(value.observedAt ?? "")) {
+    errors.push("catalog.observedAt must be 2026-09-11");
   }
   if (!isObject(value.policy)) {
     errors.push("catalog.policy must be an object");
@@ -379,6 +392,23 @@ export function validateDependencyCurrency(value, { root = repositoryRoot } = {}
     }
     if (value.policy.environment?.claimExactPin !== false) {
       errors.push("policy.environment.claimExactPin must be false");
+    }
+    const watch = value.policy.releaseWatch;
+    if (watch?.authority !== "official-upstream-only") errors.push("policy.releaseWatch.authority must be official-upstream-only");
+    if (watch?.networkCheck !== "scheduled-ci-and-manual") errors.push("policy.releaseWatch.networkCheck must be scheduled-ci-and-manual");
+    if (watch?.cadence !== "weekly-after-upstream-release-day") errors.push("policy.releaseWatch.cadence must follow the upstream release day");
+    if (watch?.newWork !== "latest-stable-after-compatibility-gate") errors.push("policy.releaseWatch.newWork must require the latest stable compatibility gate");
+    if (watch?.historicalEvidence !== "immutable") errors.push("policy.releaseWatch.historicalEvidence must remain immutable");
+    const expectedSteps = [
+      "detect-official-stable-release",
+      "resolve-tag-object-and-peeled-commit",
+      "run-isolated-compatibility-probe",
+      "update-exact-pins-and-native-plans",
+      "run-dependency-platform-compiler-and-benchmark-gates",
+      "promote-for-new-work-without-rewriting-historical-evidence",
+    ];
+    if (JSON.stringify(watch?.adoptionSteps) !== JSON.stringify(expectedSteps)) {
+      errors.push("policy.releaseWatch.adoptionSteps must preserve the bounded LLVM adoption procedure");
     }
   }
   if (!Array.isArray(value.dependencies) || value.dependencies.length === 0) {
@@ -471,6 +501,17 @@ function renderGap(entry) {
   ];
 }
 
+function renderReleaseWatch(entry) {
+  if (!isObject(entry.releaseWatch)) return [];
+  const next = entry.releaseWatch.nextScheduled;
+  return [
+    "",
+    `Release watch for \`${entry.id}\`: [official schedule](${entry.releaseWatch.scheduleUrl}); scheduled CI \`${entry.releaseWatch.workflow}\`.`,
+    `Next announced release: \`${next.version}\` on \`${next.date}\` (\`${next.status}\`).`,
+    `Manual check: \`bun ${entry.releaseWatch.checker}\`.`,
+  ];
+}
+
 export function renderDependencyCurrency(value) {
   const dependencies = Array.isArray(value.dependencies) ? value.dependencies : [];
   const lines = [
@@ -489,6 +530,9 @@ export function renderDependencyCurrency(value) {
     "- Compatibility floors and recipes do not rise only because a newer release exists.",
     "- Evidence snapshots preserve historical inputs and do not imply promotion.",
     "- External evaluations remain non-authoritative and cannot promote W support.",
+    "- Official upstream releases are checked weekly after LLVM's release day and may also be checked manually.",
+    "- A new stable LLVM release is pinned by annotated tag object and peeled commit, probed in isolation, and adopted only for new work after all affected gates pass.",
+    "- Historical toolchain evidence remains immutable; an upgrade never rewrites prior receipts.",
     "",
   ];
   const sections = [
@@ -514,7 +558,7 @@ export function renderDependencyCurrency(value) {
     for (const entry of entries) {
       lines.push("", `### \`${entry.id}\``, "", `Scope: ${entry.scope}.`, `Locations: ${entry.locations.map((location) => `\`${location}\``).join(", ")}.`);
       if (entry.latestStable) lines.push(`Latest stable: \`${stateSummary(entry.latestStable)}\`.`);
-      lines.push(...renderEnvironment(entry), ...renderGap(entry));
+      lines.push(...renderEnvironment(entry), ...renderReleaseWatch(entry), ...renderGap(entry));
       if (Array.isArray(entry.limitations)) lines.push("", `Limits: ${entry.limitations.join("; ")}.`);
     }
     lines.push("");

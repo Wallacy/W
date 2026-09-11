@@ -32,7 +32,7 @@ describe("dependency currency catalog", () => {
   test("validates the checked-in catalog and generated projection", () => {
     expect(validateDependencyCurrency(source).errors).toEqual([]);
     expect(source.$schema).toBe("w-dependency-currency-1");
-    expect(source.observedAt).toBe("2026-08-31");
+    expect(source.observedAt).toBe("2026-09-11");
     expect(source.dependencies.map((item) => item.classification)).toEqual(
       expect.arrayContaining(DEPENDENCY_CLASSES),
     );
@@ -83,6 +83,21 @@ describe("dependency currency catalog", () => {
     }), "rust-correctness-baseline.requirements.preserveCurrent must be true");
   });
 
+  test("keeps LLVM release monitoring bounded and greenfield", () => {
+    const mlir = entry(source, "mlir0-llvm-clang");
+    expect(mlir.releaseWatch.nextScheduled).toEqual({
+      version: "23.1.2",
+      date: "2026-09-22",
+      status: "announced-not-released",
+    });
+    expectError(errorsAfter((value) => {
+      value.policy.releaseWatch.historicalEvidence = "rewrite";
+    }), "policy.releaseWatch.historicalEvidence must remain immutable");
+    expectError(errorsAfter((value) => {
+      entry(value, "mlir0-llvm-clang").releaseWatch.nextScheduled.status = "released";
+    }), "must record 23.1.2 on 2026-09-22 without treating it as released");
+  });
+
   test("keeps compatibility floors separate from managed currency", () => {
     expectError(errorsAfter((value) => {
       entry(value, "cmake-floor").requirements.mustNotRaiseForCurrency = false;
@@ -119,7 +134,7 @@ describe("dependency currency catalog", () => {
     }), "source.urls[0] must be an HTTPS URL");
     expectError(errorsAfter((value) => {
       entry(value, "mlir0-llvm-clang").source.urls[0] = "https://example.invalid/mlir";
-    }), "source.urls must include the official release URL for llvmorg-23.1.0");
+    }), "source.urls must include the official release URL for llvmorg-23.1.1");
   });
 
   test("cross-checks lock and platform files against catalog selections", () => {

@@ -1,0 +1,89 @@
+{
+  "$schema": "w-mls0-modern-mlir-science-study-1",
+  "id": "MLS0",
+  "decisions": ["W-1475", "W-1507", "W-1533"],
+  "status": "complete-design-study",
+  "title": "Modern MLIR lowering and scientific-computing boundary",
+  "data": "cases.json",
+  "checker": "oracle.test.mjs",
+  "benchmarkDisposition": "not-applicable",
+  "benchmarkReason": "This package validates architecture and roadmap metadata; each algorithm family owns a later benchmark gate.",
+  "evidenceBoundary": {
+    "researchClosed": true,
+    "languageSurfaceAdded": false,
+    "dialectImplemented": false,
+    "providerImplemented": false,
+    "algorithmImplemented": false,
+    "performanceMeasured": false,
+    "proofSurfaceRatified": false,
+    "proofLanguageImplemented": false
+  },
+  "sources": [
+    {
+      "url": "https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.1",
+      "accessed": "2026-09-11",
+      "scope": "exact current stable LLVM/MLIR release"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/AsyncDialect/",
+      "accessed": "2026-09-11",
+      "scope": "dependency and readiness IR, not W task semantics or scheduler policy"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/SCFDialect/",
+      "accessed": "2026-09-11",
+      "scope": "structured control flow and data-parallel loops"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/GPU/",
+      "accessed": "2026-09-11",
+      "scope": "middle-level GPU IR, multi-object binaries, and provider boundary"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/Linalg/",
+      "accessed": "2026-09-11",
+      "scope": "structured linear algebra and library-call lowering"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Dialects/Transform/",
+      "accessed": "2026-09-11",
+      "scope": "private compiler scheduling recipes"
+    },
+    {
+      "url": "https://mlir.llvm.org/docs/Bufferization/",
+      "accessed": "2026-09-11",
+      "scope": "late tensor-to-memref bufferization"
+    },
+    {
+      "url": "https://inria.hal.science/hal-03043623",
+      "accessed": "2026-09-11",
+      "scope": "SSA extensions for clocks, absence, causality, and synchronous reactions"
+    },
+    {
+      "url": "https://arxiv.org/abs/2207.06803",
+      "accessed": "2026-09-11",
+      "scope": "FFTc high-level FFT representation and experimental evidence"
+    },
+    {
+      "url": "https://arxiv.org/abs/2202.04305",
+      "accessed": "2026-09-11",
+      "scope": "MLIR sparse tensor representation and lowering"
+    },
+    {
+      "url": "https://flang.llvm.org/docs/HighLevelFIR.html",
+      "accessed": "2026-09-11",
+      "scope": "preserving high-level shape and temporary semantics"
+    },
+    {
+      "url": "https://lean-lang.org/doc/reference/latest/The-Type-System/Propositions/",
+      "accessed": "2026-09-11",
+      "scope": "proof irrelevance and erasure of propositions from compiled code"
+    },
+    {
+      "url": "https://lean-lang.org/functional_programming_in_lean/Programming-with-Dependent-Types/",
+      "accessed": "2026-09-11",
+      "scope": "benefits and non-orthogonal complexity of dependent types"
+    }
+  ],
+  "stopCondition": "Stop when the stable toolchain pin, W-owned semantic boundary, MLIR adapter map, provider/runtime boundary, and prioritized scientific algorithm families each have an explicit owner, lowering policy, benchmark requirement, and non-implementation boundary."
+}

@@ -1,0 +1,213 @@
+{
+  "$schema": "w-mls0-modern-mlir-science-cases-1",
+  "toolchain": {
+    "stableVersion": "23.1.1",
+    "tag": "llvmorg-23.1.1",
+    "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+    "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+    "selection": "exact-stable-pin",
+    "documentationPolicy": "pinned-release-docs-for-contract; main-docs-for-research-only",
+    "legacyPolicy": "retain-reproducible-evidence; revalidate-ideas; do-not-inherit-apis"
+  },
+  "wOwnedLayers": [
+    "w.core",
+    "w.ownership",
+    "w.effect",
+    "w.task",
+    "w.memory",
+    "w.abi",
+    "w.science",
+    "w.accelerator"
+  ],
+  "dialectRoutes": [
+    { "id": "core-structured", "dialects": ["builtin", "index", "func", "scf"], "phase": "verified-structured-lowering", "boundary": "internal-only" },
+    { "id": "numeric", "dialects": ["arith", "math", "complex"], "phase": "after-numeric-mode-proof", "boundary": "internal-only" },
+    { "id": "science", "dialects": ["tensor", "linalg", "shape", "affine", "vector"], "phase": "high-level-optimization", "boundary": "internal-only" },
+    { "id": "physical-memory", "dialects": ["bufferization", "memref"], "phase": "after-ownership-alias-provenance", "boundary": "late-internal-only" },
+    { "id": "tasks", "dialects": ["async"], "phase": "after-W-task-verification", "boundary": "readiness-not-scheduler" },
+    { "id": "accelerators", "dialects": ["gpu", "spirv", "nvvm", "rocdl", "amdgpu", "nvgpu", "xegpu"], "phase": "after-W-device-and-transfer-proof", "boundary": "provider-required" },
+    { "id": "distributed", "dialects": ["mpi", "shard", "omp"], "phase": "after-distributed-contract", "boundary": "deferred-provider-required" },
+    { "id": "schedule", "dialects": ["transform"], "phase": "cost-gated-compiler-recipe", "boundary": "never-public-W-semantics" },
+    { "id": "terminal", "dialects": ["cf", "llvm"], "phase": "terminal-lowering", "boundary": "target-and-ABI-specific" }
+  ],
+  "pipeline": [
+    "W-source",
+    "CST-AST",
+    "typed-HIR",
+    "W-semantic-IR-and-verification",
+    "structured-domain-IR",
+    "schedule-and-cost-selection",
+    "late-bufferization-and-data-movement",
+    "target-specific-IR",
+    "object-and-provider-link",
+    "signed-W-artifact"
+  ],
+  "runtimeBoundary": {
+    "asyncDialectIsScheduler": false,
+    "gpuDialectIsProvider": false,
+    "minimumWRuntimeResponsibilities": [
+      "structured-task-state",
+      "cancellation-and-cleanup",
+      "wakeups-and-timers",
+      "I-O-integration",
+      "provider-selection-and-errors"
+    ],
+    "zeroRuntimeProfilesAllowed": true,
+    "referenceMlirAsyncRuntimeIsDefault": false
+  },
+  "loweringStrategies": [
+    "small-static-inline-generated-code",
+    "structured-MLIR-transforms",
+    "large-or-dynamic-provider-call"
+  ],
+  "algorithmFamilies": [
+    {
+      "id": "linear-algebra",
+      "priority": "P0",
+      "package": "std.linalg",
+      "operations": ["dot", "gemv", "matmul", "contract"],
+      "preserve": ["shape", "layout-strides", "transpose", "accumulator-type", "alias", "workspace", "numeric-mode"],
+      "primaryMlir": ["linalg", "tensor", "vector", "scf", "transform"],
+      "benchmark": "BLAS-shapes-small-medium-large-plus-provider-crossover"
+    },
+    {
+      "id": "fft",
+      "priority": "P0",
+      "package": "std.signal",
+      "operations": ["dft", "fft", "rfft", "irfft"],
+      "preserve": ["axes", "direction", "normalization", "factorization", "complex-layout", "precision", "workspace", "determinism"],
+      "primaryMlir": ["complex", "tensor", "linalg", "vector", "scf", "gpu", "transform"],
+      "benchmark": "FFTW-and-vendor-differential-across-sizes-layouts-and-targets"
+    },
+    {
+      "id": "convolution",
+      "priority": "P0",
+      "package": "std.signal",
+      "operations": ["convolve", "correlate"],
+      "preserve": ["window", "stride", "dilation", "padding-boundary", "layout", "accumulator-type", "workspace"],
+      "primaryMlir": ["linalg", "tensor", "vector", "scf", "gpu", "transform"],
+      "benchmark": "direct-Winograd-FFT-provider-crossover"
+    },
+    {
+      "id": "reductions",
+      "priority": "P0",
+      "package": "core-plus-std.numeric",
+      "operations": ["reduce", "sum", "product", "min", "max"],
+      "preserve": ["identity", "associativity-proof", "order-policy", "NaN-overflow", "accumulator-type", "determinism"],
+      "primaryMlir": ["linalg", "scf", "vector", "gpu"],
+      "benchmark": "serial-tree-pairwise-compensated-and-reproducible"
+    },
+    {
+      "id": "scans",
+      "priority": "P0",
+      "package": "core-plus-std.numeric",
+      "operations": ["scan", "segmented-scan"],
+      "preserve": ["identity", "inclusive-exclusive", "segments", "order-policy", "carry", "determinism"],
+      "primaryMlir": ["scf", "vector", "gpu", "transform"],
+      "benchmark": "serial-SIMD-hierarchical-and-segmented"
+    },
+    {
+      "id": "sparse",
+      "priority": "P0",
+      "package": "std.sparse",
+      "operations": ["spmv", "spmm", "sparse-contract"],
+      "preserve": ["format-levels", "ordering", "duplicates", "zero-semiring", "layout", "ownership", "workspace"],
+      "primaryMlir": ["sparse_tensor", "linalg", "scf", "vector", "gpu", "transform"],
+      "benchmark": "SuiteSparse-structure-memory-conversion-and-throughput"
+    },
+    {
+      "id": "stencils",
+      "priority": "P0",
+      "package": "std.grid",
+      "operations": ["stencil", "halo-exchange"],
+      "preserve": ["offsets", "halo", "boundary", "grid-layout", "time-steps", "synchronization", "communication"],
+      "primaryMlir": ["linalg", "affine", "scf", "vector", "gpu", "omp", "transform"],
+      "benchmark": "CPU-GPU-distributed-boundary-and-data-movement"
+    },
+    {
+      "id": "random",
+      "priority": "P1",
+      "package": "std.random",
+      "operations": ["generator", "stream", "distribution"],
+      "preserve": ["algorithm", "seed-key", "counter-subsequence", "stream-split", "state", "precision", "reproducibility"],
+      "primaryMlir": ["arith", "math", "vector", "scf", "gpu"],
+      "benchmark": "quality-reproducibility-splitting-and-throughput"
+    },
+    {
+      "id": "sorting",
+      "priority": "P1",
+      "package": "std.sort",
+      "operations": ["sort", "sort-by", "key-value-sort"],
+      "preserve": ["comparator-purity", "total-order", "stability", "layout", "workspace", "determinism"],
+      "primaryMlir": ["scf", "vector", "gpu", "transform"],
+      "benchmark": "distribution-size-stability-memory-and-device"
+    },
+    {
+      "id": "solvers",
+      "priority": "P1",
+      "package": "std.solver",
+      "operations": ["cg", "gmres", "bicgstab", "multigrid", "direct-solve"],
+      "preserve": ["operator", "preconditioner", "tolerance", "stopping-criterion", "iteration-limit", "precision", "workspace", "communication"],
+      "primaryMlir": ["linalg", "sparse_tensor", "scf", "vector", "gpu", "transform"],
+      "benchmark": "HPCG-NAS-and-reference-solver-convergence-cost"
+    }
+  ],
+  "promotionGate": [
+    "typed-HIR-semantics",
+    "independent-correctness-oracle",
+    "CPU-evidence",
+    "GPU-evidence-when-applicable",
+    "dynamic-shape-cases",
+    "memory-workspace-and-transfer-measurement",
+    "precision-and-determinism-evidence",
+    "compile-time-and-artifact-size-measurement"
+  ],
+  "proofLayerCandidate": {
+    "status": "orthogonal-candidate-research-gated",
+    "proofCapabilityGoal": true,
+    "dependentTypesInCore": false,
+    "runtimeAndAbiCostAllowed": false,
+    "modeAxis": {
+      "separateFromBuildProfile": true,
+      "candidateOption": "--verification <standard|proof|certificate>",
+      "compositions": ["debug+proof", "release+proof", "benchmark+proof"],
+      "proofOnlyPackageAllowed": true,
+      "proofFailure": "compile-error-before-lowering"
+    },
+    "requiredProperties": [
+      "proof-terms-erased-before-codegen",
+      "small-independently-checkable-kernel-or-certificate-checker",
+      "proof-inputs-derived-from-verified-W-semantics",
+      "proof-search-never-changes-runtime-semantics",
+      "explicit-trusted-base-and-axioms",
+      "bounded-incremental-checking",
+      "byte-and-performance-equivalence-after-erasure"
+    ],
+    "candidateInputs": [
+      "ownership-and-borrow-facts",
+      "effect-and-capability-facts",
+      "task-cancellation-and-cleanup-state-machines",
+      "shape-layout-and-bounds",
+      "numeric-mode-and-error-bounds",
+      "protocol-and-provider-state-machines"
+    ],
+    "candidateForms": [
+      "decidable-refinements",
+      "contracts-and-invariants",
+      "ghost-state",
+      "lemmas",
+      "induction-and-recursive-proof-with-explicit-termination",
+      "quantified-properties-over-W-values",
+      "externally-produced-proof-certificates"
+    ],
+    "rejectedShortcuts": [
+      "universal-dependent-types-in-main-type-checker",
+      "unbounded-implicit-proof-search",
+      "proof-objects-retained-at-runtime-by-default",
+      "runtime-fallback-when-static-proof-fails",
+      "provider-or-MLIR-dialect-as-proof-authority"
+    ],
+    "nextStudy": "PVL0-proof-kernel-and-erasure",
+    "stopCondition": "Ratify no syntax until a prototype proves sound certificate checking, deterministic bounded diagnostics, complete erasure, unchanged ABI, byte-equivalent optimized output, and no regression in ordinary W compile time when proofs are absent."
+  }
+}

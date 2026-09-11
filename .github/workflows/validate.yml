@@ -29,7 +29,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.0
+          bun-version: 1.4.2
 
       - name: Install locked tooling
         run: bun ci --cwd tooling/tree-sitter-w
@@ -54,7 +54,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.0
+          bun-version: 1.4.2
 
       - name: Install the archive decompressor
         run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends zstd
@@ -82,7 +82,7 @@ jobs:
       - name: Set up Bun
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
-          bun-version: 1.4.0
+          bun-version: 1.4.2
 
       - name: Acquire the pinned Windows MLIR0 toolchain
         run: bun tooling/command-runner.mjs --command acquire:mlir0-windows

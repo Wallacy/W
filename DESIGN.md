@@ -25018,6 +25018,68 @@ tooling/evidence ou application framework. A recomendação padrão é não infl
 core. Esse mapa de ownership e a ordem dos dois workloads são correntes. Typed
 IR, kernels, runtime/provider, frameworks e desempenho medido continuam gaps.
 
+#### 18.1.1 Modern MLIR and scientific lowering
+
+[`MLS0`](tooling/studies/mls0-modern-mlir-science/) closes the bounded
+architecture study shared by W-1475, W-1507, and W-1533. W retains ownership,
+aliasing, effects, cleanup, task structure, ABI, shape, layout, numeric mode,
+and device-transfer semantics in verified W-owned IR. Upstream MLIR dialects
+are replaceable compiler-internal adapters, not W source semantics, a stable W
+ABI, or a public package format.
+
+The preferred route is typed HIR → verified W semantic IR → structured domain
+IR → costed scheduling → late bufferization and explicit data movement →
+target-specific IR → object/provider link. `async` may encode readiness after
+W task verification but does not define the scheduler. `gpu` may encode
+kernels and multi-target objects but does not replace a CUDA, ROCm, SPIR-V
+client, or other device provider. `transform` remains a private compiler
+recipe; `memref` is a physical descriptor rather than a W owner.
+
+The core owns only reusable contracts: numeric and complex types, Tensor/View/
+Simd, shape/rank/index/layout, ownership and aliasing, numeric modes,
+reduction/scan order, and reproducible RNG stream identity. P0 first-party
+algorithm families are linear algebra/contractions, FFT/DFT, convolution,
+reductions, scans, sparse kernels, and stencils. RNG, sorting, and solvers are
+P1. An algorithm becomes compiler-recognized only when retaining its semantics
+enables a verifier or transformation. The compiler chooses among small static
+generated code, structured MLIR transforms, and large/dynamic provider calls
+using measured cost.
+
+Every family must eventually measure correctness, CPU and applicable GPU
+behavior, dynamic shapes, memory/workspace/transfers, precision and
+determinism, compile time, artifact size, and runtime performance. The study
+adds no syntax, dialect implementation, provider, kernel, or performance claim.
+Older papers contribute architectural ideas only after those ideas are
+revalidated against the exact stable toolchain selected for the new bundle;
+their APIs and historical limitations are not inherited.
+
+#### 18.1.2 Proof-capable compiler mode (research-gated)
+
+W may become a proof-capable language through an optional verification axis,
+without replacing the ordinary type system with universal dependent types.
+Optimization profiles and verification modes are independent: a future proof
+mode must compose with `debug`, `release`, and `benchmark`, and a proof-only
+package may stop after producing a checked certificate. The candidate CLI
+spelling `--verification <standard|proof|certificate>` is illustrative and is
+not yet ratified syntax.
+
+The proof frontend consumes verified W semantic facts, including ownership,
+effects, structured-task lifecycle, shape/layout/bounds, numeric modes, and
+protocol state machines. Solvers and external proof producers are not trusted
+authorities: a small explicit W checker validates their certificates before
+lowering. Proof failure is a compile error; it never selects a runtime fallback
+or silently changes program semantics.
+
+Proof terms and ghost state must erase before optimization and code generation.
+For an ordinary executable, proof and non-proof builds with the same accepted
+runtime semantics and optimization profile must have the same ABI and
+byte-equivalent optimized output. The mode cannot add startup, memory, runtime,
+or provider cost. `PVL0-proof-kernel-and-erasure` remains the bounded study for
+logic expressiveness, induction and termination, trusted-base size,
+incremental checking, certificate format, diagnostics, and the erasure proof.
+Until that stop condition passes, W is proof-capable as a goal, not an
+implemented or frozen language surface.
+
 ### 18.2 Fatos de prova
 
 A HIR mantém `ProofFacts` separados do tipo lógico e do layout. O conjunto
@@ -27973,9 +28035,9 @@ comparativa. Ela não herda claims ou tiers do Rust.
 Os bundles native de Linux, Windows e macOS permanecem planned. A evidence
 Linux atual usa MLIR `20.1.2` em WSL e não satisfaz o plano successor nativo.
 Cada plano usa
-exatamente `llvmorg-23.1.0`, com o tag object assinado
-`9b0f9b1eb4a233717c6ed014cff6f8a7c65512de` e o commit peeled
-`ea7d852a70e8bdfaf601d6626a760f9771b2c4b4`. O blocker real é
+exatamente `llvmorg-23.1.1`, com o tag object assinado
+`e7ce3600b55034ddf819638f395e3c475fad5be2` e o commit peeled
+`6dfe1677ab8dffbc6ec13d53a1e0215d75147689`. O blocker real é
 `native-build-acquisition-provenance`: cada plano ainda precisa de build ou
 aquisição reproduzível, outputs, SHA256, SBOM, provenance, signing, CI e smoke
 antes de qualquer promoção. Os planos fixam MLIR, Clang e LLD, Release, Ninja,
@@ -27992,7 +28054,7 @@ workflow, READMEs e o catálogo de platform support. Dependências managed
 ativas usam a versão latest stable exata. Compatibility floors e recipes não
 sobem por currency, snapshots de evidence preservam a versão histórica e
 nenhuma observação de ambiente declara pin exato. MLIR `20.1.2` continua a
-evidence histórica atual; `23.1.0` é successor selected/not promoted com o tag
+evidence histórica atual; `23.1.1` é successor selected/not promoted com o tag
 object e commit acima, sujeito ao blocker de build/aquisição/proveniência.
 Esta decisão é metadata operacional, não semântica W; `source-backed-current`
 fica limitado ao catálogo, checker e projeção.

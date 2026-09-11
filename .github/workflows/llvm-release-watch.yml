@@ -1,0 +1,35 @@
+name: LLVM release watch
+
+on:
+  schedule:
+    - cron: "0 12 * * 3"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: llvm-release-watch
+  cancel-in-progress: true
+
+jobs:
+  latest-stable:
+    name: Compare the official stable release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.2
+
+      - name: Compare the catalog with the official LLVM release feed
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bun tooling/check-llvm-release.mjs
