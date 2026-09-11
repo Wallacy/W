@@ -2547,7 +2547,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-17") &&
+                         "w-seed-frontend-18") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2586,8 +2586,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-17\n",
-                         strlen("schema=w-seed-frontend-17\n")));
+        receipt_contains(value, "schema=w-seed-frontend-18\n",
+                         strlen("schema=w-seed-frontend-18\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5022,7 +5022,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-17") &&
+                         "w-seed-frontend-18") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5137,6 +5137,58 @@ static bool test_local_assignment_projection(void) {
   return true;
 }
 
+static bool test_while_projection(void) {
+  fixture *value = &fixture_mutation;
+  CHECK(fixture_run(value,
+                    "fn countTo(limit: i64): i64 {\n"
+                    "  var count = 0\n"
+                    "  while count < limit { count = count + 1 }\n"
+                    "  return count\n"
+                    "}\n"
+                    "entry { let observed = countTo(limit: 3) }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.functions == 2u &&
+        value->result.written.statements == 5u);
+  const w_seed_frontend_statement *loop = &value->statements[1];
+  CHECK(loop->kind == W_SEED_FRONTEND_STMT_WHILE &&
+        loop->condition_expression < value->result.written.expressions &&
+        loop->first_child == 2u && loop->child_count == 1u &&
+        loop->else_child == W_SEED_FRONTEND_NONE);
+  CHECK(value->expressions[loop->condition_expression].kind ==
+        W_SEED_FRONTEND_EXPR_BINARY);
+  const w_seed_frontend_statement *body = &value->statements[2];
+  CHECK(body->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
+        body->expression_index < value->result.written.expressions);
+  const w_seed_frontend_expression *loop_assignment =
+      &value->expressions[body->expression_index];
+  CHECK(loop_assignment->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT &&
+        loop_assignment->left < value->result.written.expressions &&
+        value->expressions[loop_assignment->left].resolved_binding_statement ==
+            0u);
+  size_t loop_count_reads = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "count")) {
+      CHECK(expression->resolved_binding_statement == 0u);
+      loop_count_reads += 1u;
+    }
+  }
+  CHECK(loop_count_reads == 4u);
+
+  CHECK(fixture_run(value,
+                    "fn invalid(): i64 {\n"
+                    "  var count = 0\n"
+                    "  while count { count = count + 1 }\n"
+                    "  return count\n"
+                    "}\n"
+                    "entry { let observed = invalid() }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_DIAGNOSTICS &&
+        has_diagnostic(value, "W-SEM-0001"));
+  return true;
+}
+
 int main(void) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
@@ -5165,5 +5217,6 @@ int main(void) {
   if (!test_barrier_and_capacity()) return 1;
   if (!test_process_abi_alias_and_exit_case()) return 1;
   if (!test_local_assignment_projection()) return 1;
+  if (!test_while_projection()) return 1;
   return 0;
 }

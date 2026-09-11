@@ -37626,6 +37626,27 @@ this bounded compiler-lifecycle cut. Its benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
 No hidden memory fallback is authorized.
 
+#### 26.4.1.40 W-1559 — bounded seed `while` projection (Current form)
+
+The seed parser recognizes an ordinary pre-test `while condition { body }` as
+an explicit append-only CST owner. Frontend18 publishes one
+`W_SEED_FRONTEND_STMT_WHILE` record with a typed `Bool`
+`condition_expression` and one ordered child statement chain. A declaration
+visible before the loop is visible in its condition and body, while a body
+declaration does not escape the loop. A non-`Bool` condition produces the
+ordinary `W-SEM-0001` type diagnostic.
+
+This milestone deliberately stops at the verified frontend boundary. HIR19
+and all downstream consumers reject the new statement kind, so parsing a loop
+cannot be mistaken for executable loop support. The next compiler milestone
+must represent the loop header value and backedge through explicit block and
+edge arguments; stack cells, hidden allocation, textual lowering, and a host-C
+loop are not authorized fallbacks. Labels, `break`, `continue`, `while let`,
+multiple loop-carried roots, nested loops, effects, diagnostics beyond the
+condition type, native execution, timing, ranking, and performance remain
+outside this bounded projection cut. Its benchmark disposition is
+`compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

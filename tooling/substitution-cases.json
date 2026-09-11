@@ -5351,6 +5351,64 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-seed-while-projection",
+      "reviewItem": "ordinary while ownership against orphan continuation parsing and hidden lowering",
+      "decisions": [
+        "W-1559"
+      ],
+      "task": "Project an ordinary pre-test while into explicit parser and frontend records without claiming executable loop lowering.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var count = 0",
+          "while count < limit { count = count + 1 }",
+          "return count"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "orphan-while-token",
+          "language": "text",
+          "source": [
+            "treat while as a continuation that has no owner"
+          ],
+          "expectedDifference": "The selected route gives the public statement an explicit CST and frontend owner."
+        },
+        {
+          "name": "premature-hidden-loop-lowering",
+          "language": "text",
+          "source": [
+            "translate the source text into a bootstrap-language loop or mutable stack cell"
+          ],
+          "expectedDifference": "The selected route stops at the verified frontend boundary until loop-carried SSA is explicit and independently checked."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/tests/test_parser.c",
+          "symbol": "test_while_shapes",
+          "claim": "Parser tests prove the explicit condition/body owner and malformed-body recovery."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_while_projection",
+          "claim": "Frontend tests prove statement relations, lexical root resolution, and non-Bool diagnostics."
+        }
+      ],
+      "checks": [
+        "parser retains one explicit while owner with condition and body",
+        "frontend publishes one WHILE statement and resolves the pre-loop root inside its body",
+        "a non-Bool condition emits W-SEM-0001",
+        "HIR and downstream phases remain fail-closed until loop-carried SSA exists"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
