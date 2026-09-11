@@ -158,9 +158,14 @@ Missing paths, invalid JSON, duplicates, and cycles fail before each wave.
 
 After changing normative text or classified evidence, run
 `bun run design:refresh-evidence`. The command updates only mechanical
-identities in the freeze classification: ledger text and hashes, file hashes,
-and exact `DESIGN.md` section hashes. It fails if decision order or reviewed
-classification fields would change.
+identities in the freeze classification: ledger text and claim digests,
+source/oracle case digests, remaining file digests, and exact `DESIGN.md`
+section digests. Case digests use stable-key JSON, so key order alone does not
+invalidate evidence. The command fails if decision order or reviewed
+classification fields would change. The explicit
+`bun tooling/refresh-design-freeze-evidence.mjs --migrate-local-digests` form
+is reserved for a reviewed migration from whole-file pins; routine refreshes
+do not require that flag.
 
 `bun run hum0:refresh-evidence` applies the same rule to the HUM0 review
 protocol. It updates only file hashes and derived stimuli. Symbols, windows,

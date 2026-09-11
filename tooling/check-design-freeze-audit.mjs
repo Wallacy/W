@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { deriveSemanticRulePairs } from "./semantic-diagnostic-pairs.mjs";
 import { ledgerIds, ledgerIdSet, rationaleText } from "./design-ledger.mjs";
+import { caseDigest } from "./evidence-locality.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const wDirectory = path.resolve(toolingDirectory, "..");
@@ -56,7 +57,6 @@ function textDigest(value) {
 const designPath = path.join(wDirectory, "DESIGN.md");
 const designText = fs.readFileSync(designPath, "utf8");
 const designLines = designText.split(/\r?\n/);
-const designDigest = digest(designPath);
 const designHeadings = [];
 for (const [index, line] of designLines.entries()) {
   const match = /^(#{2,6})\s+(.+?)\s*$/.exec(line);
@@ -114,6 +114,16 @@ function validateFileRef(ref, location) {
     return null;
   }
   const resolved = resolveRepositoryPath(ref.path, location);
+  const hasLocalDigest =
+    typeof ref.caseDigest === "string" ||
+    typeof ref.sectionDigest === "string" ||
+    (ref.path === "RATIONALE.md" && typeof ref.claimDigest === "string");
+  if (hasLocalDigest) {
+    if (ref.sha256 !== undefined) {
+      fail(`${location}.sha256 must be omitted when a local digest is present.`);
+    }
+    return resolved;
+  }
   if (!nonEmptyString(ref.sha256, `${location}.sha256`)) return resolved;
   if (resolved && ref.sha256 !== digest(resolved)) {
     fail(`${location}.sha256 is stale for ${ref.path}.`);
@@ -199,12 +209,20 @@ function validateEvidence(ref, location, decisionId) {
     if (decisionId === "W-1519" && ref.caseId === "W-1519-native-seed") return;
     if (!legacySubstitutionCases.has(ref.caseId)) fail(`${location}.caseId is not a substitution case.`);
     const testCase = legacySubstitutionCases.get(ref.caseId);
-    if (!(testCase.decisions ?? []).includes(decisionId)) fail(`${location}.caseId does not cite ${decisionId}.`);
+    if (testCase && ref.caseDigest !== caseDigest(testCase)) {
+      fail(`${location}.caseDigest is stale for ${ref.caseId}.`);
+    }
+    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin a complete case corpus.`);
+    if (!(testCase?.decisions ?? []).includes(decisionId)) fail(`${location}.caseId does not cite ${decisionId}.`);
   } else if (ref.kind === "oracle") {
     const oracle = oracleCases.get(ref.caseId);
     if (!oracle) {
       fail(`${location}.caseId is not a corpus case.`);
     } else {
+      if (ref.caseDigest !== caseDigest(oracle.testCase)) {
+        fail(`${location}.caseDigest is stale for ${ref.caseId}.`);
+      }
+      if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin a complete case corpus.`);
       const decisions = oracle.testCase.decisions ?? oracle.testCase.decisionIds ??
         (oracle.testCase.rule !== undefined ? [oracle.testCase.rule] : undefined) ??
         (["module-run-cases.json", "repl-session-cases.json"].includes(oracle.name)
@@ -267,7 +285,7 @@ function validateAuthority(ref, location, entry) {
       if (ref.heading !== current.heading) fail(`${location}.heading is stale for DESIGN.md §${ref.section}.`);
       if (ref.sectionDigest !== current.sectionDigest) fail(`${location}.sectionDigest is stale for DESIGN.md §${ref.section}.`);
     }
-    if (ref.sha256 !== designDigest) fail(`${location}.sha256 is stale for DESIGN.md.`);
+    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete DESIGN.md.`);
     if (ref.section === "24.4" && entry.gap?.component !== "design-freeze") {
       fail(`${location}.section 24.4 is reserved for a concrete design-freeze gate.`);
     }
@@ -284,10 +302,20 @@ function validateAuthority(ref, location, entry) {
     if (ref.path !== "RATIONALE.md" || ref.section !== "3. Ledger") {
       fail(`${location} must point to the current ledger section.`);
     }
+    const successor = rowsById.get(ref.decisionId);
+    if (successor && ref.claimDigest !== textDigest(successor.claim)) {
+      fail(`${location}.claimDigest is stale for ${ref.decisionId}.`);
+    }
+    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete RATIONALE.md.`);
   }
   if (ref.kind === "design-freeze-gate" || ref.kind === "design-absence") {
     if (ref.path !== "DESIGN.md") fail(`${location} must point to DESIGN.md.`);
     if (!["24.2", "24.4"].includes(ref.section)) fail(`${location}.section must be 24.2 or 24.4.`);
+    const current = designSectionInfo(ref.section);
+    if (!current || ref.sectionDigest !== current.sectionDigest) {
+      fail(`${location}.sectionDigest is stale for DESIGN.md §${ref.section}.`);
+    }
+    if (ref.sha256 !== undefined) fail(`${location}.sha256 must not pin complete DESIGN.md.`);
   }
 }
 

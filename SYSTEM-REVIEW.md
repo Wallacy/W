@@ -702,6 +702,16 @@ map. Do not begin with a mass move that invalidates every evidence digest.
 Generate projections once after a decision stabilizes. Prefer dependency-local
 digests over a global hash cascade for unrelated changes.
 
+The freeze classification now follows that rule for structured evidence:
+source and oracle references pin the exact case, DESIGN authorities pin the
+exact section, and ledger/supersession references pin the exact claim. The
+one-time migration removed 3,877 whole-file pins and installed 1,486 local
+digests without changing a reviewed category. `design:refresh-evidence`
+refreshes these identities in place; stable-key serialization makes a JSON
+key reorder irrelevant, while a semantic case edit invalidates its direct
+consumers. Generic symbol references still use file digests and remain a
+separate, lower-priority locality opportunity.
+
 ### Complete English migration at the sources
 
 Many current contracts, maps and generated templates remain Portuguese or
@@ -826,7 +836,7 @@ design recommendation is ratified merely by its inclusion in this queue.
 | 9 — native CI | Queued | Require pinned native execution and distinguish unavailable local tools from failed CI prerequisites |
 | 5–6, 11–12 — documentation and navigation | Queued | Consolidate doctest rules, repair examples and readers, and update capability-specific status |
 | 10 — test quality | Queued, applied to new fixes now | Use behavior and known-bad mutations for changed tooling, then remove measured redundant checks |
-| Evidence digest locality | P1 maintenance queued next | Replace whole-file transitive pins with local semantic identities; one example edit invalidates only direct consumers and reports one regeneration route |
+| Evidence digest locality | Phase 1 closed | Cases, DESIGN sections and ledger claims use local semantic identities; generic symbol references remain a separate P2 improvement |
 
 ### Automatic design-hardening queue
 
@@ -1035,7 +1045,7 @@ selected, not an always-running goal.
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
 | 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; `native-build-acquisition-provenance` qualifies LLVM/MLIR 23.1.1 without rewriting 20.1.2 evidence |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
-| 5 | Evidence digest locality | P1 / M | Semantic/local digests replace unrelated whole-file cascades; a controlled example edit invalidates only direct consumers and one command restores projections |
+| 5 | Evidence digest locality — phase 1 closed | P1 / M | Case/section/claim digests are local, stable under JSON key order, stale mutations fail, and `design:refresh-evidence` restores only direct consumers; generic symbol-range identity remains P2 |
 | 6 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
 | 7 | W-1560 native loop completion | P2 / L | Starting from the source-backed four-block verified-HIR natural loop, CLI input affects output through structured MLIR lowering and native execution; an independent execution oracle agrees; no source-variable stack cell, textual lowering, host-C fallback, or expected-output shortcut is used |
 | 8 | Enum/result and ownership vertical slice | P2 / L | Resource-bearing enum, match, borrow/move and typed failure work through native execution |
