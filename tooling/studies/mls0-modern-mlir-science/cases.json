@@ -181,7 +181,9 @@
       "proof-search-never-changes-runtime-semantics",
       "explicit-trusted-base-and-axioms",
       "bounded-incremental-checking",
-      "byte-and-performance-equivalence-after-erasure"
+      "observable-semantics-and-abi-preserved-after-erasure",
+      "verified-facts-may-enable-measured-optimization",
+      "zero-runtime-cost-from-proof-machinery"
     ],
     "candidateInputs": [
       "ownership-and-borrow-facts",
@@ -208,6 +210,6 @@
       "provider-or-MLIR-dialect-as-proof-authority"
     ],
     "nextStudy": "PVL0-proof-kernel-and-erasure",
-    "stopCondition": "Ratify no syntax until a prototype proves sound certificate checking, deterministic bounded diagnostics, complete erasure, unchanged ABI, byte-equivalent optimized output, and no regression in ordinary W compile time when proofs are absent."
+    "stopCondition": "Ratify no syntax until a prototype proves sound certificate checking, deterministic bounded diagnostics, complete erasure, preserved ABI and observable semantics, measured proof-enabled optimization changes, zero runtime cost from proof machinery, and no regression in ordinary W compile time when proofs are absent."
   }
 }

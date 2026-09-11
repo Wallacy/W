@@ -72,7 +72,9 @@ describe("MLS0 modern MLIR and science boundary", () => {
     expect(proof.modeAxis.compositions).toContain("release+proof");
     expect(proof.modeAxis.proofFailure).toBe("compile-error-before-lowering");
     expect(proof.requiredProperties).toContain("proof-terms-erased-before-codegen");
-    expect(proof.requiredProperties).toContain("byte-and-performance-equivalence-after-erasure");
+    expect(proof.requiredProperties).toContain("observable-semantics-and-abi-preserved-after-erasure");
+    expect(proof.requiredProperties).toContain("verified-facts-may-enable-measured-optimization");
+    expect(proof.requiredProperties).toContain("zero-runtime-cost-from-proof-machinery");
     expect(proof.rejectedShortcuts).toContain("universal-dependent-types-in-main-type-checker");
     expect(proof.nextStudy).toBe("PVL0-proof-kernel-and-erasure");
   });

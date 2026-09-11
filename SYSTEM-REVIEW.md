@@ -1046,7 +1046,7 @@ selected, not an always-running goal.
 | 14 | Services/runtime lifecycle | P2 / L | Same contract through local and one external provider; cancellation, close, bounds and failure tested |
 | 15 | Web UI and terminal provider selection | P3 / M then L | WVUI0 questions resolved for one provider; real typed command and close/security witness |
 | 16 | Mapping/device/LLM performance integration | P3 / L | One measured useful workload per chosen provider; no core-language expansion from a capability list |
-| 17 | PVL0 proof mode, kernel and erasure | P3 / M | Prototype a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, unchanged ABI/output, and zero ordinary-path cost before ratifying syntax |
+| 17 | PVL0 proof mode, kernel and erasure | P3 / M | Prototype a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, preserved ABI/semantics, measured proof-enabled optimizations, and zero runtime cost from proof machinery before ratifying syntax |
 
 ### Runtime-input package boundary
 

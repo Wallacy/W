@@ -25071,10 +25071,12 @@ lowering. Proof failure is a compile error; it never selects a runtime fallback
 or silently changes program semantics.
 
 Proof terms and ghost state must erase before optimization and code generation.
-For an ordinary executable, proof and non-proof builds with the same accepted
-runtime semantics and optimization profile must have the same ABI and
-byte-equivalent optimized output. The mode cannot add startup, memory, runtime,
-or provider cost. `PVL0-proof-kernel-and-erasure` remains the bounded study for
+For an ordinary executable, proof and non-proof builds of the same accepted
+program and optimization profile must preserve ABI and observable runtime
+semantics. They need not be byte-identical: verified facts may remove dynamic
+checks or enable specialization. Proof machinery itself cannot add startup,
+memory, runtime, or provider cost, and every proof-enabled code-size or runtime
+change must be attributed and measured. `PVL0-proof-kernel-and-erasure` remains the bounded study for
 logic expressiveness, induction and termination, trusted-base size,
 incremental checking, certificate format, diagnostics, and the erasure proof.
 Until that stop condition passes, W is proof-capable as a goal, not an
