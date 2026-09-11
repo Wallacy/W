@@ -5053,6 +5053,45 @@ static bool test_local_assignment_projection(void) {
 
   CHECK(fixture_run(value,
                     "entry {\n"
+                    "  var seats = 5\n"
+                    "  if true { seats = seats + 1 }\n"
+                    "  else { seats = seats - 1 }\n"
+                    "}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.statements == 4u &&
+        value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
+        value->statements[1].kind == W_SEED_FRONTEND_STMT_IF &&
+        value->statements[1].first_child == 2u &&
+        value->statements[1].else_child == 3u);
+  size_t resolved_seats = 0u;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "seats")) {
+      CHECK(expression->resolved_binding_statement == 0u);
+      resolved_seats += 1u;
+    }
+  }
+  CHECK(resolved_seats == 4u);
+
+  CHECK(fixture_run(value,
+                    "entry {\n"
+                    "  if true { let branchValue = 1 }\n"
+                    "  let escaped = branchValue\n"
+                    "}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL));
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(expression->spelling, "branchValue"))
+      CHECK(expression->resolved_binding_statement == W_SEED_FRONTEND_NONE);
+  }
+
+  CHECK(fixture_run(value,
+                    "entry {\n"
                     "  let seats = 5\n"
                     "  seats = seats + 1\n"
                     "}\n"));

@@ -37524,8 +37524,8 @@ variable `alloca`, load, or store is introduced. The Restaurant witness
 `compiler/seed-c/fixtures/restaurant-conditional-mutation.w` executes exact
 `Open 6; closed 4\n` through the Linux/WSL and native Windows public runners.
 
-This is not branch-local imperative mutation: assignments inside either arm,
-multiple mutable roots crossing a diamond, nested mutation, loop-carried
+W-1557 supersedes only the exclusion for one symmetric branch-local
+assignment shape. Multiple mutable roots crossing a diamond, nested mutation, loop-carried
 values, aggregates, aliases, mutable borrows, generalized dominance metadata,
 other widths or targets, diagnostics, timing, ranking, and performance remain
 outside the bounded cut. No hidden memory fallback is authorized.
@@ -37554,6 +37554,44 @@ This bounded widening does not admit implicit integer/Boolean conversions,
 compound assignment, branch-local assignment, loops, aggregate mutation,
 aliasing, mutable borrows, other scalar or target-specific types, diagnostics,
 timing, ranking, or performance evidence.
+
+#### 26.4.1.38 W-1557 — symmetric branch-local mutation merged in SSA (Current form)
+
+A top-level statement `if` may assign one root-block signed-`i64` `var` once
+in each arm. Both arms must contain exactly that assignment, must target the
+same declaration, and must produce a same-typed pure scalar value. The source
+form is imperative, but its verified representation is one SSA merge:
+
+```w
+fn nextSeats(isOpen: Bool): i64 {
+  var seats = 5
+  if isOpen {
+    seats = seats + 1
+  } else {
+    seats = seats - 1
+  }
+  return seats
+}
+```
+
+Frontend lexical resolution allows a declaration to flow into descendant
+branches, prefers a nearer nested declaration over an outer declaration, and
+still rejects same-block duplicates, sibling-branch access, and escape from a
+branch. HIR0 does not create one binding version per arm. Instead, both branch
+terminators carry their computed value to one typed join argument; one binding
+instruction in the join creates the sole successor version. The return reads
+that joined version.
+
+MLIR emits `llvm.cond_br`, two `llvm.br` operations carrying `i64`, and one
+join block argument. It emits no source-variable `alloca`, load, or store. The
+Restaurant witness `compiler/seed-c/fixtures/restaurant-branch-mutation.w`
+executes exact `Open 6; closed 4\n` through Linux/WSL and native Windows.
+
+Missing `else`, unequal targets, extra statements in either arm, nested or
+loop-carried mutation, multiple merged roots, calls or effects in an arm,
+Bool/aggregate/aliased mutation, mutable borrows, general dominance metadata,
+other targets, diagnostics, timing, ranking, and performance remain outside
+this bounded cut. No hidden memory fallback is authorized.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

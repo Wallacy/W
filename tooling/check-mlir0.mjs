@@ -27,6 +27,8 @@ const restaurantConditionalMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-conditional-mutation.w")
 const restaurantBoolMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-bool-mutation.w")
+const restaurantBranchMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-branch-mutation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -432,6 +434,9 @@ try {
       expected: Buffer.from("Open 6; closed 4\n", "utf8") },
     { name: "restaurant-bool-mutation", source: restaurantBoolMutationFixture,
       expected: Buffer.from("Open true; closed false\n", "utf8") },
+    { name: "restaurant-branch-mutation",
+      source: restaurantBranchMutationFixture,
+      expected: Buffer.from("Open 6; closed 4\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -656,6 +661,23 @@ try {
     boolMutationArtifact.includes("@w_seed_append_bool") &&
     (boolMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "Boolean mutation was stored, flattened, or disconnected from display")
+  const branchMutationArtifact = artifacts.get("restaurant-branch-mutation")
+    .toString("utf8")
+  const branchMutationStart = branchMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const branchMutationEntry = branchMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", branchMutationStart + 1)
+  assert(branchMutationStart >= 0 && branchMutationEntry > branchMutationStart,
+  "branch-local mutation function boundaries are missing")
+  const branchMutationFunction = branchMutationArtifact.slice(
+    branchMutationStart, branchMutationEntry)
+  assert(branchMutationFunction.includes(
+    "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+    branchMutationFunction.includes("^w_fn_0_b_3(%arg0: i64):") &&
+    branchMutationFunction.includes("llvm.return %arg0 : i64") &&
+    !branchMutationFunction.includes("llvm.alloca") &&
+    (branchMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
+  "branch-local mutation did not retain one SSA join and two runtime calls")
   const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(

@@ -14803,18 +14803,18 @@ static bool expression_is_call_callee(const frontend_context *context,
   return false;
 }
 
-/* Two statements share a lexical block when they occur in the same direct
- * sibling chain. Branch statements do not inherit bindings from another
- * chain, and a binding does not escape its chain. */
-static bool statements_share_direct_block(const frontend_context *context,
-                                          uint32_t function_index,
-                                          uint32_t first_statement,
-                                          uint32_t left_statement,
-                                          uint32_t right_statement,
-                                          size_t depth) {
+/* A declaration is visible in its direct sibling chain and in a descendant
+ * branch reached after that declaration. It never escapes a branch and is
+ * never visible in a sibling branch. */
+static bool binding_declaration_visible_in_chain(
+    const frontend_context *context, uint32_t function_index,
+    uint32_t first_statement, uint32_t declaration_statement,
+    uint32_t use_statement, bool inherited, size_t inherited_depth,
+    size_t depth, size_t *visible_depth) {
   if (context == NULL || context->output == NULL ||
       context->output->functions == NULL ||
-      context->output->statements == NULL || depth > 256u ||
+      context->output->statements == NULL || visible_depth == NULL ||
+      depth > 256u ||
       function_index >= context->count.functions)
     return false;
   const w_seed_frontend_function *function =
@@ -14825,37 +14825,35 @@ static bool statements_share_direct_block(const frontend_context *context,
       first_statement == W_SEED_FRONTEND_NONE ||
       (size_t)first_statement >= context->count.statements)
     return false;
-  bool left_here = false;
-  bool right_here = false;
+  bool declaration_seen = inherited;
+  size_t declaration_depth = inherited_depth;
   uint32_t cursor = first_statement;
   size_t guard = 0u;
   while (cursor != W_SEED_FRONTEND_NONE && guard < context->count.statements) {
     if (cursor >= context->count.statements) return false;
-    if (cursor == left_statement) left_here = true;
-    if (cursor == right_statement) right_here = true;
-    cursor = context->output->statements[cursor].next_sibling;
-    guard += 1u;
-  }
-  if (cursor != W_SEED_FRONTEND_NONE) return false;
-  if (left_here && right_here) return true;
-  cursor = first_statement;
-  guard = 0u;
-  while (cursor != W_SEED_FRONTEND_NONE && guard < context->count.statements) {
-    if (cursor >= context->count.statements) return false;
     const w_seed_frontend_statement *statement =
         &context->output->statements[cursor];
+    if (cursor == declaration_statement) {
+      declaration_seen = true;
+      declaration_depth = depth;
+    }
+    if (cursor == use_statement) {
+      if (!declaration_seen) return false;
+      *visible_depth = declaration_depth;
+      return true;
+    }
     if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
       if (statement->first_child != W_SEED_FRONTEND_NONE &&
-          statements_share_direct_block(context, function_index,
-                                         statement->first_child,
-                                         left_statement, right_statement,
-                                         depth + 1u))
+          binding_declaration_visible_in_chain(
+              context, function_index, statement->first_child,
+              declaration_statement, use_statement, declaration_seen,
+              declaration_depth, depth + 1u, visible_depth))
         return true;
       if (statement->else_child != W_SEED_FRONTEND_NONE &&
-          statements_share_direct_block(context, function_index,
-                                         statement->else_child,
-                                         left_statement, right_statement,
-                                         depth + 1u))
+          binding_declaration_visible_in_chain(
+              context, function_index, statement->else_child,
+              declaration_statement, use_statement, declaration_seen,
+              declaration_depth, depth + 1u, visible_depth))
         return true;
     }
     cursor = statement->next_sibling;
@@ -14899,20 +14897,28 @@ static uint32_t binding_statement_for_expression(
     return W_SEED_FRONTEND_NONE;
   const size_t first = context->output->functions[function_index].first_statement;
   uint32_t binding = W_SEED_FRONTEND_NONE;
+  size_t binding_depth = 0u;
+  bool ambiguous = false;
   for (size_t index = first; index < use_statement; index += 1u) {
     const w_seed_frontend_statement *statement =
         &context->output->statements[index];
+    size_t candidate_depth = 0u;
     if ((statement->kind == W_SEED_FRONTEND_STMT_LET ||
          statement->kind == W_SEED_FRONTEND_STMT_VAR) &&
-        statements_share_direct_block(context, function_index,
-                                       (uint32_t)first, (uint32_t)index,
-                                       use_statement, 0u) &&
+        binding_declaration_visible_in_chain(
+            context, function_index, (uint32_t)first, (uint32_t)index,
+            use_statement, false, 0u, 0u, &candidate_depth) &&
         text_equal_text(statement->binding_name, expression->spelling)) {
-      if (binding != W_SEED_FRONTEND_NONE) return W_SEED_FRONTEND_NONE;
-      binding = (uint32_t)index;
+      if (binding == W_SEED_FRONTEND_NONE || candidate_depth > binding_depth) {
+        binding = (uint32_t)index;
+        binding_depth = candidate_depth;
+        ambiguous = false;
+      } else if (candidate_depth == binding_depth) {
+        ambiguous = true;
+      }
     }
   }
-  return binding;
+  return ambiguous ? W_SEED_FRONTEND_NONE : binding;
 }
 
 /* Resolve append-only frontend facts after every declaration is present in the
