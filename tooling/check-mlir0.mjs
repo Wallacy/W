@@ -25,6 +25,8 @@ const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-conditional-mutation.w")
+const restaurantBoolMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-bool-mutation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -428,6 +430,8 @@ try {
     { name: "restaurant-conditional-mutation",
       source: restaurantConditionalMutationFixture,
       expected: Buffer.from("Open 6; closed 4\n", "utf8") },
+    { name: "restaurant-bool-mutation", source: restaurantBoolMutationFixture,
+      expected: Buffer.from("Open true; closed false\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -636,6 +640,22 @@ try {
     !conditionalMutationFunction.includes("llvm.alloca") &&
     (conditionalMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "conditional mutation did not retain one SSA value join and two runtime calls")
+  const boolMutationArtifact = artifacts.get("restaurant-bool-mutation")
+    .toString("utf8")
+  const boolMutationStart = boolMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const boolMutationEntry = boolMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", boolMutationStart + 1)
+  assert(boolMutationStart >= 0 && boolMutationEntry > boolMutationStart,
+  "Boolean mutation function boundaries are missing")
+  const boolMutationFunction = boolMutationArtifact.slice(
+    boolMutationStart, boolMutationEntry)
+  assert(boolMutationFunction.includes("%p0: i1) -> i1") &&
+    boolMutationFunction.includes("llvm.return %p0 : i1") &&
+    !boolMutationFunction.includes("llvm.alloca") &&
+    boolMutationArtifact.includes("@w_seed_append_bool") &&
+    (boolMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
+  "Boolean mutation was stored, flattened, or disconnected from display")
   const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(

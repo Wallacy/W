@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:94bd2d70f31b87aac78c4f54c64a0dfd014d58c3b1c7c7534d762c344fad2542",
+  "corpusDigest": "sha256:daec829117ec8564302006ef93167e3200349699162f711c6189342f2186b1e8",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5988,6 +5988,54 @@
             "nonWhitespaceCodePoints": 42,
             "lines": 1,
             "surfaceLexemes": 17
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-bool-mutation-ssa",
+      "task": {
+        "utf8Bytes": 97,
+        "codePoints": 97,
+        "nonWhitespaceCodePoints": 85,
+        "lines": 1,
+        "surfaceLexemes": 20
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:60958fb0253234c0034d72d5019492e1784b762a46e61c31c0c15177a086c57d",
+        "metrics": {
+          "utf8Bytes": 45,
+          "codePoints": 45,
+          "nonWhitespaceCodePoints": 37,
+          "lines": 3,
+          "surfaceLexemes": 9
+        }
+      },
+      "alternatives": [
+        {
+          "name": "integer-only-mutation",
+          "language": "text",
+          "sourceDigest": "sha256:b1d510d7ccecdaf446e01710c0d00377227a822843c93429231b43ed7c43a493",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "boolean-stack-cell",
+          "language": "text",
+          "sourceDigest": "sha256:755a5e7719e43207eda4053e990566e3527f698e7f48ad2dda97fce15325c373",
+          "metrics": {
+            "utf8Bytes": 37,
+            "codePoints": 37,
+            "nonWhitespaceCodePoints": 31,
+            "lines": 1,
+            "surfaceLexemes": 9
           }
         }
       ]

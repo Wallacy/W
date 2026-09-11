@@ -212,6 +212,7 @@ O corpus compara, no mínimo:
 - direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 - verified SSA versioning against hidden stack storage and assignment rewriting.
 - conditional mutable local through one verified SSA join.
+- Boolean local mutation against integer-only lowering and hidden stack storage.
 
 ### 1.1 Cobertura de substituições
 
@@ -7824,6 +7825,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1553 | direct unary interpolation composition | Interpolation expressions do not inherit the enclosing `String` expectation. A representable leading unsuffixed prefix-negative expression receives the canonical signed-`i64` default before frontend records are published, keeping its literal child, unary root and interpolation segment type-consistent without a hidden binding or textual fold. | `source-backed-current` only for the bounded `${-7}` frontend → HIR17 → MLIR/native route on Linux WRT0 and Windows x86_64. The Restaurant fixture emits exact `Balance -7\n`; focused frontend/HIR checks retain the explicit tree and constant products omit the checked helper. General interpolation display protocols, the direct minimum-value literal spelling, other numeric defaults/widths/targets, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1554 | straight-line local mutation as verified SSA | A local signed-`i64` `var` and later simple `=` in the same linear block lower to ordered HIR binding versions. Each version retains one source root and predecessor; reads select the latest preceding version. MLIR emits SSA values and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove declaration, reassignment, later read, immutable-target rejection, forged-version rejection, exact `Open 6\n`, and no `alloca` inside the W function. Compound/branch/loop/nested/aggregate/aliasing mutation, mutable borrows, other widths/targets, general diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1555 | conditional local mutation merged in SSA | A root-block signed-`i64` mutable binding may be read by both pure scalar `if` arms. Their values merge through one typed block argument, and one later assignment creates the next ordered binding version in the join block. MLIR retains the diamond and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR and MLIR tests plus the Restaurant fixture prove cross-arm reads of the root version, a single joined update, exact `Open 6; closed 4\n`, and no `alloca` inside the W function. Assignment inside an arm, multiple crossing mutable roots, nested/loop mutation, aggregates, aliases, mutable borrows, generalized dominance metadata, other widths/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1556 | Boolean local mutation as verified SSA | A local `Bool` `var` and later same-typed simple `=` lower through the existing ordered HIR binding-version contract. MLIR consumes the replacement as an `i1` SSA value and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR/MLIR tests and the Restaurant fixture prove parameter replacement, latest-version return, exact `Open true; closed false\n`, Boolean display, and no `alloca` inside the W function. Conversions, compound/branch/loop/aggregate/aliased mutation, mutable borrows, other types/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11150,3 +11152,18 @@ proves a real conditional branch, typed join, checked add/subtract, two runtime
 calls, and no source-variable `alloca`; the native Windows runner executes the
 same source and output. This remains compiler-lifecycle
 correctness evidence, not a performance result or general branch mutation.
+
+#### W-1556 — Boolean local mutation as verified SSA
+
+Mutation versioning is a type-preserving HIR relation, not an integer-only
+optimization. The first widening therefore admits `Bool` without changing the
+HIR schema: declaration and replacement keep one source root, the replacement
+initializer is an explicit same-function parameter read, and the return reads
+the latest version.
+
+MLIR can alias that replacement directly to the existing `i1` SSA operand.
+`compiler/seed-c/fixtures/restaurant-bool-mutation.w` calls the function with
+both Boolean values and prints exact `Open true; closed false\n` on Linux/WSL
+and Windows. The product retains the Boolean writer but no source-variable
+`alloca`. This is correctness evidence for one additional scalar type, not a
+claim of general mutation or measured performance.

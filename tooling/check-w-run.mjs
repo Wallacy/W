@@ -25,6 +25,8 @@ const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
 const restaurantConditionalMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-conditional-mutation.w")
+const restaurantBoolMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-bool-mutation.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
 const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner.w")
@@ -691,6 +693,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantConditionalMutationFixture)],
     Buffer.from("Open 6; closed 4\n", "utf8"),
     "Restaurant conditional mutation merged through SSA")
+  expectSuccess(binary, ["run", toWsl(restaurantBoolMutationFixture)],
+    Buffer.from("Open true; closed false\n", "utf8"),
+    "Restaurant Boolean local mutation")
   const divisionFault = invoke(binary, ["run", toWsl(runtimeDivisionZero)])
   assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
     divisionFault.stderr.length === 0,

@@ -37530,6 +37530,31 @@ values, aggregates, aliases, mutable borrows, generalized dominance metadata,
 other widths or targets, diagnostics, timing, ranking, and performance remain
 outside the bounded cut. No hidden memory fallback is authorized.
 
+#### 26.4.1.37 W-1556 — Boolean local mutation as verified SSA (Current form)
+
+The same ordered binding-version contract applies to local `Bool` values. A
+simple `=` may replace a preceding mutable Boolean binding with a same-typed
+parameter or expression; later reads name the new version.
+
+```w
+fn availability(requested: Bool): Bool {
+  var open = false
+  open = requested
+  return open
+}
+```
+
+HIR0 retains two Boolean binding versions and the explicit parameter read.
+MLIR aliases the new SSA value directly to the `i1` parameter and returns it;
+it introduces no source-variable allocation, load, or store. The Restaurant
+witness `compiler/seed-c/fixtures/restaurant-bool-mutation.w` executes exact
+`Open true; closed false\n` through Linux/WSL and native Windows runners.
+
+This bounded widening does not admit implicit integer/Boolean conversions,
+compound assignment, branch-local assignment, loops, aggregate mutation,
+aliasing, mutable borrows, other scalar or target-specific types, diagnostics,
+timing, ranking, or performance evidence.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
