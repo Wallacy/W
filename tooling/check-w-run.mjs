@@ -115,7 +115,7 @@ export function validateManifest(manifest, mode = ciMode) {
   const commands = manifest.commands
   const expectedCommands = mode
     ? { mlirOpt: "mlir-opt", mlirTranslate: "mlir-translate",
-        llvmConfig: "llvm-config", llc: "llc", linkDriver: "/usr/bin/cc" }
+        llvmConfig: "llvm-config", llc: "llc", linkDriver: "/usr/bin/ld" }
     : { mlirOpt: "/usr/bin/mlir-opt-20",
         mlirTranslate: "/usr/bin/mlir-translate-20",
         llvmConfig: "/usr/bin/llvm-config-20", clang: "/usr/bin/clang-20" }
@@ -125,7 +125,7 @@ export function validateManifest(manifest, mode = ciMode) {
       JSON.stringify(command.versionArgs) === JSON.stringify(["--version"]),
     `toolchain command ${role} is not the pinned absolute command`)
   }
-  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === (mode ? 4 : 3),
+  assert(Array.isArray(manifest.pipeline) && manifest.pipeline.length === (mode ? 5 : 3),
     "toolchain pipeline is invalid")
   const pipeline = manifest.pipeline
   assert(pipeline[0]?.tool === "mlir-opt" &&
@@ -137,19 +137,26 @@ export function validateManifest(manifest, mode = ciMode) {
       "--mlir-to-llvmir", "<verified.mlir>", "-o", "<output.ll>",
     ]), "mlir-translate recipe changed")
   if (mode) {
-    assert(manifest.hostLink?.driver === "/usr/bin/cc" &&
-      manifest.hostLink?.targetFamily === "x86_64-linux-gnu" &&
-      JSON.stringify(manifest.hostLink?.targetProbe) === JSON.stringify(["-dumpmachine"]),
-    "host link-driver contract changed")
+    assert(manifest.hostLink?.driver === "/usr/bin/ld" &&
+      manifest.hostLink?.targetFamily === "elf_x86_64" &&
+      JSON.stringify(manifest.hostLink?.targetProbe) === JSON.stringify(["-V"]),
+    "native linker contract changed")
     assert(pipeline[2]?.tool === "llc" &&
       JSON.stringify(pipeline[2].args) === JSON.stringify([
         `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
         "<output.ll>", "-o", "<output.o>",
       ]), "llc recipe changed")
-    assert(pipeline[3]?.tool === "link-driver" &&
+    assert(pipeline[3]?.tool === "llc" &&
       JSON.stringify(pipeline[3].args) === JSON.stringify([
-        "-pie", "<output.o>", "-o", "<executable>",
-      ]), "native link-driver recipe changed")
+        `-mtriple=${targetTriple}`, "-filetype=obj", "-relocation-model=pic",
+        "<wrt0.ll>", "-o", "<wrt0.o>",
+      ]), "WRT0 object recipe changed")
+    assert(pipeline[4]?.tool === "link-driver" &&
+      JSON.stringify(pipeline[4].args) === JSON.stringify([
+        "-pie", "--no-dynamic-linker", "-e", "_start", "--gc-sections",
+        "-z", "noexecstack", "<output.o>", "<wrt0.o>", "-o",
+        "<executable>",
+      ]), "native CRT-free link recipe changed")
   } else assert(pipeline[2]?.tool === "clang" &&
     JSON.stringify(pipeline[2].args) === JSON.stringify([
       "-x", "ir", `--target=${targetTriple}`, "<output.ll>", "-o",
@@ -168,7 +175,7 @@ export function validateManifest(manifest, mode = ciMode) {
   return { mlirOpt: expectedCommands.mlirOpt,
     mlirTranslate: expectedCommands.mlirTranslate,
     llvmConfig: expectedCommands.llvmConfig,
-    llc: "/usr/bin/llc-20", linkDriver: "/usr/bin/cc" }
+    llc: "/usr/bin/llc-20", linkDriver: "/usr/bin/ld" }
 }
 
 function wslRun(command, args) {
@@ -300,6 +307,44 @@ function readBuildArtifact(path) {
   ]).stdoutBytes)
 }
 
+export function assertCrtFreeElf(bytes) {
+  assert(Buffer.isBuffer(bytes) && bytes.length >= 64 &&
+    bytes.subarray(0, 4).equals(Buffer.from([0x7f, 0x45, 0x4c, 0x46])) &&
+    bytes[4] === 2 && bytes[5] === 1,
+  "built artifact is not little-endian ELF64")
+  assert(bytes.readUInt16LE(16) === 3 && bytes.readUInt16LE(18) === 62,
+    "built artifact is not an x86_64 static PIE")
+  const headerOffset = Number(bytes.readBigUInt64LE(32))
+  const headerSize = bytes.readUInt16LE(54)
+  const headerCount = bytes.readUInt16LE(56)
+  assert(Number.isSafeInteger(headerOffset) && headerSize >= 56 &&
+    headerCount > 0 && headerOffset + headerSize * headerCount <= bytes.length,
+  "ELF program-header table is invalid")
+  for (let index = 0; index < headerCount; index += 1) {
+    const offset = headerOffset + index * headerSize
+    const type = bytes.readUInt32LE(offset)
+    assert(type !== 3, "CRT-free ELF unexpectedly names a dynamic interpreter")
+    if (type !== 2) continue
+    const dynamicOffset = Number(bytes.readBigUInt64LE(offset + 8))
+    const dynamicSize = Number(bytes.readBigUInt64LE(offset + 32))
+    assert(Number.isSafeInteger(dynamicOffset) &&
+      Number.isSafeInteger(dynamicSize) && dynamicSize % 16 === 0 &&
+      dynamicOffset + dynamicSize <= bytes.length,
+    "ELF dynamic table is invalid")
+    let terminated = false
+    for (let entry = dynamicOffset; entry < dynamicOffset + dynamicSize;
+      entry += 16) {
+      const tag = bytes.readBigInt64LE(entry)
+      assert(tag !== 1n, "CRT-free ELF unexpectedly has a DT_NEEDED dependency")
+      if (tag === 0n) {
+        terminated = true
+        break
+      }
+    }
+    assert(terminated, "ELF dynamic table has no terminator")
+  }
+}
+
 if (import.meta.main) {
 if (isMacos) unavailable("macOS has no pinned MLIR/LLVM/native-link evidence")
 if (!isWindows && !isLinux) unavailable(`unsupported host ${process.platform}`)
@@ -316,7 +361,8 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
   "W_SEED_LINUX_LINK_DRIVER_PATH"])
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
-for (const marker of ["--canonicalize", "--cse", "-O3", "-s"])
+for (const marker of ["--canonicalize", "--cse", "-O3", "-s",
+  "--no-dynamic-linker", "--gc-sections", "_start", "WRT0_LL"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
 assert(runSource.includes("W_SEED_RUN_COMPILE_PROFILE_DEV"),
@@ -344,15 +390,15 @@ for (const [role, probe] of probes)
   if (!probe.valid) fail(`${role} version is not ${expectedVersion}: ${probe.output.trim()}`)
 
 const hostProbe = (command, args) => isWindows ? wslRun(command, args) : spawn(command, args)
-const linkTarget = hostProbe(resolvedCommands.linkDriver, ["-dumpmachine"])
-assert(linkTarget.exitCode === 0 && linkTarget.stderrBytes.length === 0 &&
-  /^x86_64-(?:[A-Za-z0-9_]+-)?linux-gnu$/u.test(linkTarget.stdoutBytes.toString().trim()),
-"host link driver does not report a compatible Linux x86_64 GNU target")
+const linkTarget = hostProbe(resolvedCommands.linkDriver, ["-V"])
+const linkTargetOutput = `${linkTarget.stdoutBytes.toString()}\n${linkTarget.stderrBytes.toString()}`
+assert(linkTarget.exitCode === 0 && /(?:^|\s)elf_x86_64(?:\s|$)/u.test(linkTargetOutput),
+"native linker does not report elf_x86_64 support")
 const linkVersion = hostProbe(resolvedCommands.linkDriver, ["--version"])
-assert(linkVersion.exitCode === 0, "host link-driver version probe failed")
-console.log(`W RUN: LLVM tools ${expectedVersion}; host link driver ${resolvedCommands.linkDriver}: ` +
-  `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target ${linkTarget.stdoutBytes.toString().trim()}`)
-console.log("W RUN: stages MLIR → LLVM IR → llc PIC object → host C driver PIE link (no C source)")
+assert(linkVersion.exitCode === 0, "native linker version probe failed")
+console.log(`W RUN: LLVM tools ${expectedVersion}; native linker ${resolvedCommands.linkDriver}: ` +
+  `${linkVersion.stdoutBytes.toString().split(/\r?\n/u)[0]}; target elf_x86_64`)
+console.log("W RUN: stages MLIR → LLVM IR → llc PIC objects → WRT0 + direct static-PIE link (no CRT/libc)")
 
 const cmake = isWindows ? "cmake" : Bun.which("cmake")
 const ninja = isWindows ? "ninja" : Bun.which("ninja")
@@ -402,7 +448,7 @@ try {
     mlirTranslate: "mlir-translate",
     llvmConfig: "llvm-config",
     llc: "llc",
-    linkDriver: "cc",
+    linkDriver: "ld",
   }
   if (isWindows) {
     runRequired("WSL tool-link directory", "wsl.exe", [
@@ -637,6 +683,7 @@ try {
   expectSuccess(buildHello, [], expectedHello,
     "execute built Hello artifact")
   const helloBytes = await readBuildArtifact(buildHello)
+  assertCrtFreeElf(helloBytes)
   expectBuildFailure(binary, ["build", toWsl(helloFixture), "--target",
     targetTriple, "--output", buildHello],
   "reject existing build output")

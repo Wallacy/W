@@ -237,10 +237,12 @@ o basename explícito é uma source identity
 opaca, não um identifier de módulo. Execute `bun check --target w-run` para o
 produto; a extensão NAT1 é definida por W-1522.
 
-The public Linux gate uses `llc` for a PIC object and an absolute host C
-driver for `-pie` linking with native CRT/libc. It generates no C source
-and does not require Clang. LLVM version checks remain separate from host
-driver provenance. The older `check:mlir0` recipe is unchanged.
+The public Linux gate uses `llc` for PIC program and WRT0 objects and an
+absolute native linker for a static PIE. WRT0 supplies `_start`, stdout write,
+and exit; the gate rejects `PT_INTERP` and `DT_NEEDED`, so the product acquires
+neither CRT nor libc. It generates no C source and does not require Clang.
+LLVM version checks remain separate from linker provenance. The older
+`check:mlir0` recipe is unchanged.
 `bun tooling/command-runner.mjs --command check:w-run -- --ci` requires Linux x64 and the separately acquired
 23.1.0 toolchain. Missing prerequisites fail instead of SKIP. Local WSL gates
 passed with LLVM 20.1.2 and 23.1.0, host GCC/cc 13.3.0, and Bun 1.3.4.

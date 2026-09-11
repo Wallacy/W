@@ -18,10 +18,10 @@
     "llvm": "23.1.0"
   },
   "hostLink": {
-    "driver": "/usr/bin/cc",
-    "targetProbe": ["-dumpmachine"],
-    "targetFamily": "x86_64-linux-gnu",
-    "provenance": "host GCC, CRT and libc are separate from the LLVM archive"
+    "driver": "/usr/bin/ld",
+    "targetProbe": ["-V"],
+    "targetFamily": "elf_x86_64",
+    "provenance": "native GNU linker only; WRT0 supplies startup, write and exit without CRT/libc"
   },
   "commands": {
     "mlirOpt": {
@@ -41,7 +41,7 @@
       "versionArgs": ["--version"]
     },
     "linkDriver": {
-      "linux": "/usr/bin/cc",
+      "linux": "/usr/bin/ld",
       "versionArgs": ["--version"]
     }
   },
@@ -66,8 +66,31 @@
       ]
     },
     {
+      "tool": "llc",
+      "args": [
+        "-mtriple=x86_64-unknown-linux-gnu",
+        "-filetype=obj",
+        "-relocation-model=pic",
+        "<wrt0.ll>",
+        "-o",
+        "<wrt0.o>"
+      ]
+    },
+    {
       "tool": "link-driver",
-      "args": ["-pie", "<output.o>", "-o", "<executable>"]
+      "args": [
+        "-pie",
+        "--no-dynamic-linker",
+        "-e",
+        "_start",
+        "--gc-sections",
+        "-z",
+        "noexecstack",
+        "<output.o>",
+        "<wrt0.o>",
+        "-o",
+        "<executable>"
+      ]
     }
   ],
   "hostModes": {
