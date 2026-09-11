@@ -559,7 +559,14 @@ Optimization opportunities to revisit periodically:
 - bounds-check hoisting with exact alias and extent proofs;
 - generic specialization budgets with shared fallback bodies;
 - incremental frontend queries, interface caches and parallel independent work;
-- ThinLTO, PGO and target-aware code layout after representative workloads exist;
+- ThinLTO, target-aware code layout and PGO only after independent correctness
+  and representative workloads exist. A PGO comparison must pin the target,
+  profile, compiler and training workload; include the profile digest in recipe
+  identity; measure compile time, runtime, peak memory and artifact size; and
+  retain learner, idiomatic and frontier variants. Proof-derived facts may
+  establish that an optimization is legal, but PGO may only rank legal choices;
+  neither mechanism may change semantics or silently replace the default
+  release profile;
 - demand-linked runtime components, target packs and stripped debug sidecars;
 - no-op build paths that do not start the compiler unnecessarily.
 
@@ -717,21 +724,15 @@ justify a stack rewrite. C23 is the primary C direction; C11 recovery should
 remain explicit and narrow. Editor compatibility floors are not dependency
 pins and need not be raised to the latest editor release on every update.
 
-Official releases checked on the review date show:
-
-| Component | Repository observation | Review action |
-|---|---|---|
-| Bun | 1.4.0 selected | Evaluate the newer stable [1.4.1 release](https://github.com/oven-sh/bun/releases/tag/bun-v1.4.1) and refresh the actual pins and receipts |
-| Tree-sitter CLI | 0.27.0 | Matches the checked [0.27.0 release](https://github.com/tree-sitter/tree-sitter/releases/tag/v0.27.0); no churn needed |
-| actions/checkout | SHA pinned for 7.0.1 | Preserve immutable pin; matches the checked [7.0.1 release](https://github.com/actions/checkout/releases/tag/v7.0.1) |
-| setup-bun | SHA pinned for 2.2.0 | Preserve immutable pin; matches the checked [2.2.0 release](https://github.com/oven-sh/setup-bun/releases/tag/v2.2.0) |
-| LLVM recipes | Windows 23.1.0; Linux/WSL 20.1.2 | Keep old receipts historical; qualify a Linux successor against the checked [23.1.0 release](https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.0) |
-
-`dependency-currency.json` records an observation date of 2026-08-31. A local
-gate comparing its `current` and `latestStable` fields cannot discover a new
-upstream release. Separate offline consistency validation from online release
-discovery. Update a recipe only after its real affected gates pass. Do not
-rewrite historical performance evidence to pretend it used the new toolchain.
+The canonical, machine-checked release snapshot is [DEPENDENCIES.md](DEPENDENCIES.md),
+not a duplicated table here. At the 2026-09-11 observation it selects Bun
+1.4.2 and LLVM/MLIR 23.1.1 as successors while preserving the actual 20.1.2
+LLVM/MLIR evidence. The online release watcher discovers candidates; the local
+catalog checks consistency only. The open `native-build-acquisition-provenance`
+task must acquire, hash, inventory, smoke and record a real native toolchain
+before 23.1.1 becomes implementation evidence. Update a recipe only after its
+affected gates pass, and never rewrite historical performance evidence to
+pretend it used the new toolchain.
 
 ### Make tests and cleanup proportional
 
@@ -1030,23 +1031,24 @@ selected, not an always-running goal.
 
 | Order | Bundle | Priority / effort | Completion and stop condition |
 |---|---|---|---|
-| 1 | Build publication and reproducibility | P1 / M | Isolated fault tests prove safe post-commit cleanup; actual options and two clean build receipts agree |
+| 1 | Build publication and reproducibility | P1 / M | W-1533/W-1534: explicit pre-release opt-in; exact release recipe and provenance; isolated fault tests prove safe post-commit cleanup; two clean build receipts agree; proof and PGO remain independent inputs, not profile substitutes |
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
-| 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W; missing dependencies fail; skip counts remain explicit |
+| 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; `native-build-acquisition-provenance` qualifies LLVM/MLIR 23.1.1 without rewriting 20.1.2 evidence |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
 | 5 | Evidence digest locality | P1 / M | Semantic/local digests replace unrelated whole-file cascades; a controlled example edit invalidates only direct consumers and one command restores projections |
 | 6 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
-| 7 | Runtime-input vertical slice | P2 / L | CLI input affects output at runtime; error path and a loop/branch execute; no expected-output shortcut |
+| 7 | W-1559 runtime-input loop successor | P2 / L | CLI input affects output through one bounded natural loop; verified HIR carries values through explicit header/backedge block and edge arguments; an independent execution oracle agrees; lowering uses structured MLIR ownership with no source-variable stack cell, textual lowering, host-C fallback or expected-output shortcut |
 | 8 | Enum/result and ownership vertical slice | P2 / L | Resource-bearing enum, match, borrow/move and typed failure work through native execution |
-| 9 | First comparative performance loop | P2 / M | Real W measurements for an implemented unit, independent correctness, three disclosed variants, pinned recipe |
+| 9 | First comparative performance and PGO loop | P2 / M | Real W measurements for an implemented unit after independent correctness; learner/idiomatic/frontier variants; pinned target/profile/compiler/training workload; PGO digest in recipe identity; compile-time/runtime/peak-memory/size results; no semantic or default-release regression |
 | 10 | Test/build execution efficiency | P2 / M | Measured duplicate work removed; changed-input selection and one shared build; no lost product mutation detection |
 | 11 | Incremental compiler and diagnostic UX | P2 / L | No-op/local/interface-edit benchmarks plus clear ownership/effect diagnostics on real source |
 | 12 | Registry verification vertical slice | P2 / L | Static third-party host, signed artifact, install/run policy, expiry/revocation and adversarial verification |
-| 13 | Cross-target distribution | P2 / L | One additional real host-to-target edge, SDK/ABI proof, target execution and complete size receipt |
+| 13 | Cross-target distribution and modern MLIR witness | P2 / L | W-1533/W-1534 plus one verified-HIR -> structured-MLIR -> target/provider witness; one additional real host-to-target edge, SDK/ABI proof, target execution and complete size receipt; no W-dialect, provider/runtime or performance claim beyond evidence |
 | 14 | Services/runtime lifecycle | P2 / L | Same contract through local and one external provider; cancellation, close, bounds and failure tested |
 | 15 | Web UI and terminal provider selection | P3 / M then L | WVUI0 questions resolved for one provider; real typed command and close/security witness |
 | 16 | Mapping/device/LLM performance integration | P3 / L | One measured useful workload per chosen provider; no core-language expansion from a capability list |
-| 17 | PVL0 proof mode, kernel and erasure | P3 / M | Prototype a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, preserved ABI/semantics, measured proof-enabled optimizations, and zero runtime cost from proof machinery before ratifying syntax |
+| 17 | First scientific P0 family | P3 / L | One bounded `std.linalg` family passes the MLS0 promotion gate: independent correctness, dynamic shapes, CPU and applicable GPU evidence, workspace/transfers, precision/determinism, compile time and artifact size; `benchmarkDisposition: required`; compiler recognition only when verification or transformation benefits |
+| 18 | PVL0 proof mode, kernel and erasure | P3 / M | A bounded study artifact with cases, oracle and trusted-base receipt prototypes a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, preserved ABI/semantics, no ordinary-W compile-time regression when proofs are absent, measured proof-enabled optimizations, and zero runtime cost from proof machinery before ratifying syntax. Proof establishes legality; PGO ranks only legal transforms; release packaging consumes the result |
 
 ### Runtime-input package boundary
 
