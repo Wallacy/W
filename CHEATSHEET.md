@@ -1007,7 +1007,7 @@ test "capture lists preserve ownership modes" for captures {
 
 ## Control flow and patterns
 
-<!-- w-example role=executable use=Signal,classify,accumulate observable=value -->
+<!-- w-example role=executable use=Signal,classify,accumulate,nextAvailableSeats observable=value -->
 ```w
 enum Signal {
   quiet
@@ -1044,10 +1044,17 @@ fn accumulate(_ rows: Array<Array<i32>>): i32 {
   return if total > 0 { total } else { 0 }
 }
 
+fn nextAvailableSeats(): i64 {
+  var seats = 5
+  seats = seats + 1
+  return seats
+}
+
 test "control flow returns an observable value" for accumulate {
   let signal: Signal = .alert(level: 1)
   expect classify(signal) == "alert"
   expect accumulate([[1, 2], [-1, 100], [3]]) == 6
+  expect nextAvailableSeats() == 6
 }
 ```
 

@@ -420,8 +420,8 @@ static bool interpolation_maximum_bytes(
       const bool runtime_value =
           parameter_read || effective->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
           effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
-          (effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
-           effective->type_index == 3u);
+          effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+          effective->kind == W_SEED_HIR0_VALUE_BINARY_I64;
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
           if (!runtime_value) {
@@ -1260,9 +1260,8 @@ static bool program_function_maximum(
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
       if (function->return_type != 0u ||
           terminator->target_block != W_SEED_HIR0_NONE ||
-          terminator->else_block != W_SEED_HIR0_NONE) {
+          terminator->else_block != W_SEED_HIR0_NONE)
         return false;
-      }
       block_maximum[local_block] = total;
       continue;
     }
@@ -1393,6 +1392,13 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
         program->types[program->values[value].type_index].kind ==
             W_SEED_HIR0_TYPE_BOOL)
       has_bool = true;
+  bool has_mutable_bindings = false;
+  for (size_t binding = 0u; binding < program->binding_count; binding += 1u)
+    if (program->bindings[binding].is_mutable ||
+        program->bindings[binding].source_binding != binding) {
+      has_mutable_bindings = true;
+      break;
+    }
   *selection = (w_seed_native_subset0_program){
       .entry = entry,
       .function_count = program->function_count,
@@ -1404,7 +1410,8 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
       .has_interpolation = has_interpolation,
       .has_bool = has_bool,
       .has_local_calls = has_local_calls,
-      .has_cfg = has_cfg};
+      .has_cfg = has_cfg,
+      .has_mutable_bindings = has_mutable_bindings};
   return W_SEED_NATIVE_SUBSET0_OK;
 }
 

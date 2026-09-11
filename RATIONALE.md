@@ -7820,6 +7820,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1551 | checked runtime signed-`i64` division and remainder | Existing HIR binary records admit runtime `/` and `%` without a schema change. Reachable private helpers validate zero and the signed minimum/negative-one edge before target division. Divide traps on both invalid cases; remainder traps on zero and returns zero for `i64.min % -1`. Safe constant trees remain direct and invalid constants fail before emission. | `source-backed-current` only for the bounded native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output and Linux fault-before-output behavior are exercised. General panic events/payload/cleanup, other widths/targets, named numeric APIs, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1552 | checked signed-`i64` unary negation | HIR0 `w-seed-hir0-17` appends an explicit typed unary-negate value rather than rewriting source identity to binary subtraction. Safe constants lower to direct `llvm.sub`; runtime values reuse the reachability-selected checked-subtract helper and reject `i64.min` before the target operation. | `source-backed-current` only for the bounded return/binding/interpolation-through-read native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output, HIR adversarial verification, direct constant lowering, helper reachability and Linux fault-before-output are exercised. Direct unary interpolation roots, other widths/targets, general panic events/payload/cleanup, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1553 | direct unary interpolation composition | Interpolation expressions do not inherit the enclosing `String` expectation. A representable leading unsuffixed prefix-negative expression receives the canonical signed-`i64` default before frontend records are published, keeping its literal child, unary root and interpolation segment type-consistent without a hidden binding or textual fold. | `source-backed-current` only for the bounded `${-7}` frontend → HIR17 → MLIR/native route on Linux WRT0 and Windows x86_64. The Restaurant fixture emits exact `Balance -7\n`; focused frontend/HIR checks retain the explicit tree and constant products omit the checked helper. General interpolation display protocols, the direct minimum-value literal spelling, other numeric defaults/widths/targets, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1554 | straight-line local mutation as verified SSA | A local signed-`i64` `var` and later simple `=` in the same linear block lower to ordered HIR binding versions. Each version retains one source root and predecessor; reads select the latest preceding version. MLIR emits SSA values and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove declaration, reassignment, later read, immutable-target rejection, forged-version rejection, exact `Open 6\n`, and no `alloca` inside the W function. Compound/branch/loop/nested/aggregate/aliasing mutation, mutable borrows, other widths/targets, general diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11100,3 +11101,26 @@ relations; the MLIR gate proves direct `llvm.sub` without the checked helper;
 the Linux WRT0 and native Windows public runners produce exact
 `Balance -7\n`. These are bounded compiler-lifecycle correctness checks, not a
 general interpolation protocol or performance result.
+
+#### W-1554 — straight-line local mutation as verified SSA
+
+The first mutable-local cut deliberately avoids a memory model shortcut. The
+frontend records `var` and assignment separately, and HIR18 turns every write
+into a new binding version. `source_binding` keeps the stable declaration
+identity while `previous_version`/`next_version` make the accepted linear
+history explicit without an auxiliary verifier allocation.
+An identifier read resolves against the latest version preceding that source
+statement, so the reassignment right-hand side still sees the old value.
+
+This representation keeps optimization freedom and makes the safety boundary
+auditable: HIR verification rejects updates whose root is immutable, whose
+predecessor is not earlier, or whose owner, type, name, or initializer relation
+changes. MLIR consumes the verified graph directly as SSA. It emits the checked
+integer addition but no stack slot, load, or store for `seats`; only the
+independent process-output buffer uses temporary memory.
+
+`compiler/seed-c/fixtures/restaurant-mutation.w` exercises the complete public
+source route and prints exact `Open 6\n`. Branch and loop merges are intentionally
+deferred until their block-argument representation can be verified rather than
+silently lowered through memory. This is correctness evidence, not a timing or
+performance result.

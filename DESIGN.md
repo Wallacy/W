@@ -37458,6 +37458,42 @@ defaulting outside this seed cut, the direct minimum-value literal spelling,
 unsigned negation, other widths or targets, timing, ranking, or performance
 evidence. Frontend, HIR0, MLIR0 and Native0 public record schemas are unchanged.
 
+#### 26.4.1.35 W-1554 — straight-line local mutation as verified SSA (Current form)
+
+The bounded seed compiler accepts a local signed-`i64` `var` followed by simple
+`=` assignments in the same linear block. Assignment produces Unit, its target
+must resolve to the nearest preceding mutable binding, and its right-hand side
+is evaluated before the new version becomes visible.
+
+```w
+entry {
+  var seats = 5
+  seats = seats + 1
+  print("Open ${seats}")
+}
+```
+
+Frontend schema `w-seed-frontend-17` records assignment explicitly instead of
+rewriting it as a declaration. HIR0 schema `w-seed-hir0-18` appends
+`source_binding`, `previous_version`, and `next_version` to each binding. A declaration points
+`source_binding` to itself and has no predecessor; every assignment creates a
+new SSA binding version rooted at the mutable declaration and linked in both
+directions to its unique predecessor. Reads resolve to the latest version preceding
+their statement. The verifier checks ownership, order, mutability, type, name,
+initializer, root, and predecessor relations independently.
+
+The MLIR lowering emits the initializer and reassignment as SSA values. It does
+not allocate, load, or store a source-variable cell; process-output scratch
+storage remains separate WRT plumbing. The Restaurant witness
+`compiler/seed-c/fixtures/restaurant-mutation.w` produces exact `Open 6\n`
+through the public Windows runner and the Linux/WSL MLIR route.
+
+This cut does not admit assignment to `let`, compound assignment, mutation in
+branches, loop-carried values, phi/block-argument merges, nested mutable scope,
+aggregate mutation, aliasing, mutable borrows, ownership transfer, other
+numeric widths, general diagnostics, or performance evidence. Those remain
+separate compiler milestones; no hidden memory fallback is authorized.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

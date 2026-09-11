@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-17"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-18"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -334,6 +334,15 @@ typedef struct {
   uint32_t type_index;
   w_seed_hir0_text name;
   bool is_mutable;
+  /* Every declaration is its own source_binding.  A later SSA version points
+   * back to the original mutable declaration; no runtime storage is implied. */
+  uint32_t source_binding;
+  /* NONE on a declaration; otherwise a preceding SSA version of the same
+   * source binding. Lowering emits the latest predecessor. */
+  uint32_t previous_version;
+  /* NONE on the current version; otherwise the unique following version.
+   * Bidirectional edges keep independent verification linear. */
+  uint32_t next_version;
   uint32_t initializer_value;
   w_seed_span source_span;
 } w_seed_hir0_binding;

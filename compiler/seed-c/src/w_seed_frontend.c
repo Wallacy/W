@@ -4605,7 +4605,7 @@ static bool frontend_widening_allowed(const frontend_context *context,
 static bool is_binary_operator(w_seed_frontend_text text) {
   static const char *const operators[] = {
       "+",  "-",  "*",  "/",  "%",  "==", "!=", "<", "<=", ">",
-      ">=", "&&", "||", "in", "..<",
+      ">=", "&&", "||", "in", "..<", "=",
   };
   for (size_t index = 0; index < sizeof(operators) / sizeof(operators[0]);
        index += 1) {
@@ -4615,6 +4615,7 @@ static bool is_binary_operator(w_seed_frontend_text text) {
 }
 
 static int operator_precedence(w_seed_frontend_text text) {
+  if (text_equal(text, "=")) return 0;
   if (text_equal(text, "||")) return 1;
   if (text_equal(text, "&&")) return 2;
   if (text_equal(text, "==") || text_equal(text, "!=")) return 3;
@@ -10500,6 +10501,54 @@ static frontend_simple_type binding_type_for_name(
   return simple_type_unknown();
 }
 
+/* Assignment is accepted only for the nearest visible source binding and
+ * only when that binding was declared with `var`.  This check is CST-backed
+ * so the dry and emit passes reach the same decision before link resolution
+ * publishes the normalized statement identity. */
+static bool mutable_binding_for_name(frontend_context *context,
+                                     w_seed_frontend_text name,
+                                     w_seed_span use_span) {
+  if (context == NULL || context->function_node == NULL || name.data == NULL ||
+      name.length == 0u)
+    return false;
+  const w_seed_frontend_document *doc = context_document(context);
+  if (doc == NULL) return false;
+  const uint32_t function_node =
+      (uint32_t)(context->function_node - doc->nodes);
+  const w_seed_span function_span = context->function_node->raw_span;
+  const uint32_t use_block =
+      innermost_block_for_span(doc, function_node, use_span);
+  uint32_t nearest = W_SEED_CST_NONE;
+  size_t nearest_end = 0u;
+  for (size_t index = 0u; index < doc->parse.node_count; index += 1u) {
+    const w_seed_cst_node *candidate = &doc->nodes[index];
+    if ((candidate->kind != W_SEED_CST_LET_STATEMENT &&
+         candidate->kind != W_SEED_CST_VAR_STATEMENT) ||
+        candidate->raw_span.start_byte < function_span.start_byte ||
+        candidate->raw_span.end_byte > function_span.end_byte ||
+        candidate->raw_span.end_byte > use_span.start_byte ||
+        !block_scope_contains(
+            doc, innermost_block_for_span(doc, function_node,
+                                          candidate->raw_span),
+            use_block))
+      continue;
+    const char *keyword = candidate->kind == W_SEED_CST_VAR_STATEMENT
+                              ? "var"
+                              : "let";
+    if (!text_equal_text(binding_name_after_keyword(
+                             doc, candidate->raw_span, keyword),
+                         name))
+      continue;
+    if (nearest == W_SEED_CST_NONE ||
+        candidate->raw_span.end_byte > nearest_end) {
+      nearest = (uint32_t)index;
+      nearest_end = candidate->raw_span.end_byte;
+    }
+  }
+  return nearest != W_SEED_CST_NONE &&
+         doc->nodes[nearest].kind == W_SEED_CST_VAR_STATEMENT;
+}
+
 static frontend_simple_type function_return_type(
     const frontend_context *context, const w_seed_frontend_document *doc,
     uint32_t function_node) {
@@ -12558,6 +12607,49 @@ static bool expression_parse_bp_inner(frontend_expression_parser *parser,
       break;
     }
     (void)cursor_take(&parser->cursor, &operator_token);
+    if (text_equal(operator_text, "=")) {
+      const frontend_expr_value left = *value;
+      const frontend_simple_type saved_expected = parser->expected_type;
+      const bool saved_has_expected = parser->has_expected_type;
+      parser->expected_type = left.type;
+      parser->has_expected_type =
+          left.type.kind != W_SEED_FRONTEND_TYPE_UNKNOWN;
+      frontend_expr_value right;
+      const bool parsed = expression_parse_bp(parser, precedence + 1, &right);
+      parser->expected_type = saved_expected;
+      parser->has_expected_type = saved_has_expected;
+      if (!parsed) return false;
+      bool supported =
+          left.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER && left.supported &&
+          right.supported &&
+          mutable_binding_for_name(parser->context, left.name, left.span);
+      if (supported && expression_value_is_unsuffixed_integer(&right) &&
+          left.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+          left.type.bit_width != 0u &&
+          unsuffixed_integer_fits(right.type.spelling, left.type)) {
+        supported = expression_value_set_type(parser, &right, left.type);
+      }
+      if (supported && !frontend_type_equal(parser->context, left.type,
+                                            right.type))
+        supported = false;
+      const w_seed_span span = {left.span.start_byte, right.span.end_byte};
+      if (!supported)
+        (void)context_append_fact(
+            parser->context, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+            span, text_from_span(parser->document, span));
+      const frontend_simple_type unit =
+          simple_type_from_view((w_seed_frontend_text){"()", 2u});
+      if (!expression_append(
+              parser,
+              supported ? W_SEED_FRONTEND_EXPR_ASSIGNMENT
+                        : W_SEED_FRONTEND_EXPR_UNSUPPORTED,
+              span, text_from_span(parser->document, span), operator_text,
+              unit, supported, left.index, right.index,
+              W_SEED_FRONTEND_NONE, 0u, value))
+        return false;
+      value->is_integer_literal = false;
+      continue;
+    }
     if (text_equal(operator_text, "in")) {
       const frontend_expr_value subject = *value;
       if (!expression_parse_membership(parser, &subject, operator_token,
@@ -13856,7 +13948,8 @@ static bool normalize_statement_depth(frontend_context *context,
        node->kind == W_SEED_CST_VAR_STATEMENT) &&
       expression_node != W_SEED_CST_NONE) {
     frontend_simple_type effective = normalized_actual;
-    if (node->kind == W_SEED_CST_LET_STATEMENT &&
+    if ((node->kind == W_SEED_CST_LET_STATEMENT ||
+         node->kind == W_SEED_CST_VAR_STATEMENT) &&
         type_node == W_SEED_CST_NONE &&
         expression_value_is_unsuffixed_integer(&expression_value))
       effective = const_default_integer_type();

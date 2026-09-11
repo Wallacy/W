@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-16"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-17"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -121,6 +121,9 @@ typedef enum {
   /* Append-only bounded scalar if expression.  left is the Bool condition,
    * right is the then arm, and else_expression is the else arm. */
   W_SEED_FRONTEND_EXPR_IF,
+  /* Append-only local assignment. left is the mutable binding identifier,
+   * right is the replacement value, and the expression type is Unit. */
+  W_SEED_FRONTEND_EXPR_ASSIGNMENT,
 } w_seed_frontend_expr_kind;
 
 typedef enum {

@@ -2247,6 +2247,7 @@ static bool build_program_artifact(
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL ||
       (!selection->has_local_calls && !selection->has_cfg &&
+       !selection->has_mutable_bindings &&
        selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
@@ -2999,6 +3000,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))
@@ -3075,6 +3077,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
                                 artifact, sizeof(artifact), &written, digest))

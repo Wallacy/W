@@ -21,6 +21,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-mutation.w")
 const w1531MinimalFixture = resolve(seedDirectory, "fixtures", "w1531-if-minimal.w")
 const w1531NoElseFixture = resolve(seedDirectory, "fixtures", "w1531-if-no-else.w")
 const w1531LearnerFixture = resolve(seedDirectory, "fixtures", "w1531-if-learner.w")
@@ -681,6 +683,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantUnaryInterpolationFixture)],
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant direct unary interpolation")
+  expectSuccess(binary, ["run", toWsl(restaurantMutationFixture)],
+    Buffer.from("Open 6\n", "utf8"),
+    "Restaurant straight-line local mutation")
   const divisionFault = invoke(binary, ["run", toWsl(runtimeDivisionZero)])
   assert(divisionFault.exitCode !== 0 && divisionFault.stdout.length === 0 &&
     divisionFault.stderr.length === 0,
