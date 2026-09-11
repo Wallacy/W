@@ -19,6 +19,16 @@
 
 static const char TEST_PATH[] = "w_seed_native0_test.w";
 static w_seed_native0_storage storage;
+
+static uint32_t edge_value_at(const w_seed_hir0_program *program,
+                              size_t terminator_index) {
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[terminator_index];
+  if (terminator->edge_argument_count == 0u ||
+      terminator->first_edge_argument == W_SEED_HIR0_NONE)
+    return W_SEED_HIR0_NONE;
+  return program->edge_arguments[terminator->first_edge_argument].value_index;
+}
 static const w_seed_mlir0_target TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
 static const w_seed_mlir0_target WINDOWS_TARGET = {
@@ -506,14 +516,10 @@ static bool test_logical_native_selector(void) {
         program->blocks[either_start + 3u].block_argument_count == 1u &&
         program->block_arguments[0].owner_block == both_start + 3u &&
         program->block_arguments[1].owner_block == either_start + 3u);
-  CHECK(program->terminators[both_start + 1u].incoming_value !=
-            W_SEED_HIR0_NONE &&
-        program->terminators[both_start + 2u].incoming_value !=
-            W_SEED_HIR0_NONE &&
-        program->terminators[either_start + 1u].incoming_value !=
-            W_SEED_HIR0_NONE &&
-        program->terminators[either_start + 2u].incoming_value !=
-            W_SEED_HIR0_NONE);
+  CHECK(edge_value_at(program, both_start + 1u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, both_start + 2u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, either_start + 1u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, either_start + 2u) != W_SEED_HIR0_NONE);
 
   size_t unary_count = 0u;
   size_t bool_call_count = 0u;

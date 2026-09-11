@@ -5262,6 +5262,95 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-multi-branch-mutation-ssa",
+      "reviewItem": "bounded multi-root symmetric branch-local mutation against positional pairing and hidden stack storage",
+      "decisions": [
+        "W-1558"
+      ],
+      "task": "Lower a nonempty set of root mutable bindings assigned once per branch as one deterministic multi-argument SSA join.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var seats = 5",
+          "var tables = 2",
+          "if isOpen { tables = tables + 10; seats = seats + 1 } else { seats = seats - 1; tables = tables - 10 }",
+          "return seats + tables"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "positional-arm-pairing",
+          "language": "text",
+          "source": [
+            "pair the first true-arm assignment with the first false-arm assignment"
+          ],
+          "expectedDifference": "The selected route pairs resolved root declarations and accepts opposite assignment order without changing the join mapping."
+        },
+        {
+          "name": "multi-root-stack-cells",
+          "language": "text",
+          "source": [
+            "lower every mutable root to an alloca, store in each arm, and load at the join"
+          ],
+          "expectedDifference": "The selected route carries each root as a typed edge operand and retains direct SSA uses."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_local_assignment_projection",
+          "claim": "Frontend tests prove opposite arm order and resolved root target identity."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_multi_branch_mutation_merge",
+          "claim": "HIR tests prove declaration-order join arguments, merged versions, and edge-list barriers."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_branch_local_mutation_barriers",
+          "claim": "HIR tests reject missing, duplicate, unmatched, dependent, effectful, and nested branch shapes."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_multi_branch_mutation_merge_is_ssa",
+          "claim": "MLIR tests prove two typed join parameters, two typed branch operands, direct return, and no alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w",
+          "symbol": "nextState",
+          "claim": "The Restaurant witness mutates two roots in opposite arm order and consumes both after the join."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantMultiBranchMutationFixture",
+          "claim": "The MLIR gate checks the two-parameter join and typed two-operand branches."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantMultiBranchMutationFixture",
+          "claim": "The Linux/WSL public runner executes exact joined output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantMultiBranchMutationFixture",
+          "claim": "The native Windows public runner executes the same witness."
+        }
+      ],
+      "checks": [
+        "frontend pairs roots by declaration identity and accepts opposite assignment order",
+        "HIR emits declaration-order join arguments and edge records while rejecting malformed or dependent arms",
+        "MLIR emits all typed join operands and parameters directly without source-variable alloca",
+        "Linux/WSL and native Windows print exact Open 18; closed -4"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

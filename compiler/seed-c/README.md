@@ -1335,6 +1335,24 @@ extra statements, calls/effects, Bool/multiple/nested/loop/aggregate mutation,
 general dominance, other targets, and performance remain outside this bounded
 compiler-lifecycle cut.
 
+### Multiple symmetric branch-local mutations as SSA (W-1558)
+
+`fixtures/restaurant-branch-mutation-multi.w` extends the accepted top-level
+statement `if` to a nonempty set of root-block mutable signed-`i64` `var`
+bindings. Each root is assigned exactly once in both pure arms; pairing uses
+resolved declaration identity, so opposite arm assignment order is accepted.
+HIR19 emits one destination block argument and one merged binding version per
+root in declaration order. The statement branch remains Unit (`result_type ==
+0`), and each predecessor carries the complete typed edge-argument list.
+
+MLIR emits the two join parameters and two typed branch operands directly in
+SSA, with no source-variable `alloca`, load, or store. The public Linux/WSL and
+native Windows runners execute exact `Open 18; closed -4\n`. Missing, duplicate,
+or unmatched targets, same-arm dependencies, calls/effects, nested control,
+Bool or mixed-type joins, aggregates, aliases, other targets, and performance
+evidence remain outside this bounded compiler-lifecycle cut. Its benchmark
+disposition is correctness-only with no timing or benchmark result.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

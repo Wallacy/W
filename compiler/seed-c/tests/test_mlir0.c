@@ -101,6 +101,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
   w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
+  w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -123,6 +124,32 @@ typedef struct {
 } mlir_fixture;
 
 static mlir_fixture fixture;
+
+static uint32_t edge_value_at(const w_seed_hir0_program *program,
+                              size_t terminator_index) {
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[terminator_index];
+  if (terminator->edge_argument_count == 0u ||
+      terminator->first_edge_argument == W_SEED_HIR0_NONE)
+    return W_SEED_HIR0_NONE;
+  return program->edge_arguments[terminator->first_edge_argument].value_index;
+}
+
+static uint32_t edge_value_for(const w_seed_hir0_program *program,
+                               const w_seed_hir0_terminator *terminator) {
+  return edge_value_at(
+      program, (size_t)(terminator - program->terminators));
+}
+
+#define EDGE_VALUE_SLOT(program, terminator_index)                            \
+  ((program)->edge_arguments[(program)->terminators[(terminator_index)]       \
+                                 .first_edge_argument]                        \
+       .value_index)
+
+#define FIXTURE_EDGE_VALUE_SLOT(terminator_index)                             \
+  (fixture.hir_edge_arguments[fixture.hir_terminators[(terminator_index)]      \
+                                  .first_edge_argument]                        \
+       .value_index)
 
 static const w_seed_mlir0_target TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU};
@@ -349,6 +376,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .block_capacity = TEST_HIR_RECORDS,
       .block_arguments = fixture.hir_block_arguments,
       .block_argument_capacity = TEST_HIR_RECORDS,
+      .edge_arguments = fixture.hir_edge_arguments,
+      .edge_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -411,6 +440,8 @@ static bool lower_process_hir(const uint8_t *source_bytes,
       .block_capacity = TEST_HIR_RECORDS,
       .block_arguments = fixture.hir_block_arguments,
       .block_argument_capacity = TEST_HIR_RECORDS,
+      .edge_arguments = fixture.hir_edge_arguments,
+      .edge_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -1411,17 +1442,17 @@ static bool test_nested_scalar_if_value_diamond(void) {
         program->terminators[4].target_block == 6u &&
         program->terminators[5].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         program->terminators[5].target_block == 6u);
-  CHECK(program->terminators[2].incoming_value < program->value_count &&
-        program->terminators[3].incoming_value < program->value_count &&
-        program->terminators[4].incoming_value < program->value_count &&
-        program->terminators[5].incoming_value < program->value_count &&
-        program->values[program->terminators[2].incoming_value].type_index ==
+  CHECK(edge_value_at(program, 2u) < program->value_count &&
+        edge_value_at(program, 3u) < program->value_count &&
+        edge_value_at(program, 4u) < program->value_count &&
+        edge_value_at(program, 5u) < program->value_count &&
+        program->values[edge_value_at(program, 2u)].type_index ==
             W_SEED_HIR0_TYPE_I64 &&
-        program->values[program->terminators[3].incoming_value].type_index ==
+        program->values[edge_value_at(program, 3u)].type_index ==
             W_SEED_HIR0_TYPE_I64 &&
-        program->values[program->terminators[4].incoming_value].type_index ==
+        program->values[edge_value_at(program, 4u)].type_index ==
             W_SEED_HIR0_TYPE_I64 &&
-        program->values[program->terminators[5].incoming_value].type_index ==
+        program->values[edge_value_at(program, 5u)].type_index ==
             W_SEED_HIR0_TYPE_I64);
   CHECK(measure_current(&counts, &measured));
   CHECK(emit_current(artifact, sizeof(artifact), &emitted));
@@ -1598,8 +1629,8 @@ static bool test_logical_and_diamond(void) {
         skip_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         rhs_jump->target_block == skip_jump->target_block &&
         rhs_jump->target_block < program->block_count &&
-        rhs_jump->incoming_value < program->value_count &&
-        skip_jump->incoming_value < program->value_count);
+        edge_value_for(program, rhs_jump) < program->value_count &&
+        edge_value_for(program, skip_jump) < program->value_count);
   const uint32_t join_block_index = rhs_jump->target_block;
   const w_seed_hir0_block *join_block_record =
       &program->blocks[join_block_index];
@@ -1611,9 +1642,9 @@ static bool test_logical_and_diamond(void) {
         program->block_arguments[join_argument_index].type_index ==
             W_SEED_HIR0_TYPE_BOOL);
   const w_seed_hir0_value *rhs_incoming =
-      &program->values[rhs_jump->incoming_value];
+      &program->values[edge_value_for(program, rhs_jump)];
   const w_seed_hir0_value *skip_incoming =
-      &program->values[skip_jump->incoming_value];
+      &program->values[edge_value_for(program, skip_jump)];
   CHECK(rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
         rhs_incoming->call_index < program->call_count &&
         skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
@@ -1657,7 +1688,7 @@ static bool test_logical_and_diamond(void) {
       function_index, join_block_index, rhs_incoming->call_index);
   const int skip_jump_length = snprintf(
       skip_jump_text, sizeof(skip_jump_text), "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)",
-      function_index, join_block_index, skip_jump->incoming_value);
+      function_index, join_block_index, edge_value_for(program, skip_jump));
   CHECK(branch_length > 0 && (size_t)branch_length < sizeof(branch_text) &&
         rhs_label_length > 0 && (size_t)rhs_label_length < sizeof(rhs_label) &&
         skip_label_length > 0 && (size_t)skip_label_length < sizeof(skip_label) &&
@@ -1803,8 +1834,8 @@ static bool test_logical_or_diamond(void) {
         rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         skip_jump->target_block == rhs_jump->target_block &&
         skip_jump->target_block < program->block_count &&
-        skip_jump->incoming_value < program->value_count &&
-        rhs_jump->incoming_value < program->value_count);
+        edge_value_for(program, skip_jump) < program->value_count &&
+        edge_value_for(program, rhs_jump) < program->value_count);
   const w_seed_hir0_block *join_block_record =
       &program->blocks[skip_jump->target_block];
   const uint32_t join_argument_index = join_block_record->first_block_argument;
@@ -1815,9 +1846,9 @@ static bool test_logical_or_diamond(void) {
         program->block_arguments[join_argument_index].type_index ==
             W_SEED_HIR0_TYPE_BOOL);
   const w_seed_hir0_value *skip_incoming =
-      &program->values[skip_jump->incoming_value];
+      &program->values[edge_value_for(program, skip_jump)];
   const w_seed_hir0_value *rhs_incoming =
-      &program->values[rhs_jump->incoming_value];
+      &program->values[edge_value_for(program, rhs_jump)];
   CHECK(skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
         skip_incoming->bool_value &&
         rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
@@ -1856,7 +1887,7 @@ static bool test_logical_or_diamond(void) {
       program->identities[rhs_call_record->callee_identity].target_index);
   const int skip_jump_length = snprintf(
       skip_jump_text, sizeof(skip_jump_text), "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)",
-      function_index, skip_jump->target_block, skip_jump->incoming_value);
+      function_index, skip_jump->target_block, edge_value_for(program, skip_jump));
   const int rhs_jump_length = snprintf(
       rhs_jump_text, sizeof(rhs_jump_text), "llvm.br ^w_fn_%u_b_%u(%%call%u : i1)",
       function_index, rhs_jump->target_block, rhs_incoming->call_index);
@@ -1947,9 +1978,9 @@ static bool test_logical_nested_diamond(void) {
         inner_skip_jump->target_block == inner_rhs_jump->target_block &&
         inner_skip_jump->target_block < program->block_count &&
         outer_skip_jump->target_block < program->block_count &&
-        inner_skip_jump->incoming_value < program->value_count &&
-        inner_rhs_jump->incoming_value < program->value_count &&
-        outer_skip_jump->incoming_value < program->value_count);
+        edge_value_for(program, inner_skip_jump) < program->value_count &&
+        edge_value_for(program, inner_rhs_jump) < program->value_count &&
+        edge_value_for(program, outer_skip_jump) < program->value_count);
   const uint32_t inner_join_index = inner_skip_jump->target_block;
   const uint32_t outer_join_index = outer_skip_jump->target_block;
   const w_seed_hir0_block *inner_join = &program->blocks[inner_join_index];
@@ -1967,15 +1998,15 @@ static bool test_logical_nested_diamond(void) {
       &program->terminators[inner_join->terminator_index];
   CHECK(outer_rhs_jump->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         outer_rhs_jump->target_block == outer_join_index &&
-        outer_rhs_jump->incoming_value < program->value_count);
+        edge_value_for(program, outer_rhs_jump) < program->value_count);
   const w_seed_hir0_value *inner_skip_incoming =
-      &program->values[inner_skip_jump->incoming_value];
+      &program->values[edge_value_for(program, inner_skip_jump)];
   const w_seed_hir0_value *inner_rhs_incoming =
-      &program->values[inner_rhs_jump->incoming_value];
+      &program->values[edge_value_for(program, inner_rhs_jump)];
   const w_seed_hir0_value *outer_skip_incoming =
-      &program->values[outer_skip_jump->incoming_value];
+      &program->values[edge_value_for(program, outer_skip_jump)];
   const w_seed_hir0_value *outer_rhs_incoming =
-      &program->values[outer_rhs_jump->incoming_value];
+      &program->values[edge_value_for(program, outer_rhs_jump)];
   CHECK(inner_skip_incoming->kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
         inner_skip_incoming->bool_value &&
         inner_rhs_incoming->kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
@@ -2045,7 +2076,7 @@ static bool test_logical_nested_diamond(void) {
   CHECK(length > 0 && (size_t)length < sizeof(call_text));
   length = snprintf(inner_skip_jump_text, sizeof(inner_skip_jump_text),
                     "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)", function_index,
-                    inner_join_index, inner_skip_jump->incoming_value);
+                    inner_join_index, edge_value_for(program, inner_skip_jump));
   CHECK(length > 0 && (size_t)length < sizeof(inner_skip_jump_text));
   length = snprintf(inner_rhs_jump_text, sizeof(inner_rhs_jump_text),
                     "llvm.br ^w_fn_%u_b_%u(%%call%u : i1)", function_index,
@@ -2053,7 +2084,7 @@ static bool test_logical_nested_diamond(void) {
   CHECK(length > 0 && (size_t)length < sizeof(inner_rhs_jump_text));
   length = snprintf(outer_skip_jump_text, sizeof(outer_skip_jump_text),
                     "llvm.br ^w_fn_%u_b_%u(%%v%u : i1)", function_index,
-                    outer_join_index, outer_skip_jump->incoming_value);
+                    outer_join_index, edge_value_for(program, outer_skip_jump));
   CHECK(length > 0 && (size_t)length < sizeof(outer_skip_jump_text));
   length = snprintf(outer_rhs_jump_text, sizeof(outer_rhs_jump_text),
                     "llvm.br ^w_fn_%u_b_%u(%%arg%u : i1)", function_index,
@@ -2130,7 +2161,7 @@ static bool test_logical_mlir_adversarial(void) {
   }
   for (size_t index = 0u; index < program->terminator_count; index += 1u)
     if (program->terminators[index].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
-        program->terminators[index].incoming_value != W_SEED_HIR0_NONE) {
+        edge_value_at(program, index) != W_SEED_HIR0_NONE) {
       logical_jump_index = (uint32_t)index;
       break;
     }
@@ -2159,10 +2190,13 @@ static bool test_logical_mlir_adversarial(void) {
 
   const w_seed_hir0_terminator saved_jump =
       program->terminators[logical_jump_index];
-  fixture.hir_terminators[logical_jump_index].incoming_value =
+  const uint32_t saved_jump_edge_value =
+      FIXTURE_EDGE_VALUE_SLOT(logical_jump_index);
+  FIXTURE_EDGE_VALUE_SLOT(logical_jump_index) =
       W_SEED_HIR0_NONE;
   CHECK(expect_logical_mlir_invalid());
   fixture.hir_terminators[logical_jump_index] = saved_jump;
+  FIXTURE_EDGE_VALUE_SLOT(logical_jump_index) = saved_jump_edge_value;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   return true;
 }
@@ -2849,6 +2883,61 @@ static bool test_branch_local_mutation_merge_is_ssa(void) {
   return true;
 }
 
+static bool test_multi_branch_mutation_merge_is_ssa(void) {
+  static const uint8_t source[] =
+      "fn nextState(isOpen: Bool): i64 {\n"
+      "  var seats = 5\n"
+      "  var tables = 2\n"
+      "  if isOpen {\n"
+      "    tables = tables + 10\n"
+      "    seats = seats + 1\n"
+      "  } else {\n"
+      "    seats = seats - 1\n"
+      "    tables = tables - 10\n"
+      "  }\n"
+      "  return seats + tables\n"
+      "}\n"
+      "entry {\n"
+      "  let open = nextState(isOpen: true)\n"
+      "  let closed = nextState(isOpen: false)\n"
+      "  print(\"Open ${open}; closed ${closed}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.binding_count == 6u &&
+        fixture.hir_program.block_count == 5u &&
+        fixture.hir_program.block_argument_count == 2u &&
+        fixture.hir_program.blocks[3].block_argument_count == 2u &&
+        fixture.hir_program.terminators[0].result_type == 0u);
+  CHECK(fixture.hir_program.terminators[1].edge_argument_count == 2u &&
+        fixture.hir_program.terminators[2].edge_argument_count == 2u &&
+        fixture.hir_program.edge_arguments[0].ordinal == 0u &&
+        fixture.hir_program.edge_arguments[1].ordinal == 1u &&
+        fixture.hir_program.edge_arguments[2].ordinal == 0u &&
+        fixture.hir_program.edge_arguments[3].ordinal == 1u);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "^w_fn_0_b_3(%arg0: i64, %arg1: i64):") &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.br ^w_fn_0_b_3(%v") == 2u &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "llvm.return %v") &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
@@ -2856,6 +2945,7 @@ int main(void) {
   if (!test_conditional_mutation_merge_is_ssa()) return 1;
   if (!test_bool_mutation_is_ssa()) return 1;
   if (!test_branch_local_mutation_merge_is_ssa()) return 1;
+  if (!test_multi_branch_mutation_merge_is_ssa()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;

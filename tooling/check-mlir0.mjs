@@ -29,6 +29,8 @@ const restaurantBoolMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-bool-mutation.w")
 const restaurantBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation.w")
+const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-branch-mutation-multi.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -437,6 +439,9 @@ try {
     { name: "restaurant-branch-mutation",
       source: restaurantBranchMutationFixture,
       expected: Buffer.from("Open 6; closed 4\n", "utf8") },
+    { name: "restaurant-branch-mutation-multi",
+      source: restaurantMultiBranchMutationFixture,
+      expected: Buffer.from("Open 18; closed -4\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -678,6 +683,26 @@ try {
     !branchMutationFunction.includes("llvm.alloca") &&
     (branchMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
   "branch-local mutation did not retain one SSA join and two runtime calls")
+  const multiBranchMutationArtifact = artifacts.get(
+    "restaurant-branch-mutation-multi").toString("utf8")
+  const multiBranchMutationStart = multiBranchMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const multiBranchMutationEntry = multiBranchMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", multiBranchMutationStart + 1)
+  assert(multiBranchMutationStart >= 0 &&
+    multiBranchMutationEntry > multiBranchMutationStart,
+  "multi branch mutation function boundaries are missing")
+  const multiBranchMutationFunction = multiBranchMutationArtifact.slice(
+    multiBranchMutationStart, multiBranchMutationEntry)
+  assert(multiBranchMutationFunction.includes(
+    "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+    multiBranchMutationFunction.includes(
+      "^w_fn_0_b_3(%arg0: i64, %arg1: i64):") &&
+    (multiBranchMutationFunction.match(
+      /llvm\.br \^w_fn_0_b_3\(%v\d+, %v\d+ : i64, i64\)/gu) || []).length === 2 &&
+    multiBranchMutationFunction.includes("llvm.return %v") &&
+    !multiBranchMutationFunction.includes("llvm.alloca"),
+  "multi branch mutation did not retain two typed SSA join values")
   const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(

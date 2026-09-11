@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:b11e9e53d9c4b37e38c439afcce981c0f3dd5ba3808af4a8ced875b583459410",
+  "corpusDigest": "sha256:d6710890cbdfda7792cf6eef3bbda4acf42b2c6c9ab4142947648c220cc5db07",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6084,6 +6084,54 @@
             "nonWhitespaceCodePoints": 57,
             "lines": 1,
             "surfaceLexemes": 17
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-multi-branch-mutation-ssa",
+      "task": {
+        "utf8Bytes": 116,
+        "codePoints": 116,
+        "nonWhitespaceCodePoints": 99,
+        "lines": 1,
+        "surfaceLexemes": 21
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:92c0943ff62d90d2b3342857dce5c4a4289b0d255fb96fe3155cc4601374bbc3",
+        "metrics": {
+          "utf8Bytes": 153,
+          "codePoints": 153,
+          "nonWhitespaceCodePoints": 115,
+          "lines": 4,
+          "surfaceLexemes": 41
+        }
+      },
+      "alternatives": [
+        {
+          "name": "positional-arm-pairing",
+          "language": "text",
+          "sourceDigest": "sha256:058a5ad8fb392092848382ec3425da047d62160533a0a13faec2d38225fdb189",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "multi-root-stack-cells",
+          "language": "text",
+          "sourceDigest": "sha256:85113ef1b043b6af620d190e6baa2abbb7eddefc7b17564cdaa7a37fd5052d55",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 18
           }
         }
       ]

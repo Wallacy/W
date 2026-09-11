@@ -37525,10 +37525,11 @@ variable `alloca`, load, or store is introduced. The Restaurant witness
 `Open 6; closed 4\n` through the Linux/WSL and native Windows public runners.
 
 W-1557 supersedes only the exclusion for one symmetric branch-local
-assignment shape. Multiple mutable roots crossing a diamond, nested mutation, loop-carried
-values, aggregates, aliases, mutable borrows, generalized dominance metadata,
-other widths or targets, diagnostics, timing, ranking, and performance remain
-outside the bounded cut. No hidden memory fallback is authorized.
+assignment shape. W-1558 supersedes only the exclusion for its bounded
+multi-root extension. Nested mutation, loop-carried values, aggregates,
+aliases, mutable borrows, generalized dominance metadata, other widths or
+targets, diagnostics, timing, ranking, and performance remain outside the
+bounded cuts. No hidden memory fallback is authorized.
 
 #### 26.4.1.37 W-1556 — Boolean local mutation as verified SSA (Current form)
 
@@ -37592,6 +37593,38 @@ loop-carried mutation, multiple merged roots, calls or effects in an arm,
 Bool/aggregate/aliased mutation, mutable borrows, general dominance metadata,
 other targets, diagnostics, timing, ranking, and performance remain outside
 this bounded cut. No hidden memory fallback is authorized.
+
+#### 26.4.1.39 W-1558 — bounded multi-root branch mutation merged in SSA (Current form)
+
+A top-level statement `if` may assign one or more root-block mutable signed-`i64`
+`var` bindings exactly once in each arm. The assignment target set must be
+nonempty and identical in both arms. Pairing uses each target's resolved lexical
+root declaration identity, never statement position, so the two arms may write
+the roots in opposite source order. The accepted right-hand sides are pure,
+same-typed scalar `i64` expressions that read only pre-branch versions; calls,
+effects, nested control flow, and dependencies on another assignment in the
+same arm are rejected.
+
+The statement branch remains a Unit form: `BRANCH.result_type` is `0`, and the
+join is verified independently from its destination block arguments and the two
+predecessor edge-argument lists. HIR19 emits one join block argument and one
+successor binding version per selected root, both in root declaration order.
+Each jump carries the corresponding contiguous edge-argument records in that
+same ordinal order; values remain independently indexed. The result is still a
+linear binding-version chain, with no arm-local versions or helper alloca.
+
+MLIR emits all join parameters and both typed operand lists directly in SSA.
+The Restaurant witness `compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w`
+mutates `seats` and `tables` in opposite arm orders and executes exact
+`Open 18; closed -4\n` through the Linux/WSL and native Windows public runners.
+The focused frontend, HIR0, MLIR0, and native checks cover target pairing,
+root-order determinism, edge ownership/ordinal/type/count validation, and
+all-or-nothing storage. Bool joins, mixed join types, nested/loop mutation,
+aggregate and aliased mutation, mutable borrows, general dominance metadata,
+other targets, diagnostics, timing, ranking, and performance remain outside
+this bounded compiler-lifecycle cut. Its benchmark disposition is
+`compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+No hidden memory fallback is authorized.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

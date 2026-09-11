@@ -1025,15 +1025,17 @@ static bool append_program_block_argument_name(
     return false;
   const w_seed_hir0_block_argument *argument =
       &program->block_arguments[block_argument_index];
-  if (argument->owner_block >= program->block_count || argument->ordinal != 0u ||
+  if (argument->owner_block >= program->block_count ||
       argument->type_index >= program->type_count ||
       (program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 &&
        program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_BOOL))
     return false;
   const w_seed_hir0_block *block = &program->blocks[argument->owner_block];
   if (block->owner_function != function_index ||
-      block->block_argument_count != 1u ||
-      block->first_block_argument != block_argument_index)
+      block->block_argument_count == 0u ||
+      block->first_block_argument == W_SEED_HIR0_NONE ||
+      argument->ordinal >= block->block_argument_count ||
+      block->first_block_argument + argument->ordinal != block_argument_index)
     return false;
   return append_literal(artifact, capacity, offset, "%arg") &&
          append_size(artifact, capacity, offset, block_argument_index);
@@ -1412,11 +1414,20 @@ static bool mark_program_reachable_values(
                 has_subtract, has_multiply, has_divide, has_remainder, 0u))
           return false;
       } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
-        if (terminator->incoming_value != W_SEED_HIR0_NONE &&
-            !mark_reachable_value_tree(
-                program, terminator->incoming_value, reachable, has_add,
-                has_subtract, has_multiply, has_divide, has_remainder, 0u))
-          return false;
+        for (size_t edge_ordinal = 0u;
+             edge_ordinal < terminator->edge_argument_count; edge_ordinal += 1u) {
+          if (terminator->first_edge_argument == W_SEED_HIR0_NONE ||
+              (size_t)terminator->first_edge_argument + edge_ordinal >=
+                  program->edge_argument_count ||
+              !mark_reachable_value_tree(
+                  program,
+                  program->edge_arguments[(size_t)terminator->first_edge_argument +
+                                          edge_ordinal]
+                      .value_index,
+                  reachable, has_add, has_subtract, has_multiply, has_divide,
+                  has_remainder, 0u))
+            return false;
+        }
       } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
                  !mark_reachable_value_tree(
                      program, terminator->value_index, reachable, has_add,
@@ -2039,7 +2050,6 @@ static bool append_program_block_definition(
     uint32_t block_index, const w_seed_hir0_block *block, uint8_t *artifact,
     size_t capacity, size_t *offset) {
   if (program == NULL || block == NULL || artifact == NULL || offset == NULL ||
-      block->block_argument_count > 1u ||
       (block->block_argument_count == 0u &&
        block->first_block_argument != W_SEED_HIR0_NONE) ||
       (block->block_argument_count != 0u &&
@@ -2048,19 +2058,25 @@ static bool append_program_block_definition(
   if (!append_program_block_label(artifact, capacity, offset, function_index,
                                  block_index, false))
     return false;
-  if (block->block_argument_count == 1u &&
-      (!append_literal(artifact, capacity, offset, "(") ||
-       !append_program_block_argument_name(
-           program, block->first_block_argument, function_index, artifact,
-           capacity, offset) ||
-       !append_literal(artifact, capacity, offset, ": ") ||
-       !append_literal(
-           artifact, capacity, offset,
-           program_type_name(
-               program,
-               program->block_arguments[block->first_block_argument].type_index)) ||
-       !append_literal(artifact, capacity, offset, ")")))
-    return false;
+  if (block->block_argument_count != 0u) {
+    if (!append_literal(artifact, capacity, offset, "(")) return false;
+    for (size_t ordinal = 0u; ordinal < block->block_argument_count;
+         ordinal += 1u) {
+      const uint32_t argument_index =
+          (uint32_t)((size_t)block->first_block_argument + ordinal);
+      const char *type = program_type_name(
+          program, program->block_arguments[argument_index].type_index);
+      if (type == NULL ||
+          (ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+          !append_program_block_argument_name(
+              program, argument_index, function_index, artifact, capacity,
+              offset) ||
+          !append_literal(artifact, capacity, offset, ": ") ||
+          !append_literal(artifact, capacity, offset, type))
+        return false;
+    }
+    if (!append_literal(artifact, capacity, offset, ")")) return false;
+  }
   return append_literal(artifact, capacity, offset, ":");
 }
 
@@ -2191,29 +2207,57 @@ static bool append_program_function(
           !append_literal(artifact, capacity, offset, "\n"))
         return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
-      if (terminator->incoming_value != W_SEED_HIR0_NONE &&
-          !append_program_value_tree(
-              program, terminator->incoming_value, (uint32_t)function_index,
-              emitted, artifact, capacity, offset, 0u))
+      if ((terminator->edge_argument_count != 0u &&
+           terminator->first_edge_argument == W_SEED_HIR0_NONE) ||
+          (terminator->edge_argument_count > program->edge_argument_count) ||
+          (terminator->edge_argument_count != 0u &&
+           (size_t)terminator->first_edge_argument >
+               program->edge_argument_count - terminator->edge_argument_count))
         return false;
+      for (size_t edge_ordinal = 0u;
+           edge_ordinal < terminator->edge_argument_count; edge_ordinal += 1u) {
+        const w_seed_hir0_edge_argument *edge =
+            &program->edge_arguments[(size_t)terminator->first_edge_argument +
+                                     edge_ordinal];
+        if (!append_program_value_tree(
+                program, edge->value_index, (uint32_t)function_index, emitted,
+                artifact, capacity, offset, 0u))
+          return false;
+      }
       if (!append_literal(artifact, capacity, offset, "    llvm.br ") ||
           !append_program_block_label(
               artifact, capacity, offset, (uint32_t)function_index,
               terminator->target_block, false))
         return false;
-      if (terminator->incoming_value != W_SEED_HIR0_NONE &&
-          (!append_literal(artifact, capacity, offset, "(") ||
-           !append_program_value_operand(
-               program, terminator->incoming_value,
-               (uint32_t)function_index, artifact, capacity, offset) ||
-           !append_literal(artifact, capacity, offset, " : ") ||
-           !append_literal(
-               artifact, capacity, offset,
-               program_type_name(
-                   program,
-                   program->values[terminator->incoming_value].type_index)) ||
-           !append_literal(artifact, capacity, offset, ")")))
-        return false;
+      if (terminator->edge_argument_count != 0u) {
+        if (!append_literal(artifact, capacity, offset, "(")) return false;
+        for (size_t edge_ordinal = 0u;
+             edge_ordinal < terminator->edge_argument_count; edge_ordinal += 1u) {
+          const w_seed_hir0_edge_argument *edge =
+              &program->edge_arguments[(size_t)terminator->first_edge_argument +
+                                       edge_ordinal];
+          if ((edge_ordinal != 0u &&
+               !append_literal(artifact, capacity, offset, ", ")) ||
+              !append_program_value_operand(
+                  program, edge->value_index, (uint32_t)function_index, artifact,
+                  capacity, offset))
+            return false;
+        }
+        if (!append_literal(artifact, capacity, offset, " : ")) return false;
+        for (size_t edge_ordinal = 0u;
+             edge_ordinal < terminator->edge_argument_count; edge_ordinal += 1u) {
+          const w_seed_hir0_edge_argument *edge =
+              &program->edge_arguments[(size_t)terminator->first_edge_argument +
+                                       edge_ordinal];
+          const char *type = program_type_name(program, edge->type_index);
+          if (type == NULL ||
+              (edge_ordinal != 0u &&
+               !append_literal(artifact, capacity, offset, ", ")) ||
+              !append_literal(artifact, capacity, offset, type))
+            return false;
+        }
+        if (!append_literal(artifact, capacity, offset, ")")) return false;
+      }
       if (!append_literal(artifact, capacity, offset, "\n")) return false;
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT) {
       if (!append_literal(artifact, capacity, offset, "    llvm.return\n"))

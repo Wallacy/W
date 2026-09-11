@@ -5100,6 +5100,40 @@ static bool test_local_assignment_projection(void) {
        index += 1u)
     CHECK(value->expressions[index].kind !=
           W_SEED_FRONTEND_EXPR_ASSIGNMENT);
+
+  CHECK(fixture_run(value,
+                    "entry {\n"
+                    "  var seats = 5\n"
+                    "  var tables = 2\n"
+                    "  if true { tables = tables + 10 seats = seats + 1 }\n"
+                    "  else { seats = seats - 1 tables = tables - 10 }\n"
+                    "}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.statements == 7u &&
+        value->statements[2].kind == W_SEED_FRONTEND_STMT_IF &&
+        value->statements[2].first_child == 3u &&
+        value->statements[2].else_child == 5u);
+  const uint32_t expected_roots[] = {1u, 0u, 0u, 1u};
+  size_t multi_assignment_index = 0u;
+  for (uint32_t statement_index = 3u; statement_index <= 6u;
+       statement_index += 1u) {
+    const w_seed_frontend_statement *statement =
+        &value->statements[statement_index];
+    CHECK(statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
+          statement->expression_index < value->result.written.expressions);
+    const w_seed_frontend_expression *multi_assignment =
+        &value->expressions[statement->expression_index];
+    CHECK(multi_assignment->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT &&
+          multi_assignment->left < value->result.written.expressions);
+    const w_seed_frontend_expression *multi_target =
+        &value->expressions[multi_assignment->left];
+    CHECK(multi_target->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+          multi_target->resolved_binding_statement ==
+              expected_roots[multi_assignment_index]);
+    multi_assignment_index += 1u;
+  }
+  CHECK(multi_assignment_index ==
+        sizeof(expected_roots) / sizeof(expected_roots[0]));
   return true;
 }
 

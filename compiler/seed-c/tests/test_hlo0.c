@@ -97,6 +97,8 @@ typedef struct {
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
+  w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
+  w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -340,6 +342,10 @@ static void setup_hir_output(void) {
       .parameter_capacity = TEST_HIR_RECORDS,
       .blocks = fixture.hir_blocks,
       .block_capacity = TEST_HIR_RECORDS,
+      .block_arguments = fixture.hir_block_arguments,
+      .block_argument_capacity = TEST_HIR_RECORDS,
+      .edge_arguments = fixture.hir_edge_arguments,
+      .edge_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,

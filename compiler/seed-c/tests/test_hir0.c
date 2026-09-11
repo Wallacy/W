@@ -107,6 +107,7 @@ typedef struct {
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
   w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
+  w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -134,6 +135,32 @@ static hir_fixture fixture;
 static w_seed_hir0_input hir_input(void);
 static void fill_hir_output(uint8_t value);
 static bool hir_output_is_byte(uint8_t value);
+
+static uint32_t edge_value_at(const w_seed_hir0_program *program,
+                              size_t terminator_index) {
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[terminator_index];
+  if (terminator->edge_argument_count == 0u ||
+      terminator->first_edge_argument == W_SEED_HIR0_NONE)
+    return W_SEED_HIR0_NONE;
+  return program->edge_arguments[terminator->first_edge_argument].value_index;
+}
+
+static uint32_t edge_value_for(const w_seed_hir0_program *program,
+                               const w_seed_hir0_terminator *terminator) {
+  return edge_value_at(
+      program, (size_t)(terminator - program->terminators));
+}
+
+#define EDGE_VALUE_SLOT(program, terminator_index)                            \
+  ((program)->edge_arguments[(program)->terminators[(terminator_index)]       \
+                                 .first_edge_argument]                        \
+       .value_index)
+
+#define FIXTURE_EDGE_VALUE_SLOT(terminator_index)                             \
+  (fixture.hir_edge_arguments[fixture.hir_terminators[(terminator_index)]      \
+                                  .first_edge_argument]                        \
+       .value_index)
 
 static const char CANONICAL_SOURCE[] =
     "fn main() { print(message: \"Hello, world!\", suffix: \"!\") }\n"
@@ -410,6 +437,8 @@ static void setup_hir_output(void) {
       .block_capacity = TEST_HIR_RECORDS,
       .block_arguments = fixture.hir_block_arguments,
       .block_argument_capacity = TEST_HIR_RECORDS,
+      .edge_arguments = fixture.hir_edge_arguments,
+      .edge_argument_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -1383,12 +1412,12 @@ static bool test_conditional_mutation_merge(void) {
         program->blocks[3].block_argument_count == 1u &&
         program->block_arguments[0].owner_block == 3u &&
         program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
-        program->terminators[1].incoming_value < program->value_count &&
-        program->terminators[2].incoming_value < program->value_count);
+        edge_value_at(program, 1u) < program->value_count &&
+        edge_value_at(program, 2u) < program->value_count);
   const w_seed_hir0_value *then_value =
-      &program->values[program->terminators[1].incoming_value];
+      &program->values[edge_value_at(program, 1u)];
   const w_seed_hir0_value *else_value =
-      &program->values[program->terminators[2].incoming_value];
+      &program->values[edge_value_at(program, 2u)];
   CHECK(then_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
         else_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
         program->values[then_value->left_value].binding_index == 0u &&
@@ -1474,9 +1503,9 @@ static bool test_branch_local_mutation_merge(void) {
         initializer->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
         initializer->owner_index == 1u);
   CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
-        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
-        program->terminators[1].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[0].result_type == 0u &&
+        edge_value_at(program, 1u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 2u) != W_SEED_HIR0_NONE &&
         program->terminators[1].target_block == 3u &&
         program->terminators[2].target_block == 3u);
   const w_seed_hir0_terminator *return_term = &program->terminators[3];
@@ -1487,14 +1516,110 @@ static bool test_branch_local_mutation_merge(void) {
         program->values[return_term->value_index].binding_index == 1u &&
         w_seed_hir0_verify(program, &fixture.hir_result));
   const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
-  fixture.hir_terminators[0].result_type = 0u;
+  fixture.hir_terminators[0].result_type = W_SEED_HIR0_TYPE_I64;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_terminators[0] = saved_branch;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
   const w_seed_hir0_terminator saved_then = fixture.hir_terminators[1];
-  fixture.hir_terminators[1].incoming_value = W_SEED_HIR0_NONE;
+  const uint32_t saved_then_edge_value = FIXTURE_EDGE_VALUE_SLOT(1u);
+  FIXTURE_EDGE_VALUE_SLOT(1u) = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved_then;
+  FIXTURE_EDGE_VALUE_SLOT(1u) = saved_then_edge_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_multi_branch_mutation_merge(void) {
+  static const char SOURCE[] =
+      "fn nextState(isOpen: Bool): i64 {\n"
+      "  var seats = 5\n"
+      "  var tables = 2\n"
+      "  if isOpen {\n"
+      "    tables = tables + 10\n"
+      "    seats = seats + 1\n"
+      "  } else {\n"
+      "    seats = seats - 1\n"
+      "    tables = tables - 10\n"
+      "  }\n"
+      "  return seats + tables\n"
+      "}\n"
+      "entry(nextState)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->block_argument_count == 2u && program->binding_count == 4u &&
+        program->instruction_count == 4u);
+  const w_seed_hir0_binding *seats = &program->bindings[0];
+  const w_seed_hir0_binding *tables = &program->bindings[1];
+  const w_seed_hir0_binding *seats_merge = &program->bindings[2];
+  const w_seed_hir0_binding *tables_merge = &program->bindings[3];
+  CHECK(seats->source_binding == 0u && seats->next_version == 2u &&
+        tables->source_binding == 1u && tables->next_version == 3u &&
+        seats_merge->source_binding == 0u && seats_merge->previous_version == 0u &&
+        seats_merge->next_version == W_SEED_HIR0_NONE &&
+        tables_merge->source_binding == 1u &&
+        tables_merge->previous_version == 1u &&
+        tables_merge->next_version == W_SEED_HIR0_NONE);
+  CHECK(seats_merge->owner_block == 3u && tables_merge->owner_block == 3u &&
+        seats_merge->type_index == W_SEED_HIR0_TYPE_I64 &&
+        tables_merge->type_index == W_SEED_HIR0_TYPE_I64 &&
+        seats_merge->name.count == 5u && tables_merge->name.count == 6u &&
+        memcmp(fixture.hir_text + seats_merge->name.offset, "seats", 5u) == 0 &&
+        memcmp(fixture.hir_text + tables_merge->name.offset, "tables", 6u) == 0);
+  CHECK(program->blocks[3].first_block_argument == 0u &&
+        program->blocks[3].block_argument_count == 2u &&
+        program->block_arguments[0].owner_block == 3u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->block_arguments[1].owner_block == 3u &&
+        program->block_arguments[1].ordinal == 1u &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].result_type == 0u &&
+        program->terminators[1].target_block == 3u &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[1].edge_argument_count == 2u &&
+        program->terminators[2].edge_argument_count == 2u &&
+        program->terminators[1].first_edge_argument == 0u &&
+        program->terminators[2].first_edge_argument == 2u);
+  for (size_t predecessor = 1u; predecessor <= 2u; predecessor += 1u) {
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[predecessor];
+    for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+      const w_seed_hir0_edge_argument *edge =
+          &program->edge_arguments[(size_t)terminator->first_edge_argument +
+                                   ordinal];
+      CHECK(edge->owner_terminator == predecessor &&
+            edge->owner_block == predecessor && edge->ordinal == ordinal &&
+            edge->type_index == W_SEED_HIR0_TYPE_I64 &&
+            edge->value_index < program->value_count);
+    }
+  }
+  CHECK(program->values[program->edge_arguments[0].value_index].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        program->values[program->edge_arguments[2].value_index].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_edge_argument saved_edge = fixture.hir_edge_arguments[1];
+  fixture.hir_edge_arguments[1].ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[1] = saved_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[1].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[1] = saved_edge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_terminator saved_then = fixture.hir_terminators[1];
+  fixture.hir_terminators[1].edge_argument_count = 1u;
   reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_terminators[1] = saved_then;
@@ -1532,6 +1657,40 @@ static bool test_branch_local_mutation_barriers(void) {
       "fn choose(flag: Bool): i64 {\n"
       "  var value = 1\n"
       "  if flag { value = 2 let extra = 3 } else { value = 3 }\n"
+      "  return value\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var value = 1\n"
+      "  if flag { value = 2 value = 3 } else { value = 4 }\n"
+      "  return value\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var left = 1\n"
+      "  var right = 2\n"
+      "  if flag { left = 3 right = left + 1 } else { left = 4 right = 5 }\n"
+      "  return left + right\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var left = 1\n"
+      "  var right = 2\n"
+      "  if flag { left = right + 1 right = 3 } else { left = 4 right = 5 }\n"
+      "  return left + right\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn adjust(): i64 { return 4 }\n"
+      "fn choose(flag: Bool): i64 {\n"
+      "  var value = 1\n"
+      "  if flag { value = adjust() } else { value = 2 }\n"
+      "  return value\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var value = 1\n"
+      "  if flag { if true { value = 2 } else { value = 3 } }\n"
+      "  else { value = 4 }\n"
       "  return value\n"
       "}\nentry(choose)\n"));
   return true;
@@ -1609,6 +1768,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
   (void)memset(fixture.hir_block_arguments, value,
                sizeof(fixture.hir_block_arguments));
+  (void)memset(fixture.hir_edge_arguments, value,
+               sizeof(fixture.hir_edge_arguments));
   (void)memset(fixture.hir_instructions, value,
                sizeof(fixture.hir_instructions));
   (void)memset(fixture.hir_bindings, value, sizeof(fixture.hir_bindings));
@@ -1648,6 +1809,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
       (const uint8_t *)fixture.hir_block_arguments,
+      (const uint8_t *)fixture.hir_edge_arguments,
       (const uint8_t *)fixture.hir_instructions,
       (const uint8_t *)fixture.hir_bindings,
       (const uint8_t *)fixture.hir_calls,
@@ -1668,6 +1830,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_types), sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
       sizeof(fixture.hir_block_arguments),
+      sizeof(fixture.hir_edge_arguments),
       sizeof(fixture.hir_instructions), sizeof(fixture.hir_bindings),
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
@@ -2916,8 +3079,8 @@ static bool test_scalar_if_value_diamond(void) {
         program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
         program->terminators[0].target_block == 1u &&
         program->terminators[0].else_block == 2u &&
-        program->terminators[1].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 1u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 2u) != W_SEED_HIR0_NONE &&
         program->terminators[3].kind ==
             W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
   CHECK(program->blocks[3].block_argument_count == 1u &&
@@ -2929,8 +3092,8 @@ static bool test_scalar_if_value_diamond(void) {
         program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_BOOL);
   CHECK(program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
         program->terminators[4].result_type == W_SEED_HIR0_TYPE_BOOL &&
-        program->terminators[5].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[6].incoming_value != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 5u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 6u) != W_SEED_HIR0_NONE &&
         program->terminators[7].kind ==
             W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
@@ -2943,16 +3106,16 @@ static bool test_scalar_if_value_diamond(void) {
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_terminators[0] = saved_branch;
 
-  const uint32_t saved_incoming = fixture.hir_terminators[1].incoming_value;
-  fixture.hir_terminators[1].incoming_value = W_SEED_HIR0_NONE;
+  const uint32_t saved_incoming = edge_value_at(program, 1u);
+  FIXTURE_EDGE_VALUE_SLOT(1u) = W_SEED_HIR0_NONE;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
-  fixture.hir_terminators[1].incoming_value = saved_incoming;
+  FIXTURE_EDGE_VALUE_SLOT(1u) = saved_incoming;
   const w_seed_hir0_value saved_incoming_value =
       fixture.hir_values[saved_incoming];
   fixture.hir_values[saved_incoming].owner_index = 2u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_values[saved_incoming] = saved_incoming_value;
-  fixture.hir_values[saved_incoming].owner_ordinal = 0u;
+  fixture.hir_values[saved_incoming].owner_ordinal = 1u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_values[saved_incoming] = saved_incoming_value;
   fixture.hir_values[saved_incoming].type_index = W_SEED_HIR0_TYPE_BOOL;
@@ -3031,19 +3194,19 @@ static bool test_nested_scalar_if_value_diamond(void) {
         program->terminators[3].target_block == 4u &&
         program->terminators[4].target_block == 6u &&
         program->terminators[5].target_block == 6u &&
-        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[3].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[4].incoming_value != W_SEED_HIR0_NONE &&
-        program->terminators[5].incoming_value != W_SEED_HIR0_NONE);
-  CHECK(program->values[program->terminators[2].incoming_value].kind ==
+        edge_value_at(program, 2u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 3u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 4u) != W_SEED_HIR0_NONE &&
+        edge_value_at(program, 5u) != W_SEED_HIR0_NONE);
+  CHECK(program->values[edge_value_at(program, 2u)].kind ==
             W_SEED_HIR0_VALUE_PARAMETER_READ &&
-        program->values[program->terminators[3].incoming_value].kind ==
+        program->values[edge_value_at(program, 3u)].kind ==
             W_SEED_HIR0_VALUE_PARAMETER_READ &&
-        program->values[program->terminators[4].incoming_value].kind ==
+        program->values[edge_value_at(program, 4u)].kind ==
             W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
-        program->values[program->terminators[4].incoming_value]
+        program->values[edge_value_at(program, 4u)]
                 .block_argument_index == 0u &&
-        program->values[program->terminators[5].incoming_value].kind ==
+        program->values[edge_value_at(program, 5u)].kind ==
             W_SEED_HIR0_VALUE_PARAMETER_READ);
   CHECK(program->terminators[6].kind ==
             W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
@@ -3068,14 +3231,14 @@ static bool test_nested_scalar_if_value_diamond(void) {
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
   const w_seed_hir0_value saved_outer_incoming =
-      fixture.hir_values[program->terminators[4].incoming_value];
-  const uint32_t outer_incoming_index = program->terminators[4].incoming_value;
+      fixture.hir_values[edge_value_at(program, 4u)];
+  const uint32_t outer_incoming_index = edge_value_at(program, 4u);
   fixture.hir_values[outer_incoming_index].block_argument_index = 1u;
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_values[outer_incoming_index] = saved_outer_incoming;
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
-  const uint32_t inner_incoming_index = program->terminators[2].incoming_value;
+  const uint32_t inner_incoming_index = edge_value_at(program, 2u);
   const w_seed_hir0_value saved_inner_incoming =
       fixture.hir_values[inner_incoming_index];
   fixture.hir_values[inner_incoming_index].parameter_index = 5u;
@@ -3398,7 +3561,7 @@ static bool test_logical_and_diamond_positive(void) {
   CHECK(branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
         branch->logical_operator == W_SEED_HIR0_LOGICAL_AND &&
         branch->target_block == 2u && branch->else_block == 3u &&
-        branch->incoming_value == W_SEED_HIR0_NONE);
+        edge_value_for(program, branch) == W_SEED_HIR0_NONE);
   CHECK(program->blocks[4].block_argument_count == 1u &&
         program->blocks[4].first_block_argument == 0u &&
         program->block_arguments[0].owner_block == 4u &&
@@ -3406,13 +3569,13 @@ static bool test_logical_and_diamond_positive(void) {
         program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_BOOL);
   CHECK(program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         program->terminators[2].target_block == 4u &&
-        program->terminators[2].incoming_value == 2u &&
+        edge_value_at(program, 2u) == 2u &&
         program->values[2].kind == W_SEED_HIR0_VALUE_CALL_RESULT &&
         program->values[2].type_index == W_SEED_HIR0_TYPE_BOOL &&
         program->calls[0].owner_block == 2u);
   CHECK(program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         program->terminators[3].target_block == 4u &&
-        program->terminators[3].incoming_value == 3u &&
+        edge_value_at(program, 3u) == 3u &&
         program->values[3].kind == W_SEED_HIR0_VALUE_CONST_BOOL &&
         !program->values[3].bool_value);
   CHECK(program->values[4].kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
@@ -3526,14 +3689,14 @@ static bool test_logical_or_diamond_positive(void) {
         skip->target_block == 4u &&
         rhs->kind == W_SEED_HIR0_TERMINATOR_JUMP &&
         rhs->target_block == 4u &&
-        skip->incoming_value != W_SEED_HIR0_NONE &&
-        rhs->incoming_value != W_SEED_HIR0_NONE);
-  CHECK(program->values[skip->incoming_value].kind ==
+        edge_value_for(program, skip) != W_SEED_HIR0_NONE &&
+        edge_value_for(program, rhs) != W_SEED_HIR0_NONE);
+  CHECK(program->values[edge_value_for(program, skip)].kind ==
             W_SEED_HIR0_VALUE_CONST_BOOL &&
-        program->values[skip->incoming_value].bool_value &&
-        program->values[rhs->incoming_value].kind ==
+        program->values[edge_value_for(program, skip)].bool_value &&
+        program->values[edge_value_for(program, rhs)].kind ==
             W_SEED_HIR0_VALUE_CALL_RESULT &&
-        program->values[rhs->incoming_value].type_index ==
+        program->values[edge_value_for(program, rhs)].type_index ==
             W_SEED_HIR0_TYPE_BOOL &&
         program->calls[0].owner_block == 3u);
   CHECK(program->blocks[4].block_argument_count == 1u &&
@@ -3561,21 +3724,21 @@ static bool test_nested_logical_positive(void) {
         program->terminators[2].target_block == 3u &&
         program->terminators[2].else_block == 4u);
   CHECK(program->terminators[3].target_block == 5u &&
-        program->terminators[3].incoming_value != W_SEED_HIR0_NONE &&
-        program->values[program->terminators[3].incoming_value].kind ==
+        edge_value_at(program, 3u) != W_SEED_HIR0_NONE &&
+        program->values[edge_value_at(program, 3u)].kind ==
             W_SEED_HIR0_VALUE_CONST_BOOL &&
-        program->values[program->terminators[3].incoming_value].bool_value &&
+        program->values[edge_value_at(program, 3u)].bool_value &&
         program->terminators[4].target_block == 5u &&
-        program->terminators[4].incoming_value != W_SEED_HIR0_NONE &&
-        program->values[program->terminators[4].incoming_value].kind ==
+        edge_value_at(program, 4u) != W_SEED_HIR0_NONE &&
+        program->values[edge_value_at(program, 4u)].kind ==
             W_SEED_HIR0_VALUE_CALL_RESULT);
   CHECK(program->terminators[5].target_block == 7u &&
-        program->terminators[5].incoming_value != W_SEED_HIR0_NONE &&
-        program->values[program->terminators[5].incoming_value].kind ==
+        edge_value_at(program, 5u) != W_SEED_HIR0_NONE &&
+        program->values[edge_value_at(program, 5u)].kind ==
             W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
         program->terminators[6].target_block == 7u &&
-        program->terminators[6].incoming_value != W_SEED_HIR0_NONE &&
-        !program->values[program->terminators[6].incoming_value].bool_value &&
+        edge_value_at(program, 6u) != W_SEED_HIR0_NONE &&
+        !program->values[edge_value_at(program, 6u)].bool_value &&
         program->blocks[5].block_argument_count == 1u &&
         program->blocks[7].block_argument_count == 1u &&
         program->block_arguments[0].owner_block == 5u &&
@@ -3598,12 +3761,12 @@ static bool test_logical_rhs_call_argument_positive(void) {
   const w_seed_hir0_terminator *rhs = &program->terminators[3];
   CHECK(branch->logical_operator == W_SEED_HIR0_LOGICAL_OR &&
         branch->target_block == 2u && branch->else_block == 3u &&
-        skip->incoming_value != W_SEED_HIR0_NONE &&
-        program->values[skip->incoming_value].kind ==
+        edge_value_for(program, skip) != W_SEED_HIR0_NONE &&
+        program->values[edge_value_for(program, skip)].kind ==
             W_SEED_HIR0_VALUE_CONST_BOOL &&
-        program->values[skip->incoming_value].bool_value &&
-        rhs->incoming_value != W_SEED_HIR0_NONE &&
-        program->values[rhs->incoming_value].kind ==
+        program->values[edge_value_for(program, skip)].bool_value &&
+        edge_value_for(program, rhs) != W_SEED_HIR0_NONE &&
+        program->values[edge_value_for(program, rhs)].kind ==
             W_SEED_HIR0_VALUE_CALL_RESULT &&
         program->calls[0].owner_block == 3u &&
         program->calls[0].argument_count == 1u);
@@ -3662,13 +3825,17 @@ static bool test_logical_adversarial_barriers(void) {
   const w_seed_hir0_value saved_inner_read = fixture.hir_values[inner_read];
   const w_seed_hir0_value saved_outer_read = fixture.hir_values[outer_read];
   const w_seed_hir0_value saved_inner_incoming =
-      fixture.hir_values[fixture.hir_terminators[inner_rhs_jump].incoming_value];
+      fixture.hir_values[edge_value_at(program, inner_rhs_jump)];
   const w_seed_hir0_value saved_inner_skip =
-      fixture.hir_values[fixture.hir_terminators[inner_skip_jump].incoming_value];
+      fixture.hir_values[edge_value_at(program, inner_skip_jump)];
   const w_seed_hir0_terminator saved_inner_branch =
       fixture.hir_terminators[inner_branch];
   const w_seed_hir0_terminator saved_inner_rhs =
       fixture.hir_terminators[inner_rhs_jump];
+  const uint32_t inner_edge_index =
+      fixture.hir_terminators[inner_rhs_jump].first_edge_argument;
+  const w_seed_hir0_edge_argument saved_inner_edge =
+      fixture.hir_edge_arguments[inner_edge_index];
   const w_seed_hir0_block saved_inner_join = fixture.hir_blocks[inner_join];
   const w_seed_hir0_block_argument saved_inner_argument =
       fixture.hir_block_arguments[0];
@@ -3700,19 +3867,72 @@ static bool test_logical_adversarial_barriers(void) {
   fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
   CHECK(w_seed_hir0_verify(program, result));
 
-  fixture.hir_terminators[inner_rhs_jump].incoming_value =
+  fixture.hir_edge_arguments[inner_edge_index].owner_terminator =
+      (uint32_t)inner_skip_jump;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_edge_arguments[inner_edge_index] = saved_inner_edge;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_edge_arguments[inner_edge_index].owner_block =
+      (uint32_t)outer_join;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_edge_arguments[inner_edge_index] = saved_inner_edge;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_edge_arguments[inner_edge_index].ordinal = 1u;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_edge_arguments[inner_edge_index] = saved_inner_edge;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_edge_arguments[inner_edge_index].type_index =
+      W_SEED_HIR0_TYPE_I64;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_edge_arguments[inner_edge_index] = saved_inner_edge;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_edge_arguments[inner_edge_index].value_index =
+      W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_edge_arguments[inner_edge_index] = saved_inner_edge;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_rhs_jump].first_edge_argument =
+      (uint32_t)program->edge_argument_count;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_rhs_jump].edge_argument_count = 2u;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  fixture.hir_terminators[inner_rhs_jump].first_edge_argument =
       W_SEED_HIR0_NONE;
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
   CHECK(w_seed_hir0_verify(program, result));
 
-  const uint32_t inner_incoming_index = saved_inner_rhs.incoming_value;
+  fixture.hir_terminators[inner_rhs_jump].edge_argument_count = 0u;
+  CHECK(!w_seed_hir0_verify(program, result));
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
+  const uint32_t inner_incoming_index = edge_value_at(program, inner_rhs_jump);
+  FIXTURE_EDGE_VALUE_SLOT(inner_rhs_jump) =
+      W_SEED_HIR0_NONE;
+  CHECK(!w_seed_hir0_verify(program, result));
+  FIXTURE_EDGE_VALUE_SLOT(inner_rhs_jump) =
+      inner_incoming_index;
+  fixture.hir_terminators[inner_rhs_jump] = saved_inner_rhs;
+  CHECK(w_seed_hir0_verify(program, result));
+
   fixture.hir_values[inner_incoming_index].owner_index = (uint32_t)inner_skip_jump;
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
   CHECK(w_seed_hir0_verify(program, result));
 
-  fixture.hir_values[inner_incoming_index].owner_ordinal = 0u;
+  fixture.hir_values[inner_incoming_index].owner_ordinal = 1u;
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
   CHECK(w_seed_hir0_verify(program, result));
@@ -3724,7 +3944,7 @@ static bool test_logical_adversarial_barriers(void) {
   CHECK(w_seed_hir0_verify(program, result));
 
   const uint32_t inner_skip_index =
-      fixture.hir_terminators[inner_skip_jump].incoming_value;
+      edge_value_at(program, inner_skip_jump);
   fixture.hir_values[inner_skip_index].bool_value = true;
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_values[inner_skip_index] = saved_inner_skip;
@@ -3778,9 +3998,29 @@ static bool test_logical_adversarial_barriers(void) {
 
   setup_hir_output();
   fill_hir_output(0xa5u);
+  fixture.hir_output.edge_argument_capacity =
+      fixture.hir_counts.edge_arguments - 1u;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
   w_seed_hir0_output alias = fixture.hir_output;
   alias.block_arguments =
       (w_seed_hir0_block_argument *)(void *)alias.blocks;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  alias = fixture.hir_output;
+  alias.edge_arguments =
+      (w_seed_hir0_edge_argument *)(void *)alias.blocks;
   (void)memset(&rejected, 0x42, sizeof(rejected));
   CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
   CHECK(hir_output_is_byte(0xa5u) &&
@@ -3796,7 +4036,7 @@ static bool test_logical_adversarial_barriers(void) {
   CHECK(program->block_argument_count == 0u &&
         program->terminators[0].logical_operator ==
             W_SEED_HIR0_LOGICAL_NONE &&
-        program->terminators[1].incoming_value == W_SEED_HIR0_NONE);
+        edge_value_at(program, 1u) == W_SEED_HIR0_NONE);
   const w_seed_hir0_terminator saved_normal_branch =
       fixture.hir_terminators[0];
   const w_seed_hir0_terminator saved_normal_jump = fixture.hir_terminators[1];
@@ -3804,8 +4044,8 @@ static bool test_logical_adversarial_barriers(void) {
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_terminators[0] = saved_normal_branch;
   CHECK(w_seed_hir0_verify(program, result));
-  fixture.hir_terminators[1].incoming_value =
-      fixture.hir_terminators[0].value_index;
+  fixture.hir_terminators[1].first_edge_argument = 0u;
+  fixture.hir_terminators[1].edge_argument_count = 1u;
   CHECK(!w_seed_hir0_verify(program, result));
   fixture.hir_terminators[1] = saved_normal_jump;
   CHECK(w_seed_hir0_verify(program, result));
@@ -3943,6 +4183,7 @@ int main(void) {
   if (!test_conditional_mutation_merge()) return 1;
   if (!test_bool_mutation_ssa()) return 1;
   if (!test_branch_local_mutation_merge()) return 1;
+  if (!test_multi_branch_mutation_merge()) return 1;
   if (!test_branch_local_mutation_barriers()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
