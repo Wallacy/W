@@ -5029,6 +5029,84 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-conditional-mutation-ssa-join",
+      "reviewItem": "conditional mutable local through one verified SSA join",
+      "decisions": [
+        "W-1555"
+      ],
+      "task": "Compose a pure scalar conditional with one later mutable-local update without hidden storage.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var seats = 5",
+          "let selected = if isOpen { seats + 1 } else { seats - 1 }",
+          "seats = selected",
+          "return seats"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-merge",
+          "language": "text",
+          "source": [
+            "store each arm into a source-variable stack cell and reload after the branch"
+          ],
+          "expectedDifference": "The selected route carries both values into one typed SSA join argument and introduces no source-variable alloca."
+        },
+        {
+          "name": "branch-local-assignment-without-phi",
+          "language": "w",
+          "source": [
+            "if isOpen { seats = seats + 1 } else { seats = seats - 1 }"
+          ],
+          "expectedDifference": "Branch-local imperative mutation remains rejected until its merge and dominance records are explicit."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "HIR verification admits cross-block binding reads only from the same function root block."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_conditional_mutation_merge",
+          "claim": "HIR tests prove the root read, scalar join, and single ordered update."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_conditional_mutation_merge_is_ssa",
+          "claim": "MLIR tests prove the typed diamond and absence of a source-variable alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w",
+          "symbol": "nextSeats",
+          "claim": "The public Restaurant witness exercises both conditional outcomes."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantConditionalMutationFixture",
+          "claim": "The Linux/WSL public runner executes the same source witness."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantConditionalMutationFixture",
+          "claim": "The native Windows public runner executes the same source witness."
+        }
+      ],
+      "checks": [
+        "HIR verifies one root binding read in both scalar arms and one update at the join",
+        "MLIR emits cond_br and a typed block argument with no source-variable alloca",
+        "Linux/WSL and native Windows public w run print exact Open 6; closed 4"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
