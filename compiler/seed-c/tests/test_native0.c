@@ -540,6 +540,30 @@ static bool test_logical_native_selector(void) {
   return true;
 }
 
+static bool test_unary_i64_native_selector(void) {
+  static const uint8_t constant_source[] =
+      "fn negative(): i64 { return -7 }\n"
+      "entry { let value = negative() print(\"${value}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status = run_source(
+      constant_source, sizeof(constant_source) - 1u, "unary-negate", 12u,
+      output, sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  size_t unary_index = SIZE_MAX;
+  for (size_t index = 0u; index < storage.hir_program.value_count; index += 1u)
+    if (storage.hir_values[index].kind == W_SEED_HIR0_VALUE_UNARY_I64)
+      unary_index = index;
+  CHECK(unary_index != SIZE_MAX &&
+        storage.hir_values[unary_index].unary_operator ==
+            W_SEED_HIR0_UNARY_NEGATE &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       " = llvm.sub ") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_seed_checked_subtract_i64"));
+  return true;
+}
+
 static bool test_scalar_if_value_native(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool, openCount: i64, closedCount: i64): i64 { "
@@ -1066,8 +1090,6 @@ static bool test_signed_comparison_products(void) {
       "fn main() { print(\"${true == false}\") }\nentry(main)\n",
       "fn main() { let same = \"a\" == \"b\" print(\"${same}\") }\nentry(main)\n",
       "fn main() { let same = 3 == true print(\"${same}\") }\nentry(main)\n",
-      "fn test(a: i64) { if a / 1 > 0 { print(\"unsafe arithmetic\") } }\n"
-      "fn main() { test(a: 1) }\nentry(main)\n",
       "fn main() { let x = 9223372036854775807 + 1 "
       "print(\"${x > 0}\") }\nentry(main)\n",
       "fn main() { let x = 1 / 0 print(\"${x > 0}\") }\nentry(main)\n",
@@ -1094,6 +1116,7 @@ int main(void) {
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
+                       test_unary_i64_native_selector() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&

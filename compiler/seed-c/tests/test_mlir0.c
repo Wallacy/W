@@ -1214,6 +1214,7 @@ static bool test_checked_helper_reachability(void) {
       "fn deadArithmetic(value: i64): i64 { return value + 1 }\n"
       "fn deadDivision(value: i64): i64 { return value / 2 }\n"
       "fn deadRemainder(value: i64): i64 { return value % 2 }\n"
+      "fn deadNegate(value: i64): i64 { return -value }\n"
       "fn secret() { print(\"secret\") }\n"
       "fn dead() { secret() }\n"
       "fn main() { print(\"Hello, world!\") }\n"
@@ -1237,6 +1238,7 @@ static bool test_checked_helper_reachability(void) {
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_2(") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_3(") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_4(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_5(") &&
         !contains_bytes(artifact, result.written.mlir_bytes,
                         "\\73\\65\\63\\72\\65\\74") &&
         contains_bytes(artifact, result.written.mlir_bytes,
