@@ -3659,6 +3659,143 @@
       ]
     },
     {
+      "id": "R0-mlir0-nested-scalar-if-value",
+      "reviewItem": "unparenthesized trailing nested scalar `if` values against parentheses-only parsing, flattened CFG, and premature general CFG",
+      "decisions": [
+        "W-1549"
+      ],
+      "task": "Lower an unparenthesized trailing nested scalar if through two typed HIR diamonds and execute all three selected paths with exact 1,2,3\\n output.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, closed: i64): i64 {",
+          "  return if outer {",
+          "    if inner { open } else { middle }",
+          "  } else {",
+          "    closed",
+          "  }",
+          "}",
+          "fn main() {",
+          "  let first = choose(outer: true, inner: true, open: 1, middle: 2, closed: 3)",
+          "  let second = choose(outer: true, inner: false, open: 1, middle: 2, closed: 3)",
+          "  let third = choose(outer: false, inner: false, open: 1, middle: 2, closed: 3)",
+          "  print(\"${first},${second},${third}\")",
+          "}",
+          "entry(main)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "parenthesized-tail",
+          "language": "w-rejected",
+          "source": [
+            "return if outer { (if inner { open } else { middle }) } else { closed }"
+          ],
+          "expectedDifference": "Parentheses are not required to normalize the trailing nested if; requiring them rejects the canonical value-block tail."
+        },
+        {
+          "name": "flattened-cfg",
+          "language": "w-rejected",
+          "source": [
+            "let result = if outer && inner { open } else { middle }"
+          ],
+          "expectedDifference": "Flattening changes the outer-false path and does not preserve the nested typed join structure."
+        },
+        {
+          "name": "general-cfg",
+          "language": "text",
+          "source": [
+            "goto outer_join",
+            "outer_join: result = phi(inner_join, closed)"
+          ],
+          "expectedDifference": "An arbitrary CFG and phi-like assignment would widen the bounded structured route beyond its verified diamonds."
+        },
+        {
+          "name": "effectful-arm",
+          "language": "w-rejected",
+          "source": [
+            "return if outer { print(\"side effect\") } else { closed }"
+          ],
+          "expectedDifference": "Scalar arm traversal remains effect-free; calls and effects cannot be smuggled through a nested value arm."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "normalize_expression_node",
+          "claim": "Frontend normalization treats an unparenthesized trailing nested IF_STATEMENT as the value-block tail."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_scalar_if_tree_ok",
+          "claim": "HIR lowering admits bounded pure nested scalar branches with Bool conditions and same-typed i64 or Bool leaves."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "HIR verification preserves nested branch ownership, typed join arguments, typed incoming edges, dominance and transactional record invariants."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_scalar_cfg_arm",
+          "claim": "Native0 recursively traverses nested scalar diamonds and requires zero instructions in every scalar arm block."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_function",
+          "claim": "MLIR0 emits nested llvm.cond_br diamonds and typed llvm.br incoming values without llvm.select."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_scalar_if_frontend_subset",
+          "claim": "Frontend tests cover the unparenthesized nested scalar tail alongside unsupported effectful and aggregate boundaries."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_nested_scalar_if_value_diamond",
+          "claim": "HIR tests inspect two typed nested scalar diamonds and reject a forged root type, owner, target, incoming and value records transactionally."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_nested_scalar_if_depth_boundary",
+          "claim": "HIR tests accept scalar-if depth 64 and reject depth 65 without changing caller-owned output or result."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_nested_scalar_if_value_diamond",
+          "claim": "MLIR tests require two llvm.cond_br diamonds, typed i64 incoming edges and join arguments, and no llvm.select."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_nested_scalar_if_value_native",
+          "claim": "Native0 tests execute the nested Restaurant witness and reject a forged outer branch target."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
+          "symbol": "choose",
+          "claim": "The Restaurant witness executes outer-true/inner-true, outer-true/inner-false and outer-false paths and prints 1,2,3."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurant-nested-scalar-if",
+          "claim": "The MLIR0 gate checks exact 1,2,3\\n output, empty stderr, exit zero, dynamic calls and nested typed CFG."
+        }
+      ],
+      "checks": [
+        "Focused frontend, HIR0, MLIR0, and Native0 C23 suites passed",
+        "bun check --target mlir0 — source-backed native route emitted exact 1,2,3\\n with empty stderr and exit 0",
+        "MLIR choose slice contains two llvm.cond_br diamonds, typed llvm.br incoming i64 values and typed joins, with no llvm.select",
+        "Native0 rejects a forged outer branch target without mutating the caller-owned result",
+        "HIR0 accepts scalar-if depth 64 and rejects depth 65 and a forged root type without partial output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-mlir0-checked-i64-arithmetic",
       "reviewItem": "checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.",
       "decisions": [

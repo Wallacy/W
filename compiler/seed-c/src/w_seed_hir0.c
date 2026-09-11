@@ -976,14 +976,15 @@ static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
 
 /* Scalar-if arms are deliberately narrower than the ordinary HIR value
  * language.  This structural walk is independent of the dense postorder
- * cursor below, so a forged frontend record cannot smuggle a call, effect,
- * aggregate, or nested scalar-if through an otherwise well-shaped tree. */
+ * cursor below, so a forged frontend record cannot smuggle a call, effect, or
+ * aggregate through an otherwise well-shaped tree. Nested scalar-if values
+ * are allowed only through this same bounded scalar grammar. */
 static bool frontend_scalar_if_tree_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, uint32_t root_index,
     bool allow_logical, size_t depth) {
   if (input == NULL || input->frontend_output == NULL ||
-      input->frontend_result == NULL || depth > 256u ||
+      input->frontend_result == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
       root_index == W_SEED_FRONTEND_NONE ||
       (size_t)root_index >= input->frontend_result->written.expressions)
     return false;
@@ -1017,6 +1018,54 @@ static bool frontend_scalar_if_tree_ok(
   } else if (!frontend_value_has_no_resolution(value) ||
              value->resolved_binding_statement != W_SEED_FRONTEND_NONE) {
     return false;
+  }
+  if (value->kind == W_SEED_FRONTEND_EXPR_IF) {
+    if (value->left == W_SEED_FRONTEND_NONE ||
+        value->right == W_SEED_FRONTEND_NONE ||
+        value->else_expression == W_SEED_FRONTEND_NONE ||
+        (size_t)value->left >= input->frontend_result->written.expressions ||
+        (size_t)value->right >= input->frontend_result->written.expressions ||
+        (size_t)value->else_expression >=
+            input->frontend_result->written.expressions ||
+        value->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->inferred_type >= input->frontend_result->written.types)
+      return false;
+    const w_seed_frontend_expression *condition =
+        &output->expressions[value->left];
+    const w_seed_frontend_expression *then_value =
+        &output->expressions[value->right];
+    const w_seed_frontend_expression *else_value =
+        &output->expressions[value->else_expression];
+    if (condition->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)condition->inferred_type >=
+            input->frontend_result->written.types ||
+        then_value->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)then_value->inferred_type >=
+            input->frontend_result->written.types ||
+        else_value->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)else_value->inferred_type >=
+            input->frontend_result->written.types ||
+        !frontend_expression_is_bool(output, condition) ||
+        !frontend_type_is_scalar(&output->types[value->inferred_type]) ||
+        !frontend_type_is_scalar(&output->types[then_value->inferred_type]) ||
+        !frontend_type_is_scalar(&output->types[else_value->inferred_type]) ||
+        !frontend_supported_types_equal(
+            &output->types[value->inferred_type],
+            &output->types[then_value->inferred_type]) ||
+        !frontend_supported_types_equal(
+            &output->types[then_value->inferred_type],
+            &output->types[else_value->inferred_type]) ||
+        !frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                    document_index, value->left, true,
+                                    depth + 1u) ||
+        !frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                    document_index, value->right, false,
+                                    depth + 1u) ||
+        !frontend_scalar_if_tree_ok(input, module_index, function_index,
+                                    document_index, value->else_expression,
+                                    false, depth + 1u))
+      return false;
+    return true;
   }
   if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
     return !value->has_bool_value && !value->has_integer_value &&
@@ -1075,7 +1124,8 @@ static bool frontend_value_tree_ok(
     size_t *logical_total) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
-  if (depth > 256u || expression_cursor == NULL || segment_cursor == NULL ||
+  if (depth > W_SEED_HIR0_MAX_NESTING || expression_cursor == NULL ||
+      segment_cursor == NULL ||
       const_byte_cursor == NULL || value_total == NULL ||
       segment_total == NULL || value_bytes == NULL || call_total == NULL ||
       argument_total == NULL || logical_total == NULL ||
@@ -1095,6 +1145,7 @@ static bool frontend_value_tree_ok(
         (size_t)value->right >= result->written.expressions ||
         (size_t)value->else_expression >= result->written.expressions ||
         value->inferred_type == W_SEED_FRONTEND_NONE ||
+        (size_t)value->inferred_type >= result->written.types ||
         !frontend_scalar_if_tree_ok(input, module_index, function_index,
                                     document_index, value->left, true,
                                     depth + 1u) ||
@@ -1119,6 +1170,9 @@ static bool frontend_value_tree_ok(
         !frontend_type_is_scalar(&output->types[output->expressions[
                                             value->else_expression]
                                             .inferred_type]) ||
+        !frontend_supported_types_equal(
+            &output->types[value->inferred_type],
+            &output->types[output->expressions[value->right].inferred_type]) ||
         !frontend_supported_types_equal(
             &output->types[output->expressions[value->right].inferred_type],
             &output->types[output->expressions[value->else_expression]

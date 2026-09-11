@@ -96,6 +96,14 @@ Context then Arguments before root finalization. This is bounded correctness
 evidence, not a benchmark: full Windows quoting, argument text/indexing,
 general process bodies, async runtime, other platforms, and the stable public
 `std.process` ABI remain pending.
+
+W-1549 supersedes only W-1539's former nesting exclusion: an unparenthesized
+trailing nested value such as `return if outer { if inner { open } else {
+middle } } else { closed }` is accepted within the bounded scalar-if route.
+The Restaurant witness
+[`restaurant-nested-scalar-if.w`](compiler/seed-c/fixtures/restaurant-nested-scalar-if.w)
+emits exact `1,2,3\n`; it is source-backed correctness evidence only, with
+C/Rust equivalents, runner wiring, and performance deferred.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

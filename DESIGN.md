@@ -36774,11 +36774,15 @@ performance result is claimed.
 W-1539 defines the first bounded scalar-value `if` cut. In value context, the
 existing syntax `if condition { scalar } else { scalar }` is accepted only as
 one immutable `let` initializer or as a scalar `return` value. `condition`
-must be Bool. Each arm is exactly one nonnested, side-effect-free expression
-from the already verified scalar subset; both arms must have the same type,
+must be Bool. In this first cut each arm is exactly one nonnested,
+side-effect-free expression from the already verified scalar subset. W-1549
+supersedes only that former nesting exclusion with the bounded recursive form
+defined below. Both arms must have the same type,
 either signed `i64` or Bool. The required `else` is part of the value form.
 The cut rejects String, enum and aggregate arms, declarations, calls or other
-effects, nested scalar `if`, `else if`, `var`, mutation and loops. Missing
+effects, `else if`, `var`, mutation and loops. Nested scalar `if` remains
+rejected by this cut; W-1549 supersedes that exclusion only for its bounded
+tail-value form. Missing
 `else` retains `W-PARSE-0021`; a non-Bool condition uses `W-SEM-0001`; and
 incompatible arm types use `W-TYPE-0120`, each once.
 
@@ -37255,6 +37259,66 @@ cross-compilation, stable public ABI, and performance remain gaps.
 this single witness, but the general forms and language benchmark runner remain
 open. The 3,584-byte local PE observation is gate output, not a benchmark
 baseline or a cross-language ranking.
+
+#### 26.4.1.30 W-1549 — bounded nested scalar `if` tail values (Current form)
+
+W-1549 extends SCALAR-IF0 only where a value block's final semicolon-free value
+is another scalar `if`. The canonical spelling needs no parentheses:
+
+<!-- w-example role=library use=return observable=value -->
+```w
+fn choose(
+  outer: Bool,
+  inner: Bool,
+  open: i64,
+  middle: i64,
+  closed: i64,
+): i64 {
+  return if outer {
+    if inner { open } else { middle }
+  } else {
+    closed
+  }
+}
+```
+
+The frontend normalizes a trailing CST `IF_STATEMENT` through the scalar-value
+path because value-block semantics, not the parser node name, determine its
+role. The frontend can normalize this form beyond the native seed boundary.
+HIR0 and Native0 apply the same `W_SEED_HIR0_MAX_NESTING` limit. The bounded
+route accepts depth 64 and rejects depth 65 before it writes HIR output. Every
+condition is Bool. Every leaf arm is one pure expression from the
+signed-`i64`/Bool scalar subset. The root, both arms, and every join have the
+same type. Calls and effects in arms, String, enum or
+aggregate values, declarations, `var`, mutation, loops, `else if`, terminal
+returns inside arms, and general CFG remain outside this cut.
+
+The existing HIR0 record schema already represents the composition. Each
+scalar branch owns one typed join block argument and each arm contributes one
+same-typed incoming edge. An inner join read may be the outer arm's incoming
+value. The verifier retains dense function/block ownership, forward targets,
+join/postdominator structure, value dominance, type, span, capacity, alias,
+receipt, digest, and all-or-nothing checks. Native0 recursively accepts only
+that verified forward structure and independently requires every block it
+traverses inside an arm to contain no instructions, so nesting cannot smuggle a
+call or effect through a scalar value. Public HIR0, MLIR0, and Native0 record
+schemas do not change.
+
+MLIR0 emits one real `llvm.cond_br` per source `if`, typed `llvm.br` incoming
+values, and one typed block argument at each join. It does not use
+`llvm.select`, eagerly compute an unselected arm, or replace the result with a
+precomputed constant. The source-backed fixture
+[`restaurant-nested-scalar-if.w`](compiler/seed-c/fixtures/restaurant-nested-scalar-if.w)
+executes three calls and writes exact UTF-8 `1,2,3\n`, with empty stderr and
+exit zero, through source → frontend → verified HIR0 → MLIR0 → LLVM dialect →
+native execution in `bun check --target mlir0`.
+
+This is `source-backed-current` only for that bounded route. Public Windows CLI
+execution, C/Rust comparison sources, general CFG, terminal branch returns,
+mutation and loops, imports, async process entry, other targets, ABI, timing,
+ranking, and performance remain gaps. `benchmarkDisposition` is
+`compiler-lifecycle`: correctness-only, with no benchmark result or retained
+artifact.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

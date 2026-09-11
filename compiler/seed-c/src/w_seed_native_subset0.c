@@ -831,9 +831,188 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
 }
 
 /* HIR0 verification proves each branch is a structured diamond. Scalar
- * functions may use only the first-cut value-if diamonds: their two arm
- * blocks are empty and jump directly to the typed join. Logical diamonds keep
- * their existing Bool-only shape. */
+ * functions may use the same forward-only value-if diamonds, including a
+ * nested diamond in either arm. Logical diamonds keep their existing Bool-only
+ * shape. Keep this local structural proof because the maximum-output walk
+ * below is deliberately a less precise reverse dynamic program. */
+static bool program_scalar_cfg_arm(
+    const w_seed_hir0_program *program, uint32_t function_index, size_t start,
+    size_t end, size_t depth, bool require_empty, size_t *last_block,
+    size_t *join_block);
+
+static bool program_scalar_cfg_branch(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    size_t branch_block, size_t end, size_t depth, size_t *join_block);
+
+static bool program_scalar_cfg_join(
+    const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
+    size_t join_block, uint32_t expected_type) {
+  if (program == NULL || branch == NULL || join_block >= program->block_count ||
+      (expected_type != W_SEED_HIR0_TYPE_I64 &&
+       expected_type != W_SEED_HIR0_TYPE_BOOL))
+    return false;
+  const w_seed_hir0_block *join = &program->blocks[join_block];
+  if (join->block_argument_count != 1u ||
+      join->first_block_argument == W_SEED_HIR0_NONE ||
+      join->first_block_argument >= program->block_argument_count)
+    return false;
+  const w_seed_hir0_block_argument *argument =
+      &program->block_arguments[join->first_block_argument];
+  return argument->owner_block == join_block && argument->ordinal == 0u &&
+         argument->type_index == expected_type;
+}
+
+static bool program_scalar_cfg_scalar_jump(
+    const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
+    size_t jump_block, size_t join_block) {
+  if (program == NULL || branch == NULL || jump_block >= program->block_count ||
+      join_block >= program->block_count ||
+      branch->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      (branch->result_type != W_SEED_HIR0_TYPE_I64 &&
+       branch->result_type != W_SEED_HIR0_TYPE_BOOL))
+    return false;
+  const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
+  if (jump->owner_block != jump_block ||
+      jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      jump->target_block != join_block ||
+      jump->else_block != W_SEED_HIR0_NONE ||
+      jump->value_index != W_SEED_HIR0_NONE || jump->result_type != 0u ||
+      jump->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      jump->incoming_value == W_SEED_HIR0_NONE ||
+      jump->incoming_value >= program->value_count)
+    return false;
+  return program->values[jump->incoming_value].type_index ==
+         branch->result_type;
+}
+
+static bool program_scalar_cfg_logical_jump(
+    const w_seed_hir0_program *program, const w_seed_hir0_terminator *branch,
+    size_t jump_block, size_t join_block) {
+  if (program == NULL || branch == NULL || jump_block >= program->block_count ||
+      join_block >= program->block_count ||
+      (branch->logical_operator != W_SEED_HIR0_LOGICAL_AND &&
+       branch->logical_operator != W_SEED_HIR0_LOGICAL_OR) ||
+      branch->result_type != W_SEED_HIR0_TYPE_BOOL)
+    return false;
+  const w_seed_hir0_terminator *jump = &program->terminators[jump_block];
+  if (jump->owner_block != jump_block ||
+      jump->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      jump->target_block != join_block ||
+      jump->else_block != W_SEED_HIR0_NONE ||
+      jump->value_index != W_SEED_HIR0_NONE || jump->result_type != 0u ||
+      jump->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      jump->incoming_value == W_SEED_HIR0_NONE ||
+      jump->incoming_value >= program->value_count)
+    return false;
+  return program->values[jump->incoming_value].type_index ==
+         W_SEED_HIR0_TYPE_BOOL;
+}
+
+static bool program_scalar_cfg_branch(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    size_t branch_block, size_t end, size_t depth, size_t *join_block) {
+  if (program == NULL || join_block == NULL ||
+      depth >= W_SEED_HIR0_MAX_NESTING || branch_block >= end ||
+      branch_block + 1u >= end || branch_block >= program->block_count)
+    return false;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[branch_block];
+  if (branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      branch->target_block != branch_block + 1u ||
+      branch->else_block <= branch->target_block ||
+      branch->else_block >= end ||
+      program->blocks[branch->target_block].owner_function != function_index ||
+      program->blocks[branch->else_block].owner_function != function_index)
+    return false;
+
+  size_t then_last = 0u;
+  size_t then_join = 0u;
+  const bool scalar_arms =
+      branch->logical_operator == W_SEED_HIR0_LOGICAL_NONE;
+  if (!program_scalar_cfg_arm(program, function_index,
+                              branch->target_block, end, depth + 1u,
+                              scalar_arms, &then_last, &then_join) ||
+      then_last + 1u != branch->else_block)
+    return false;
+  size_t else_last = 0u;
+  size_t else_join = 0u;
+  if (!program_scalar_cfg_arm(program, function_index, branch->else_block,
+                              end, depth + 1u, scalar_arms, &else_last,
+                              &else_join) ||
+      else_join != then_join || then_join != else_last + 1u ||
+      then_join >= end || then_join <= branch_block)
+    return false;
+
+  if (branch->value_index == W_SEED_HIR0_NONE ||
+      branch->value_index >= program->value_count ||
+      program->values[branch->value_index].type_index !=
+          W_SEED_HIR0_TYPE_BOOL)
+    return false;
+  if (branch->logical_operator == W_SEED_HIR0_LOGICAL_NONE) {
+    if ((branch->result_type != W_SEED_HIR0_TYPE_I64 &&
+         branch->result_type != W_SEED_HIR0_TYPE_BOOL) ||
+        !program_scalar_cfg_scalar_jump(program, branch, then_last,
+                                        then_join) ||
+        !program_scalar_cfg_scalar_jump(program, branch, else_last,
+                                        else_join) ||
+        !program_scalar_cfg_join(program, branch, then_join,
+                                 branch->result_type))
+      return false;
+  } else if ((branch->logical_operator != W_SEED_HIR0_LOGICAL_AND &&
+              branch->logical_operator != W_SEED_HIR0_LOGICAL_OR) ||
+             branch->result_type != W_SEED_HIR0_TYPE_BOOL ||
+             !program_scalar_cfg_logical_jump(program, branch, then_last,
+                                              then_join) ||
+             !program_scalar_cfg_logical_jump(program, branch, else_last,
+                                              else_join) ||
+             !program_scalar_cfg_join(program, branch, then_join,
+                                      W_SEED_HIR0_TYPE_BOOL))
+    return false;
+  *join_block = then_join;
+  return true;
+}
+
+static bool program_scalar_cfg_arm(
+    const w_seed_hir0_program *program, uint32_t function_index, size_t start,
+    size_t end, size_t depth, bool require_empty, size_t *last_block,
+    size_t *join_block) {
+  if (program == NULL || last_block == NULL || join_block == NULL ||
+      start >= end || end > program->block_count ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  size_t current = start;
+  size_t guard = 0u;
+  while (current < end && guard < end - start) {
+    if (program->blocks[current].owner_function != function_index ||
+        (require_empty && program->blocks[current].instruction_count != 0u) ||
+        program->blocks[current].terminator_index >=
+            program->terminator_count)
+      return false;
+    const w_seed_hir0_terminator *term =
+        &program->terminators[program->blocks[current].terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      size_t nested_join = 0u;
+      if (!program_scalar_cfg_branch(program, function_index, current, end,
+                                     depth, &nested_join) ||
+          nested_join <= current || nested_join >= end)
+        return false;
+      current = nested_join;
+      guard += 1u;
+      continue;
+    }
+    if (term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+        term->target_block == W_SEED_HIR0_NONE ||
+        term->target_block <= current || term->target_block >= end ||
+        term->else_block != W_SEED_HIR0_NONE ||
+        program->blocks[term->target_block].owner_function != function_index)
+      return false;
+    *last_block = current;
+    *join_block = term->target_block;
+    return true;
+  }
+  return false;
+}
+
 static bool program_scalar_cfg_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count) return false;
@@ -844,41 +1023,33 @@ static bool program_scalar_cfg_is_supported(
     return false;
   const size_t start = function->first_block;
   const size_t end = start + function->block_count;
+  size_t current = start;
+  size_t guard = 0u;
   bool has_branch = false;
-  for (size_t block_index = start; block_index < end; block_index += 1u) {
-    const w_seed_hir0_block *block = &program->blocks[block_index];
-    if (block->owner_function != function_index ||
-        block->terminator_index >= program->terminator_count)
+  while (current < end && guard < function->block_count) {
+    if (program->blocks[current].owner_function != function_index ||
+        program->blocks[current].terminator_index >=
+            program->terminator_count)
       return false;
-    const w_seed_hir0_terminator *terminator =
-        &program->terminators[block->terminator_index];
-    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
-      has_branch = true;
-      if (terminator->logical_operator == W_SEED_HIR0_LOGICAL_NONE) {
-        if ((terminator->result_type != W_SEED_HIR0_TYPE_I64 &&
-             terminator->result_type != W_SEED_HIR0_TYPE_BOOL) ||
-            terminator->target_block >= program->block_count ||
-            terminator->else_block >= program->block_count)
-          return false;
-        const w_seed_hir0_block *then_block =
-            &program->blocks[terminator->target_block];
-        const w_seed_hir0_block *else_block =
-            &program->blocks[terminator->else_block];
-        if (then_block->instruction_count != 0u ||
-            else_block->instruction_count != 0u ||
-            then_block->terminator_index >= program->terminator_count ||
-            else_block->terminator_index >= program->terminator_count ||
-            program->terminators[then_block->terminator_index].kind !=
-                W_SEED_HIR0_TERMINATOR_JUMP ||
-            program->terminators[else_block->terminator_index].kind !=
-                W_SEED_HIR0_TERMINATOR_JUMP)
-          return false;
-      } else if (terminator->result_type != W_SEED_HIR0_TYPE_BOOL) {
+    const w_seed_hir0_terminator *term =
+        &program->terminators[program->blocks[current].terminator_index];
+    if (term->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      size_t join = 0u;
+      if (!program_scalar_cfg_branch(program, (uint32_t)function_index,
+                                     current, end, 0u, &join) ||
+          join <= current || join >= end)
         return false;
-      }
+      current = join;
+      has_branch = true;
+      guard += 1u;
+      continue;
     }
+    if (term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        current + 1u == end)
+      return has_branch;
+    return false;
   }
-  return has_branch;
+  return false;
 }
 
 static bool program_host_print_maximum(

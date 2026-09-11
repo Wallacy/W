@@ -20,6 +20,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "bool-short-circuit",
   "restaurant-interpolation",
   "restaurant-scalar-if",
+  "restaurant-nested-scalar-if",
   "restaurant-composition",
   "process-entry",
   "process-handler-lifecycle",

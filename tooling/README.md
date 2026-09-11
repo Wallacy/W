@@ -264,6 +264,15 @@ artifact bytes both empty and nonempty. Exact `missing\n`/exit 2 and
 cleanup are required. The reported process PE byte count is diagnostic gate
 feedback, not benchmark history.
 
+W-1549 adds the source-backed `restaurant-nested-scalar-if` witness to the
+bounded MLIR0 route. Its unparenthesized tail
+`return if outer { if inner { open } else { middle } } else { closed }`
+normalizes as one scalar value, emits two typed LLVM diamonds and produces
+exact `1,2,3\n` with exit zero and empty stderr. The executable catalog records
+the workload as public-end-to-end and source/oracle-ready, while independent
+C/Rust sources and benchmark runner wiring remain required before performance
+readiness.
+
 Isso não é frontend normativo
 completo, typechecker, contexto público/geral de aquisição, manifest parsing,
 owner selection, backend, linker, runtime ou o runner `w run` geral.

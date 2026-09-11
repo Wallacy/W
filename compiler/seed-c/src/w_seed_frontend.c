@@ -12736,6 +12736,16 @@ static bool normalize_expression_node(frontend_context *context,
     return normalize_if_expression(context, if_node, expression_index, expected,
                                    actual_out, root_out);
   }
+  /* A semicolon-free value block is represented by the parser as a statement
+   * when its final value is itself an unparenthesized `if`.  Normalize that
+   * owner through the same scalar-if path instead of reparsing its span as a
+   * generic expression. */
+  const bool if_statement_owner =
+      doc->nodes[expression_node].kind == W_SEED_CST_IF_STATEMENT;
+  if (if_statement_owner) {
+    return normalize_if_expression(context, expression_node, expression_index,
+                                   expected, actual_out, root_out);
+  }
   const uint32_t switch_node =
       first_direct_kind(doc, expression_node, W_SEED_CST_SWITCH_EXPRESSION);
   const bool switch_owner_exact =
@@ -12938,7 +12948,8 @@ static bool cst_if_node_for_span(const w_seed_frontend_document *doc,
 static frontend_simple_type infer_expression_span_inner(
     frontend_context *context, w_seed_span span, size_t depth) {
   const w_seed_frontend_document *doc = context_document(context);
-  if (doc == NULL || depth > 32u) return simple_type_unknown();
+  if (doc == NULL || depth > W_SEED_FRONTEND_MAX_NESTING)
+    return simple_type_unknown();
   frontend_token_cursor cursor = token_cursor_for(doc, span);
   frontend_token first;
   if (!cursor_peek(&cursor, &first)) return simple_type_unknown();
@@ -13052,12 +13063,36 @@ static bool cst_scalar_if_surface_ok(const w_seed_frontend_document *doc,
                                      uint32_t node, size_t depth,
                                      bool arm) {
   if (doc == NULL || node == W_SEED_CST_NONE ||
-      (size_t)node >= doc->parse.node_count || depth > 256u)
+      (size_t)node >= doc->parse.node_count ||
+      depth > W_SEED_FRONTEND_MAX_NESTING)
     return false;
   const w_seed_cst_node *value = &doc->nodes[node];
-  if (value->kind == W_SEED_CST_IF_EXPRESSION ||
-      value->kind == W_SEED_CST_IF_STATEMENT ||
-      value->kind == W_SEED_CST_LET_STATEMENT ||
+  if (value->kind == W_SEED_CST_IF_STATEMENT) {
+    if (!arm) return false;
+    const uint32_t condition = first_direct_expression(doc, node);
+    uint32_t blocks[2] = {W_SEED_CST_NONE, W_SEED_CST_NONE};
+    size_t block_count = 0u;
+    uint32_t child_cursor = value->first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &child_cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (doc->nodes[child].kind == W_SEED_CST_BLOCK && block_count < 2u)
+        blocks[block_count++] = child;
+      guard += 1u;
+    }
+    if (condition == W_SEED_CST_NONE || block_count != 2u ||
+        !cst_scalar_if_surface_ok(doc, condition, depth + 1u, false))
+      return false;
+    for (size_t arm_index = 0u; arm_index < 2u; arm_index += 1u) {
+      uint32_t arm_node = W_SEED_CST_NONE;
+      if (!scalar_if_arm_expression_node(doc, blocks[arm_index], &arm_node) ||
+          !cst_scalar_if_surface_ok(doc, arm_node, depth + 1u, true))
+        return false;
+    }
+    return true;
+  }
+  if (value->kind == W_SEED_CST_LET_STATEMENT ||
       value->kind == W_SEED_CST_VAR_STATEMENT ||
       value->kind == W_SEED_CST_RETURN_STATEMENT ||
       value->kind == W_SEED_CST_FOR_STATEMENT ||
@@ -13117,8 +13152,27 @@ static bool scalar_if_arm_expression_node(
     uint32_t *expression_node) {
   if (expression_node != NULL) *expression_node = W_SEED_CST_NONE;
   if (doc == NULL || block == W_SEED_CST_NONE ||
-      (size_t)block >= doc->parse.node_count ||
-      count_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT) != 1u)
+      (size_t)block >= doc->parse.node_count)
+    return false;
+  const uint32_t nested_if =
+      first_direct_kind(doc, block, W_SEED_CST_IF_STATEMENT);
+  if (nested_if != W_SEED_CST_NONE &&
+      count_direct_kind(doc, block, W_SEED_CST_IF_STATEMENT) == 1u &&
+      count_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT) == 0u) {
+    uint32_t child_cursor = doc->nodes[block].first_child;
+    uint32_t child = W_SEED_CST_NONE;
+    size_t guard = 0u;
+    while (next_child(doc, &child_cursor, &child) &&
+           guard < doc->parse.node_count) {
+      if (kind_is_statement(doc->nodes[child].kind) && child != nested_if)
+        return false;
+      guard += 1u;
+    }
+    if (child_cursor != W_SEED_CST_NONE) return false;
+    if (expression_node != NULL) *expression_node = nested_if;
+    return true;
+  }
+  if (count_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT) != 1u)
     return false;
   uint32_t statement =
       first_direct_kind(doc, block, W_SEED_CST_EXPRESSION_STATEMENT);

@@ -1244,10 +1244,14 @@ static bool test_scalar_if_frontend_subset(void) {
         has_diagnostic(value, "W-TYPE-0120") &&
         !has_fact(value, W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
 
-  CHECK(scalar_if_unsupported(
+  CHECK(fixture_run(
       value,
       "fn nested(): i64 { return if true { if false { 1 } else { 2 } } "
       "else { 3 } }\nentry(nested)\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.diagnostics == 0u &&
+        value->result.written.facts == 0u);
+  CHECK(scalar_if_frontend_shape(value, 2u));
   CHECK(scalar_if_unsupported(
       value,
       "fn text(): String { return if true { \"a\" } else { \"b\" } }\n"

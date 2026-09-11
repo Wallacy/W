@@ -11,6 +11,8 @@ const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-l
 const restaurantInterpolationFixture = resolve(seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
+const restaurantNestedScalarIfFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-nested-scalar-if.w")
 const restaurantCheckedArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-arithmetic.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
@@ -241,6 +243,8 @@ try {
   const restaurantLinearLiteralPath = resolve(artifactDirectory, "restaurant-linear-literal.w")
   const restaurantIfPath = resolve(artifactDirectory, "restaurant-if.w")
   const restaurantNestedIfPath = resolve(artifactDirectory, "restaurant-nested-if.w")
+  const restaurantNestedScalarIfPath = resolve(artifactDirectory,
+    "restaurant-nested-scalar-if.w")
   const twoCallsPath = resolve(artifactDirectory, "two-calls.w")
   const arithmeticPath = resolve(artifactDirectory, "typed-arithmetic.w")
   const percentPath = resolve(artifactDirectory, "percent-interpolation.w")
@@ -273,6 +277,8 @@ try {
     `entry(main)\n`)
   await writeFile(restaurantNestedIfPath,
     await readFile(restaurantNestedIfFixture))
+  await writeFile(restaurantNestedScalarIfPath,
+    await readFile(restaurantNestedScalarIfFixture))
   await writeFile(twoCallsPath,
     `fn main() { print("a")\nprint("b") }\nentry(main)\n`)
   await writeFile(arithmeticPath,
@@ -336,6 +342,8 @@ try {
         "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
         "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
         "utf8") },
+    { name: "restaurant-nested-scalar-if", source: restaurantNestedScalarIfPath,
+      expected: Buffer.from("1,2,3\n", "utf8") },
     { name: "restaurant-checked-arithmetic", source: restaurantCheckedArithmeticFixture,
       expected: Buffer.from("Open 6; closed 1\n", "utf8") },
     { name: "two-calls", source: twoCallsPath,
@@ -518,6 +526,34 @@ try {
     nestedCfgArtifact.includes("\\50\\6f\\73\\74\\2d\\6a\\6f\\69\\6e\\20\\73\\65\\72\\76\\69\\63\\65\\0a") &&
     (nestedCfgArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 4,
   "nested Restaurant did not retain both inner diamonds and one post-join call per invocation")
+
+  const nestedScalarArtifact = artifacts.get("restaurant-nested-scalar-if")
+    .toString("utf8")
+  const nestedScalarChooseStart = nestedScalarArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const nestedScalarMainStart = nestedScalarArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", nestedScalarChooseStart + 1)
+  assert(nestedScalarChooseStart >= 0 && nestedScalarMainStart > nestedScalarChooseStart,
+    "nested scalar Restaurant function boundaries are missing")
+  const nestedScalarChooseArtifact = nestedScalarArtifact.slice(
+    nestedScalarChooseStart, nestedScalarMainStart)
+  assert((nestedScalarChooseArtifact.match(/llvm\.cond_br/gu) || []).length === 2 &&
+    nestedScalarChooseArtifact.includes(
+      "llvm.br ^w_fn_0_b_4(%p2 : i64)") &&
+    nestedScalarChooseArtifact.includes(
+      "llvm.br ^w_fn_0_b_4(%p3 : i64)") &&
+    nestedScalarChooseArtifact.includes(
+      "llvm.br ^w_fn_0_b_6(%arg0 : i64)") &&
+    nestedScalarChooseArtifact.includes(
+      "llvm.br ^w_fn_0_b_6(%p4 : i64)") &&
+    nestedScalarChooseArtifact.includes("^w_fn_0_b_4(%arg0: i64):") &&
+    nestedScalarChooseArtifact.includes("^w_fn_0_b_6(%arg1: i64):") &&
+    nestedScalarChooseArtifact.includes("llvm.return %arg1 : i64") &&
+    !nestedScalarChooseArtifact.includes("llvm.select") &&
+    (nestedScalarArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 3 &&
+    !nestedScalarArtifact.includes("1,2,3") &&
+    !nestedScalarArtifact.includes("\\31\\2c\\32\\2c\\33\\0a"),
+  "nested scalar Restaurant did not retain two typed value diamonds")
 
   const commentedPath = resolve(artifactDirectory, "commented.w")
   await writeFile(commentedPath,

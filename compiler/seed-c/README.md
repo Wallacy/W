@@ -1180,6 +1180,31 @@ baseline or benchmark of the produced Restaurant executable. This is
 compiler-lifecycle correctness evidence, not general scalar CFG, ABI,
 target-coverage or performance evidence.
 
+### Nested SCALAR-IF0 tail values (W-1549)
+
+W-1549 supersedes only W-1539's former nesting exclusion. A value block may
+end with an unparenthesized nested scalar `if`; the nested `if` is the block's
+final value:
+
+```w
+fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, closed: i64): i64 {
+  return if outer { if inner { open } else { middle } } else { closed }
+}
+```
+
+HIR0 and Native0 accept at most 64 nested scalar `if` values. Depth 65 fails
+before HIR output changes. Conditions are Bool. The root and pure arms yield
+the same `i64` or Bool type. Calls/effects, String/enum/aggregate values, `var`,
+mutation, loops, `else if`, terminal branch returns and general CFG remain
+unsupported. HIR0, MLIR0 and Native0 public record schemas are unchanged.
+
+The Restaurant fixture `fixtures/restaurant-nested-scalar-if.w` has two typed
+scalar diamonds and writes exact `1,2,3\n`, exit zero and empty stderr through
+`bun check --target mlir0`. Native0 requires zero instructions in every scalar
+arm block during recursive traversal; C/Rust equivalents, public Windows
+execution, imports, async process entry, other targets and performance remain
+gaps. This is compiler-lifecycle correctness evidence only.
+
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 
 ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded

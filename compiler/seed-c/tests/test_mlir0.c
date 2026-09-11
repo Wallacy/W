@@ -1328,6 +1328,122 @@ static bool test_scalar_if_value_diamond(void) {
   return true;
 }
 
+static bool test_nested_scalar_if_value_diamond(void) {
+  static const uint8_t source[] =
+      "fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, "
+      "closed: i64): i64 { return if outer { if inner { open } else { "
+      "middle } } else { closed } }\n"
+      "fn main() { let first = choose(outer: true, inner: true, open: 1, "
+      "middle: 2, closed: 3) let second = choose(outer: true, inner: false, "
+      "open: 1, middle: 2, closed: 3) let third = choose(outer: false, "
+      "inner: false, open: 1, middle: 2, closed: 3) "
+      "print(\"${first},${second},${third}\") }\n"
+      "entry(main)\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measured;
+  w_seed_mlir0_result emitted;
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_argument_count == 2u &&
+        program->functions[0].first_block == 0u &&
+        program->functions[0].block_count == 7u &&
+        program->functions[1].first_block == 7u &&
+        program->functions[1].block_count == 1u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].else_block == 5u &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].target_block == 2u &&
+        program->terminators[1].else_block == 3u &&
+        program->terminators[1].result_type == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->blocks[4].block_argument_count == 1u &&
+        program->blocks[4].first_block_argument == 0u &&
+        program->blocks[6].block_argument_count == 1u &&
+        program->blocks[6].first_block_argument == 1u &&
+        program->block_arguments[0].owner_block == 4u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->block_arguments[1].owner_block == 6u &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 4u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].target_block == 4u &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[4].target_block == 6u &&
+        program->terminators[5].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[5].target_block == 6u);
+  CHECK(program->terminators[2].incoming_value < program->value_count &&
+        program->terminators[3].incoming_value < program->value_count &&
+        program->terminators[4].incoming_value < program->value_count &&
+        program->terminators[5].incoming_value < program->value_count &&
+        program->values[program->terminators[2].incoming_value].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        program->values[program->terminators[3].incoming_value].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        program->values[program->terminators[4].incoming_value].type_index ==
+            W_SEED_HIR0_TYPE_I64 &&
+        program->values[program->terminators[5].incoming_value].type_index ==
+            W_SEED_HIR0_TYPE_I64);
+  CHECK(measure_current(&counts, &measured));
+  CHECK(emit_current(artifact, sizeof(artifact), &emitted));
+  CHECK(counts.mlir_bytes == emitted.written.mlir_bytes &&
+        memcmp(measured.mlir_sha256, emitted.mlir_sha256,
+               sizeof(measured.mlir_sha256)) == 0);
+
+  const size_t choose = find_bytes(
+      artifact, emitted.written.mlir_bytes, "llvm.func internal @w_fn_0(",
+      0u);
+  const size_t main = find_bytes(
+      artifact, emitted.written.mlir_bytes, "llvm.func internal @w_fn_1(",
+      choose == SIZE_MAX ? 0u : choose + 1u);
+  CHECK(choose != SIZE_MAX && main != SIZE_MAX && choose < main);
+  const size_t choose_bytes = main - choose;
+  CHECK(contains_bytes(
+            artifact + choose, choose_bytes,
+            "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, %cursor_address: !llvm.ptr, %p0: i1, %p1: i1, %p2: i64, %p3: i64, %p4: i64) -> i64") &&
+        count_bytes(artifact + choose, choose_bytes,
+                    "llvm.cond_br") == 2u &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_5") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.cond_br %p1, ^w_fn_0_b_2, ^w_fn_0_b_3") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "^w_fn_0_b_4(%arg0: i64):") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "^w_fn_0_b_6(%arg1: i64):") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.br ^w_fn_0_b_4(%p2 : i64)") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.br ^w_fn_0_b_4(%p3 : i64)") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.br ^w_fn_0_b_6(%arg0 : i64)") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.br ^w_fn_0_b_6(%p4 : i64)") &&
+        contains_bytes(artifact + choose, choose_bytes,
+                       "llvm.return %arg1 : i64") &&
+        find_bytes(artifact + choose, choose_bytes, "llvm.select", 0u) ==
+            SIZE_MAX);
+  CHECK(count_bytes(artifact, emitted.written.mlir_bytes,
+                    "llvm.call @w_fn_0") == 3u &&
+        contains_bytes(artifact, emitted.written.mlir_bytes,
+                       "@w_seed_append_i64") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes, "1,2,3") &&
+        !contains_bytes(artifact, emitted.written.mlir_bytes,
+                        "\\31\\2c\\32\\2c\\33\\0a"));
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &fixture.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.has_local_calls &&
+        selection.has_interpolation && selection.has_bool &&
+        selection.maximum_stdout_bytes == 63u);
+  return true;
+}
+
 static bool test_if_diamond_cfg(void) {
   static const uint8_t source[] =
       "fn serve(isOpen: Bool) {\n"
@@ -2565,6 +2681,7 @@ int main(void) {
   if (!test_checked_helper_reachability()) return 1;
   if (!test_scalar_return_call_result()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
+  if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
   if (!test_logical_and_diamond()) return 1;
   if (!test_logical_unary_not()) return 1;
