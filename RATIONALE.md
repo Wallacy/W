@@ -8240,7 +8240,8 @@ certificates checked by a small explicit kernel, fails before lowering, and
 erases proof terms and ghost state completely. Proof-only packages may produce
 certificates without native code. PVL0 remains research-gated until it proves
 logic/termination boundaries, bounded incremental checking, explicit trust,
-unchanged ABI, byte-equivalent optimized output, and no ordinary-path cost.
+preserved ABI and observable semantics, total proof-state erasure, measured
+optimization changes from verified facts, and no proof-machinery runtime cost.
 The candidate CLI spelling is not yet language or toolchain surface.
 
 As quatro pastas de estudo têm dados estruturados, casos positivos e adversariais,

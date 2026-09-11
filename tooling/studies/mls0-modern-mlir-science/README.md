@@ -86,9 +86,10 @@ search, or fall back dynamically when a static proof fails.
 This can make W proof-capable without making every W program dependently typed.
 `PVL0-proof-kernel-and-erasure` is queued as a separate bounded study. No
 surface is ratified until a prototype demonstrates a small explicit trusted
-base, deterministic bounded checking, complete erasure, byte-equivalent
-optimized output, and no ordinary-W compile-time regression when proofs are
-absent. Lean's erased `Prop` is useful evidence for the erasure principle, not
+base, deterministic bounded checking, complete erasure, preserved ABI and
+observable semantics, measured optimization changes enabled by verified facts,
+zero runtime cost from proof machinery, and no ordinary-W compile-time
+regression when proofs are absent. Lean's erased `Prop` is useful evidence for the erasure principle, not
 a type-system template that W inherits.
 
 ## Promotion boundary
