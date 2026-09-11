@@ -15,12 +15,12 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-19"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-20"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
-#define W_SEED_HIR0_MAX_RECEIPT_BYTES 256u
+#define W_SEED_HIR0_MAX_RECEIPT_BYTES 320u
 
 typedef enum {
   W_SEED_HIR0_OK = 0,
@@ -37,6 +37,8 @@ typedef enum {
   W_SEED_HIR0_TYPE_BOOL,
   /* Append-only nominal type with resolver-owned external identity. */
   W_SEED_HIR0_TYPE_NOMINAL,
+  /* A caller-owned local, payloadless enum declaration. */
+  W_SEED_HIR0_TYPE_ENUM,
 } w_seed_hir0_type_kind;
 
 typedef enum {
@@ -76,6 +78,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
   /* Checked signed-i64 unary negation. */
   W_SEED_HIR0_VALUE_UNARY_I64,
+  /* A case of a caller-owned local payloadless enum. */
+  W_SEED_HIR0_VALUE_ENUM_CASE,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -222,10 +226,32 @@ typedef struct {
    * records and is independent of source-local aliases. */
   uint32_t external_module_index;
   uint32_t external_symbol_index;
+  /* Present only for TYPE_ENUM and indexes the caller-owned enum record. */
+  uint32_t enum_index;
   /* Independently rederived from the closed external identity contract. */
   w_seed_hir0_lifecycle_kind lifecycle;
   w_seed_hir0_release_contract_kind release_contract;
 } w_seed_hir0_type;
+
+/* Local enum declarations and cases are copied into HIR-owned records.  The
+ * case range is lexical and dense; tag is the stable payloadless ordinal. */
+typedef struct {
+  uint32_t module_index;
+  uint32_t type_index;
+  w_seed_hir0_text name;
+  uint32_t first_case;
+  uint32_t case_count;
+  w_seed_span source_span;
+} w_seed_hir0_enum;
+
+typedef struct {
+  uint32_t owner_enum;
+  uint32_t ordinal;
+  uint32_t tag;
+  uint32_t payload_count;
+  w_seed_hir0_text name;
+  w_seed_span source_span;
+} w_seed_hir0_enum_case;
 
 typedef struct {
   uint32_t module_index;
@@ -430,6 +456,9 @@ typedef struct {
   uint32_t external_module_index;
   uint32_t external_symbol_index;
   w_seed_hir0_text member_name;
+  /* Present only for VALUE_ENUM_CASE. */
+  uint32_t enum_index;
+  uint32_t enum_case_index;
 } w_seed_hir0_value;
 
 typedef struct {
@@ -502,6 +531,8 @@ typedef struct {
   size_t receipt_bytes;
   size_t external_modules;
   size_t external_symbols;
+  size_t enums;
+  size_t enum_cases;
 } w_seed_hir0_counts;
 
 /* A program carries capacities so the verifier can reject a truncated or
@@ -516,6 +547,12 @@ typedef struct {
   const w_seed_hir0_type *types;
   size_t type_count;
   size_t type_capacity;
+  const w_seed_hir0_enum *enums;
+  size_t enum_count;
+  size_t enum_capacity;
+  const w_seed_hir0_enum_case *enum_cases;
+  size_t enum_case_count;
+  size_t enum_case_capacity;
   const w_seed_hir0_function *functions;
   size_t function_count;
   size_t function_capacity;
@@ -585,6 +622,10 @@ typedef struct {
   size_t identity_capacity;
   w_seed_hir0_type *types;
   size_t type_capacity;
+  w_seed_hir0_enum *enums;
+  size_t enum_capacity;
+  w_seed_hir0_enum_case *enum_cases;
+  size_t enum_case_capacity;
   w_seed_hir0_function *functions;
   size_t function_capacity;
   w_seed_hir0_parameter *parameters;

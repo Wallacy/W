@@ -260,6 +260,82 @@ static bool test_products(void) {
   return true;
 }
 
+static bool test_enum_frontend_storage(void) {
+  static const uint8_t source[] =
+      "enum Stage { accepted reserving preparing serving }\n"
+      "enum Marker { flagged(code: i64) }\n"
+      "alias WorkStage = Stage<[.preparing, .serving]>\n"
+      "fn label(stage: Stage): String { return switch stage { "
+      "case .accepted: \"A\" case .reserving: \"R\" "
+      "case .preparing: \"P\" case .serving: \"S\" } }\n"
+      "fn isWork(stage: Stage): Bool { return stage in "
+      "(.preparing, .serving) }\n"
+      "entry { print(\"enum storage\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  (void)memset(output, 0xa5u, sizeof(output));
+  (void)memset(&result, 0x5au, sizeof(result));
+  const w_seed_native0_result result_snapshot = result;
+
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "enum-storage", 12u, output,
+                 sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_HIR);
+  /* Frontend normalization succeeds; HIR0 remains the explicit enum barrier. */
+  CHECK(storage.frontend_result.status == W_SEED_FRONTEND_OK &&
+        storage.frontend_result.written.enums == 2u &&
+        storage.frontend_result.written.enum_cases == 5u &&
+        storage.frontend_result.written.enum_case_parameters == 1u &&
+        storage.frontend_result.written.switch_arms == 4u &&
+        storage.frontend_result.written.enum_subset_members == 2u &&
+        storage.frontend_result.written.enum_membership_cases == 2u &&
+        storage.output.enums == storage.enums &&
+        storage.output.enum_capacity == W_SEED_NATIVE0_ENUMS &&
+        storage.output.enum_cases == storage.enum_cases &&
+        storage.output.enum_case_capacity == W_SEED_NATIVE0_ENUM_CASES &&
+        storage.output.enum_case_parameters == storage.enum_case_parameters &&
+        storage.output.enum_case_parameter_capacity ==
+            W_SEED_NATIVE0_ENUM_CASE_PARAMETERS &&
+        storage.output.switch_arms == storage.switch_arms &&
+        storage.output.switch_arm_capacity == W_SEED_NATIVE0_SWITCH_ARMS &&
+        storage.output.enum_subset_members == storage.enum_subset_members &&
+        storage.output.enum_subset_member_capacity ==
+            W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS &&
+        storage.output.enum_membership_cases == storage.enum_membership_cases &&
+        storage.output.enum_membership_case_capacity ==
+            W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xa5u);
+  CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
+
+  static const uint8_t hir_source[] =
+      "enum Stage { ready queued }\n"
+      "fn current(): Stage { return .ready }\n"
+      "entry { print(\"enum hir\") }\n";
+  (void)memset(output, 0xa6u, sizeof(output));
+  (void)memset(&result, 0x6au, sizeof(result));
+  const w_seed_native0_result hir_result_snapshot = result;
+  const w_seed_native0_status hir_status =
+      run_source(hir_source, sizeof(hir_source) - 1u, "enum-hir", 8u,
+                 output, sizeof(output), &result);
+  bool has_enum_value = false;
+  for (size_t value = 0u; value < storage.hir_program.value_count; value += 1u)
+    if (storage.hir_program.values[value].kind == W_SEED_HIR0_VALUE_ENUM_CASE)
+      has_enum_value = true;
+  CHECK(hir_status == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
+        storage.hir_program.enum_count == 1u &&
+        storage.hir_program.enum_case_count == 2u &&
+        storage.hir_program.types[4].kind == W_SEED_HIR0_TYPE_ENUM &&
+        has_enum_value &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  /* The admitted HIR is real. MLIR0 remains the next explicit barrier. */
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xa6u);
+  CHECK(memcmp(&result, &hir_result_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
 static bool test_process_handler_catalog_and_artifact(void) {
   static const uint8_t canonical[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1088,7 +1164,7 @@ static bool test_signed_comparison_products(void) {
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   w_seed_native0_result result;
   CHECK(run_source(source, sizeof(source) - 1u, "comparison", 10u,
-                    output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
                         "llvm.icmp \"sle\" %p0, %p1 : i64"));
   CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.cond_br %v"));
@@ -1119,6 +1195,7 @@ int main(void) {
   (void)fprintf(stderr, "native0 storage bytes: %llu\n",
                 (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_signed_comparison_products() && test_products() &&
+                        test_enum_frontend_storage() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact();
   const bool logical = products && test_logical_native_selector() &&

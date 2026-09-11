@@ -1060,6 +1060,40 @@ selected, not an always-running goal.
 | 17 | First scientific P0 family | P3 / L | One bounded `std.linalg` family passes the MLS0 promotion gate: independent correctness, dynamic shapes, CPU and applicable GPU evidence, workspace/transfers, precision/determinism, compile time and artifact size; `benchmarkDisposition: required`; compiler recognition only when verification or transformation benefits |
 | 18 | PVL0 proof mode, kernel and erasure | P3 / M | A bounded study artifact with cases, oracle and trusted-base receipt prototypes a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, preserved ABI/semantics, no ordinary-W compile-time regression when proofs are absent, measured proof-enabled optimizations, and zero runtime cost from proof machinery before ratifying syntax. Proof establishes legality; PGO ranks only legal transforms; release packaging consumes the result |
 
+Bundle 9 must add an explicit optional PGO record to the build recipe and its
+receipt before it collects a sample. The record identifies `generate` or `use`,
+the training workload, profile artifact digest, compiler, target, CPU features,
+instrumentation mode, and provenance. A proof or certificate digest is a
+separate legality input. It never substitutes for the PGO record. The term
+`pre-release` in dependency resolution does not identify this optimization
+stage. A release without PGO keeps the record absent and remains reproducible.
+
+Bundle 8 is deliberately decomposed rather than treating one integer tag as
+evidence for the whole ownership model. Its first executable package is a
+closed local payloadless enum passed through an exhaustive `switch`. Verified
+HIR must retain nominal enum and case identity, lexical case order, complete
+coverage, and only valid case values. The native carrier uses the minimum
+logical integer width; any unused bit pattern is unreachable and the MLIR
+backend must route its synthetic default edge to a fail-closed terminator.
+This package does not establish public enum ABI, niche selection, subsets,
+payload ownership, `Result`, or typed failure.
+
+The following package adds payload records and per-edge borrow/move facts.
+Before it starts, the canonical ownership contract must close three questions:
+
+- whether checked base-enum to subset conversion borrows, copies, or consumes
+  a non-`Copy` payload, and which owner remains available on failure;
+- how a `catch` arm transfers or retains the error owner when its pattern or
+  guard does not accept the value;
+- which conversions are permitted between `throws E`, `Result<T, E>`, a
+  compatible single error case, and enum subsets without hiding a move or
+  erasing the declared error set.
+
+The bundle closes only after a resource-bearing Restaurant witness proves
+construction, exhaustive match, borrow, move, cleanup, typed success/failure,
+and adversarial rejection through native execution. PGO, proof certificates,
+public layout/ABI, and comparative performance remain independent gates.
+
 ### Runtime-input package boundary
 
 Bundle 7 must preserve the `native-process@1` entry contract. A raw

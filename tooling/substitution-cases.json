@@ -5547,6 +5547,73 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir20-local-payloadless-enum",
+      "reviewItem": "local payloadless enum identity against raw integer tags and premature switch lowering",
+      "decisions": [
+        "W-1562"
+      ],
+      "task": "Carry one bounded local payloadless enum and its case value through verified HIR20, then stop Native0 at the MLIR boundary.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "enum Stage {",
+          "  cold",
+          "  ready",
+          "  done",
+          "}",
+          "fn choose(): Stage { return .ready }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "raw-integer-enum-tags",
+          "language": "text",
+          "source": [
+            "represent every enum as an unowned integer tag"
+          ],
+          "expectedDifference": "The selected route retains nominal enum identity, owner-linked cases, and source spans in HIR records."
+        },
+        {
+          "name": "premature-switch-lowering",
+          "language": "text",
+          "source": [
+            "lower enum cases through an exhaustive switch and native carrier before verified HIR"
+          ],
+          "expectedDifference": "The selected route records only the bounded identity slice and stops with Native0 unsupported at MLIR."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_enum_records",
+          "claim": "The HIR verifier checks nominal enum ownership, lexical dense ordinals and tags, zero payloads, duplicate names, and source spans."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_local_enum_hir",
+          "claim": "Focused HIR tests prove local enum and case records, nominal type identity, local case values, VALUE_COPY/NONE lifecycle, forged-record rejection, and capacity/alias barriers."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_enum_frontend_storage",
+          "claim": "Native0 tests prove frontend to verified-HIR admission and unchanged output/result when the MLIR boundary returns unsupported."
+        }
+      ],
+      "checks": [
+        "HIR20 measures and emits caller-owned enum and enum-case records with capacity and alias checks",
+        "HIR verification preserves nominal type identity, dense lexical tags, VALUE_COPY/NONE lifecycle, and local case values",
+        "forged enum, case, value, capacity, alias, or digest relations fail closed",
+        "Native0 reaches verified HIR and stops UNSUPPORTED before MLIR",
+        "restaurant-enum.w remains a future switch target and supplies no execution evidence"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

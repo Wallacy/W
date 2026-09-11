@@ -34,6 +34,13 @@ enum {
   W_SEED_NATIVE0_IMPORT_ITEMS = 16,
   W_SEED_NATIVE0_STRUCTS = 8,
   W_SEED_NATIVE0_FIELDS = 16,
+  /* Enum families use bounded caller-owned storage at each admitted stage. */
+  W_SEED_NATIVE0_ENUMS = 8,
+  W_SEED_NATIVE0_ENUM_CASES = 64,
+  W_SEED_NATIVE0_ENUM_CASE_PARAMETERS = 128,
+  W_SEED_NATIVE0_SWITCH_ARMS = 128,
+  W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS = 128,
+  W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES = 128,
   W_SEED_NATIVE0_TYPES = 32,
   W_SEED_NATIVE0_FUNCTIONS = 8,
   W_SEED_NATIVE0_PARAMETERS = 16,
@@ -49,6 +56,8 @@ enum {
   W_SEED_NATIVE0_HIR_MODULES = W_SEED_NATIVE0_MODULES,
   W_SEED_NATIVE0_HIR_IDENTITIES = 32,
   W_SEED_NATIVE0_HIR_TYPES = W_SEED_NATIVE0_TYPES,
+  W_SEED_NATIVE0_HIR_ENUMS = W_SEED_NATIVE0_ENUMS,
+  W_SEED_NATIVE0_HIR_ENUM_CASES = W_SEED_NATIVE0_ENUM_CASES,
   W_SEED_NATIVE0_HIR_FUNCTIONS = W_SEED_NATIVE0_FUNCTIONS,
   W_SEED_NATIVE0_HIR_PARAMETERS = W_SEED_NATIVE0_PARAMETERS,
   W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION =
@@ -73,7 +82,7 @@ enum {
   W_SEED_NATIVE0_HIR_EXTERNAL_SYMBOLS = 8,
   W_SEED_NATIVE0_HIR_TEXT = 4096,
   W_SEED_NATIVE0_HIR_VALUE_BYTES = 4096,
-  W_SEED_NATIVE0_HIR_RECEIPT = 256,
+  W_SEED_NATIVE0_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
   W_SEED_NATIVE0_FRONTEND_RECEIPT = 65536,
 };
 
@@ -98,6 +107,12 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_IMPORT_ITEMS <= UINT32_MAX &&
                    W_SEED_NATIVE0_STRUCTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_FIELDS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENUMS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENUM_CASES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENUM_CASE_PARAMETERS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_SWITCH_ARMS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES <= UINT32_MAX &&
                    W_SEED_NATIVE0_TYPES <= UINT32_MAX &&
                    W_SEED_NATIVE0_FUNCTIONS <= UINT32_MAX &&
                    W_SEED_NATIVE0_PARAMETERS <= UINT32_MAX &&
@@ -111,6 +126,8 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_MODULES <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_IDENTITIES <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_TYPES <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_ENUMS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_ENUM_CASES <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_FUNCTIONS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_PARAMETERS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BLOCKS_PER_FUNCTION <= UINT32_MAX &&
@@ -195,6 +212,15 @@ typedef struct {
   w_seed_frontend_import_item import_items[W_SEED_NATIVE0_IMPORT_ITEMS];
   w_seed_frontend_struct structs[W_SEED_NATIVE0_STRUCTS];
   w_seed_frontend_field fields[W_SEED_NATIVE0_FIELDS];
+  w_seed_frontend_enum enums[W_SEED_NATIVE0_ENUMS];
+  w_seed_frontend_enum_case enum_cases[W_SEED_NATIVE0_ENUM_CASES];
+  w_seed_frontend_enum_case_parameter
+      enum_case_parameters[W_SEED_NATIVE0_ENUM_CASE_PARAMETERS];
+  w_seed_frontend_switch_arm switch_arms[W_SEED_NATIVE0_SWITCH_ARMS];
+  w_seed_frontend_enum_subset_member
+      enum_subset_members[W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS];
+  w_seed_frontend_enum_membership_case
+      enum_membership_cases[W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES];
   w_seed_frontend_type_declaration type_declarations[W_SEED_NATIVE0_STRUCTS];
   w_seed_frontend_alias aliases[W_SEED_NATIVE0_STRUCTS];
   w_seed_frontend_type types[W_SEED_NATIVE0_TYPES];
@@ -232,6 +258,8 @@ typedef struct {
   w_seed_hir0_module hir_modules[W_SEED_NATIVE0_HIR_MODULES];
   w_seed_hir0_identity hir_identities[W_SEED_NATIVE0_HIR_IDENTITIES];
   w_seed_hir0_type hir_types[W_SEED_NATIVE0_HIR_TYPES];
+  w_seed_hir0_enum hir_enums[W_SEED_NATIVE0_HIR_ENUMS];
+  w_seed_hir0_enum_case hir_enum_cases[W_SEED_NATIVE0_HIR_ENUM_CASES];
   w_seed_hir0_function hir_functions[W_SEED_NATIVE0_HIR_FUNCTIONS];
   w_seed_hir0_parameter hir_parameters[W_SEED_NATIVE0_HIR_PARAMETERS];
   w_seed_hir0_block hir_blocks[W_SEED_NATIVE0_HIR_BLOCKS];
