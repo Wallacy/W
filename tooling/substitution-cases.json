@@ -4848,6 +4848,94 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-direct-unary-interpolation",
+      "reviewItem": "direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding",
+      "decisions": [
+        "W-1553"
+      ],
+      "task": "Preserve a type-consistent explicit unary value tree when an unsuffixed negative expression is the interpolation root.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "entry {",
+          "  print(\"Balance ${-7}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "late-root-only-retyping",
+          "language": "text",
+          "source": [
+            "publish the literal with width zero, then change only the unary root to i64"
+          ],
+          "expectedDifference": "Every record in the unary tree must carry the same canonical semantic type before verified HIR consumes it."
+        },
+        {
+          "name": "synthetic-binding-workaround",
+          "language": "w",
+          "source": [
+            "entry {",
+            "  let balance = -7",
+            "  print(\"Balance ${balance}\")",
+            "}"
+          ],
+          "expectedDifference": "A valid expression remains valid in interpolation position without a user-visible or compiler-synthesized binding."
+        },
+        {
+          "name": "textual-constant-fold",
+          "language": "text",
+          "source": [
+            "replace ${-7} with the text bytes -7 during frontend normalization"
+          ],
+          "expectedDifference": "The selected path retains CONST_I64, UNARY_I64 and the value segment for semantic verification and optimization."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "expression_parse_interpolated_string",
+          "claim": "A representable leading unsuffixed negative interpolation receives canonical i64 context before records are appended."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_interpolated_string_projection",
+          "claim": "Frontend tests prove identical i64 types on the literal and unary root and retain the segment relation."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_direct_i64_unary_interpolation",
+          "claim": "Verified HIR retains the explicit literal, unary operation and interpolation value segment."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
+          "symbol": "entry",
+          "claim": "The Restaurant witness uses direct unary interpolation without a binding."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantUnaryInterpolationFixture",
+          "claim": "The native MLIR route proves exact output and direct constant lowering without the checked helper."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantUnaryInterpolationFixture",
+          "claim": "The native Windows public runner executes the same direct source witness."
+        }
+      ],
+      "checks": [
+        "seed frontend and HIR0 gates prove the complete typed value tree",
+        "MLIR0 emits direct llvm.sub and omits the checked helper for the constant product",
+        "Linux WRT0 and native Windows public runners print exact Balance -7"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

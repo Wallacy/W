@@ -188,6 +188,7 @@ fn literalSummary(_ seconds: u64): (String, String, String, String) {
   let json = '{"value":${seconds},"unit":"s"}'
   let doubleQuoted = "${integer}:${hexadecimal}:${ratio}:${enabled}:${scalar}:${byte}"
   let builtins = "Kitchen ${true}/${false}; table: ${"open"}"
+  let directNegative = "Balance ${-7}"
   let raw = #"C:\orders\${seconds}"#
   let rawSingle = #'C:\orders\${seconds}'#
   let multiline = """
@@ -210,6 +211,7 @@ fn literalSummary(_ seconds: u64): (String, String, String, String) {
     doubleQuoted,
     raw + rawSingle,
     multiline + singleMultiline + rawMultiline,
+    directNegative,
   )
 }
 
@@ -219,6 +221,7 @@ test "ordinary strings interpolate and raw strings do not" for literalSummary {
   expect result.2.contains(#'${seconds}'#)
   expect result.3.contains("north 30")
   expect result.3.contains(#'${seconds}'#)
+  expect result.4 == "Balance -7"
 }
 ```
 

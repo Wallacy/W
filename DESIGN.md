@@ -37424,9 +37424,39 @@ artifact schemas.
 The Restaurant fixture `compiler/seed-c/fixtures/restaurant-unary-negate.w`
 executes exact stdout `Balance -7\n` through Linux WRT0 and native Windows.
 The Linux gate also proves the `i64.min` runtime fault with empty stdout. This
-cut does not yet admit a unary expression directly as an interpolation root,
-nor unsigned negation, other widths, named numeric APIs, `PanicEvent`, payload
-or cleanup, other targets, timing, ranking, or performance evidence.
+cut does not admit unsigned negation, other widths, named numeric APIs,
+`PanicEvent`, payload or cleanup, other targets, timing, ranking, or
+performance evidence. W-1553 separately closes the direct interpolation-root
+composition gap.
+
+#### 26.4.1.34 W-1553 — direct unary interpolation composition (Current form)
+
+An interpolation expression is typed in its own expression context; it does
+not inherit the enclosing `String` argument expectation. When that expression
+starts with prefix `-` and its unsuffixed magnitude is representable as the
+canonical signed `i64`, the seed applies that default before publishing any
+frontend expression record. The literal operand, unary result and interpolation
+segment therefore carry one consistent type through verified HIR0.
+
+```w
+entry {
+  print("Balance ${-7}")
+}
+```
+
+The frontend must not repair only the unary root after publishing an untyped
+literal child, synthesize a hidden binding, or fold the source spelling into
+the surrounding text. HIR0 retains the explicit `CONST_I64` operand,
+`UNARY_I64` operation and value segment. Safe constant lowering stays a direct
+`llvm.sub` and does not pull the checked runtime helper into the product.
+
+The Restaurant fixture
+`compiler/seed-c/fixtures/restaurant-unary-interpolation.w` executes exact
+stdout `Balance -7\n` through MLIR, Linux WRT0 and native Windows. This bounded
+composition proof does not broaden interpolation display protocols, numeric
+defaulting outside this seed cut, the direct minimum-value literal spelling,
+unsigned negation, other widths or targets, timing, ranking, or performance
+evidence. Frontend, HIR0, MLIR0 and Native0 public record schemas are unchanged.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
