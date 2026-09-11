@@ -593,6 +593,62 @@ static bool test_scalar_if_value_native(void) {
   return true;
 }
 
+static bool test_nested_scalar_if_value_native(void) {
+  static const uint8_t source[] =
+      "fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, "
+      "closed: i64): i64 { return if outer { if inner { open } else { "
+      "middle } } else { closed } }\n"
+      "fn main() { let first = choose(outer: true, inner: true, open: 1, "
+      "middle: 2, closed: 3) let second = choose(outer: true, inner: false, "
+      "open: 1, middle: 2, closed: 3) let third = choose(outer: false, "
+      "inner: false, open: 1, middle: 2, closed: 3) "
+      "print(\"${first},${second},${third}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "restaurant-nested-scalar-if",
+                   28u, output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.cond_br") >= 2u &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "llvm.call @w_fn_0") == 3u &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "1,2,3"));
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_argument_count == 2u &&
+        program->functions[0].block_count == 7u &&
+        program->functions[1].block_count == 1u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[1].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->blocks[4].block_argument_count == 1u &&
+        program->blocks[6].block_argument_count == 1u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_I64);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_cfg && selection.has_local_calls &&
+        selection.has_interpolation && selection.has_bool &&
+        selection.maximum_stdout_bytes == 63u);
+
+  const w_seed_hir0_terminator saved_outer = storage.hir_terminators[0];
+  storage.hir_terminators[0].target_block = 2u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_terminators[0] = saved_outer;
+  CHECK(w_seed_native_subset0_select_program(program, &storage.hir_result,
+                                             &selection) ==
+            W_SEED_NATIVE_SUBSET0_OK);
+  return true;
+}
+
 static bool test_scalar_if_remains_unsupported(void) {
   static const uint8_t source[] =
       "fn invalid(left: Bool): Bool { if left { return true } else { "
@@ -1039,6 +1095,7 @@ int main(void) {
                         test_process_input0_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
                        test_scalar_if_value_native() &&
+                       test_nested_scalar_if_value_native() &&
                        test_scalar_if_remains_unsupported() &&
                        test_direct_scalar_call_return_remains_unsupported();
   const bool nested = logical && test_nested_depth_and_linear_analysis();

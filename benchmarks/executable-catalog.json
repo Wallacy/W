@@ -384,6 +384,48 @@
       ]
     },
     {
+      "id": "restaurant-nested-scalar-if",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "deferred-to-M3b",
+      "lane": "equivalent",
+      "scope": "Run the source-backed Restaurant nested scalar-if witness and preserve its exact observable output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "1,2,3\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
+          "digest": "sha256:0bb55a8e72c91f73b591ea32bb032b7838fbdc89ebe7fb6eaf4d07563667e47f",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-run",
+          "recipeClass": "nested-scalar-if-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "deferred-until-M3b",
+          "eligibility": "deferred-to-M3b"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "w-executable-runner-and-timing-deferred-to-M3b"
+      ]
+    },
+    {
       "id": "restaurant-composition",
       "structureClass": "public-end-to-end",
       "status": "planned",

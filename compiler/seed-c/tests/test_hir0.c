@@ -2681,6 +2681,140 @@ static bool test_scalar_if_value_diamond(void) {
   return true;
 }
 
+static bool test_nested_scalar_if_value_diamond(void) {
+  static const char SOURCE[] =
+      "fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, "
+      "closed: i64): i64 { return if outer { if inner { open } else { "
+      "middle } } else { closed } }\n"
+      "fn main() { let first = choose(outer: true, inner: true, open: 1, "
+      "middle: 2, closed: 3) let second = choose(outer: true, inner: false, "
+      "open: 1, middle: 2, closed: 3) let third = choose(outer: false, "
+      "inner: false, open: 1, middle: 2, closed: 3) print(message: \"${first},${second},${third}\", "
+      "suffix: \"\") }\n"
+      "entry(main)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->block_count == 8u &&
+        program->block_argument_count == 2u &&
+        program->functions[0].first_block == 0u &&
+        program->functions[0].block_count == 7u &&
+        program->functions[1].first_block == 7u &&
+        program->functions[1].block_count == 1u);
+
+  const w_seed_hir0_terminator *outer_branch = &program->terminators[0];
+  const w_seed_hir0_terminator *inner_branch = &program->terminators[1];
+  CHECK(outer_branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        outer_branch->result_type == W_SEED_HIR0_TYPE_I64 &&
+        outer_branch->target_block == 1u && outer_branch->else_block == 5u &&
+        inner_branch->kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        inner_branch->result_type == W_SEED_HIR0_TYPE_I64 &&
+        inner_branch->target_block == 2u && inner_branch->else_block == 3u);
+  CHECK(program->blocks[4].block_argument_count == 1u &&
+        program->blocks[4].first_block_argument == 0u &&
+        program->block_arguments[0].owner_block == 4u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->blocks[6].block_argument_count == 1u &&
+        program->blocks[6].first_block_argument == 1u &&
+        program->block_arguments[1].owner_block == 6u &&
+        program->block_arguments[1].ordinal == 0u &&
+        program->block_arguments[1].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[4].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[5].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 4u &&
+        program->terminators[3].target_block == 4u &&
+        program->terminators[4].target_block == 6u &&
+        program->terminators[5].target_block == 6u &&
+        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[3].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[4].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[5].incoming_value != W_SEED_HIR0_NONE);
+  CHECK(program->values[program->terminators[2].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[program->terminators[3].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[program->terminators[4].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->terminators[4].incoming_value]
+                .block_argument_index == 0u &&
+        program->values[program->terminators[5].incoming_value].kind ==
+            W_SEED_HIR0_VALUE_PARAMETER_READ);
+  CHECK(program->terminators[6].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->values[program->terminators[6].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->terminators[6].value_index]
+                .block_argument_index == 1u &&
+        program->terminators[7].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_block saved_inner_join = fixture.hir_blocks[4];
+  fixture.hir_blocks[4].owner_function = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[4] = saved_inner_join;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_outer_branch = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].target_block = 2u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_outer_branch;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_value saved_outer_incoming =
+      fixture.hir_values[program->terminators[4].incoming_value];
+  const uint32_t outer_incoming_index = program->terminators[4].incoming_value;
+  fixture.hir_values[outer_incoming_index].block_argument_index = 1u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[outer_incoming_index] = saved_outer_incoming;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const uint32_t inner_incoming_index = program->terminators[2].incoming_value;
+  const w_seed_hir0_value saved_inner_incoming =
+      fixture.hir_values[inner_incoming_index];
+  fixture.hir_values[inner_incoming_index].parameter_index = 5u;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[inner_incoming_index] = saved_inner_incoming;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  size_t outer_expression = SIZE_MAX;
+  size_t outer_span = 0u;
+  for (size_t index = 0u; index < fixture.result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *candidate = &fixture.expressions[index];
+    if (candidate->kind != W_SEED_FRONTEND_EXPR_IF ||
+        candidate->span.end_byte < candidate->span.start_byte)
+      continue;
+    const size_t span = candidate->span.end_byte - candidate->span.start_byte;
+    if (span > outer_span) {
+      outer_expression = index;
+      outer_span = span;
+    }
+  }
+  CHECK(outer_expression != SIZE_MAX);
+  const w_seed_frontend_expression saved_outer_expression =
+      fixture.expressions[outer_expression];
+  CHECK(saved_outer_expression.left != W_SEED_FRONTEND_NONE &&
+        fixture.expressions[saved_outer_expression.left].inferred_type !=
+            saved_outer_expression.inferred_type);
+  fixture.expressions[outer_expression].inferred_type =
+      fixture.expressions[saved_outer_expression.left].inferred_type;
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_snapshot = rejected;
+  const w_seed_hir0_input input = hir_input();
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&rejected, &rejected_snapshot, sizeof(rejected)) == 0);
+  fixture.expressions[outer_expression] = saved_outer_expression;
+  return true;
+}
+
 static bool test_if_diamond_cfg(void) {
   static const char SOURCE[] =
       "fn serve(isOpen: Bool) { "
@@ -2883,6 +3017,22 @@ static bool make_nested_if_source(char *buffer, size_t capacity, size_t depth) {
   return append_source(buffer, capacity, &offset, "}\nentry(main)\n");
 }
 
+static bool make_nested_scalar_if_source(char *buffer, size_t capacity,
+                                         size_t depth) {
+  size_t offset = 0u;
+  if (!append_source(buffer, capacity, &offset,
+                     "fn choose(flag: Bool, value: i64): i64 { return "))
+    return false;
+  for (size_t level = 0u; level < depth; level += 1u)
+    if (!append_source(buffer, capacity, &offset, "if flag { ")) return false;
+  if (!append_source(buffer, capacity, &offset, "value")) return false;
+  for (size_t level = 0u; level < depth; level += 1u)
+    if (!append_source(buffer, capacity, &offset, " } else { value }"))
+      return false;
+  return append_source(buffer, capacity, &offset,
+                       " }\nentry(choose)\n");
+}
+
 static bool test_nested_if_depth_boundary(void) {
   char source[TEST_SOURCE];
   CHECK(make_nested_if_source(source, sizeof(source) - 1u,
@@ -2901,6 +3051,32 @@ static bool test_nested_if_depth_boundary(void) {
   setup_hir_output();
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
+  return true;
+}
+
+static bool test_nested_scalar_if_depth_boundary(void) {
+  char source[TEST_SOURCE];
+  CHECK(make_nested_scalar_if_source(source, sizeof(source) - 1u,
+                                     W_SEED_HIR0_MAX_NESTING));
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
+  CHECK(counts.blocks == 1u + W_SEED_HIR0_MAX_NESTING * 3u);
+
+  CHECK(make_nested_scalar_if_source(source, sizeof(source) - 1u,
+                                     W_SEED_HIR0_MAX_NESTING + 1u));
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  (void)memset(&result, 0x42, sizeof(result));
+  const w_seed_hir0_result snapshot = result;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(0xa5u));
+  CHECK(memcmp(&result, &snapshot, sizeof(result)) == 0);
   return true;
 }
 
@@ -3405,11 +3581,13 @@ int main(void) {
   if (!test_local_unit_call_and_parameter_reads()) return 1;
   if (!test_scalar_return_and_call_result()) return 1;
   if (!test_scalar_if_value_diamond()) return 1;
+  if (!test_nested_scalar_if_value_diamond()) return 1;
   if (!test_if_diamond_cfg()) return 1;
   if (!test_if_without_else_cfg()) return 1;
   if (!test_sequential_if_diamonds()) return 1;
   if (!test_nested_if_diamonds()) return 1;
   if (!test_nested_if_depth_boundary()) return 1;
+  if (!test_nested_scalar_if_depth_boundary()) return 1;
   if (!test_logical_and_diamond_positive()) return 1;
   if (!test_logical_unary_not_positive()) return 1;
   if (!test_logical_or_diamond_positive()) return 1;

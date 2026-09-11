@@ -1728,9 +1728,16 @@ one typed join argument per diamond; MLIR14/Windows5 emits real
 fixture passed both conditions with exact `Open 5; closed 2\n` on the public
 Windows route. W-390 keeps runtime `+/-` checked and outside this witness;
 missing else/non-Bool/mismatch use `W-PARSE-0021`/`W-SEM-0001`/`W-TYPE-0120`,
-and unsupported nested/effectful/aggregate forms remain rejected. This is
+and unsupported effectful/aggregate forms remain rejected. This is
 compiler-lifecycle correctness evidence only; no general CFG, target or
 performance claim follows.
+
+<!-- w-example role=logical-contract -->
+```w
+fn choose(outer: Bool, inner: Bool, open: i64, middle: i64, closed: i64): i64 {
+  return if outer { if inner { open } else { middle } } else { closed }
+}
+```
 
 W-1540 adds ARITH0 for checked signed-`i64` runtime `+`, `-`, and `*` through
 the verified HIR route, currently HIR15, and MLIR15/Windows6. LLVM
