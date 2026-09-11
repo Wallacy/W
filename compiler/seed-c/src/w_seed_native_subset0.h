@@ -93,6 +93,7 @@ typedef struct {
   bool has_local_calls;
   bool has_cfg;
   bool has_mutable_bindings;
+  bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_program;
 
 /* The process handler selection is deliberately separate from the executable

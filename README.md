@@ -113,6 +113,14 @@ The Restaurant witness
 [`restaurant-nested-scalar-if.w`](compiler/seed-c/fixtures/restaurant-nested-scalar-if.w)
 emits exact `1,2,3\n`; it is source-backed correctness evidence only, with
 C/Rust equivalents, runner wiring, and performance deferred.
+W-1559 gives ordinary `while` an explicit parser/frontend owner, W-1560 lowers
+one root-block signed-`i64` carrier to a verified four-block natural loop, and
+W-1561 preserves that loop as `scf.while` until explicit SCF-to-CF and
+CF-to-LLVM conversion. The public Linux/WSL `w run` path executes
+[`restaurant-while.w`](compiler/seed-c/fixtures/restaurant-while.w) with exact
+`Served 3\n`, no source-variable stack cell, generated C, or host-C fallback.
+This is a one-carrier correctness witness on LLVM/MLIR 20.1.2, not general loop,
+Windows/macOS, LLVM 23.1.1, PGO, size, or performance evidence.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

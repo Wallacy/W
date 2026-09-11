@@ -2938,6 +2938,48 @@ static bool test_multi_branch_mutation_merge_is_ssa(void) {
   return true;
 }
 
+static bool test_natural_loop_preserves_structured_mlir(void) {
+  static const uint8_t source[] =
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  return count\n"
+      "}\n"
+      "entry {\n"
+      "  let count = countTo(limit: 3)\n"
+      "  print(\"Count ${count}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.function_count == 2u &&
+        fixture.hir_program.functions[0].block_count == 4u &&
+        fixture.hir_program.block_argument_count == 1u &&
+        fixture.hir_program.edge_argument_count == 2u);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       " = scf.while (") &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "scf.condition(") &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "scf.yield ") &&
+        contains_bytes(artifact + function_start, function_bytes,
+                       "llvm.return %loop0 : i64") &&
+        !contains_bytes(artifact + function_start, function_bytes,
+                        "llvm.br ^w_fn_0_b_1") &&
+        count_bytes(artifact + function_start, function_bytes,
+                    "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
@@ -2946,6 +2988,7 @@ int main(void) {
   if (!test_bool_mutation_is_ssa()) return 1;
   if (!test_branch_local_mutation_merge_is_ssa()) return 1;
   if (!test_multi_branch_mutation_merge_is_ssa()) return 1;
+  if (!test_natural_loop_preserves_structured_mlir()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;

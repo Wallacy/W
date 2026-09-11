@@ -2080,9 +2080,119 @@ static bool append_program_block_definition(
   return append_literal(artifact, capacity, offset, ":");
 }
 
+/* Preserve W-1560 as structured control until the MLIR pass pipeline chooses
+ * when to lower SCF to CFG. The HIR verifier and native selector have already
+ * proved the exact four-block, one-carried-i64 shape; this adapter maps its
+ * preheader/header/body/exit directly to scf.while without a stack cell. */
+static bool append_program_natural_loop(
+    const w_seed_hir0_program *program, size_t function_index,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 4u || program->block_count < 4u ||
+      function->first_block > program->block_count - 4u)
+    return false;
+  const size_t preheader_index = function->first_block;
+  const size_t header_index = preheader_index + 1u;
+  const size_t body_index = header_index + 1u;
+  const size_t exit_index = body_index + 1u;
+  const w_seed_hir0_block *preheader = &program->blocks[preheader_index];
+  const w_seed_hir0_block *header = &program->blocks[header_index];
+  const w_seed_hir0_block *body = &program->blocks[body_index];
+  const w_seed_hir0_block *exit = &program->blocks[exit_index];
+  if (preheader->instruction_count != 1u || body->instruction_count != 1u ||
+      preheader->terminator_index >= program->terminator_count ||
+      header->terminator_index >= program->terminator_count ||
+      body->terminator_index >= program->terminator_count ||
+      exit->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_instruction *initial_instruction =
+      &program->instructions[preheader->first_instruction];
+  const w_seed_hir0_instruction *update_instruction =
+      &program->instructions[body->first_instruction];
+  const w_seed_hir0_terminator *preheader_term =
+      &program->terminators[preheader->terminator_index];
+  const w_seed_hir0_terminator *header_term =
+      &program->terminators[header->terminator_index];
+  const w_seed_hir0_terminator *body_term =
+      &program->terminators[body->terminator_index];
+  const w_seed_hir0_terminator *exit_term =
+      &program->terminators[exit->terminator_index];
+  if (initial_instruction->binding_index >= program->binding_count ||
+      update_instruction->binding_index >= program->binding_count ||
+      preheader_term->first_edge_argument >= program->edge_argument_count ||
+      body_term->first_edge_argument >= program->edge_argument_count ||
+      header->first_block_argument >= program->block_argument_count ||
+      header_term->value_index >= program->value_count ||
+      exit_term->value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_binding *initial =
+      &program->bindings[initial_instruction->binding_index];
+  const w_seed_hir0_binding *update =
+      &program->bindings[update_instruction->binding_index];
+  const w_seed_hir0_edge_argument *initial_edge =
+      &program->edge_arguments[preheader_term->first_edge_argument];
+  const w_seed_hir0_edge_argument *back_edge =
+      &program->edge_arguments[body_term->first_edge_argument];
+  bool preheader_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  if (!append_program_value_tree(
+          program, initial->initializer_value, (uint32_t)function_index,
+          preheader_emitted, artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, "    %loop") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, " = scf.while (%arg") ||
+      !append_size(artifact, capacity, offset,
+                   header->first_block_argument) ||
+      !append_literal(artifact, capacity, offset, " = ") ||
+      !append_program_value_operand(program, initial_edge->value_index,
+                                    (uint32_t)function_index, artifact,
+                                    capacity, offset) ||
+      !append_literal(artifact, capacity, offset,
+                      ") : (i64) -> i64 {\n"))
+    return false;
+
+  bool condition_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(condition_emitted, preheader_emitted,
+               sizeof(condition_emitted));
+  if (!append_program_value_tree(
+          program, header_term->value_index, (uint32_t)function_index,
+          condition_emitted, artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, "      scf.condition(") ||
+      !append_program_value_operand(program, header_term->value_index,
+                                    (uint32_t)function_index, artifact,
+                                    capacity, offset) ||
+      !append_literal(artifact, capacity, offset, ") %arg") ||
+      !append_size(artifact, capacity, offset,
+                   header->first_block_argument) ||
+      !append_literal(artifact, capacity, offset,
+                      " : i64\n    } do {\n    ^bb0(%arg") ||
+      !append_size(artifact, capacity, offset,
+                   header->first_block_argument) ||
+      !append_literal(artifact, capacity, offset, ": i64):\n"))
+    return false;
+
+  bool update_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(update_emitted, preheader_emitted, sizeof(update_emitted));
+  if (!append_program_value_tree(
+          program, update->initializer_value, (uint32_t)function_index,
+          update_emitted, artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, "      scf.yield ") ||
+      !append_program_value_operand(program, back_edge->value_index,
+                                    (uint32_t)function_index, artifact,
+                                    capacity, offset) ||
+      !append_literal(artifact, capacity, offset, " : i64\n    }\n") ||
+      !append_literal(artifact, capacity, offset, "    llvm.return %loop") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, " : i64\n  }\n"))
+    return false;
+  return true;
+}
+
 static bool append_program_function(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
-    size_t function_index, uint8_t *artifact, size_t capacity,
+    size_t function_index, bool natural_loop, uint8_t *artifact, size_t capacity,
     size_t *offset) {
   if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
       function_index >= program->function_count)
@@ -2122,6 +2232,9 @@ static bool append_program_function(
                       " {\n    %text_base = llvm.mlir.addressof "
                       "@w_seed_mlir0_text : !llvm.ptr\n"))
     return false;
+  if (natural_loop)
+    return append_program_natural_loop(program, function_index, artifact,
+                                       capacity, offset);
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
   for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
     const size_t block_index = (size_t)function->first_block + ordinal;
@@ -2341,8 +2454,10 @@ static bool build_program_artifact(
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
     if (!plan.omitted_functions[function] &&
-        !append_program_function(program, &plan, function, artifact, capacity,
-                                 &offset))
+        !append_program_function(
+            program, &plan, function,
+            selection->natural_loop_functions[function], artifact, capacity,
+            &offset))
       return false;
   if (!append_literal(
           artifact, capacity, &offset,

@@ -37769,6 +37769,8 @@ Its benchmark disposition is `compiler-lifecycle`, correctness-only, with no
 timing or benchmark result. The HIR record layout is unchanged; W-1560 uses the
 existing block, block-argument, edge-argument, binding-version, value, and
 terminator records rather than introducing a parallel loop representation.
+W-1561 separately closes structured MLIR and Linux/WSL public execution for
+this exact shape; it does not broaden W-1560 itself.
 
 ```w
 fn countTo(limit: i64): i64 {
@@ -37778,7 +37780,52 @@ fn countTo(limit: i64): i64 {
   }
   return count
 }
-entry(countTo)
+entry {
+  let count = countTo(limit: 3)
+  print("Count ${count}")
+}
+```
+
+#### 26.4.1.42 W-1561 — structured MLIR and native execution for the bounded natural loop (Current form)
+
+NativeSubset0 may select the exact W-1560 verified-HIR natural loop. MLIR0
+must emit it as one `scf.while` with one signed-`i64` carried value,
+`scf.condition` in the condition region, and `scf.yield` in the update region.
+It must not create a source-variable stack cell, translate source text, call a
+host-C loop, or substitute expected output. The loop result is the function's
+direct return value.
+
+The pinned native recipe preserves this structured form until `mlir-opt`, then
+applies `convert-scf-to-cf` and `convert-cf-to-llvm` with verification enabled.
+Only after those explicit conversions may `mlir-translate` consume the module.
+The public Linux/WSL route executes the Restaurant witness and produces exact
+`Served 3\n`. A non-carried condition remains unsupported and must fail before
+publishing an artifact or program output.
+
+This evidence is limited to one loop per function, one root-block mutable
+signed-`i64` carrier, the W-1560 four-block CFG, Linux x86_64 under WSL, and
+LLVM/MLIR 20.1.2. MLIR0 keeps schema `w-seed-mlir0-15` because its artifact
+record and byte envelope are unchanged; the toolchain capability scope is
+`unit-structured-cfg-natural-loop`. Multiple carriers, labels, `break`,
+`continue`, `while let`, nested or mixed control, calls/effects, other root
+types, native Windows/macOS, LLVM/MLIR 23.1.1 promotion, PGO, proof-guided
+optimization, timing, ranking, and performance remain gaps. The benchmark
+disposition is `compiler-lifecycle`, correctness-only, with no timing or
+benchmark result.
+
+```w
+fn countTo(limit: i64): i64 {
+  var count = 0
+  while count < limit {
+    count = count + 1
+  }
+  return count
+}
+
+entry {
+  let served = countTo(limit: 3)
+  print("Served ${served}")
+}
 ```
 
 #### 26.4.2 Execução RUN0 interna e bounded
