@@ -10442,14 +10442,37 @@ static frontend_simple_type binding_type_for_name(
        * when the declaration omits an annotation. This is type inference,
        * not name resolution: the binding relation is published separately
        * from the source-order pass below. */
-      const uint32_t expression_node =
-          first_direct_kind(doc, (uint32_t)index, W_SEED_CST_EXPRESSION);
-      if (expression_node != W_SEED_CST_NONE) {
-        const frontend_simple_type inferred_expression =
-            infer_expression_span(context,
-                                  doc->nodes[expression_node].raw_span);
+      w_seed_span initializer_span = empty_span(candidate->raw_span.end_byte);
+      frontend_token_cursor initializer_cursor =
+          token_cursor_for(doc, candidate->raw_span);
+      frontend_token initializer_token;
+      bool saw_initializer = false;
+      bool saw_equals = false;
+      while (cursor_take(&initializer_cursor, &initializer_token)) {
+        if (!saw_equals) {
+          saw_equals = token_text(doc, &initializer_token, "=");
+          continue;
+        }
+        if (token_text(doc, &initializer_token, ";")) break;
+        if (!saw_initializer) {
+          initializer_span.start_byte = initializer_token.span.start_byte;
+          saw_initializer = true;
+        }
+        initializer_span.end_byte = initializer_token.span.end_byte;
+      }
+      if (saw_initializer) {
+        frontend_simple_type inferred_expression =
+            infer_expression_span(context, initializer_span);
+        if (inferred_expression.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+            inferred_expression.is_signed &&
+            inferred_expression.bit_width == 0u)
+          inferred_expression = const_default_integer_type();
         if (inferred_expression.kind != W_SEED_FRONTEND_TYPE_UNKNOWN)
           return inferred_expression;
+      }
+      const uint32_t expression_node = first_direct_kind(
+          doc, (uint32_t)index, W_SEED_CST_EXPRESSION);
+      if (expression_node != W_SEED_CST_NONE) {
         frontend_token_cursor cursor =
             token_cursor_for(doc, doc->nodes[expression_node].raw_span);
         frontend_token first;

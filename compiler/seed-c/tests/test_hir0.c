@@ -1294,6 +1294,123 @@ static bool test_straight_line_mutation_ssa(void) {
   return true;
 }
 
+static bool test_interleaved_mutation_versions(void) {
+  static const char SOURCE[] =
+      "entry {\n"
+      "  var seats = 5\n"
+      "  var tables = 2\n"
+      "  seats = seats + 1\n"
+      "  tables = tables + 3\n"
+      "  seats = seats + tables\n"
+      "  print(message: \"Capacity ${seats}\", suffix: \"!\")\n"
+      "}\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.binding_count == 5u &&
+        fixture.hir_program.instruction_count == 6u &&
+        fixture.hir_program.call_count == 1u);
+
+  const w_seed_hir0_binding *seats0 = &fixture.hir_bindings[0];
+  const w_seed_hir0_binding *tables0 = &fixture.hir_bindings[1];
+  const w_seed_hir0_binding *seats1 = &fixture.hir_bindings[2];
+  const w_seed_hir0_binding *tables1 = &fixture.hir_bindings[3];
+  const w_seed_hir0_binding *seats2 = &fixture.hir_bindings[4];
+  CHECK(seats0->source_binding == 0u &&
+        seats0->previous_version == W_SEED_HIR0_NONE &&
+        seats0->next_version == 2u && tables0->source_binding == 1u &&
+        tables0->previous_version == W_SEED_HIR0_NONE &&
+        tables0->next_version == 3u && seats1->source_binding == 0u &&
+        seats1->previous_version == 0u && seats1->next_version == 4u &&
+        tables1->source_binding == 1u && tables1->previous_version == 1u &&
+        tables1->next_version == W_SEED_HIR0_NONE &&
+        seats2->source_binding == 0u && seats2->previous_version == 2u &&
+        seats2->next_version == W_SEED_HIR0_NONE);
+
+  const w_seed_hir0_value *seats_update1 =
+      &fixture.hir_values[seats1->initializer_value];
+  const w_seed_hir0_value *tables_update1 =
+      &fixture.hir_values[tables1->initializer_value];
+  const w_seed_hir0_value *seats_update2 =
+      &fixture.hir_values[seats2->initializer_value];
+  CHECK(seats_update1->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[seats_update1->left_value].binding_index == 0u &&
+        tables_update1->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[tables_update1->left_value].binding_index == 1u &&
+        seats_update2->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[seats_update2->left_value].binding_index == 2u &&
+        fixture.hir_values[seats_update2->right_value].binding_index == 3u);
+
+  bool saw_final_seats = false;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+    if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_values[index].binding_index == 4u)
+      saw_final_seats = true;
+  CHECK(saw_final_seats &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_conditional_mutation_merge(void) {
+  static const char SOURCE[] =
+      "fn nextSeats(isOpen: Bool): i64 {\n"
+      "  var seats = 5\n"
+      "  let selected = if isOpen { seats + 1 } else { seats - 1 }\n"
+      "  seats = selected\n"
+      "  return seats\n"
+      "}\n"
+      "entry(nextSeats)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->binding_count == 3u &&
+        program->block_count == 4u && program->block_argument_count == 1u);
+  const w_seed_hir0_binding *declaration = &program->bindings[0];
+  const w_seed_hir0_binding *selected = &program->bindings[1];
+  const w_seed_hir0_binding *merge = &program->bindings[2];
+  CHECK(declaration->source_binding == 0u && declaration->next_version == 2u &&
+        selected->source_binding == 1u &&
+        selected->previous_version == W_SEED_HIR0_NONE &&
+        selected->next_version == W_SEED_HIR0_NONE &&
+        merge->source_binding == 0u && merge->previous_version == 0u &&
+        merge->next_version == W_SEED_HIR0_NONE &&
+        merge->owner_block == 3u &&
+        merge->initializer_value < program->value_count);
+  const w_seed_hir0_value *selected_value =
+      &program->values[selected->initializer_value];
+  const w_seed_hir0_value *merged = &program->values[merge->initializer_value];
+  CHECK(selected_value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        selected_value->block_argument_index == 0u &&
+        merged->kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        merged->binding_index == 1u &&
+        program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == 3u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[1].incoming_value < program->value_count &&
+        program->terminators[2].incoming_value < program->value_count);
+  const w_seed_hir0_value *then_value =
+      &program->values[program->terminators[1].incoming_value];
+  const w_seed_hir0_value *else_value =
+      &program->values[program->terminators[2].incoming_value];
+  CHECK(then_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        else_value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->values[then_value->left_value].binding_index == 0u &&
+        program->values[else_value->left_value].binding_index == 0u);
+  bool saw_merged_read = false;
+  for (size_t index = 0u; index < program->value_count; index += 1u)
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[index].binding_index == 2u)
+      saw_merged_read = true;
+  CHECK(saw_merged_read && w_seed_hir0_verify(program, &fixture.hir_result));
+  const uint32_t then_read_index = then_value->left_value;
+  const w_seed_hir0_value saved_then_read =
+      fixture.hir_values[then_read_index];
+  fixture.hir_values[then_read_index].binding_index = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[then_read_index] = saved_then_read;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_bindings_across_functions(void) {
   static const char SOURCE[] =
       "fn first() { let first = true }\n"
@@ -3696,6 +3813,8 @@ int main(void) {
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;
+  if (!test_interleaved_mutation_versions()) return 1;
+  if (!test_conditional_mutation_merge()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

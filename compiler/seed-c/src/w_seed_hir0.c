@@ -1877,10 +1877,10 @@ static bool frontend_assignment_expression_ok(
       !text_is(root->operator_text, "=") ||
       root->left == W_SEED_FRONTEND_NONE ||
       root->right == W_SEED_FRONTEND_NONE ||
-      root->inferred_type == W_SEED_FRONTEND_NONE ||
-      (size_t)root->inferred_type >= walk->result->written.types ||
-      walk->output->types[root->inferred_type].kind !=
-          W_SEED_FRONTEND_TYPE_UNIT ||
+      (root->inferred_type != W_SEED_FRONTEND_NONE &&
+       ((size_t)root->inferred_type >= walk->result->written.types ||
+        walk->output->types[root->inferred_type].kind !=
+            W_SEED_FRONTEND_TYPE_UNIT)) ||
       !frontend_value_has_no_resolution(root) ||
       root->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
       root->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -7075,8 +7075,16 @@ static bool verify_value_tree(
       return false;
     const w_seed_hir0_binding *binding =
         &program->bindings[value->binding_index];
-    if (binding->owner_block != current_block ||
-        binding->owner_instruction >= current_instruction ||
+    const w_seed_hir0_block *use_block = &program->blocks[current_block];
+    const w_seed_hir0_function *function =
+        &program->functions[use_block->owner_function];
+    const bool available_in_block =
+        binding->owner_block == current_block
+            ? binding->owner_instruction < current_instruction
+            : binding->owner_block == function->first_block;
+    if (!available_in_block ||
+        program->blocks[binding->owner_block].owner_function !=
+            use_block->owner_function ||
         binding->type_index != value->type_index)
       return false;
   } else if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
@@ -8464,16 +8472,24 @@ static bool verify_records(const w_seed_hir0_program *program) {
           return false;
         const w_seed_hir0_binding *previous =
             &program->bindings[binding->previous_version];
+        const w_seed_hir0_function *owner_function =
+            &program->functions[block->owner_function];
+        const bool source_available =
+            source->owner_block == binding->owner_block
+                ? source->owner_instruction < binding->owner_instruction
+                : source->owner_block == owner_function->first_block;
+        const bool previous_available =
+            previous->owner_block == binding->owner_block
+                ? previous->owner_instruction < binding->owner_instruction
+                : previous->owner_block == owner_function->first_block;
         if (!binding->is_mutable || !source->is_mutable ||
             source->source_binding != binding->source_binding ||
-            source->owner_block != binding->owner_block ||
-            source->owner_instruction >= binding->owner_instruction ||
+            !source_available ||
             source->type_index != binding->type_index ||
             !hir_text_equal(program, source->name, binding->name) ||
             !previous->is_mutable ||
             previous->source_binding != binding->source_binding ||
-            previous->owner_block != binding->owner_block ||
-            previous->owner_instruction >= binding->owner_instruction ||
+            !previous_available ||
             previous->type_index != binding->type_index ||
             !hir_text_equal(program, previous->name, binding->name))
           return false;
@@ -8648,8 +8664,16 @@ static bool verify_records(const w_seed_hir0_program *program) {
       if (root->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
         const w_seed_hir0_binding *binding =
             &program->bindings[root->binding_index];
-        if (binding->owner_block != item->owner_block ||
-            binding->owner_instruction >= call->owner_instruction ||
+        const w_seed_hir0_function *owner_function =
+            &program->functions[program->blocks[item->owner_block]
+                                    .owner_function];
+        const bool available_in_block =
+            binding->owner_block == item->owner_block
+                ? binding->owner_instruction < call->owner_instruction
+                : binding->owner_block == owner_function->first_block;
+        if (!available_in_block ||
+            program->blocks[binding->owner_block].owner_function !=
+                program->blocks[item->owner_block].owner_function ||
             binding->type_index != root->type_index)
           return false;
       }

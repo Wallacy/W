@@ -1294,6 +1294,19 @@ Compound assignment, branch/loop merges, nested mutable scopes, aggregate or
 aliased mutation, other widths, and performance evidence remain outside this
 bounded cut.
 
+### Conditional mutation through an SSA join (W-1555)
+
+`fixtures/restaurant-conditional-mutation.w` composes the existing scalar-if
+diamond with local mutation. A root-block signed-`i64` `var` is readable in
+both pure arms; their results feed one typed join argument, and one following
+assignment creates the next HIR binding version.
+
+The public Linux/WSL and native Windows runners execute exact
+`Open 6; closed 4\n`. MLIR retains `llvm.cond_br`, typed incoming values, and the join argument, with no
+source-variable `alloca`, load, or store. Assignment inside an arm, general
+dominance, loops, nested or aggregate mutation, aliases, other widths/targets,
+and performance evidence remain outside this bounded cut.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

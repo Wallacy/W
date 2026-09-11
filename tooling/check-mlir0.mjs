@@ -23,6 +23,8 @@ const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
 const restaurantMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-mutation.w")
+const restaurantConditionalMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-conditional-mutation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -423,6 +425,9 @@ try {
       expected: Buffer.from("Balance -7\n", "utf8") },
     { name: "restaurant-mutation", source: restaurantMutationFixture,
       expected: Buffer.from("Open 6\n", "utf8") },
+    { name: "restaurant-conditional-mutation",
+      source: restaurantConditionalMutationFixture,
+      expected: Buffer.from("Open 6; closed 4\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -611,6 +616,26 @@ try {
     artifacts.get("bool-return").includes("llvm.return %v") &&
     artifacts.get("bool-return").includes("@w_seed_append_bool"),
   "Bool return was flattened or disconnected from interpolation")
+  const conditionalMutationArtifact = artifacts.get(
+    "restaurant-conditional-mutation").toString("utf8")
+  const conditionalMutationStart = conditionalMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const conditionalMutationEntry = conditionalMutationArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", conditionalMutationStart + 1)
+  assert(conditionalMutationStart >= 0 &&
+    conditionalMutationEntry > conditionalMutationStart,
+  "conditional mutation function boundaries are missing")
+  const conditionalMutationFunction = conditionalMutationArtifact.slice(
+    conditionalMutationStart, conditionalMutationEntry)
+  assert(conditionalMutationFunction.includes(
+    "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+    conditionalMutationFunction.includes("^w_fn_0_b_3(%arg0: i64):") &&
+    conditionalMutationFunction.includes("@w_seed_checked_add_i64") &&
+    conditionalMutationFunction.includes("@w_seed_checked_subtract_i64") &&
+    conditionalMutationFunction.includes("llvm.return %") &&
+    !conditionalMutationFunction.includes("llvm.alloca") &&
+    (conditionalMutationArtifact.match(/llvm\.call @w_fn_0/gu) || []).length === 2,
+  "conditional mutation did not retain one SSA value join and two runtime calls")
   const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(

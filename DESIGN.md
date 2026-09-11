@@ -37494,6 +37494,42 @@ aggregate mutation, aliasing, mutable borrows, ownership transfer, other
 numeric widths, general diagnostics, or performance evidence. Those remain
 separate compiler milestones; no hidden memory fallback is authorized.
 
+#### 26.4.1.36 W-1555 — conditional local mutation merged in SSA (Current form)
+
+The seed compiler composes a scalar `if` value with one later assignment to a
+root-block signed-`i64` `var`. Values defined before the diamond are readable
+from either arm. Both arms remain pure scalar expressions and feed exactly one
+typed block argument at the join; the following assignment creates one new
+binding version from that joined value.
+
+```w
+fn nextSeats(isOpen: Bool): i64 {
+  var seats = 5
+  let selected = if isOpen { seats + 1 } else { seats - 1 }
+  seats = selected
+  return seats
+}
+```
+
+HIR0 verification admits a cross-block binding read only when its declaration
+belongs to the same function's root block. A branch-local binding cannot escape
+an arm through this rule. The mutable root and its previous version may cross
+the scalar diamond only to create the joined, ordered version in the join
+block. The verifier still checks type, source identity, name, ownership, and
+predecessor links independently.
+
+MLIR lowers the source `if` to `llvm.cond_br`, two typed incoming edges, and
+one join argument. The update and return consume SSA operands; no source
+variable `alloca`, load, or store is introduced. The Restaurant witness
+`compiler/seed-c/fixtures/restaurant-conditional-mutation.w` executes exact
+`Open 6; closed 4\n` through the Linux/WSL and native Windows public runners.
+
+This is not branch-local imperative mutation: assignments inside either arm,
+multiple mutable roots crossing a diamond, nested mutation, loop-carried
+values, aggregates, aliases, mutable borrows, generalized dominance metadata,
+other widths or targets, diagnostics, timing, ranking, and performance remain
+outside the bounded cut. No hidden memory fallback is authorized.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

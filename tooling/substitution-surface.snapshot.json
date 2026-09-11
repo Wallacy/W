@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:64243c7bef3ad62b63078f2778cf18d13153666f0cc617bec9cd6b5974e3836c",
+  "corpusDigest": "sha256:94bd2d70f31b87aac78c4f54c64a0dfd014d58c3b1c7c7534d762c344fad2542",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5940,6 +5940,54 @@
             "nonWhitespaceCodePoints": 24,
             "lines": 1,
             "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-conditional-mutation-ssa-join",
+      "task": {
+        "utf8Bytes": 93,
+        "codePoints": 93,
+        "nonWhitespaceCodePoints": 81,
+        "lines": 1,
+        "surfaceLexemes": 16
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:7599643d704a54a8fe440ebe0574cd5ad17a58b56f609db2d9dfb16e14dc19b4",
+        "metrics": {
+          "utf8Bytes": 101,
+          "codePoints": 101,
+          "nonWhitespaceCodePoints": 77,
+          "lines": 4,
+          "surfaceLexemes": 25
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-merge",
+          "language": "text",
+          "sourceDigest": "sha256:0b9ce54eb3c9bf3b515ae29c2b5e6e2f2084885e9a72f14ac2b98aeb30c89b6c",
+          "metrics": {
+            "utf8Bytes": 76,
+            "codePoints": 76,
+            "nonWhitespaceCodePoints": 64,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "branch-local-assignment-without-phi",
+          "language": "w",
+          "sourceDigest": "sha256:25b4a582fd63d81f50abc23dbe3d80c54d820bea17b4c2454100916a11c572f8",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 17
           }
         }
       ]

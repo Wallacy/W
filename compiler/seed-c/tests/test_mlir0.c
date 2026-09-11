@@ -2735,10 +2735,49 @@ static bool test_straight_line_mutation_is_ssa(void) {
   return true;
 }
 
+static bool test_conditional_mutation_merge_is_ssa(void) {
+  static const uint8_t source[] =
+      "fn nextSeats(isOpen: Bool): i64 {\n"
+      "  var seats = 5\n"
+      "  let selected = if isOpen { seats + 1 } else { seats - 1 }\n"
+      "  seats = selected\n"
+      "  return seats\n"
+      "}\n"
+      "entry {\n"
+      "  let open = nextSeats(isOpen: true)\n"
+      "  let closed = nextSeats(isOpen: false)\n"
+      "  print(\"Open ${open}; closed ${closed}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.binding_count == 5u &&
+        fixture.hir_program.block_count == 5u &&
+        fixture.hir_program.block_argument_count == 1u);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t main_start =
+      find_bytes(artifact, result.written.mlir_bytes, "llvm.func @main()",
+                 function_start);
+  CHECK(function_start != SIZE_MAX && main_start != SIZE_MAX &&
+        contains_bytes(artifact + function_start, main_start - function_start,
+                       "llvm.cond_br %p0, ^w_fn_0_b_1, ^w_fn_0_b_2") &&
+        contains_bytes(artifact + function_start, main_start - function_start,
+                       "^w_fn_0_b_3(%arg0: i64):") &&
+        contains_bytes(artifact + function_start, main_start - function_start,
+                       "llvm.return %") &&
+        count_bytes(artifact + function_start, main_start - function_start,
+                    "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;
+  if (!test_conditional_mutation_merge_is_ssa()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
