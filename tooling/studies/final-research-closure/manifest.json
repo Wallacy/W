@@ -43,7 +43,7 @@
       "id": "FRC0-snapshot",
       "role": "snapshot",
       "path": "tooling/final-research-closure-results.snapshot.jsonl",
-      "digest": "sha256:f4e56d90ab4ff7bcf484211171e05824f2d5e2deeedb5fb726f94a35c0302be4"
+      "digest": "sha256:cf7bfb981836a0430c170f7ab0e23365bbd459637fced8c3872fe5b0661aa92f"
     },
     {
       "id": "FRC0-oracle",
@@ -55,7 +55,7 @@
       "id": "FRC0-bundle",
       "role": "bundle",
       "path": "tooling/studies/final-research-closure/bundle.json",
-      "digest": "sha256:aca1511f9922e1b3ec9ac7b687b6ad4a8efeeb01647d4413dcc084ab0a69261e"
+      "digest": "sha256:2531b2f9ff2fcb3f0237644490e8439b3054f1b3b1ce87d602a9d0b0d12369e8"
     },
     {
       "id": "FRC0-study",
@@ -169,7 +169,7 @@
       "id": "FRC0-freeze-checker",
       "role": "freeze-checker",
       "path": "tooling/check-design-freeze-audit.mjs",
-      "digest": "sha256:b04963556157ca683a0c5528f61385dd8b2d785d1bb5624b582ee00930eb47cd"
+      "digest": "sha256:f249b9572bfa678a38039ab28c97c1c1416ce4c464c55851f30ca98ced5e01d9"
     },
     {
       "id": "FRC0-study-checker",
@@ -181,25 +181,25 @@
       "id": "FRC0-classification",
       "role": "classification",
       "path": "tooling/design-freeze-classification.json",
-      "digest": "sha256:b98042743e8ade0d3d3a7982dc9fa5553b0fc25f1808864e3b31ae49b8695bc1"
+      "digest": "sha256:a2f079bde1bac6629d9cb81bf9be3494bd3c8cafdbe836d1ab36fdc4ab099406"
     },
     {
       "id": "FRC0-ledger",
       "role": "ledger",
       "path": "RATIONALE.md",
-      "digest": "sha256:e5f64a32a1773acd6eedc6583ab598c133aaa91d0adae28ea635c59d4269781f"
+      "digest": "sha256:ffe083591237f1bdeb75636995a9435c88ab620d884214a1e951e861ea4e92bc"
     },
     {
       "id": "FRC0-design",
       "role": "design",
       "path": "DESIGN.md",
-      "digest": "sha256:0e212877adcdc379938a57f9f90ffe0088684a9d5874619a9fa89d4e556dc179"
+      "digest": "sha256:8ebb927ae16fffb1693e0be56c2d3638628ecb82dbb5d8bdc9e0721887619d21"
     },
     {
       "id": "FRC0-index",
       "role": "index",
       "path": "DESIGN-INDEX.md",
-      "digest": "sha256:bb59974a0acc99bb026655ad128267f7ac8692288eac1c7c2e3a49503ff3bbd1"
+      "digest": "sha256:ea6157e5d2cb37d5d9ec5e9b69ade0acc43befef23ecfb785ac76e93e1f7e09e"
     }
   ],
   "evidence": {

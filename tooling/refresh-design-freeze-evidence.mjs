@@ -3,12 +3,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ledgerIds, rationaleText } from "./design-ledger.mjs";
+import { caseDigest } from "./evidence-locality.mjs";
 
 const toolingDirectory = path.dirname(fileURLToPath(import.meta.url));
 const repositoryDirectory = path.resolve(toolingDirectory, "..");
 const classificationPath = process.env.W_DESIGN_FREEZE_CLASSIFICATION
   ? path.resolve(process.env.W_DESIGN_FREEZE_CLASSIFICATION)
   : path.join(toolingDirectory, "design-freeze-classification.json");
+const migrateLocalDigests = process.argv.includes("--migrate-local-digests");
+const unknownArguments = process.argv.slice(2).filter((value) => value !== "--migrate-local-digests");
+if (unknownArguments.length !== 0) {
+  throw new Error(`unknown argument: ${unknownArguments.join(" ")}`);
+}
 
 function textDigest(value) {
   return `sha256:${crypto.createHash("sha256").update(value).digest("hex")}`;
@@ -75,6 +81,38 @@ function designSections() {
   }));
 }
 
+function caseIndexes() {
+  const source = new Map();
+  const substitutions = JSON.parse(
+    fs.readFileSync(repositoryFile("tooling/substitution-cases.json"), "utf8"),
+  );
+  for (const testCase of substitutions.cases ?? []) source.set(testCase.id, testCase);
+
+  const oracle = new Map();
+  const corpusNames = fs.readdirSync(toolingDirectory)
+    .filter((name) => name.endsWith("-cases.json") && name !== "substitution-cases.json");
+  const nestedCorpusNames = ["studies/rdx0-binary-registry-execution/cases.json"];
+  for (const name of [...corpusNames, ...nestedCorpusNames]) {
+    const corpus = JSON.parse(fs.readFileSync(path.join(toolingDirectory, name), "utf8"));
+    for (const [index, testCase] of (corpus.cases ?? []).entries()) {
+      oracle.set(testCase.id ?? `${name}#${index + 1}`, testCase);
+    }
+  }
+  return { source, oracle };
+}
+
+function referencedCase(reference, indexes) {
+  if (!reference || typeof reference !== "object") return null;
+  if (reference.kind === "source" || reference.kind === "source-case") {
+    if (reference.caseId === "W-1519-native-seed") return null;
+    return indexes.source.get(reference.caseId) ?? null;
+  }
+  if (reference.kind === "oracle" || reference.kind === "oracle-case") {
+    return indexes.oracle.get(reference.caseId) ?? null;
+  }
+  return null;
+}
+
 function protectedClassificationShape(classification) {
   return JSON.stringify({
     schema: classification.$schema,
@@ -125,6 +163,53 @@ function refreshFileReferences(value, counters, seen = new Set()) {
   for (const nested of Object.values(value)) refreshFileReferences(nested, counters, seen);
 }
 
+function refreshLocalReference(reference, rows, sections, indexes, counters) {
+  if (!reference || typeof reference !== "object") return;
+  const testCase = referencedCase(reference, indexes);
+  if (testCase) {
+    if (!migrateLocalDigests && !Object.hasOwn(reference, "caseDigest")) return;
+    const next = caseDigest(testCase);
+    if (reference.caseDigest !== next) {
+      reference.caseDigest = next;
+      counters.localDigests++;
+    }
+    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
+      delete reference.sha256;
+      counters.removedWholeFileDigests++;
+    }
+    return;
+  }
+  if (["design-contract", "design-freeze-gate", "design-absence"].includes(reference.kind)) {
+    if (!migrateLocalDigests && !Object.hasOwn(reference, "sectionDigest")) return;
+    const section = sections.get(reference.section);
+    if (!section) throw new Error(`unknown DESIGN.md section ${reference.section}`);
+    if (reference.heading !== section.heading) reference.heading = section.heading;
+    if (reference.sectionDigest !== section.sectionDigest) {
+      reference.sectionDigest = section.sectionDigest;
+      counters.localDigests++;
+    }
+    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
+      delete reference.sha256;
+      counters.removedWholeFileDigests++;
+    }
+    return;
+  }
+  if (reference.kind === "ledger-row" || reference.kind === "superseding-decision") {
+    if (!migrateLocalDigests && !Object.hasOwn(reference, "claimDigest")) return;
+    const row = rows.get(reference.decisionId);
+    if (!row) throw new Error(`unknown ledger decision ${reference.decisionId}`);
+    const next = textDigest(row.claim);
+    if (reference.claimDigest !== next) {
+      reference.claimDigest = next;
+      counters.localDigests++;
+    }
+    if (migrateLocalDigests && Object.hasOwn(reference, "sha256")) {
+      delete reference.sha256;
+      counters.removedWholeFileDigests++;
+    }
+  }
+}
+
 function replaceIdentityText(value, oldSummary, newSummary, oldDigest, newDigest) {
   if (typeof value !== "string") return value;
   return value.replaceAll(oldDigest, newDigest).replaceAll(oldSummary, newSummary);
@@ -149,7 +234,15 @@ const classification = JSON.parse(fs.readFileSync(classificationPath, "utf8"));
 const beforeShape = protectedClassificationShape(classification);
 const rows = ledgerRows();
 const sections = designSections();
-const counters = { entries: 0, claimReferences: 0, fileDigests: 0, designSections: 0 };
+const indexes = caseIndexes();
+const counters = {
+  entries: 0,
+  claimReferences: 0,
+  fileDigests: 0,
+  designSections: 0,
+  localDigests: 0,
+  removedWholeFileDigests: 0,
+};
 
 if (!Array.isArray(classification.entries)) throw new Error("classification.entries must be an array");
 if (classification.entries.length !== ledgerIds.length || rows.size !== ledgerIds.length) {
@@ -194,6 +287,11 @@ for (const entry of classification.entries) {
       counters.designSections++;
     }
   }
+  refreshLocalReference(entry.basisRef, rows, sections, indexes, counters);
+  refreshLocalReference(entry.authorityRef, rows, sections, indexes, counters);
+  for (const evidence of entry.evidence ?? []) {
+    refreshLocalReference(evidence, rows, sections, indexes, counters);
+  }
 }
 
 refreshFileReferences(classification, counters);
@@ -205,5 +303,6 @@ fs.writeFileSync(classificationPath, `${JSON.stringify(classification, null, 2)}
 process.stdout.write(
   `Design freeze evidence refreshed: ${counters.entries} ledger identities, ` +
   `${counters.claimReferences} linked claims, ${counters.fileDigests} file digests, ` +
-  `${counters.designSections} DESIGN sections; reviewed categories unchanged.\n`,
+  `${counters.designSections} DESIGN sections, ${counters.localDigests} local digests, ` +
+  `${counters.removedWholeFileDigests} whole-file pins removed; reviewed categories unchanged.\n`,
 );

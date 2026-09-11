@@ -5,6 +5,7 @@ import path from "node:path";
 
 const rootDirectory = path.resolve(import.meta.dir, "..");
 const checkerPath = path.join(rootDirectory, "tooling", "check-design-freeze-audit.mjs");
+const refreshPath = path.join(rootDirectory, "tooling", "refresh-design-freeze-evidence.mjs");
 const sourcePath = path.join(rootDirectory, "tooling", "design-freeze-classification.json");
 
 setDefaultTimeout(120000);
@@ -27,6 +28,28 @@ function runMutation(mutator) {
   }
 }
 
+function runRefreshMutation(mutator) {
+  const temporaryDirectory = fs.mkdtempSync(path.join(os.tmpdir(), "w-freeze-refresh-"));
+  try {
+    const value = JSON.parse(fs.readFileSync(sourcePath, "utf8"));
+    mutator(value);
+    const mutatedPath = path.join(temporaryDirectory, "classification.json");
+    fs.writeFileSync(mutatedPath, `${JSON.stringify(value)}\n`);
+    const result = Bun.spawnSync([process.execPath, refreshPath], {
+      cwd: rootDirectory,
+      env: { ...process.env, W_DESIGN_FREEZE_CLASSIFICATION: mutatedPath },
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    return {
+      result,
+      value: JSON.parse(fs.readFileSync(mutatedPath, "utf8")),
+    };
+  } finally {
+    fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
 test("rejects a missing ledger entry", () => {
   const result = runMutation((value) => value.entries.pop());
   expect(result.exitCode).not.toBe(0);
@@ -35,10 +58,31 @@ test("rejects a missing ledger entry", () => {
 
 test("rejects a stale authority digest", () => {
   const result = runMutation((value) => {
-    value.entries[0].authorityRef.sha256 = "sha256:stale";
+    const entry = value.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
+    entry.authorityRef.caseDigest = "sha256:stale";
   });
   expect(result.exitCode).not.toBe(0);
-  expect(result.stderr.toString()).toContain("sha256 is stale");
+  expect(result.stderr.toString()).toContain("caseDigest is stale");
+});
+
+test("rejects a corpus-wide digest beside a local case digest", () => {
+  const result = runMutation((value) => {
+    const entry = value.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
+    entry.authorityRef.sha256 = "sha256:stale";
+  });
+  expect(result.exitCode).not.toBe(0);
+  expect(result.stderr.toString()).toContain("sha256 must be omitted when a local digest is present");
+});
+
+test("refresh repairs an existing local case digest without migration mode", () => {
+  const { result, value } = runRefreshMutation((classification) => {
+    const entry = classification.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
+    entry.authorityRef.caseDigest = "sha256:stale";
+  });
+  expect(result.exitCode).toBe(0);
+  const entry = value.entries.find((candidate) => candidate.authorityRef.kind === "source-case");
+  expect(entry.authorityRef.caseDigest).not.toBe("sha256:stale");
+  expect(entry.authorityRef.sha256).toBeUndefined();
 });
 
 test("rejects a stale DESIGN section digest", () => {
