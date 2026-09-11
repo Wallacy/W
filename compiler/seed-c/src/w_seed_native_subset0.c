@@ -816,11 +816,6 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
         !program_value_lowerable(program, value->right_value, owner_function,
                                  false, depth + 1u))
       return false;
-    if (value->binary_operator == W_SEED_HIR0_BINARY_DIVIDE ||
-        value->binary_operator == W_SEED_HIR0_BINARY_REMAINDER) {
-      if (!program_value_is_constant_i64(program, value_index, 0u))
-        return false;
-    }
     if (program_value_is_constant_i64(program, value_index, 0u)) {
       int64_t ignored = 0;
       if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;

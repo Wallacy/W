@@ -4665,6 +4665,96 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-runtime-i64-divrem",
+      "reviewItem": "checked runtime signed-i64 division and remainder against target undefined behavior, eager faulting operations, and ambient unchecked arithmetic",
+      "decisions": [
+        "W-1551"
+      ],
+      "task": "Execute parameter-driven division and remainder through the bounded native product while proving fault-before-output behavior.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn portion(total: i64, among guests: i64): i64 { return total / guests }",
+          "fn leftovers(total: i64, among guests: i64): i64 { return total % guests }",
+          "entry {",
+          "  let each = portion(total: 23, among: 3)",
+          "  let remaining = leftovers(total: 23, among: 3)",
+          "  print(\"Each ${each}; left ${remaining}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "unchecked-target-division",
+          "language": "text",
+          "source": [
+            "emit llvm.sdiv or llvm.srem before validating runtime operands"
+          ],
+          "expectedDifference": "Zero and the signed minimum/negative-one pair must not enter target undefined or faulting behavior before the W boundary decides the result."
+        },
+        {
+          "name": "eager-remainder-special-case",
+          "language": "text",
+          "source": [
+            "compute i64.min % -1 and select zero afterward"
+          ],
+          "expectedDifference": "The special zero result is selected by control flow before a target division instruction can fault."
+        },
+        {
+          "name": "always-linked-numeric-runtime",
+          "language": "text",
+          "source": [
+            "link checked divide and remainder helpers into every executable"
+          ],
+          "expectedDifference": "Only helpers required by reachable runtime operations belong to the product closure; constant and unrelated programs remain smaller."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-runtime-divrem.w",
+          "symbol": "portion",
+          "claim": "The Restaurant witness combines parameter-driven quotient and remainder with a short default entry."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_value_lowerable",
+          "claim": "The verified bounded selector accepts runtime division/remainder while continuing to reject invalid constant trees."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_CHECKED_I64_DIVIDE_HELPER",
+          "claim": "The emitted division helper validates zero and signed overflow before llvm.sdiv."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_CHECKED_I64_REMAINDER_HELPER",
+          "claim": "The emitted remainder helper traps on zero and bypasses llvm.srem for i64.min and -1."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantRuntimeDivremFixture",
+          "claim": "The Linux MLIR gate proves exact successful output plus three runtime fault paths with empty stdout."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantRuntimeDivremFixture",
+          "claim": "The native Windows public runner executes the same checked Restaurant witness."
+        }
+      ],
+      "checks": [
+        "bun check --target mlir0 passes exact quotient/remainder output and zero/overflow fault-before-output cases",
+        "bun check --target w-run passes the Restaurant witness through the CRT-free Linux WRT0 product route",
+        "bun check --target w-run-windows passes the same Restaurant witness through the native Windows product route",
+        "Focused MLIR0 units preserve direct safe constant operations and demand-driven runtime helpers"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

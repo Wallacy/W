@@ -26,6 +26,8 @@ const restaurantScalarIfFixture = resolve(seedDirectory, "fixtures", "restaurant
 const restaurantInterpolationFixture = resolve(
   seedDirectory, "fixtures", "restaurant-interpolation.w")
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
+const restaurantRuntimeDivremFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-runtime-divrem.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
@@ -345,6 +347,9 @@ try {
   expectExact(binary, ["run", restaurantLinearFixture], 0,
     Buffer.from("Table 42 remains open\nKitchen is ready\n", "utf8"),
     "Restaurant linear fixture")
+  expectExact(binary, ["run", restaurantRuntimeDivremFixture], 0,
+    Buffer.from("Each 7; left 2\n", "utf8"),
+    "Restaurant checked runtime division/remainder")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
   expectExact(binary, ["run", processInputFixture], 2,

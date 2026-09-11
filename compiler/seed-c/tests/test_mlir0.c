@@ -1060,11 +1060,17 @@ static bool test_interpolation_semantic_barriers(void) {
   CHECK(emit_current(safe_constants_artifact, sizeof(safe_constants_artifact),
                      &safe_constants_result));
   CHECK(contains_bytes(safe_constants_artifact,
-                       safe_constants_result.written.mlir_bytes,
-                       "llvm.sdiv %v") &&
+                        safe_constants_result.written.mlir_bytes,
+                        "llvm.sdiv %v") &&
         contains_bytes(safe_constants_artifact,
-                       safe_constants_result.written.mlir_bytes,
-                       "llvm.srem %v"));
+                        safe_constants_result.written.mlir_bytes,
+                        "llvm.srem %v") &&
+        !contains_bytes(safe_constants_artifact,
+                        safe_constants_result.written.mlir_bytes,
+                        "@w_seed_checked_divide_i64") &&
+        !contains_bytes(safe_constants_artifact,
+                        safe_constants_result.written.mlir_bytes,
+                        "@w_seed_checked_remainder_i64"));
 
   static const uint8_t overflow[] =
       "fn main() { print(\"${9223372036854775807 * 2}\") }\nentry(main)\n";
@@ -1076,14 +1082,34 @@ static bool test_interpolation_semantic_barriers(void) {
       "fn main() { let result = divide(value: 5) "
       "print(\"${result}\") }\nentry(main)\n";
   CHECK(lower_hir(runtime_division, sizeof(runtime_division) - 1u));
-  CHECK(expect_sequence_unsupported());
+  w_seed_mlir0_result runtime_division_result;
+  uint8_t runtime_division_artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(emit_current(runtime_division_artifact,
+                     sizeof(runtime_division_artifact),
+                     &runtime_division_result));
+  CHECK(contains_bytes(runtime_division_artifact,
+                        runtime_division_result.written.mlir_bytes,
+                        "llvm.func internal @w_seed_checked_divide_i64") &&
+        contains_bytes(runtime_division_artifact,
+                        runtime_division_result.written.mlir_bytes,
+                        "llvm.call @w_seed_checked_divide_i64"));
 
   static const uint8_t runtime_remainder[] =
       "fn remainder(value: i64): i64 { return value % 2 }\n"
       "fn main() { let result = remainder(value: 5) "
       "print(\"${result}\") }\nentry(main)\n";
   CHECK(lower_hir(runtime_remainder, sizeof(runtime_remainder) - 1u));
-  CHECK(expect_sequence_unsupported());
+  w_seed_mlir0_result runtime_remainder_result;
+  uint8_t runtime_remainder_artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(emit_current(runtime_remainder_artifact,
+                     sizeof(runtime_remainder_artifact),
+                     &runtime_remainder_result));
+  CHECK(contains_bytes(runtime_remainder_artifact,
+                        runtime_remainder_result.written.mlir_bytes,
+                        "llvm.func internal @w_seed_checked_remainder_i64") &&
+        contains_bytes(runtime_remainder_artifact,
+                        runtime_remainder_result.written.mlir_bytes,
+                        "llvm.call @w_seed_checked_remainder_i64"));
 
   return true;
 }
@@ -1186,6 +1212,8 @@ static bool test_checked_runtime_arithmetic(void) {
 static bool test_checked_helper_reachability(void) {
   static const uint8_t source[] =
       "fn deadArithmetic(value: i64): i64 { return value + 1 }\n"
+      "fn deadDivision(value: i64): i64 { return value / 2 }\n"
+      "fn deadRemainder(value: i64): i64 { return value % 2 }\n"
       "fn secret() { print(\"secret\") }\n"
       "fn dead() { secret() }\n"
       "fn main() { print(\"Hello, world!\") }\n"
@@ -1200,9 +1228,15 @@ static bool test_checked_helper_reachability(void) {
                         "@w_seed_checked_subtract_i64") &&
         !contains_bytes(artifact, result.written.mlir_bytes,
                         "@w_seed_checked_multiply_i64") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_divide_i64") &&
+        !contains_bytes(artifact, result.written.mlir_bytes,
+                        "@w_seed_checked_remainder_i64") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_0(") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_1(") &&
         !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_2(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_3(") &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "@w_fn_4(") &&
         !contains_bytes(artifact, result.written.mlir_bytes,
                         "\\73\\65\\63\\72\\65\\74") &&
         contains_bytes(artifact, result.written.mlir_bytes,
