@@ -18,10 +18,10 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path"
 
 const root = resolve(import.meta.dir, "..")
 const manifestPath = resolve(import.meta.dir, "mlir0-ci-toolchain.json")
-const expectedVersion = "23.1.0"
-const expectedRelease = "2026.08.31"
+const expectedVersion = "23.1.1"
+const expectedRelease = "2026.09.11"
 const expectedFilename =
-  "llvm-mlir_llvmorg-23.1.0_x86_64-unknown-linux-gnu.tar.zst"
+  "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst"
 const releaseBase =
   "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download"
 const requiredTools = ["mlir-opt", "mlir-translate", "llvm-config", "llc"]

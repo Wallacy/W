@@ -272,7 +272,7 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
         relativePath: `fake/${name}`,
         sizeBytes: "1",
         sha256: TEST_DIGEST,
-        version: "23.1.0",
+        version: "23.1.1",
       }])),
     },
     tools: Object.fromEntries(toolNames.map((name) => [name, path.resolve(`fake-${name}`)])),

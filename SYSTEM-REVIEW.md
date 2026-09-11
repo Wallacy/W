@@ -1043,7 +1043,7 @@ selected, not an always-running goal.
 |---|---|---|---|
 | 1 | Build publication and reproducibility | P1 / M | W-1533/W-1534: explicit pre-release opt-in; exact release recipe and provenance; isolated fault tests prove safe post-commit cleanup; two clean build receipts agree; proof and PGO remain independent inputs, not profile substitutes |
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
-| 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; `native-build-acquisition-provenance` qualifies LLVM/MLIR 23.1.1 without rewriting 20.1.2 evidence |
+| 3 | Mandatory native product and toolchain CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; `native-build-acquisition-provenance` qualifies LLVM/MLIR 23.1.1 without rewriting 20.1.2 evidence; a W-owned LLVM/MLIR/LLD lane compares no-LTO, ThinLTO and full-LTO recipes before selecting a release configuration |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
 | 5 | Evidence digest locality — phase 1 closed | P1 / M | Case/section/claim digests are local, stable under JSON key order, stale mutations fail, and `design:refresh-evidence` restores only direct consumers; generic symbol-range identity remains P2 |
 | 6 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
@@ -1067,6 +1067,27 @@ instrumentation mode, and provenance. A proof or certificate digest is a
 separate legality input. It never substitutes for the PGO record. The term
 `pre-release` in dependency resolution does not identify this optimization
 stage. A release without PGO keeps the record absent and remains reproducible.
+
+Bundle 3 treats the third-party portable archive as a pinned bootstrap input,
+not the eventual W distribution. The W-owned lane must build the official LLVM
+tag on each native host, build LLD before enabling Windows LTO, and publish an
+immutable receipt containing source tag and commit, complete CMake/cache
+recipe, compiler and linker identities, enabled projects and targets, archive
+SHA-256, installed and compressed bytes, SBOM, provenance and signature. It
+must compare no-LTO, ThinLTO and full-LTO by compiler startup, cold and warm W
+compilation, peak build memory, toolchain footprint and generated-program
+runtime/size. LTO is selected only when those measurements show a net release
+benefit; Linux archive-host limits are packaging constraints, not permission to
+weaken the tested recipe. CI artifacts are discarded after publication and
+verification; the repository retains manifests and current receipts, while Git
+retains superseded history.
+
+The upstream constraint is explicit: portable builds currently leave LTO
+disabled; Linux GCC+LTO archives exceeded GitHub's release limit, Clang-built
+archives exposed an integration problem in that project, and the Windows
+experiment required building LLD first. Track the source in
+[portable-mlir-toolchain issue #3](https://github.com/munich-quantum-software/portable-mlir-toolchain/issues/3)
+without inheriting its packaging decisions as W policy.
 
 Bundle 8 is deliberately decomposed rather than treating one integer tag as
 evidence for the whole ownership model. Its first executable package is a

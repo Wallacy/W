@@ -1713,6 +1713,14 @@ bun tooling/command-runner.mjs --command build:w-windows -- --profile developmen
 bun tooling/command-runner.mjs --command build:w-windows -- --profile size-experimental --c11-recovery # MinSizeRel
 ```
 
+The 23.1.1 archive requires a 1 GiB Zstandard decode window on this host.
+Network acquisition therefore downloads a separately pinned 1.5.7 `zstd.exe`
+bootstrap from the same immutable release, verifies its size and SHA-256,
+extracts only that single regular file, and deletes it with the owned download
+workspace after atomic toolchain materialization. Offline acquisition may use
+`--zstd <explicit-path>`; PATH lookup and an unbounded decompression fallback
+remain forbidden.
+
 `build:w-windows` discovers Visual Studio through `vswhere`, probes the Windows
 SDK explicitly, and does not copy the heavy toolchain. The default `release`
 profile maps to CMake `Release`. The `development` profile maps to `Debug`.

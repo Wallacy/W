@@ -229,8 +229,8 @@ const expectedExternalToolchainCandidate = Object.freeze({
   id: "portable-mlir-toolchain",
   status: "evaluation-only",
   license: "Apache-2.0",
-  observedRelease: "2026.08.31",
-  llvmTag: "llvmorg-23.1.0",
+  observedRelease: "2026.09.11",
+  llvmTag: "llvmorg-23.1.1",
   publishedHostTriples: Object.freeze([
     "x86_64-unknown-linux-gnu",
     "aarch64-unknown-linux-gnu",
@@ -249,7 +249,6 @@ const expectedExternalToolchainCandidate = Object.freeze({
   limitations: Object.freeze([
     "third-party not W authority/support",
     "inspection covered only x86_64-pc-windows-msvc",
-    "version mismatch with current pinned 20.1.2",
     "no completed W trust/SBOM/provenance audit",
     "host binaries do not prove cross-compilation",
     "Apple SDK/license not supplied/proven",
@@ -854,10 +853,10 @@ function validateExternalToolchainCandidates(value, errors) {
       addError(errors, `${location}.license must be Apache-2.0.`);
     }
     if (candidate.observedRelease !== expectedExternalToolchainCandidate.observedRelease) {
-      addError(errors, `${location}.observedRelease must be 2026.08.31.`);
+      addError(errors, `${location}.observedRelease must be 2026.09.11.`);
     }
     if (candidate.llvmTag !== expectedExternalToolchainCandidate.llvmTag) {
-      addError(errors, `${location}.llvmTag must be llvmorg-23.1.0.`);
+      addError(errors, `${location}.llvmTag must be llvmorg-23.1.1.`);
     }
     if (!same(candidate.publishedHostTriples, expectedExternalToolchainCandidate.publishedHostTriples)) {
       addError(errors, `${location}.publishedHostTriples must preserve the six upstream release host triples.`);

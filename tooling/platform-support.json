@@ -910,8 +910,8 @@
       "id": "portable-mlir-toolchain",
       "status": "evaluation-only",
       "license": "Apache-2.0",
-      "observedRelease": "2026.08.31",
-      "llvmTag": "llvmorg-23.1.0",
+      "observedRelease": "2026.09.11",
+      "llvmTag": "llvmorg-23.1.1",
       "publishedHostTriples": [
         "x86_64-unknown-linux-gnu",
         "aarch64-unknown-linux-gnu",
@@ -930,7 +930,6 @@
       "limitations": [
         "third-party not W authority/support",
         "inspection covered only x86_64-pc-windows-msvc",
-        "version mismatch with current pinned 20.1.2",
         "no completed W trust/SBOM/provenance audit",
         "host binaries do not prove cross-compilation",
         "Apple SDK/license not supplied/proven"

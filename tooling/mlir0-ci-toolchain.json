@@ -14,8 +14,8 @@
     "abi": "gnu"
   },
   "toolchain": {
-    "mlir": "23.1.0",
-    "llvm": "23.1.0"
+    "mlir": "23.1.1",
+    "llvm": "23.1.1"
   },
   "hostLink": {
     "driver": "/usr/bin/ld",
@@ -107,10 +107,10 @@
     "macos": "gap"
   },
   "distribution": {
-    "release": "2026.08.31",
-    "filename": "llvm-mlir_llvmorg-23.1.0_x86_64-unknown-linux-gnu.tar.zst",
-    "sizeBytes": 399908080,
-    "sha256": "ccb1db5ba59d1821cf1c631ec03daafc5cbefaf335e28ac2f6c7a55884b30d67",
+    "release": "2026.09.11",
+    "filename": "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst",
+    "sizeBytes": 400536815,
+    "sha256": "cfa94b0c4dfb933e755362468b615ada40e77e6d77b8db609505888de296ca7e",
     "source": "munich-quantum-software/setup-mlir",
     "setupAction": "munich-quantum-software/setup-mlir@133a0142a45c69adfe3fe3bd1a15e57381d3ed37",
     "windowsNativeMlir": "gap",

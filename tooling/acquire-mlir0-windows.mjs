@@ -9,6 +9,8 @@ export const MATERIALIZED_SCHEMA = "w-seed-mlir0-windows-materialized-1"
 export const MATERIALIZED_MANIFEST = "w-mlir0-windows-materialized.json"
 export const STAGING_PREFIX = ".w-mlir0-acquire-"
 export const DOWNLOAD_PREFIX = "w-mlir0-download-"
+export const ZSTD_WINDOW_LOG = 30
+export const ZSTD_WINDOW_BYTES = 1_073_741_824
 export const INSTALLED_SIZE_DEFINITION =
   "archive payload files; excludes the materialized manifest"
 
@@ -54,35 +56,43 @@ export function validateManifest(manifest) {
     manifest.target?.arch === "x86_64" && manifest.target?.os === "windows" &&
     manifest.target?.abi === "msvc",
   "manifest target is invalid")
+  pushError(errors, manifest.source?.repository === "llvm-project" &&
+    manifest.source?.url === "https://github.com/llvm/llvm-project" &&
+    manifest.source?.tag === "llvmorg-23.1.1" &&
+    manifest.source?.tagObject === "e7ce3600b55034ddf819638f395e3c475fad5be2" &&
+    manifest.source?.commit === "6dfe1677ab8dffbc6ec13d53a1e0215d75147689" &&
+    manifest.source?.providerBuild === "portable-mlir-toolchain" &&
+    manifest.source?.provenance === "not-established",
+  "manifest source pin or provenance boundary is invalid")
   for (const role of ["mlir", "llvm", "lld"])
-    pushError(errors, manifest.toolchain?.[role] === "23.1.0",
-      `manifest toolchain ${role} must be 23.1.0`)
+    pushError(errors, manifest.toolchain?.[role] === "23.1.1",
+      `manifest toolchain ${role} must be 23.1.1`)
 
   const asset = manifest.asset
   pushError(errors, isObject(asset), "manifest asset must be an object")
   if (isObject(asset)) {
     pushError(errors, asset.provider === "portable-mlir-toolchain",
       "manifest asset provider is invalid")
-    pushError(errors, asset.release === "2026.08.31",
+    pushError(errors, asset.release === "2026.09.11",
       "manifest asset release is invalid")
-    pushError(errors, asset.llvmTag === "llvmorg-23.1.0",
+    pushError(errors, asset.llvmTag === "llvmorg-23.1.1",
       "manifest asset LLVM tag is invalid")
     pushError(errors, asset.targetTriple === "x86_64-pc-windows-msvc",
       "manifest asset target is invalid")
     pushError(errors, asset.archiveFormat === "tar.zst",
       "manifest asset archive format is invalid")
     pushError(errors,
-      asset.fileName === "llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
+      asset.fileName === "llvm-mlir_llvmorg-23.1.1_x86_64-pc-windows-msvc.tar.zst",
       "manifest asset file name is invalid")
     pushError(errors,
-      asset.url === "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.08.31/llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
+      asset.url === "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.09.11/llvm-mlir_llvmorg-23.1.1_x86_64-pc-windows-msvc.tar.zst",
       "manifest asset URL is invalid")
-    pushError(errors, Number.isSafeInteger(asset.sizeBytes) && asset.sizeBytes === 415482701,
+    pushError(errors, Number.isSafeInteger(asset.sizeBytes) && asset.sizeBytes === 415415081,
       "manifest asset size is invalid")
     pushError(errors,
       typeof asset.sha256 === "string" &&
         /^[0-9a-f]{64}$/u.test(asset.sha256) &&
-        asset.sha256 === "35244de53a023a3e546e070b34d27ce9f7142ace92b238b5707c1d0cf24fd944",
+        asset.sha256 === "47aba6d8e7a0cfdc60105f1869c431ee0a77185ddb54a8f87ea668ee3b268f93",
       "manifest asset SHA-256 is invalid")
   }
 
@@ -98,14 +108,35 @@ export function validateManifest(manifest) {
       pushError(errors, archivePolicy[field] === true,
         `archivePolicy.${field} must be true`)
   }
+  pushError(errors, manifest.decompression?.format === "zstd" &&
+    manifest.decompression?.mode === "pinned-bootstrap-or-explicit-path-for-large-window" &&
+    manifest.decompression?.command === "zstd" &&
+    JSON.stringify(manifest.decompression?.args) ===
+      JSON.stringify(["-d", "-c", "--long=30", "<archive>"]) &&
+    manifest.decompression?.windowLog === ZSTD_WINDOW_LOG &&
+    manifest.decompression?.windowBytes === ZSTD_WINDOW_BYTES &&
+    manifest.decompression?.implicitPathSearch === false &&
+    manifest.decompression?.unboundedAlternative === false,
+  "manifest decompression policy is invalid")
+  const bootstrap = manifest.decompression?.bootstrap
+  pushError(errors, bootstrap?.provider === "portable-mlir-toolchain" &&
+    bootstrap?.release === "2026.09.11" &&
+    bootstrap?.version === "1.5.7" &&
+    bootstrap?.archiveFormat === "tar.gz" &&
+    bootstrap?.fileName === "zstd-1.5.7_x86_64-pc-windows-msvc.tar.gz" &&
+    bootstrap?.url === "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.09.11/zstd-1.5.7_x86_64-pc-windows-msvc.tar.gz" &&
+    bootstrap?.sizeBytes === 302543 &&
+    bootstrap?.sha256 === "df7846b47ae5c6f6ba489b4f0599b52810423858617b32fe4868109212496545" &&
+    bootstrap?.entry === "zstd.exe",
+  "manifest decompressor bootstrap is invalid")
 
   const tools = manifest.tools
   pushError(errors, isObject(tools), "manifest tools must be an object")
   if (isObject(tools)) {
     pushError(errors, JSON.stringify(tools.versionArgs) === JSON.stringify(["--version"]),
       "tools.versionArgs must be [--version]")
-    pushError(errors, tools.expectedVersion === "23.1.0",
-      "tools.expectedVersion must be 23.1.0")
+    pushError(errors, tools.expectedVersion === "23.1.1",
+      "tools.expectedVersion must be 23.1.1")
     pushError(errors, JSON.stringify(tools.required) ===
       JSON.stringify(["mlir-opt.exe", "mlir-translate.exe", "llc.exe", "lld-link.exe"]),
     "tools.required is invalid")
@@ -218,7 +249,7 @@ export function defaultCacheDirectory() {
   const localAppData = process.env.LOCALAPPDATA ||
     join(homedir(), "AppData", "Local")
   return resolve(localAppData, "W", "toolchains", "portable-mlir-toolchain",
-    "2026.08.31", "x86_64-pc-windows-msvc")
+    "2026.09.11", "x86_64-pc-windows-msvc")
 }
 
 async function pathExists(pathValue) {
@@ -359,43 +390,23 @@ async function hashFile(pathValue) {
   return { sizeBytes, sha256: digest.digest("hex") }
 }
 
-async function decompressZstdToTar(sourcePath, destinationPath) {
-  const compressed = Bun.file(sourcePath).stream()
-  const stream = compressed.pipeThrough(new DecompressionStream("zstd"))
-  const reader = stream.getReader()
-  const file = await open(destinationPath, "wx")
-  let sizeBytes = 0
-  try {
-    while (true) {
-      const chunkResult = await reader.read()
-      if (chunkResult.done) break
-      const chunk = chunkResult.value instanceof Uint8Array
-        ? chunkResult.value
-        : new Uint8Array(chunkResult.value)
-      sizeBytes += chunk.byteLength
-      await writeAll(file, chunk)
-    }
-    await file.sync()
-  } finally {
-    await file.close()
-  }
-  if (sizeBytes === 0) fail("Zstandard archive decompressed to an empty tar")
-  return { sizeBytes }
+export function zstdCommandArguments(sourcePath) {
+  return ["-d", "-c", `--long=${ZSTD_WINDOW_LOG}`, sourcePath]
 }
 
-async function decompressZstdWithCommand(command, sourcePath, destinationPath) {
+async function decompressZstdWithZstdCommand(command, sourcePath, destinationPath) {
   const file = await open(destinationPath, "wx")
   let child
   let stderrPromise
   try {
     child = Bun.spawn({
-      cmd: [command, "x", "-so", "-tZstd", "-bsp0", sourcePath],
+      cmd: [command, ...zstdCommandArguments(sourcePath)],
       cwd: repositoryRoot,
       stdout: "pipe",
       stderr: "pipe",
     })
     if (child.stdout === null || child.stderr === null)
-      fail("Zstandard decompressor did not expose pipes")
+      fail("zstd decompressor did not expose pipes")
     stderrPromise = new Response(child.stderr).text()
     const reader = child.stdout.getReader()
     let sizeBytes = 0
@@ -417,8 +428,8 @@ async function decompressZstdWithCommand(command, sourcePath, destinationPath) {
     const exitCode = await child.exited
     const stderrText = await stderrPromise
     if (exitCode !== 0)
-      fail(`Zstandard decompressor failed: ${(stderrText || "").trim()}`)
-    if (sizeBytes === 0) fail("Zstandard decompressor produced an empty tar")
+      fail(`zstd decompressor failed: ${(stderrText || "").trim()}`)
+    if (sizeBytes === 0) fail("zstd decompressor produced an empty tar")
     return { sizeBytes }
   } finally {
     await file.close()
@@ -426,23 +437,42 @@ async function decompressZstdWithCommand(command, sourcePath, destinationPath) {
   }
 }
 
-async function resolveSevenZip() {
-  const candidates = []
-  if (process.env.W_MLIR0_7Z !== undefined)
-    candidates.push(resolve(process.env.W_MLIR0_7Z))
-  const pathCommand = Bun.which("7z.exe") || Bun.which("7z") ||
-    Bun.which("7zz.exe") || Bun.which("7zz")
-  if (pathCommand) candidates.push(pathCommand)
-  if (process.env.ProgramFiles !== undefined)
-    candidates.push(join(process.env.ProgramFiles, "7-Zip", "7z.exe"))
-  if (process.env.ProgramW6432 !== undefined)
-    candidates.push(join(process.env.ProgramW6432, "7-Zip", "7z.exe"))
-  for (const candidate of candidates) {
-    if (!candidate || !(await pathExists(candidate))) continue
-    const stats = await lstat(candidate)
-    if (stats.isFile() && !isReparsePoint(stats)) return resolve(candidate)
+async function resolveExplicitDecompressor(pathValue) {
+  const candidate = resolve(pathValue)
+  await assertNoReparseAncestors(dirname(candidate))
+  let stats
+  try {
+    stats = await lstat(candidate)
+  } catch (error) {
+    fail(`explicit zstd decompressor is unavailable: ${candidate}: ${error.message}`)
   }
-  return undefined
+  if (!stats.isFile() || isReparsePoint(stats))
+    fail(`explicit zstd decompressor is not a regular file: ${candidate}`)
+  return candidate
+}
+
+async function acquirePinnedDecompressor(workspace, manifest, tarCommand) {
+  const bootstrap = manifest.decompression.bootstrap
+  const archivePath = join(workspace, bootstrap.fileName)
+  await downloadTo(bootstrap.url, archivePath, bootstrap.sizeBytes,
+    bootstrap.sha256)
+  const entries = await inspectArchive(archivePath, tarCommand)
+  if (entries.length !== 1 || entries[0].path !== bootstrap.entry ||
+      entries[0].type !== "file")
+    fail("pinned zstd bootstrap archive must contain only zstd.exe")
+  const destination = join(workspace, "zstd-bootstrap")
+  await mkdir(destination, { recursive: false })
+  const extraction = directRun(tarCommand, ["-xf", archivePath, "-C", destination,
+    "--no-same-owner", "--no-same-permissions"])
+  if (extraction.exitCode !== 0)
+    fail(`zstd bootstrap extraction failed: ${(extraction.stderrText || extraction.stdoutText).trim()}`)
+  await scanTree(destination, entries)
+  const command = join(destination, bootstrap.entry)
+  const probe = directRun(command, ["--version"])
+  const output = `${probe.stdoutText}\n${probe.stderrText}`
+  if (probe.exitCode !== 0 || !versionMatches(output, bootstrap.version))
+    fail(`zstd bootstrap version probe failed: ${output.trim().slice(-1000)}`)
+  return command
 }
 
 async function diskFree(pathValue) {
@@ -703,7 +733,8 @@ export async function validateMaterialized(destination, manifest, pinSha256) {
   }
 }
 
-async function materialize(archivePath, destination, manifest, pinSha256) {
+async function materialize(archivePath, destination, manifest, pinSha256,
+  zstdCommand = undefined) {
   const parent = dirname(destination)
   await assertNoReparseAncestors(parent)
   await mkdir(parent, { recursive: true })
@@ -729,15 +760,11 @@ async function materialize(archivePath, destination, manifest, pinSha256) {
       if (!isZstdMemoryLimitError(error)) throw error
       archiveWorkspace = await mkdtemp(join(parent, STAGING_PREFIX))
       archiveForTar = join(archiveWorkspace, "archive.tar")
-      let decompressed
-      const sevenZip = await resolveSevenZip()
-      if (sevenZip !== undefined) {
-        decompressed = await decompressZstdWithCommand(sevenZip, archivePath,
-          archiveForTar)
-        console.log(`MLIR0 Windows toolchain: using explicit native 7-Zip decompressor=${sevenZip}`)
-      } else {
-        decompressed = await decompressZstdToTar(archivePath, archiveForTar)
-      }
+      if (zstdCommand === undefined)
+        fail("large-window Zstandard archive requires explicit --zstd <path> with --long=30")
+      const decompressed = await decompressZstdWithZstdCommand(zstdCommand,
+        archivePath, archiveForTar)
+      console.log(`MLIR0 Windows toolchain: using explicit zstd decompressor=${zstdCommand}`)
       archiveEntries = await inspectArchive(archiveForTar, tarCommand)
       console.log(`MLIR0 Windows toolchain: native tar zstd limit; staged uncompressed tarBytes=${decompressed.sizeBytes}`)
     }
@@ -797,13 +824,21 @@ async function materialize(archivePath, destination, manifest, pinSha256) {
   }
 }
 
-function parseArguments(argumentsList) {
+export function parseArguments(argumentsList) {
   const options = { archive: undefined, destination: undefined, download: false,
-    help: false }
+    zstd: undefined, help: false }
   for (let index = 0; index < argumentsList.length; index += 1) {
     const argument = argumentsList[index]
     if (argument === "--help" || argument === "-h") options.help = true
     else if (argument === "--download") options.download = true
+    else if (argument === "--zstd") {
+      if (options.zstd !== undefined) fail("--zstd may be used only once")
+      const value = argumentsList[index + 1]
+      if (typeof value !== "string" || value.length === 0 || value.startsWith("--"))
+        fail("--zstd requires a path")
+      options.zstd = value
+      index += 1
+    }
     else if (argument === "--archive" || argument === "--destination") {
       const value = argumentsList[index + 1]
       if (typeof value !== "string" || value.length === 0)
@@ -818,7 +853,7 @@ function parseArguments(argumentsList) {
 }
 
 function usage() {
-  return "usage: bun tooling/acquire-mlir0-windows.mjs [--archive <path> | --download] [--destination <path>]"
+  return "usage: bun tooling/acquire-mlir0-windows.mjs [--archive <path> | --download] [--destination <path>] [--zstd <path>]"
 }
 
 async function main() {
@@ -837,6 +872,8 @@ async function main() {
   if (isContained(repositoryRoot, destination))
     fail(`destination must be outside the repository: ${destination}`)
   await assertNoReparseAncestors(dirname(destination))
+  let zstdCommand = options.zstd === undefined
+    ? undefined : await resolveExplicitDecompressor(options.zstd)
 
   if (await pathExists(destination)) {
     const stats = await lstat(destination)
@@ -861,6 +898,9 @@ async function main() {
       if (downloaded.sizeBytes !== manifest.asset.sizeBytes ||
           downloaded.sha256 !== manifest.asset.sha256)
         fail("download verification did not match the pinned asset")
+      if (zstdCommand === undefined)
+        zstdCommand = await acquirePinnedDecompressor(downloadedWorkspace,
+          manifest, resolveTar())
     } else {
       archivePath = resolve(options.archive)
       const archiveStats = await lstat(archivePath)
@@ -871,7 +911,8 @@ async function main() {
           archive.sha256 !== manifest.asset.sha256)
         fail(`offline archive does not match pinned size/SHA-256: ${archive.sizeBytes}/${archive.sha256}`)
     }
-    const result = await materialize(archivePath, destination, manifest, pinHash.sha256)
+    const result = await materialize(archivePath, destination, manifest, pinHash.sha256,
+      zstdCommand)
     console.log(`MLIR0 Windows toolchain: materialized destination=${result.destination} installedBytes=${result.installedSizeBytes} diskFreeBefore=${result.diskFreeBytesBefore} diskFreeAfter=${result.diskFreeBytesAfter}`)
   } finally {
     if (downloadedWorkspace !== undefined) await removeOwnedDownload(downloadedWorkspace)

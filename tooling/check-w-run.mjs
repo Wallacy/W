@@ -64,7 +64,7 @@ export function parseArguments(argv) {
 const { ci: ciMode } = import.meta.main
   ? parseArguments(process.argv.slice(2))
   : { ci: false }
-const expectedVersion = ciMode ? "23.1.0" : "20.1.2"
+const expectedVersion = ciMode ? "23.1.1" : "20.1.2"
 const manifestPath = ciMode ? ciManifestPath : localManifestPath
 
 function assert(condition, message) {
@@ -110,7 +110,7 @@ function escapedVersion(value) {
 }
 
 export function validateManifest(manifest, mode = ciMode) {
-  const manifestVersion = mode ? "23.1.0" : "20.1.2"
+  const manifestVersion = mode ? "23.1.1" : "20.1.2"
   const expectedSchema = mode
     ? "w-seed-mlir0-ci-toolchain-1"
     : "w-seed-mlir0-toolchain-1"

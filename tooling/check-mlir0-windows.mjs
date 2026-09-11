@@ -55,6 +55,13 @@ for (const marker of [
   'open(destination, "wx")',
   'digest.update(chunk)',
   '"--no-same-owner", "--no-same-permissions"',
+  '"--long=30"',
+  '"--zstd"',
+  "zstdCommandArguments",
+  "resolveExplicitDecompressor",
+  "large-window Zstandard archive requires explicit --zstd <path>",
+  "acquirePinnedDecompressor",
+  "pinned zstd bootstrap archive must contain only zstd.exe",
   "isReparsePoint",
   "validateMaterialized",
   "await rename(stage, destination)",
@@ -66,6 +73,9 @@ for (const forbidden of [
   "child_process.exec(",
   "child_process.execSync(",
   "shell: true",
+  "DecompressionStream(\"zstd\")",
+  "resolveSevenZip",
+  "Bun.which(\"7z",
 ])
   assert(!source.includes(forbidden),
     `acquisition script contains a forbidden runtime boundary: ${forbidden}`)
