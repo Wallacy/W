@@ -14,7 +14,7 @@
   "question": "Do explicit capability, civil, random, codec, and secret contracts reject ambient and fallback routes without claiming implementation?",
   "corpus": {
     "path": "../../aeg0-app-essentials-gate-cases.json",
-    "digest": "sha256:81014ce6009336fb18855efedafc5ff35d79d4fce1d6845414e6c22d071c0748"
+    "digest": "sha256:0ff1b00cebefc92b2c4ef40540f1081c9a8b59b30949a298b4de5b893f6ff0ff"
   },
   "machine": {
     "path": "../../aeg0-app-essentials-gate-machine.mjs",

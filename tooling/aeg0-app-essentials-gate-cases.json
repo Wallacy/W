@@ -23,7 +23,7 @@
       "family": "architecture",
       "variant": "current",
       "decisions": ["W-1454"],
-      "source": { "path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Capability authority comes from explicit binding and projection facts." },
+      "source": { "path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:8c11b36eb2165c512c0b8cfa36b987f5f6c5bcbf1a3f5b9fc281692837407bd7", "claim": "Capability authority comes from explicit binding and projection facts." },
       "observations": {
         "capabilityNominal": true,
         "initializerPublic": false,
@@ -47,7 +47,7 @@
       "family": "civil",
       "variant": "current",
       "decisions": ["W-1455"],
-      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
+      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:d142b4165fc9b8ca529ada9209ec9f837e02e2c88b6019c4d2e0fedc2a725cd6", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
       "observations": {
         "operationalStdTimeUnchanged": true,
         "civilPackageSeparate": true,
@@ -75,7 +75,7 @@
       "family": "random",
       "variant": "current",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:0c2f9a733ea3a983729f902b2b19a581c1492e3197dedd3014098f1311a42881", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": {
         "secureProviderBacked": true,
         "secureSeedAccepted": false,
@@ -101,7 +101,7 @@
       "family": "codecs",
       "variant": "current",
       "decisions": ["W-1457"],
-      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
+      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
       "observations": {
         "byteSourceExplicit": true,
         "byteSinkExplicit": true,
@@ -131,7 +131,7 @@
       "family": "crypto",
       "variant": "current",
       "decisions": ["W-1458"],
-      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
+      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
       "observations": {
         "packageExplicit": true,
         "providerCapability": true,
@@ -163,7 +163,7 @@
       "family": "crypto",
       "variant": "current",
       "decisions": ["W-1458"],
-      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
+      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
       "observations": {
         "packageExplicit": true,
         "providerCapability": true,
@@ -195,7 +195,7 @@
       "family": "architecture",
       "variant": "rejected",
       "decisions": ["W-1454"],
-      "source": { "path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:c63de6c5a4d9a69437d35f5c563a760567dc405b99d109cafef078806234059b", "claim": "Capability authority comes from explicit binding and projection facts." },
+      "source": { "path": "reference/last-light/capability_security_oracle.w", "symbol": "enum CapabilityOrigin {", "digest": "sha256:8c11b36eb2165c512c0b8cfa36b987f5f6c5bcbf1a3f5b9fc281692837407bd7", "claim": "Capability authority comes from explicit binding and projection facts." },
       "observations": { "capabilityNominal": true, "initializerPublic": true, "providerExplicit": false, "profileExplicit": true, "digestPinned": false, "ownerBound": false, "generationBound": false, "operationsExplicit": false, "operationContract": { "effect": true, "error": false, "ownership": false, "bounds": false, "complexity": false, "cancellation": false }, "portableValuesSeparated": false, "handlesLocal": false, "childTransfer": "implicit", "hostRebind": false, "testProviderExplicit": false, "ambientLookup": true }
     },
     {
@@ -203,7 +203,7 @@
       "family": "civil",
       "variant": "rejected",
       "decisions": ["W-1455"],
-      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:a1c57324a6a75fc1317e2ec5c65249126c88a91983aa719b0f1014fe2c38bbc8", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
+      "source": { "path": "reference/last-light/time_oracle.w", "symbol": "export fn openObservationWindow(", "digest": "sha256:d142b4165fc9b8ca529ada9209ec9f837e02e2c88b6019c4d2e0fedc2a725cd6", "claim": "Operational time uses an explicit root-scoped clock and deadline." },
       "observations": { "operationalStdTimeUnchanged": true, "civilPackageSeparate": false, "utcTimestampDistinct": false, "civilValuesExplicit": false, "conversionProvider": false, "databaseProfile": false, "profileVersionDigest": false, "dstPolicy": "ambient", "localeExplicit": false, "calendarExplicit": false, "timezoneExplicit": false, "noAmbientCivil": false, "wallClockDrivesDeadline": true, "leapSecondPolicy": "automatic", "smearPolicy": "automatic", "automaticConversion": true }
     },
     {
@@ -211,7 +211,7 @@
       "family": "random",
       "variant": "rejected",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:0c2f9a733ea3a983729f902b2b19a581c1492e3197dedd3014098f1311a42881", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": { "secureProviderBacked": true, "secureSeedAccepted": true, "secureFallback": false, "secureDowngrade": false, "exactBoundedBytes": true, "uniformCheckedInteger": true, "typedErrors": true, "deterministicExplicitSeed": true, "deterministicReplayable": true, "deterministicSatisfiesSecure": true, "drawOrderOwnerLocal": true, "implicitInheritance": false, "contextProjectsSameContract": true, "handlesWireValue": false, "testReceiptPortable": true, "deterministicReceiptSeedProfileOnly": true, "secureSeedDrawBytesNotInReceiptLogDiagnostic": false }
     },
     {
@@ -219,7 +219,7 @@
       "family": "random",
       "variant": "rejected",
       "decisions": ["W-1456"],
-      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:6c0a74472cfad73e3a45da14ceb149059f57237f43f061199680eaca6bd25d9e", "claim": "HTTP context projects an explicit random capability used by the workload." },
+      "source": { "path": "reference/last-light/benchmark_app.w", "symbol": "fn randomWorldKeys(", "digest": "sha256:0c2f9a733ea3a983729f902b2b19a581c1492e3197dedd3014098f1311a42881", "claim": "HTTP context projects an explicit random capability used by the workload." },
       "observations": { "secureProviderBacked": true, "secureSeedAccepted": false, "secureFallback": true, "secureDowngrade": true, "exactBoundedBytes": true, "uniformCheckedInteger": false, "typedErrors": false, "deterministicExplicitSeed": false, "deterministicReplayable": false, "deterministicSatisfiesSecure": false, "drawOrderOwnerLocal": false, "implicitInheritance": true, "contextProjectsSameContract": false, "handlesWireValue": true, "testReceiptPortable": false, "deterministicReceiptSeedProfileOnly": false, "secureSeedDrawBytesNotInReceiptLogDiagnostic": false }
     },
     {
@@ -227,7 +227,7 @@
       "family": "codecs",
       "variant": "rejected",
       "decisions": ["W-1457"],
-      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
+      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
       "observations": { "byteSourceExplicit": false, "byteSinkExplicit": false, "profileExplicit": false, "profileDigestPinned": false, "streaming": false, "finiteLimits": false, "quotasSeparate": { "encoded": false, "logical": false, "allocation": false, "depth": false, "ratio": false }, "typedOffsetErrors": false, "typedProgress": false, "cancelRollback": true, "committedBytesRemain": false, "dictionaryOwnerExplicit": false, "stateOwnerExplicit": false, "filenameInference": true, "magicInference": true, "localeInference": true, "environmentInference": true, "codecIdentitySeparate": false, "schemaIdentitySeparate": false, "compressionIdentitySeparate": false, "reflectionUniversal": true }
     },
     {
@@ -235,7 +235,7 @@
       "family": "codecs",
       "variant": "rejected",
       "decisions": ["W-1457"],
-      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:8e99f9ba4bd05cf2fa5085a2163ef3937b1f1d0f6f8ce55dac208bf1b623a2ab", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
+      "source": { "path": "reference/last-light/data_formats.w", "symbol": "export async fn uploadCsv<Failure: Error, Source: io.ByteSource<Failure>>(", "digest": "sha256:1e377b5ce7c48db75bb4e0c4cea063300f19d12f0897f20bca89c082b801d038", "claim": "Typed codec routes use explicit byte sources, options, and typed errors." },
       "observations": { "byteSourceExplicit": true, "byteSinkExplicit": true, "profileExplicit": true, "profileDigestPinned": true, "streaming": true, "finiteLimits": true, "quotasSeparate": { "encoded": true, "logical": false, "allocation": false, "depth": false, "ratio": false }, "typedOffsetErrors": true, "typedProgress": true, "cancelRollback": false, "committedBytesRemain": true, "dictionaryOwnerExplicit": true, "stateOwnerExplicit": true, "filenameInference": false, "magicInference": false, "localeInference": false, "environmentInference": false, "codecIdentitySeparate": true, "schemaIdentitySeparate": true, "compressionIdentitySeparate": false, "reflectionUniversal": false }
     },
     {
@@ -243,7 +243,7 @@
       "family": "crypto",
       "variant": "rejected",
       "decisions": ["W-1458"],
-      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
+      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
       "observations": { "packageExplicit": false, "providerCapability": false, "deploymentBound": false, "algorithmTyped": false, "profilePinned": false, "algorithmString": true, "fallback": true, "downgrade": true, "handleOpaque": false, "nonextractableDefault": false, "purposeScoped": false, "audienceScoped": false, "generationScoped": false, "moveOnly": false, "lifecycle": ["acquire", "active", "released"], "revokeBlocksAdmission": false, "admittedOperationsDrain": false, "hostRotationExpiryZeroization": false, "secretPortable": true, "publicOutputsPortable": false, "wireStorageLogDiagnosticReceipt": true, "childTransfer": "copy", "serviceRebind": false }
     },
     {
@@ -251,7 +251,7 @@
       "family": "crypto",
       "variant": "rejected",
       "decisions": ["W-1458"],
-      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:c8c09984a89bef64c94c2a197e7766e70cfd5ec732887da125fcc2c8fdfba992", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
+      "source": { "path": "reference/last-light/session_security_oracle.w", "symbol": "enum SessionLifecycleEvent {", "digest": "sha256:e249fc29177486f92084eee8f9a274a1192e82664c9acb6cfaa93301aa927573", "claim": "Session lifecycle facts distinguish rotation, expiry, revocation, and replacement." },
       "observations": { "packageExplicit": true, "providerCapability": true, "deploymentBound": true, "algorithmTyped": true, "profilePinned": true, "algorithmString": true, "fallback": false, "downgrade": true, "handleOpaque": true, "nonextractableDefault": true, "purposeScoped": true, "audienceScoped": true, "generationScoped": true, "moveOnly": true, "lifecycle": ["acquire", "active", "revoking", "revoked", "released"], "revokeBlocksAdmission": true, "admittedOperationsDrain": true, "hostRotationExpiryZeroization": true, "secretPortable": false, "publicOutputsPortable": true, "wireStorageLogDiagnosticReceipt": false, "childTransfer": "borrow-or-move", "serviceRebind": true }
     }
   ]

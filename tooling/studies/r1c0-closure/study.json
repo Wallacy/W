@@ -30,7 +30,7 @@
     },
     "snapshot": {
       "path": "../../r1c0-closure-results.snapshot.jsonl",
-      "digest": "sha256:439bec9b1b017c2efe1e2091497d9c74a6c186cb47d5b73349820907e73d201b"
+      "digest": "sha256:eaf0a2281da5e2f0018835bcaf950f0ead7c4cbb346ed1da333ba5d8667fe671"
     },
     "wloChecker": {
       "path": "../../check-wlo1-closure.mjs",

@@ -56,11 +56,11 @@
     "dependencyCurrency": {
       "currentEvidenceVersion": "20.1.2",
       "currentEvidenceCurrencyStatus": "update-required",
-      "futureNativePlanPolicy": "llvmorg-23.1.0-exact-pin-with-build-provenance-gate",
-      "successorVersion": "23.1.0",
-      "successorTag": "llvmorg-23.1.0",
-      "successorTagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-      "successorCommit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+      "futureNativePlanPolicy": "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
+      "successorVersion": "23.1.1",
+      "successorTag": "llvmorg-23.1.1",
+      "successorTagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+      "successorCommit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
       "promotionBlocker": "native-build-acquisition-provenance"
     }
   },
@@ -939,16 +939,16 @@
   ],
   "nativeToolchainPlans": [
     {
-      "id": "plan-linux-native-llvm-23-1-0",
+      "id": "plan-linux-native-llvm-23-1-1",
       "platform": "linux",
       "architectures": ["x86_64", "aarch64"],
       "status": "planned",
       "source": {
         "repository": "llvm-project",
         "url": "https://github.com/llvm/llvm-project",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689"
       },
       "projects": ["MLIR", "Clang", "LLD"],
       "configuration": {
@@ -981,16 +981,16 @@
       ]
     },
     {
-      "id": "plan-windows-native-llvm-23-1-0",
+      "id": "plan-windows-native-llvm-23-1-1",
       "platform": "windows",
       "architectures": ["x86_64", "aarch64"],
       "status": "planned",
       "source": {
         "repository": "llvm-project",
         "url": "https://github.com/llvm/llvm-project",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689"
       },
       "projects": ["MLIR", "Clang", "LLD"],
       "configuration": {
@@ -1023,16 +1023,16 @@
       ]
     },
     {
-      "id": "plan-macos-native-llvm-23-1-0",
+      "id": "plan-macos-native-llvm-23-1-1",
       "platform": "macos",
       "architectures": ["x86_64", "aarch64"],
       "status": "planned",
       "source": {
         "repository": "llvm-project",
         "url": "https://github.com/llvm/llvm-project",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689"
       },
       "projects": ["MLIR", "Clang", "LLD"],
       "configuration": {

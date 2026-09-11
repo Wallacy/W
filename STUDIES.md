@@ -11,17 +11,17 @@
 
 | Status | Estudos |
 |---|---:|
-| `complete-design-study` | 10 |
+| `complete-design-study` | 11 |
 | `design-oracle-input` | 60 |
 | `design-oracle-input-cap0` | 1 |
 | `design-oracle-input-syn1` | 1 |
 | `protocol-ready` | 1 |
-| **Total** | **73** |
+| **Total** | **74** |
 
 O registry de máquina também registra metadados, fixtures, referências, digests, dependências e entrypoints de scripts.
 Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/command-runner.mjs --command check:study-registry` para validá-las.
 
-## Status: `complete-design-study` (10)
+## Status: `complete-design-study` (11)
 
 | ID | Função / estado | Caminho | Gate principal | Entrypoint principal |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@ Use `bun run study:registry` para regenerar as duas projeções e `bun tooling/c
 | `FST0` | First-settled selection of existing structured tasks — `complete-design-study` | [`tooling/studies/fst0-first-settled-task`](./tooling/studies/fst0-first-settled-task/) | `—` | `bun tooling/command-runner.mjs --command check:fst0` |
 | `LLM0` | Training and inference readiness inventory — `complete-design-study` | [`tooling/studies/llm0-training-inference`](./tooling/studies/llm0-training-inference/) | `—` | `bun tooling/command-runner.mjs --command check:llm0` |
 | `MEM0` | Virtual memory and data movement performance contract — `complete-design-study` | [`tooling/studies/mem0-virtual-memory-data-movement`](./tooling/studies/mem0-virtual-memory-data-movement/) | `—` | `bun tooling/command-runner.mjs --command check:mem0` |
+| `MLS0` | Modern MLIR lowering and scientific-computing boundary — `complete-design-study` | [`tooling/studies/mls0-modern-mlir-science`](./tooling/studies/mls0-modern-mlir-science/) | `—` | `bun tooling/command-runner.mjs --command check:study-bundles` |
 | `QOS0` | Domain placement without portable task priority or QoS — `complete-design-study` | [`tooling/studies/qos0-scheduling-boundary`](./tooling/studies/qos0-scheduling-boundary/) | `—` | `bun tooling/command-runner.mjs --command check:qos0` |
 | `RDX0` | W-1518 design contract for binary-first registry, signed execution, and provider research — `complete-design-study` | [`tooling/studies/rdx0-binary-registry-execution`](./tooling/studies/rdx0-binary-registry-execution/) | `—` | `bun tooling/command-runner.mjs --command check:rdx0` |
 | `SEA0` | Simulated effects, deferred approval, and deterministic test infrastructure — `complete-design-study` | [`tooling/studies/sea0-simulated-effects-approval`](./tooling/studies/sea0-simulated-effects-approval/) | `—` | `bun tooling/command-runner.mjs --command check:sea0` |

@@ -825,6 +825,7 @@ design recommendation is ratified merely by its inclusion in this queue.
 | 9 — native CI | Queued | Require pinned native execution and distinguish unavailable local tools from failed CI prerequisites |
 | 5–6, 11–12 — documentation and navigation | Queued | Consolidate doctest rules, repair examples and readers, and update capability-specific status |
 | 10 — test quality | Queued, applied to new fixes now | Use behavior and known-bad mutations for changed tooling, then remove measured redundant checks |
+| Evidence digest locality | P1 maintenance queued next | Replace whole-file transitive pins with local semantic identities; one example edit invalidates only direct consumers and reports one regeneration route |
 
 ### Automatic design-hardening queue
 
@@ -1033,21 +1034,23 @@ selected, not an always-running goal.
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
 | 3 | Mandatory native product CI | P1 / M | Windows and pinned Linux witnesses execute W; missing dependencies fail; skip counts remain explicit |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
-| 5 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
-| 6 | Runtime-input vertical slice | P2 / L | CLI input affects output at runtime; error path and a loop/branch execute; no expected-output shortcut |
-| 7 | Enum/result and ownership vertical slice | P2 / L | Resource-bearing enum, match, borrow/move and typed failure work through native execution |
-| 8 | First comparative performance loop | P2 / M | Real W measurements for an implemented unit, independent correctness, three disclosed variants, pinned recipe |
-| 9 | Test/build execution efficiency | P2 / M | Measured duplicate work removed; changed-input selection and one shared build; no lost product mutation detection |
-| 10 | Incremental compiler and diagnostic UX | P2 / L | No-op/local/interface-edit benchmarks plus clear ownership/effect diagnostics on real source |
-| 11 | Registry verification vertical slice | P2 / L | Static third-party host, signed artifact, install/run policy, expiry/revocation and adversarial verification |
-| 12 | Cross-target distribution | P2 / L | One additional real host-to-target edge, SDK/ABI proof, target execution and complete size receipt |
-| 13 | Services/runtime lifecycle | P2 / L | Same contract through local and one external provider; cancellation, close, bounds and failure tested |
-| 14 | Web UI and terminal provider selection | P3 / M then L | WVUI0 questions resolved for one provider; real typed command and close/security witness |
-| 15 | Mapping/device/LLM performance integration | P3 / L | One measured useful workload per chosen provider; no core-language expansion from a capability list |
+| 5 | Evidence digest locality | P1 / M | Semantic/local digests replace unrelated whole-file cascades; a controlled example edit invalidates only direct consumers and one command restores projections |
+| 6 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |
+| 7 | Runtime-input vertical slice | P2 / L | CLI input affects output at runtime; error path and a loop/branch execute; no expected-output shortcut |
+| 8 | Enum/result and ownership vertical slice | P2 / L | Resource-bearing enum, match, borrow/move and typed failure work through native execution |
+| 9 | First comparative performance loop | P2 / M | Real W measurements for an implemented unit, independent correctness, three disclosed variants, pinned recipe |
+| 10 | Test/build execution efficiency | P2 / M | Measured duplicate work removed; changed-input selection and one shared build; no lost product mutation detection |
+| 11 | Incremental compiler and diagnostic UX | P2 / L | No-op/local/interface-edit benchmarks plus clear ownership/effect diagnostics on real source |
+| 12 | Registry verification vertical slice | P2 / L | Static third-party host, signed artifact, install/run policy, expiry/revocation and adversarial verification |
+| 13 | Cross-target distribution | P2 / L | One additional real host-to-target edge, SDK/ABI proof, target execution and complete size receipt |
+| 14 | Services/runtime lifecycle | P2 / L | Same contract through local and one external provider; cancellation, close, bounds and failure tested |
+| 15 | Web UI and terminal provider selection | P3 / M then L | WVUI0 questions resolved for one provider; real typed command and close/security witness |
+| 16 | Mapping/device/LLM performance integration | P3 / L | One measured useful workload per chosen provider; no core-language expansion from a capability list |
+| 17 | PVL0 proof mode, kernel and erasure | P3 / M | Prototype a verification axis composable with debug/release/benchmark and proof-only packages; prove deterministic bounded checking, explicit trust, induction/termination boundaries, total erasure, unchanged ABI/output, and zero ordinary-path cost before ratifying syntax |
 
 ### Runtime-input package boundary
 
-Bundle 6 must preserve the `native-process@1` entry contract. A raw
+Bundle 7 must preserve the `native-process@1` entry contract. A raw
 `fn(value: i64)` entry is not an acceptable shortcut: the bounded native
 process adapters are `fn(): ()` and a handler using the explicit
 `std.process` `Arguments`, `Context`, and `ExitCode` types.

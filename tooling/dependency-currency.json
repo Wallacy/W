@@ -2,7 +2,7 @@
   "$schema": "w-dependency-currency-1",
   "version": 1,
   "status": "operational-catalog",
-  "observedAt": "2026-08-31",
+  "observedAt": "2026-09-11",
   "policy": {
     "managedDependency": {
       "selector": "exact",
@@ -17,6 +17,21 @@
     "environment": {
       "recordObservedVersions": true,
       "claimExactPin": false
+    },
+    "releaseWatch": {
+      "authority": "official-upstream-only",
+      "networkCheck": "scheduled-ci-and-manual",
+      "cadence": "weekly-after-upstream-release-day",
+      "newWork": "latest-stable-after-compatibility-gate",
+      "historicalEvidence": "immutable",
+      "adoptionSteps": [
+        "detect-official-stable-release",
+        "resolve-tag-object-and-peeled-commit",
+        "run-isolated-compatibility-probe",
+        "update-exact-pins-and-native-plans",
+        "run-dependency-platform-compiler-and-benchmark-gates",
+        "promote-for-new-work-without-rewriting-historical-evidence"
+      ]
     }
   },
   "dependencies": [
@@ -29,7 +44,7 @@
       "source": {
         "kind": "official-release",
         "urls": [
-          "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.0",
+          "https://github.com/oven-sh/bun/releases/tag/bun-v1.4.2",
           "https://bun.sh/docs/installation"
         ]
       },
@@ -39,15 +54,15 @@
         "portal/package.json",
         ".github/workflows/validate.yml"
       ],
-      "latestStable": { "version": "1.4.0", "tag": "bun-v1.4.0" },
+      "latestStable": { "version": "1.4.2", "tag": "bun-v1.4.2" },
       "current": {
-        "version": "1.4.0",
-        "selector": "1.4.0",
+        "version": "1.4.2",
+        "selector": "1.4.2",
         "stability": "stable"
       },
       "selected": {
-        "version": "1.4.0",
-        "selector": "1.4.0",
+        "version": "1.4.2",
+        "selector": "1.4.2",
         "stability": "stable",
         "purpose": "workspace runtime and package manager"
       },
@@ -476,7 +491,7 @@
       "source": {
         "kind": "official-release-and-repository-evidence",
         "urls": [
-          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.0",
+          "https://github.com/llvm/llvm-project/releases/tag/llvmorg-23.1.1",
           "https://mlir.llvm.org/getting_started/",
           "https://llvm.org/docs/GettingStarted.html"
         ]
@@ -484,15 +499,18 @@
       "locations": [
         "tooling/mlir0-toolchain.json",
         "tooling/check-mlir0.mjs",
+        "tooling/check-llvm-release.mjs",
+        "tooling/check-llvm-release.test.mjs",
         "tooling/platform-support.json",
         "tooling/platform-support.mjs",
+        ".github/workflows/llvm-release-watch.yml",
         "PLATFORM-SUPPORT.md"
       ],
       "latestStable": {
-        "version": "23.1.0",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4"
+        "version": "23.1.1",
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689"
       },
       "current": {
         "version": "20.1.2",
@@ -502,22 +520,33 @@
         "target": "x86_64-unknown-linux-gnu"
       },
       "selected": {
-        "version": "23.1.0",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
-        "selector": "llvmorg-23.1.0",
+        "version": "23.1.1",
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+        "selector": "llvmorg-23.1.1",
         "status": "successor-for-new-bundles-only",
         "promotion": "blocked"
       },
       "successor": {
-        "version": "23.1.0",
-        "tag": "llvmorg-23.1.0",
-        "tagObject": "9b0f9b1eb4a233717c6ed014cff6f8a7c65512de",
-        "commit": "ea7d852a70e8bdfaf601d6626a760f9771b2c4b4",
+        "version": "23.1.1",
+        "tag": "llvmorg-23.1.1",
+        "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+        "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
         "status": "successor-candidate"
       },
       "components": ["MLIR", "LLVM", "Clang", "LLD"],
+      "releaseWatch": {
+        "scheduleUrl": "https://llvm.org/",
+        "releaseApi": "https://api.github.com/repos/llvm/llvm-project/releases?per_page=30",
+        "nextScheduled": {
+          "version": "23.1.2",
+          "date": "2026-09-22",
+          "status": "announced-not-released"
+        },
+        "workflow": ".github/workflows/llvm-release-watch.yml",
+        "checker": "tooling/check-llvm-release.mjs"
+      },
       "gap": {
         "status": "open",
         "blocker": "native-build-acquisition-provenance",

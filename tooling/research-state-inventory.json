@@ -170,7 +170,7 @@
         "tooling/studies/gen1-incremental-suspension/bundle.json",
         "tooling/studies/gen1-incremental-suspension/compiler-stream-block.txt"
       ],
-      "artifactsDigest": "sha256:d955baf6c8d98addb92b59c20b12e12231c2e12f3b505477aa65a3d198ab40b5"
+      "artifactsDigest": "sha256:12b04c35e78ce805ecdf2b5413c74cb34bd0282e1bc0e00f735c76503905589c"
     },
     {
       "id": "syn1",
@@ -250,7 +250,7 @@
         "tooling/studies/hrd0-hot-reload-dev/split-runner.w",
         "tooling/studies/hrd0-hot-reload-dev/study.json"
       ],
-      "artifactsDigest": "sha256:2b0b1cd7b8283a1918f64497c886b85d81967f5728c48c2ed4051c88e17fea56"
+      "artifactsDigest": "sha256:d7ea5f3affc9cbd5dfaa6ab29d9d17a7bda09a8863ef064cf6af98012facb511"
     },
     {
       "id": "dyn1",
@@ -278,7 +278,7 @@
         "tooling/studies/dyn1-versioned-behavior/persistent-generation-reference.txt",
         "tooling/studies/dyn1-versioned-behavior/study.json"
       ],
-      "artifactsDigest": "sha256:5723745f785440082024201336250e08b0bdcdb10b021f915d25f4289dbbe405"
+      "artifactsDigest": "sha256:8ab273b9347e6b8162723e61af415cc0236654080e470fe3b103b0c78b5e9974"
     },
     {
       "id": "atom1",

@@ -24,9 +24,9 @@
       "subcapability": "DYN0-versioned-change",
       "classification": "composable",
       "casesPath": "../../capability-matrix-cases.json",
-      "casesDigest": "sha256:ca520b35bb09a53186a78119f7bbf120d113f0e72cc5fc62235124089569df88",
+      "casesDigest": "sha256:364c799e7847950c5b80d71065fd18f5a85dd167f65376e7754f584f69d72b72",
       "snapshotPath": "../../capability-matrix-results.snapshot.jsonl",
-      "snapshotDigest": "sha256:70e58506c80223fe2c7d2697d3371d791fc0c4b9dfd710314ca9c7b6cc50e726",
+      "snapshotDigest": "sha256:5a10af1b70239244f7cc80202b734cd50262f244f9b42500b8e92bf1f7ecd4c3",
       "gate": "CAP0"
     },
     "dyn0": {
