@@ -8,7 +8,11 @@ import {
 import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { describe, expect, test } from "bun:test"
-import { parseArguments, validateManifest } from "./check-w-run.mjs"
+import {
+  assertCrtFreeElf,
+  parseArguments,
+  validateManifest,
+} from "./check-w-run.mjs"
 
 const root = resolve(import.meta.dir, "..")
 const seedDirectory = resolve(root, "compiler", "seed-c")
@@ -56,6 +60,30 @@ function normalizedOutput(result) {
 }
 
 describe("W RUN native CI contract", () => {
+  test("accepts only x86_64 ELF without an interpreter or DT_NEEDED", () => {
+    const elf = Buffer.alloc(120)
+    Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1]).copy(elf)
+    elf.writeUInt16LE(3, 16)
+    elf.writeUInt16LE(62, 18)
+    elf.writeBigUInt64LE(64n, 32)
+    elf.writeUInt16LE(56, 54)
+    elf.writeUInt16LE(1, 56)
+    elf.writeUInt32LE(1, 64)
+    expect(() => assertCrtFreeElf(elf)).not.toThrow()
+
+    const interpreted = Buffer.from(elf)
+    interpreted.writeUInt32LE(3, 64)
+    expect(() => assertCrtFreeElf(interpreted)).toThrow("dynamic interpreter")
+
+    const dependent = Buffer.alloc(152)
+    elf.copy(dependent)
+    dependent.writeUInt32LE(2, 64)
+    dependent.writeBigUInt64LE(120n, 72)
+    dependent.writeBigUInt64LE(32n, 96)
+    dependent.writeBigInt64LE(1n, 120)
+    expect(() => assertCrtFreeElf(dependent)).toThrow("DT_NEEDED")
+  })
+
   test("accepts one --ci flag and rejects every other argument", () => {
     expect(parseArguments([])).toEqual({ ci: false })
     expect(parseArguments(["--ci"])).toEqual({ ci: true })
@@ -73,16 +101,17 @@ describe("W RUN native CI contract", () => {
       mlirTranslate: "mlir-translate",
       llvmConfig: "llvm-config",
       llc: "llc",
-      linkDriver: "/usr/bin/cc",
+      linkDriver: "/usr/bin/ld",
     })
   })
 
-  test("rejects non-PIC objects, hidden link targets, and IR-to-C-driver recipes", () => {
+  test("rejects non-PIC objects, hidden link targets, and incomplete WRT recipes", () => {
     for (const mutate of [
       (manifest) => { manifest.pipeline[2].args[2] = "-relocation-model=static" },
       (manifest) => { manifest.pipeline[2].tool = "clang" },
-      (manifest) => { manifest.pipeline[3].args[0] = "-no-pie" },
-      (manifest) => { manifest.hostLink.targetFamily = "aarch64-linux-gnu" },
+      (manifest) => { manifest.pipeline[3].args[3] = "<other-runtime.ll>" },
+      (manifest) => { manifest.pipeline[4].args[0] = "-no-pie" },
+      (manifest) => { manifest.hostLink.targetFamily = "elf_i386" },
       (manifest) => { manifest.commands.linkDriver.linux = "cc" },
     ]) {
       const changed = structuredClone(ciManifest)
@@ -195,7 +224,7 @@ describe("W RUN native CI contract", () => {
           "-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/usr/bin/mlir-translate-20",
           "-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/usr/bin/llvm-config-20",
           "-DW_MLIR0_LINUX_LLC:FILEPATH=/usr/bin/llc-20",
-          "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/cc",
+          "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld",
         ])
         expect(relative.exitCode, output(relative)).not.toBe(0)
         expect(output(relative)).toContain(
@@ -234,7 +263,7 @@ describe("W RUN native CI contract", () => {
           `-DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${spyPath}`,
           `-DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${spyPath}`,
           `-DW_MLIR0_LINUX_LLC:FILEPATH=${spyPath}`,
-          "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/cc",
+          "-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld",
         ]
         for (const role of ["LLC", "LINK_DRIVER"]) {
           const invalid = runLinux("cmake", [...validPaths,
@@ -245,17 +274,16 @@ describe("W RUN native CI contract", () => {
         }
         const targetDriver = join(buildDirectory, "target-driver")
         const targetDriverPath = linuxPath(targetDriver)
-        for (const target of ["aarch64-linux-gnu", "x86_64-linux-musl",
-          "x86_64-w64-mingw32", "x86_64-linux-gnux32", ""]) {
+        for (const target of ["elf_aarch64", "elf_i386", "i386pep", ""]) {
           await writeFile(targetDriver, `#!/bin/sh\nprintf '%s\\n' '${target}'\n`)
           expect(runLinux("chmod", ["700", targetDriverPath]).exitCode).toBe(0)
           const invalid = runLinux("cmake", [...validPaths,
             `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${targetDriverPath}`])
           expect(invalid.exitCode, output(invalid)).not.toBe(0)
           expect(normalizedOutput(invalid)).toContain(
-            "must report a native x86_64 Linux GNU target with -dumpmachine")
+            "must report elf_x86_64 support with -V")
         }
-        for (const target of ["x86_64-linux-gnu", "x86_64-unknown-linux-gnu"]) {
+        for (const target of ["elf_x86_64", "GNU ld 2.42\nelf_x86_64"]) {
           await writeFile(targetDriver, `#!/bin/sh\nprintf '%s\\n' '${target}'\n`)
           const accepted = runLinux("cmake", [...validPaths,
             `-DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=${targetDriverPath}`])

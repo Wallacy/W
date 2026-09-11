@@ -130,10 +130,11 @@ source paths are not proven. The older `check:mlir0` Linux/WSL 20.1.2
 profile remains `update-required`.
 
 The public Linux runner now separates LLVM object generation from native
-linking. `llc` emits a PIC object. An absolute host C driver links it with
-`-pie` and native CRT/libc, without generated C source or a Clang dependency.
-Local WSL gates passed with LLVM 20.1.2 and, separately, 23.1.0 using
-host GCC/cc 13.3.0. The local Linux harness used Bun 1.3.4.
+linking. `llc` emits PIC program and WRT0 objects. An absolute native linker
+produces a static PIE with compiler-owned `_start`, stdout, and exit adapters;
+the retained ELF has no interpreter, `DT_NEEDED`, CRT, or libc. No generated C
+source or Clang dependency is involved. Local WSL gates passed with LLVM
+20.1.2 and, separately, 23.1.0. The local Linux harness used Bun 1.3.4.
 The mandatory Linux and Windows CI jobs use Bun 1.4.0 and have not run.
 This evidence does not establish hosted CI success or general cross-target support.
 

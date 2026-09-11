@@ -80,6 +80,28 @@ static const char MLIR_TRANSLATE[] = W_SEED_LINUX_MLIR_TRANSLATE_PATH;
 static const char LLC[] = W_SEED_LINUX_LLC_PATH;
 static const char LINK_DRIVER[] = W_SEED_LINUX_LINK_DRIVER_PATH;
 
+/* WRT0 is the complete runtime closure of the bounded Linux seed executable.
+ * It owns process startup, stdout and exit through the x86_64 Linux syscall
+ * ABI. The final artifact therefore needs neither a C entry point nor libc,
+ * CRT objects, a dynamic loader, or generated C source. */
+static const uint8_t WRT0_LL[] =
+    "target triple = \"x86_64-unknown-linux-gnu\"\n"
+    "\n"
+    "declare i32 @main()\n"
+    "\n"
+    "define i64 @write(i32 %fd, ptr %buffer, i64 %count) nounwind {\n"
+    "entry:\n"
+    "  %result = call i64 asm sideeffect \"syscall\", \"={rax},{rax},{rdi},{rsi},{rdx},~{rcx},~{r11},~{memory}\"(i64 1, i32 %fd, ptr %buffer, i64 %count)\n"
+    "  ret i64 %result\n"
+    "}\n"
+    "\n"
+    "define void @_start() noreturn nounwind {\n"
+    "entry:\n"
+    "  %status = call i32 @main()\n"
+    "  call void asm sideeffect \"syscall\", \"{rax},{rdi},~{rcx},~{r11},~{memory}\"(i64 60, i32 %status)\n"
+    "  unreachable\n"
+    "}\n";
+
 static bool path_join(char *buffer, size_t capacity, const char *directory,
                       const char *name) {
   if (buffer == NULL || capacity == 0u || directory == NULL || name == NULL)
@@ -130,11 +152,15 @@ static bool remove_file(const char *path) {
 static bool cleanup_directory(const char *directory, const char *input_path,
                               const char *verified_path, const char *ll_path,
                               const char *object_path,
+                              const char *runtime_ll_path,
+                              const char *runtime_object_path,
                               const char *program_path) {
   bool clean = remove_file(input_path);
   clean = remove_file(verified_path) && clean;
   clean = remove_file(ll_path) && clean;
   clean = remove_file(object_path) && clean;
+  clean = remove_file(runtime_ll_path) && clean;
+  clean = remove_file(runtime_object_path) && clean;
   clean = remove_file(program_path) && clean;
   if (directory != NULL && directory[0] != '\0' && rmdir(directory) != 0 &&
       errno != ENOENT)
@@ -252,10 +278,12 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   char verified_path[PATH_MAX] = {0};
   char ll_path[PATH_MAX] = {0};
   char object_path[PATH_MAX] = {0};
+  char runtime_ll_path[PATH_MAX] = {0};
+  char runtime_object_path[PATH_MAX] = {0};
   int exit_code = source_status;
   if (source_status != 0) {
-    if (!cleanup_directory(request->directory, NULL, NULL, NULL, NULL,
-                           request->artifact_path))
+    if (!cleanup_directory(request->directory, NULL, NULL, NULL, NULL, NULL,
+                           NULL, request->artifact_path))
       return 3;
     return source_status;
   }
@@ -266,11 +294,17 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       !path_join(ll_path, sizeof(ll_path), request->directory, "output.ll") ||
       !path_join(object_path, sizeof(object_path), request->directory,
                  "output.o") ||
+      !path_join(runtime_ll_path, sizeof(runtime_ll_path), request->directory,
+                 "wrt0.ll") ||
+      !path_join(runtime_object_path, sizeof(runtime_object_path),
+                 request->directory, "wrt0.o") ||
       !write_private_file(input_path, artifact,
                           native_result.mlir.written.mlir_bytes) ||
+      !write_private_file(runtime_ll_path, WRT0_LL, sizeof(WRT0_LL) - 1u) ||
       !create_private_file(verified_path, (mode_t)0600) ||
       !create_private_file(ll_path, (mode_t)0600) ||
       !create_private_file(object_path, (mode_t)0600) ||
+      !create_private_file(runtime_object_path, (mode_t)0600) ||
       !create_private_file(request->artifact_path, (mode_t)0700))
     goto cleanup;
 
@@ -308,17 +342,46 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   }
   if (exit_code != 0) goto cleanup;
   {
-    char *arguments[7] = {(char *)LINK_DRIVER, (char *)"-pie", object_path,
-                          (char *)"-o", (char *)request->artifact_path, NULL,
-                          NULL};
+    char *arguments[9] = {
+        (char *)LLC,
+        (char *)"-mtriple=x86_64-unknown-linux-gnu",
+        (char *)"-filetype=obj",
+        (char *)"-relocation-model=pic",
+        runtime_ll_path,
+        (char *)"-o",
+        runtime_object_path,
+        NULL,
+        NULL};
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
-      arguments[5] = (char *)"-s";
+      arguments[7] = (char *)"-O3";
+    exit_code = run_tool(LLC, arguments);
+  }
+  if (exit_code != 0) goto cleanup;
+  {
+    char *arguments[15] = {0};
+    size_t count = 0u;
+    arguments[count++] = (char *)LINK_DRIVER;
+    arguments[count++] = (char *)"-pie";
+    arguments[count++] = (char *)"--no-dynamic-linker";
+    arguments[count++] = (char *)"-e";
+    arguments[count++] = (char *)"_start";
+    arguments[count++] = (char *)"--gc-sections";
+    arguments[count++] = (char *)"-z";
+    arguments[count++] = (char *)"noexecstack";
+    if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE)
+      arguments[count++] = (char *)"-s";
+    arguments[count++] = object_path;
+    arguments[count++] = runtime_object_path;
+    arguments[count++] = (char *)"-o";
+    arguments[count++] = (char *)request->artifact_path;
+    arguments[count] = NULL;
     exit_code = run_tool(LINK_DRIVER, arguments);
   }
   if (exit_code != 0) goto cleanup;
   if (chmod(request->artifact_path, (mode_t)0700) != 0) goto cleanup;
   if (!remove_file(input_path) || !remove_file(verified_path) ||
-      !remove_file(ll_path) || !remove_file(object_path)) {
+      !remove_file(ll_path) || !remove_file(object_path) ||
+      !remove_file(runtime_ll_path) || !remove_file(runtime_object_path)) {
     exit_code = 3;
     goto cleanup;
   }
@@ -326,14 +389,16 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
 
 cleanup:
   if (!cleanup_directory(request->directory, input_path, verified_path,
-                          ll_path, object_path, request->artifact_path))
+                          ll_path, object_path, runtime_ll_path,
+                          runtime_object_path, request->artifact_path))
     return 3;
   return exit_code;
 }
 
 bool w_seed_run_cleanup_compiled(const char *directory,
                                  const char *artifact_path) {
-  return cleanup_directory(directory, NULL, NULL, NULL, NULL, artifact_path);
+  return cleanup_directory(directory, NULL, NULL, NULL, NULL, NULL, NULL,
+                           artifact_path);
 }
 
 int w_seed_run_execute(const w_seed_run_request *request) {

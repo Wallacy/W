@@ -403,8 +403,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     "Explicit llvm-config executable for the Linux evidence build")
   set(W_MLIR0_LINUX_LLC "/usr/bin/llc-20" CACHE FILEPATH
     "Explicit LLVM object compiler for the Linux evidence build")
-  set(W_MLIR0_LINUX_LINK_DRIVER "/usr/bin/cc" CACHE FILEPATH
-    "Explicit native Linux x86_64 GNU C link driver for host CRT/libc")
+  set(W_MLIR0_LINUX_LINK_DRIVER "/usr/bin/ld" CACHE FILEPATH
+    "Explicit native Linux x86_64 linker for the CRT-free WRT0 artifact")
   set(W_SEED_LINUX_MLIR_OPT_HEADER_PATH "")
   set(W_SEED_LINUX_MLIR_TRANSLATE_HEADER_PATH "")
   set(W_SEED_LINUX_LLVM_CONFIG_HEADER_PATH "")
@@ -508,17 +508,17 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       endif()
     endforeach()
     execute_process(
-      COMMAND "${W_MLIR0_LINUX_LINK_DRIVER}" -dumpmachine
+      COMMAND "${W_MLIR0_LINUX_LINK_DRIVER}" -V
       RESULT_VARIABLE W_MLIR0_LINUX_LINK_TARGET_RESULT
       OUTPUT_VARIABLE W_MLIR0_LINUX_LINK_TARGET
       ERROR_VARIABLE W_MLIR0_LINUX_LINK_TARGET_ERROR
       OUTPUT_STRIP_TRAILING_WHITESPACE
       TIMEOUT 10)
     if(NOT W_MLIR0_LINUX_LINK_TARGET_RESULT STREQUAL "0" OR
-       NOT W_MLIR0_LINUX_LINK_TARGET MATCHES "^x86_64-([A-Za-z0-9_]+-)?linux-gnu$" OR
+       NOT W_MLIR0_LINUX_LINK_TARGET MATCHES "elf_x86_64" OR
        NOT W_MLIR0_LINUX_LINK_TARGET_ERROR STREQUAL "")
       message(FATAL_ERROR
-        "W_MLIR0_LINUX_LINK_DRIVER must report a native x86_64 Linux GNU target with -dumpmachine")
+        "W_MLIR0_LINUX_LINK_DRIVER must report elf_x86_64 support with -V")
     endif()
     set(W_SEED_LINUX_MLIR_OPT_HEADER_PATH
       "${W_MLIR0_LINUX_MLIR_OPT}")

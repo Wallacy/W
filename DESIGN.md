@@ -35784,14 +35784,16 @@ The command uses caller-owned, no-heap Native0. The logical source id is the
 caller-supplied basename. The route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
 mlir-translate → llc → native host link`, directly, without HLO0 or HLO1.
-`llc` emits a position-independent object. An absolute host C link driver
-links that object with `-pie` and the native CRT/libc. This route generates
-no C source and does not require Clang.
+`llc` emits position-independent program and WRT0 objects. An absolute native
+linker produces a static PIE with `_start`, `write`, and exit supplied by WRT0;
+the artifact has no program interpreter, `DT_NEEDED`, CRT object, or libc.
+This route generates no C source and does not require Clang. W-1550 supersedes
+only W-1521's former host-CRT link boundary.
 
 The explicit build configuration
 validates absolute executable tool paths and the native x86_64 GNU target.
 The runner does not resolve these tools through PATH at runtime. LLVM tool
-versions and host link-driver provenance remain separate evidence.
+versions and native-linker provenance remain separate evidence.
 The Linux runner is compile-time opt-in. A default `OFF` build returns 2
 without launching tools. This gate does not establish cross-target support.
 
@@ -35845,7 +35847,7 @@ The compiler stage is shared with `w run`. `w run` still creates a private
 temporary directory, executes the compiled program, forwards its arguments,
 and removes its artifact and directory on every return; it keeps the fast
 development compile recipe. `w build` selects the internal release recipe by
-default: MLIR `--canonicalize --cse`, `llc -O3`, Linux link-driver `-s`, and
+default: MLIR `--canonicalize --cse`, `llc -O3`, Linux direct-link `-s`, and
 native Windows LLD `/opt:ref /opt:icf /incremental:no`. No public profile option
 is exposed. `w build` retains only the caller-owned executable. This finite
 companion compiles the already supported seed subset, including
@@ -37319,6 +37321,44 @@ mutation and loops, imports, async process entry, other targets, ABI, timing,
 ranking, and performance remain gaps. `benchmarkDisposition` is
 `compiler-lifecycle`: correctness-only, with no benchmark result or retained
 artifact.
+
+#### 26.4.1.31 W-1550 — CRT-free Linux WRT0 seed closure (Current form)
+
+W products do not acquire a C runtime merely because the compiler bootstrap or
+linker host provides one. The bounded Linux x86_64 seed now materializes two
+LLVM objects: the verified program object and a reachability-closed WRT0 object.
+WRT0 owns the process entry `_start`, the stdout `write` adapter, and terminal
+exit through the Linux x86_64 syscall ABI. The generated program's `main` is an
+internal bridge between these two compiler-owned objects, not a public C entry
+contract or stable W ABI.
+
+**Example:** the bounded product closure contains only the reachable program
+and target runtime objects; it does not inherit the bootstrap host runtime:
+
+```text
+program.mlir -> program.ll -> program.o
+WRT0.ll -> WRT0.o
+program.o + WRT0.o -> CRT-free static-PIE executable
+```
+
+The direct link recipe is `-pie --no-dynamic-linker -e _start --gc-sections
+-z noexecstack`, with `-s` in the release recipe. The final ELF must be x86_64
+`ET_DYN`, contain no `PT_INTERP`, and contain no `DT_NEEDED` entry. The public
+gate parses those ELF structures from the retained Hello artifact before
+execution. It also runs the existing Restaurant and adversarial source corpus
+through the same route and requires that every private MLIR, LLVM IR, object,
+WRT0, and staging artifact is removed on success and failure.
+
+This is the first executable WRT closure, not the complete W runtime. It does
+not define allocator, TLS, unwinding, panic, scheduler, async I/O, signals,
+dynamic loading, ABI stability, other Linux architectures, macOS, firmware, or
+general cross-compilation. Each future facility enters `RuntimeClosureKey` only
+when reachable. `fn<C>` and packages that explicitly require a C runtime may
+add a versioned libc/CRT dependency; ordinary W code never receives it
+transitively or through linker convenience. W-1521 remains current for the
+bounded CLI and source contract, while W-1550 supersedes its former CRT/libc
+link implementation. `benchmarkDisposition` is `compiler-lifecycle`,
+correctness-only, with no timing, ranking, or performance result.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

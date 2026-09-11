@@ -3796,6 +3796,92 @@
       ]
     },
     {
+      "id": "R0-linux-wrt0-crt-free-link",
+      "reviewItem": "reachability-closed WRT startup against ambient CRT/libc and dynamic-loader inheritance",
+      "decisions": [
+        "W-1550"
+      ],
+      "task": "Build the bounded Linux x86_64 W product from verified HIR and prove that its retained ELF uses WRT0 startup/write/exit without PT_INTERP or DT_NEEDED.",
+      "selected": {
+        "language": "text",
+        "source": [
+          "program.mlir -> program.ll -> program.o",
+          "WRT0.ll -> WRT0.o",
+          "ld -pie --no-dynamic-linker -e _start --gc-sections -z noexecstack program.o WRT0.o"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "ambient-host-crt",
+          "language": "text",
+          "source": [
+            "cc -pie program.o -o program"
+          ],
+          "expectedDifference": "A host C driver selects startup objects and libc that are absent from the reachable W product contract."
+        },
+        {
+          "name": "dynamic-loader-without-needed-libraries",
+          "language": "text",
+          "source": [
+            "ld -pie -e _start program.o WRT0.o"
+          ],
+          "expectedDifference": "A PT_INTERP entry retains an unnecessary platform loader dependency even when no shared library is needed."
+        },
+        {
+          "name": "monolithic-runtime",
+          "language": "text",
+          "source": [
+            "link every WRT facility into every executable"
+          ],
+          "expectedDifference": "Unreachable allocator, scheduler, unwind, and I/O facilities would increase product size and authority."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "WRT0_LL",
+          "claim": "The bounded Linux WRT module owns process startup, stdout write, and exit through the x86_64 syscall ABI."
+        },
+        {
+          "path": "compiler/seed-c/cli/run.c",
+          "symbol": "w_seed_run_compile",
+          "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes all private intermediates."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "assertCrtFreeElf",
+          "claim": "The source-backed gate parses ELF headers and rejects an interpreter or any DT_NEEDED dependency before execution."
+        },
+        {
+          "path": "tooling/check-w-run.test.mjs",
+          "symbol": "accepts only x86_64 ELF without an interpreter or DT_NEEDED",
+          "claim": "Adversarial tests distinguish a closed ELF from PT_INTERP and DT_NEEDED mutations."
+        },
+        {
+          "path": "tooling/mlir0-ci-toolchain.json",
+          "symbol": "pipeline",
+          "claim": "The pinned CI recipe records the separate WRT object and direct CRT-free native link."
+        },
+        {
+          "path": "compiler/seed-c/CMakeLists.txt",
+          "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
+          "claim": "The opt-in Linux build requires an absolute native linker that advertises elf_x86_64 support."
+        }
+      ],
+      "checks": [
+        "bun test tooling/check-w-run.test.mjs — manifest, ELF verifier, and CMake path/target barriers pass",
+        "bun check --target w-run — retained Hello ELF has no PT_INTERP or DT_NEEDED and executes with exact stdout",
+        "Existing Restaurant and adversarial sources execute through the same WRT0 route",
+        "Success and failure remove private MLIR, LLVM IR, object, WRT0, executable, and staging artifacts"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-mlir0-checked-i64-arithmetic",
       "reviewItem": "checked signed-i64 arithmetic against wrapped overflow, unreachable helpers, and runtime division/remainder.",
       "decisions": [

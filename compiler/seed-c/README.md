@@ -1620,15 +1620,17 @@ caller, including hyphens and the terminal `.w`, rather than a W identifier or
 module name. The direct route is
 `source → parser/frontend → verified HIR0 → MLIR0 → mlir-opt →
 mlir-translate → llc → native host link`. HLO0, HLO1 and RUN0 are not
-prerequisites. `llc` emits a position-independent object. The absolute host
-C driver links it with `-pie` and the native CRT/libc. This path generates
-no C source and does not require Clang.
+prerequisites. `llc` emits position-independent program and WRT0 objects. The
+absolute native linker produces a static PIE with compiler-owned `_start`,
+stdout write, and exit adapters. The final ELF has no `PT_INTERP`,
+`DT_NEEDED`, CRT, or libc. This path generates no C source and does not require
+Clang.
 
-The gate checks LLVM versions separately from host link-driver provenance. A
+The gate checks LLVM versions separately from native-linker provenance. A
 Linux native run is compile-time opt-in. The default `OFF` build returns 2 from
 `w run` without launching a tool. An `ON` build requires five existing absolute
-executable paths and a native x86_64 GNU target. The host link driver's
-`-dumpmachine` result must identify that target. CMake accepts spaces and rejects quotes,
+executable paths and a native x86_64 ELF target. The linker's `-V` result must
+advertise `elf_x86_64`. CMake accepts spaces and rejects quotes,
 backslashes, semicolons, and control characters before generating the header.
 A private `/tmp/w-run-XXXXXX` directory uses mode 0700 and fixed files use modes
 0600/0700. The runner uses `execv` without a shell and cleans every path
@@ -1719,7 +1721,7 @@ writes no receipt and makes no general artifact-record claim.
 The compiler stage is shared with `w run`. `w run` retains its private
 compile-to-execute cleanup lifecycle and its fast development recipe. `w build`
 uses the explicit internal release recipe by default: `mlir-opt --canonicalize
---cse`, `llc -O3`, and Linux link-driver stripping with `-s`; native Windows
+--cse`, `llc -O3`, and Linux direct-link stripping with `-s`; native Windows
 uses `llc -O3` and LLD `/opt:ref /opt:icf /incremental:no`. There is no public
 profile option in this seed. `w build` retains only the published executable.
 The route supports the current seed subset, including `restaurant-if.w`,
@@ -1743,7 +1745,7 @@ cmake -S compiler/seed-c -B build/seed-c-run -G Ninja \
   -DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/usr/bin/mlir-translate-20 \
   -DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/usr/bin/llvm-config-20 \
   -DW_MLIR0_LINUX_LLC:FILEPATH=/usr/bin/llc-20 \
-  -DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/cc
+  -DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld
 cmake --build build/seed-c-run --target w
 ./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w
 # Hello, world!
