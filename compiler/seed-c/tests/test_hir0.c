@@ -1628,6 +1628,121 @@ static bool test_multi_branch_mutation_merge(void) {
   return true;
 }
 
+static bool test_while_mutation_ssa(void) {
+  static const char SOURCE[] =
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  return count\n"
+      "}\n"
+      "entry(countTo)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->block_argument_count == 1u &&
+        program->edge_argument_count == 2u &&
+        program->binding_count == 2u && program->instruction_count == 2u &&
+        program->value_count == 10u && program->terminator_count == 4u);
+  CHECK(program->blocks[0].instruction_count == 1u &&
+        program->blocks[1].instruction_count == 0u &&
+        program->blocks[1].first_block_argument == 0u &&
+        program->blocks[1].block_argument_count == 1u &&
+        program->blocks[2].instruction_count == 1u &&
+        program->blocks[3].instruction_count == 0u &&
+        program->block_arguments[0].owner_block == 1u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].edge_argument_count == 1u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[1].target_block == 2u &&
+        program->terminators[1].else_block == 3u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[2].target_block == 1u &&
+        program->terminators[2].edge_argument_count == 1u &&
+        program->terminators[3].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
+  const w_seed_hir0_binding declaration = fixture.hir_bindings[0];
+  const w_seed_hir0_binding update = fixture.hir_bindings[1];
+  CHECK(declaration.owner_block == 0u && declaration.is_mutable &&
+        declaration.source_binding == 0u && declaration.next_version == 1u &&
+        update.owner_block == 2u && update.is_mutable &&
+        update.source_binding == 0u && update.previous_version == 0u &&
+        update.next_version == W_SEED_HIR0_NONE &&
+        program->values[update.initializer_value].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->values[program->values[update.initializer_value].left_value]
+                .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->values[update.initializer_value].left_value]
+                .block_argument_index == 0u);
+  CHECK(program->values[program->terminators[1].value_index].type_index ==
+            W_SEED_HIR0_TYPE_BOOL &&
+        program->values[program->terminators[3].value_index].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->terminators[3].value_index]
+                .block_argument_index == 0u &&
+        program->values[edge_value_at(program, 0u)].binding_index == 0u &&
+        program->values[edge_value_at(program, 2u)].binding_index == 1u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_block_argument saved_argument =
+      fixture.hir_block_arguments[0];
+  fixture.hir_block_arguments[0].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[0] = saved_argument;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_preheader = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].edge_argument_count = 0u;
+  fixture.hir_terminators[0].first_edge_argument = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_preheader;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_edge_argument saved_back_edge =
+      fixture.hir_edge_arguments[1];
+  fixture.hir_edge_arguments[1].value_index =
+      fixture.hir_edge_arguments[0].value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[1] = saved_back_edge;
+  reseal_hir_fixture();
+
+  fixture.hir_block_arguments[0].owner_block = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[0] = saved_argument;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_terminator saved_body = fixture.hir_terminators[2];
+  fixture.hir_terminators[2].target_block = 3u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[2] = saved_body;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_terminator saved_exit = fixture.hir_terminators[3];
+  fixture.hir_terminators[3] = saved_body;
+  fixture.hir_terminators[3].owner_block = 3u;
+  fixture.hir_terminators[3].target_block = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[3] = saved_exit;
+  reseal_hir_fixture();
+
+  fixture.hir_bindings[1].previous_version = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[1] = update;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool expect_branch_mutation_unsupported(const char *source) {
   CHECK(fixture_frontend(source));
   setup_hir_output();
@@ -1636,6 +1751,47 @@ static bool expect_branch_mutation_unsupported(const char *source) {
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
+  return true;
+}
+
+static bool test_while_mutation_barriers(void) {
+  CHECK(expect_branch_mutation_unsupported(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while limit > 0 { count = count + 1 }\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = limit }\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = count + 1 count = count + 1 }\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn adjust(value: i64): i64 { return value + 1 }\n"
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = adjust(value: count) }\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { while count < limit { count = count + 1 } }\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn flip(limit: i64): Bool {\n"
+      "  var open = false\n"
+      "  while limit > 0 { open = !open }\n"
+      "  return open\n"
+      "}\nentry(flip)\n"));
   return true;
 }
 
@@ -4184,6 +4340,8 @@ int main(void) {
   if (!test_bool_mutation_ssa()) return 1;
   if (!test_branch_local_mutation_merge()) return 1;
   if (!test_multi_branch_mutation_merge()) return 1;
+  if (!test_while_mutation_ssa()) return 1;
+  if (!test_while_mutation_barriers()) return 1;
   if (!test_branch_local_mutation_barriers()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
