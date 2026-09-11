@@ -328,6 +328,38 @@ static bool test_guard_shapes(void) {
   return true;
 }
 
+static bool test_while_shapes(void) {
+  fixture value;
+  CHECK(fixture_init(
+      &value,
+      "fn countTo(limit: i64): i64 {\nvar count = 0\nwhile count < limit {\n"
+      "count = count + 1\n}\nreturn count\n}\n",
+      sizeof(value.nodes) / sizeof(value.nodes[0]),
+      sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(value.result.status == W_SEED_PARSE_COMPLETE);
+  CHECK(value.result.issue_count == 0u);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+  CHECK(count_kind(&value, W_SEED_CST_WHILE_STATEMENT) == 1u);
+  const w_seed_cst_index loop = first_kind(&value, W_SEED_CST_WHILE_STATEMENT);
+  CHECK(loop != W_SEED_CST_NONE);
+  CHECK(direct_child_after(&value, loop, W_SEED_CST_EXPRESSION, 0u) !=
+        W_SEED_CST_NONE);
+  CHECK(direct_child_after(&value, loop, W_SEED_CST_BLOCK, 0u) !=
+        W_SEED_CST_NONE);
+
+  fixture missing_body;
+  CHECK(fixture_init(&missing_body, "fn f(){while true}\n",
+                     sizeof(missing_body.nodes) / sizeof(missing_body.nodes[0]),
+                     sizeof(missing_body.issues) /
+                         sizeof(missing_body.issues[0])));
+  CHECK(missing_body.result.status == W_SEED_PARSE_RECOVERED);
+  CHECK(has_issue(&missing_body, W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE));
+  CHECK(check_leaf_partition(&missing_body));
+  CHECK(check_tree_links(&missing_body));
+  return true;
+}
+
 static bool test_for_markers_and_iterables(void) {
   static const char marker_text[] =
       "fn markers(rows:Rows){for ref row in rows{}for mut ref item in rows{}"
@@ -3318,6 +3350,7 @@ int main(void) {
       test_spawn_tuple_shapes() &&
       test_for_control_shapes() &&
       test_guard_shapes() &&
+      test_while_shapes() &&
       test_for_markers_and_iterables() &&
       test_for_control_recovery() &&
       test_phase3_callable_closure_capture() &&

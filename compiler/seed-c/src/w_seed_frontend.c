@@ -4683,6 +4683,7 @@ static bool kind_is_statement(w_seed_cst_kind kind) {
          kind == W_SEED_CST_VAR_STATEMENT ||
          kind == W_SEED_CST_RETURN_STATEMENT ||
          kind == W_SEED_CST_IF_STATEMENT ||
+         kind == W_SEED_CST_WHILE_STATEMENT ||
          kind == W_SEED_CST_GUARD_STATEMENT ||
          kind == W_SEED_CST_EXPRESSION_STATEMENT ||
          kind == W_SEED_CST_EXPECT_STATEMENT ||
@@ -13912,6 +13913,9 @@ static bool normalize_statement_depth(frontend_context *context,
     case W_SEED_CST_IF_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_IF;
       break;
+    case W_SEED_CST_WHILE_STATEMENT:
+      value.kind = W_SEED_FRONTEND_STMT_WHILE;
+      break;
     case W_SEED_CST_GUARD_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_GUARD;
       break;
@@ -14020,7 +14024,8 @@ static bool normalize_statement_depth(frontend_context *context,
                                 node->raw_span, text_from_span(doc, node->raw_span));
     }
   }
-  if (node->kind == W_SEED_CST_IF_STATEMENT) {
+  if (node->kind == W_SEED_CST_IF_STATEMENT ||
+      node->kind == W_SEED_CST_WHILE_STATEMENT) {
     value.condition_expression = value.expression_index;
     const frontend_simple_type condition = normalized_actual;
     if (condition.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -14103,6 +14108,7 @@ static bool normalize_statement_depth(frontend_context *context,
     }
   }
   if (node->kind == W_SEED_CST_IF_STATEMENT ||
+      node->kind == W_SEED_CST_WHILE_STATEMENT ||
       node->kind == W_SEED_CST_GUARD_STATEMENT ||
       node->kind == W_SEED_CST_FOR_STATEMENT) {
     uint32_t child_cursor = node->first_child;
@@ -14842,7 +14848,8 @@ static bool binding_declaration_visible_in_chain(
       *visible_depth = declaration_depth;
       return true;
     }
-    if (statement->kind == W_SEED_FRONTEND_STMT_IF) {
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF ||
+        statement->kind == W_SEED_FRONTEND_STMT_WHILE) {
       if (statement->first_child != W_SEED_FRONTEND_NONE &&
           binding_declaration_visible_in_chain(
               context, function_index, statement->first_child,

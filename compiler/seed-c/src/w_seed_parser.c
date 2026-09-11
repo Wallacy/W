@@ -1835,8 +1835,7 @@ static bool statement_boundary(w_seed_parser *parser) {
     (void)consume_text(parser, ";", NULL);
     return true;
   }
-  if (current_is_text(parser, "else") || current_is_text(parser, "catch") ||
-      current_is_text(parser, "while")) {
+  if (current_is_text(parser, "else") || current_is_text(parser, "catch")) {
     (void)record_issue(parser, W_SEED_PARSE_ISSUE_NO_CONTINUATION_OWNER,
                        current_span(parser), W_SEED_PARSE_EXPECT_STATEMENT);
     (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);
@@ -1936,6 +1935,19 @@ static bool parse_if_statement(w_seed_parser *parser) {
     } else if (!parse_block(parser, false)) {
       return false;
     }
+  }
+  pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+  return true;
+}
+
+static bool parse_while_statement(w_seed_parser *parser) {
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_WHILE_STATEMENT, start) == W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "while", NULL);
+  if (!parse_expression(parser, 1, false) || !parse_block(parser, false)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
   }
   pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
   return true;
@@ -2097,6 +2109,7 @@ static bool parse_statement(w_seed_parser *parser) {
   if (current_is_text(parser, "return")) return parse_return_statement(parser);
   if (current_is_text(parser, "commit")) return parse_commit_statement(parser);
   if (current_is_text(parser, "if")) return parse_if_statement(parser);
+  if (current_is_text(parser, "while")) return parse_while_statement(parser);
   if (current_is_text(parser, "guard")) return parse_guard_statement(parser);
   if (current_is_text(parser, "repeat")) return parse_repeat_statement(parser);
   if (current_is_text(parser, "for")) return parse_for_statement(parser);
@@ -2116,8 +2129,7 @@ static bool parse_statement(w_seed_parser *parser) {
     return false;
   }
   if (current_is_text(parser, "allocator")) return parse_allocator_block(parser);
-  if (current_is_text(parser, "else") || current_is_text(parser, "catch") ||
-      current_is_text(parser, "while")) {
+  if (current_is_text(parser, "else") || current_is_text(parser, "catch")) {
     (void)record_issue(parser, W_SEED_PARSE_ISSUE_NO_CONTINUATION_OWNER,
                        current_span(parser), W_SEED_PARSE_EXPECT_STATEMENT);
     (void)consume_raw(parser, W_SEED_CST_FLAG_ERROR, W_SEED_CST_ERROR, NULL);

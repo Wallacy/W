@@ -99,6 +99,8 @@ typedef enum {
   W_SEED_CST_GUARD_STATEMENT,
   /* Append-only module-level named const declaration. */
   W_SEED_CST_CONST_DECLARATION,
+  /* Append-only pre-test loop statement. */
+  W_SEED_CST_WHILE_STATEMENT,
 } w_seed_cst_kind;
 
 enum {

@@ -113,6 +113,7 @@ static bool node_is_statement(w_seed_cst_kind kind) {
     case W_SEED_CST_VAR_STATEMENT:
     case W_SEED_CST_RETURN_STATEMENT:
     case W_SEED_CST_IF_STATEMENT:
+    case W_SEED_CST_WHILE_STATEMENT:
     case W_SEED_CST_REPEAT_STATEMENT:
     case W_SEED_CST_FOR_STATEMENT:
     case W_SEED_CST_BREAK_STATEMENT:

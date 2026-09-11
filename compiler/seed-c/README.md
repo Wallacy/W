@@ -1353,6 +1353,20 @@ Bool or mixed-type joins, aggregates, aliases, other targets, and performance
 evidence remain outside this bounded compiler-lifecycle cut. Its benchmark
 disposition is correctness-only with no timing or benchmark result.
 
+### Ordinary `while` parser/frontend projection (W-1559)
+
+The seed parser now owns `while condition { body }` as a real append-only CST
+node. Frontend18 publishes a dedicated `WHILE` statement with a typed `Bool`
+condition and one ordered child chain. A root declaration before the loop is
+resolved in both the condition and body, and a non-`Bool` condition follows the
+existing `W-SEM-0001` diagnostic path.
+
+This is a parser/frontend boundary, not native loop support. HIR19 rejects the
+record until the loop header and backedge are represented and verified with
+explicit SSA block/edge arguments. No hidden stack cell, host-C loop, or
+textual lowering is used. Labels, `break`, `continue`, `while let`, nested
+loops, native execution, and performance remain outside this cut.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:d6710890cbdfda7792cf6eef3bbda4acf42b2c6c9ab4142947648c220cc5db07",
+  "corpusDigest": "sha256:bc02f5e6a0c26af37287271fc625da9580ae4fe2795acce725a6695cec87864d",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6132,6 +6132,54 @@
             "nonWhitespaceCodePoints": 63,
             "lines": 1,
             "surfaceLexemes": 18
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-seed-while-projection",
+      "task": {
+        "utf8Bytes": 119,
+        "codePoints": 119,
+        "nonWhitespaceCodePoints": 104,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:f4e38ca15d4b0ab3454a0a202d2ee6e3268369bce807301fa65e77fbee997e52",
+        "metrics": {
+          "utf8Bytes": 68,
+          "codePoints": 68,
+          "nonWhitespaceCodePoints": 52,
+          "lines": 3,
+          "surfaceLexemes": 17
+        }
+      },
+      "alternatives": [
+        {
+          "name": "orphan-while-token",
+          "language": "text",
+          "sourceDigest": "sha256:2f0fd96b15d494838b9944aed59169ad8fe8d76bd8c4038fd3019b819b2ce548",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "premature-hidden-loop-lowering",
+          "language": "text",
+          "sourceDigest": "sha256:5f39442c0fbc2e4b63d2eca29b327a6ea4e17fe4323666ffb632269347a0e360",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 67,
+            "lines": 1,
+            "surfaceLexemes": 14
           }
         }
       ]
