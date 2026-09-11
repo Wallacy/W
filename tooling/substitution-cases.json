@@ -5107,6 +5107,78 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-bool-mutation-ssa",
+      "reviewItem": "Boolean local mutation against integer-only lowering and hidden stack storage",
+      "decisions": [
+        "W-1556"
+      ],
+      "task": "Lower a same-typed Boolean mutable-local replacement as SSA without an integer-only special case.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var open = false",
+          "open = requested",
+          "return open"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "integer-only-mutation",
+          "language": "text",
+          "source": [
+            "reject Bool even though the HIR binding-version relation is type-preserving"
+          ],
+          "expectedDifference": "The selected route reuses the verified version graph for a second scalar type."
+        },
+        {
+          "name": "boolean-stack-cell",
+          "language": "text",
+          "source": [
+            "lower Bool var to alloca, store, load"
+          ],
+          "expectedDifference": "The selected route aliases the replacement directly to an i1 SSA operand."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_bool_mutation_ssa",
+          "claim": "HIR tests retain two Boolean versions and the explicit parameter read."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_bool_mutation_is_ssa",
+          "claim": "MLIR tests prove direct i1 return and no source-variable alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w",
+          "symbol": "availability",
+          "claim": "The public Restaurant witness executes true and false replacements."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantBoolMutationFixture",
+          "claim": "The Linux/WSL public runner executes exact Boolean output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantBoolMutationFixture",
+          "claim": "The native Windows public runner executes the same witness."
+        }
+      ],
+      "checks": [
+        "HIR retains two same-root Boolean versions and latest-version return",
+        "MLIR returns the i1 parameter with no source-variable alloca",
+        "Linux/WSL and native Windows print exact Open true; closed false"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

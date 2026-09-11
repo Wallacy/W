@@ -1411,6 +1411,36 @@ static bool test_conditional_mutation_merge(void) {
   return true;
 }
 
+static bool test_bool_mutation_ssa(void) {
+  static const char SOURCE[] =
+      "fn availability(requested: Bool): Bool {\n"
+      "  var open = false\n"
+      "  open = requested\n"
+      "  return open\n"
+      "}\n"
+      "entry(availability)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->binding_count == 2u &&
+        program->bindings[0].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->bindings[1].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        program->bindings[0].next_version == 1u &&
+        program->bindings[1].source_binding == 0u &&
+        program->bindings[1].previous_version == 0u);
+  const w_seed_hir0_value *replacement =
+      &program->values[program->bindings[1].initializer_value];
+  CHECK(replacement->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        replacement->type_index == W_SEED_HIR0_TYPE_BOOL);
+  const w_seed_hir0_terminator *terminator = &program->terminators[0];
+  CHECK(terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        terminator->value_index < program->value_count &&
+        program->values[terminator->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[terminator->value_index].binding_index == 1u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_bindings_across_functions(void) {
   static const char SOURCE[] =
       "fn first() { let first = true }\n"
@@ -3815,6 +3845,7 @@ int main(void) {
   if (!test_straight_line_mutation_ssa()) return 1;
   if (!test_interleaved_mutation_versions()) return 1;
   if (!test_conditional_mutation_merge()) return 1;
+  if (!test_bool_mutation_ssa()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

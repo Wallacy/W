@@ -1307,6 +1307,17 @@ source-variable `alloca`, load, or store. Assignment inside an arm, general
 dominance, loops, nested or aggregate mutation, aliases, other widths/targets,
 and performance evidence remain outside this bounded cut.
 
+### Boolean local mutation as SSA (W-1556)
+
+`fixtures/restaurant-bool-mutation.w` widens the ordered binding-version route
+to `Bool`. The replacement is a same-typed parameter read, later code reads the
+new version, and MLIR returns the corresponding `i1` value without a
+source-variable stack cell. Linux/WSL and native Windows execute exact
+`Open true; closed false\n` and retain the bounded Boolean display writer.
+
+Implicit conversions, compound or branch-local assignment, loops, aggregates,
+aliases, other types/targets, and performance evidence remain outside this cut.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

@@ -2773,11 +2773,47 @@ static bool test_conditional_mutation_merge_is_ssa(void) {
   return true;
 }
 
+static bool test_bool_mutation_is_ssa(void) {
+  static const uint8_t source[] =
+      "fn availability(requested: Bool): Bool {\n"
+      "  var open = false\n"
+      "  open = requested\n"
+      "  return open\n"
+      "}\n"
+      "entry {\n"
+      "  let open = availability(requested: true)\n"
+      "  let closed = availability(requested: false)\n"
+      "  print(\"Open ${open}; closed ${closed}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.binding_count == 4u &&
+        fixture.hir_program.bindings[0].type_index == W_SEED_HIR0_TYPE_BOOL &&
+        fixture.hir_program.bindings[1].type_index == W_SEED_HIR0_TYPE_BOOL);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start != SIZE_MAX &&
+        contains_bytes(artifact + function_start, entry_start - function_start,
+                       "%p0: i1) -> i1") &&
+        contains_bytes(artifact + function_start, entry_start - function_start,
+                       "llvm.return %p0 : i1") &&
+        count_bytes(artifact + function_start, entry_start - function_start,
+                    "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;
   if (!test_conditional_mutation_merge_is_ssa()) return 1;
+  if (!test_bool_mutation_is_ssa()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;
