@@ -377,6 +377,8 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
       .block_capacity = W_SEED_NATIVE0_HIR_BLOCKS,
       .block_arguments = storage->hir_block_arguments,
       .block_argument_capacity = W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS,
+      .edge_arguments = storage->hir_edge_arguments,
+      .edge_argument_capacity = W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS,
       .instructions = storage->hir_instructions,
       .instruction_capacity = W_SEED_NATIVE0_HIR_INSTRUCTIONS,
       .bindings = storage->hir_bindings,

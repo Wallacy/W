@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-18"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-19"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -317,6 +317,19 @@ typedef struct {
   w_seed_span source_span;
 } w_seed_hir0_block_argument;
 
+/* A jump's operands are explicit edge arguments.  Records are contiguous in
+ * terminator order and pair with the destination block arguments by ordinal.
+ * Values remain independently indexed, so nested value trees need not be
+ * laid out in root order. */
+typedef struct {
+  uint32_t owner_terminator;
+  uint32_t owner_block;
+  uint32_t ordinal;
+  uint32_t value_index;
+  uint32_t type_index;
+  w_seed_span source_span;
+} w_seed_hir0_edge_argument;
+
 typedef struct {
   w_seed_hir0_instruction_kind kind;
   uint32_t owner_block;
@@ -439,7 +452,8 @@ typedef struct {
    * requires else_block to be W_SEED_HIR0_NONE. RETURN uses neither field. */
   uint32_t target_block;
   uint32_t else_block;
-  uint32_t incoming_value;
+  uint32_t first_edge_argument;
+  uint32_t edge_argument_count;
   w_seed_hir0_logical_operator logical_operator;
   w_seed_span source_span;
 } w_seed_hir0_terminator;
@@ -472,6 +486,7 @@ typedef struct {
   size_t parameters;
   size_t blocks;
   size_t block_arguments;
+  size_t edge_arguments;
   size_t instructions;
   size_t bindings;
   size_t calls;
@@ -513,6 +528,9 @@ typedef struct {
   const w_seed_hir0_block_argument *block_arguments;
   size_t block_argument_count;
   size_t block_argument_capacity;
+  const w_seed_hir0_edge_argument *edge_arguments;
+  size_t edge_argument_count;
+  size_t edge_argument_capacity;
   const w_seed_hir0_instruction *instructions;
   size_t instruction_count;
   size_t instruction_capacity;
@@ -575,6 +593,8 @@ typedef struct {
   size_t block_capacity;
   w_seed_hir0_block_argument *block_arguments;
   size_t block_argument_capacity;
+  w_seed_hir0_edge_argument *edge_arguments;
+  size_t edge_argument_capacity;
   w_seed_hir0_instruction *instructions;
   size_t instruction_capacity;
   w_seed_hir0_binding *bindings;

@@ -214,6 +214,7 @@ O corpus compara, no mínimo:
 - conditional mutable local through one verified SSA join.
 - Boolean local mutation against integer-only lowering and hidden stack storage.
 - symmetric branch-local mutation against linearized writes and hidden stack storage.
+- bounded multi-root symmetric branch-local mutation against positional pairing and hidden stack storage.
 
 ### 1.1 Cobertura de substituições
 
@@ -7828,6 +7829,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1555 | conditional local mutation merged in SSA | A root-block signed-`i64` mutable binding may be read by both pure scalar `if` arms. Their values merge through one typed block argument, and one later assignment creates the next ordered binding version in the join block. MLIR retains the diamond and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR and MLIR tests plus the Restaurant fixture prove cross-arm reads of the root version, a single joined update, exact `Open 6; closed 4\n`, and no `alloca` inside the W function. Assignment inside an arm, multiple crossing mutable roots, nested/loop mutation, aggregates, aliases, mutable borrows, generalized dominance metadata, other widths/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1556 | Boolean local mutation as verified SSA | A local `Bool` `var` and later same-typed simple `=` lower through the existing ordered HIR binding-version contract. MLIR consumes the replacement as an `i1` SSA value and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR/MLIR tests and the Restaurant fixture prove parameter replacement, latest-version return, exact `Open true; closed false\n`, Boolean display, and no `alloca` inside the W function. Conversions, compound/branch/loop/aggregate/aliased mutation, mutable borrows, other types/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1557 | symmetric branch-local mutation merged in SSA | A top-level statement `if` may assign the same root-block signed-`i64` `var` exactly once in each pure scalar arm. HIR carries both values on the branch jumps and creates only one successor binding version at the typed join; MLIR emits no source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove lexical ancestor visibility without branch escape, one join version, exact `Open 6; closed 4\n`, and no source-variable `alloca`. Missing else, unequal targets, extra arm statements, calls/effects, Bool/multiple/nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1558 | bounded multi-root symmetric branch mutation merged in SSA | A top-level statement `if` may assign a nonempty identical set of root-block mutable signed-`i64` `var` bindings exactly once in each pure arm. Pairing follows resolved root declaration identity rather than statement position, so opposite arm order is accepted; HIR19 emits destination block arguments and successor binding versions in root declaration order, while the Unit branch (`BRANCH.result_type == 0`) carries one typed edge argument per join ordinal. MLIR emits the complete typed operand lists and block parameters without a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR19 → MLIR/native Linux/WSL and Windows route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove two roots, opposite assignment order, deterministic root-order mapping, exact `Open 18; closed -4\n`, edge owner/ordinal/type/count barriers, and no source-variable `alloca`. Missing/duplicate/extra targets, same-arm dependencies, calls/effects, Bool or mixed joins, nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11192,3 +11194,27 @@ arms, unequal targets, and extra arm statements fail closed.
 diamond and returns its `i64` join argument without a source-variable
 `alloca`, load, or store. This is bounded correctness evidence, not general
 dominance, general branch mutation, or measured performance.
+
+#### W-1558 — bounded multi-root symmetric branch mutation merged in SSA
+
+W-1558 extends the accepted diamond to a nonempty set of root-block mutable
+signed-`i64` bindings. Each arm contains exactly one simple assignment for
+each selected root, and matching is by the resolved declaration identity
+rather than statement position. That keeps opposite arm order deterministic:
+HIR19 sorts the destination block arguments and successor binding versions by
+root declaration order. Every right-hand side is pure and reads only
+pre-branch versions; calls, effects, nested control, and same-arm dependencies
+remain outside the cut.
+
+The statement branch is still Unit (`BRANCH.result_type == 0`). The join is
+validated from its destination block arguments and each predecessor's
+contiguous edge-argument records, with one independently indexed value per
+ordinal. MLIR emits the complete typed operand lists and block parameters
+without a source-variable cell. The Restaurant witness
+`compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w` exercises
+opposite assignment order and exact `Open 18; closed -4\n`; focused frontend,
+HIR0, MLIR0, native, Linux/WSL, and Windows checks provide source-backed
+correctness evidence. Bool and mixed-type joins, nested/loop/aggregate/aliased
+mutation, general dominance, diagnostics, timing, ranking, and performance
+remain gaps. `benchmarkDisposition` is `compiler-lifecycle`, correctness-only,
+with no timing or benchmark result.
