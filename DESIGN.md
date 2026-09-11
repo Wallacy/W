@@ -25053,6 +25053,11 @@ Older papers contribute architectural ideas only after those ideas are
 revalidated against the exact stable toolchain selected for the new bundle;
 their APIs and historical limitations are not inherited.
 
+```text
+verified W IR -> structured domain IR -> costed schedule
+              -> bufferization + explicit transfers -> target IR -> object
+```
+
 #### 18.1.2 Proof-capable compiler mode (research-gated)
 
 W may become a proof-capable language through an optional verification axis,
@@ -25081,6 +25086,11 @@ logic expressiveness, induction and termination, trusted-base size,
 incremental checking, certificate format, diagnostics, and the erasure proof.
 Until that stop condition passes, W is proof-capable as a goal, not an
 implemented or frozen language surface.
+
+```text
+ordinary compile: verified facts -> optimizer -> artifact
+proof compile:    checked certificate -> verified facts -> optimizer -> artifact
+```
 
 ### 18.2 Fatos de prova
 
@@ -37690,6 +37700,18 @@ this bounded compiler-lifecycle cut. Its benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
 No hidden memory fallback is authorized.
 
+```w
+var seats = 5
+var tables = 2
+if isOpen {
+  tables = tables + 10
+  seats = seats + 1
+} else {
+  seats = seats - 1
+  tables = tables - 10
+}
+```
+
 #### 26.4.1.40 W-1559 — bounded seed `while` projection (Current form)
 
 The seed parser recognizes an ordinary pre-test `while condition { body }` as
@@ -37700,16 +37722,64 @@ visible before the loop is visible in its condition and body, while a body
 declaration does not escape the loop. A non-`Bool` condition produces the
 ordinary `W-SEM-0001` type diagnostic.
 
-This milestone deliberately stops at the verified frontend boundary. HIR19
-and all downstream consumers reject the new statement kind, so parsing a loop
-cannot be mistaken for executable loop support. The next compiler milestone
-must represent the loop header value and backedge through explicit block and
-edge arguments; stack cells, hidden allocation, textual lowering, and a host-C
-loop are not authorized fallbacks. Labels, `break`, `continue`, `while let`,
-multiple loop-carried roots, nested loops, effects, diagnostics beyond the
-condition type, native execution, timing, ranking, and performance remain
-outside this bounded projection cut. Its benchmark disposition is
-`compiler-lifecycle`, correctness-only, with no timing or benchmark result.
+At this milestone the evidence deliberately stopped at the verified frontend
+boundary: HIR19 and downstream consumers rejected the new statement kind, so
+parsing a loop could not be mistaken for executable loop support. W-1560
+separately advances one bounded HIR natural-loop shape with explicit block and
+edge arguments. Labels, `break`, `continue`, `while let`, multiple loop-carried
+roots, nested loops, effects, diagnostics beyond the condition type, native
+execution, timing, ranking, and performance remain outside W-1559. Its
+benchmark disposition is `compiler-lifecycle`, correctness-only, with no
+timing or benchmark result.
+
+```w
+var count = 0
+while count < limit {
+  count = count + 1
+}
+```
+
+#### 26.4.1.41 W-1560 — bounded single-root natural loop in verified HIR (Current form)
+
+HIR19 accepts one ordinary pre-test `while` per function when it carries
+exactly one root-block mutable signed-`i64` binding. The condition is `Bool`,
+the body contains exactly one assignment to that root, and both the condition
+and update expression must read the previous carried value. Those expression
+trees are pure scalars: integer/Boolean literals, function parameters, the
+carried root, parentheses, supported unary/binary operators, and no calls,
+interpolation, aggregates, short-circuit control, suspension, or effects.
+
+The producer emits exactly four blocks: preheader, header, body, and exit. The
+preheader jumps to the header with the initial binding value; the header owns
+one signed-`i64` block argument, evaluates the condition, and branches to body
+or exit; the body emits one successor binding version and jumps back with that
+value. The header argument dominates both body and exit, so any later exit read
+of the carried root uses that SSA value directly. The verifier independently
+requires this exact shape, one unique backedge, matching typed edge arguments,
+the declaration and successor-version chain, and condition/update dependence
+on the header argument. Arbitrary cycles and additional backedges remain
+invalid. No source variable stack cell, hidden allocation, textual lowering,
+or host-C loop is an authorized fallback.
+
+This is HIR-only source-backed evidence. It does not claim structured MLIR
+lowering, native/public execution, labels, `break`, `continue`, `while let`,
+multiple carried roots, nested or mixed conditional control, calls/effects,
+other scalar or aggregate roots, diagnostics, timing, ranking, or performance.
+Its benchmark disposition is `compiler-lifecycle`, correctness-only, with no
+timing or benchmark result. The HIR record layout is unchanged; W-1560 uses the
+existing block, block-argument, edge-argument, binding-version, value, and
+terminator records rather than introducing a parallel loop representation.
+
+```w
+fn countTo(limit: i64): i64 {
+  var count = 0
+  while count < limit {
+    count = count + 1
+  }
+  return count
+}
+entry(countTo)
+```
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

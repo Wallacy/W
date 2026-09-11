@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:bc02f5e6a0c26af37287271fc625da9580ae4fe2795acce725a6695cec87864d",
+  "corpusDigest": "sha256:e1035f0c303386cfeca7e8c42802939493c2979eea9532cd21cebd29a52e56b1",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6180,6 +6180,54 @@
             "nonWhitespaceCodePoints": 67,
             "lines": 1,
             "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir-natural-loop-ssa",
+      "task": {
+        "utf8Bytes": 126,
+        "codePoints": 126,
+        "nonWhitespaceCodePoints": 109,
+        "lines": 1,
+        "surfaceLexemes": 25
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:b968ce256bc40054993964efbc4f7a9604cfea7d6e6c5f0cf96a86eb14ba3e2f",
+        "metrics": {
+          "utf8Bytes": 106,
+          "codePoints": 106,
+          "nonWhitespaceCodePoints": 78,
+          "lines": 5,
+          "surfaceLexemes": 28
+        }
+      },
+      "alternatives": [
+        {
+          "name": "source-variable-stack-cell",
+          "language": "text",
+          "sourceDigest": "sha256:91286205d85dad74e06bf6f849c1d2e9a752d1aa6739c975ef9cdc1477a872d5",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 51,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "generic-cycle-acceptance",
+          "language": "text",
+          "sourceDigest": "sha256:e3f4b155a09d650de5c429fb9118f88442dd5b625ed6b50a47bea6f58d152b2c",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 12
           }
         }
       ]

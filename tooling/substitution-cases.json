@@ -5401,7 +5401,73 @@
         "parser retains one explicit while owner with condition and body",
         "frontend publishes one WHILE statement and resolves the pre-loop root inside its body",
         "a non-Bool condition emits W-SEM-0001",
-        "HIR and downstream phases remain fail-closed until loop-carried SSA exists"
+        "W-1559 stops at parser/frontend evidence; W-1560 separately owns the first bounded HIR loop"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-hir-natural-loop-ssa",
+      "reviewItem": "bounded natural-loop SSA against hidden storage and permissive cyclic verification",
+      "decisions": [
+        "W-1560"
+      ],
+      "task": "Represent one single-root signed-i64 pre-test loop as verified HIR with an explicit header argument and unique typed backedge.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn countTo(limit: i64): i64 {",
+          "  var count = 0",
+          "  while count < limit { count = count + 1 }",
+          "  return count",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "source-variable-stack-cell",
+          "language": "text",
+          "source": [
+            "store count in hidden mutable memory and reload it at each use"
+          ],
+          "expectedDifference": "The selected route carries the value through a header block argument and typed incoming edges without a source-variable allocation."
+        },
+        {
+          "name": "generic-cycle-acceptance",
+          "language": "text",
+          "source": [
+            "accept any backward control-flow edge after record-level validation"
+          ],
+          "expectedDifference": "The selected verifier recognizes exactly one four-block natural loop and rejects additional or malformed backedges."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_natural_loop",
+          "claim": "The HIR verifier independently checks the exact four-block natural loop, typed incoming values, version chain, dominance uses, and unique backedge."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_while_mutation_ssa",
+          "claim": "The focused HIR witness proves explicit header and edge arguments and rejects forged ownership, values, versions, and backedges."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_while_mutation_barriers",
+          "claim": "Source barriers reject non-carried conditions or updates, multiple assignments, calls, nested loops, and non-i64 roots."
+        }
+      ],
+      "checks": [
+        "preheader and backedge provide one typed value to the header argument",
+        "condition, update, and exit read the header-dominated SSA definition",
+        "the body creates exactly one successor version of the root binding",
+        "unsupported source shapes and arbitrary cycles fail closed",
+        "MLIR and native execution remain a separate unclaimed milestone"
       ],
       "measures": [
         "semantic-correctness",

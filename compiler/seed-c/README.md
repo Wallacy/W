@@ -1361,11 +1361,29 @@ condition and one ordered child chain. A root declaration before the loop is
 resolved in both the condition and body, and a non-`Bool` condition follows the
 existing `W-SEM-0001` diagnostic path.
 
-This is a parser/frontend boundary, not native loop support. HIR19 rejects the
-record until the loop header and backedge are represented and verified with
-explicit SSA block/edge arguments. No hidden stack cell, host-C loop, or
-textual lowering is used. Labels, `break`, `continue`, `while let`, nested
-loops, native execution, and performance remain outside this cut.
+W-1559 itself is a parser/frontend boundary, not native loop support. At that
+milestone HIR19 rejected the record until the loop header and backedge could be
+represented and verified together. W-1560 is the separate bounded HIR
+successor. No hidden stack cell, host-C loop, or textual lowering is used.
+Labels, `break`, `continue`, `while let`, nested loops, native execution, and
+performance remain outside W-1559.
+
+### Bounded natural loop in verified HIR (W-1560)
+
+HIR19 now consumes a deliberately narrow successor to W-1559: one ordinary
+pre-test `while` per function, one root-block mutable signed-`i64` carrier, and
+one pure scalar assignment in the body. It emits a preheader, header, body, and
+exit; the header owns one block argument, while the initial and backedge values
+arrive through explicit typed edge arguments. The condition and update read
+that SSA definition; later exit reads of the root use it as well. The update
+creates one ordered successor binding version.
+
+The verifier accepts only this exact natural-loop shape and rejects missing or
+substituted edge values, malformed ownership or types, broken binding versions,
+and additional backedges. Source barriers reject conditions or updates that do
+not use the carrier, multiple body statements, calls, nested loops, and non-i64
+roots. This is HIR-only correctness evidence: MLIR lowering, native/public
+execution, general loops, timing, and performance remain pending.
 
 ### Short default entry (W-1541)
 

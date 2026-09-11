@@ -216,6 +216,7 @@ O corpus compara, no mínimo:
 - symmetric branch-local mutation against linearized writes and hidden stack storage.
 - bounded multi-root symmetric branch-local mutation against positional pairing and hidden stack storage.
 - ordinary while ownership against orphan continuation parsing and hidden lowering.
+- bounded natural-loop SSA against hidden storage and permissive cyclic verification.
 
 ### 1.1 Cobertura de substituições
 
@@ -246,7 +247,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 96 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 97 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7831,7 +7832,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1556 | Boolean local mutation as verified SSA | A local `Bool` `var` and later same-typed simple `=` lower through the existing ordered HIR binding-version contract. MLIR consumes the replacement as an `i1` SSA value and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR/MLIR tests and the Restaurant fixture prove parameter replacement, latest-version return, exact `Open true; closed false\n`, Boolean display, and no `alloca` inside the W function. Conversions, compound/branch/loop/aggregate/aliased mutation, mutable borrows, other types/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1557 | symmetric branch-local mutation merged in SSA | A top-level statement `if` may assign the same root-block signed-`i64` `var` exactly once in each pure scalar arm. HIR carries both values on the branch jumps and creates only one successor binding version at the typed join; MLIR emits no source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove lexical ancestor visibility without branch escape, one join version, exact `Open 6; closed 4\n`, and no source-variable `alloca`. Missing else, unequal targets, extra arm statements, calls/effects, Bool/multiple/nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1558 | bounded multi-root symmetric branch mutation merged in SSA | A top-level statement `if` may assign a nonempty identical set of root-block mutable signed-`i64` `var` bindings exactly once in each pure arm. Pairing follows resolved root declaration identity rather than statement position, so opposite arm order is accepted; HIR19 emits destination block arguments and successor binding versions in root declaration order, while the Unit branch (`BRANCH.result_type == 0`) carries one typed edge argument per join ordinal. MLIR emits the complete typed operand lists and block parameters without a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR19 → MLIR/native Linux/WSL and Windows route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove two roots, opposite assignment order, deterministic root-order mapping, exact `Open 18; closed -4\n`, edge owner/ordinal/type/count barriers, and no source-variable `alloca`. Missing/duplicate/extra targets, same-arm dependencies, calls/effects, Bool or mixed joins, nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
-| W-1559 | bounded seed `while` projection | The seed parser adds an explicit append-only pre-test-loop CST owner, and Frontend18 publishes a `WHILE` statement with one typed Bool condition and one ordered child chain. Lexical resolution makes a preceding declaration visible in the condition and body without allowing a body declaration to escape. | `source-backed-current` only for parser/frontend records, deterministic caller-owned emission, lexical resolution, and the ordinary non-Bool diagnostic. HIR19 and downstream consumers reject the statement kind; loop CFG, loop-carried SSA, labels, break/continue, `while let`, nesting, native execution, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1559 | bounded seed `while` projection | The seed parser adds an explicit append-only pre-test-loop CST owner, and Frontend18 publishes a `WHILE` statement with one typed Bool condition and one ordered child chain. Lexical resolution makes a preceding declaration visible in the condition and body without allowing a body declaration to escape. | `source-backed-current` only for parser/frontend records, deterministic caller-owned emission, lexical resolution, and the ordinary non-Bool diagnostic. At this milestone HIR19 and downstream consumers rejected the statement kind; W-1560 separately advances one bounded HIR natural loop. Labels, break/continue, `while let`, nesting, native execution, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1560 | bounded single-root natural loop in verified HIR | HIR19 lowers one ordinary pre-test `while` carrying one root-block mutable signed-`i64` value into four blocks: preheader, header, body, and exit. The header owns one block argument available to the pure Bool condition, pure scalar update, and later root reads at exit; the preheader and unique backedge provide typed edge arguments, and the body creates one successor binding version. | `source-backed-current` only for the bounded HIR producer, independent verifier, focused positive witness, and adversarial HIR/source barriers. MLIR/native/public execution, multiple roots, labels, break/continue, `while let`, nesting, mixed control, calls/effects, other root types, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11253,9 +11255,33 @@ requires a `Bool` condition through the existing semantic diagnostic path,
 and resolves pre-loop bindings inside the condition and body without branch
 escape.
 
-This decision does not claim an executable loop. HIR19 remains fail-closed on
-the statement until a natural-loop verifier, loop-carried block argument, and
-backedge argument are implemented together. Rejecting the new record is safer
-than lowering it to a hidden stack cell or a bootstrap-language loop. Parser
-and frontend unit tests are the complete source-backed evidence for this cut;
-native output and performance are explicitly absent.
+This decision does not claim an executable loop. At the W-1559 boundary HIR19
+remained fail-closed until a natural-loop verifier, loop-carried block argument,
+and backedge argument could be implemented together; W-1560 now records that
+separate bounded HIR milestone. Parser and frontend unit tests remain the
+complete source-backed evidence for W-1559 itself; native output and
+performance are explicitly absent.
+
+#### W-1560 — bounded single-root natural loop in verified HIR
+
+W-1560 advances the parser/frontend projection without inventing a second loop
+IR or hiding mutation in memory. One signed-`i64` root binding becomes a header
+block argument. The initial value arrives from the preheader and the updated
+successor binding arrives on the unique body backedge. Because the header
+definition dominates both successors, body expressions and later exit reads of
+the root can use that same SSA argument directly; redundant body/exit block
+arguments are not needed.
+
+The accepted source cut intentionally makes the first cyclic verifier small
+enough to audit: one loop per function, exactly one body assignment, pure
+scalar condition and update, both dependent on the carried root, and no nested
+or mixed conditional control. The verifier recognizes only the resulting
+four-block natural loop and checks typed incoming edges, the binding-version
+chain, dominance uses, and the single backedge independently of the producer.
+Malformed ownership, missing or substituted edge values, a second backedge,
+and unsupported source shapes fail closed.
+
+This closes only verified HIR representation. Structured MLIR ownership,
+native execution, public runner coverage, and performance evidence remain the
+next separate milestone. That separation prevents a bootstrap C loop or an
+expected-output shortcut from being reported as W execution.
