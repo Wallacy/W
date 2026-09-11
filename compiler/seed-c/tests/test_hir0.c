@@ -1233,6 +1233,67 @@ static bool test_local_binding_lowering(void) {
   return true;
 }
 
+static bool test_straight_line_mutation_ssa(void) {
+  static const char SOURCE[] =
+      "entry {\n"
+      "  var seats = 5\n"
+      "  seats = seats + 1\n"
+      "  print(message: \"Open ${seats}\", suffix: \"!\")\n"
+      "}\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.binding_count == 2u &&
+        fixture.hir_program.instruction_count == 3u &&
+        fixture.hir_program.call_count == 1u);
+  const w_seed_hir0_binding declaration = fixture.hir_bindings[0];
+  const w_seed_hir0_binding update = fixture.hir_bindings[1];
+  CHECK(declaration.is_mutable && declaration.source_binding == 0u &&
+        declaration.previous_version == W_SEED_HIR0_NONE &&
+        declaration.next_version == 1u &&
+        declaration.type_index == W_SEED_HIR0_TYPE_I64 &&
+        declaration.initializer_value < fixture.hir_program.value_count &&
+        update.is_mutable && update.source_binding == 0u &&
+        update.previous_version == 0u &&
+        update.next_version == W_SEED_HIR0_NONE &&
+        update.type_index == declaration.type_index &&
+        update.initializer_value < fixture.hir_program.value_count &&
+        update.owner_instruction == 1u &&
+        declaration.name.count == update.name.count &&
+        memcmp(fixture.hir_text + declaration.name.offset,
+               fixture.hir_text + update.name.offset,
+               declaration.name.count) == 0);
+  CHECK(fixture.hir_values[declaration.initializer_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_I64 &&
+        fixture.hir_values[declaration.initializer_value].integer_value == 5);
+  const w_seed_hir0_value *replacement =
+      &fixture.hir_values[update.initializer_value];
+  CHECK(replacement->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        fixture.hir_values[replacement->left_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_values[replacement->left_value].binding_index == 0u &&
+        fixture.hir_values[replacement->right_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_I64 &&
+        fixture.hir_values[replacement->right_value].integer_value == 1);
+  bool saw_latest_read = false;
+  for (size_t index = 0u; index < fixture.hir_program.value_count; index += 1u)
+    if (fixture.hir_values[index].kind == W_SEED_HIR0_VALUE_BINDING_READ &&
+        fixture.hir_values[index].binding_index == 1u)
+      saw_latest_read = true;
+  CHECK(saw_latest_read);
+
+  fixture.hir_bindings[1].source_binding = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_bindings[1] = update;
+  reseal_hir_fixture();
+  fixture.hir_bindings[0].next_version = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_bindings[0] = declaration;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_bindings_across_functions(void) {
   static const char SOURCE[] =
       "fn first() { let first = true }\n"
@@ -3634,6 +3695,7 @@ int main(void) {
   if (!test_function_parameter_records()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
+  if (!test_straight_line_mutation_ssa()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

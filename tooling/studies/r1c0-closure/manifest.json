@@ -281,7 +281,7 @@
     {
       "id": "R1-pkg1-project-transaction",
       "path": "tooling/studies/pkg1-project-transaction/bundle.json",
-      "digest": "sha256:8656b706f853915a67ef37c6983b17587dd3997e1d387855919a0ed93e662f94"
+      "digest": "sha256:f79489392fbda7e3ca2d247f9f0a9df8b4200eea46d5ebee6c168f0cb8d0dc67"
     },
     {
       "id": "R1-post-test-loop",

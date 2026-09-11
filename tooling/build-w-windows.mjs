@@ -122,6 +122,12 @@ export const SMOKE_CASES = Object.freeze([
       "Restaurant closed\nKitchen ready\nClosed branch joined\nPost-join service\n" +
       "Restaurant closed\nKitchen closed\nClosed branch joined\nPost-join service\n",
   }),
+  Object.freeze({
+    id: "restaurant-mutation",
+    fixture: "compiler/seed-c/fixtures/restaurant-mutation.w",
+    absoluteFixture: resolve(seedDirectory, "fixtures", "restaurant-mutation.w"),
+    expectedStdout: "Open 6\n",
+  }),
 ])
 
 function fail(message) {

@@ -21,6 +21,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-mutation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -419,6 +421,8 @@ try {
     { name: "direct-unary-interpolation",
       source: restaurantUnaryInterpolationFixture,
       expected: Buffer.from("Balance -7\n", "utf8") },
+    { name: "restaurant-mutation", source: restaurantMutationFixture,
+      expected: Buffer.from("Open 6\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -681,8 +685,8 @@ try {
     ["noop.w", `fn main() { noop("Other") }\nentry(main)\n`],
     ["outside-subset.w",
       `fn main(value: String) { print(value) }\nentry(main)\n`],
-    ["var-binding.w",
-      `fn main() { var message = "Hello, world!" print(message) }\nentry(main)\n`],
+    ["immutable-assignment.w",
+      `fn main() { let seats = 5 seats = seats + 1 print("\${seats}") }\nentry(main)\n`],
     ["unused-binding.w",
       `fn main() { let message = "unused" print("kept") }\nentry(main)\n`],
     ["recursive-call.w",

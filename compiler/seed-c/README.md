@@ -1280,6 +1280,20 @@ segment relations. The MLIR gate emits direct `llvm.sub` without the checked
 runtime helper, and Linux WRT0 plus native Windows produce exact
 `Balance -7\n`. No public frontend, HIR0, MLIR0 or Native0 record schema changes.
 
+### Straight-line local mutation as SSA (W-1554)
+
+Frontend17 accepts a local signed-`i64` `var` and simple `=` in one linear
+block. HIR18 represents declaration and reassignment as distinct binding
+versions linked by `source_binding`, `previous_version`, and `next_version`; a later read names
+the latest preceding version. The verifier rejects assignment to `let` and
+forged version chains before lowering.
+
+`fixtures/restaurant-mutation.w` executes exact `Open 6\n`. MLIR lowers the two
+versions to SSA values and introduces no variable `alloca`, `load`, or `store`.
+Compound assignment, branch/loop merges, nested mutable scopes, aggregate or
+aliased mutation, other widths, and performance evidence remain outside this
+bounded cut.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

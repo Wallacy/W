@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:c09d3f059be9d1005e90a7da0fc37e389aff7beec41b22e0c53eb11cd05d8a06",
+  "corpusDigest": "sha256:64243c7bef3ad62b63078f2778cf18d13153666f0cc617bec9cd6b5974e3836c",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -5045,6 +5045,138 @@
       ]
     },
     {
+      "id": "R0-mlir0-nested-scalar-if-value",
+      "task": {
+        "utf8Bytes": 145,
+        "codePoints": 145,
+        "nonWhitespaceCodePoints": 124,
+        "lines": 1,
+        "surfaceLexemes": 29
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:9f1fb359b37906dbf717f39e2e6d97f6e403406aa34e9434e5a66eb5f6c40670",
+        "metrics": {
+          "utf8Bytes": 468,
+          "codePoints": 468,
+          "nonWhitespaceCodePoints": 370,
+          "lines": 14,
+          "surfaceLexemes": 134
+        }
+      },
+      "alternatives": [
+        {
+          "name": "parenthesized-tail",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:bde515ed68b9717731e315bb1a0173b4d4837727fd39521502fbec64fce61b7a",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "flattened-cfg",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:4c908c2c43af0deda78875af16558e1a1a7cf9da23d9208d548a529cbf82bce7",
+          "metrics": {
+            "utf8Bytes": 55,
+            "codePoints": 55,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "general-cfg",
+          "language": "text",
+          "sourceDigest": "sha256:548654d7137474e963134160d8ac59c673be051aa9631828f422f68180021a6f",
+          "metrics": {
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 2,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "effectful-arm",
+          "language": "w-rejected",
+          "sourceDigest": "sha256:17c1d9b1fa7ddb37f94840883dbf3a0088332cbceedcf29eec36e9cc4673adc8",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-linux-wrt0-crt-free-link",
+      "task": {
+        "utf8Bytes": 151,
+        "codePoints": 151,
+        "nonWhitespaceCodePoints": 129,
+        "lines": 1,
+        "surfaceLexemes": 28
+      },
+      "selected": {
+        "name": "selected",
+        "language": "text",
+        "sourceDigest": "sha256:c5740363b6771046ad423742bdcbfb90852ccf2c8b349dbbcbbe23db5d72fb34",
+        "metrics": {
+          "utf8Bytes": 141,
+          "codePoints": 141,
+          "nonWhitespaceCodePoints": 124,
+          "lines": 3,
+          "surfaceLexemes": 48
+        }
+      },
+      "alternatives": [
+        {
+          "name": "ambient-host-crt",
+          "language": "text",
+          "sourceDigest": "sha256:d5aa5b22a565474222ea8727838aa346207042810ad9d0c3f2739ca560dea2f4",
+          "metrics": {
+            "utf8Bytes": 28,
+            "codePoints": 28,
+            "nonWhitespaceCodePoints": 24,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "dynamic-loader-without-needed-libraries",
+          "language": "text",
+          "sourceDigest": "sha256:b4fd0b89657b4563bb917407fba047370570c14adfc23ee53a7c1d14b89197a9",
+          "metrics": {
+            "utf8Bytes": 34,
+            "codePoints": 34,
+            "nonWhitespaceCodePoints": 29,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "monolithic-runtime",
+          "language": "text",
+          "sourceDigest": "sha256:ec65d2eb151a113754aa033d5dbb24a011923152b5c511ec8534f56959d99b67",
+          "metrics": {
+            "utf8Bytes": 45,
+            "codePoints": 45,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        }
+      ]
+    },
+    {
       "id": "R0-mlir0-checked-i64-arithmetic",
       "task": {
         "utf8Bytes": 122,
@@ -5568,6 +5700,246 @@
             "nonWhitespaceCodePoints": 81,
             "lines": 3,
             "surfaceLexemes": 19
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-runtime-i64-divrem",
+      "task": {
+        "utf8Bytes": 126,
+        "codePoints": 126,
+        "nonWhitespaceCodePoints": 113,
+        "lines": 1,
+        "surfaceLexemes": 21
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:2a9096f325c0eabede2e7ac44e2e04da23bd76178061c9e98fa32df120327763",
+        "metrics": {
+          "utf8Bytes": 291,
+          "codePoints": 291,
+          "nonWhitespaceCodePoints": 239,
+          "lines": 7,
+          "surfaceLexemes": 73
+        }
+      },
+      "alternatives": [
+        {
+          "name": "unchecked-target-division",
+          "language": "text",
+          "sourceDigest": "sha256:e53f8727bb4a4f6151820ff13f83c073d329bfd243e505689e1cae26b9172ae5",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "eager-remainder-special-case",
+          "language": "text",
+          "sourceDigest": "sha256:bb96ed8bd2454858201db31431b5a54ec6b1514d582e6a08428a1c8790e7b318",
+          "metrics": {
+            "utf8Bytes": 46,
+            "codePoints": 46,
+            "nonWhitespaceCodePoints": 39,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "always-linked-numeric-runtime",
+          "language": "text",
+          "sourceDigest": "sha256:bf73e9c92e8fd9a757b6acf40e5ad46e7f2b8b4ecaa97801471c68d481002c5e",
+          "metrics": {
+            "utf8Bytes": 63,
+            "codePoints": 63,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-checked-i64-unary-negate",
+      "task": {
+        "utf8Bytes": 101,
+        "codePoints": 101,
+        "nonWhitespaceCodePoints": 87,
+        "lines": 1,
+        "surfaceLexemes": 18
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:7b3a85ac832c1b7f564b56a769c1dac1115314ef0ebd86e0e23c16c2941eacdd",
+        "metrics": {
+          "utf8Bytes": 119,
+          "codePoints": 119,
+          "nonWhitespaceCodePoints": 98,
+          "lines": 5,
+          "surfaceLexemes": 30
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hir-binary-desugaring",
+          "language": "text",
+          "sourceDigest": "sha256:85ebd4cf0fbf9e79e66cfabf9104f4bbf27f3e291248a1ad26198deaac12053d",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 40,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "unchecked-target-subtraction",
+          "language": "text",
+          "sourceDigest": "sha256:288c2fa28e8e9d0f9712312c3075fe4b52ad894bff0387f5b5f7e3577ad767df",
+          "metrics": {
+            "utf8Bytes": 48,
+            "codePoints": 48,
+            "nonWhitespaceCodePoints": 41,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "always-linked-numeric-runtime",
+          "language": "text",
+          "sourceDigest": "sha256:852aff3820b9e10fe13bbac542499d4c8c7a197fcad61f5053173eaf92a93d21",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-direct-unary-interpolation",
+      "task": {
+        "utf8Bytes": 118,
+        "codePoints": 118,
+        "nonWhitespaceCodePoints": 103,
+        "lines": 1,
+        "surfaceLexemes": 19
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:f067f70f8d62a5d9ea48086b6742bc3f97d86dd867f21dd74497a83af02f9d4e",
+        "metrics": {
+          "utf8Bytes": 34,
+          "codePoints": 34,
+          "nonWhitespaceCodePoints": 28,
+          "lines": 3,
+          "surfaceLexemes": 7
+        }
+      },
+      "alternatives": [
+        {
+          "name": "late-root-only-retyping",
+          "language": "text",
+          "sourceDigest": "sha256:424c30254a2290a97ef358047c90b3d3a220b7888fdb5b3578d37dce43bf95bd",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 62,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "synthetic-binding-workaround",
+          "language": "w",
+          "sourceDigest": "sha256:b19b6d1c1d2c51892b593d2907df46fa90d13b767e252df433aa97783a42d3d6",
+          "metrics": {
+            "utf8Bytes": 58,
+            "codePoints": 58,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 4,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "textual-constant-fold",
+          "language": "text",
+          "sourceDigest": "sha256:4366994690d012f5407087c007019ab90a20c0e9bfa9c68ef03f457d40f6e259",
+          "metrics": {
+            "utf8Bytes": 66,
+            "codePoints": 66,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-straight-line-mutation-ssa",
+      "task": {
+        "utf8Bytes": 98,
+        "codePoints": 98,
+        "nonWhitespaceCodePoints": 87,
+        "lines": 1,
+        "surfaceLexemes": 17
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:e44b44ddc7c36a8fe5f2db2d1e3033680f1a6bbf63347e23ed73216d91d6604c",
+        "metrics": {
+          "utf8Bytes": 70,
+          "codePoints": 70,
+          "nonWhitespaceCodePoints": 51,
+          "lines": 5,
+          "surfaceLexemes": 16
+        }
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-cell",
+          "language": "text",
+          "sourceDigest": "sha256:0c4aff428d60b7bc1561f24d264afd2c330a208935cd174a30289a4c73d63018",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "assignment-as-declaration",
+          "language": "text",
+          "sourceDigest": "sha256:a546fd46ac44a6b1d14c8b4abcc483b846b8f6c537eb4d2b49e68600c022c792",
+          "metrics": {
+            "utf8Bytes": 56,
+            "codePoints": 56,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "mutable-let",
+          "language": "w",
+          "sourceDigest": "sha256:92f7f7e49eec4aa933170b179c8af019a238d9bb82ffb4c6df06ae6ff650cd1b",
+          "metrics": {
+            "utf8Bytes": 33,
+            "codePoints": 33,
+            "nonWhitespaceCodePoints": 24,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

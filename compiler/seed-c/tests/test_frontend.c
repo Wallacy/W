@@ -144,6 +144,7 @@ static fixture fixture_const;
 static fixture fixture_host;
 static char long_source[8192];
 static fixture fixture_scalar_if;
+static fixture fixture_mutation;
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
   if (size == 0) return true;
@@ -2546,7 +2547,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-16") &&
+                         "w-seed-frontend-17") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2585,8 +2586,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-16\n",
-                         strlen("schema=w-seed-frontend-16\n")));
+        receipt_contains(value, "schema=w-seed-frontend-17\n",
+                         strlen("schema=w-seed-frontend-17\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5012,6 +5013,57 @@ static bool test_process_abi_alias_and_exit_case(void) {
   return true;
 }
 
+static bool test_local_assignment_projection(void) {
+  fixture *value = &fixture_mutation;
+  CHECK(fixture_run(value,
+                    "entry {\n"
+                    "  var seats = 5\n"
+                    "  seats = seats + 1\n"
+                    "}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        frontend_text_is(value->result.schema_version,
+                         "w-seed-frontend-17") &&
+        value->result.written.statements == 2u);
+  CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
+        value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
+        value->statements[1].kind == W_SEED_FRONTEND_STMT_EXPRESSION);
+  const uint32_t assignment_index = value->statements[1].expression_index;
+  CHECK(assignment_index < value->result.written.expressions);
+  const w_seed_frontend_expression *assignment =
+      &value->expressions[assignment_index];
+  CHECK(assignment->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT &&
+        assignment->supported &&
+        frontend_text_is(assignment->operator_text, "=") &&
+        assignment->left < value->result.written.expressions &&
+        assignment->right < value->result.written.expressions &&
+        assignment->inferred_type < value->result.written.types &&
+        value->types[assignment->inferred_type].kind ==
+            W_SEED_FRONTEND_TYPE_UNIT);
+  const w_seed_frontend_expression *target =
+      &value->expressions[assignment->left];
+  const w_seed_frontend_expression *replacement =
+      &value->expressions[assignment->right];
+  CHECK(target->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        target->resolved_binding_statement == 0u &&
+        target->inferred_type == value->statements[0].effective_type &&
+        replacement->kind == W_SEED_FRONTEND_EXPR_BINARY &&
+        replacement->inferred_type == value->statements[0].effective_type &&
+        value->expressions[replacement->left].resolved_binding_statement ==
+            0u);
+
+  CHECK(fixture_run(value,
+                    "entry {\n"
+                    "  let seats = 5\n"
+                    "  seats = seats + 1\n"
+                    "}\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED);
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u)
+    CHECK(value->expressions[index].kind !=
+          W_SEED_FRONTEND_EXPR_ASSIGNMENT);
+  return true;
+}
+
 int main(void) {
   if (!test_short_entry_frontend()) return 1;
   if (!test_scalar_if_frontend_subset()) return 1;
@@ -5039,5 +5091,6 @@ int main(void) {
   if (!test_interpolated_string_projection()) return 1;
   if (!test_barrier_and_capacity()) return 1;
   if (!test_process_abi_alias_and_exit_case()) return 1;
+  if (!test_local_assignment_projection()) return 1;
   return 0;
 }

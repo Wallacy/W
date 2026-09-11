@@ -4936,6 +4936,99 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-straight-line-mutation-ssa",
+      "reviewItem": "verified SSA versioning against hidden stack storage and assignment rewriting",
+      "decisions": [
+        "W-1554"
+      ],
+      "task": "Lower one bounded straight-line mutable local without materializing a source-variable memory cell.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "entry {",
+          "  var seats = 5",
+          "  seats = seats + 1",
+          "  print(\"Open ${seats}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-cell",
+          "language": "text",
+          "source": [
+            "lower var to alloca plus load/store even when the control flow is linear"
+          ],
+          "expectedDifference": "The selected route retains values in SSA and creates no source-variable memory cell."
+        },
+        {
+          "name": "assignment-as-declaration",
+          "language": "text",
+          "source": [
+            "rewrite seats = value as an unrelated second declaration"
+          ],
+          "expectedDifference": "The HIR keeps one source root and an explicit ordered predecessor chain."
+        },
+        {
+          "name": "mutable-let",
+          "language": "w",
+          "source": [
+            "entry { let seats = 5 seats = 6 }"
+          ],
+          "expectedDifference": "Assignment requires an earlier mutable var; immutable bindings fail closed."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "w_seed_hir0_binding",
+          "claim": "HIR18 records the stable source binding and preceding SSA version."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_frontend.c",
+          "symbol": "mutable_binding_for_name",
+          "claim": "The frontend resolves assignment only to a prior mutable local."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "root_binding_index_for_statement",
+          "claim": "HIR lowering preserves one source root while emitting ordered versions."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_straight_line_mutation_ssa",
+          "claim": "HIR tests prove version relations, read selection, and forged-chain rejection."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_straight_line_mutation_is_ssa",
+          "claim": "MLIR tests prove checked arithmetic and absence of a source-variable alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-mutation.w",
+          "symbol": "entry",
+          "claim": "The public Restaurant witness mutates one local and prints its latest version."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantMutationFixture",
+          "claim": "The native Windows public runner executes the same source witness."
+        }
+      ],
+      "checks": [
+        "frontend accepts var assignment and rejects assignment to let",
+        "HIR verification accepts the exact version chain and rejects forgeries",
+        "MLIR emits SSA arithmetic with no source-variable alloca",
+        "Linux/WSL MLIR and native Windows public routes print exact Open 6"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

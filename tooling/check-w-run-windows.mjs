@@ -32,6 +32,8 @@ const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
 const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-interpolation.w")
+const restaurantMutationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-mutation.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
@@ -360,6 +362,9 @@ try {
   expectExact(binary, ["run", restaurantUnaryInterpolationFixture], 0,
     Buffer.from("Balance -7\n", "utf8"),
     "Restaurant direct unary interpolation")
+  expectExact(binary, ["run", restaurantMutationFixture], 0,
+    Buffer.from("Open 6\n", "utf8"),
+    "Restaurant straight-line local mutation")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
   expectExact(binary, ["run", processInputFixture], 2,
