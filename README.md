@@ -63,7 +63,10 @@ the current record schemas: zero and `i64.min / -1` fault before output, while
 explicit verified HIR value: constants use direct `llvm.sub`, runtime operands
 reuse the reachable checked-subtract helper, and `-i64.min` faults before
 output. Its Restaurant witness prints exact `Balance -7\n` on Linux WRT0 and
-native Windows. Power, other widths, named numeric APIs, and general panic
+native Windows. W-1553 also admits the direct composition
+`print("Balance ${-7}")`: interpolation typing no longer leaks the enclosing
+`String` expectation into the numeric child, and the constant product omits
+the checked helper. Power, other widths, named numeric APIs, and general panic
 runtime remain outside this cut.
 The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
 Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap

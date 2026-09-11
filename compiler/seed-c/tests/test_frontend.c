@@ -4447,6 +4447,43 @@ static bool test_interpolated_string_projection(void) {
         fixture_capacity.result.required.interpolation_segments == 2u &&
         fixture_output_is(&fixture_capacity, sentinel, true));
 
+  static const char direct_negative_source[] =
+      "fn balance(): String { return \"Balance ${-7}\" }\n";
+  value = &fixture_literal;
+  CHECK(fixture_run(value, direct_negative_source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.interpolation_segments == 2u);
+  uint32_t negative_literal = W_SEED_FRONTEND_NONE;
+  uint32_t negative_unary = W_SEED_FRONTEND_NONE;
+  uint32_t negative_interpolation = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *item = &value->expressions[index];
+    if (item->kind == W_SEED_FRONTEND_EXPR_INTEGER)
+      negative_literal = (uint32_t)index;
+    else if (item->kind == W_SEED_FRONTEND_EXPR_UNARY)
+      negative_unary = (uint32_t)index;
+    else if (item->kind == W_SEED_FRONTEND_EXPR_INTERPOLATED_STRING)
+      negative_interpolation = (uint32_t)index;
+  }
+  CHECK(negative_literal != W_SEED_FRONTEND_NONE &&
+        negative_unary != W_SEED_FRONTEND_NONE &&
+        negative_interpolation != W_SEED_FRONTEND_NONE);
+  const uint32_t negative_type =
+      value->expressions[negative_unary].inferred_type;
+  CHECK(negative_type != W_SEED_FRONTEND_NONE &&
+        negative_type < value->result.written.types &&
+        value->types[negative_type].kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+        value->types[negative_type].is_signed &&
+        value->types[negative_type].bit_width == 64u &&
+        value->expressions[negative_literal].inferred_type == negative_type &&
+        value->expressions[negative_unary].left == negative_literal &&
+        frontend_text_is(value->expressions[negative_unary].operator_text,
+                         "-") &&
+        value->interpolation_segments[1].expression_index == negative_unary &&
+        value->interpolation_segments[1].owner_expression ==
+            negative_interpolation);
+
   static const char builtin_source[] =
       "fn main() { let state = \"open\" "
       "print(\"${true}/${false}/${state}\") }\nentry(main)\n";

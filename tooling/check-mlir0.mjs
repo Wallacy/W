@@ -19,6 +19,8 @@ const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
   "fixtures", "restaurant-unary-negate.w")
+const restaurantUnaryInterpolationFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-unary-interpolation.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -274,8 +276,6 @@ try {
     "runtime-remainder-zero.w")
   const runtimeNegationOverflowPath = resolve(artifactDirectory,
     "runtime-negation-overflow.w")
-  const constantNegationPath = resolve(artifactDirectory,
-    "constant-negation.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -360,9 +360,6 @@ try {
     'fn main() { let result = negate(' +
     'value: 0 - 9223372036854775807 - 1) ' +
     'print("success ${result}") }\nentry(main)\n')
-  await writeFile(constantNegationPath,
-    'fn negative(): i64 { return -7 }\n' +
-    'entry { let value = negative() print("${value}") }\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -419,8 +416,9 @@ try {
       expected: Buffer.from("0\n", "utf8") },
     { name: "restaurant-unary-negate", source: restaurantUnaryNegateFixture,
       expected: Buffer.from("Balance -7\n", "utf8") },
-    { name: "constant-negation", source: constantNegationPath,
-      expected: Buffer.from("-7\n", "utf8") },
+    { name: "direct-unary-interpolation",
+      source: restaurantUnaryInterpolationFixture,
+      expected: Buffer.from("Balance -7\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -581,9 +579,9 @@ try {
   assert(runtimeNegateArtifact.includes(
     "llvm.call @w_seed_checked_subtract_i64") &&
     runtimeNegateArtifact.includes("_neg_zero") &&
-    !artifacts.get("constant-negation").includes(
+    !artifacts.get("direct-unary-interpolation").includes(
       "@w_seed_checked_subtract_i64") &&
-    artifacts.get("constant-negation").includes(" = llvm.sub "),
+    artifacts.get("direct-unary-interpolation").includes(" = llvm.sub "),
   "checked runtime or direct constant unary negation was not retained")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(

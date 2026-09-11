@@ -3170,6 +3170,39 @@ static bool test_i64_unary_negate_positive(void) {
   return true;
 }
 
+static bool test_direct_i64_unary_interpolation(void) {
+  static const char SOURCE[] =
+      "entry { print(message: \"Balance ${-7}\", suffix: \"\") }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  uint32_t literal = W_SEED_HIR0_NONE;
+  uint32_t unary = W_SEED_HIR0_NONE;
+  uint32_t interpolation = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_CONST_I64)
+      literal = (uint32_t)index;
+    else if (program->values[index].kind == W_SEED_HIR0_VALUE_UNARY_I64)
+      unary = (uint32_t)index;
+    else if (program->values[index].kind ==
+             W_SEED_HIR0_VALUE_INTERPOLATED_STRING)
+      interpolation = (uint32_t)index;
+  }
+  CHECK(literal != W_SEED_HIR0_NONE && unary != W_SEED_HIR0_NONE &&
+        interpolation != W_SEED_HIR0_NONE &&
+        program->values[literal].type_index == 2u &&
+        program->values[literal].integer_value == 7 &&
+        program->values[unary].type_index == 2u &&
+        program->values[unary].unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+        program->values[unary].left_value == literal &&
+        program->values[interpolation].first_interpolation_segment == 0u &&
+        program->values[interpolation].interpolation_segment_count == 2u &&
+        program->interpolation_segments[1].kind ==
+            W_SEED_HIR0_INTERPOLATION_VALUE &&
+        program->interpolation_segments[1].value_index == unary &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_logical_or_diamond_positive(void) {
   static const char SOURCE[] =
       "fn rhs(): Bool { return true }\n"
@@ -3622,6 +3655,7 @@ int main(void) {
   if (!test_logical_and_diamond_positive()) return 1;
   if (!test_logical_unary_not_positive()) return 1;
   if (!test_i64_unary_negate_positive()) return 1;
+  if (!test_direct_i64_unary_interpolation()) return 1;
   if (!test_logical_or_diamond_positive()) return 1;
   if (!test_nested_logical_positive()) return 1;
   if (!test_logical_rhs_call_argument_positive()) return 1;

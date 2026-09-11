@@ -1261,9 +1261,24 @@ zero on the left, so `i64.min` traps before output. MLIR0 and Native0 artifact
 schemas remain unchanged.
 
 `fixtures/restaurant-unary-negate.w` prints exact `Balance -7\n` through the
-Linux WRT0 and native Windows public runners. Direct unary expressions inside
-an interpolation root, other widths/targets, general panic payload/cleanup and
-performance remain outside this bounded cut.
+Linux WRT0 and native Windows public runners. W-1553 separately closes the
+direct interpolation-root composition gap; other widths/targets, general panic
+payload/cleanup and performance remain outside this bounded cut.
+
+### Direct unary interpolation composition (W-1553)
+
+An interpolation expression no longer inherits the enclosing `String`
+expectation. For a representable leading unsuffixed prefix-negative expression,
+the frontend applies the canonical signed-`i64` default before it appends the
+literal and unary records. The HIR therefore receives one type-consistent
+explicit tree, not a late root-only repair, hidden binding or folded text
+segment.
+
+`fixtures/restaurant-unary-interpolation.w` uses
+`print("Balance ${-7}")`. Frontend and HIR units verify its literal, unary and
+segment relations. The MLIR gate emits direct `llvm.sub` without the checked
+runtime helper, and Linux WRT0 plus native Windows produce exact
+`Balance -7\n`. No public frontend, HIR0, MLIR0 or Native0 record schema changes.
 
 ### Short default entry (W-1541)
 

@@ -209,6 +209,7 @@ O corpus compara, no mínimo:
 - reachability-closed WRT startup against ambient CRT/libc and dynamic-loader inheritance.
 - checked runtime signed-i64 division and remainder against target undefined behavior, eager faulting operations, and ambient unchecked arithmetic.
 - checked signed-i64 unary negation against binary desugaring, unchecked target subtraction, and an always-linked numeric runtime.
+- direct prefix-negative interpolation against late root-only retyping, a synthetic binding workaround, and textual constant folding.
 
 ### 1.1 Cobertura de substituições
 
@@ -239,7 +240,7 @@ ledger, uma tarefa, a forma vigente, ao menos uma alternativa e quatro medidas.
 O checker valida a ligação e o índice publica a razão exata. O comando isolado
 sem flag permite inspecionar uma edição parcial. O gate do repository usa
 `--require-complete` e falha quando qualquer requisito não possui caso. R0 cobre
-os 95 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
+os 96 requisitos. Essa contagem fecha o input dos estudos; ela não afirma que
 os estudos foram executados. Ela também não substitui a auditoria do ledger
 mantida por [`tooling/design-freeze-audit.json`](tooling/design-freeze-audit.json).
 
@@ -7818,6 +7819,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1550 | CRT-free Linux WRT0 seed closure | The bounded Linux x86_64 product emits separate position-independent program and WRT0 LLVM objects. WRT0 owns `_start`, stdout `write`, and terminal exit through the Linux syscall ABI. The direct native linker recipe produces a static PIE with no `PT_INTERP` or `DT_NEEDED`; release also strips symbols. The public gate parses the retained ELF before execution and the runner removes every private WRT/intermediate artifact. Ordinary W source never inherits libc/CRT from the bootstrap host. | `source-backed-current` only for W-1521's bounded Linux x86_64 CLI/product route. Allocator, TLS, unwind, panic, scheduler, async I/O, signals, dynamic loading, stable ABI, other architectures/OSes, cross-compilation, timings, ranking, and performance remain gaps. Explicit C interop may add a versioned libc/CRT runtime requirement. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1551 | checked runtime signed-`i64` division and remainder | Existing HIR binary records admit runtime `/` and `%` without a schema change. Reachable private helpers validate zero and the signed minimum/negative-one edge before target division. Divide traps on both invalid cases; remainder traps on zero and returns zero for `i64.min % -1`. Safe constant trees remain direct and invalid constants fail before emission. | `source-backed-current` only for the bounded native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output and Linux fault-before-output behavior are exercised. General panic events/payload/cleanup, other widths/targets, named numeric APIs, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1552 | checked signed-`i64` unary negation | HIR0 `w-seed-hir0-17` appends an explicit typed unary-negate value rather than rewriting source identity to binary subtraction. Safe constants lower to direct `llvm.sub`; runtime values reuse the reachability-selected checked-subtract helper and reject `i64.min` before the target operation. | `source-backed-current` only for the bounded return/binding/interpolation-through-read native subset on Linux WRT0 and Windows x86_64. Exact Restaurant output, HIR adversarial verification, direct constant lowering, helper reachability and Linux fault-before-output are exercised. Direct unary interpolation roots, other widths/targets, general panic events/payload/cleanup, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
+| W-1553 | direct unary interpolation composition | Interpolation expressions do not inherit the enclosing `String` expectation. A representable leading unsuffixed prefix-negative expression receives the canonical signed-`i64` default before frontend records are published, keeping its literal child, unary root and interpolation segment type-consistent without a hidden binding or textual fold. | `source-backed-current` only for the bounded `${-7}` frontend → HIR17 → MLIR/native route on Linux WRT0 and Windows x86_64. The Restaurant fixture emits exact `Balance -7\n`; focused frontend/HIR checks retain the explicit tree and constant products omit the checked helper. General interpolation display protocols, the direct minimum-value literal spelling, other numeric defaults/widths/targets, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11073,8 +11075,28 @@ from entering constant-only or dead products.
 `compiler/seed-c/fixtures/restaurant-unary-negate.w` returns `-value` from an
 ordinary W function and prints exact `Balance -7\n` through Linux WRT0 and the
 native Windows runner. The Linux MLIR gate separately executes `-i64.min` and
-requires nonzero termination with empty stdout. Unary expressions used
-directly as interpolation roots remain a declared seed-frontend gap; the
-current source-backed claim is intentionally limited to returns, bindings and
-interpolation through a read. No general panic runtime or performance result
-is claimed.
+requires nonzero termination with empty stdout. At the W-1552 boundary, unary
+expressions used directly as interpolation roots remained a declared
+seed-frontend gap; W-1553 separately closes it. No general panic runtime or
+performance result is claimed.
+
+#### W-1553 — direct unary interpolation composition
+
+The interpolation parser previously inherited the enclosing `String`
+expectation from the `print` argument. Its late fallback then changed only the
+prefix-negation root to default `i64`, after the unsuffixed literal child had
+already been recorded with width zero. That produced a locally plausible
+frontend result which the verified-HIR boundary correctly rejected.
+
+W-1553 applies the canonical signed-`i64` expectation before parsing a
+representable leading prefix-negative interpolation expression, then restores
+the enclosing expectation. The literal and unary records are consequently born with the same
+semantic type. No synthetic binding, source-text folding or downstream repair
+is required, and no public record schema changes.
+
+`compiler/seed-c/fixtures/restaurant-unary-interpolation.w` uses the direct
+form `"Balance ${-7}"`. Frontend and HIR units prove the literal/root/segment
+relations; the MLIR gate proves direct `llvm.sub` without the checked helper;
+the Linux WRT0 and native Windows public runners produce exact
+`Balance -7\n`. These are bounded compiler-lifecycle correctness checks, not a
+general interpolation protocol or performance result.

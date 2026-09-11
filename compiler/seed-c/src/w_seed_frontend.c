@@ -11124,7 +11124,24 @@ static bool expression_parse_interpolated_string(
     }
     if (token_is_literal_event(&token, W_SEED_INTERPOLATION_START)) {
       frontend_expr_value nested;
-      if (!expression_parse_bp(parser, 0, &nested)) return false;
+      frontend_token nested_start;
+      const bool default_negative_integer =
+          cursor_peek(&parser->cursor, &nested_start) &&
+          token_text(parser->document, &nested_start, "-");
+      const frontend_simple_type saved_expected_type = parser->expected_type;
+      const bool saved_has_expected_type = parser->has_expected_type;
+      if (default_negative_integer) {
+        /* The surrounding String expectation is not the operand type of an
+         * interpolation. Give a leading unsuffixed negative expression the
+         * language's canonical integer default before its leaf records are
+         * appended, so the complete unary tree has one semantic type. */
+        parser->expected_type = const_default_integer_type();
+        parser->has_expected_type = true;
+      }
+      const bool parsed = expression_parse_bp(parser, 0, &nested);
+      parser->expected_type = saved_expected_type;
+      parser->has_expected_type = saved_has_expected_type;
+      if (!parsed) return false;
       if (nested.type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
           nested.type.bit_width == 0u &&
           !expression_value_set_type(parser, &nested,
