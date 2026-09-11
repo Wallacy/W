@@ -1318,6 +1318,23 @@ source-variable stack cell. Linux/WSL and native Windows execute exact
 Implicit conversions, compound or branch-local assignment, loops, aggregates,
 aliases, other types/targets, and performance evidence remain outside this cut.
 
+### Symmetric branch-local mutation as SSA (W-1557)
+
+`fixtures/restaurant-branch-mutation.w` assigns the same root-block
+signed-`i64` `var` exactly once in each arm of a top-level statement `if`.
+Frontend17 resolves the outer declaration into both descendant branches while
+preserving nearest nested shadowing and rejecting sibling access or branch
+escape. HIR18 carries both right-hand-side values on the two jumps and creates
+one successor binding version from the typed join argument; it does not create
+mutually exclusive linear versions.
+
+MLIR emits the conditional diamond and returns the joined `i64` directly.
+Linux/WSL and native Windows produce exact `Open 6; closed 4\n`, with no
+source-variable `alloca`, load, or store. Missing `else`, unequal targets,
+extra statements, calls/effects, Bool/multiple/nested/loop/aggregate mutation,
+general dominance, other targets, and performance remain outside this bounded
+compiler-lifecycle cut.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

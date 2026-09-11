@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:daec829117ec8564302006ef93167e3200349699162f711c6189342f2186b1e8",
+  "corpusDigest": "sha256:b11e9e53d9c4b37e38c439afcce981c0f3dd5ba3808af4a8ced875b583459410",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6036,6 +6036,54 @@
             "nonWhitespaceCodePoints": 31,
             "lines": 1,
             "surfaceLexemes": 9
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-branch-local-mutation-ssa",
+      "task": {
+        "utf8Bytes": 94,
+        "codePoints": 94,
+        "nonWhitespaceCodePoints": 78,
+        "lines": 1,
+        "surfaceLexemes": 18
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:d6381b711f43293a1c780a92a2765eb5650f7c9b378b5da707602da6775f21be",
+        "metrics": {
+          "utf8Bytes": 85,
+          "codePoints": 85,
+          "nonWhitespaceCodePoints": 63,
+          "lines": 3,
+          "surfaceLexemes": 23
+        }
+      },
+      "alternatives": [
+        {
+          "name": "linearize-mutually-exclusive-writes",
+          "language": "text",
+          "sourceDigest": "sha256:4f2f21305c298f3b06a9864f0b181be29eb9b6657d36f23f39638e59c738dfc8",
+          "metrics": {
+            "utf8Bytes": 73,
+            "codePoints": 73,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "branch-mutation-stack-cell",
+          "language": "text",
+          "sourceDigest": "sha256:3ac1faaaf600429b34b08de28774d221561ca9bd7416ffb0edbefed23dfd0469",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 57,
+            "lines": 1,
+            "surfaceLexemes": 17
           }
         }
       ]

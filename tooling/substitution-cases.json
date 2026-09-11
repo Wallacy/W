@@ -5179,6 +5179,89 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-branch-local-mutation-ssa",
+      "reviewItem": "symmetric branch-local mutation against linearized writes and hidden stack storage",
+      "decisions": [
+        "W-1557"
+      ],
+      "task": "Lower one assignment to the same mutable root in each branch as one verified SSA join version.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var seats = 5",
+          "if isOpen { seats = seats + 1 } else { seats = seats - 1 }",
+          "return seats"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "linearize-mutually-exclusive-writes",
+          "language": "text",
+          "source": [
+            "append one binding version for the true arm and another for the false arm"
+          ],
+          "expectedDifference": "The selected route keeps the version chain linear by creating only the post-dominator version."
+        },
+        {
+          "name": "branch-mutation-stack-cell",
+          "language": "text",
+          "source": [
+            "lower the source var to alloca, store in each arm, and load at the join"
+          ],
+          "expectedDifference": "The selected route carries both values on CFG edges and retains optimization-visible SSA."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/tests/test_frontend.c",
+          "symbol": "test_local_assignment_projection",
+          "claim": "Frontend tests prove lexical ancestor visibility, nested shadowing, and branch-local non-escape."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_branch_local_mutation_merge",
+          "claim": "HIR tests prove two incoming values, one join argument, and one successor binding version."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_branch_local_mutation_barriers",
+          "claim": "HIR tests reject missing else, unequal targets, and extra arm statements."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_branch_local_mutation_merge_is_ssa",
+          "claim": "MLIR tests prove the typed diamond, direct join return, and no source-variable alloca."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w",
+          "symbol": "nextSeats",
+          "claim": "The public Restaurant witness executes both branch assignments."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantBranchMutationFixture",
+          "claim": "The Linux/WSL public runner executes exact joined output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantBranchMutationFixture",
+          "claim": "The native Windows public runner executes the same witness."
+        }
+      ],
+      "checks": [
+        "frontend resolves the mutable root into both branches without allowing branch escape",
+        "HIR creates one successor version at a typed join and rejects asymmetric shapes",
+        "MLIR emits cond_br and typed incoming edges with no source-variable alloca",
+        "Linux/WSL and native Windows print exact Open 6; closed 4"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

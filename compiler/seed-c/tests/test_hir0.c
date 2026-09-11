@@ -1441,6 +1441,102 @@ static bool test_bool_mutation_ssa(void) {
   return true;
 }
 
+static bool test_branch_local_mutation_merge(void) {
+  static const char SOURCE[] =
+      "fn nextSeats(isOpen: Bool): i64 {\n"
+      "  var seats = 5\n"
+      "  if isOpen {\n"
+      "    seats = seats + 1\n"
+      "  } else {\n"
+      "    seats = seats - 1\n"
+      "  }\n"
+      "  return seats\n"
+      "}\n"
+      "entry(nextSeats)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->block_argument_count == 1u &&
+        program->binding_count == 2u);
+  const w_seed_hir0_binding *declaration = &program->bindings[0];
+  const w_seed_hir0_binding *merge = &program->bindings[1];
+  CHECK(declaration->owner_block == 0u && declaration->next_version == 1u &&
+        merge->owner_block == 3u && merge->source_binding == 0u &&
+        merge->previous_version == 0u &&
+        merge->next_version == W_SEED_HIR0_NONE &&
+        program->blocks[3].block_argument_count == 1u &&
+        program->block_arguments[0].owner_block == 3u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64);
+  const w_seed_hir0_value *initializer =
+      &program->values[merge->initializer_value];
+  CHECK(initializer->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        initializer->block_argument_index == 0u &&
+        initializer->owner_kind == W_SEED_HIR0_VALUE_OWNER_BINDING &&
+        initializer->owner_index == 1u);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].result_type == W_SEED_HIR0_TYPE_I64 &&
+        program->terminators[1].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[2].incoming_value != W_SEED_HIR0_NONE &&
+        program->terminators[1].target_block == 3u &&
+        program->terminators[2].target_block == 3u);
+  const w_seed_hir0_terminator *return_term = &program->terminators[3];
+  CHECK(return_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        return_term->value_index < program->value_count &&
+        program->values[return_term->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[return_term->value_index].binding_index == 1u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_terminator saved_branch = fixture.hir_terminators[0];
+  fixture.hir_terminators[0].result_type = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[0] = saved_branch;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  const w_seed_hir0_terminator saved_then = fixture.hir_terminators[1];
+  fixture.hir_terminators[1].incoming_value = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[1] = saved_then;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool expect_branch_mutation_unsupported(const char *source) {
+  CHECK(fixture_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  return true;
+}
+
+static bool test_branch_local_mutation_barriers(void) {
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var value = 1\n"
+      "  if flag { value = 2 }\n"
+      "  return value\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var left = 1\n"
+      "  var right = 2\n"
+      "  if flag { left = 3 } else { right = 4 }\n"
+      "  return left\n"
+      "}\nentry(choose)\n"));
+  CHECK(expect_branch_mutation_unsupported(
+      "fn choose(flag: Bool): i64 {\n"
+      "  var value = 1\n"
+      "  if flag { value = 2 let extra = 3 } else { value = 3 }\n"
+      "  return value\n"
+      "}\nentry(choose)\n"));
+  return true;
+}
+
 static bool test_bindings_across_functions(void) {
   static const char SOURCE[] =
       "fn first() { let first = true }\n"
@@ -3846,6 +3942,8 @@ int main(void) {
   if (!test_interleaved_mutation_versions()) return 1;
   if (!test_conditional_mutation_merge()) return 1;
   if (!test_bool_mutation_ssa()) return 1;
+  if (!test_branch_local_mutation_merge()) return 1;
+  if (!test_branch_local_mutation_barriers()) return 1;
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

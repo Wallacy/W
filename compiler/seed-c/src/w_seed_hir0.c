@@ -1839,6 +1839,171 @@ static bool frontend_statement_relations_ok(const w_seed_hir0_input *input,
 }
 
 typedef struct {
+  uint32_t then_statement;
+  uint32_t else_statement;
+  uint32_t declaration_statement;
+  uint32_t then_rhs;
+  uint32_t else_rhs;
+} hir0_branch_assignment_merge;
+
+static bool frontend_function_root_contains(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t function,
+    uint32_t target_statement) {
+  if (output == NULL || result == NULL || function >= result->written.functions)
+    return false;
+  const w_seed_frontend_function *owner = &output->functions[function];
+  uint32_t cursor = owner->statement_count == 0u
+                        ? W_SEED_FRONTEND_NONE
+                        : owner->first_statement;
+  size_t guard = 0u;
+  while (cursor != W_SEED_FRONTEND_NONE &&
+         guard < result->written.statements) {
+    if (cursor == target_statement) return true;
+    cursor = output->statements[cursor].next_sibling;
+    guard += 1u;
+  }
+  return false;
+}
+
+static bool frontend_i64_merge_value_shape(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, uint32_t expression, size_t depth) {
+  if (output == NULL || result == NULL || expression == W_SEED_FRONTEND_NONE ||
+      (size_t)expression >= result->written.expressions ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_frontend_expression *value = &output->expressions[expression];
+  if (value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= result->written.types ||
+      output->types[value->inferred_type].kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+      !output->types[value->inferred_type].is_signed ||
+      output->types[value->inferred_type].bit_width != 64u)
+    return false;
+  if (value->kind == W_SEED_FRONTEND_EXPR_INTEGER ||
+      value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER)
+    return true;
+  if (value->kind == W_SEED_FRONTEND_EXPR_PARENTHESIS)
+    return frontend_i64_merge_value_shape(output, result, value->left,
+                                          depth + 1u);
+  if (value->kind == W_SEED_FRONTEND_EXPR_UNARY)
+    return text_is(value->operator_text, "-") &&
+           frontend_i64_merge_value_shape(output, result, value->left,
+                                          depth + 1u);
+  if (value->kind != W_SEED_FRONTEND_EXPR_BINARY ||
+      (!text_is(value->operator_text, "+") &&
+       !text_is(value->operator_text, "-") &&
+       !text_is(value->operator_text, "*") &&
+       !text_is(value->operator_text, "/") &&
+       !text_is(value->operator_text, "%")))
+    return false;
+  return frontend_i64_merge_value_shape(output, result, value->left,
+                                        depth + 1u) &&
+         frontend_i64_merge_value_shape(output, result, value->right,
+                                        depth + 1u);
+}
+
+static bool frontend_branch_assignment_merge(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t function,
+    uint32_t if_statement, hir0_branch_assignment_merge *merge) {
+  if (output == NULL || result == NULL || merge == NULL ||
+      (size_t)if_statement >= result->written.statements)
+    return false;
+  const w_seed_frontend_statement *branch = &output->statements[if_statement];
+  if (branch->kind != W_SEED_FRONTEND_STMT_IF ||
+      branch->owner_function != function ||
+      !frontend_function_root_contains(output, result, function, if_statement) ||
+      branch->first_child == W_SEED_FRONTEND_NONE ||
+      branch->else_child == W_SEED_FRONTEND_NONE ||
+      (size_t)branch->first_child >= result->written.statements ||
+      (size_t)branch->else_child >= result->written.statements)
+    return false;
+  const w_seed_frontend_statement *then_statement =
+      &output->statements[branch->first_child];
+  const w_seed_frontend_statement *else_statement =
+      &output->statements[branch->else_child];
+  if (then_statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+      else_statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+      then_statement->owner_function != function ||
+      else_statement->owner_function != function ||
+      then_statement->next_sibling != W_SEED_FRONTEND_NONE ||
+      else_statement->next_sibling != W_SEED_FRONTEND_NONE ||
+      then_statement->expression_index == W_SEED_FRONTEND_NONE ||
+      else_statement->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)then_statement->expression_index >=
+          result->written.expressions ||
+      (size_t)else_statement->expression_index >=
+          result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *then_assignment =
+      &output->expressions[then_statement->expression_index];
+  const w_seed_frontend_expression *else_assignment =
+      &output->expressions[else_statement->expression_index];
+  if (then_assignment->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
+      else_assignment->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT ||
+      then_assignment->left == W_SEED_FRONTEND_NONE ||
+      else_assignment->left == W_SEED_FRONTEND_NONE ||
+      then_assignment->right == W_SEED_FRONTEND_NONE ||
+      else_assignment->right == W_SEED_FRONTEND_NONE ||
+      (size_t)then_assignment->left >= result->written.expressions ||
+      (size_t)else_assignment->left >= result->written.expressions)
+    return false;
+  const w_seed_frontend_expression *then_target =
+      &output->expressions[then_assignment->left];
+  const w_seed_frontend_expression *else_target =
+      &output->expressions[else_assignment->left];
+  const uint32_t declaration = then_target->resolved_binding_statement;
+  if (then_target->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+      else_target->kind != W_SEED_FRONTEND_EXPR_IDENTIFIER ||
+      declaration == W_SEED_FRONTEND_NONE ||
+      else_target->resolved_binding_statement != declaration ||
+      (size_t)declaration >= result->written.statements ||
+      output->statements[declaration].kind != W_SEED_FRONTEND_STMT_VAR ||
+      output->statements[declaration].owner_function != function ||
+      !frontend_function_root_contains(output, result, function, declaration) ||
+      output->statements[declaration].effective_type == W_SEED_FRONTEND_NONE ||
+      (size_t)output->statements[declaration].effective_type >=
+          result->written.types ||
+      output->types[output->statements[declaration].effective_type].kind !=
+          W_SEED_FRONTEND_TYPE_INTEGER ||
+      !output->types[output->statements[declaration].effective_type].is_signed ||
+      output->types[output->statements[declaration].effective_type].bit_width !=
+          64u ||
+      !text_equal(then_target->spelling, else_target->spelling) ||
+      !frontend_i64_merge_value_shape(output, result, then_assignment->right,
+                                      0u) ||
+      !frontend_i64_merge_value_shape(output, result, else_assignment->right,
+                                      0u))
+    return false;
+  *merge = (hir0_branch_assignment_merge){
+      .then_statement = branch->first_child,
+      .else_statement = branch->else_child,
+      .declaration_statement = declaration,
+      .then_rhs = then_assignment->right,
+      .else_rhs = else_assignment->right};
+  return true;
+}
+
+static bool frontend_assignment_merge_owner(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t function,
+    uint32_t assignment_statement, uint32_t *owner) {
+  if (output == NULL || result == NULL || owner == NULL) return false;
+  for (size_t index = 0u; index < result->written.statements; index += 1u) {
+    hir0_branch_assignment_merge merge;
+    if (frontend_branch_assignment_merge(output, result, function,
+                                         (uint32_t)index, &merge) &&
+        (merge.then_statement == assignment_statement ||
+         merge.else_statement == assignment_statement)) {
+      *owner = (uint32_t)index;
+      return true;
+    }
+  }
+  return false;
+}
+
+typedef struct {
   const w_seed_hir0_input *input;
   const w_seed_frontend_output *output;
   const w_seed_frontend_result *result;
@@ -1856,6 +2021,7 @@ typedef struct {
   size_t *value_bytes;
   size_t *if_total;
   size_t *logical_total;
+  size_t *merge_total;
   bool has_value_return;
 } hir0_statement_walk;
 
@@ -2044,8 +2210,29 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
             walk->const_byte_cursor, walk->values, walk->segments,
             walk->value_bytes, walk->calls, walk->arguments,
             walk->logical_total) ||
-        !add_size(*walk->if_total, 1u, walk->if_total) ||
-        !hir0_walk_statement_chain(walk, statement->first_child, true,
+        !add_size(*walk->if_total, 1u, walk->if_total))
+      return false;
+    hir0_branch_assignment_merge merge;
+    if (!branch && frontend_branch_assignment_merge(
+                       walk->output, walk->result, walk->function_index, index,
+                       &merge)) {
+      const size_t binding_before = *walk->bindings;
+      if (!frontend_assignment_expression_ok(
+              walk, merge.then_statement,
+              walk->output->statements[merge.then_statement]
+                  .expression_index) ||
+          !frontend_assignment_expression_ok(
+              walk, merge.else_statement,
+              walk->output->statements[merge.else_statement]
+                  .expression_index) ||
+          *walk->bindings != binding_before + 2u)
+        return false;
+      *walk->bindings = binding_before;
+      return add_size(*walk->bindings, 1u, walk->bindings) &&
+             add_size(*walk->values, 1u, walk->values) &&
+             add_size(*walk->merge_total, 1u, walk->merge_total);
+    }
+    if (!hir0_walk_statement_chain(walk, statement->first_child, true,
                                    depth + 1u) ||
         !hir0_walk_statement_chain(walk, statement->else_child, true,
                                    depth + 1u))
@@ -2096,12 +2283,12 @@ static bool frontend_statement_and_expression_cfg_ok(
     const w_seed_hir0_input *input, size_t *binding_total, size_t *call_total,
     size_t *argument_total, size_t *value_total, size_t *segment_total,
     size_t *value_bytes, size_t *text_bytes, size_t *if_total,
-    size_t *logical_total) {
+    size_t *logical_total, size_t *merge_total) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || binding_total == NULL ||
       call_total == NULL || argument_total == NULL || value_total == NULL ||
       segment_total == NULL || value_bytes == NULL || text_bytes == NULL ||
-      if_total == NULL || logical_total == NULL)
+      if_total == NULL || logical_total == NULL || merge_total == NULL)
     return false;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
@@ -2116,6 +2303,7 @@ static bool frontend_statement_and_expression_cfg_ok(
   size_t const_byte_cursor = 0u;
   size_t if_count = 0u;
   size_t logical_count = 0u;
+  size_t merge_count = 0u;
   for (size_t function_index = 0u;
        function_index < result->written.functions; function_index += 1u) {
     const w_seed_frontend_function *function =
@@ -2125,6 +2313,7 @@ static bool frontend_statement_and_expression_cfg_ok(
                                          &relation_if_count))
       return false;
     size_t function_if_count = 0u;
+    size_t function_merge_count = 0u;
     const w_seed_frontend_type_kind return_kind =
         output->types[function->return_type].kind;
     hir0_statement_walk walk = {
@@ -2145,6 +2334,7 @@ static bool frontend_statement_and_expression_cfg_ok(
         .value_bytes = &value_bytes_count,
         .if_total = &function_if_count,
         .logical_total = &logical_count,
+        .merge_total = &function_merge_count,
         .has_value_return = false,
     };
     /* An empty declaration (notably `entry {}` used as a separate test
@@ -2156,9 +2346,10 @@ static bool frontend_statement_and_expression_cfg_ok(
     if (!walked || relation_if_count != function_if_count ||
         (return_kind == W_SEED_FRONTEND_TYPE_UNIT && walk.has_value_return) ||
         (return_kind != W_SEED_FRONTEND_TYPE_UNIT &&
-         (!walk.has_value_return || function_if_count != 0u)))
+         (!walk.has_value_return || function_if_count > function_merge_count)))
       return false;
     if (!add_size(if_count, function_if_count, &if_count)) return false;
+    if (!add_size(merge_count, function_merge_count, &merge_count)) return false;
   }
   if (arguments != result->written.arguments ||
       expression_cursor != result->written.expressions ||
@@ -2166,7 +2357,7 @@ static bool frontend_statement_and_expression_cfg_ok(
       const_byte_cursor != result->written.const_bytes ||
       !count_u32(bindings) || !count_u32(calls) || !count_u32(arguments) ||
       !count_u32(values) || !count_u32(segments) || !count_u32(if_count) ||
-      !count_u32(logical_count))
+      !count_u32(logical_count) || !count_u32(merge_count))
     return false;
   *binding_total = bindings;
   *call_total = calls;
@@ -2177,6 +2368,7 @@ static bool frontend_statement_and_expression_cfg_ok(
   *text_bytes = 0u;
   *if_total = if_count;
   *logical_total = logical_count;
+  *merge_total = merge_count;
   return true;
 }
 
@@ -2184,10 +2376,11 @@ static bool frontend_statement_and_expression_ok(
     const w_seed_hir0_input *input, size_t *binding_total, size_t *call_total,
     size_t *argument_total, size_t *value_total, size_t *segment_total,
     size_t *value_bytes, size_t *text_bytes, size_t *if_total,
-    size_t *logical_total) {
+    size_t *logical_total, size_t *merge_total) {
   return frontend_statement_and_expression_cfg_ok(
       input, binding_total, call_total, argument_total, value_total,
-      segment_total, value_bytes, text_bytes, if_total, logical_total);
+      segment_total, value_bytes, text_bytes, if_total, logical_total,
+      merge_total);
 }
 
 static bool frontend_external_type_is(const w_seed_hir0_input *input,
@@ -2638,6 +2831,19 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
       if (!add_text_size(statement->binding_name, &value)) return false;
       continue;
     }
+    hir0_branch_assignment_merge merge;
+    if (statement->kind == W_SEED_FRONTEND_STMT_IF &&
+        frontend_branch_assignment_merge(
+            output, result, statement->owner_function, (uint32_t)index,
+            &merge)) {
+      const w_seed_frontend_expression *assignment =
+          &output->expressions[output->statements[merge.then_statement]
+                                   .expression_index];
+      if (!add_text_size(output->expressions[assignment->left].spelling,
+                         &value))
+        return false;
+      continue;
+    }
     if (statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
         statement->expression_index == W_SEED_FRONTEND_NONE ||
         (size_t)statement->expression_index >= result->written.expressions)
@@ -2645,6 +2851,11 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
     const w_seed_frontend_expression *assignment =
         &output->expressions[statement->expression_index];
     if (assignment->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT) continue;
+    uint32_t merge_owner = W_SEED_FRONTEND_NONE;
+    if (frontend_assignment_merge_owner(
+            output, result, statement->owner_function, (uint32_t)index,
+            &merge_owner))
+      continue;
     if (assignment->left == W_SEED_FRONTEND_NONE ||
         (size_t)assignment->left >= result->written.expressions ||
         !add_text_size(output->expressions[assignment->left].spelling,
@@ -2744,6 +2955,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   size_t ignored_text = 0u;
   size_t if_count = 0u;
   size_t logical_count = 0u;
+  size_t merge_count = 0u;
   if (process_input0) {
     /* The public witness has a fixed lowered shape.  Its source-level
      * constructor argument is represented as the failure value's explicit
@@ -2756,7 +2968,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   } else if (!frontend_statement_and_expression_ok(
                  input, &binding_count, &call_count, &argument_count,
                  &value_count, &interpolation_segment_count, &value_bytes,
-                 &ignored_text, &if_count, &logical_count))
+                 &ignored_text, &if_count, &logical_count, &merge_count))
     return HIR0_PREPARE_UNSUPPORTED;
   size_t text_bytes = 0u;
   if (!text_size_for_input(input, &text_bytes)) return HIR0_PREPARE_UNSUPPORTED;
@@ -2798,7 +3010,9 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_UNSUPPORTED;
   if (process_input0) block_count = 3u;
   counts->blocks = block_count;
-  size_t block_argument_count = logical_count;
+  size_t block_argument_count = 0u;
+  if (!add_size(logical_count, merge_count, &block_argument_count))
+    return HIR0_PREPARE_UNSUPPORTED;
   if (!count_u32(block_argument_count)) return HIR0_PREPARE_UNSUPPORTED;
   counts->block_arguments = block_argument_count;
   counts->bindings = binding_count;
@@ -3325,6 +3539,50 @@ static uint32_t hir_host_identity_index(const w_seed_hir0_counts *counts,
                     host_index);
 }
 
+static bool frontend_binding_event(
+    const w_seed_frontend_output *output,
+    const w_seed_frontend_result *result, size_t index,
+    bool *creates_binding, uint32_t *target_statement) {
+  if (output == NULL || result == NULL || creates_binding == NULL ||
+      target_statement == NULL || index >= result->written.statements)
+    return false;
+  const w_seed_frontend_statement *statement = &output->statements[index];
+  const size_t event_function = statement->owner_function;
+  *creates_binding = statement->kind == W_SEED_FRONTEND_STMT_LET ||
+                     statement->kind == W_SEED_FRONTEND_STMT_VAR;
+  *target_statement = *creates_binding ? (uint32_t)index
+                                       : W_SEED_FRONTEND_NONE;
+  hir0_branch_assignment_merge merge;
+  if (statement->kind == W_SEED_FRONTEND_STMT_IF &&
+      frontend_branch_assignment_merge(output, result, event_function,
+                                       (uint32_t)index, &merge)) {
+    *creates_binding = true;
+    *target_statement = merge.declaration_statement;
+    return true;
+  }
+  if (statement->kind != W_SEED_FRONTEND_STMT_EXPRESSION ||
+      statement->expression_index == W_SEED_FRONTEND_NONE ||
+      (size_t)statement->expression_index >= result->written.expressions)
+    return true;
+  const w_seed_frontend_expression *expression =
+      &output->expressions[statement->expression_index];
+  if (expression->kind != W_SEED_FRONTEND_EXPR_ASSIGNMENT) return true;
+  uint32_t merge_owner = W_SEED_FRONTEND_NONE;
+  if (frontend_assignment_merge_owner(output, result, event_function,
+                                      (uint32_t)index, &merge_owner)) {
+    *creates_binding = false;
+    *target_statement = W_SEED_FRONTEND_NONE;
+    return true;
+  }
+  if (expression->left == W_SEED_FRONTEND_NONE ||
+      (size_t)expression->left >= result->written.expressions)
+    return false;
+  *creates_binding = true;
+  *target_statement =
+      output->expressions[expression->left].resolved_binding_statement;
+  return true;
+}
+
 static bool binding_index_for_statement(
     const w_seed_frontend_output *output,
     const w_seed_frontend_result *result, size_t function,
@@ -3336,27 +3594,18 @@ static bool binding_index_for_statement(
     return false;
   size_t binding = 0u;
   uint32_t latest = W_SEED_HIR0_NONE;
+  uint32_t use_merge_owner = W_SEED_FRONTEND_NONE;
+  (void)frontend_assignment_merge_owner(
+      output, result, function, (uint32_t)use_statement, &use_merge_owner);
   for (size_t index = 0u; index < result->written.statements; index += 1u) {
-    const w_seed_frontend_statement *statement = &output->statements[index];
-    bool creates_binding = statement->kind == W_SEED_FRONTEND_STMT_LET ||
-                           statement->kind == W_SEED_FRONTEND_STMT_VAR;
+    bool creates_binding = false;
     uint32_t assignment_target = W_SEED_FRONTEND_NONE;
-    if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
-        statement->expression_index != W_SEED_FRONTEND_NONE &&
-        (size_t)statement->expression_index < result->written.expressions) {
-      const w_seed_frontend_expression *expression =
-          &output->expressions[statement->expression_index];
-      if (expression->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT &&
-          expression->left != W_SEED_FRONTEND_NONE &&
-          (size_t)expression->left < result->written.expressions) {
-        creates_binding = true;
-        assignment_target =
-            output->expressions[expression->left].resolved_binding_statement;
-      }
-    }
+    if (!frontend_binding_event(output, result, index,
+                                &creates_binding, &assignment_target))
+      return false;
     if (!creates_binding) continue;
     if (!count_u32(binding)) return false;
-    if (index < use_statement &&
+    if (index < use_statement && index != use_merge_owner &&
         (index == (size_t)target_statement ||
          assignment_target == target_statement))
       latest = (uint32_t)binding;
@@ -3379,13 +3628,13 @@ static bool root_binding_index_for_statement(
     const w_seed_frontend_statement *statement = &output->statements[index];
     const bool declaration = statement->kind == W_SEED_FRONTEND_STMT_LET ||
                              statement->kind == W_SEED_FRONTEND_STMT_VAR;
-    bool assignment = false;
-    if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION &&
-        statement->expression_index != W_SEED_FRONTEND_NONE &&
-        (size_t)statement->expression_index < result->written.expressions)
-      assignment = output->expressions[statement->expression_index].kind ==
-                   W_SEED_FRONTEND_EXPR_ASSIGNMENT;
-    if (!declaration && !assignment) continue;
+    bool creates_binding = false;
+    uint32_t event_target = W_SEED_FRONTEND_NONE;
+    if (!frontend_binding_event(output, result, index,
+                                &creates_binding, &event_target))
+      return false;
+    (void)event_target;
+    if (!creates_binding) continue;
     if (index == (size_t)target_statement) {
       if (!declaration || statement->owner_function != function ||
           !count_u32(binding))
@@ -4273,11 +4522,50 @@ static void hir0_emit_chain_values_m2(hir0_emit_context *context,
       const size_t else_block = then_block + then_count;
       const size_t else_count = hir0_region_block_count(
           context, statement->else_child, depth + 1u);
-      hir0_emit_chain_values_m2(context, statement->first_child, then_block,
-                                depth + 1u, binding_cursor);
-      hir0_emit_chain_values_m2(context, statement->else_child, else_block,
-                                depth + 1u, binding_cursor);
-      current_block = else_block + else_count;
+      const size_t join_block = else_block + else_count;
+      hir0_branch_assignment_merge merge;
+      if (frontend_branch_assignment_merge(
+              context->frontend, context->frontend_result, context->function,
+              cursor, &merge)) {
+        (void)hir0_emit_expression_values_m2(
+            context, merge.then_rhs, then_block, merge.then_statement, 0u);
+        (void)hir0_emit_expression_values_m2(
+            context, merge.else_rhs, else_block, merge.else_statement, 0u);
+        const w_seed_hir0_block *join =
+            &context->output->blocks[join_block];
+        const uint32_t value_index = (uint32_t)*context->value_index;
+        context->output->values[*context->value_index] = (w_seed_hir0_value){
+            .kind = W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ,
+            .owner_kind = W_SEED_HIR0_VALUE_OWNER_BINDING,
+            .owner_index = (uint32_t)*binding_cursor,
+            .owner_ordinal = 0u,
+            .type_index = context->output->bindings[*binding_cursor].type_index,
+            .binding_index = W_SEED_HIR0_NONE,
+            .parameter_index = W_SEED_HIR0_NONE,
+            .call_index = W_SEED_HIR0_NONE,
+            .left_value = W_SEED_HIR0_NONE,
+            .right_value = W_SEED_HIR0_NONE,
+            .first_interpolation_segment = W_SEED_HIR0_NONE,
+            .interpolation_segment_count = 0u,
+            .binary_operator = W_SEED_HIR0_BINARY_ADD,
+            .unary_operator = W_SEED_HIR0_UNARY_NOT,
+            .block_argument_index = join->first_block_argument,
+            .integer_value = 0,
+            .bool_value = false,
+            .byte_offset = 0u,
+            .byte_count = 0u,
+            .source_span = statement->span};
+        context->output->bindings[*binding_cursor].initializer_value =
+            value_index;
+        *context->value_index += 1u;
+        *binding_cursor += 1u;
+      } else {
+        hir0_emit_chain_values_m2(context, statement->first_child, then_block,
+                                  depth + 1u, binding_cursor);
+        hir0_emit_chain_values_m2(context, statement->else_child, else_block,
+                                  depth + 1u, binding_cursor);
+      }
+      current_block = join_block;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
       current_block = hir0_emit_expression_values_m2(
           context, statement->expression_index, current_block, cursor, 0u);
@@ -4439,11 +4727,32 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
       const size_t else_block = then_block + then_count;
       const size_t else_count = hir0_region_block_count(
           context, statement->else_child, depth + 1u);
-      hir0_emit_chain_terms_m2(context, statement->first_child, then_block,
-                               depth + 1u);
-      hir0_emit_chain_terms_m2(context, statement->else_child, else_block,
-                               depth + 1u);
-      current_block = else_block + else_count;
+      const size_t join_block = else_block + else_count;
+      hir0_branch_assignment_merge merge;
+      if (frontend_branch_assignment_merge(
+              context->frontend, context->frontend_result, context->function,
+              cursor, &merge)) {
+        const size_t then_end = hir0_emit_expression_terms_m2(
+            context, merge.then_rhs, then_block, merge.then_statement, 0u);
+        context->output->terminators[then_end].incoming_value =
+            hir0_emit_value_m2(
+                context, merge.then_rhs,
+                W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)then_end, 1u,
+                then_end, 0u);
+        const size_t else_end = hir0_emit_expression_terms_m2(
+            context, merge.else_rhs, else_block, merge.else_statement, 0u);
+        context->output->terminators[else_end].incoming_value =
+            hir0_emit_value_m2(
+                context, merge.else_rhs,
+                W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)else_end, 1u,
+                else_end, 0u);
+      } else {
+        hir0_emit_chain_terms_m2(context, statement->first_child, then_block,
+                                 depth + 1u);
+        hir0_emit_chain_terms_m2(context, statement->else_child, else_block,
+                                 depth + 1u);
+      }
+      current_block = join_block;
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
       const size_t end = hir0_emit_expression_terms_m2(
           context, statement->expression_index, current_block, cursor, 0u);
@@ -4751,6 +5060,76 @@ static void hir0_emit_binding_layout_m2(hir0_emit_context *context,
   *context->instruction_offset += 1u;
 }
 
+static void hir0_emit_branch_merge_binding_layout_m2(
+    hir0_emit_context *context, uint32_t if_statement,
+    const hir0_branch_assignment_merge *merge, size_t join_block) {
+  const w_seed_frontend_statement *branch =
+      &context->frontend->statements[if_statement];
+  const w_seed_frontend_statement *declaration =
+      &context->frontend->statements[merge->declaration_statement];
+  const w_seed_frontend_expression *assignment =
+      &context->frontend->expressions[
+          context->frontend->statements[merge->then_statement]
+              .expression_index];
+  const w_seed_frontend_expression *target =
+      &context->frontend->expressions[assignment->left];
+  uint32_t source_binding = W_SEED_HIR0_NONE;
+  uint32_t previous_version = W_SEED_HIR0_NONE;
+  (void)root_binding_index_for_statement(
+      context->frontend, context->frontend_result, context->function,
+      merge->declaration_statement, &source_binding);
+  (void)binding_index_for_statement(
+      context->frontend, context->frontend_result, context->function,
+      if_statement, merge->declaration_statement, &previous_version);
+  hir0_begin_block_m2(context, join_block);
+  w_seed_hir0_block *join = &context->output->blocks[join_block];
+  const uint32_t type_index = hir_type_from_frontend(
+      context->frontend, context->frontend_result, declaration->effective_type);
+  join->first_block_argument = (uint32_t)*context->block_argument_index;
+  join->block_argument_count = 1u;
+  context->output->block_arguments[*context->block_argument_index] =
+      (w_seed_hir0_block_argument){
+          .owner_block = (uint32_t)join_block,
+          .ordinal = 0u,
+          .type_index = type_index,
+          .source_span = branch->span};
+  *context->block_argument_index += 1u;
+  const uint32_t instruction_index = (uint32_t)*context->instruction_offset;
+  const uint32_t binding_index = (uint32_t)*context->binding_offset;
+  context->output->instructions[*context->instruction_offset] =
+      (w_seed_hir0_instruction){
+          .kind = W_SEED_HIR0_INSTRUCTION_BINDING,
+          .owner_block = (uint32_t)join_block,
+          .ordinal = (uint32_t)(*context->instruction_offset -
+                                join->first_instruction),
+          .call_index = W_SEED_HIR0_NONE,
+          .binding_index = binding_index,
+          .result_type = 0u,
+          .source_span = branch->span};
+  context->output->bindings[*context->binding_offset] =
+      (w_seed_hir0_binding){
+          .owner_instruction = instruction_index,
+          .owner_block = (uint32_t)join_block,
+          .ordinal = (uint32_t)(*context->instruction_offset -
+                                join->first_instruction),
+          .type_index = type_index,
+          .name = {0u, 0u},
+          .is_mutable = true,
+          .source_binding = source_binding,
+          .previous_version = previous_version,
+          .next_version = W_SEED_HIR0_NONE,
+          .initializer_value = W_SEED_HIR0_NONE,
+          .source_span = branch->span};
+  if (previous_version != W_SEED_HIR0_NONE)
+    context->output->bindings[previous_version].next_version = binding_index;
+  append_text_unchecked(target->spelling, context->output->text_bytes,
+                        context->text_offset,
+                        &context->output->bindings[*context->binding_offset]
+                             .name);
+  *context->binding_offset += 1u;
+  *context->instruction_offset += 1u;
+}
+
 static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
                                       uint32_t first_statement,
                                       size_t current_block,
@@ -4792,22 +5171,44 @@ static void hir0_emit_chain_layout_m2(hir0_emit_context *context,
       const size_t else_count = hir0_region_block_count(
           context, statement->else_child, depth + 1u);
       const size_t join_block = else_block + else_count;
+      hir0_branch_assignment_merge merge;
+      const bool branch_merge = frontend_branch_assignment_merge(
+          context->frontend, context->frontend_result, context->function,
+          cursor, &merge);
+      const uint32_t branch_type =
+          branch_merge
+              ? hir_type_from_frontend(
+                    context->frontend, context->frontend_result,
+                    context->frontend->statements[merge.declaration_statement]
+                        .effective_type)
+              : 0u;
       hir0_finish_block_m2(context, current_block);
       context->output->terminators[current_block] = (w_seed_hir0_terminator){
           .owner_block = (uint32_t)current_block,
           .kind = W_SEED_HIR0_TERMINATOR_BRANCH,
           .ordinal = context->output->blocks[current_block].instruction_count,
           .value_index = W_SEED_HIR0_NONE,
-          .result_type = 0u,
+          .result_type = branch_type,
           .target_block = (uint32_t)then_block,
           .else_block = (uint32_t)else_block,
           .incoming_value = W_SEED_HIR0_NONE,
           .logical_operator = W_SEED_HIR0_LOGICAL_NONE,
           .source_span = statement->span};
-      hir0_emit_chain_layout_m2(context, statement->first_child, then_block,
-                                (uint32_t)join_block, false, depth + 1u);
-      hir0_emit_chain_layout_m2(context, statement->else_child, else_block,
-                                (uint32_t)join_block, false, depth + 1u);
+      if (branch_merge) {
+        size_t then_end = hir0_emit_expression_layout_m2(
+            context, merge.then_rhs, then_block, merge.then_statement, 0u);
+        hir0_set_jump_m2(context, then_end, join_block, statement->span);
+        size_t else_end = hir0_emit_expression_layout_m2(
+            context, merge.else_rhs, else_block, merge.else_statement, 0u);
+        hir0_set_jump_m2(context, else_end, join_block, statement->span);
+        hir0_emit_branch_merge_binding_layout_m2(
+            context, cursor, &merge, join_block);
+      } else {
+        hir0_emit_chain_layout_m2(context, statement->first_child, then_block,
+                                  (uint32_t)join_block, false, depth + 1u);
+        hir0_emit_chain_layout_m2(context, statement->else_child, else_block,
+                                  (uint32_t)join_block, false, depth + 1u);
+      }
       current_block = join_block;
       hir0_begin_block_m2(context, current_block);
     } else if (statement->kind == W_SEED_FRONTEND_STMT_RETURN) {
