@@ -441,7 +441,7 @@ async function main() {
 
     console.log(`PROCESS-ENTRY0: passed source-to-HIR16-to-MLIR-to-LLVM-COFF-to-GCC ` +
       `handler execution compiler=${gccPath} target=${compilerTarget} ` +
-      `toolchain=23.1.0 cases=empty,nonempty,missing,noop-success,` +
+      `toolchain=23.1.1 cases=empty,nonempty,missing,noop-success,` +
       "stale-generation,reversed-arguments,wrong-context,wrong-arguments,reordered")
   } catch (error) {
     bodyError = error

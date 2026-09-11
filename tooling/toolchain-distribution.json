@@ -277,7 +277,7 @@
     "failurePolicy": "visible-failure-and-explicit-review",
     "observation": {
       "recipe": "build:w-windows@W-1532",
-      "wExecutableBytes": 10034688,
+      "wExecutableBytes": 10214400,
       "wExecutableIncludesBackend": false,
       "helloWindowsPeBytes": 2560,
       "helloWindowsPeHasCrt": false,

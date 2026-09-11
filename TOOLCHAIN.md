@@ -132,7 +132,7 @@ Every release measurement records:
 - SBOM.
 
 The recipe-scoped `build:w-windows@W-1532` observation records
-10034688 bytes for `w.exe` and
+10214400 bytes for `w.exe` and
 2560 file/container bytes for the Hello PE.
 The Hello PE has no CRT in this observation. Section, code, and import bytes are
 not measured here. These are recipe-local observations, not a portable minimum,

@@ -9220,8 +9220,8 @@ ownership/effects/tasks, other targets, and performance.
 #### W-1532 — bounded native Windows x86_64 seed route
 
 W-1532 is the first native Windows evaluation of the direct MLIR0 seed route.
-The exact asset is the `portable-mlir-toolchain` release `2026.08.31`, LLVM
-`llvmorg-23.1.0`, for `x86_64-pc-windows-msvc`. Acquisition is an explicit
+The current exact asset is the `portable-mlir-toolchain` release `2026.09.11`,
+LLVM `llvmorg-23.1.1`, for `x86_64-pc-windows-msvc`. Acquisition is an explicit
 network opt-in into the external user cache; normal checks and the future runner
 are offline and use only the validated materialization manifest. The cache is
 development/release tooling and is not the W distribution.
@@ -9240,10 +9240,10 @@ stdout and exit for Hello, Restaurant/if, interpolation, linear, and empty
 forwarded-argument fixtures. Invalid source and unsupported forms returned the
 bounded error without stdout. The gate also checks that no WSL, shell, PATH
 search, Clang, network, or temporary residue enters the runtime path. The local
-recipe observation was `w.exe` 10034688 bytes and the Hello PE file/container
+recipe observation was `w.exe` 10214400 bytes and the Hello PE file/container
 2560 bytes with no CRT; these are recipe-scoped facts, not a portable minimum,
-performance result, or distribution-budget proof. The heavy cache payload was
-3798882244 bytes excluding its materialized manifest.
+performance result, or distribution-budget proof. The current 23.1.1 heavy
+cache payload is 3799099317 bytes excluding its materialized manifest.
 
 The builder preserves C23 as the request. MSVC maps that request to
 `/std:clatest`, which is recorded as `c23-msvc-preview` for correctness only,

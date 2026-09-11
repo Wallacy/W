@@ -158,7 +158,7 @@ External records are evaluation-only. They cannot promote a W target, compiler h
 
 | ID | Status | License | Observed release | LLVM tag | Published hosts | Inspected hosts | Evidence capabilities | Limitations |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `portable-mlir-toolchain` | evaluation-only | Apache-2.0 | 2026.08.31 | llvmorg-23.1.0 | x86_64-unknown-linux-gnu<br>aarch64-unknown-linux-gnu<br>x86_64-pc-windows-msvc<br>aarch64-pc-windows-msvc<br>x86_64-apple-darwin<br>aarch64-apple-darwin | x86_64-pc-windows-msvc | per-platform-build-scripts<br>sha256-release-assets<br>release-attestation<br>verified-release-commit | third-party not W authority/support<br>inspection covered only x86_64-pc-windows-msvc<br>version mismatch with current pinned 20.1.2<br>no completed W trust/SBOM/provenance audit<br>host binaries do not prove cross-compilation<br>Apple SDK/license not supplied/proven |
+| `portable-mlir-toolchain` | evaluation-only | Apache-2.0 | 2026.09.11 | llvmorg-23.1.1 | x86_64-unknown-linux-gnu<br>aarch64-unknown-linux-gnu<br>x86_64-pc-windows-msvc<br>aarch64-pc-windows-msvc<br>x86_64-apple-darwin<br>aarch64-apple-darwin | x86_64-pc-windows-msvc | per-platform-build-scripts<br>sha256-release-assets<br>release-attestation<br>verified-release-commit | third-party not W authority/support<br>inspection covered only x86_64-pc-windows-msvc<br>no completed W trust/SBOM/provenance audit<br>host binaries do not prove cross-compilation<br>Apple SDK/license not supplied/proven |
 
 The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a future Windows-native bundle; it is not W trust, SBOM, provenance, or cross-compilation evidence.
 

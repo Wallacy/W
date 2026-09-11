@@ -89,8 +89,9 @@ default executable bytes stay compatible. W-1547 adds the distinct
 `args.isEmpty` branch. See [`DESIGN.md` §26.4.1.29](DESIGN.md).
 
 Run [`bun check --target process-entry0`](tooling/check-process-entry0.mjs) with
-the configured CMake build and external MLIR/LLVM tool cache. The strict
-23.1.0 Windows gate now passes source → verified HIR16/Native0 → MLIR → LLVM
+the configured CMake build and external MLIR/LLVM tool cache. The last focused
+private-handler gate used LLVM 23.1.0 and passed source → verified
+HIR16/Native0 → MLIR → LLVM
 x64 COFF → GCC 13.2 private harness/PROCESS0 provider → Windows PE execution,
 including empty/nonempty selected vectors, exercised alias/trivia identity,
 source rejection, and cleanup fault cases. This is private-handler evidence;
@@ -440,7 +441,7 @@ mudarem; `bun check` é a seleção rápida.
 | Tree-sitter e highlighting | protótipo funcional |
 | Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
 | [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v15 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64`, BOOL0, SCALAR-IF0 e ARITH0 bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
-| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.0, mas aguardam build/proveniência |
+| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.1, mas aguardam build/proveniência |
 | Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
 | Runtime, SDK e package manager | planejados, não implementados |
 | Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |

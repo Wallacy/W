@@ -19,21 +19,30 @@
     "abi": "msvc"
   },
   "toolchain": {
-    "mlir": "23.1.0",
-    "llvm": "23.1.0",
-    "lld": "23.1.0"
+    "mlir": "23.1.1",
+    "llvm": "23.1.1",
+    "lld": "23.1.1"
+  },
+  "source": {
+    "repository": "llvm-project",
+    "url": "https://github.com/llvm/llvm-project",
+    "tag": "llvmorg-23.1.1",
+    "tagObject": "e7ce3600b55034ddf819638f395e3c475fad5be2",
+    "commit": "6dfe1677ab8dffbc6ec13d53a1e0215d75147689",
+    "providerBuild": "portable-mlir-toolchain",
+    "provenance": "not-established"
   },
   "asset": {
     "provider": "portable-mlir-toolchain",
     "repository": "https://github.com/munich-quantum-software/portable-mlir-toolchain",
-    "release": "2026.08.31",
-    "llvmTag": "llvmorg-23.1.0",
+    "release": "2026.09.11",
+    "llvmTag": "llvmorg-23.1.1",
     "targetTriple": "x86_64-pc-windows-msvc",
     "archiveFormat": "tar.zst",
-    "fileName": "llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
-    "url": "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.08.31/llvm-mlir_llvmorg-23.1.0_x86_64-pc-windows-msvc.tar.zst",
-    "sizeBytes": 415482701,
-    "sha256": "35244de53a023a3e546e070b34d27ce9f7142ace92b238b5707c1d0cf24fd944",
+    "fileName": "llvm-mlir_llvmorg-23.1.1_x86_64-pc-windows-msvc.tar.zst",
+    "url": "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.09.11/llvm-mlir_llvmorg-23.1.1_x86_64-pc-windows-msvc.tar.zst",
+    "sizeBytes": 415415081,
+    "sha256": "47aba6d8e7a0cfdc60105f1869c431ee0a77185ddb54a8f87ea668ee3b268f93",
     "license": "Apache-2.0"
   },
   "archivePolicy": {
@@ -48,11 +57,32 @@
     "rejectTraversal": true,
     "rejectDuplicatePath": true
   },
+  "decompression": {
+    "format": "zstd",
+    "mode": "pinned-bootstrap-or-explicit-path-for-large-window",
+    "command": "zstd",
+    "args": ["-d", "-c", "--long=30", "<archive>"],
+    "windowLog": 30,
+    "windowBytes": 1073741824,
+    "implicitPathSearch": false,
+    "unboundedAlternative": false,
+    "bootstrap": {
+      "provider": "portable-mlir-toolchain",
+      "release": "2026.09.11",
+      "version": "1.5.7",
+      "archiveFormat": "tar.gz",
+      "fileName": "zstd-1.5.7_x86_64-pc-windows-msvc.tar.gz",
+      "url": "https://github.com/munich-quantum-software/portable-mlir-toolchain/releases/download/2026.09.11/zstd-1.5.7_x86_64-pc-windows-msvc.tar.gz",
+      "sizeBytes": 302543,
+      "sha256": "df7846b47ae5c6f6ba489b4f0599b52810423858617b32fe4868109212496545",
+      "entry": "zstd.exe"
+    }
+  },
   "tools": {
     "versionArgs": [
       "--version"
     ],
-    "expectedVersion": "23.1.0",
+    "expectedVersion": "23.1.1",
     "required": [
       "mlir-opt.exe",
       "mlir-translate.exe",
@@ -94,7 +124,7 @@
   },
   "materialization": {
     "cache": "external-user-cache",
-    "defaultPath": "%LOCALAPPDATA%/W/toolchains/portable-mlir-toolchain/2026.08.31/x86_64-pc-windows-msvc",
+    "defaultPath": "%LOCALAPPDATA%/W/toolchains/portable-mlir-toolchain/2026.09.11/x86_64-pc-windows-msvc",
     "destination": "explicit-or-default-cache-outside-repository",
     "staging": "same-parent-unique-directory",
     "stagingPrefix": ".w-mlir0-acquire-",
@@ -125,7 +155,7 @@
     "supportClaim": "none",
     "platformSupportState": "candidate",
     "acquisitionRecord": "tooling/mlir0-windows-toolchain.json",
-    "trustBoundary": "third-party release asset; hash and size are checked before extraction; W support is not inferred"
+    "trustBoundary": "third-party release asset built from the official LLVM tag; hash and size are checked before extraction; W support and official upstream provenance are not inferred"
   },
   "linuxWslProfile": {
     "manifest": "tooling/mlir0-toolchain.json",
