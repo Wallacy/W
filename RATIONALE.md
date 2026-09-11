@@ -217,6 +217,7 @@ O corpus compara, no mínimo:
 - bounded multi-root symmetric branch-local mutation against positional pairing and hidden stack storage.
 - ordinary while ownership against orphan continuation parsing and hidden lowering.
 - bounded natural-loop SSA against hidden storage and permissive cyclic verification.
+- structured natural-loop lowering against early flattening and host-language substitution.
 
 ### 1.1 Cobertura de substituições
 
@@ -7832,8 +7833,9 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1556 | Boolean local mutation as verified SSA | A local `Bool` `var` and later same-typed simple `=` lower through the existing ordered HIR binding-version contract. MLIR consumes the replacement as an `i1` SSA value and never materializes a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused HIR/MLIR tests and the Restaurant fixture prove parameter replacement, latest-version return, exact `Open true; closed false\n`, Boolean display, and no `alloca` inside the W function. Conversions, compound/branch/loop/aggregate/aliased mutation, mutable borrows, other types/targets, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1557 | symmetric branch-local mutation merged in SSA | A top-level statement `if` may assign the same root-block signed-`i64` `var` exactly once in each pure scalar arm. HIR carries both values on the branch jumps and creates only one successor binding version at the typed join; MLIR emits no source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR18 → MLIR/native Linux/WSL and Windows routes. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove lexical ancestor visibility without branch escape, one join version, exact `Open 6; closed 4\n`, and no source-variable `alloca`. Missing else, unequal targets, extra arm statements, calls/effects, Bool/multiple/nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
 | W-1558 | bounded multi-root symmetric branch mutation merged in SSA | A top-level statement `if` may assign a nonempty identical set of root-block mutable signed-`i64` `var` bindings exactly once in each pure arm. Pairing follows resolved root declaration identity rather than statement position, so opposite arm order is accepted; HIR19 emits destination block arguments and successor binding versions in root declaration order, while the Unit branch (`BRANCH.result_type == 0`) carries one typed edge argument per join ordinal. MLIR emits the complete typed operand lists and block parameters without a source-variable cell. | `source-backed-current` only for the bounded frontend17 → HIR19 → MLIR/native Linux/WSL and Windows route. Focused frontend/HIR/MLIR tests and the Restaurant fixture prove two roots, opposite assignment order, deterministic root-order mapping, exact `Open 18; closed -4\n`, edge owner/ordinal/type/count barriers, and no source-variable `alloca`. Missing/duplicate/extra targets, same-arm dependencies, calls/effects, Bool or mixed joins, nested/loop/aggregate/aliased mutation, mutable borrows, general dominance, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or benchmark result. |
-| W-1559 | bounded seed `while` projection | The seed parser adds an explicit append-only pre-test-loop CST owner, and Frontend18 publishes a `WHILE` statement with one typed Bool condition and one ordered child chain. Lexical resolution makes a preceding declaration visible in the condition and body without allowing a body declaration to escape. | `source-backed-current` only for parser/frontend records, deterministic caller-owned emission, lexical resolution, and the ordinary non-Bool diagnostic. At this milestone HIR19 and downstream consumers rejected the statement kind; W-1560 separately advances one bounded HIR natural loop. Labels, break/continue, `while let`, nesting, native execution, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
-| W-1560 | bounded single-root natural loop in verified HIR | HIR19 lowers one ordinary pre-test `while` carrying one root-block mutable signed-`i64` value into four blocks: preheader, header, body, and exit. The header owns one block argument available to the pure Bool condition, pure scalar update, and later root reads at exit; the preheader and unique backedge provide typed edge arguments, and the body creates one successor binding version. | `source-backed-current` only for the bounded HIR producer, independent verifier, focused positive witness, and adversarial HIR/source barriers. MLIR/native/public execution, multiple roots, labels, break/continue, `while let`, nesting, mixed control, calls/effects, other root types, diagnostics, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1559 | bounded seed `while` projection | The seed parser adds an explicit append-only pre-test-loop CST owner, and Frontend18 publishes a `WHILE` statement with one typed Bool condition and one ordered child chain. Lexical resolution makes a preceding declaration visible in the condition and body without allowing a body declaration to escape. | `source-backed-current` only for parser/frontend records, deterministic caller-owned emission, lexical resolution, and the ordinary non-Bool diagnostic. At this milestone HIR19 and downstream consumers rejected the statement kind; W-1560 separately advances one bounded HIR natural loop and W-1561 closes only its exact structured/native route. Labels, break/continue, `while let`, nesting, general execution, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1560 | bounded single-root natural loop in verified HIR | HIR19 lowers one ordinary pre-test `while` carrying one root-block mutable signed-`i64` value into four blocks: preheader, header, body, and exit. The header owns one block argument available to the pure Bool condition, pure scalar update, and later root reads at exit; the preheader and unique backedge provide typed edge arguments, and the body creates one successor binding version. | `source-backed-current` only for the bounded HIR producer, independent verifier, focused positive witness, and adversarial HIR/source barriers. W-1561 separately closes structured MLIR and Linux/WSL public execution for this exact shape. Multiple roots, labels, break/continue, `while let`, nesting, mixed control, calls/effects, other root types, diagnostics, other targets, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
+| W-1561 | structured MLIR and native execution for the bounded natural loop | The W-1560 loop is selected from verified HIR and emitted as `scf.while` with one carried signed-`i64` value. `scf.condition` and `scf.yield` retain the structured loop until the pinned `convert-scf-to-cf` and `convert-cf-to-llvm` passes; the public Linux/WSL `w run` path then executes the exact Restaurant witness without a source-variable allocation, generated C, host-C loop, or expected-output shortcut. | `source-backed-current` only for this exact one-carrier four-block shape, MLIR0 schema `w-seed-mlir0-15` with capability scope `unit-structured-cfg-natural-loop`, and Linux x86_64 WSL LLVM/MLIR 20.1.2 correctness evidence. The schema is unchanged because the artifact record and byte envelope are unchanged; the scope records the admitted capability. Multiple carriers, labels, break/continue, `while let`, nesting, mixed control, effects, other root types, native Windows/macOS, toolchain promotion, optimization quality, PGO, timing, ranking, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11283,5 +11285,32 @@ and unsupported source shapes fail closed.
 
 This closes only verified HIR representation. Structured MLIR ownership,
 native execution, public runner coverage, and performance evidence remain the
-next separate milestone. That separation prevents a bootstrap C loop or an
-expected-output shortcut from being reported as W execution.
+next separate milestone. W-1561 closes that bounded downstream route without
+changing the broader W-1560 claim. That separation prevents a bootstrap C loop
+or an expected-output shortcut from being reported as W execution.
+
+#### W-1561 — structured MLIR and native execution for the bounded natural loop
+
+W-1561 preserves the W-1560 natural loop as structured control rather than
+flattening it in the C seed. NativeSubset0 admits only the independently
+verified four-block shape. MLIR0 emits one `scf.while` carrying the signed
+`i64` header value through `scf.condition` and `scf.yield`; it emits no source
+variable `llvm.alloca`. The pinned tool recipe then applies
+`convert-scf-to-cf` followed by `convert-cf-to-llvm`, verifies each step,
+translates the resulting LLVM dialect to LLVM IR, and uses the existing
+CRT-free WRT0 native path.
+
+The Restaurant source calls the loop with a limit of three and the public
+Linux/WSL `w run` executable produces exact `Served 3\n` with empty stderr and
+zero exit. The gate independently checks the expected bytes, rejects a loop
+whose condition is not carried, observes the raw structured operations, and
+observes their absence plus real conditional/back edges after conversion.
+This is correctness evidence, not an optimization result: PGO, pre-release
+optimization and proof-guided legality remain independent build inputs and
+must not be inferred from the successful lowering.
+
+MLIR0 remains `w-seed-mlir0-15` because its caller-owned artifact record,
+receipt and byte envelope did not change. The toolchain capability scope moves
+to `unit-structured-cfg-natural-loop`. This does not promote LLVM/MLIR 23.1.1,
+native Windows or macOS, a general cyclic-CFG verifier, multiple carried
+values, nested control, effects, timing, code-size quality, or performance.

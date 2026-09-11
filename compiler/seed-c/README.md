@@ -1382,8 +1382,23 @@ The verifier accepts only this exact natural-loop shape and rejects missing or
 substituted edge values, malformed ownership or types, broken binding versions,
 and additional backedges. Source barriers reject conditions or updates that do
 not use the carrier, multiple body statements, calls, nested loops, and non-i64
-roots. This is HIR-only correctness evidence: MLIR lowering, native/public
-execution, general loops, timing, and performance remain pending.
+roots. This is the W-1560 HIR-only claim. W-1561 separately lowers and executes
+this exact shape; general loops, timing, and performance remain pending.
+
+### Structured MLIR natural loop and public execution (W-1561)
+
+NativeSubset0 accepts only the exact verified W-1560 shape. MLIR0 emits one
+`scf.while` carrying the signed-`i64` value through `scf.condition` and
+`scf.yield`, with no source-variable `llvm.alloca`. The pinned tool recipe uses
+`convert-scf-to-cf` and `convert-cf-to-llvm` before translation. The Linux/WSL
+public `w run` gate executes `restaurant-while.w` and requires exact
+`Served 3\n`, empty stderr, and zero exit; a non-carried condition fails closed.
+
+The artifact schema remains `w-seed-mlir0-15`; the capability scope is now
+`unit-structured-cfg-natural-loop`. Evidence is Linux x86_64 under WSL with
+LLVM/MLIR 20.1.2, correctness-only. General or nested loops, multiple carried
+values, effects, native Windows/macOS, LLVM/MLIR 23.1.1 promotion, PGO, timing,
+code-size quality, and performance remain outside this cut.
 
 ### Short default entry (W-1541)
 

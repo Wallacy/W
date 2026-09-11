@@ -225,6 +225,11 @@ private `PROCESS_HANDLER` artifact uses
 `w-seed-mlir0-process-handler-1` without changing the `EXECUTABLE` artifact
 bytes. MLIR0 also accepts signed-`i64` interpolation with internal Display and
 counted-text helpers; HLO0/HLO1/RUN0 remain single-print.
+W-1561 adds one structured natural-loop witness: raw MLIR retains
+`scf.while`/`scf.condition`/`scf.yield`, and the pinned recipe explicitly runs
+`convert-scf-to-cf` plus `convert-cf-to-llvm` before translation. The capability
+scope is `unit-structured-cfg-natural-loop`; Linux/WSL `w run` requires exact
+`Served 3\n`. This is correctness-only evidence, not a PGO or performance run.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

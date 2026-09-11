@@ -309,12 +309,20 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     goto cleanup;
 
   {
-    char *arguments[8] = {(char *)MLIR_OPT, input_path, (char *)"-o",
-                          verified_path, (char *)"--verify-each", NULL, NULL,
-                          NULL};
+    char *arguments[10] = {
+        (char *)MLIR_OPT,
+        input_path,
+        (char *)"-o",
+        verified_path,
+        (char *)"--convert-scf-to-cf",
+        (char *)"--convert-cf-to-llvm",
+        (char *)"--verify-each",
+        NULL,
+        NULL,
+        NULL};
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
-      arguments[5] = (char *)"--canonicalize";
-      arguments[6] = (char *)"--cse";
+      arguments[7] = (char *)"--canonicalize";
+      arguments[8] = (char *)"--cse";
     }
     exit_code = run_tool(MLIR_OPT, arguments);
   }
@@ -880,9 +888,10 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
     goto cleanup;
 
   {
-    const wchar_t *arguments[6] = {input_path, L"-o", verified_path,
-                                   L"--verify-each", NULL, NULL};
-    size_t argument_count = 4u;
+    const wchar_t *arguments[8] = {
+        input_path, L"-o", verified_path, L"--convert-scf-to-cf",
+        L"--convert-cf-to-llvm", L"--verify-each", NULL, NULL};
+    size_t argument_count = 6u;
     if (request->profile == W_SEED_RUN_COMPILE_PROFILE_RELEASE) {
       arguments[argument_count++] = L"--canonicalize";
       arguments[argument_count++] = L"--cse";

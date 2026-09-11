@@ -31,6 +31,7 @@ const restaurantBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation.w")
 const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation-multi.w")
+const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -75,7 +76,7 @@ function validateManifest(manifest) {
     manifest.version === 1 && manifest.status === "pinned",
   "toolchain manifest schema or status is invalid")
   assert(manifest.artifact?.schema === "w-seed-mlir0-15" &&
-    manifest.artifact?.scope === "unit-cfg-nested-diamond",
+    manifest.artifact?.scope === "unit-structured-cfg-natural-loop",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
@@ -94,7 +95,8 @@ function validateManifest(manifest) {
   const pipeline = manifest.pipeline
   assert(pipeline[0]?.tool === "mlir-opt" &&
     JSON.stringify(pipeline[0].args) === JSON.stringify([
-      "<input.mlir>", "-o", "<verified.mlir>", "--verify-each",
+      "<input.mlir>", "-o", "<verified.mlir>",
+      "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each",
     ]), "mlir-opt recipe changed")
   assert(pipeline[1]?.tool === "mlir-translate" &&
     JSON.stringify(pipeline[1].args) === JSON.stringify([
@@ -442,6 +444,8 @@ try {
     { name: "restaurant-branch-mutation-multi",
       source: restaurantMultiBranchMutationFixture,
       expected: Buffer.from("Open 18; closed -4\n", "utf8") },
+    { name: "restaurant-while", source: restaurantWhileFixture,
+      expected: Buffer.from("Served 3\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -465,7 +469,14 @@ try {
     const llvmForTool = isWindows ? wslPath(llvm) : llvm
     const executableForTool = isWindows ? wslPath(executable) : executable
     invokeTool(tool("mlirOpt"), [inputForTool, "-o", verifiedForTool,
-      "--verify-each"], `${product.name} mlir-opt`)
+      "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
+    `${product.name} mlir-opt`)
+    if (product.name === "restaurant-while") {
+      const lowered = await readFile(verified)
+      assert(!lowered.includes("scf.") && lowered.includes("llvm.cond_br") &&
+        lowered.includes("llvm.br"),
+      "natural loop was not lowered from SCF to the LLVM dialect CFG")
+    }
     invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", verifiedForTool,
       "-o", llvmForTool], `${product.name} mlir-translate`)
     invokeTool(tool("clang"), ["-x", "ir", `--target=${targetTriple}`,
@@ -494,7 +505,8 @@ try {
   const overflowLlvmForTool = isWindows ? wslPath(overflowLlvm) : overflowLlvm
   const overflowExecutableForTool = isWindows ? wslPath(overflowExecutable) : overflowExecutable
   invokeTool(tool("mlirOpt"), [overflowInputForTool, "-o", overflowVerifiedForTool,
-    "--verify-each"], "checked-overflow mlir-opt")
+    "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
+  "checked-overflow mlir-opt")
   invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", overflowVerifiedForTool,
     "-o", overflowLlvmForTool], "checked-overflow mlir-translate")
   invokeTool(tool("clang"), ["-x", "ir", `--target=${targetTriple}`,
@@ -527,7 +539,8 @@ try {
     const llvmForTool = isWindows ? wslPath(llvm) : llvm
     const executableForTool = isWindows ? wslPath(executable) : executable
     invokeTool(tool("mlirOpt"), [inputForTool, "-o", verifiedForTool,
-      "--verify-each"], `${fault.name} mlir-opt`)
+      "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"],
+    `${fault.name} mlir-opt`)
     invokeTool(tool("mlirTranslate"), ["--mlir-to-llvmir", verifiedForTool,
       "-o", llvmForTool], `${fault.name} mlir-translate`)
     invokeTool(tool("clang"), ["-x", "ir", `--target=${targetTriple}`,
@@ -703,6 +716,22 @@ try {
     multiBranchMutationFunction.includes("llvm.return %v") &&
     !multiBranchMutationFunction.includes("llvm.alloca"),
   "multi branch mutation did not retain two typed SSA join values")
+  const naturalLoopArtifact = artifacts.get("restaurant-while").toString("utf8")
+  const naturalLoopStart = naturalLoopArtifact.indexOf(
+    "llvm.func internal @w_fn_0(")
+  const naturalLoopEntry = naturalLoopArtifact.indexOf(
+    "llvm.func internal @w_fn_1(", naturalLoopStart + 1)
+  assert(naturalLoopStart >= 0 && naturalLoopEntry > naturalLoopStart,
+    "natural-loop function boundaries are missing")
+  const naturalLoopFunction = naturalLoopArtifact.slice(
+    naturalLoopStart, naturalLoopEntry)
+  assert(naturalLoopFunction.includes(" = scf.while (") &&
+    naturalLoopFunction.includes("scf.condition(") &&
+    naturalLoopFunction.includes("scf.yield ") &&
+    naturalLoopFunction.includes("llvm.return %loop0 : i64") &&
+    !naturalLoopFunction.includes("llvm.br ^w_fn_0_b_1") &&
+    !naturalLoopFunction.includes("llvm.alloca"),
+  "natural loop did not preserve structured SCF and SSA storage elimination")
   const cfgArtifact = artifacts.get("restaurant-if").toString("utf8")
   const joinBranches = cfgArtifact.match(/llvm\.br \^w_fn_0_b_3\n/gu) || []
   const cfgSignature = cfgArtifact.match(
@@ -802,6 +831,10 @@ try {
     ["scalar-cfg.w",
       `fn main(): i64 { if true { print("x") } return 1 }\nentry(main)\n`],
     ["scalar-entry.w", `fn main(): i64 { return 42 }\nentry(main)\n`],
+    ["non-carried-while.w",
+      `fn countTo(limit: i64): i64 { var count = 0 ` +
+      `while limit > 0 { count = count + 1 } return count }\n` +
+      `entry { let value = countTo(limit: 3) print("\${value}") }\n`],
     ["too-many-instructions.w", tooManyInstructions],
     ["total-output-overflow.w", totalOutputOverflow],
   ]
@@ -812,7 +845,7 @@ try {
     assert(rejected.exitCode !== 0 && rejected.stdout.length === 0,
       `${name} was accepted or emitted partial MLIR`)
   }
-  console.log(`MLIR0: verified HIR0 → LLVM dialect → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)})`)
+  console.log(`MLIR0: verified HIR0 → SCF/LLVM dialects → mlir-opt → mlir-translate → clang IR/native passed (${dialectDisclosure(dialect)})`)
 } finally {
   await rm(buildDirectory, { recursive: true, force: true })
   await rm(artifactDirectory, { recursive: true, force: true })

@@ -4,7 +4,7 @@
   "status": "pinned",
   "artifact": {
     "schema": "w-seed-mlir0-15",
-    "scope": "unit-cfg-nested-diamond"
+    "scope": "unit-structured-cfg-natural-loop"
   },
   "target": {
     "triple": "x86_64-unknown-linux-gnu",
@@ -42,7 +42,7 @@
   "pipeline": [
     {
       "tool": "mlir-opt",
-      "args": ["<input.mlir>", "-o", "<verified.mlir>", "--verify-each"]
+      "args": ["<input.mlir>", "-o", "<verified.mlir>", "--convert-scf-to-cf", "--convert-cf-to-llvm", "--verify-each"]
     },
     {
       "tool": "mlir-translate",

@@ -4,7 +4,7 @@
   "status": "external-evaluation",
   "artifact": {
     "schema": "w-seed-mlir0-15",
-    "scope": "unit-cfg-nested-diamond"
+    "scope": "unit-structured-cfg-natural-loop"
   },
   "host": {
     "platform": "windows",

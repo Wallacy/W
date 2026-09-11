@@ -91,7 +91,7 @@
       "runtimeVersion": "w-seed-mlir0-15",
       "state": "evidence",
       "verificationLevel": null,
-      "scope": "w-seed-mlir0-15-unit-cfg-nested-diamond",
+      "scope": "w-seed-mlir0-15-unit-structured-cfg-natural-loop",
       "claim": null,
       "axes": {
         "backend": {
@@ -107,7 +107,7 @@
               "kind": "source",
               "path": "compiler/seed-c/src/w_seed_mlir0.c",
               "symbol": "build_program_artifact",
-              "claim": "The emitter renders deterministic scalar results, direct calls, bounded typed interpolation, and Unit diamond CFGs as LLVM dialect text from verified HIR."
+              "claim": "The emitter renders deterministic scalar results, direct calls, bounded typed interpolation, Unit diamond CFGs, and one bounded natural loop as structured MLIR from verified HIR."
             }
           ]
         },
@@ -117,8 +117,8 @@
             {
               "kind": "unit",
               "path": "compiler/seed-c/tests/test_mlir0.c",
-              "symbol": "test_if_diamond_cfg",
-              "claim": "The unit checks typed llvm.cond_br, both diamond arms, one join, real calls, bounds, aliases, and forged HIR records."
+              "symbol": "test_natural_loop_preserves_structured_mlir",
+              "claim": "The unit checks scf.while with one carried i64, structured condition/yield, direct return, and no source-variable allocation or pre-flattened backedge."
             }
           ]
         },

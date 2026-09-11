@@ -15,6 +15,7 @@ const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaur
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
+const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
@@ -120,7 +121,7 @@ export function validateManifest(manifest, mode = ciMode) {
     assert(manifest.purpose === "mandatory-native-ci",
       "CI toolchain manifest purpose is invalid")
   assert(manifest.artifact?.schema === "w-seed-mlir0-15" &&
-    manifest.artifact?.scope === "unit-cfg-nested-diamond",
+    manifest.artifact?.scope === "unit-structured-cfg-natural-loop",
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple &&
     manifest.target?.os === "linux" && manifest.target?.abi === "gnu",
@@ -146,7 +147,8 @@ export function validateManifest(manifest, mode = ciMode) {
   const pipeline = manifest.pipeline
   assert(pipeline[0]?.tool === "mlir-opt" &&
     JSON.stringify(pipeline[0].args) === JSON.stringify([
-      "<input.mlir>", "-o", "<verified.mlir>", "--verify-each",
+      "<input.mlir>", "-o", "<verified.mlir>", "--convert-scf-to-cf",
+      "--convert-cf-to-llvm", "--verify-each",
     ]), "mlir-opt recipe changed")
   assert(pipeline[1]?.tool === "mlir-translate" &&
     JSON.stringify(pipeline[1].args) === JSON.stringify([
@@ -377,7 +379,8 @@ for (const marker of ["W_SEED_LINUX_MLIR_OPT_PATH",
   "W_SEED_LINUX_MLIR_TRANSLATE_PATH", "W_SEED_LINUX_LLC_PATH",
   "W_SEED_LINUX_LINK_DRIVER_PATH"])
   assert(runSource.includes(marker), `cli/run.c does not use ${marker}`)
-for (const marker of ["--canonicalize", "--cse", "-O3", "-s",
+for (const marker of ["--convert-scf-to-cf", "--convert-cf-to-llvm",
+  "--canonicalize", "--cse", "-O3", "-s",
   "--no-dynamic-linker", "--gc-sections", "_start", "WRT0_LL"])
   assert(runSource.includes(marker),
     `cli/run.c is missing the release build flag ${marker}`)
@@ -658,6 +661,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantNestedIfFixture)],
     expectedRestaurantNestedIf,
     "Restaurant nested if")
+  expectSuccess(binary, ["run", toWsl(restaurantWhileFixture)],
+    Buffer.from("Served 3\n", "utf8"),
+    "Restaurant natural while lowered through structured MLIR")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],

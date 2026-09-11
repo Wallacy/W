@@ -23,10 +23,10 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:ffe083591237f1bdeb75636995a9435c88ab620d884214a1e951e861ea4e92bc",
-    "count": 1560,
+    "sha256": "sha256:5239ac2a6eb1053f35e4a6631a2b7fee9fb0fbc3534d947c89d841f3c95ec989",
+    "count": 1561,
     "first": "W-001",
-    "last": "W-1560"
+    "last": "W-1561"
   },
   "epochs": [
     {
@@ -61,7 +61,7 @@
     }
   ],
   "preservedLegacyCoverage": {
-    "source": 227,
+    "source": 228,
     "oracle": 418,
     "explicit": 8,
     "overlap": 57
@@ -1765,7 +1765,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:bf330ff23ed777377ead829b3493714dce5e64a6f3ba8c7b3f9b3bc719da0593"
+        "sectionDigest": "sha256:c91141d5ac384a708939ff1d2e6880143b92b2764caa2ac8a2bd58895c4e9f4a"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -50777,7 +50777,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "w_seed_native_subset0_select",
           "claim": "The private shared selector proves the direct literal or immutable binding chain by structured HIR indices."
         },
@@ -50819,7 +50819,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "const products = [",
           "claim": "MLIR0 gate verifies, translates, links and runs the accepted products."
         }
@@ -50867,19 +50867,19 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "w_seed_native_subset0_select",
           "claim": "The private selector re-verifies HIR0 and exposes structured borrowed slices for the exact native subset."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_artifact",
           "claim": "The emitter builds deterministic LLVM dialect text directly from the verified-HIR selection."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60",
           "symbol": "test_restaurant_and_nul",
           "claim": "The MLIR0 unit covers direct/binding Restaurant equality, NUL payloads, and HIR forgeries."
         },
@@ -50891,13 +50891,13 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "const products = [",
           "claim": "The gate checks direct HIR0-to-native products and exact runtime output."
         },
         {
           "path": "tooling/mlir0-toolchain.json",
-          "sha256": "sha256:26f3088f9494d25092fa14a9e9e3d8bd1973cea1d67c88cd3ad49a50f74e457d",
+          "sha256": "sha256:1d22817e55d9a2e94bb9d780a9da237aedf5f9a9e0d8bfe13d98146a2ddc45c5",
           "symbol": "pipeline",
           "claim": "The manifest records the factual 20.1.2 MLIR/LLVM/Clang pipeline."
         }
@@ -50956,7 +50956,7 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:11e053e23f4fb0f319b05500fe01445697f810ffe4af5a576b0d46495c116afb",
+          "sha256": "sha256:e760e5777cb9c0671c1fd352ae77b51be551a72cf071f7b5e4c48a6f0b622f17",
           "symbol": "w_seed_run_execute",
           "claim": "The public runner invokes the pinned Linux native recipe with private temporary files and cleanup."
         },
@@ -50968,13 +50968,13 @@
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97",
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5",
           "symbol": "const expectedHelp =",
           "claim": "The product gate covers Linux and WSL execution, rejection cases and cleanup."
         },
         {
           "path": "tooling/mlir0-toolchain.json",
-          "sha256": "sha256:26f3088f9494d25092fa14a9e9e3d8bd1973cea1d67c88cd3ad49a50f74e457d",
+          "sha256": "sha256:1d22817e55d9a2e94bb9d780a9da237aedf5f9a9e0d8bfe13d98146a2ddc45c5",
           "symbol": "pipeline",
           "claim": "The manifest pins the factual MLIR/LLVM/Clang 20.1.2 recipe."
         }
@@ -51021,19 +51021,19 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "w_seed_native_subset0_select_sequence",
           "claim": "The private selector proves the bounded ordered sequence."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_artifact",
           "claim": "The emitter preserves ordered bytes in the coalesced artifact."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60",
           "symbol": "test_linear_sequence",
           "claim": "The unit covers exact multi-call output and capacity transactions."
         },
@@ -51045,19 +51045,19 @@
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:11e053e23f4fb0f319b05500fe01445697f810ffe4af5a576b0d46495c116afb",
+          "sha256": "sha256:e760e5777cb9c0671c1fd352ae77b51be551a72cf071f7b5e4c48a6f0b622f17",
           "symbol": "run_logical_source_id",
           "claim": "The public runner derives an opaque basename source identity."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "const products = [",
           "claim": "The MLIR0 gate executes the canonical sequence and adversarial limits."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97",
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5",
           "symbol": "const expectedHelp =",
           "claim": "The public gate runs both versioned hyphenated fixtures directly."
         },
@@ -51228,19 +51228,19 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "evaluate_i64",
           "claim": "The selector proves panic absence without supplying the computed result to emission."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_dynamic_artifact",
           "claim": "MLIR0 emits LLVM arithmetic, bounded runtime formatting, and one checked write."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60",
           "symbol": "test_typed_interpolation_artifact",
           "claim": "The unit proves retained multiplication, no precomputed payload, transactions, and semantic barriers."
         },
@@ -51287,25 +51287,25 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "MLIR0_RUNTIME_HELPERS",
           "claim": "The generated artifact owns bounded byte-copy and signed-decimal helpers in LLVM dialect."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_dynamic_plan",
           "claim": "The emitter builds an ordered counted text and integer action plan without a C format string."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60",
           "symbol": "test_typed_interpolation_artifact",
           "claim": "The unit proves internal helpers, retained arithmetic, counted NUL text, and all-or-nothing barriers."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "Buffer.from([0x41, 0x00, 0x34, 0x32, 0x0a])",
           "claim": "The native gate proves exact counted output containing NUL followed by runtime decimal interpolation."
         }
@@ -51352,25 +51352,25 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "interpolation_string_bytes",
           "claim": "The selector accepts only verified compile-time-known String values and accounts for binding reads."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "MLIR0_BOOL_HELPER",
           "claim": "The artifact-local LLVM dialect helper emits exact lowercase Bool bytes only when selected."
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60",
           "symbol": "test_typed_interpolation_artifact",
           "claim": "The unit proves Bool, String, NUL, helper selection, bounds, and all-or-nothing emission."
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "builtin-display",
           "claim": "The gate verifies, translates, links, and executes the combined Restaurant and NUL String products."
         }
@@ -51417,13 +51417,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "resolve_binding_value",
           "claim": "The native selector follows only indexed verified bindings and rejects unsupported initializer forms."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_dynamic_plan",
           "claim": "The MLIR plan retains the original initializer SSA index for later binding reads."
         },
@@ -51435,7 +51435,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "typed-bindings",
           "claim": "The product gate preserves llvm.mul and executes exact typed Restaurant output."
         }
@@ -51482,13 +51482,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "w_seed_native_subset0_select_program",
           "claim": "The bounded selector validates the acyclic multi-function Unit subset."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_program_artifact",
           "claim": "The emitter produces distinct functions, typed parameters, and real llvm.call operations."
         },
@@ -51500,7 +51500,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "direct-call",
           "claim": "The product gate verifies, translates, links, and executes the direct-call Restaurant witness."
         }
@@ -51547,13 +51547,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "program_function_maximum",
           "claim": "The bounded selector admits only represented Unit, signed-i64, or Bool results."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "append_program_function",
           "claim": "MLIR emits typed returns and result-producing calls without precomputing the value."
         },
@@ -51565,7 +51565,7 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "scalar-return",
           "claim": "The product gate verifies, translates, links, and executes exact scalar-return Restaurant output."
         }
@@ -51612,13 +51612,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "program_function_maximum",
           "claim": "The selector computes a bounded path maximum across mutually exclusive arms and retains acyclic call bounds."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_program_artifact",
           "claim": "MLIR emits labeled blocks, llvm.cond_br, llvm.br, and one post-join continuation."
         },
@@ -51630,13 +51630,13 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "restaurant-if",
           "claim": "The focal gate verifies the typed condition, both arms, one join, and exact Restaurant output."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97",
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5",
           "symbol": "W-1531 frontier exploration source-style candidate",
           "claim": "The public runner executes the Restaurant witness, separate minimum/no-else microproofs, and learner, idiomatic, and frontier source-style candidates with the same Restaurant stdout; frontier is exploratory and correctness-only."
         }
@@ -51677,13 +51677,13 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_program_artifact",
           "claim": "The emitter selects the Windows target triple and Win32 runtime surface."
         },
         {
           "path": "compiler/seed-c/cli/run.c",
-          "sha256": "sha256:11e053e23f4fb0f319b05500fe01445697f810ffe4af5a576b0d46495c116afb",
+          "sha256": "sha256:e760e5777cb9c0671c1fd352ae77b51be551a72cf071f7b5e4c48a6f0b622f17",
           "symbol": "run_windows_native",
           "claim": "The Windows runner uses explicit tool paths, CreateProcessW, bounded temporary files, and cleanup."
         },
@@ -51695,7 +51695,7 @@
         },
         {
           "path": "tooling/mlir0-windows-toolchain.json",
-          "sha256": "sha256:068cbe90cfbd9c315b056441a0d14d45a288222f7c12422bb3b460144f94f68d",
+          "sha256": "sha256:bd36e49d85744fa4ad32d26ac160a465a2a3bba9004fdcb41d8fd51b00e9185a",
           "symbol": "requiredTools",
           "claim": "The external development cache pins the Windows MLIR/LLVM/LLD asset and roles."
         }
@@ -51807,7 +51807,7 @@
         },
         {
           "path": "tooling/mlir0-windows-toolchain.json",
-          "sha256": "sha256:068cbe90cfbd9c315b056441a0d14d45a288222f7c12422bb3b460144f94f68d",
+          "sha256": "sha256:bd36e49d85744fa4ad32d26ac160a465a2a3bba9004fdcb41d8fd51b00e9185a",
           "symbol": "buildBoundary",
           "claim": "The machine manifest records the four toolchain mappings, receipt contract, and staged smoke boundary."
         }
@@ -51854,13 +51854,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f",
           "symbol": "program_function_maximum",
           "claim": "Native selection computes a checked maximum over mutually exclusive nested arms without revisiting shared continuations."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2",
           "symbol": "build_program_artifact",
           "claim": "MLIR emits nested labeled blocks and typed llvm.cond_br and llvm.br operations."
         },
@@ -51878,13 +51878,13 @@
         },
         {
           "path": "tooling/check-mlir0.mjs",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582",
           "symbol": "restaurant-nested-if",
           "claim": "The MLIR0 gate verifies, translates, links, and executes the nested Restaurant fixture with exact four-case stdout."
         },
         {
           "path": "tooling/check-w-run.mjs",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97",
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5",
           "symbol": "restaurant-nested-if",
           "claim": "The public runner executes the nested Restaurant fixture through the verified native route with exact stdout."
         },
@@ -51976,7 +51976,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "binary_operation",
           "claim": "The six operators emit real LLVM comparison predicates with signed ordering.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
@@ -51988,7 +51988,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_signed_comparison_artifacts",
           "claim": "Parameter-based emission and branchless prior-binding cases retain comparison SSA.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -52006,7 +52006,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Linux gate checks signed boundaries, Bool composition, exact stdout, and rejected types.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -52059,7 +52059,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits llvm.cond_br, branch-carried i1 incoming values, llvm.xor for negation, and RHS calls only in the RHS block.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -52071,7 +52071,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_logical_nested_diamond",
           "claim": "MLIR units inspect nested labels, incoming block arguments, llvm.xor, and RHS call placement.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-bool-short-circuit.w",
@@ -52083,7 +52083,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Linux gate checks exact short-circuit stdout through the public native route.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -52142,7 +52142,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits llvm.cond_br and typed llvm.br join arguments without llvm.select or eager arm evaluation.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -52160,7 +52160,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_scalar_if_value_diamond",
           "claim": "MLIR tests inspect i64 and Bool scalar-if CFG with typed join arguments and reject llvm.select or eager arm evaluation.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-scalar-if.w",
@@ -52225,49 +52225,49 @@
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_value_is_constant_i64",
           "claim": "Constant arithmetic trees are evaluated and faulting constants fail closed.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_value_lowerable",
           "claim": "Dynamic or runtime division and remainder are not lowerable while safe constant trees remain admissible.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "binary_operation",
           "claim": "Admitted safe constant division and remainder emit llvm.sdiv and llvm.srem without switch fallthrough.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_checked_i64_helpers",
           "claim": "Checked add, subtract, and multiply helpers are appended only when reachable trees require them.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_program_plan",
           "claim": "Program planning omits every unreachable function and only reachable owners contribute actions and text.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_checked_runtime_arithmetic",
           "claim": "MLIR units verify checked runtime add, subtract, multiply, LLVM overflow intrinsics, and the fault edge.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_interpolation_semantic_barriers",
           "claim": "MLIR units verify safe constant sdiv/srem and reject faulting constants and runtime division/remainder.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_checked_helper_reachability",
           "claim": "MLIR units verify that Hello and dead print/call chains emit no dead functions, secret text, or checked helper.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-checked-arithmetic.w",
@@ -52279,7 +52279,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "const products = [",
           "claim": "The integrated gate executes the Restaurant witness, typed output 10 -6 16 4 2, safe constants, and overflow fault boundary.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52368,7 +52368,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "helloFixture",
           "claim": "The public Linux/WSL runner executes the short-entry Hello fixture with exact output.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52504,7 +52504,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_process_hir_is_closed_to_mlir",
           "claim": "MLIR0 rejects verified process HIR without partial output.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52749,7 +52749,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_process_hir_is_closed_to_mlir",
           "claim": "MLIR0 keeps the zero-valued EXECUTABLE artifact closed to valid process HIR without partial output; PROCESS_HANDLER is a separate artifact mode.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "std/process/contracts.w",
@@ -52773,7 +52773,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_process_handler_artifact",
           "claim": "The process handler artifact emits opaque owner parameters, reverse cleanup calls, checked int32 statuses, and no public main or I/O.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/include/w_seed_native0.h",
@@ -52791,7 +52791,7 @@
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "w_seed_native_subset0_select_process",
           "claim": "The private selector requires verified HIR16 identity, lifecycle, direct-entry, cleanup, and exact handler shape.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
@@ -52892,13 +52892,13 @@
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "w_seed_native_subset0_select_process_executable",
           "claim": "The native selector admits only the exact verified public process shape.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_process_executable_artifact",
           "claim": "The Windows emitter owns startup, argument-count descriptors, branch output, exit, and root cleanup.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
@@ -53009,13 +53009,13 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits nested llvm.cond_br diamonds and typed llvm.br incoming values without llvm.select.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_scalar_cfg_arm",
           "claim": "Native0 recursively traverses only verified scalar CFG and requires every traversed arm block to be effect-free.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
@@ -53039,7 +53039,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_nested_scalar_if_value_diamond",
           "claim": "MLIR tests assert two cond_br diamonds, typed joins and incoming values, and no select.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
@@ -53057,7 +53057,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantNestedScalarIfFixture",
           "claim": "The MLIR0 gate runs the nested Restaurant source through native execution and checks exact stdout, empty stderr and exit zero.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         },
         {
           "path": "tooling/executable-benchmark-machine.mjs",
@@ -53128,19 +53128,19 @@
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "WRT0_LL",
           "claim": "WRT0 owns Linux x86_64 process startup, stdout write, and exit without CRT or libc.",
-          "sha256": "sha256:11e053e23f4fb0f319b05500fe01445697f810ffe4af5a576b0d46495c116afb"
+          "sha256": "sha256:e760e5777cb9c0671c1fd352ae77b51be551a72cf071f7b5e4c48a6f0b622f17"
         },
         {
           "path": "compiler/seed-c/cli/run.c",
           "symbol": "w_seed_run_compile",
           "claim": "The public compiler emits separate program and WRT0 objects, links them directly, and removes private intermediates.",
-          "sha256": "sha256:11e053e23f4fb0f319b05500fe01445697f810ffe4af5a576b0d46495c116afb"
+          "sha256": "sha256:e760e5777cb9c0671c1fd352ae77b51be551a72cf071f7b5e4c48a6f0b622f17"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "assertCrtFreeElf",
           "claim": "The gate rejects a retained ELF with a program interpreter or any DT_NEEDED dependency before execution.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run.test.mjs",
@@ -53152,7 +53152,7 @@
           "path": "tooling/mlir0-ci-toolchain.json",
           "symbol": "pipeline",
           "claim": "The pinned CI recipe records the separate WRT0 object and direct CRT-free static-PIE link.",
-          "sha256": "sha256:3c397cb3136abe2af30fabc8774cf92e60e59726469599289acb5d5cd70f3406"
+          "sha256": "sha256:6e70e10ed863ef06fcb1bcd7c82265823dff4aefc02cf368a7cfae5d70d2467e"
         },
         {
           "path": "compiler/seed-c/CMakeLists.txt",
@@ -53205,25 +53205,25 @@
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_value_lowerable",
           "claim": "The bounded selector admits runtime division and remainder while preserving constant-fault rejection.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "MLIR0_CHECKED_I64_DIVIDE_HELPER",
           "claim": "The private helper rejects zero and signed overflow before llvm.sdiv.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "MLIR0_CHECKED_I64_REMAINDER_HELPER",
           "claim": "The private helper rejects zero and bypasses llvm.srem for i64.min and -1.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The Linux gate proves exact output and runtime fault-before-output behavior.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53282,13 +53282,13 @@
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
           "symbol": "program_value_lowerable",
           "claim": "The selector admits runtime negation and rejects constant overflow.",
-          "sha256": "sha256:7d5563e818e3b30a01fd40754d50da0f960dac8e8b5d8c0fb599182ef36d5345"
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_unary_i64_operation",
           "claim": "MLIR selects direct constant or checked runtime lowering.",
-          "sha256": "sha256:ea5ad6ef5a43404633a06c2449b1fcf45ed6fb20bea0a908907544fe6c83bb28"
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -53312,7 +53312,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The Linux gate proves exact output and runtime overflow fault-before-output.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53383,7 +53383,7 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The Linux native route proves exact output and direct constant lowering without the checked helper.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53454,7 +53454,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_straight_line_mutation_is_ssa",
           "claim": "MLIR tests prove checked arithmetic without a source-variable alloca.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-mutation.w",
@@ -53519,7 +53519,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_conditional_mutation_merge_is_ssa",
           "claim": "MLIR tests prove the typed diamond and absence of a source-variable alloca.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w",
@@ -53531,7 +53531,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The Linux/WSL public runner executes the same source witness.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53584,7 +53584,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_bool_mutation_is_ssa",
           "claim": "MLIR tests prove direct i1 return and no source-variable alloca.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w",
@@ -53596,7 +53596,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The Linux/WSL public runner executes exact Boolean output.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53661,7 +53661,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_branch_local_mutation_merge_is_ssa",
           "claim": "MLIR tests prove the typed diamond, direct join return, and no source-variable alloca.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w",
@@ -53673,7 +53673,7 @@
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53738,7 +53738,7 @@
           "path": "compiler/seed-c/tests/test_mlir0.c",
           "symbol": "test_multi_branch_mutation_merge_is_ssa",
           "claim": "MLIR tests prove two typed join parameters, two typed branch operands, direct return, and no alloca.",
-          "sha256": "sha256:510514bc0cd08cb9e3632f0ac24e8e06783759e3fb3e22dfc74a341c4ac6095c"
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w",
@@ -53750,13 +53750,13 @@
           "path": "tooling/check-mlir0.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The MLIR gate checks the two-parameter join and typed two-operand branches.",
-          "sha256": "sha256:0251366128c593b3a3253ed9541a3fd77c3f9b79ed39007cfb5a5fbbac9aacda"
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
         },
         {
           "path": "tooling/check-w-run.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The Linux/WSL public runner executes exact joined output.",
-          "sha256": "sha256:08682cd6df90d512da349133804fd5b9ccf49425f4363ba6c3fe0d2426589c97"
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -53789,7 +53789,7 @@
           "caseDigest": "sha256:f2dbaa87ed7ca43a499a3b73533ada8252ba032605a21d4786b2e22a8a111f68"
         }
       ],
-      "reason": "W-1559 (bounded seed `while` projection, sha256:28bed0829543e60f2e2c243fd76d8819c3c21e95244245206cc1a27d1b422eb5) is source-backed-current only for the bounded parser/frontend while projection; W-1560 separately advances one bounded HIR natural loop, while native execution and performance remain gaps.",
+      "reason": "W-1559 (bounded seed `while` projection, sha256:28bed0829543e60f2e2c243fd76d8819c3c21e95244245206cc1a27d1b422eb5) is source-backed-current only for the bounded parser/frontend while projection; W-1560 separately advances one bounded HIR natural loop and W-1561 its exact structured/native route, while general execution and performance remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
@@ -53813,7 +53813,7 @@
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
-      "benchmarkEvidence": "Correctness-only. No timing, ranking, or performance result; W-1560 separately advances one bounded HIR natural loop while execution remains deferred."
+      "benchmarkEvidence": "Correctness-only. No timing, ranking, or performance result; W-1560 advances one bounded HIR natural loop and W-1561 separately closes its exact structured/native route."
     },
     {
       "decisionId": "W-1560",
@@ -53836,7 +53836,7 @@
           "caseDigest": "sha256:5718d20e7a2aad019db0b1765b4013bdfb958e8747bf952226eae0646c9e9ce9"
         }
       ],
-      "reason": "W-1560 (bounded single-root natural loop in verified HIR, sha256:c42ef9b119ea6d2a3d7b95c0d1f627fb0a6eace7137165318a9a34a6baf47360) is source-backed-current only for the bounded HIR producer, independent verifier, focused witness, and adversarial barriers; MLIR/native/public execution, general loops, and performance remain gaps.",
+      "reason": "W-1560 (bounded single-root natural loop in verified HIR, sha256:c42ef9b119ea6d2a3d7b95c0d1f627fb0a6eace7137165318a9a34a6baf47360) is source-backed-current only for the bounded HIR producer, independent verifier, focused witness, and adversarial barriers; W-1561 separately closes structured/native execution for this exact shape, while general loops and performance remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
@@ -53866,7 +53866,78 @@
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
-      "benchmarkEvidence": "Correctness-only. No timing, ranking, or performance result; structured MLIR lowering and native/public execution remain deferred."
+      "benchmarkEvidence": "Correctness-only. No timing, ranking, or performance result; W-1561 separately closes structured MLIR and native/public execution for this exact shape."
+    },
+    {
+      "decisionId": "W-1561",
+      "summary": "structured MLIR and native execution for the bounded natural loop",
+      "canonicalClaim": "The W-1560 loop is selected from verified HIR and emitted as `scf.while` with one carried signed-`i64` value. `scf.condition` and `scf.yield` retain the structured loop until the pinned `convert-scf-to-cf` and `convert-cf-to-llvm` passes; the public Linux/WSL `w run` path then executes the exact Restaurant witness without a source-variable allocation, generated C, host-C loop, or expected-output shortcut.",
+      "claimDigest": "sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b",
+      "category": "source-backed-current",
+      "basis": "linked-source-comparison-case",
+      "authorityRef": {
+        "kind": "source-case",
+        "path": "tooling/substitution-cases.json",
+        "caseId": "R0-structured-natural-loop-native",
+        "caseDigest": "sha256:20dac1cf7aef516219d6e2d5895775efa2524369ed4c99075afc368c7606ef70"
+      },
+      "evidence": [
+        {
+          "kind": "source",
+          "path": "tooling/substitution-cases.json",
+          "caseId": "R0-structured-natural-loop-native",
+          "caseDigest": "sha256:20dac1cf7aef516219d6e2d5895775efa2524369ed4c99075afc368c7606ef70"
+        }
+      ],
+      "reason": "W-1561 (structured MLIR and native execution for the bounded natural loop, sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b) is source-backed-current only for the exact one-carrier natural loop, structured SCF emission, pinned conversion pipeline, and Linux/WSL public native witness; general loops, other targets, optimization quality, PGO, and performance remain gaps.",
+      "selection": "explicit-ledger-id",
+      "basisRef": {
+        "kind": "ledger-row",
+        "path": "RATIONALE.md",
+        "section": "3. Ledger",
+        "decisionId": "W-1561",
+        "claimDigest": "sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b"
+      },
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_natural_loop_is_supported",
+          "claim": "NativeSubset0 recognizes only the exact verified four-block one-carrier shape.",
+          "sha256": "sha256:24023208c2aba2744855d218a852dfa2644bf6c328707100c4c8741d133b989f"
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_natural_loop",
+          "claim": "MLIR0 emits structured SCF with no source-variable allocation.",
+          "sha256": "sha256:5be84f5a688e3ccda2ef45ab930587654c3dfebbce8494658b62a8ae8c164da2"
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_natural_loop_preserves_structured_mlir",
+          "claim": "The MLIR unit checks SCF operations, the direct loop result, and absence of pre-flattening or alloca.",
+          "sha256": "sha256:573d8cf0790bd67b6ec36ca959c3dd431f0037aed784a5566b95f75a27f58e60"
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-while.w",
+          "symbol": "countTo",
+          "claim": "The Restaurant witness exercises the public one-carrier loop.",
+          "sha256": "sha256:c95aa9e68634b4bfc1998a0eb23ea263204f4d5a88d0120064f4b91f4dc6be99"
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantWhileFixture",
+          "claim": "The MLIR gate checks structured input, converted CFG, exact native output, and an unsupported loop barrier.",
+          "sha256": "sha256:89cc4f99135ac4ab90c2ddd134a0036863978b28bdc119f0d83811ba5c81e582"
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantWhileFixture",
+          "claim": "The public Linux/WSL runner executes exact Served 3 output.",
+          "sha256": "sha256:4586df22405b5477563b3b86347e99970b7b99e2ad6b06e37b0414c31fe219d5"
+        }
+      ],
+      "benchmarkDisposition": "compiler-lifecycle",
+      "benchmarkEvidence": "Correctness-only. No timing, ranking, code-size quality, PGO, or performance result."
     }
   ],
   "auditSamples": {
