@@ -37828,6 +37828,37 @@ entry {
 }
 ```
 
+#### 26.4.1.43 W-1562 — local payloadless enum identity in verified HIR (Current form)
+
+HIR0 advances to schema `w-seed-hir0-20` for one bounded local enum slice.
+The schema owns caller-provided `w_seed_hir0_enum` and
+`w_seed_hir0_enum_case` records. Each enum owns one lexical dense case range,
+and each payloadless case has equal ordinal and tag with `payload_count == 0`.
+
+Each local enum has a nominal `TYPE_ENUM` record linked by `enum_index`.
+Local enum type equality uses that owner identity, so equal case spellings in
+different enums remain different types. A local case expression publishes a
+`VALUE_ENUM_CASE` with the owning enum and case indices. Its type, owner, and
+case range must agree. The lifecycle facts are `VALUE_COPY` and release
+contract `NONE`.
+
+`w_seed_hir0_measure`, `w_seed_hir0_run`, and `w_seed_hir0_verify` keep the
+records caller-owned. Capacity, alias, semantic-digest, provenance-digest,
+receipt, and all-or-nothing barriers remain part of this route. Focused HIR0
+checks cover the positive records, forged enum/case/value relations, capacity,
+alias, and digest-preserving rejection.
+
+Native0 proves source → frontend → verified HIR for this slice and then stops
+with `W_SEED_NATIVE0_UNSUPPORTED` at the MLIR boundary. It does not lower a
+switch or execute an enum program. `compiler/seed-c/fixtures/restaurant-enum.w`
+is retained as a future switch target and is not execution evidence.
+
+Switch and exhaustiveness semantics, the native minimum-width carrier and
+invalid-pattern rejection, payloads, enum subsets, `Result`, `throws`, ABI,
+and performance remain gaps. The benchmark disposition is
+`compiler-lifecycle`, correctness-only, with no timing, ranking, or performance
+result.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -44,7 +44,7 @@ enum {
   TEST_HIR_RECORDS = 64,
   TEST_HIR_TEXT = 4096,
   TEST_HIR_VALUES = 4096,
-  TEST_HIR_RECEIPT = 256,
+  TEST_HIR_RECEIPT = W_SEED_HIR0_MAX_RECEIPT_BYTES,
 };
 
 typedef struct {
@@ -97,6 +97,8 @@ typedef struct {
   w_seed_hir0_module hir_modules[TEST_HIR_RECORDS];
   w_seed_hir0_identity hir_identities[TEST_HIR_IDENTITIES];
   w_seed_hir0_type hir_types[TEST_HIR_RECORDS];
+  w_seed_hir0_enum hir_enums[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_case hir_enum_cases[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
@@ -368,6 +370,10 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .identity_capacity = TEST_HIR_IDENTITIES,
       .types = fixture.hir_types,
       .type_capacity = TEST_HIR_RECORDS,
+      .enums = fixture.hir_enums,
+      .enum_capacity = TEST_HIR_RECORDS,
+      .enum_cases = fixture.hir_enum_cases,
+      .enum_case_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -432,6 +438,10 @@ static bool lower_process_hir(const uint8_t *source_bytes,
       .identity_capacity = TEST_HIR_IDENTITIES,
       .types = fixture.hir_types,
       .type_capacity = TEST_HIR_RECORDS,
+      .enums = fixture.hir_enums,
+      .enum_capacity = TEST_HIR_RECORDS,
+      .enum_cases = fixture.hir_enum_cases,
+      .enum_case_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,

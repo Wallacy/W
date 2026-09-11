@@ -10,7 +10,7 @@ _Static_assert(CHAR_BIT == 8, "w-seed HIR0 requires 8-bit bytes");
 enum {
   HIR0_DIGEST_BYTES = 32,
   HIR0_RECEIPT_SCHEMA_BYTES = 16,
-  HIR0_RECEIPT_COUNT_FIELDS = 22,
+  HIR0_RECEIPT_COUNT_FIELDS = 24,
   /* M2 keeps branch-local mutation bounded without adding storage to the
    * public frontend schema. The existing nesting bound is also a safe upper
    * bound for the number of simple statements in one accepted arm. */
@@ -212,6 +212,33 @@ static bool frontend_type_supported(const w_seed_frontend_type *type) {
   return false;
 }
 
+static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input);
+
+static bool frontend_local_enum_type_supported(
+    const w_seed_hir0_input *input, const w_seed_frontend_type *type) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || type == NULL ||
+      type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+      type->enum_base_index == W_SEED_FRONTEND_NONE ||
+      type->external_module_index != W_SEED_FRONTEND_NONE ||
+      type->external_symbol_index != W_SEED_FRONTEND_NONE ||
+      type->first_subset_member != W_SEED_FRONTEND_NONE ||
+      type->subset_member_count != 0u ||
+      (size_t)type->enum_base_index >= input->frontend_result->written.enums ||
+      input->frontend_output->enums == NULL ||
+      input->frontend_output->types == NULL)
+    return false;
+  const w_seed_frontend_enum *decl =
+      &input->frontend_output->enums[type->enum_base_index];
+  return decl->type_index != W_SEED_FRONTEND_NONE &&
+         text_equal(decl->name, type->spelling) &&
+         decl->type_index < input->frontend_result->written.types &&
+         input->frontend_output->types[decl->type_index].kind ==
+             W_SEED_FRONTEND_TYPE_ENUM &&
+         input->frontend_output->types[decl->type_index].enum_base_index ==
+             type->enum_base_index;
+}
+
 /* HIR16 accepts only resolver-owned nominal types from the bounded external
  * process table. The pair is atomic. A partial pair is never a type identity. */
 static bool frontend_external_type_pair_valid(
@@ -240,6 +267,7 @@ static bool frontend_span_ok(const w_seed_frontend_document *document,
 static bool frontend_hir_type_supported(
     const w_seed_hir0_input *input, const w_seed_frontend_type *type) {
   if (frontend_type_supported(type)) return true;
+  if (frontend_local_enum_type_supported(input, type)) return true;
   return type != NULL && type->kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
          type->external_module_index != W_SEED_FRONTEND_NONE &&
          type->external_symbol_index != W_SEED_FRONTEND_NONE &&
@@ -249,8 +277,12 @@ static bool frontend_hir_type_supported(
 
 static bool frontend_supported_types_equal(
     const w_seed_frontend_type *left, const w_seed_frontend_type *right) {
-  if (!frontend_type_supported(left) || !frontend_type_supported(right) ||
-      left->kind != right->kind)
+  if (left == NULL || right == NULL || left->kind != right->kind)
+    return false;
+  if (left->kind == W_SEED_FRONTEND_TYPE_ENUM)
+    return left->enum_base_index != W_SEED_FRONTEND_NONE &&
+           left->enum_base_index == right->enum_base_index;
+  if (!frontend_type_supported(left) || !frontend_type_supported(right))
     return false;
   if (left->kind == W_SEED_FRONTEND_TYPE_INTEGER)
     return left->is_signed == right->is_signed &&
@@ -328,6 +360,8 @@ static bool hir_counts_equal(const w_seed_hir0_counts *left,
   HIR0_COUNT(value_bytes);
   HIR0_COUNT(external_modules);
   HIR0_COUNT(external_symbols);
+  HIR0_COUNT(enums);
+  HIR0_COUNT(enum_cases);
   HIR0_COUNT(receipt_bytes);
 #undef HIR0_COUNT
   return true;
@@ -373,6 +407,11 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(imports, import_capacity, w_seed_frontend_import);
   HIR0_FRONTEND_ARRAY(import_items, import_item_capacity,
                       w_seed_frontend_import_item);
+  HIR0_FRONTEND_ARRAY(enums, enum_capacity, w_seed_frontend_enum);
+  HIR0_FRONTEND_ARRAY(enum_cases, enum_case_capacity,
+                      w_seed_frontend_enum_case);
+  HIR0_FRONTEND_ARRAY(enum_case_parameters, enum_case_parameter_capacity,
+                      w_seed_frontend_enum_case_parameter);
   HIR0_FRONTEND_ARRAY(types, type_capacity, w_seed_frontend_type);
   HIR0_FRONTEND_ARRAY(functions, function_capacity, w_seed_frontend_function);
   HIR0_FRONTEND_ARRAY(parameters, parameter_capacity, w_seed_frontend_parameter);
@@ -382,6 +421,8 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(interpolation_segments, interpolation_segment_capacity,
                       w_seed_frontend_interpolation_segment);
   HIR0_FRONTEND_ARRAY(arguments, argument_capacity, w_seed_frontend_argument);
+  HIR0_FRONTEND_ARRAY(switch_arms, switch_arm_capacity,
+                      w_seed_frontend_switch_arm);
   HIR0_FRONTEND_ARRAY(const_bytes, const_bytes_capacity, uint8_t);
 #undef HIR0_FRONTEND_ARRAY
   for (size_t module = 0u;
@@ -636,9 +677,73 @@ static bool frontend_sources_ok(const w_seed_hir0_input *input) {
   return true;
 }
 
+/* The M1 enum surface is intentionally tiny: each local declaration owns a
+ * dense, payloadless case range and a canonical TYPE record.  This
+ * check runs before any HIR output is touched, so forged ownership/ranges are
+ * rejected transactionally. */
+static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_input == NULL ||
+      input->frontend_output == NULL || input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  if (result->written.enums == 0u) return result->written.enum_cases == 0u;
+  if (output->enums == NULL || output->enum_cases == NULL ||
+      result->written.enum_cases == 0u)
+    return false;
+  size_t case_cursor = 0u;
+  for (size_t index = 0u; index < result->written.enums; index += 1u) {
+    const w_seed_frontend_enum *decl = &output->enums[index];
+    if (decl->module_index >= result->written.modules ||
+        !text_valid(decl->name) || decl->name.length == 0u ||
+        decl->has_generic_parameters ||
+        decl->conformance_type != W_SEED_FRONTEND_NONE ||
+        decl->first_case != case_cursor ||
+        !range_valid(decl->first_case, decl->case_count,
+                     result->written.enum_cases) ||
+        decl->case_count == 0u || decl->type_index == W_SEED_FRONTEND_NONE ||
+        (size_t)decl->type_index >= result->written.types ||
+        !frontend_span_ok(&input->frontend_input->documents[
+                              output->modules[decl->module_index].document_index],
+                          decl->span))
+      return false;
+    const w_seed_frontend_type *type = &output->types[decl->type_index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_ENUM ||
+        type->enum_base_index != index ||
+        type->first_subset_member != W_SEED_FRONTEND_NONE ||
+        type->subset_member_count != 0u ||
+        !text_equal(type->spelling, decl->name))
+      return false;
+    for (size_t prior = 0u; prior < index; prior += 1u)
+      if (output->enums[prior].module_index == decl->module_index &&
+          text_equal(output->enums[prior].name, decl->name))
+        return false;
+    for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+      const size_t case_index = case_cursor + ordinal;
+      const w_seed_frontend_enum_case *value = &output->enum_cases[case_index];
+      if (value->module_index != decl->module_index ||
+          value->owner_enum != index || !text_valid(value->name) ||
+          value->name.length == 0u || value->payload_count != 0u ||
+          !range_valid(value->first_payload, value->payload_count,
+                       result->written.enum_case_parameters) ||
+          !frontend_span_ok(&input->frontend_input->documents[
+                                output->modules[decl->module_index].document_index],
+                            value->span))
+        return false;
+      for (size_t prior = 0u; prior < ordinal; prior += 1u)
+        if (text_equal(value->name,
+                       output->enum_cases[case_cursor + prior].name))
+          return false;
+    }
+    if (!add_size(case_cursor, decl->case_count, &case_cursor)) return false;
+  }
+  return case_cursor == result->written.enum_cases;
+}
+
 static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
+  if (!frontend_local_enum_records_ok(input)) return false;
   for (size_t index = 0u; index < result->written.types; index += 1u) {
     const w_seed_frontend_type *type = &output->types[index];
     if (!frontend_hir_type_supported(input, type) || !frontend_span_ok(
@@ -794,6 +899,8 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
   if (!add_size(expected, result->written.functions, &expected) ||
       !add_size(expected, result->written.parameters, &expected) ||
       !add_size(expected, result->written.entries, &expected) ||
+      !add_size(expected, result->written.enums, &expected) ||
+      !add_size(expected, result->written.enum_cases, &expected) ||
       result->written.symbols != expected)
     return false;
   const w_seed_frontend_module *module = &output->modules[0];
@@ -805,6 +912,31 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
       !frontend_span_ok(&input->frontend_input->documents[0], module_symbol->span))
     return false;
   size_t symbol_cursor = 1u;
+  for (size_t enum_index = 0u; enum_index < result->written.enums;
+       enum_index += 1u) {
+    const w_seed_frontend_enum *decl = &output->enums[enum_index];
+    const w_seed_frontend_symbol *symbol = &output->symbols[symbol_cursor++];
+    if (symbol->kind != W_SEED_FRONTEND_SYMBOL_ENUM ||
+        symbol->module_index != decl->module_index ||
+        symbol->owner_index != enum_index || !text_equal(symbol->name, decl->name) ||
+        symbol->exported != decl->exported || symbol->type_index != decl->type_index ||
+        !frontend_span_ok(&input->frontend_input->documents[0], symbol->span))
+      return false;
+    for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+      const size_t case_index = (size_t)decl->first_case + ordinal;
+      const w_seed_frontend_enum_case *case_value = &output->enum_cases[case_index];
+      const w_seed_frontend_symbol *case_symbol = &output->symbols[symbol_cursor++];
+      if (case_symbol->kind != W_SEED_FRONTEND_SYMBOL_ENUM_CASE ||
+          case_symbol->module_index != case_value->module_index ||
+          case_symbol->owner_index != case_index ||
+          !text_equal(case_symbol->name, case_value->name) ||
+          case_symbol->exported != decl->exported ||
+          case_symbol->type_index != decl->type_index ||
+          !frontend_span_ok(&input->frontend_input->documents[0],
+                            case_symbol->span))
+        return false;
+    }
+  }
   for (size_t function = 0u; function < result->written.functions; function += 1u) {
     const w_seed_frontend_function *source = &output->functions[function];
     for (size_t parameter = 0u; parameter < source->parameter_count;
@@ -977,6 +1109,54 @@ static bool frontend_type_is_scalar(const w_seed_frontend_type *type) {
          (type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
           (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
            type->bit_width == 64u));
+}
+
+static bool frontend_local_enum_case_value_ok(
+    const w_seed_hir0_input *input, const w_seed_frontend_expression *value) {
+  /* collect() validates all enum declarations and case partitions once before
+   * it walks expression values.  Keep this per-value check linear. */
+  if (input == NULL || value == NULL ||
+      value->kind != W_SEED_FRONTEND_EXPR_ENUM_CASE || !value->supported ||
+      value->enum_index == W_SEED_FRONTEND_NONE ||
+      (size_t)value->enum_index >= input->frontend_result->written.enums ||
+      value->enum_case_index == W_SEED_FRONTEND_NONE ||
+      (size_t)value->enum_case_index >= input->frontend_result->written.enum_cases ||
+      value->inferred_type == W_SEED_FRONTEND_NONE ||
+      (size_t)value->inferred_type >= input->frontend_result->written.types ||
+      value->left != W_SEED_FRONTEND_NONE ||
+      value->right != W_SEED_FRONTEND_NONE ||
+      value->first_switch_arm != W_SEED_FRONTEND_NONE ||
+      value->switch_arm_count != 0u ||
+      value->first_membership_case != W_SEED_FRONTEND_NONE ||
+      value->membership_case_count != 0u ||
+      value->resolved_parameter_ordinal != W_SEED_FRONTEND_NONE ||
+      value->resolved_function_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+      value->resolved_host_symbol_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_external_module_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_external_symbol_index != W_SEED_FRONTEND_NONE ||
+      value->resolved_local_ordinal != W_SEED_FRONTEND_NONE ||
+      value->resolved_const_declaration != W_SEED_FRONTEND_NONE ||
+      value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
+      value->const_byte_offset != W_SEED_FRONTEND_NONE ||
+      value->const_byte_count != 0u || value->has_bool_value ||
+      value->has_integer_value || value->first_interpolation_segment !=
+                                       W_SEED_FRONTEND_NONE ||
+      value->interpolation_segment_count != 0u || value->member_name.length != 0u ||
+      !text_valid(value->member_name))
+    return false;
+  const w_seed_frontend_enum *decl =
+      &input->frontend_output->enums[value->enum_index];
+  const w_seed_frontend_type *type =
+      &input->frontend_output->types[value->inferred_type];
+  const w_seed_frontend_enum_case *case_value =
+      &input->frontend_output->enum_cases[value->enum_case_index];
+  return frontend_local_enum_type_supported(input, type) &&
+         type->enum_base_index == value->enum_index &&
+         case_value->owner_enum == value->enum_index &&
+         (size_t)value->enum_case_index >= decl->first_case &&
+         (size_t)value->enum_case_index <
+             (size_t)decl->first_case + decl->case_count;
 }
 
 /* W-1560's first HIR consumer accepts one deliberately small natural-loop
@@ -1513,7 +1693,9 @@ static bool frontend_value_tree_ok(
   }
 
   if (value->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
-    if (!frontend_external_exit_code_case_ok(input, value) ||
+    const bool local_case = value->enum_index != W_SEED_FRONTEND_NONE;
+    if (!(local_case ? frontend_local_enum_case_value_ok(input, value)
+                     : frontend_external_exit_code_case_ok(input, value)) ||
         (size_t)root_index != *expression_cursor ||
         !add_size(*value_total, 1u, value_total) ||
         !add_size(*expression_cursor, 1u, expression_cursor))
@@ -3188,6 +3370,15 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
   }
   for (size_t index = 0u; index < result->written.functions; index += 1u)
     if (!add_text_size(output->functions[index].name, &value)) return false;
+  for (size_t index = 0u; index < result->written.enums; index += 1u) {
+    const w_seed_frontend_enum *decl = &output->enums[index];
+    if (!add_text_size(decl->name, &value)) return false;
+    for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u)
+      if (!add_text_size(
+              output->enum_cases[(size_t)decl->first_case + ordinal].name,
+              &value))
+        return false;
+  }
   for (size_t index = 0u; index < result->written.parameters; index += 1u)
     if (!add_text_size(output->parameters[index].name, &value) ||
         !add_text_size(output->parameters[index].label, &value))
@@ -3284,6 +3475,11 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_INVALID;
   if (!frontend_external_process_records_ok(input))
     return HIR0_PREPARE_INVALID;
+  if (frontend_result->written.enum_case_parameters != 0u ||
+      frontend_result->written.enum_subset_members != 0u ||
+      frontend_result->written.enum_membership_cases != 0u ||
+      frontend_result->written.switch_arms != 0u)
+    return HIR0_PREPARE_UNSUPPORTED;
   const bool process_input0 = frontend_process_input0_ok(input);
   if (input->frontend_input->external_module_count != 0u &&
       !frontend_process_handler_ok(input) && !process_input0)
@@ -3297,13 +3493,12 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.structs != 0u ||
       frontend_result->written.fields != 0u ||
       frontend_result->written.type_declarations != 0u ||
-      frontend_result->written.aliases != 0u || frontend_result->written.enums != 0u ||
+      frontend_result->written.aliases != 0u ||
       frontend_result->written.facts != 0u ||
       frontend_result->written.diagnostics != 0u ||
       frontend_result->written.diagnostic_facts != 0u ||
       frontend_result->written.diagnostic_items != 0u ||
       frontend_result->written.diagnostic_labels != 0u ||
-      frontend_result->written.enum_cases != 0u ||
       frontend_result->written.enum_case_parameters != 0u ||
       frontend_result->written.switch_arms != 0u ||
       frontend_result->written.enum_subset_members != 0u ||
@@ -3370,7 +3565,13 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       !count_u32(counts->external_symbols) ||
       !add_size(4u, counts->external_modules == 0u ? 0u : 3u,
                 &counts->types) ||
+      !add_size(counts->types, frontend_result->written.enums,
+                &counts->types) ||
       !count_u32(counts->types))
+    return HIR0_PREPARE_UNSUPPORTED;
+  counts->enums = frontend_result->written.enums;
+  counts->enum_cases = frontend_result->written.enum_cases;
+  if (!count_u32(counts->enums) || !count_u32(counts->enum_cases))
     return HIR0_PREPARE_UNSUPPORTED;
   counts->functions = functions;
   counts->parameters = frontend_result->written.parameters;
@@ -3439,6 +3640,8 @@ static bool output_capacity_ok(const w_seed_hir0_output *output,
   HIR0_OUTPUT(modules, module_capacity);
   HIR0_OUTPUT(identities, identity_capacity);
   HIR0_OUTPUT(types, type_capacity);
+  HIR0_OUTPUT(enums, enum_capacity);
+  HIR0_OUTPUT(enum_cases, enum_case_capacity);
   HIR0_OUTPUT(functions, function_capacity);
   HIR0_OUTPUT(parameters, parameter_capacity);
   HIR0_OUTPUT(blocks, block_capacity);
@@ -3526,6 +3729,8 @@ static bool output_range_table(const w_seed_hir0_output *output,
   HIR0_ADD_OUTPUT(modules, module_capacity, w_seed_hir0_module);
   HIR0_ADD_OUTPUT(identities, identity_capacity, w_seed_hir0_identity);
   HIR0_ADD_OUTPUT(types, type_capacity, w_seed_hir0_type);
+  HIR0_ADD_OUTPUT(enums, enum_capacity, w_seed_hir0_enum);
+  HIR0_ADD_OUTPUT(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
   HIR0_ADD_OUTPUT(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_OUTPUT(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_OUTPUT(blocks, block_capacity, w_seed_hir0_block);
@@ -3799,6 +4004,17 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
     if (output_overlaps_frontend_text(outputs, output_count,
                                       frontend->functions[function].name))
       return true;
+  for (size_t enum_index = 0u; enum_index < frontend_result->written.enums;
+       enum_index += 1u) {
+    const w_seed_frontend_enum *decl = &frontend->enums[enum_index];
+    if (output_overlaps_frontend_text(outputs, output_count, decl->name))
+      return true;
+    for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u)
+      if (output_overlaps_frontend_text(
+              outputs, output_count,
+              frontend->enum_cases[(size_t)decl->first_case + ordinal].name))
+        return true;
+  }
   for (size_t parameter = 0u; parameter < frontend_result->written.parameters;
        parameter += 1u)
     if (output_overlaps_frontend_text(outputs, output_count,
@@ -3842,6 +4058,8 @@ static bool program_range_table(const w_seed_hir0_program *program,
   HIR0_ADD_PROGRAM(modules, module_capacity, w_seed_hir0_module);
   HIR0_ADD_PROGRAM(identities, identity_capacity, w_seed_hir0_identity);
   HIR0_ADD_PROGRAM(types, type_capacity, w_seed_hir0_type);
+  HIR0_ADD_PROGRAM(enums, enum_capacity, w_seed_hir0_enum);
+  HIR0_ADD_PROGRAM(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
   HIR0_ADD_PROGRAM(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_PROGRAM(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_PROGRAM(blocks, block_capacity, w_seed_hir0_block);
@@ -3915,6 +4133,20 @@ static uint32_t hir_type_from_frontend(const w_seed_frontend_output *output,
       type->external_module_index == 0u &&
       type->external_symbol_index < 3u)
     return 4u + type->external_symbol_index;
+  if (type->kind == W_SEED_FRONTEND_TYPE_ENUM &&
+      type->enum_base_index != W_SEED_FRONTEND_NONE) {
+    size_t external_types = 0u;
+    for (size_t index = 0u; index < result->written.types; index += 1u)
+      if (output->types[index].kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+          output->types[index].external_module_index !=
+              W_SEED_FRONTEND_NONE &&
+          output->types[index].external_symbol_index !=
+              W_SEED_FRONTEND_NONE) {
+        external_types = 3u;
+        break;
+      }
+    return (uint32_t)(4u + external_types + type->enum_base_index);
+  }
   return W_SEED_HIR0_NONE;
 }
 
@@ -4188,6 +4420,13 @@ static uint32_t emit_value_tree_unchecked(
     target->kind = W_SEED_HIR0_VALUE_CONST_BOOL;
     target->type_index = 3u;
     target->bool_value = source->bool_value;
+  } else if (source->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE &&
+             source->enum_index != W_SEED_FRONTEND_NONE) {
+    target->kind = W_SEED_HIR0_VALUE_ENUM_CASE;
+    target->type_index = hir_type_from_frontend(
+        frontend, frontend_result, source->inferred_type);
+    target->enum_index = source->enum_index;
+    target->enum_case_index = source->enum_case_index;
   } else if (source->kind == W_SEED_FRONTEND_EXPR_BINARY) {
     target->kind = W_SEED_HIR0_VALUE_BINARY_I64;
     target->type_index = hir_type_from_frontend(
@@ -6308,8 +6547,10 @@ static uint32_t hir0_emit_value_m2(
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_value *target =
         &context->output->values[*context->value_index];
+    const bool local_case = source->enum_index != W_SEED_FRONTEND_NONE;
     *target = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE,
+        .kind = local_case ? W_SEED_HIR0_VALUE_ENUM_CASE
+                           : W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
@@ -6330,9 +6571,18 @@ static uint32_t hir0_emit_value_m2(
         .byte_offset = 0u,
         .byte_count = 0u,
         .source_span = source->span,
-        .external_module_index = source->resolved_external_module_index,
-        .external_symbol_index = source->resolved_external_symbol_index,
-        .member_name = context->output->external_symbols[3].name};
+        .external_module_index = local_case
+                                     ? W_SEED_HIR0_NONE
+                                     : source->resolved_external_module_index,
+        .external_symbol_index = local_case
+                                    ? W_SEED_HIR0_NONE
+                                    : source->resolved_external_symbol_index,
+        .member_name = local_case
+                           ? (w_seed_hir0_text){0u, 0u}
+                           : context->output->external_symbols[3].name,
+        .enum_index = local_case ? source->enum_index : W_SEED_HIR0_NONE,
+        .enum_case_index =
+            local_case ? source->enum_case_index : W_SEED_HIR0_NONE};
     *context->value_index += 1u;
     return result;
   }
@@ -6429,7 +6679,9 @@ static w_seed_hir0_value hir0_process_value_default(
       .source_span = source_span,
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
-      .member_name = {0u, 0u}};
+      .member_name = {0u, 0u},
+      .enum_index = W_SEED_HIR0_NONE,
+      .enum_case_index = W_SEED_HIR0_NONE};
 }
 
 static void emit_records(const w_seed_hir0_input *input,
@@ -6448,6 +6700,9 @@ static void emit_records(const w_seed_hir0_input *input,
   zero_bytes(output->identities,
              counts->identities * sizeof(*output->identities));
   zero_bytes(output->types, counts->types * sizeof(*output->types));
+  zero_bytes(output->enums, counts->enums * sizeof(*output->enums));
+  zero_bytes(output->enum_cases,
+             counts->enum_cases * sizeof(*output->enum_cases));
   zero_bytes(output->functions,
              counts->functions * sizeof(*output->functions));
   zero_bytes(output->parameters,
@@ -6486,6 +6741,8 @@ static void emit_records(const w_seed_hir0_input *input,
     output->values[value].external_module_index = W_SEED_HIR0_NONE;
     output->values[value].external_symbol_index = W_SEED_HIR0_NONE;
     output->values[value].member_name = (w_seed_hir0_text){0u, 0u};
+    output->values[value].enum_index = W_SEED_HIR0_NONE;
+    output->values[value].enum_case_index = W_SEED_HIR0_NONE;
   }
   output->types[0] = (w_seed_hir0_type){
       .kind = W_SEED_HIR0_TYPE_UNIT,
@@ -6493,6 +6750,7 @@ static void emit_records(const w_seed_hir0_input *input,
       .name = {0u, 2u},
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
+      .enum_index = W_SEED_HIR0_NONE,
       .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
       .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[1] = (w_seed_hir0_type){
@@ -6501,6 +6759,7 @@ static void emit_records(const w_seed_hir0_input *input,
       .name = {2u, 6u},
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
+      .enum_index = W_SEED_HIR0_NONE,
       .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
       .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[2] = (w_seed_hir0_type){
@@ -6509,6 +6768,7 @@ static void emit_records(const w_seed_hir0_input *input,
       .name = {8u, 3u},
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
+      .enum_index = W_SEED_HIR0_NONE,
       .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
       .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
   output->types[3] = (w_seed_hir0_type){
@@ -6517,8 +6777,11 @@ static void emit_records(const w_seed_hir0_input *input,
       .name = {11u, 4u},
       .external_module_index = W_SEED_HIR0_NONE,
       .external_symbol_index = W_SEED_HIR0_NONE,
+      .enum_index = W_SEED_HIR0_NONE,
       .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
       .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+  for (size_t type = 0u; type < counts->types; type += 1u)
+    output->types[type].enum_index = W_SEED_HIR0_NONE;
   /* output_capacity_ok proves these storage preconditions. */
   (void)memcpy(output->text_bytes, HIR0_UNIT_NAME, 2u);
   (void)memcpy(output->text_bytes + 2u, HIR0_STRING_NAME, 6u);
@@ -6579,9 +6842,45 @@ static void emit_records(const w_seed_hir0_input *input,
           .name = output->external_symbols[symbol].name,
           .external_module_index = 0u,
           .external_symbol_index = (uint32_t)symbol,
+          .enum_index = W_SEED_HIR0_NONE,
           .lifecycle = W_SEED_HIR0_LIFECYCLE_UNKNOWN,
           .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
     }
+  const size_t local_enum_type_base =
+      4u + (counts->external_modules == 0u ? 0u : 3u);
+  for (size_t enum_index = 0u; enum_index < counts->enums; enum_index += 1u) {
+    const w_seed_frontend_enum *source = &frontend->enums[enum_index];
+    w_seed_hir0_enum *target = &output->enums[enum_index];
+    target->module_index = source->module_index;
+    target->type_index = (uint32_t)(local_enum_type_base + enum_index);
+    append_text_unchecked(source->name, output->text_bytes, &text_offset,
+                          &target->name);
+    target->first_case = source->first_case;
+    target->case_count = source->case_count;
+    target->source_span = source->span;
+    output->types[target->type_index] = (w_seed_hir0_type){
+        .kind = W_SEED_HIR0_TYPE_ENUM,
+        .owner_module = source->module_index,
+        .name = target->name,
+        .external_module_index = W_SEED_HIR0_NONE,
+        .external_symbol_index = W_SEED_HIR0_NONE,
+        .enum_index = (uint32_t)enum_index,
+        .lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY,
+        .release_contract = W_SEED_HIR0_RELEASE_CONTRACT_UNKNOWN};
+    for (size_t ordinal = 0u; ordinal < source->case_count; ordinal += 1u) {
+      const size_t case_index = (size_t)source->first_case + ordinal;
+      const w_seed_frontend_enum_case *case_source =
+          &frontend->enum_cases[case_index];
+      w_seed_hir0_enum_case *case_target = &output->enum_cases[case_index];
+      case_target->owner_enum = (uint32_t)enum_index;
+      case_target->ordinal = (uint32_t)ordinal;
+      case_target->tag = (uint32_t)ordinal;
+      case_target->payload_count = 0u;
+      append_text_unchecked(case_source->name, output->text_bytes, &text_offset,
+                            &case_target->name);
+      case_target->source_span = case_source->span;
+    }
+  }
   /* Module, function, and entry identities have deterministic dense ranges. */
   for (size_t module = 0u; module < counts->modules; module += 1u) {
     const w_seed_frontend_module *source = &frontend->modules[module];
@@ -7096,11 +7395,14 @@ static void emit_records(const w_seed_hir0_input *input,
    * atomic NONE identity regardless of which emitter path created them. */
   for (size_t value = 0u; value < counts->values; value += 1u) {
     if (output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE ||
-        output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER)
+        output->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+        output->values[value].kind == W_SEED_HIR0_VALUE_ENUM_CASE)
       continue;
     output->values[value].external_module_index = W_SEED_HIR0_NONE;
     output->values[value].external_symbol_index = W_SEED_HIR0_NONE;
     output->values[value].member_name = (w_seed_hir0_text){0u, 0u};
+    output->values[value].enum_index = W_SEED_HIR0_NONE;
+    output->values[value].enum_case_index = W_SEED_HIR0_NONE;
   }
   /* collect() proves these cursors equal the measured bounds. */
 }
@@ -7173,6 +7475,8 @@ static void digest_counts(w_seed_sha256_state *state,
   digest_u64(state, counts->value_bytes);
   digest_u64(state, counts->external_modules);
   digest_u64(state, counts->external_symbols);
+  digest_u64(state, counts->enums);
+  digest_u64(state, counts->enum_cases);
 }
 
 static void digest_program(const w_seed_hir0_program *program,
@@ -7219,6 +7523,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_text(&state, program, value->name);
     digest_u32(&state, value->external_module_index);
     digest_u32(&state, value->external_symbol_index);
+    digest_u32(&state, value->enum_index);
     digest_u32(&state, (uint32_t)value->lifecycle);
     digest_u32(&state, (uint32_t)value->release_contract);
     if (value->release_contract ==
@@ -7228,6 +7533,24 @@ static void digest_program(const w_seed_hir0_program *program,
           &state, (const uint8_t *)HIR0_PROCESS_RELEASE_ABI,
           sizeof(HIR0_PROCESS_RELEASE_ABI) - 1u);
     }
+  }
+  for (size_t index = 0u; index < counts->enums; index += 1u) {
+    const w_seed_hir0_enum *value = &program->enums[index];
+    HIR0_RECORD_TAG(21u);
+    digest_u32(&state, value->module_index);
+    digest_u32(&state, value->type_index);
+    digest_text(&state, program, value->name);
+    digest_u32(&state, value->first_case);
+    digest_u32(&state, value->case_count);
+  }
+  for (size_t index = 0u; index < counts->enum_cases; index += 1u) {
+    const w_seed_hir0_enum_case *value = &program->enum_cases[index];
+    HIR0_RECORD_TAG(22u);
+    digest_u32(&state, value->owner_enum);
+    digest_u32(&state, value->ordinal);
+    digest_u32(&state, value->tag);
+    digest_u32(&state, value->payload_count);
+    digest_text(&state, program, value->name);
   }
   for (size_t index = 0u; index < counts->functions; index += 1u) {
     const w_seed_hir0_function *value = &program->functions[index];
@@ -7363,6 +7686,8 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->external_module_index);
     digest_u32(&state, value->external_symbol_index);
     digest_text(&state, program, value->member_name);
+    digest_u32(&state, value->enum_index);
+    digest_u32(&state, value->enum_case_index);
   }
   for (size_t index = 0u; index < counts->interpolation_segments;
        index += 1u) {
@@ -7469,6 +7794,10 @@ static void digest_provenance(const w_seed_hir0_program *program,
   }
   for (size_t index = 0u; index < counts->parameters; index += 1u)
     digest_span(&state, program->parameters[index].source_span);
+  for (size_t index = 0u; index < counts->enums; index += 1u)
+    digest_span(&state, program->enums[index].source_span);
+  for (size_t index = 0u; index < counts->enum_cases; index += 1u)
+    digest_span(&state, program->enum_cases[index].source_span);
   for (size_t index = 0u; index < counts->blocks; index += 1u)
     digest_span(&state, program->blocks[index].source_span);
   for (size_t index = 0u; index < counts->block_arguments; index += 1u)
@@ -7524,7 +7853,9 @@ static void write_receipt_unchecked(uint8_t *buffer,
       counts->interpolation_segments,
       counts->terminators,    counts->entries,     counts->text_bytes,
       counts->value_bytes,    counts->external_modules,
-      counts->external_symbols};
+      counts->external_symbols,
+      counts->enums,
+      counts->enum_cases};
   size_t offset = HIR0_RECEIPT_SCHEMA_BYTES;
   for (size_t index = 0u; index < HIR0_RECEIPT_COUNT_FIELDS; index += 1u) {
     write_u64_be(buffer, offset, (uint64_t)fields[index]);
@@ -7553,6 +7884,9 @@ static bool basic_program_shape(const w_seed_hir0_program *program,
   HIR0_PROGRAM(identities, identity_count, identity_capacity,
                w_seed_hir0_identity);
   HIR0_PROGRAM(types, type_count, type_capacity, w_seed_hir0_type);
+  HIR0_PROGRAM(enums, enum_count, enum_capacity, w_seed_hir0_enum);
+  HIR0_PROGRAM(enum_cases, enum_case_count, enum_case_capacity,
+               w_seed_hir0_enum_case);
   HIR0_PROGRAM(functions, function_count, function_capacity,
                w_seed_hir0_function);
   HIR0_PROGRAM(parameters, parameter_count, parameter_capacity,
@@ -7786,6 +8120,56 @@ static bool hir_external_pair_valid(const w_seed_hir0_program *program,
   return symbol->kind == kind;
 }
 
+static bool verify_enum_records(const w_seed_hir0_program *program) {
+  if (program == NULL) return false;
+  size_t case_cursor = 0u;
+  const size_t type_base =
+      4u + (program->external_module_count == 0u ? 0u : 3u);
+  for (size_t index = 0u; index < program->enum_count; index += 1u) {
+    const w_seed_hir0_enum *decl = &program->enums[index];
+    if (decl->module_index >= program->module_count ||
+        decl->type_index != type_base + index ||
+        decl->type_index >= program->type_count ||
+        decl->first_case != case_cursor || decl->case_count == 0u ||
+        !range_valid(decl->first_case, decl->case_count,
+                     program->enum_case_count) ||
+        !hir_text_valid(program, decl->name) || decl->name.count == 0u ||
+        !span_valid(decl->source_span,
+                    program->modules[decl->module_index].source_length))
+      return false;
+    const w_seed_hir0_type *type = &program->types[decl->type_index];
+    if (type->kind != W_SEED_HIR0_TYPE_ENUM ||
+        type->owner_module != decl->module_index ||
+        type->enum_index != index ||
+        type->external_module_index != W_SEED_HIR0_NONE ||
+        type->external_symbol_index != W_SEED_HIR0_NONE ||
+        type->lifecycle != W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+        type->release_contract != W_SEED_HIR0_RELEASE_CONTRACT_NONE ||
+        !hir_text_equal(program, type->name, decl->name))
+      return false;
+    for (size_t prior = 0u; prior < index; prior += 1u)
+      if (program->enums[prior].module_index == decl->module_index &&
+          hir_text_equal(program, program->enums[prior].name, decl->name))
+        return false;
+    for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+      const size_t case_index = case_cursor + ordinal;
+      const w_seed_hir0_enum_case *value = &program->enum_cases[case_index];
+      if (value->owner_enum != index || value->ordinal != ordinal ||
+          value->tag != ordinal || value->payload_count != 0u ||
+          !hir_text_valid(program, value->name) || value->name.count == 0u ||
+          !span_valid(value->source_span,
+                      program->modules[decl->module_index].source_length))
+        return false;
+      for (size_t prior = 0u; prior < ordinal; prior += 1u)
+        if (hir_text_equal(program, value->name,
+                           program->enum_cases[case_cursor + prior].name))
+          return false;
+    }
+    if (!add_size(case_cursor, decl->case_count, &case_cursor)) return false;
+  }
+  return case_cursor == program->enum_case_count;
+}
+
 static bool hir_type_index_valid(const w_seed_hir0_program *program,
                                  uint32_t type_index) {
   if (program == NULL || type_index >= program->type_count) return false;
@@ -7797,17 +8181,28 @@ static bool hir_type_index_valid(const w_seed_hir0_program *program,
     return type->kind == expected[type_index] &&
            type->owner_module == W_SEED_HIR0_NONE &&
            type->external_module_index == W_SEED_HIR0_NONE &&
-           type->external_symbol_index == W_SEED_HIR0_NONE;
+           type->external_symbol_index == W_SEED_HIR0_NONE &&
+           type->enum_index == W_SEED_HIR0_NONE;
   }
-  return type_index < 7u && type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
-         type->owner_module == W_SEED_HIR0_NONE &&
-         hir_external_pair_valid(program, type->external_module_index,
-                                 type->external_symbol_index,
-                                 W_SEED_HIR0_EXTERNAL_TYPE) &&
-         type->external_symbol_index == type_index - 4u &&
-         hir_text_equal(program, type->name,
-                        program->external_symbols[type->external_symbol_index]
-                            .name);
+  const size_t external_base =
+      4u + (program->external_module_count == 0u ? 0u : 3u);
+  if (type_index < external_base)
+    return type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
+           type->owner_module == W_SEED_HIR0_NONE &&
+           type->enum_index == W_SEED_HIR0_NONE &&
+           hir_external_pair_valid(program, type->external_module_index,
+                                   type->external_symbol_index,
+                                   W_SEED_HIR0_EXTERNAL_TYPE) &&
+           type->external_symbol_index == type_index - 4u &&
+           hir_text_equal(
+               program, type->name,
+               program->external_symbols[type->external_symbol_index].name);
+  const size_t enum_index = type_index - external_base;
+  return enum_index < program->enum_count && type->kind == W_SEED_HIR0_TYPE_ENUM &&
+         type->enum_index == enum_index && type->owner_module ==
+             program->enums[enum_index].module_index &&
+         type->external_module_index == W_SEED_HIR0_NONE &&
+         type->external_symbol_index == W_SEED_HIR0_NONE;
 }
 
 static bool verify_block_argument_records(const w_seed_hir0_program *program) {
@@ -7951,7 +8346,10 @@ static bool verify_value_tree(
        value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
        (value->external_module_index != W_SEED_HIR0_NONE ||
         value->external_symbol_index != W_SEED_HIR0_NONE ||
-        value->member_name.count != 0u)))
+        value->member_name.count != 0u)) ||
+      (value->kind != W_SEED_HIR0_VALUE_ENUM_CASE &&
+       (value->enum_index != W_SEED_HIR0_NONE ||
+        value->enum_case_index != W_SEED_HIR0_NONE)))
     return false;
 
   if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
@@ -8004,6 +8402,8 @@ static bool verify_value_tree(
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||
         value->byte_offset != 0u || value->byte_count != 0u ||
+        value->enum_index != W_SEED_HIR0_NONE ||
+        value->enum_case_index != W_SEED_HIR0_NONE ||
         !hir_external_pair_valid(program, value->external_module_index,
                                  value->external_symbol_index,
                                  W_SEED_HIR0_EXTERNAL_VALUE) ||
@@ -8036,6 +8436,33 @@ static bool verify_value_tree(
       return false;
     }
     if ((size_t)root_index != *value_cursor) return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
+    if (value->type_index >= program->type_count ||
+        !hir_type_index_valid(program, value->type_index) ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+        value->enum_index >= program->enum_count ||
+        program->types[value->type_index].enum_index != value->enum_index ||
+        value->enum_case_index >= program->enum_case_count ||
+        program->enum_cases[value->enum_case_index].owner_enum !=
+            value->enum_index ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value != W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        (size_t)root_index != *value_cursor)
+      return false;
     *value_cursor += 1u;
     return true;
   }
@@ -9121,6 +9548,7 @@ static bool hir0_expected_type_lifecycle(
     case W_SEED_HIR0_TYPE_UNIT:
     case W_SEED_HIR0_TYPE_I64:
     case W_SEED_HIR0_TYPE_BOOL:
+    case W_SEED_HIR0_TYPE_ENUM:
       *lifecycle = W_SEED_HIR0_LIFECYCLE_VALUE_COPY;
       *release_contract = W_SEED_HIR0_RELEASE_CONTRACT_NONE;
       return true;
@@ -9333,6 +9761,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE:
     case W_SEED_HIR0_VALUE_EXTERNAL_MEMBER:
     case W_SEED_HIR0_VALUE_UNARY_I64:
+    case W_SEED_HIR0_VALUE_ENUM_CASE:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before
@@ -9377,6 +9806,7 @@ static bool hir0_type_is_blocked(const w_seed_hir0_program *program,
     case W_SEED_HIR0_TYPE_UNIT:
     case W_SEED_HIR0_TYPE_I64:
     case W_SEED_HIR0_TYPE_BOOL:
+    case W_SEED_HIR0_TYPE_ENUM:
       return false;
     case W_SEED_HIR0_TYPE_STRING:
     case W_SEED_HIR0_TYPE_NOMINAL:
@@ -9732,7 +10162,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program != NULL && program->external_module_count != 0u;
   if (program->module_count != 1u || program->function_count == 0u ||
       program->entry_count != 1u ||
-      program->type_count != (has_external_process ? 7u : 4u) ||
+      program->type_count != (has_external_process ? 7u : 4u) +
+                                program->enum_count ||
       program->block_count == 0u ||
       program->terminator_count != program->block_count ||
       !add_size(program->binding_count, program->call_count,
@@ -9751,6 +10182,10 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[1].owner_module != W_SEED_HIR0_NONE ||
       program->types[2].owner_module != W_SEED_HIR0_NONE ||
       program->types[3].owner_module != W_SEED_HIR0_NONE ||
+      program->types[0].enum_index != W_SEED_HIR0_NONE ||
+      program->types[1].enum_index != W_SEED_HIR0_NONE ||
+      program->types[2].enum_index != W_SEED_HIR0_NONE ||
+      program->types[3].enum_index != W_SEED_HIR0_NONE ||
       program->types[0].external_module_index != W_SEED_HIR0_NONE ||
       program->types[0].external_symbol_index != W_SEED_HIR0_NONE ||
       program->types[1].external_module_index != W_SEED_HIR0_NONE ||
@@ -9759,7 +10194,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
       program->types[2].external_symbol_index != W_SEED_HIR0_NONE ||
       program->types[3].external_module_index != W_SEED_HIR0_NONE ||
       program->types[3].external_symbol_index != W_SEED_HIR0_NONE ||
-      !verify_external_records(program) || !verify_identity_records(program) ||
+      !verify_external_records(program) || !verify_enum_records(program) ||
+      !verify_identity_records(program) ||
       !verify_process_handler(program))
     return false;
   if (has_external_process) {
@@ -10324,6 +10760,12 @@ bool w_seed_hir0_program_from_output(const w_seed_hir0_output *output,
       .types = output->types,
       .type_count = counts.types,
       .type_capacity = output->type_capacity,
+      .enums = output->enums,
+      .enum_count = counts.enums,
+      .enum_capacity = output->enum_capacity,
+      .enum_cases = output->enum_cases,
+      .enum_case_count = counts.enum_cases,
+      .enum_case_capacity = output->enum_case_capacity,
       .functions = output->functions,
       .function_count = counts.functions,
       .function_capacity = output->function_capacity,
@@ -10417,7 +10859,9 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       .value_bytes = program->value_byte_count,
       .receipt_bytes = program->receipt_count,
       .external_modules = program->external_module_count,
-      .external_symbols = program->external_symbol_count};
+      .external_symbols = program->external_symbol_count,
+      .enums = program->enum_count,
+      .enum_cases = program->enum_case_count};
   if (result->required.modules != counts.modules ||
       result->required.identities != counts.identities ||
       result->required.types != counts.types ||
@@ -10464,6 +10908,10 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->required.external_symbols != counts.external_symbols ||
       result->written.external_modules != counts.external_modules ||
       result->written.external_symbols != counts.external_symbols ||
+      result->required.enums != counts.enums ||
+      result->required.enum_cases != counts.enum_cases ||
+      result->written.enums != counts.enums ||
+      result->written.enum_cases != counts.enum_cases ||
       !verify_records(program))
     return false;
   if (!verify_process_lifecycle_facts(program)) return false;
