@@ -1074,15 +1074,23 @@ static bool frontend_scalar_if_tree_ok(
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
                                       allow_logical, depth + 1u);
-  if (value->kind == W_SEED_FRONTEND_EXPR_UNARY)
-    return text_is(value->operator_text, "!") &&
-           frontend_expression_is_bool(output, value) &&
+  if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
+    const bool logical_not = text_is(value->operator_text, "!");
+    const bool numeric_negate = text_is(value->operator_text, "-");
+    return ((logical_not && frontend_expression_is_bool(output, value)) ||
+            (numeric_negate && frontend_expression_is_i64(output, value))) &&
            !value->has_bool_value && !value->has_integer_value &&
            value->right == W_SEED_FRONTEND_NONE &&
            value->left != W_SEED_FRONTEND_NONE &&
+           (size_t)value->left < input->frontend_result->written.expressions &&
+           ((logical_not && frontend_expression_is_bool(
+                                output, &output->expressions[value->left])) ||
+            (numeric_negate && frontend_expression_is_i64(
+                                   output, &output->expressions[value->left]))) &&
            frontend_scalar_if_tree_ok(input, module_index, function_index,
                                       document_index, value->left,
                                       allow_logical, depth + 1u);
+  }
   if (value->kind == W_SEED_FRONTEND_EXPR_BINARY) {
     const w_seed_hir0_logical_operator logical =
         hir_logical_operator(value->operator_text);
@@ -1210,17 +1218,26 @@ static bool frontend_value_tree_ok(
   }
 
   if (value->kind == W_SEED_FRONTEND_EXPR_UNARY) {
-    if (!text_is(value->operator_text, "!") ||
+    const bool logical_not = text_is(value->operator_text, "!");
+    const bool numeric_negate = text_is(value->operator_text, "-");
+    if ((!logical_not && !numeric_negate) ||
         value->left == W_SEED_FRONTEND_NONE ||
         (size_t)value->left >= result->written.expressions ||
         value->right != W_SEED_FRONTEND_NONE ||
         value->inferred_type == W_SEED_FRONTEND_NONE ||
-        output->types[value->inferred_type].kind !=
-            W_SEED_FRONTEND_TYPE_BOOL ||
+        (size_t)value->inferred_type >= result->written.types ||
+        (logical_not
+             ? !frontend_expression_is_bool(output, value)
+             : !frontend_expression_is_i64(output, value)) ||
         output->expressions[value->left].inferred_type ==
             W_SEED_FRONTEND_NONE ||
-        output->types[output->expressions[value->left].inferred_type].kind !=
-            W_SEED_FRONTEND_TYPE_BOOL ||
+        (size_t)output->expressions[value->left].inferred_type >=
+            result->written.types ||
+        (logical_not
+             ? !frontend_expression_is_bool(
+                   output, &output->expressions[value->left])
+             : !frontend_expression_is_i64(
+                   output, &output->expressions[value->left])) ||
         !frontend_unary_has_no_resolution(value) ||
         value->resolved_binding_statement != W_SEED_FRONTEND_NONE ||
         value->const_byte_offset != W_SEED_FRONTEND_NONE ||
@@ -4865,12 +4882,14 @@ static uint32_t hir0_emit_value_m2(
         current_block, depth + 1u);
     const uint32_t result = (uint32_t)*context->value_index;
     w_seed_hir0_value *target = &context->output->values[*context->value_index];
+    const bool numeric_negate = text_is(source->operator_text, "-");
     *target = (w_seed_hir0_value){
-        .kind = W_SEED_HIR0_VALUE_UNARY_BOOL,
+        .kind = numeric_negate ? W_SEED_HIR0_VALUE_UNARY_I64
+                               : W_SEED_HIR0_VALUE_UNARY_BOOL,
         .owner_kind = owner_kind,
         .owner_index = owner_index,
         .owner_ordinal = owner_ordinal,
-        .type_index = 3u,
+        .type_index = numeric_negate ? 2u : 3u,
         .binding_index = W_SEED_HIR0_NONE,
         .parameter_index = W_SEED_HIR0_NONE,
         .call_index = W_SEED_HIR0_NONE,
@@ -4879,7 +4898,8 @@ static uint32_t hir0_emit_value_m2(
         .first_interpolation_segment = W_SEED_HIR0_NONE,
         .interpolation_segment_count = 0u,
         .binary_operator = W_SEED_HIR0_BINARY_ADD,
-        .unary_operator = W_SEED_HIR0_UNARY_NOT,
+        .unary_operator = numeric_negate ? W_SEED_HIR0_UNARY_NEGATE
+                                         : W_SEED_HIR0_UNARY_NOT,
         .block_argument_index = W_SEED_HIR0_NONE,
         .integer_value = 0,
         .bool_value = false,
@@ -6679,6 +6699,30 @@ static bool verify_value_tree(
     return true;
   }
 
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        value->type_index != 2u || value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->integer_value != 0 || value->bool_value ||
+        value->byte_offset != 0u || value->byte_count != 0u ||
+        !verify_value_tree(
+            program, value->left_value, W_SEED_HIR0_VALUE_OWNER_UNARY,
+            root_index, 0u, current_block, current_instruction, source_length,
+            depth + 1u, value_cursor, segment_cursor, byte_cursor) ||
+        (size_t)root_index != *value_cursor ||
+        program->values[value->left_value].type_index != 2u)
+      return false;
+    *value_cursor += 1u;
+    return true;
+  }
+
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((size_t)root_index != *value_cursor ||
         (value->type_index != 2u && value->type_index != 3u) ||
@@ -7598,6 +7642,7 @@ static bool hir0_value_kind_is_closed(w_seed_hir0_value_kind kind) {
     case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
     case W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE:
     case W_SEED_HIR0_VALUE_EXTERNAL_MEMBER:
+    case W_SEED_HIR0_VALUE_UNARY_I64:
       return true;
     default:
       /* A future value kind needs an explicit suspension/effect review before

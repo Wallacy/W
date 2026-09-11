@@ -746,6 +746,11 @@ static bool mlir0_value_is_constant_i64(const w_seed_hir0_program *program,
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           mlir0_value_is_constant_i64(program, value->left_value,
+                                       depth + 1u);
   return value->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
          value->binary_operator <= W_SEED_HIR0_BINARY_REMAINDER &&
          mlir0_value_is_constant_i64(program, value->left_value, depth + 1u) &&
@@ -838,11 +843,16 @@ static bool mark_reachable_value_tree(
                reachable, has_add, has_subtract, has_multiply, has_divide,
                has_remainder, depth + 1u);
   }
-  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+        !mlir0_value_is_constant_i64(program, value_index, 0u))
+      *has_subtract = true;
     return value->left_value != W_SEED_HIR0_NONE &&
-            mark_reachable_value_tree(program, value->left_value, reachable,
+           mark_reachable_value_tree(program, value->left_value, reachable,
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
+  }
   if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
     if (value->first_interpolation_segment >
             program->interpolation_segment_count ||
@@ -960,6 +970,51 @@ static bool append_binary_value_operation(
          append_literal(artifact, capacity, offset, " : i64\n");
 }
 
+static bool append_unary_i64_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, uint8_t *artifact, size_t capacity,
+    size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_UNARY_I64 ||
+      value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+      value->left_value == W_SEED_HIR0_NONE)
+    return false;
+  const bool constant =
+      mlir0_value_is_constant_i64(program, value_index, 0u);
+  if (!append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      "_neg_zero = llvm.mlir.constant(0 : i64) : i64\n") ||
+      !append_literal(artifact, capacity, offset, "    %v") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset,
+                      constant
+                          ? " = llvm.sub "
+                          : " = llvm.call @w_seed_checked_subtract_i64("))
+    return false;
+  if (!constant &&
+      !append_literal(artifact, capacity, offset, "%v"))
+    return false;
+  if (!constant && !append_size(artifact, capacity, offset, value_index))
+    return false;
+  if (!constant &&
+      !append_literal(artifact, capacity, offset, "_neg_zero, "))
+    return false;
+  if (constant &&
+      (!append_literal(artifact, capacity, offset, "%v") ||
+       !append_size(artifact, capacity, offset, value_index) ||
+       !append_literal(artifact, capacity, offset, "_neg_zero, ")))
+    return false;
+  return append_program_value_operand(program, value->left_value,
+                                      function_index, artifact, capacity,
+                                      offset) &&
+         append_literal(artifact, capacity, offset,
+                        constant ? " : i64\n" : ") : (i64, i64) -> i64\n");
+}
+
 static bool append_program_block_argument_name(
     const w_seed_hir0_program *program, uint32_t block_argument_index,
     uint32_t function_index, uint8_t *artifact, size_t capacity,
@@ -1012,6 +1067,10 @@ static bool append_value_operations(const w_seed_hir0_program *program,
     } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
       if (!append_binary_value_operation(program, (uint32_t)index, 0u,
                                          artifact, capacity, offset))
+        return false;
+    } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+      if (!append_unary_i64_operation(program, (uint32_t)index, 0u, artifact,
+                                      capacity, offset))
         return false;
     }
   }
@@ -1549,9 +1608,13 @@ static bool append_program_value_operand(
     return value->call_index < program->call_count &&
            append_literal(artifact, capacity, offset, "%call") &&
            append_size(artifact, capacity, offset, value->call_index);
-  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL)
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
     return value->type_index < program->type_count &&
-           program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+           ((value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL) ||
+            (value->kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+             program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ)
@@ -1608,6 +1671,25 @@ static bool append_program_value_tree(
         !append_literal(artifact, capacity, offset, ", %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset, "_not_mask : i1\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !append_program_value_tree(program, value->left_value, function_index,
+                                   emitted, artifact, capacity, offset,
+                                   depth + 1u) ||
+        !append_unary_i64_operation(program, value_index, function_index,
+                                    artifact, capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;

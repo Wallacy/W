@@ -36852,7 +36852,7 @@ fn adjustedGuests(isOpen: Bool, guests: i64): i64 {
 }
 ```
 
-The current HIR0 schema is `w-seed-hir0-15`. MLIR0 uses
+At the W-1540 boundary, HIR0 used `w-seed-hir0-15`. MLIR0 uses
 `w-seed-mlir0-15`, with the Windows artifact label
 `w-seed-mlir0-windows-6`. Native0 remains `w-seed-native0-6`. Existing HIR
 argument evaluation keeps left-to-right and once-only call semantics. The
@@ -36865,9 +36865,9 @@ function or helper. Hello and the dead-function witness therefore contain no
 checked helper. Constant overflow is rejected before MLIR emission. A safe
 fully constant `/` or `%` tree remains admitted and emits `llvm.sdiv` or
 `llvm.srem`. W-1551 supersedes only this cut's former rejection of dynamic or
-runtime `/` and `%`; faulting constant forms still fail closed. Unary negation, power, other
-integer widths, named numeric APIs, and general panic runtime remain outside
-the cut.
+runtime `/` and `%`; faulting constant forms still fail closed. W-1552
+separately supersedes the unary-negation exclusion. Power, other integer
+widths, named numeric APIs, and general panic runtime remain outside the cut.
 
 The source-backed fixture
 `compiler/seed-c/fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
@@ -37394,6 +37394,39 @@ The Linux gate also proves zero-divisor and signed-overflow termination with
 empty stdout. This is bounded compiler-lifecycle correctness evidence. It does
 not establish `PanicEvent`, panic payloads or cleanup, other integer widths,
 named numeric APIs, other targets, timing, ranking, or performance.
+
+#### 26.4.1.33 W-1552 — checked signed-`i64` unary negation (Current form)
+
+W-1552 lowers the existing prefix `-` operator for the bounded signed-`i64`
+value graph. Frontend evaluation remains once-only and source ordered. HIR0
+`w-seed-hir0-17` appends `VALUE_UNARY_I64` and `UNARY_NEGATE`; the operand and
+result are both canonical `i64`, and forged type/operator/owner combinations
+fail verification.
+
+```w
+fn reverse(value: i64): i64 {
+  return -value
+}
+
+entry {
+  let balance = reverse(value: 7)
+  print("Balance ${balance}")
+}
+```
+
+A fully constant safe negation emits a direct `llvm.sub` from zero after the
+selector proves that the result is representable. A runtime negation reuses
+the reachable checked-subtract helper with zero as its left operand;
+`-i64.min` therefore traps before user output. The helper is absent from
+constant-only and unreachable products. MLIR0 and Native0 retain their public
+artifact schemas.
+
+The Restaurant fixture `compiler/seed-c/fixtures/restaurant-unary-negate.w`
+executes exact stdout `Balance -7\n` through Linux WRT0 and native Windows.
+The Linux gate also proves the `i64.min` runtime fault with empty stdout. This
+cut does not yet admit a unary expression directly as an interpolation root,
+nor unsigned negation, other widths, named numeric APIs, `PanicEvent`, payload
+or cleanup, other targets, timing, ranking, or performance evidence.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

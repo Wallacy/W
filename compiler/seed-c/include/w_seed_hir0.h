@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-16"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-17"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -74,6 +74,8 @@ typedef enum {
   /* A closed external property read. The receiver is left_value and the
    * external identity/member_name pair names the property. */
   W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
+  /* Checked signed-i64 unary negation. */
+  W_SEED_HIR0_VALUE_UNARY_I64,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -104,6 +106,7 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_UNARY_NOT = 0,
+  W_SEED_HIR0_UNARY_NEGATE,
 } w_seed_hir0_unary_operator;
 
 typedef enum {

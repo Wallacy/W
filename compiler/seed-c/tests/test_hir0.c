@@ -3139,6 +3139,37 @@ static bool test_logical_unary_not_positive(void) {
   return true;
 }
 
+static bool test_i64_unary_negate_positive(void) {
+  static const char SOURCE[] =
+      "fn negate(value: i64): i64 { return -value }\n"
+      "entry(negate)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 1u &&
+        program->value_count == 2u &&
+        program->terminators[0].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        program->terminators[0].value_index == 1u);
+  CHECK(program->values[0].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[0].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->values[0].owner_kind == W_SEED_HIR0_VALUE_OWNER_UNARY &&
+        program->values[0].owner_index == 1u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_UNARY_I64 &&
+        program->values[1].unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+        program->values[1].type_index == W_SEED_HIR0_TYPE_I64 &&
+        program->values[1].left_value == 0u);
+
+  const w_seed_hir0_value saved = fixture.hir_values[1];
+  fixture.hir_values[1].unary_operator = W_SEED_HIR0_UNARY_NOT;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved;
+  fixture.hir_values[1].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[1] = saved;
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_logical_or_diamond_positive(void) {
   static const char SOURCE[] =
       "fn rhs(): Bool { return true }\n"
@@ -3590,6 +3621,7 @@ int main(void) {
   if (!test_nested_scalar_if_depth_boundary()) return 1;
   if (!test_logical_and_diamond_positive()) return 1;
   if (!test_logical_unary_not_positive()) return 1;
+  if (!test_i64_unary_negate_positive()) return 1;
   if (!test_logical_or_diamond_positive()) return 1;
   if (!test_nested_logical_positive()) return 1;
   if (!test_logical_rhs_call_argument_positive()) return 1;

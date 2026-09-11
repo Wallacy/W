@@ -259,6 +259,15 @@ static bool evaluate_i64(const w_seed_hir0_program *program,
     *result = value->integer_value;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    int64_t operand = 0;
+    if (value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        !evaluate_i64(program, value->left_value, depth + 1u, &operand) ||
+        operand == INT64_MIN)
+      return false;
+    *result = -operand;
+    return true;
+  }
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) return false;
   int64_t left = 0;
   int64_t right = 0;
@@ -298,6 +307,11 @@ static bool program_value_is_constant_i64(
       program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
     return false;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           program_value_is_constant_i64(program, value->left_value,
+                                         depth + 1u);
   if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
       value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER)
     return false;
@@ -751,6 +765,27 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            value->block_argument_index == W_SEED_HIR0_NONE &&
            program_value_lowerable(program, value->left_value,
                                    owner_function, false, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    if (type != W_SEED_HIR0_TYPE_I64 ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !program_value_lowerable(program, value->left_value, owner_function,
+                                 false, depth + 1u))
+      return false;
+    if (program_value_is_constant_i64(program, value_index, 0u)) {
+      int64_t ignored = 0;
+      if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+    }
+    return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
     if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||

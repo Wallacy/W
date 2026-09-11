@@ -28,6 +28,8 @@ const restaurantInterpolationFixture = resolve(
 const restaurantLinearFixture = resolve(seedDirectory, "fixtures", "restaurant-linear.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
+const restaurantUnaryNegateFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-unary-negate.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
@@ -350,6 +352,9 @@ try {
   expectExact(binary, ["run", restaurantRuntimeDivremFixture], 0,
     Buffer.from("Each 7; left 2\n", "utf8"),
     "Restaurant checked runtime division/remainder")
+  expectExact(binary, ["run", restaurantUnaryNegateFixture], 0,
+    Buffer.from("Balance -7\n", "utf8"),
+    "Restaurant checked runtime unary negation")
   expectExact(binary, ["run", helloFixture, "--", "arbitrary", "--entry", ""],
     0, Buffer.from("Hello, world!\n", "utf8"), "forwarded program arguments")
   expectExact(binary, ["run", processInputFixture], 2,

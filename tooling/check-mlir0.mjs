@@ -17,6 +17,8 @@ const restaurantCheckedArithmeticFixture = resolve(seedDirectory,
   "fixtures", "restaurant-checked-arithmetic.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
+const restaurantUnaryNegateFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-unary-negate.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -270,6 +272,10 @@ try {
     "runtime-division-overflow.w")
   const runtimeRemainderZeroPath = resolve(artifactDirectory,
     "runtime-remainder-zero.w")
+  const runtimeNegationOverflowPath = resolve(artifactDirectory,
+    "runtime-negation-overflow.w")
+  const constantNegationPath = resolve(artifactDirectory,
+    "constant-negation.w")
   const emptyPath = resolve(artifactDirectory, "empty.w")
   await writeFile(restaurantPath,
     `fn serve() { let message = "Table 42 remains open" print(message) }\nentry(serve)\n`)
@@ -323,6 +329,7 @@ try {
     'fn deadArithmetic(value: i64): i64 { return value + 1 }\n' +
     'fn deadDivision(value: i64): i64 { return value / 2 }\n' +
     'fn deadRemainder(value: i64): i64 { return value % 2 }\n' +
+    'fn deadNegate(value: i64): i64 { return -value }\n' +
     'fn secret() { print("secret") }\n' +
     'fn dead() { secret() }\n' +
     'fn main() { print("Hello, world!") }\nentry(main)\n')
@@ -348,6 +355,14 @@ try {
     'fn remainder(value: i64, by divisor: i64): i64 { return value % divisor }\n' +
     'fn main() { let result = remainder(value: 8, by: 0) ' +
     'print("success ${result}") }\nentry(main)\n')
+  await writeFile(runtimeNegationOverflowPath,
+    'fn negate(value: i64): i64 { return -value }\n' +
+    'fn main() { let result = negate(' +
+    'value: 0 - 9223372036854775807 - 1) ' +
+    'print("success ${result}") }\nentry(main)\n')
+  await writeFile(constantNegationPath,
+    'fn negative(): i64 { return -7 }\n' +
+    'entry { let value = negative() print("${value}") }\n')
   await writeFile(emptyPath, `fn main() { print("") }\nentry(main)\n`)
   const products = [
     { name: "hello", source: canonicalFixture,
@@ -402,6 +417,10 @@ try {
       expected: Buffer.from("Each 7; left 2\n", "utf8") },
     { name: "runtime-minimum-remainder", source: runtimeMinimumRemainderPath,
       expected: Buffer.from("0\n", "utf8") },
+    { name: "restaurant-unary-negate", source: restaurantUnaryNegateFixture,
+      expected: Buffer.from("Balance -7\n", "utf8") },
+    { name: "constant-negation", source: constantNegationPath,
+      expected: Buffer.from("-7\n", "utf8") },
     { name: "dead-unused", source: deadUnusedPath,
       expected: Buffer.from("Hello, world!\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
@@ -471,6 +490,7 @@ try {
     { name: "runtime-division-zero", source: runtimeDivisionZeroPath },
     { name: "runtime-division-overflow", source: runtimeDivisionOverflowPath },
     { name: "runtime-remainder-zero", source: runtimeRemainderZeroPath },
+    { name: "runtime-negation-overflow", source: runtimeNegationOverflowPath },
   ]) {
     const generated = run(seedGate, [fault.source])
     assert(generated.exitCode === 0 && generated.stderr.length === 0 &&
@@ -541,6 +561,7 @@ try {
     !artifacts.get("dead-unused").includes("@w_fn_2(") &&
     !artifacts.get("dead-unused").includes("@w_fn_3(") &&
     !artifacts.get("dead-unused").includes("@w_fn_4(") &&
+    !artifacts.get("dead-unused").includes("@w_fn_5(") &&
     !artifacts.get("dead-unused").includes("\\73\\65\\63\\72\\65\\74"),
   "unreachable function, text, or checked arithmetic helper was emitted")
   assert(artifacts.get("typed-bindings").includes(
@@ -556,6 +577,14 @@ try {
     artifacts.get("runtime-minimum-remainder").includes(
       "llvm.cond_br %overflow_pair, ^checked_minimum, ^checked_ok"),
   "runtime division/remainder checks were omitted or precomputed")
+  const runtimeNegateArtifact = artifacts.get("restaurant-unary-negate")
+  assert(runtimeNegateArtifact.includes(
+    "llvm.call @w_seed_checked_subtract_i64") &&
+    runtimeNegateArtifact.includes("_neg_zero") &&
+    !artifacts.get("constant-negation").includes(
+      "@w_seed_checked_subtract_i64") &&
+    artifacts.get("constant-negation").includes(" = llvm.sub "),
+  "checked runtime or direct constant unary negation was not retained")
   assert(artifacts.get("direct-call").includes("llvm.call @w_fn_0") &&
     artifacts.get("direct-call").includes(
       "llvm.call @w_seed_checked_multiply_i64(%v4, %v5) : " +

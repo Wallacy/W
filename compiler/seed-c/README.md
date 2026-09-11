@@ -1208,8 +1208,8 @@ gaps. This is compiler-lifecycle correctness evidence only.
 ### ARITH0 checked signed-`i64` arithmetic (W-1540)
 
 ARITH0 admits runtime signed-`i64` `+`, `-`, and `*` in the bounded
-source → frontend → HIR0 → MLIR0 route. The current HIR0 schema is
-`w-seed-hir0-15`. MLIR0 is
+source → frontend → HIR0 → MLIR0 route. At the W-1540 boundary,
+HIR0 used `w-seed-hir0-15`. MLIR0 is
 `w-seed-mlir0-15`, the Windows artifact label is
 `w-seed-mlir0-windows-6`, and Native0 remains v6. Runtime arithmetic calls
 LLVM signed-overflow intrinsics. An overflow edge calls the LLVM trap
@@ -1223,8 +1223,9 @@ Checked helpers are emitted only for reachable arithmetic trees. Hello and the
 dead-function witness emit no checked helper or dead text. Constant overflow
 and faulting constant `/` or `%` are rejected. A safe fully constant `/` or
 `%` emits `llvm.sdiv` or `llvm.srem`. W-1551 supersedes only the former
-dynamic/runtime `/` and `%` exclusion. Unary negation, power, other widths,
-named numeric APIs, and general numeric surfaces remain unsupported.
+dynamic/runtime `/` and `%` exclusion. W-1552 separately supersedes the
+unary-negation exclusion. Power, other widths, named numeric APIs, and general
+numeric surfaces remain unsupported.
 
 `fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
 produces exact `Open 6; closed 1\n` on Linux/WSL with LLVM 20.1.2. No native
@@ -1249,6 +1250,20 @@ and native Windows. The Linux MLIR gate additionally executes zero-divisor and
 signed-overflow processes and requires nonzero termination with empty stdout.
 The checks do not claim `PanicEvent`, payload/cleanup semantics, other widths
 or targets, timing, ranking, or performance.
+
+### Checked signed-`i64` unary negation (W-1552)
+
+HIR0 `w-seed-hir0-17` appends `VALUE_UNARY_I64` with `UNARY_NEGATE`. The
+verifier requires a canonical signed-`i64` operand/result and rejects forged
+operator, type and ownership records. Safe constant negation emits direct
+`llvm.sub`; a runtime operand reuses the reachable checked-subtract helper with
+zero on the left, so `i64.min` traps before output. MLIR0 and Native0 artifact
+schemas remain unchanged.
+
+`fixtures/restaurant-unary-negate.w` prints exact `Balance -7\n` through the
+Linux WRT0 and native Windows public runners. Direct unary expressions inside
+an interpolation root, other widths/targets, general panic payload/cleanup and
+performance remain outside this bounded cut.
 
 ### Short default entry (W-1541)
 

@@ -4755,6 +4755,99 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-checked-i64-unary-negate",
+      "reviewItem": "checked signed-i64 unary negation against binary desugaring, unchecked target subtraction, and an always-linked numeric runtime",
+      "decisions": [
+        "W-1552"
+      ],
+      "task": "Retain prefix signed-i64 negation through verified HIR and fault before output for the minimum value.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn reverse(value: i64): i64 { return -value }",
+          "entry {",
+          "  let balance = reverse(value: 7)",
+          "  print(\"Balance ${balance}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hir-binary-desugaring",
+          "language": "text",
+          "source": [
+            "replace -value with a synthetic 0 - value record"
+          ],
+          "expectedDifference": "The selected HIR retains unary source identity and its own typed verification boundary."
+        },
+        {
+          "name": "unchecked-target-subtraction",
+          "language": "text",
+          "source": [
+            "emit llvm.sub 0, value for every runtime operand"
+          ],
+          "expectedDifference": "Runtime i64.min must fault at the W checked boundary before target subtraction or user output."
+        },
+        {
+          "name": "always-linked-numeric-runtime",
+          "language": "text",
+          "source": [
+            "link the checked subtraction helper into constant-only and dead products"
+          ],
+          "expectedDifference": "The helper enters only products with a reachable nonconstant negation or subtraction."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_VALUE_UNARY_I64",
+          "claim": "HIR0 has an append-only explicit signed-i64 unary value and negate operator."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_value_tree",
+          "claim": "HIR verification proves the unary operator, signed-i64 type, operand and ownership relation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_value_lowerable",
+          "claim": "The selector rejects constant overflow and admits bounded runtime negation."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_unary_i64_operation",
+          "claim": "Constant and runtime negation select direct and checked lowering respectively."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
+          "symbol": "reverse",
+          "claim": "The Restaurant witness exercises parameter-driven negation through a short default entry."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantUnaryNegateFixture",
+          "claim": "The Linux gate proves exact output, constant lowering and runtime overflow fault-before-output."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantUnaryNegateFixture",
+          "claim": "The native Windows public runner executes the same source witness."
+        }
+      ],
+      "checks": [
+        "HIR0 units accept typed unary negation and reject forged operator/type records",
+        "Native0 and MLIR0 checks distinguish direct constant lowering from checked runtime lowering",
+        "Linux and native Windows public runners print exact Balance -7",
+        "Linux execution of runtime -i64.min terminates nonzero with empty stdout"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }
