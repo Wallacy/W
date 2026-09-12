@@ -89,6 +89,7 @@ typedef struct {
   w_seed_frontend_expression expressions[TEST_EXPRESSIONS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
   w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
+  w_seed_frontend_pattern_capture pattern_captures[TEST_SWITCH_ARMS];
   w_seed_frontend_interpolation_segment
       interpolation_segments[TEST_INTERPOLATION_SEGMENTS];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
@@ -122,6 +123,7 @@ typedef struct {
   w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_switch_edge hir_switch_edges[TEST_HIR_RECORDS];
+  w_seed_hir0_switch_capture hir_switch_captures[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -258,6 +260,8 @@ static bool fixture_parse(const char *text) {
       .argument_capacity = TEST_ARGUMENTS,
       .switch_arms = fixture.switch_arms,
       .switch_arm_capacity = TEST_SWITCH_ARMS,
+      .pattern_captures = fixture.pattern_captures,
+      .pattern_capture_capacity = TEST_SWITCH_ARMS,
       .interpolation_segments = fixture.interpolation_segments,
       .interpolation_segment_capacity = TEST_INTERPOLATION_SEGMENTS,
       .symbols = fixture.symbols,
@@ -522,6 +526,8 @@ static void setup_hir_output(void) {
       .edge_argument_capacity = TEST_HIR_RECORDS,
       .switch_edges = fixture.hir_switch_edges,
       .switch_edge_capacity = TEST_HIR_RECORDS,
+      .switch_captures = fixture.hir_switch_captures,
+      .switch_capture_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -811,6 +817,15 @@ static bool test_process_input0_hir(void) {
   fixture.hir_value_bytes[0] = saved_literal_byte;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  /* The special process route cannot silently drop orphan capture records. */
+  fixture.result.required.pattern_captures = 1u;
+  fixture.result.written.pattern_captures = 1u;
+  const w_seed_hir0_input forged = {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_counts measured = fixture.hir_counts;
+  w_seed_hir0_result measured_result = fixture.hir_result;
+  CHECK(w_seed_hir0_measure(&forged, &measured, &measured_result) != W_SEED_HIR0_OK);
+  CHECK(memcmp(&measured, &fixture.hir_counts, sizeof(measured)) == 0 &&
+        memcmp(&measured_result, &fixture.hir_result, sizeof(measured_result)) == 0);
   return true;
 }
 
@@ -2449,6 +2464,8 @@ static void fill_hir_output(uint8_t value) {
                sizeof(fixture.hir_edge_arguments));
   (void)memset(fixture.hir_switch_edges, value,
                sizeof(fixture.hir_switch_edges));
+  (void)memset(fixture.hir_switch_captures, value,
+               sizeof(fixture.hir_switch_captures));
   (void)memset(fixture.hir_instructions, value,
                sizeof(fixture.hir_instructions));
   (void)memset(fixture.hir_bindings, value, sizeof(fixture.hir_bindings));
@@ -2495,6 +2512,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_block_arguments,
       (const uint8_t *)fixture.hir_edge_arguments,
       (const uint8_t *)fixture.hir_switch_edges,
+      (const uint8_t *)fixture.hir_switch_captures,
       (const uint8_t *)fixture.hir_instructions,
       (const uint8_t *)fixture.hir_bindings,
       (const uint8_t *)fixture.hir_calls,
@@ -2521,6 +2539,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_block_arguments),
       sizeof(fixture.hir_edge_arguments),
       sizeof(fixture.hir_switch_edges),
+      sizeof(fixture.hir_switch_captures),
       sizeof(fixture.hir_instructions), sizeof(fixture.hir_bindings),
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
@@ -4269,6 +4288,122 @@ static bool test_enum_switch_hir(void) {
   return true;
 }
 
+static bool test_enum_payload_captures(void) {
+  static const char SOURCE[] =
+      "enum Course { starter main(price: i64, tax: i64) dessert(value: i64) }\n"
+      "fn total(amount: i64, fee: i64): i64 { return amount + fee }\n"
+      "fn bill(course: Course): i64 { return switch course { "
+      "case .dessert(value: let sweet): sweet "
+      "case .main(tax: let fee, price: let amount): total(amount: amount, fee: fee) "
+      "case .starter: 10 } }\n"
+      "fn rebate(course: Course): i64 { return switch course { "
+      "case .starter: 0 case .main(price: let amount, ...): amount "
+      "case .dessert(value: _): 0 } }\n"
+      "entry { let order: Course = .main(tax: 2, price: 30) "
+      "let total = bill(course: order) }\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->switch_capture_count == 4u &&
+        program->switch_edges[0].capture_count == 0u &&
+        program->switch_edges[1].first_capture == 0u &&
+        program->switch_edges[1].capture_count == 2u &&
+        program->switch_edges[2].first_capture == 2u);
+  CHECK(program->switch_captures[0].owner_switch_edge == 1u &&
+        program->switch_captures[0].parameter_ordinal == 1u &&
+        program->switch_captures[1].parameter_ordinal == 0u &&
+        hir_text_is(program, program->switch_captures[0].name, "fee") &&
+        hir_text_is(program, program->switch_captures[1].name, "amount"));
+  uint32_t amount_read = W_SEED_HIR0_NONE;
+  size_t reads = 0u;
+  for (size_t index = 0u; index < program->value_count; index += 1u) {
+    if (program->values[index].kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
+      reads += 1u;
+      if (program->values[index].pattern_capture_index == 1u)
+        amount_read = (uint32_t)index;
+    }
+  }
+  CHECK(reads == 4u && amount_read != W_SEED_HIR0_NONE &&
+        program->switch_captures[3].owner_switch_edge == 4u);
+  /* Producer validation must reject a capture reference outside its arm. */
+  bool forged_read_checked = false;
+  for (size_t index = 0u; index < fixture.result.written.expressions; index += 1u) {
+    w_seed_frontend_expression *expression = &fixture.expressions[index];
+    if (expression->resolved_pattern_capture == 2u) {
+      const w_seed_frontend_expression saved_expression = *expression;
+      expression->resolved_pattern_capture = 0u;
+      expression->spelling = fixture.pattern_captures[0].name;
+      w_seed_hir0_counts counts = fixture.hir_counts;
+      w_seed_hir0_result result = fixture.hir_result;
+      const w_seed_hir0_input forged_input = hir_input();
+      CHECK(w_seed_hir0_measure(&forged_input, &counts, &result) != W_SEED_HIR0_OK);
+      CHECK(memcmp(&counts, &fixture.hir_counts, sizeof(counts)) == 0 &&
+            memcmp(&result, &fixture.hir_result, sizeof(result)) == 0);
+      *expression = saved_expression;
+      forged_read_checked = true;
+      break;
+    }
+  }
+  CHECK(forged_read_checked);
+  const w_seed_hir0_switch_capture saved = fixture.hir_switch_captures[0];
+  for (unsigned mutation = 0u; mutation < 5u; mutation += 1u) {
+    fixture.hir_switch_captures[0] = saved;
+    switch (mutation) {
+      case 0u: fixture.hir_switch_captures[0].owner_switch_edge = UINT32_MAX; break;
+      case 1u: fixture.hir_switch_captures[0].parameter_ordinal = 0u; break;
+      case 2u: fixture.hir_switch_captures[0].type_index = 3u; break;
+      case 3u: fixture.hir_switch_captures[0].ordinal = 1u; break;
+      default: fixture.hir_switch_captures[0].name.count = 0u; break;
+    }
+    reseal_hir_fixture();
+    CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  }
+  fixture.hir_switch_captures[0] = saved;
+  /* A same-typed capture from another arm is invalid even with fresh digests. */
+  fixture.hir_values[amount_read].pattern_capture_index = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[amount_read].pattern_capture_index = 1u;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_input input = hir_input();
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result before = rejected;
+  setup_hir_output();
+  fill_hir_output(0xa5);
+  fixture.hir_output.switch_capture_capacity =
+      fixture.hir_counts.switch_captures - 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5) && memcmp(&rejected, &before, sizeof(before)) == 0);
+  setup_hir_output();
+  fixture.hir_output.switch_captures = NULL;
+  fixture.hir_output.switch_capture_capacity = 0u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(0xa5) && memcmp(&rejected, &before, sizeof(before)) == 0);
+  setup_hir_output();
+  fixture.hir_output.switch_captures =
+      (w_seed_hir0_switch_capture *)(void *)fixture.hir_switch_edges;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) != W_SEED_HIR0_OK);
+  CHECK(hir_output_is_byte(0xa5) && memcmp(&rejected, &before, sizeof(before)) == 0);
+
+  CHECK(lower("enum Course { main(price: i64, tax: i64) }\n"
+              "fn bill(course: Course): i64 { return switch course { "
+              "case .main(price: let amount, ...): amount } }\nentry { }\n"));
+  CHECK(fixture.hir_program.switch_capture_count == 1u);
+  CHECK(lower("enum Course { main(i64, i64) }\n"
+              "fn bill(course: Course): i64 { return switch course { "
+              "case .main(_, let amount): amount } }\nentry { }\n"));
+  CHECK(fixture.hir_program.switch_capture_count == 1u &&
+        fixture.hir_switch_captures[0].parameter_ordinal == 1u);
+  (void)memset(fixture.pattern_captures, 0, sizeof(fixture.pattern_captures));
+  (void)memset(fixture.source_bytes, 0, sizeof(fixture.source_bytes));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_enum_switch_local_calls(void) {
   static const char SOURCE[] =
       "enum Course { starter main dessert }\n"
@@ -5120,6 +5255,7 @@ int main(void) {
   if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
+  if (!test_enum_payload_captures()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;
   if (!test_capacity_and_alias_barriers()) return 1;

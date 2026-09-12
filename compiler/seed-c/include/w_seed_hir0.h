@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-24"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-25"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -81,6 +81,8 @@ typedef enum {
   /* A case of a caller-owned local enum. Payload constructors own a dense
    * enum-payload relation; payloadless cases own an empty range. */
   W_SEED_HIR0_VALUE_ENUM_CASE,
+  /* A typed read of one payload captured by the active enum-switch arm. */
+  W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ,
 } w_seed_hir0_value_kind;
 
 typedef enum {
@@ -383,8 +385,21 @@ typedef struct {
   uint32_t enum_index;
   uint32_t enum_case_index;
   uint32_t target_block;
+  uint32_t first_capture;
+  uint32_t capture_count;
   w_seed_span source_span;
 } w_seed_hir0_switch_edge;
+
+/* Captures retain declaration-slot identity independently from source pattern
+ * order. Their owner edge proves the arm in which a read is available. */
+typedef struct {
+  uint32_t owner_switch_edge;
+  uint32_t ordinal;
+  uint32_t parameter_ordinal;
+  uint32_t type_index;
+  w_seed_hir0_text name;
+  w_seed_span source_span;
+} w_seed_hir0_switch_capture;
 
 typedef struct {
   w_seed_hir0_instruction_kind kind;
@@ -485,6 +500,7 @@ typedef struct {
   uint32_t interpolation_segment_count;
   uint32_t first_enum_payload;
   uint32_t enum_payload_count;
+  uint32_t pattern_capture_index;
   w_seed_hir0_binary_operator binary_operator;
   w_seed_hir0_unary_operator unary_operator;
   uint32_t block_argument_index;
@@ -567,6 +583,7 @@ typedef struct {
   size_t block_arguments;
   size_t edge_arguments;
   size_t switch_edges;
+  size_t switch_captures;
   size_t instructions;
   size_t bindings;
   size_t calls;
@@ -627,6 +644,9 @@ typedef struct {
   const w_seed_hir0_switch_edge *switch_edges;
   size_t switch_edge_count;
   size_t switch_edge_capacity;
+  const w_seed_hir0_switch_capture *switch_captures;
+  size_t switch_capture_count;
+  size_t switch_capture_capacity;
   const w_seed_hir0_instruction *instructions;
   size_t instruction_count;
   size_t instruction_capacity;
@@ -702,6 +722,8 @@ typedef struct {
   size_t edge_argument_capacity;
   w_seed_hir0_switch_edge *switch_edges;
   size_t switch_edge_capacity;
+  w_seed_hir0_switch_capture *switch_captures;
+  size_t switch_capture_capacity;
   w_seed_hir0_instruction *instructions;
   size_t instruction_capacity;
   w_seed_hir0_binding *bindings;

@@ -1468,9 +1468,9 @@ This remains a correctness-only compiler-lifecycle witness. Payload-bearing
 cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
 targets, timing, ranking, and performance are not implemented or claimed.
 
-### Enum payload declaration and constructor identity (current HIR24)
+### Enum payload declarations, constructors, and captures (current HIR25)
 
-Current HIR0 (`w-seed-hir0-24`) copies the bounded frontend's signed-`i64`
+Current HIR0 (`w-seed-hir0-25`) copies the bounded frontend's signed-`i64`
 enum case parameters into a separate caller-owned dense range. Each case keeps
 `first_payload`/`payload_count`; each parameter keeps its owner case, ordinal,
 type, optional label, and source span. The semantic and provenance digests,
@@ -1487,14 +1487,31 @@ or an effect reorder. Constructor payloads are not represented as calls or call
 arguments. The verifier independently rejects missing, duplicated, orphaned,
 cross-case, mistyped, aliased, truncated, or digest-forged relations.
 
-Pattern-capture values, projection, physical enum layout, MLIR lowering, native
-execution, public ABI, and performance remain explicit fail-closed boundaries.
+Switch edges own dense capture records with source ordinals and declaration
+parameter ordinals. Capture reads identify that relation and belong to the
+selected arm block. This representation preserves logical payload access without
+choosing byte offsets or allocating storage for the enum.
+The tests cover reordered arms and labels, positional `_`, labeled trailing
+`...`, separate captures in multiple functions, and passing captures to local calls. Resealed
+forgeries must still fail ownership, type, slot, and arm-scope verification.
+Capture names remain valid after the frontend records and source bytes are cleared.
+
+Physical enum layout, MLIR payload lowering, native payload execution, public
+payload ABI, and performance remain explicit fail-closed boundaries.
 The existing payloadless minimum-width carrier is unchanged.
+The benchmark disposition is `compiler-lifecycle`. HIR verification is compiler
+correctness evidence; this increment adds no runnable payload workload or timing.
+
+The next native witness must construct a restaurant order, pass its enum through
+a local function, and compute the bill from captured payloads. Different payload
+values must change the output. That executable must enter the benchmark catalog
+with its source, correctness oracle, and initial measurement. Physical lowering
+must preserve source evaluation order and read only the selected case's fields.
 
 ### Bounded same-module executable product closure (W-1564)
 
 HIR22 (`w-seed-hir0-22`) introduced copying the frontend function `exported`
-fact; current HIR24 preserves that contract,
+fact; current HIR25 preserves that contract,
 binds it into the semantic digest, and verifies it independently. Export is
 module visibility, not an unconditional executable retention root. For the
 current one-module executable recipe, `.default` is the product root and local
