@@ -466,7 +466,7 @@
         {
           "language": "c",
           "path": "benchmarks/executable/restaurant_while.c",
-          "digest": "sha256:d4cc84451e9409c0d9b1b408d80a1a178997c5d2c3947e59497511fe77fedf00",
+          "digest": "sha256:7eb059956eaa388f6d0ab453d23ad1c7c593dd4e513978aff320fe2df5b17aaa",
           "entry": "main",
           "status": "source-oracle-ready",
           "profile": "release",
