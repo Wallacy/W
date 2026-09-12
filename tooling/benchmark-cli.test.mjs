@@ -8,7 +8,11 @@ import { benchmarkUsage, consumeLocalResult, parseBenchmarkCliArguments, validat
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
   assert.deepEqual(parseBenchmarkCliArguments(["check"]), { command: "check" });
-  assert.deepEqual(parseBenchmarkCliArguments(["update", "benchmarks/results/local.json"]), { command: "update", input: "benchmarks/results/local.json" });
+  assert.deepEqual(parseBenchmarkCliArguments(["update", "benchmarks/results/w.json", "benchmarks/results/c.json"]), {
+    command: "update", inputs: ["benchmarks/results/w.json", "benchmarks/results/c.json"],
+  });
+  assert.throws(() => parseBenchmarkCliArguments(["update"]), /one or more JSON paths/u);
+  assert.throws(() => parseBenchmarkCliArguments(["update", "same.json", "same.json"]), /must be unique/u);
   assert.deepEqual(parseBenchmarkCliArguments(["run", "--target", "hello", "--language", "rust", "--samples", "9"]), {
     command: "run", target: "hello", language: "rust", output: "benchmarks/results/hello-rust.local.json", warmup: 1, samples: 9,
   });
@@ -21,7 +25,7 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.throws(() => parseBenchmarkCliArguments(["run", "--target", "process-entry0", "--language", "w"]), /unsupported target/);
   assert.throws(() => parseBenchmarkCliArguments(["record", "benchmarks/results/local.json"]), /unknown command/);
   assert.match(benchmarkUsage(), /<list\|run\|validate\|update\|check>/u);
-  assert.match(benchmarkUsage(), /update <result\.json>/u);
+  assert.match(benchmarkUsage(), /update <result\.json>\.\.\./u);
   assert.match(benchmarkUsage(), /process-handler-lifecycle/u);
   assert.match(benchmarkUsage(), /process-entry/u);
   assert.doesNotMatch(benchmarkUsage(), /process-entry0/u);

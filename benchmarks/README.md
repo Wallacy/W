@@ -150,11 +150,55 @@ in standards-only `c23`/`c2x` mode rather than `gnu23`; GNU extensions are not
 needed by these sources. PIE/hardening remains a separate artifact-policy axis
 until W, MinGW C, and MSVC Rust have an equivalent declared recipe, so the
 portable comparison does not add `-fpie` to only one ABI.
-Publication atomically replaces the live catalog file for lower values in
-matching category/metric cells, then replaces the derived projection. A crash
-between those two files is detected as projection drift by `benchmark check`.
+Publication accepts one or more result paths and atomically replaces the live
+catalog plus its concise human projection. Passing all W/C/Rust results from a
+single clean HEAD avoids stale provenance between updates. A crash between the
+two generated files is detected as projection drift by `benchmark check`.
 Valid non-improving updates are idempotent no-ops, and successful updates
 consume the local result.
+
+## Manual reproduction
+
+The supported path runs the oracle, one discarded warmup, nine fresh-process
+samples, artifact inspection, and cleanup:
+
+```powershell
+bun benchmark list
+bun benchmark run --target restaurant-enum-switch --language w --output benchmarks/results/enum-w.local.json
+bun benchmark run --target restaurant-enum-switch --language c --output benchmarks/results/enum-c.local.json
+bun benchmark run --target restaurant-enum-switch --language rust --output benchmarks/results/enum-rust.local.json
+bun benchmark update benchmarks/results/enum-w.local.json benchmarks/results/enum-c.local.json benchmarks/results/enum-rust.local.json
+bun benchmark check
+```
+
+For a manual single build, first create the Release W compiler, then build and
+run the same source-to-PE route:
+
+```powershell
+bun tooling/build-w-windows.mjs --profile release
+New-Item -ItemType Directory -Force build/manual-benchmark | Out-Null
+build/w-windows/w.exe build benchmarks/executable/restaurant-enum.w --target x86_64-pc-windows-msvc --output build/manual-benchmark/restaurant-enum-w.exe
+& build/manual-benchmark/restaurant-enum-w.exe
+```
+
+The equivalent portable comparison recipes are:
+
+```powershell
+gcc -std=c2x -O3 -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -s -fwhole-program benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
+& build/manual-benchmark/restaurant-enum-c.exe
+rustc benchmarks/executable/restaurant_enum.rs --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE --target=x86_64-pc-windows-msvc -o build/manual-benchmark/restaurant-enum-rust.exe
+& build/manual-benchmark/restaurant-enum-rust.exe
+Remove-Item -LiteralPath build/manual-benchmark -Recurse -Force
+```
+
+The command above matches the current GCC 13.2 host. The runner prefers
+`-std=c23`, falls back to `-std=c2x`, and adds
+`-fwhole-program` only when the selected compiler accepts it. The W backend
+recipe is `mlir-opt --verify-each --canonicalize --cse`, then
+`llc -O3 -filetype=obj -mtriple=x86_64-pc-windows-msvc`, then `lld-link` with
+`/entry:mainCRTStartup /subsystem:console /nodefaultlib /machine:x64 /opt:ref
+/opt:icf /incremental:no`. These arrays are canonical in
+[`../tooling/executable-release-recipes.mjs`](../tooling/executable-release-recipes.mjs).
 
 O programa BMD1 fica em [`program.json`](program.json). O schema fica em
 [`wbench-1.schema.json`](wbench-1.schema.json). O manifesto do seed fica em

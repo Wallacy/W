@@ -59,9 +59,15 @@ export function parseBenchmarkCliArguments(argv) {
     if (argv.length !== 1) fail("list does not accept --target or other options");
     return { command };
   }
-  if (command === "validate" || command === "update") {
-    if (argv.length !== 2 || argv[1].startsWith("--")) fail(`${command} requires exactly one JSON path`);
+  if (command === "validate") {
+    if (argv.length !== 2 || argv[1].startsWith("--")) fail("validate requires exactly one JSON path");
     return { command, input: argv[1] };
+  }
+  if (command === "update") {
+    const inputs = argv.slice(1);
+    if (inputs.length === 0 || inputs.some((input) => input.startsWith("--"))) fail("update requires one or more JSON paths");
+    if (new Set(inputs).size !== inputs.length) fail("update result paths must be unique");
+    return { command, inputs };
   }
   const result = { command, target: "hello", language: "w", output: undefined, warmup: 1, samples: 9 };
   for (let index = 1; index < argv.length; index += 1) {
@@ -92,7 +98,7 @@ export function benchmarkUsage() {
     "  list",
     "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
-    "  update <result.json>    (lower-is-better live-catalog update; consumes a local result on success)",
+    "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
     "  check",
     "",
     "Run measures one selected source with its catalog oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-entry uses its argument-dependent oracle; process-handler-lifecycle selects its private handler plus shared PROCESS0 harness/provider recipe and remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
@@ -167,24 +173,38 @@ export async function validateUpdateBoundary(result, { root = ROOT, gitState } =
 export const validateRecordBoundary = validateUpdateBoundary;
 
 export async function publishLiveCatalog(result, { root = ROOT, gitState } = {}) {
+  return publishLiveCatalogResults([result], { root, gitState });
+}
+
+export async function publishLiveCatalogResults(results, { root = ROOT, gitState } = {}) {
+  if (!Array.isArray(results) || results.length === 0) fail("catalog update requires at least one result");
   const documents = loadExecutableDocuments(root);
   const catalogErrors = validateExecutableCatalog(documents.catalog, documents, root);
   if (catalogErrors.length > 0) fail(catalogErrors.join("; "));
-  const resultErrors = validateExecutableResult(result, documents.catalog);
-  if (resultErrors.length > 0) fail(resultErrors.join("; "));
-  await validateUpdateBoundary(result, { root, gitState });
-  const updated = updateExecutableBestMetrics(documents.catalog, result);
-  const nextErrors = validateExecutableCatalog(updated.catalog, documents, root);
+  const state = gitState ?? await currentGitState(root);
+  let catalog = documents.catalog;
+  let changed = false;
+  const updatedMetrics = new Set();
+  for (const result of results) {
+    const resultErrors = validateExecutableResult(result, documents.catalog);
+    if (resultErrors.length > 0) fail(resultErrors.join("; "));
+    await validateUpdateBoundary(result, { root, gitState: state });
+    const update = updateExecutableBestMetrics(catalog, result);
+    catalog = update.catalog;
+    changed ||= update.changed;
+    for (const metric of update.updatedMetrics) updatedMetrics.add(metric);
+  }
+  const nextErrors = validateExecutableCatalog(catalog, documents, root);
   if (nextErrors.length > 0) fail(nextErrors.join("; "));
-  if (!updated.changed) return updated;
+  if (!changed) return { catalog, changed, updatedMetrics: [] };
   const benchmarksRoot = path.resolve(root, "benchmarks");
   const catalogPath = path.resolve(benchmarksRoot, "executable-catalog.json");
   const projectionPath = path.resolve(benchmarksRoot, "EXECUTABLES.md");
-  const catalogBytes = `${JSON.stringify(updated.catalog, null, 2)}\n`;
-  const projectionBytes = `${renderExecutableProjection({ catalog: updated.catalog, root })}\n`;
+  const catalogBytes = `${JSON.stringify(catalog, null, 2)}\n`;
+  const projectionBytes = `${renderExecutableProjection({ catalog, root })}\n`;
   await writeAtomicFile(catalogPath, catalogBytes, benchmarksRoot);
   await writeAtomicFile(projectionPath, projectionBytes, benchmarksRoot);
-  return updated;
+  return { catalog, changed, updatedMetrics: [...updatedMetrics].sort() };
 }
 
 async function listCommand(root = ROOT) {
@@ -231,16 +251,24 @@ export async function main(argv = process.argv.slice(2), dependencies = {}) {
   else if (options.command === "list") await listCommand(root);
   else if (options.command === "check") await checkCommand(root);
   else if (options.command === "run") await (dependencies.runBenchmark ?? runCommand)(options, root);
-  else {
+  else if (options.command === "validate") {
     const { candidate, value } = await readResultInput(options.input, root);
     const documents = loadExecutableDocuments(root);
     const errors = validateExecutableResult(value, documents.catalog);
     if (errors.length > 0) fail(errors.join("; "));
-    if (options.command === "update") {
-      const published = await (dependencies.publishLiveCatalog ?? publishLiveCatalog)(value, { root, gitState: dependencies.gitState });
-      await (dependencies.consumeLocalResult ?? consumeLocalResult)(candidate, path.resolve(root, RESULTS_PATH));
-      console.log(published.changed ? `updated live catalog (${published.updatedMetrics.join(", ")})` : "valid result is a non-improving no-op; consumed local result");
-    } else console.log(`valid executable result: ${options.input}`);
+    console.log(`valid executable result: ${options.input}`);
+  } else {
+    const loaded = [];
+    for (const input of options.inputs) loaded.push({ input, ...await readResultInput(input, root) });
+    const documents = loadExecutableDocuments(root);
+    for (const item of loaded) {
+      const errors = validateExecutableResult(item.value, documents.catalog);
+      if (errors.length > 0) fail(`${item.input}: ${errors.join("; ")}`);
+    }
+    const publish = dependencies.publishLiveCatalogResults ?? publishLiveCatalogResults;
+    const published = await publish(loaded.map((item) => item.value), { root, gitState: dependencies.gitState });
+    for (const item of loaded) await (dependencies.consumeLocalResult ?? consumeLocalResult)(item.candidate, path.resolve(root, RESULTS_PATH));
+    console.log(published.changed ? `updated live catalog (${published.updatedMetrics.join(", ")})` : "valid results are non-improving no-ops; consumed local results");
   }
   return 0;
 }
