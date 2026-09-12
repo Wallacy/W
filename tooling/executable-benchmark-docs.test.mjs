@@ -15,7 +15,10 @@ test("generated projection is current, compact, and sourced only from the live c
   const maximumCompactLines = documents.catalog.workloads.length + measuredCells + 18;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
   assert.match(rendered, /Best values/u);
-  assert.match(rendered, /\| Workload \| Language \| Target \| Artifact \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
+  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
+  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| 9216 B/u);
+  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| 2560 B/u);
+  assert.match(rendered, /Artifact size counts only the PE file\. It excludes imported runtime DLLs\./u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
   assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c/u);

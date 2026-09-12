@@ -148,6 +148,14 @@ function targetLabel(entry) {
   return entry.artifactTarget;
 }
 
+function runtimeLabel(entry) {
+  if (entry.artifactTarget.endsWith("w64-mingw32")) return "MinGW runtime";
+  if (entry.language === "w" && entry.artifactTarget.endsWith("windows-msvc")) return "CRT-free";
+  if (entry.language === "c" && entry.artifactTarget.endsWith("windows-msvc")) return "MSVC CRT DLL";
+  if (entry.language === "rust" && entry.artifactTarget.endsWith("windows-msvc")) return "Rust std + MSVC CRT DLL";
+  return "see recipe";
+}
+
 export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   if (!catalog?.bestMetrics) throw new TypeError("catalog with bestMetrics is required");
   const entries = [...catalog.bestMetrics.entries].sort(bestSort);
@@ -166,14 +174,14 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   for (const workload of catalog.workloads) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best values", "", "| Workload | Language | Target | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("", "## Best values", "", "| Workload | Language | Target | Runtime | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const group of rows) {
     const entry = group.entry;
-    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
   }
   lines.push(
     "",
-    "Public W/C/Rust use the MSVC target; the private process-handler composite remains an explicit GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
+    "Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

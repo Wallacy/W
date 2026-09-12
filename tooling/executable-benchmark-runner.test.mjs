@@ -59,6 +59,17 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
 });
 
+test("Clang MSVC release flags select the DLL runtime and COFF linker controls", () => {
+  assert.ok(CLANG_RELEASE_FLAGS.includes("-fms-runtime-lib=dll"));
+  assert.ok(CLANG_RELEASE_FLAGS.includes("-fuse-ld=lld"));
+  assert.ok(CLANG_RELEASE_FLAGS.includes("-Wl,/OPT:REF"));
+  assert.ok(CLANG_RELEASE_FLAGS.includes("-Wl,/OPT:ICF"));
+  assert.ok(CLANG_RELEASE_FLAGS.includes("-Wl,/DEBUG:NONE"));
+  assert.equal(CLANG_RELEASE_FLAGS.includes("-s"), false, "Clang MSVC ignores the GNU -s driver flag");
+  assert.equal(CLANG_RELEASE_FLAGS.some((flag) => flag.includes("--gc-sections")), false,
+    "Clang MSVC uses /OPT:REF instead of the ELF/MinGW --gc-sections spelling");
+});
+
 test("checkout lease rejects concurrent benchmark runs and is reusable after release", async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), "w-benchmark-lease-test-"));
   try {
