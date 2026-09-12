@@ -44,6 +44,10 @@ Current portable-release values. Lower is better; `—` means no published measu
 | hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 184 | 166.0238 ms | 15.9946 ms | 16.9434 ms | 3751936 B (3.58 MiB) | 10.674 ms |
 | process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
 | process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
+| process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1430 | 268 | 187.4327 ms | 15.9992 ms | 16.9816 ms | 3760128 B (3.59 MiB) | 10.519 ms |
+| process-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2660 | 127.8855 ms | 17.991 ms | 18.9885 ms | 4812800 B (4.59 MiB) | 12.84 ms |
+| process-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116736 B (114.0 KiB) | 83528 | 27354 | 1.1390502 s | 17.0079 ms | 18.0308 ms | 4476928 B (4.27 MiB) | 11.448 ms |
+| process-enum-payload | w | Windows x64 / MSVC | CRT-free | 4096 B (4.0 KiB) | 1606 | 280 | 191.9271 ms | 16.8213 ms | 18.0287 ms | 3760128 B (3.59 MiB) | 10.674 ms |
 | process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
 | process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
 | process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |
