@@ -2133,7 +2133,9 @@ static bool frontend_call_expression_ok(
         output->types[return_type].kind;
     if ((!result_value && return_kind != W_SEED_FRONTEND_TYPE_UNIT) ||
         (result_value && return_kind != W_SEED_FRONTEND_TYPE_INTEGER &&
-         return_kind != W_SEED_FRONTEND_TYPE_BOOL) ||
+         return_kind != W_SEED_FRONTEND_TYPE_BOOL &&
+         !frontend_local_enum_type_supported(input,
+                                             &output->types[return_type])) ||
         (return_kind == W_SEED_FRONTEND_TYPE_INTEGER &&
          (!output->types[return_type].is_signed ||
           output->types[return_type].bit_width != 64u)))

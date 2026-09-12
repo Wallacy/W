@@ -408,8 +408,18 @@ static bool program_enum_type_supported(const w_seed_hir0_program *program,
     const w_seed_hir0_enum_case *item =
         &program->enum_cases[(size_t)decl->first_case + ordinal];
     if (item->owner_enum != selected_enum || item->ordinal != ordinal ||
-        item->tag != ordinal || item->payload_count != 0u)
+        item->tag != ordinal ||
+        item->first_payload > program->enum_case_parameter_count ||
+        item->payload_count >
+            program->enum_case_parameter_count - item->first_payload)
       return false;
+    for (size_t slot = 0u; slot < item->payload_count; slot += 1u) {
+      const uint32_t field_type = program->enum_case_parameters[
+          (size_t)item->first_payload + slot].type_index;
+      if (field_type >= program->type_count ||
+          program->types[field_type].kind != W_SEED_HIR0_TYPE_I64)
+        return false;
+    }
   }
   const uint32_t width = program_enum_carrier_width(decl->case_count);
   if (width == 0u) return false;
@@ -788,14 +798,36 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return allow_string && type == W_SEED_HIR0_TYPE_STRING;
   if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
     uint32_t enum_index = W_SEED_HIR0_NONE;
-    return type == W_SEED_HIR0_TYPE_ENUM &&
+    if (!(type == W_SEED_HIR0_TYPE_ENUM &&
            program_enum_type_supported(program, value->type_index,
                                        &enum_index, NULL) &&
            value->enum_index == enum_index &&
            value->enum_case_index < program->enum_case_count &&
            program->enum_cases[value->enum_case_index].owner_enum ==
                enum_index &&
-           program->enum_cases[value->enum_case_index].payload_count == 0u;
+           program->enum_cases[value->enum_case_index].payload_count ==
+               value->enum_payload_count) ||
+        value->first_enum_payload > program->enum_payload_count ||
+        value->enum_payload_count >
+            program->enum_payload_count - value->first_enum_payload)
+      return false;
+    for (size_t index = 0u; index < value->enum_payload_count; index += 1u)
+      if (!program_value_lowerable(program, program->enum_payloads[
+              (size_t)value->first_enum_payload + index].value_index,
+              owner_function, false, depth + 1u))
+        return false;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
+    if (type != W_SEED_HIR0_TYPE_I64 ||
+        value->pattern_capture_index >= program->switch_capture_count)
+      return false;
+    const w_seed_hir0_switch_capture *capture =
+        &program->switch_captures[value->pattern_capture_index];
+    return capture->owner_switch_edge < program->switch_edge_count &&
+           program->switch_edges[capture->owner_switch_edge].target_block < program->block_count &&
+           program->blocks[program->switch_edges[capture->owner_switch_edge].target_block]
+               .owner_function == owner_function;
   }
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
     const bool scalar = type == W_SEED_HIR0_TYPE_I64 ||
@@ -866,7 +898,8 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
            block->block_argument_count != 0u;
   }
   if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
-    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||
+    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL &&
+         !program_enum_type_supported(program, value->type_index, NULL, NULL)) ||
         value->call_index >= program->call_count)
       return false;
     const w_seed_hir0_call *call = &program->calls[value->call_index];
@@ -1484,7 +1517,8 @@ static bool program_function_maximum(
   if (function->return_type >= program->type_count ||
       (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
        program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64 &&
-       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL) ||
+       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL &&
+       !program_enum_type_supported(program, function->return_type, NULL, NULL)) ||
       function->is_async || function->is_throws || function->is_unsafe ||
       function->has_borrow_clause || function->block_count == 0u ||
       function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||

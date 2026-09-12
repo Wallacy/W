@@ -17,6 +17,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-while | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while.w), [c](./executable/restaurant_while.c), [rust](./executable/restaurant_while.rs) | source-backed | exploratory-ready |
 | restaurant-wmo | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-wmo.w), [c](./executable/restaurant_wmo.c), [rust](./executable/restaurant_wmo.rs) | source-backed | exploratory-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | exploratory-ready |
+| restaurant-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-payload.w), [c](./executable/restaurant_enum_payload.c), [rust](./executable/restaurant_enum_payload.rs) | source-backed | exploratory-ready |
 | restaurant-comparisons | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | source-backed | not-performance-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | not-performance-ready |
 | restaurant-linear | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-linear.w) | source-backed | not-performance-ready |

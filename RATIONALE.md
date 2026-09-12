@@ -11357,6 +11357,16 @@ performance remain gaps. The benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing, ranking, or benchmark
 result.
 
+The current HIR25 payload successor uses a tag plus a shared array of `i64`
+slots in SSA. It avoids heap boxing and preserves declared field identity
+without committing to a heterogeneous public layout. The largest variant sets
+the slot count. Starting unused slots at zero avoids undefined aggregate lanes;
+these zeros do not promise a serialized representation or initialized padding.
+The Windows native restaurant witness constructs and returns payload enums,
+then reads reordered captures to produce `Bills 32/44/10/7\n`.
+Its executable-catalog measurements are separate from compiler-lifecycle tests.
+Heterogeneous layouts, niche encoding, and recursive payloads remain future work.
+
 #### W-1564 — bounded same-module executable product closure
 
 The language contract makes a module the minimum semantic optimization region,

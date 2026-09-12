@@ -251,6 +251,10 @@ Windows artifact is `unit-structured-cfg-enum-switch`; the i2 sign-bit tag is
 printed as `-2` for MLIR 23.1.1's signed textual parser. Payloads, subsets,
 general/mixed CFG, public ABI/layout stability, other targets, timing, ranking,
 and performance remain outside this correctness-only compiler-lifecycle cut.
+The payload successor runs `restaurant-enum-payload.w` on the same Windows
+toolchain. It checks enum-returning calls and reordered signed-`i64` captures
+through an internal SSA tag-plus-shared-payload carrier. The executable catalog
+owns the corresponding C/Rust references and live measurements.
 W-1564 advances HIR0 to HIR22 and preserves the function export bit as verified
 semantic input. The `restaurant-wmo.w` gate proves only a same-module
 executable product closure: retain the used private helper, omit unused
