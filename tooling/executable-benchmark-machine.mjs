@@ -21,10 +21,29 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-interpolation",
   "restaurant-scalar-if",
   "restaurant-nested-scalar-if",
+  "restaurant-enum-switch",
+  "restaurant-comparisons",
+  "restaurant-comparison-composition",
+  "restaurant-linear",
+  "restaurant-runtime-divrem",
+  "restaurant-unary-negate",
+  "restaurant-unary-interpolation",
+  "restaurant-mutation",
+  "restaurant-conditional-mutation",
+  "restaurant-bool-mutation",
+  "restaurant-branch-mutation",
+  "restaurant-branch-mutation-multi",
   "restaurant-composition",
   "process-entry",
   "process-handler-lifecycle",
 ]);
+export const EXECUTABLE_RUN_TARGETS = Object.freeze(
+  EXECUTABLE_WORKLOAD_IDS.filter((id) => id !== "restaurant-composition"),
+);
+const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
+const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
+  "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
+});
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
 export const PROCESS_ENTRY_RECIPE_CLASS = "process-entry-release";
@@ -575,6 +594,31 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (workload.status !== "source-oracle-ready" && sources.length > 0) push(errors, location + " cannot materialize sources before its oracle is ready.");
   }
   for (const id of EXECUTABLE_WORKLOAD_IDS) if (!workloadIds.has(id)) push(errors, "executable catalog is missing workload " + id + ".");
+  try {
+    const gateSource = fs.readFileSync(path.resolve(root, PUBLIC_WINDOWS_RUN_GATE), "utf8");
+    const publicFixtures = new Set();
+    const fixturePattern = /resolve\(\s*seedDirectory\s*,\s*"fixtures"\s*,\s*"([^"]+\.w)"\s*\)/gu;
+    for (const match of gateSource.matchAll(fixturePattern))
+      publicFixtures.add(`compiler/seed-c/fixtures/${match[1]}`);
+    const catalogSources = new Map();
+    for (const workload of workloads)
+      for (const descriptor of workload.sources ?? [])
+        if (descriptor.language === "w") catalogSources.set(descriptor.path, workload.id);
+    for (const fixture of publicFixtures) {
+      if (catalogSources.has(fixture)) continue;
+      const owner = PUBLIC_WINDOWS_RUN_VARIANTS[fixture];
+      if (owner === undefined || !workloadIds.has(owner))
+        push(errors, `public Windows runnable fixture ${fixture} has no executable benchmark owner.`);
+    }
+    for (const [fixture, owner] of Object.entries(PUBLIC_WINDOWS_RUN_VARIANTS)) {
+      if (!publicFixtures.has(fixture))
+        push(errors, `public Windows benchmark variant ${fixture} is stale.`);
+      if (!workloadIds.has(owner))
+        push(errors, `public Windows benchmark variant ${fixture} has unknown owner ${owner}.`);
+    }
+  } catch (error) {
+    push(errors, `${PUBLIC_WINDOWS_RUN_GATE} cannot be checked for executable benchmark coverage: ${error?.message ?? error}`);
+  }
   checkContract(catalog.resultContract, "executable catalog.resultContract", errors);
   checkBestMetricsContract(catalog.bestMetricsContract, "executable catalog.bestMetricsContract", errors);
   errors.push(...validateExecutableBestMetrics(catalog.bestMetrics, catalog).map((error) => "best metrics: " + error));

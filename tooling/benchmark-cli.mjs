@@ -4,6 +4,7 @@ import path from "node:path";
 import {
   LOCAL_RESULTS_PATH,
   ROOT,
+  EXECUTABLE_RUN_TARGETS,
   updateExecutableBestMetrics,
   loadExecutableDocuments,
   validateExecutableBestMetrics,
@@ -14,12 +15,7 @@ import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./e
 import { runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
-const RUN_TARGETS = Object.freeze([
-  "hello",
-  "restaurant-branch",
-  "process-entry",
-  "process-handler-lifecycle",
-]);
+const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
 
 function fail(message) {
   throw new Error(`benchmark: ${message}`);
@@ -94,12 +90,12 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|update|check>",
     "",
     "  list",
-    "  run --target hello|restaurant-branch|process-entry|process-handler-lifecycle --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
     "  validate <result.json>",
     "  update <result.json>    (lower-is-better live-catalog update; consumes a local result on success)",
     "  check",
     "",
-    "Run measures one selected source with its catalog exact-output oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-handler-lifecycle selects its private handler plus shared PROCESS0 harness/provider recipe and remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog oracle. C probes -std=c23/-std=c2x for the MinGW ABI, and Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-entry uses its argument-dependent oracle; process-handler-lifecycle selects its private handler plus shared PROCESS0 harness/provider recipe and remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 

@@ -84,6 +84,15 @@ test("catalog stores compact live best cells and no immutable history", () => {
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));
 });
 
+test("every public Windows runnable fixture has an executable benchmark owner", () => {
+  const missing = clone(documents.catalog);
+  const workload = missing.workloads.find((item) => item.id === "restaurant-enum-switch");
+  workload.sources = workload.sources.filter((source) => source.language !== "w");
+  workload.blockedLanguages.push("w");
+  assert.match(validateExecutableCatalog(missing, { ...documents, catalog: missing }).join("\n"),
+    /restaurant-enum\.w has no executable benchmark owner/u);
+});
+
 test("process-handler-lifecycle catalog pins the private composite execution witness", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID);
   assert.ok(workload);

@@ -20,6 +20,7 @@ import {
   EXECUTABLE_LANGUAGES,
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
+  EXECUTABLE_RUN_TARGETS,
   PROCESS_ENTRY_CORRECTNESS_INPUTS,
   PROCESS_ENTRY_ORACLE_CASES,
   PROCESS_ENTRY_ORACLE_KIND,
@@ -61,7 +62,7 @@ export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const DEFAULT_TARGET = "hello";
-const RUN_TARGETS = Object.freeze(["hello", "restaurant-branch", PROCESS_ENTRY_WORKLOAD_ID, PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID]);
+const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
 const DEFAULT_WARMUP = 1;
 const DEFAULT_SAMPLES = 9;
 const MAX_SAMPLES = 1001;
@@ -243,7 +244,7 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target hello|restaurant-branch|process-entry|process-handler-lifecycle (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
     "The output must be a new JSON file under benchmarks/results.",
     "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
