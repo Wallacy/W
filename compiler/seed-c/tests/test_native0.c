@@ -859,7 +859,7 @@ static bool test_process_input0_public_artifact(void) {
             source, sizeof(source) - 1u, "process-input0", 14u,
             &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE, output,
             sizeof(output), &result) == W_SEED_NATIVE0_OK);
-  CHECK(storage.hir_program.external_symbol_count == 6u &&
+  CHECK(storage.hir_program.external_symbol_count == 7u &&
         storage.hir_program.functions[0].direct_entry ==
             W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
         contains_bytes(output, result.mlir.written.mlir_bytes,
@@ -914,6 +914,134 @@ static bool test_process_input0_public_artifact(void) {
     CHECK(explicit_output[index] == 0xb6u);
   CHECK(memcmp(&explicit_result, &target_snapshot,
                sizeof(explicit_result)) == 0);
+  return true;
+}
+
+static bool test_process_arguments_count_public_artifact(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"count ${args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-arguments-count",
+            sizeof("process-arguments-count") - 1u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output, sizeof(output),
+            &result) == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  size_t count_reads = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        value->external_module_index == 0u &&
+        value->external_symbol_index == 6u &&
+        value->type_index < program->type_count &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+        hir_text_equals(program, value->member_name, "count"))
+      count_reads += 1u;
+  }
+  CHECK(program->external_symbol_count == 7u && count_reads == 1u &&
+        program->binding_count == 0u);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "@w_seed_process_arguments_count") &&
+        count_bytes(output, result.mlir.written.mlir_bytes,
+                    "@w_seed_process_arguments_count") >= 2u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       ") : (!llvm.ptr) -> i64"));
+
+  w_seed_native_subset0_process process_selection;
+  CHECK(w_seed_native_subset0_select_process_executable(
+            program, &storage.hir_result, &process_selection) ==
+            W_SEED_NATIVE_SUBSET0_OK &&
+        process_selection.count_symbol_index == 6u);
+
+  /* Raw process owners and non-existent/optional selectors must not reach the
+   * executable adapter. The direct selector check is a second fail-closed
+   * boundary after each source rejection. */
+  static const char *const REJECTED[] = {
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let saved = args return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let saved = ctx return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let copied = copy args return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let copied = copy ctx return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn takeArgs(value: ProcessArguments) { }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { takeArgs(value: args) return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn takeContext(value: ProcessContext) { }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { takeContext(value: ctx) return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return ctx }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args.length }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args[0] }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return ctx.count }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"count ${args?.count}\") "
+      "return .success }\n"
+      "entry(run)\n"};
+  static uint8_t rejected_output[W_SEED_MLIR0_MAX_BYTES];
+  for (size_t index = 0u; index < sizeof(REJECTED) / sizeof(REJECTED[0]);
+       index += 1u) {
+    w_seed_native0_result rejected_result;
+    CHECK(run_source_mode(
+              (const uint8_t *)REJECTED[index], strlen(REJECTED[index]),
+              "process-arguments-count-negative", 35u, &WINDOWS_TARGET,
+              W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, rejected_output,
+              sizeof(rejected_output), &rejected_result) !=
+          W_SEED_NATIVE0_OK);
+    w_seed_native_subset0_process rejected_selection;
+    CHECK(w_seed_native_subset0_select_process_executable(
+              &storage.hir_program, &storage.hir_result,
+              &rejected_selection) != W_SEED_NATIVE_SUBSET0_OK);
+  }
   return true;
 }
 
@@ -1704,6 +1832,7 @@ int main(void) {
                         test_enum_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact() &&
+                        test_process_arguments_count_public_artifact() &&
                         test_process_stdout_bounds() &&
                         test_process_enum_payload_public_artifact();
   const bool logical = products && test_logical_native_selector() &&

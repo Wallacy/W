@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:86a30503f7dc1c1868572ba0128f5425b25dcf85231e0f113d1a63e8ed94e298",
+  "corpusDigest": "sha256:e6bbe86af063ea01995408f9c833ad948c3d48cca0b85ff9a7dd7d72aa3a0d65",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6430,6 +6430,66 @@
             "utf8Bytes": 72,
             "codePoints": 72,
             "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir26-process-arguments-count",
+      "task": {
+        "utf8Bytes": 150,
+        "codePoints": 150,
+        "nonWhitespaceCodePoints": 130,
+        "lines": 1,
+        "surfaceLexemes": 22
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:6b9d7c6268b1955a561633232d3a201719743e715cd30708bf87dfe4d1309342",
+        "metrics": {
+          "utf8Bytes": 268,
+          "codePoints": 268,
+          "nonWhitespaceCodePoints": 230,
+          "lines": 10,
+          "surfaceLexemes": 46
+        }
+      },
+      "alternatives": [
+        {
+          "name": "source-member-recognition",
+          "language": "text",
+          "sourceDigest": "sha256:602ab999a915c06ba16e11a60207f6f49aaa17878d38e865406c6de487418eab",
+          "metrics": {
+            "utf8Bytes": 99,
+            "codePoints": 99,
+            "nonWhitespaceCodePoints": 87,
+            "lines": 1,
+            "surfaceLexemes": 20
+          }
+        },
+        {
+          "name": "signed-i64-type-erasure",
+          "language": "text",
+          "sourceDigest": "sha256:78d5e78d245e02ab4aa81f31503c5cd67af11c80275616e07b04b5cfb375c83c",
+          "metrics": {
+            "utf8Bytes": 83,
+            "codePoints": 83,
+            "nonWhitespaceCodePoints": 75,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "fixed-output-shortcut",
+          "language": "text",
+          "sourceDigest": "sha256:29ec9a705f0d313deec3572f65604908722b92869f6652bfea974a55e04e252d",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 58,
             "lines": 1,
             "surfaceLexemes": 10
           }

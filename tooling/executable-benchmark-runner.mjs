@@ -1649,6 +1649,18 @@ function protocol(context, workload = undefined) {
   const runScope = context.nativeBenchmark
     ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
     : "Test-only run observations cover the direct target process; descendants are not aggregated.";
+  const argumentContract = processEntry ? processArgumentOracleFor(workload.id) : undefined;
+  const argumentCaseLabels = argumentContract?.cases?.map((testCase) => {
+    if (testCase.arguments.length === 0) return "no-argument";
+    if (testCase.arguments.length === 1 && testCase.arguments[0] === "") return "empty-argument";
+    if (testCase.arguments.length === 1 && testCase.arguments[0] === "payload") return "payload";
+    return `${testCase.arguments.length}-argument`;
+  }) ?? [];
+  const argumentCases = argumentCaseLabels.length > 1
+    ? `${argumentCaseLabels.slice(0, -1).join(", ")} and ${argumentCaseLabels.at(-1)}`
+    : argumentCaseLabels[0];
+  const timedVector = argumentContract?.timedInput ?? [];
+  const timedVectorText = `[${timedVector.join(", ")}]`;
   return {
     warmupMinimum: 1,
     rawMinimum: 9,
@@ -1660,7 +1672,7 @@ function protocol(context, workload = undefined) {
     order: "compile-series-then-run-series",
     measurementKernel: context.nativeBenchmark?.abi ?? "bun-direct-test/1",
     resourceScope: processEntry
-      ? `${compileScope} ${runScope} Correctness executes the no-argument, empty-argument and payload cases before timing; runtime samples use the pinned [payload] vector.`
+      ? `${compileScope} ${runScope} Correctness executes the ${argumentCases} cases before timing; runtime samples use the pinned ${timedVectorText} vector.`
       : `${compileScope} ${runScope}`,
     knownNoiseControls: processEntry
       ? ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order", "pinned-runtime-vector", "correctness-before-timing"]

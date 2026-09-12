@@ -10,7 +10,8 @@ Neither bundle produces a language or product-runtime result.
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
-`process-entry`, `process-enum-payload`, `process-handler-lifecycle`, seventeen
+`process-entry`, `process-enum-payload`, `process-arguments-count`,
+`process-handler-lifecycle`, seventeen
 source-backed Restaurant workloads, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 and the `restaurant-enum-switch` witness also have public `w build` Release
@@ -98,7 +99,8 @@ identifies a user-visible workload and its complete executable path.
 `integration-linkage` identifies a composite that links implementation pieces
 for integration evidence. `transient-internal` identifies an ephemeral
 execution descriptor or implementation witness. Hello, Restaurant,
-`process-entry`, and `process-enum-payload` workloads use `public-end-to-end`.
+`process-entry`, `process-enum-payload`, and `process-arguments-count` workloads
+use `public-end-to-end`.
 `process-handler-lifecycle` uses `integration-linkage`,
 and its private execution descriptor uses `transient-internal`. The field
 identifies the measured subject or intended subject. It does not identify
@@ -161,6 +163,17 @@ while only `[payload]` is timed. Its exact oracle is `enum-missing true\n` with
 exit `7` for no arguments and `enum-received false\n` with exit `0` for either
 argument case, always with empty stderr. Runtime input flows through functions,
 enum payloads, branches, and interpolation; scalar replacement is permitted.
+
+#### Public process-arguments-count executable measurements
+
+The `process-arguments-count` workload is the full public executable path for
+`Arguments.count`. Invoke the runner with `--target process-arguments-count`.
+It is a `public-end-to-end` workload, not a linkage or transient-internal lane.
+Correctness executes zero user arguments, one empty user argument, and two
+ordinary user arguments before timing. Each case must print
+`Argument count N\n`, exit `0`, and write no stderr. The timed vector is
+`[alpha, beta]`. W, C23, and Rust 2024 use the same Windows x64 MSVC target and
+the shared release profiles.
 
 #### Private process-handler lifecycle executable measurements
 

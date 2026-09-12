@@ -40,6 +40,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-composition",
   "process-entry",
   "process-enum-payload",
+  "process-arguments-count",
   "process-handler-lifecycle",
 ]);
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
@@ -63,6 +64,7 @@ const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
 const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
   "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
+  "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -94,6 +96,20 @@ export const PROCESS_ENUM_PAYLOAD_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
   Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
 ]);
+export const PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID = "process-arguments-count";
+export const PROCESS_ARGUMENTS_COUNT_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
+export const PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS = "process-arguments-count-release";
+export const PROCESS_ARGUMENTS_COUNT_TIMED_INPUT = Object.freeze(["alpha", "beta"]);
+export const PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS = Object.freeze([
+  Object.freeze([]),
+  Object.freeze([""]),
+  PROCESS_ARGUMENTS_COUNT_TIMED_INPUT,
+]);
+export const PROCESS_ARGUMENTS_COUNT_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Argument count 0\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Argument count 1\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Argument count 2\n", stderr: "" }),
+]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
     kind: PROCESS_ENTRY_ORACLE_KIND,
@@ -107,10 +123,17 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS,
     cases: PROCESS_ENUM_PAYLOAD_ORACLE_CASES,
   }),
+  [PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID]: Object.freeze({
+    kind: PROCESS_ARGUMENTS_COUNT_ORACLE_KIND,
+    timedInput: PROCESS_ARGUMENTS_COUNT_TIMED_INPUT,
+    correctnessInputs: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS,
+    cases: PROCESS_ARGUMENTS_COUNT_ORACLE_CASES,
+  }),
 });
 export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
+  PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
 ]);
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
@@ -491,6 +514,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
+  if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");
@@ -522,14 +546,15 @@ function checkProcessArgumentOracle(oracle, location, workloadStatus, errors, wo
   }
   if (!exactKeys(oracle, location, ["kind", "status", "timedInput", "cases"], errors)) return;
   if (oracle.kind !== expected.kind) push(errors, location + ".kind must identify argument-dependent process output.");
-  const witnessName = workloadId === PROCESS_ENTRY_WORKLOAD_ID ? "process-entry" : "process-enum-payload";
+  const witnessName = workloadId;
+  const timedInputLabel = `[${expected.timedInput.join(", ")}]`;
   if (oracle.status !== "source-backed") push(errors, location + `.status must be source-backed for the materialized ${witnessName} witness.`);
   if (checkProcessInputVector(oracle.timedInput, location + ".timedInput", errors) &&
       JSON.stringify(oracle.timedInput) !== JSON.stringify(expected.timedInput)) {
-    push(errors, location + ".timedInput must remain the selected [payload] vector.");
+    push(errors, location + `.timedInput must remain the selected ${timedInputLabel} vector.`);
   }
   if (!Array.isArray(oracle.cases) || oracle.cases.length !== expected.cases.length) {
-    push(errors, location + ".cases must contain the no-argument, empty-argument and payload cases.");
+    push(errors, location + ".cases must contain the declared argument/output cases.");
   } else {
     for (const [index, testCase] of oracle.cases.entries()) checkOracleCase(testCase, location + ".cases[" + index + "]", errors);
     if (JSON.stringify(oracle.cases) !== JSON.stringify(expected.cases)) {

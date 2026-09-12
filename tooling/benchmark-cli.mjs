@@ -105,7 +105,7 @@ export function benchmarkUsage() {
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
     "  check",
     "",
-    "Run measures one selected source with its catalog oracle. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; process-entry uses its argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
+    "Run measures one selected source with its catalog oracle. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; only process-handler-lifecycle retains its private GCC/MinGW composite. Rust uses rustc edition 2024 for the MSVC ABI. W uses the public w build Release source-to-PE candidate for workloads that declare that recipe; public process argument workloads, including process-entry, use their argument-dependent oracle; process-handler-lifecycle remains contextual/non-ranking; public-w-run targets require retained-artifact and separate compile-run support.",
   ].join("\n");
 }
 

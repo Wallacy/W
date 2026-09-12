@@ -966,6 +966,7 @@ typedef struct {
   uint32_t context_symbol_index;
   uint32_t exit_code_symbol_index;
   uint32_t is_empty_symbol_index;
+  uint32_t count_symbol_index;
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
 } mlir0_process_emit_context;
@@ -1719,7 +1720,7 @@ static bool program_plan_append_value(mlir0_program_plan *plan,
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->type_index >= program->type_count) return false;
   const w_seed_hir0_type_kind type = program->types[value->type_index].kind;
-  if (type == W_SEED_HIR0_TYPE_I64) {
+  if (type == W_SEED_HIR0_TYPE_I64 || type == W_SEED_HIR0_TYPE_USIZE) {
     plan->actions[plan->action_count] =
         (mlir0_dynamic_action){MLIR0_DYNAMIC_I64, 0u, 0u, value_index};
   } else if (type == W_SEED_HIR0_TYPE_BOOL) {
@@ -1916,9 +1917,18 @@ static bool append_program_value_tree(
   if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
     if (process == NULL || function_index != process->function_index ||
         value->external_module_index != 0u ||
-        value->external_symbol_index != process->is_empty_symbol_index ||
-        !text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u) ||
         value->left_value >= program->value_count ||
+        value->type_index >= program->type_count)
+      return false;
+    const bool is_empty =
+        value->external_symbol_index == process->is_empty_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+        text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u);
+    const bool is_count =
+        value->external_symbol_index == process->count_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+        text_is(program, value->member_name, (const uint8_t *)"count", 5u);
+    if ((!is_empty && !is_count) ||
         !append_program_value_tree(
             program, value->left_value, function_index, process, emitted,
             artifact, capacity, offset, depth + 1u) ||
@@ -1926,12 +1936,15 @@ static bool append_program_value_tree(
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(
             artifact, capacity, offset,
-            " = llvm.call @w_seed_process_arguments_is_empty(") ||
+            " = llvm.call @w_seed_process_arguments_") ||
+        !append_literal(artifact, capacity, offset,
+                        is_empty ? "is_empty(" : "count(") ||
         !append_program_value_operand(program, value->left_value,
                                       function_index, process, artifact,
                                       capacity, offset) ||
         !append_literal(artifact, capacity, offset,
-                        ") : (!llvm.ptr) -> i1\n"))
+                        is_empty ? ") : (!llvm.ptr) -> i1\n"
+                                  : ") : (!llvm.ptr) -> i64\n"))
       return false;
     emitted[value_index] = true;
     return true;
@@ -2495,6 +2508,7 @@ static const char *program_type_name(const w_seed_hir0_program *program,
     return NULL;
   }
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_USIZE) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM) {
     uint32_t carrier_width = 0u;
@@ -3445,6 +3459,14 @@ static const char MLIR0_PROCESS_EXECUTABLE_HELPERS4[] =
     "    %empty = llvm.icmp \"eq\" %count, %zero : i64\n"
     "    llvm.return %empty : i1\n"
     "  }\n"
+    "  llvm.func internal @w_seed_process_arguments_count(%arguments: !llvm.ptr) -> i64 {\n"
+    "    %root_pointer_address = llvm.getelementptr %arguments[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %root_pointer = llvm.load %root_pointer_address : !llvm.ptr -> i64\n"
+    "    %root = llvm.inttoptr %root_pointer : i64 to !llvm.ptr\n"
+    "    %count_address = llvm.getelementptr %root[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+    "    %count = llvm.load %count_address : !llvm.ptr -> i64\n"
+    "    llvm.return %count : i64\n"
+    "  }\n"
     "  llvm.func internal @w_seed_process_context_drop(%context: !llvm.ptr) -> i1 {\n";
 
 static const char MLIR0_PROCESS_EXECUTABLE_HELPERS5[] =
@@ -3577,6 +3599,7 @@ static bool build_process_executable_artifact(
       .context_symbol_index = selection->context_symbol_index,
       .exit_code_symbol_index = selection->exit_code_symbol_index,
       .is_empty_symbol_index = selection->is_empty_symbol_index,
+      .count_symbol_index = selection->count_symbol_index,
       .success_symbol_index = selection->success_symbol_index,
       .failure_symbol_index = selection->failure_symbol_index};
   size_t offset = 0u;

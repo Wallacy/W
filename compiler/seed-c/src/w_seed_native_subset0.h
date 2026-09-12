@@ -113,6 +113,7 @@ typedef struct {
   uint32_t context_symbol_index;
   uint32_t exit_code_symbol_index;
   uint32_t is_empty_symbol_index;
+  uint32_t count_symbol_index;
   uint32_t success_symbol_index;
   uint32_t failure_symbol_index;
   uint32_t arguments_parameter_ordinal;

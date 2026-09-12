@@ -5805,6 +5805,100 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir26-process-arguments-count",
+      "reviewItem": "bounded public `Arguments.count` identity and ownership against source-name recognition, owner escape, fixed output, and signed-type erasure",
+      "decisions": [
+        "W-1565"
+      ],
+      "task": "Preserve logical usize identity and the exact process Arguments receiver through verified HIR26 before lowering the bounded Windows x86_64 count read.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "import {",
+          "  Arguments as ProcessArguments,",
+          "  Context as ProcessContext,",
+          "  ExitCode as ProcessExitCode,",
+          "} from std.process",
+          "async fn run(args: ProcessArguments, ctx: ProcessContext): ProcessExitCode {",
+          "  print(\"Argument count ${args.count}\")",
+          "  return .success",
+          "}",
+          "entry(run)"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "source-member-recognition",
+          "language": "text",
+          "source": [
+            "recognize the text args.count without the resolver-owned module, symbol, type, and receiver records"
+          ],
+          "expectedDifference": "The selected route requires the exact external identity and actual process-entry Arguments owner."
+        },
+        {
+          "name": "signed-i64-type-erasure",
+          "language": "text",
+          "source": [
+            "represent std.process.Arguments.count as logical signed i64 before target selection"
+          ],
+          "expectedDifference": "HIR26 preserves target-width unsigned usize; only the verified x86_64 physical lowering uses i64."
+        },
+        {
+          "name": "fixed-output-shortcut",
+          "language": "text",
+          "source": [
+            "print Argument count 0 independently of the process argument vector"
+          ],
+          "expectedDifference": "One built PE observes zero, empty, ordinary multiple, and 256 user arguments with different exact output."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_external_member_value_ok",
+          "claim": "HIR26 admits only the exact dot member, resolver-owned count identity, logical usize type, and actual Arguments entry receiver."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "process_value_lowerable",
+          "claim": "NativeSubset0 permits the scalar count read while rejecting raw Arguments and Context value escape."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "MLIR0_PROCESS_EXECUTABLE_HELPERS4",
+          "claim": "The Windows x86_64 artifact helper loads the already-validated process-root count without allocation or rescan."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_process_arguments_count_hir",
+          "claim": "Focused HIR tests cover positive aliases and adversarial identity, type, receiver, operator, and owner-flow relations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_process_arguments_count_public_artifact",
+          "claim": "Native0 proves a logical usize count reaches a physical x86_64 MLIR load and interpolation path."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "processArgumentsCountFixture",
+          "claim": "The pinned Windows gate builds once and executes exact zero, empty, two, and 256-argument cases."
+        }
+      ],
+      "checks": [
+        "the public process catalog is exactly seven symbols and count remains ordinal six",
+        "HIR26 carries a distinct logical usize type after local enum types",
+        "only an exact dot member on the actual Arguments entry owner is accepted",
+        "raw Arguments and Context values cannot bind, pass, enter payloads, or return",
+        "the Windows x86_64 helper loads the process-root count and the same PE produces input-dependent exact output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

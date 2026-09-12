@@ -259,7 +259,7 @@ typedef struct {
   /* The catalog is compiler-owned; these records are attached only when the
    * typed module scanner resolves the exact std.process import. */
   w_seed_frontend_external_parameter process_external_parameters[1];
-  w_seed_frontend_external_symbol process_external_symbols[6];
+  w_seed_frontend_external_symbol process_external_symbols[7];
   w_seed_frontend_external_module process_external_modules[1];
   w_seed_frontend_resolved_import process_resolved_imports[1];
   uint8_t const_bytes[W_SEED_NATIVE0_MAX_SOURCE_BYTES];
