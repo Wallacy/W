@@ -46,8 +46,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | process-handler-lifecycle | w | Windows x64 / MinGW | 20992 B (20.5 KiB) | 1.1450499 s | — | — | — | — |
 | restaurant-branch | rust | Windows x64 / MSVC | 114688 B (112.0 KiB) | 1.4136568 s | — | — | — | — |
 | restaurant-branch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 202.5762 ms | — | — | — | — |
-| restaurant-enum-switch | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.2204827 s | — | — | — | — |
-| restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | — | — | — | — |
+| restaurant-enum-switch | c | Windows x64 / MSVC | 9216 B (9.0 KiB) | 131.7933 ms | 18.2041 ms | 19.4882 ms | 4833280 B (4.61 MiB) | 13.304 ms |
+| restaurant-enum-switch | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.0803393 s | 17.9777 ms | 18.3868 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | 17.0056 ms | 18.0383 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-while | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.0761812 s | — | — | — | — |
 | restaurant-while | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 180.1453 ms | — | — | — | — |
 
