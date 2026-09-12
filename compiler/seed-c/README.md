@@ -37,14 +37,17 @@ status for every warmup and sample. Caller-owned samples are committed only
 after the Job Object is empty and both readers have joined; timeout, capture
 overflow, and oracle failure leave the sample array unchanged.
 
-The API reports root CPU and peak working set separately from aggregate Job CPU
-and peak committed memory. Peak Job commit is deliberately not called RSS.
+The ABI v2 API reports user/kernel/total CPU for the root separately from the
+aggregate Job CPU, plus root peak working set and Job peak committed memory.
+Peak Job commit is deliberately not called RSS. Zero warmups are valid for a
+caller that owns warmup and measured series separately.
 `cli/native_benchmark.c` exposes the same boundary as one compact JSON receipt
 with raw samples plus min, median, nearest-rank P95, and arithmetic mean. Run
 `bun check --target benchmark` for a temporary Clang C23 build and adversarial
-integration test. The executable catalog still needs a schema/runner migration
-before these receipts become authoritative published measurements; Linux and
-macOS adapters remain future work.
+integration test. The executable runner consumes these receipts for production
+runtime measurements and binds the C sources into its runner digest. Bun still
+orchestrates compilation, publication, and cleanup. Linux and macOS adapters
+remain future work.
 
 ## Limite de medição BMD1
 

@@ -99,8 +99,9 @@ never written.
 The `benchmark` check also builds the C23 native measurement kernel in a
 temporary directory and verifies its Windows QPC/Job Object receipt. This
 closes the bounded native measurement primitive, including exact raw-stream
-oracles and process-tree lifetime; Bun remains the catalog orchestrator and
-the current result schema has not yet adopted the native receipt.
+oracles and process-tree lifetime. Bun remains the catalog orchestrator, while
+production runtime warmup/sample series are sourced from the native receipt;
+compile series remain Bun-orchestrated direct-child observations.
 `bun check --target compiler` executa uma vez os gates do compilador seed,
 ACQ0, OWN0, MAN0, HIR0, HLO0, HLO1 e do `w run` público bounded. O RUN0
 interno permanece um gate focal separado (`bun check --target run0`). Os leaves

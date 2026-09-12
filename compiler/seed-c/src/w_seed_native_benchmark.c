@@ -463,10 +463,11 @@ static bool job_accounting(HANDLE job,
   return true;
 }
 
-static bool job_cpu_time_ns(
+static bool job_cpu_times_ns(
     const JOBOBJECT_BASIC_ACCOUNTING_INFORMATION *basic,
-    uint64_t *value_out) {
-  if (basic == NULL || value_out == NULL || basic->TotalUserTime.QuadPart < 0 ||
+    uint64_t *user_out, uint64_t *kernel_out, uint64_t *total_out) {
+  if (basic == NULL || user_out == NULL || kernel_out == NULL ||
+      total_out == NULL || basic->TotalUserTime.QuadPart < 0 ||
       basic->TotalKernelTime.QuadPart < 0)
     return false;
   const uint64_t user_units = (uint64_t)basic->TotalUserTime.QuadPart;
@@ -474,7 +475,9 @@ static bool job_cpu_time_ns(
   if (user_units > UINT64_MAX - kernel_units ||
       user_units + kernel_units > UINT64_MAX / 100u)
     return false;
-  *value_out = (user_units + kernel_units) * 100u;
+  *user_out = user_units * 100u;
+  *kernel_out = kernel_units * 100u;
+  *total_out = (user_units + kernel_units) * 100u;
   return true;
 }
 
@@ -550,7 +553,7 @@ static native_benchmark_one_result run_one(
   wchar_t mutable_command_line[W_SEED_NATIVE_BENCHMARK_MAX_COMMAND_LINE_CHARS +
                                1u];
   STARTUPINFOW startup = {0};
-  w_seed_native_benchmark_sample sample = {0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u};
+  w_seed_native_benchmark_sample sample = {0};
   native_benchmark_one_result outcome =
       one_failure(W_SEED_NATIVE_BENCHMARK_PROCESS, ERROR_SUCCESS);
   DWORD exit_code = 0u;
@@ -679,16 +682,21 @@ static native_benchmark_one_result run_one(
   if (!GetProcessMemoryInfo(process_information.hProcess, &memory_counters,
                             (DWORD)sizeof(memory_counters)))
     goto metrics_failure;
-  if (!job_cpu_time_ns(&job_accounting_information,
-                       &sample.job_cpu_time_ns))
+  if (!job_cpu_times_ns(&job_accounting_information,
+                        &sample.job_user_cpu_time_ns,
+                        &sample.job_kernel_cpu_time_ns,
+                        &sample.job_cpu_time_ns))
     goto metrics_failure;
   const uint64_t direct_kernel_units = filetime_units(kernel_time);
   const uint64_t direct_user_units = filetime_units(user_time);
   if (direct_kernel_units > UINT64_MAX - direct_user_units ||
       direct_kernel_units + direct_user_units > UINT64_MAX / 100u)
     goto metrics_failure;
+  sample.direct_process_user_cpu_time_ns = direct_user_units * 100u;
+  sample.direct_process_kernel_cpu_time_ns = direct_kernel_units * 100u;
   sample.direct_process_cpu_time_ns =
-      (direct_kernel_units + direct_user_units) * 100u;
+      sample.direct_process_user_cpu_time_ns +
+      sample.direct_process_kernel_cpu_time_ns;
   sample.peak_direct_working_set_bytes =
       (uint64_t)memory_counters.PeakWorkingSetSize;
   sample.peak_job_commit_bytes =
@@ -833,7 +841,6 @@ static w_seed_native_benchmark_status validate_config(
   if (result_publishable_out != NULL) *result_publishable_out = true;
   if (config->argument_count > W_SEED_NATIVE_BENCHMARK_MAX_ARGUMENTS ||
       (config->argument_count != 0u && config->arguments == NULL) ||
-      config->warmup_count == 0u ||
       config->warmup_count > W_SEED_NATIVE_BENCHMARK_MAX_SAMPLES ||
       config->sample_count == 0u ||
       config->sample_count > W_SEED_NATIVE_BENCHMARK_MAX_SAMPLES ||

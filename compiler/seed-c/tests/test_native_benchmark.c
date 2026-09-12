@@ -83,6 +83,12 @@ static bool test_measurement_and_oracle(const wchar_t *path) {
         result.failed_sample_index == UINT32_MAX);
   for (size_t index = 0u; index < 3u; index += 1u) {
     CHECK(samples[index].wall_time_ns != 0u);
+    CHECK(samples[index].direct_process_cpu_time_ns ==
+          samples[index].direct_process_user_cpu_time_ns +
+              samples[index].direct_process_kernel_cpu_time_ns);
+    CHECK(samples[index].job_cpu_time_ns ==
+          samples[index].job_user_cpu_time_ns +
+              samples[index].job_kernel_cpu_time_ns);
     CHECK(samples[index].exit_code == 23u);
     CHECK(samples[index].stdout_bytes == sizeof(expected_stdout) - 1u);
     CHECK(samples[index].stderr_bytes == sizeof(expected_stderr) - 1u);
@@ -102,7 +108,7 @@ static bool test_literal_argument_quoting(const wchar_t *path) {
   uint8_t stderr_buffer[16];
   w_seed_native_benchmark_sample sample;
   const w_seed_native_benchmark_config config = config_for(
-      path, arguments, 4u, 1u, 1u, 10000u, stdout_buffer,
+      path, arguments, 4u, 0u, 1u, 10000u, stdout_buffer,
       sizeof(stdout_buffer), stderr_buffer, sizeof(stderr_buffer), true, 0u,
       expected_stdout, sizeof(expected_stdout) - 1u, NULL, 0u);
   w_seed_native_benchmark_result result;
@@ -126,7 +132,7 @@ static bool test_oracle_mismatch(const wchar_t *path) {
       sizeof(stdout_buffer), stderr_buffer, sizeof(stderr_buffer), true, 23u,
       wrong_stdout, sizeof(wrong_stdout) - 1u, NULL, 0u);
   w_seed_native_benchmark_sample before = {
-      11u, 12u, 13u, 14u, 15u, 16u, 17u, 18u};
+      11u, 12u, 13u, 14u, 15u, 16u, 17u, 18u, 19u, 20u, 21u, 22u};
   w_seed_native_benchmark_sample sample = before;
   w_seed_native_benchmark_result result;
   CHECK(w_seed_native_benchmark_run(&config, &sample, &result) ==
@@ -241,7 +247,7 @@ static bool test_timeout_and_tree_deadline(const wchar_t *path) {
   uint8_t stdout_buffer[64];
   uint8_t stderr_buffer[64];
   w_seed_native_benchmark_sample before = {
-      21u, 22u, 23u, 24u, 25u, 26u, 27u, 28u};
+      21u, 22u, 23u, 24u, 25u, 26u, 27u, 28u, 29u, 30u, 31u, 32u};
   w_seed_native_benchmark_sample sample = before;
   w_seed_native_benchmark_config config = config_for(
       path, hang_arguments, 1u, 1u, 1u, 50u, stdout_buffer,
@@ -272,7 +278,7 @@ static bool test_capture_overflow_preserves_samples(const wchar_t *path) {
   uint8_t stdout_buffer[16];
   uint8_t stderr_buffer[16];
   w_seed_native_benchmark_sample before = {
-      31u, 32u, 33u, 34u, 35u, 36u, 37u, 38u};
+      31u, 32u, 33u, 34u, 35u, 36u, 37u, 38u, 39u, 40u, 41u, 42u};
   w_seed_native_benchmark_sample sample = before;
   const w_seed_native_benchmark_config config = config_for(
       path, arguments, 1u, 1u, 1u, 1000u, stdout_buffer,

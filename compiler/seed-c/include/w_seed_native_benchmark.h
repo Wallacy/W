@@ -13,7 +13,7 @@ extern "C" {
 /* This is a bounded, caller-owned measurement adapter. It launches one fresh
  * child for every warmup and sample. It is not the executable benchmark
  * catalog publisher and it does not write an artifact or result file. */
-#define W_SEED_NATIVE_BENCHMARK_ABI_VERSION "w-seed-native-benchmark-1"
+#define W_SEED_NATIVE_BENCHMARK_ABI_VERSION "w-seed-native-benchmark-2"
 
 /* The limits are deliberately small enough to make all staging storage
  * bounded and predictable. CreateProcessW accepts at most 32,767 command-line
@@ -51,7 +51,11 @@ typedef enum {
  * Object peak committed memory, not an RSS value. */
 typedef struct {
   uint64_t wall_time_ns;
+  uint64_t direct_process_user_cpu_time_ns;
+  uint64_t direct_process_kernel_cpu_time_ns;
   uint64_t direct_process_cpu_time_ns;
+  uint64_t job_user_cpu_time_ns;
+  uint64_t job_kernel_cpu_time_ns;
   uint64_t job_cpu_time_ns;
   uint64_t peak_direct_working_set_bytes;
   uint64_t peak_job_commit_bytes;
