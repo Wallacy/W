@@ -39,6 +39,7 @@ enum {
   W_SEED_NATIVE0_ENUM_CASES = 64,
   W_SEED_NATIVE0_ENUM_CASE_PARAMETERS = 128,
   W_SEED_NATIVE0_SWITCH_ARMS = 128,
+  W_SEED_NATIVE0_PATTERN_CAPTURES = 128,
   W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS = 128,
   W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES = 128,
   W_SEED_NATIVE0_TYPES = 32,
@@ -72,6 +73,7 @@ enum {
   W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_SWITCH_EDGES = W_SEED_NATIVE0_SWITCH_ARMS,
+  W_SEED_NATIVE0_HIR_SWITCH_CAPTURES = W_SEED_NATIVE0_PATTERN_CAPTURES,
   W_SEED_NATIVE0_HIR_TERMINATORS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_INSTRUCTIONS = 128,
   W_SEED_NATIVE0_HIR_BINDINGS = 128,
@@ -115,6 +117,7 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_ENUM_CASES <= UINT32_MAX &&
                    W_SEED_NATIVE0_ENUM_CASE_PARAMETERS <= UINT32_MAX &&
                    W_SEED_NATIVE0_SWITCH_ARMS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_PATTERN_CAPTURES <= UINT32_MAX &&
                    W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS <= UINT32_MAX &&
                    W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES <= UINT32_MAX &&
                    W_SEED_NATIVE0_TYPES <= UINT32_MAX &&
@@ -224,6 +227,7 @@ typedef struct {
   w_seed_frontend_enum_case_parameter
       enum_case_parameters[W_SEED_NATIVE0_ENUM_CASE_PARAMETERS];
   w_seed_frontend_switch_arm switch_arms[W_SEED_NATIVE0_SWITCH_ARMS];
+  w_seed_frontend_pattern_capture pattern_captures[W_SEED_NATIVE0_PATTERN_CAPTURES];
   w_seed_frontend_enum_subset_member
       enum_subset_members[W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS];
   w_seed_frontend_enum_membership_case
@@ -280,6 +284,8 @@ typedef struct {
       hir_edge_arguments[W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS];
   w_seed_hir0_switch_edge
       hir_switch_edges[W_SEED_NATIVE0_HIR_SWITCH_EDGES];
+  w_seed_hir0_switch_capture
+      hir_switch_captures[W_SEED_NATIVE0_HIR_SWITCH_CAPTURES];
   w_seed_hir0_instruction hir_instructions[W_SEED_NATIVE0_HIR_INSTRUCTIONS];
   w_seed_hir0_binding hir_bindings[W_SEED_NATIVE0_HIR_BINDINGS];
   w_seed_hir0_call hir_calls[W_SEED_NATIVE0_HIR_CALLS];

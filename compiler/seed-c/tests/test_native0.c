@@ -366,6 +366,25 @@ static bool test_enum_frontend_storage(void) {
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa7u);
   CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);
+
+  static const uint8_t capture_source[] =
+      "enum Course { starter main(price: i64, tax: i64) }\n"
+      "fn bill(course: Course): i64 { return switch course { "
+      "case .main(tax: let fee, price: let amount): amount + fee "
+      "case .starter: 10 } }\n"
+      "entry { let order: Course = .main(tax: 2, price: 30) "
+      "let total = bill(course: order) }\n";
+  CHECK(run_source(capture_source, sizeof(capture_source) - 1u,
+                   "enum-capture", 12u, output, sizeof(output), &result) ==
+        W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
+        storage.hir_program.switch_capture_count == 2u &&
+        storage.hir_switch_captures[0].parameter_ordinal == 1u &&
+        storage.hir_switch_captures[1].parameter_ordinal == 0u &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xa7u);
+  CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);
   return true;
 }
 
