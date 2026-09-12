@@ -220,7 +220,10 @@ test("process-enum-payload catalog pins the promoted tagged-union contract", () 
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "dispatch");
   assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
-  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID), false);
+  const liveMetrics = documents.catalog.bestMetrics.entries.filter((entry) => entry.workloadId === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID);
+  assert.deepEqual(Object.fromEntries(
+    ["c", "rust", "w"].map((language) => [language, liveMetrics.filter((entry) => entry.language === language).length]),
+  ), { c: 6, rust: 6, w: 6 });
 });
 
 test("process-enum-payload C and Rust variants retain independent runtime enum paths", () => {
