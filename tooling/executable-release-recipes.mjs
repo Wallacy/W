@@ -27,6 +27,7 @@ export const CLANG_RELEASE_FLAGS = Object.freeze([
   "-ffunction-sections",
   "-fdata-sections",
   "-fuse-ld=lld",
+  "-fms-runtime-lib=dll",
   "-Wl,/Brepro",
   "-Wl,/OPT:REF",
   "-Wl,/OPT:ICF",

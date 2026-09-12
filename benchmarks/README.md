@@ -30,7 +30,8 @@ stdout/stderr. A local
 `executable-result` retains correctness artifact facts, one warmup, and an odd
 set of at least nine raw compile samples and 101 raw fresh-process run samples
 by default; summaries are derived from those samples. P95 uses nearest rank.
-Bun's native CPU microseconds and RSS bytes are preserved, including an
+The live catalog still preserves Bun's direct-child CPU microseconds and RSS
+bytes, including an
 explicit disclosure when CPU samples are zero. CPU best cells use the
 arithmetic mean across 101 runs because short Windows processes are charged in
 coarse scheduler quanta; a median can remain zero even when work occurred.
@@ -47,6 +48,20 @@ complete timing. Recorded measurement evidence is `exploratory`,
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
+
+The replacement measurement kernel is implemented in C23 under
+`compiler/seed-c`. On Windows it launches every warmup and sample as a fresh
+process inside a kill-on-close Job Object, uses QPC and one deadline for the
+complete process tree, drains bounded raw stdout/stderr concurrently, checks
+the exact oracle on every run, and publishes caller-owned samples only after
+the job is empty. Its JSON receipt separates root-process CPU/peak working set
+from aggregate Job CPU/peak committed memory; Job commit is not mislabeled as
+RSS. `bun check --target benchmark` builds it with Clang C23 in a temporary
+directory, exercises quoting, timeout, descendant completion, capture
+overflow, oracle failure, and all-or-nothing publication, validates the
+receipt, and deletes the build. Bun remains the catalog orchestrator until the
+result schema consumes these receipts; existing live timing cells remain
+direct-child evidence and are not silently reclassified.
 
 Each workload declares one machine-checked `structureClass`. `public-end-to-end`
 identifies a user-visible workload and its complete executable path.
@@ -142,13 +157,13 @@ warmup, nine odd compile samples, and 101 odd fresh-process run samples by
 default. `--compile-samples`, `--run-samples`, or the shared `--samples` alias
 may override the bounded odd counts. Public C requires Clang with final
 `-std=c23` support and the MSVC target; its portable release recipe uses O3,
-full LTO, per-function/data sections, LLD dead-code/identical-code folding, no
-CodeView/PDB data or COFF symbol table, and only payload-free REPRO metadata.
-The larger C artifacts for numeric Restaurant workloads are a reachable-runtime
-effect, not missing section GC: integer `printf` formatting pulls additional
-UCRT conversion/output objects that `/OPT:REF` cannot discard. Replacing that
-with custom formatting or a dynamic-runtime recipe would be a different
-implementation or distribution lane and must not silently replace this one.
+full LTO, per-function/data sections, LLD dead-code/identical-code folding,
+the MSVC DLL runtime, no CodeView/PDB data or COFF symbol table, and only
+payload-free REPRO metadata. `-fms-runtime-lib=dll` is material: without it
+Clang links the static UCRT and a trivial PE grows even when section GC works.
+The DLL-runtime artifact is not a self-contained distribution-size comparison
+with CRT-free W, so runtime dependencies remain part of artifact policy and
+provenance.
 Rust records its rustc release,
 edition 2024 and MSVC ABI; its portable release recipe uses O3, fat LTO, one
 codegen unit, panic abort, dead-code elimination, `/OPT:REF`, `/OPT:ICF`, and
@@ -197,7 +212,7 @@ build/w-windows/w.exe build benchmarks/executable/restaurant-enum.w --target x86
 The equivalent portable comparison recipes are:
 
 ```powershell
-clang -std=c23 -O3 -flto=full -ffunction-sections -fdata-sections -fuse-ld=lld -Wl,/Brepro -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
+clang -std=c23 -O3 -flto=full -ffunction-sections -fdata-sections -fuse-ld=lld -fms-runtime-lib=dll -Wl,/Brepro -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
 & build/manual-benchmark/restaurant-enum-c.exe
 rustc benchmarks/executable/restaurant_enum.rs --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE --target=x86_64-pc-windows-msvc -o build/manual-benchmark/restaurant-enum-rust.exe
 & build/manual-benchmark/restaurant-enum-rust.exe

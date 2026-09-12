@@ -73,7 +73,7 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.deepEqual(C_RELEASE_FLAGS, ["-O3", "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", "-s"]);
   assert.equal(C_WHOLE_PROGRAM_FLAG, "-fwhole-program");
   assert.equal(CLANG_C_TARGET, "x86_64-pc-windows-msvc");
-  assert.deepEqual(CLANG_RELEASE_FLAGS, ["-O3", "-flto=full", "-ffunction-sections", "-fdata-sections", "-fuse-ld=lld", "-Wl,/Brepro", "-Wl,/OPT:REF", "-Wl,/OPT:ICF", "-Wl,/INCREMENTAL:NO", "-Wl,/DEBUG:NONE"]);
+  assert.deepEqual(CLANG_RELEASE_FLAGS, ["-O3", "-flto=full", "-ffunction-sections", "-fdata-sections", "-fuse-ld=lld", "-fms-runtime-lib=dll", "-Wl,/Brepro", "-Wl,/OPT:REF", "-Wl,/OPT:ICF", "-Wl,/INCREMENTAL:NO", "-Wl,/DEBUG:NONE"]);
   assert.deepEqual(cReleaseFlags(), C_RELEASE_FLAGS);
   assert.deepEqual(cReleaseFlags({ wholeProgram: true }), [...C_RELEASE_FLAGS, C_WHOLE_PROGRAM_FLAG]);
   assert.equal(NATIVE_RECIPE_PROFILE, "release-native");

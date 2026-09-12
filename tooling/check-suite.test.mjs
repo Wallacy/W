@@ -86,7 +86,7 @@ describe("check-suite manifest", () => {
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-studies" })).toHaveLength(33);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-quick" })).toHaveLength(9);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-compiler" })).toHaveLength(26);
-    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-benchmark" })).toHaveLength(2);
+    expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "root-benchmark" })).toHaveLength(3);
     expect(flattenCheckSuite({ suites: loaded.suites, suiteName: "tree-check" })).toHaveLength(112);
 
     const isWRun = (step) =>
