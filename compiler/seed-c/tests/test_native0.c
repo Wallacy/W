@@ -335,7 +335,9 @@ static bool test_enum_frontend_storage(void) {
   CHECK(memcmp(&result, &hir_result_snapshot, sizeof(result)) == 0);
 
   static const uint8_t payload_source[] =
-      "enum Marker { clear flagged(code: i64) }\nentry { }\n";
+      "enum Marker { clear flagged(code: i64) }\n"
+      "fn mark(code: i64): Marker { return .flagged(code: code) }\n"
+      "entry { }\n";
   (void)memset(output, 0xa7u, sizeof(output));
   (void)memset(&result, 0x7au, sizeof(result));
   const w_seed_native0_result payload_result_snapshot = result;
@@ -347,13 +349,20 @@ static bool test_enum_frontend_storage(void) {
         storage.hir_program.enum_count == 1u &&
         storage.hir_program.enum_case_count == 2u &&
         storage.hir_program.enum_case_parameter_count == 1u &&
+        storage.hir_program.enum_payload_count == 1u &&
         storage.hir_program.enum_cases[0].payload_count == 0u &&
         storage.hir_program.enum_cases[1].first_payload == 0u &&
         storage.hir_program.enum_cases[1].payload_count == 1u &&
         storage.hir_program.enum_case_parameters[0].owner_case == 1u &&
         storage.hir_program.enum_case_parameters[0].type_index == 2u &&
+        storage.hir_program.enum_payloads[0].owner_value == 1u &&
+        storage.hir_program.enum_payloads[0].ordinal == 0u &&
+        storage.hir_program.enum_payloads[0].parameter_ordinal == 0u &&
+        storage.hir_program.values[1].kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+        storage.hir_program.values[1].first_enum_payload == 0u &&
+        storage.hir_program.values[1].enum_payload_count == 1u &&
         w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
-  /* Payload declarations reach verified HIR; MLIR layout is still closed. */
+  /* Payload declarations and values reach HIR; MLIR layout is still closed. */
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa7u);
   CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);

@@ -15,6 +15,16 @@ gate são etapas de design, não categorias de disponibilidade. O product inclui
 somente o grafo alcançável e diagnostica um módulo indisponível no compile ou no
 link.
 
+Os contratos seguem uma disciplina enum-first: estados exclusivos, eventos,
+comandos, resultados, políticas e erros usam sums fechados com payload por case.
+Structs representam dados simultâneos; objects aparecem somente quando
+identidade e lifecycle compartilhado são parte do contrato. Novos módulos não
+devem introduzir uma tag manual, boolean soup ou opcionais mutuamente exclusivos
+quando um enum torna os estados inválidos irrepresentáveis. Isso é uma regra de
+modelagem e revisão, não uma alegação automática de performance; layout mínimo,
+niche use, case reachability e binary size continuam medidos nos gates
+apropriados.
+
 ## Estrutura inicial
 
 ```text
