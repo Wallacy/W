@@ -333,7 +333,7 @@
           "additionalProperties": false,
           "required": ["presence", "sizeBytes", "entries"],
           "properties": {
-            "presence": { "enum": ["absent", "pogo-only"] },
+            "presence": { "enum": ["absent", "pogo-only", "repro-only"] },
             "sizeBytes": { "$ref": "#/$defs/decimal" },
             "entries": {
               "type": "array",
@@ -343,9 +343,9 @@
                 "additionalProperties": false,
                 "required": ["type", "typeCode", "sizeBytes"],
                 "properties": {
-                  "type": { "const": "pogo" },
-                  "typeCode": { "const": 13 },
-                  "sizeBytes": { "$ref": "#/$defs/positiveDecimal" }
+                  "type": { "enum": ["pogo", "repro"] },
+                  "typeCode": { "enum": [13, 16] },
+                  "sizeBytes": { "$ref": "#/$defs/decimal" }
                 }
               }
             }

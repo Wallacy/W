@@ -855,8 +855,8 @@ function checkArtifactCleanliness(cleanliness, name, errors) {
   }
   const debug = cleanliness.debugDirectory;
   if (exactKeys(debug, `${name}.debugDirectory`, ["presence", "sizeBytes", "entries"], errors)) {
-    if (debug.presence !== "absent" && debug.presence !== "pogo-only") {
-      push(errors, `${name}.debugDirectory.presence must be absent or pogo-only.`);
+    if (debug.presence !== "absent" && debug.presence !== "pogo-only" && debug.presence !== "repro-only") {
+      push(errors, `${name}.debugDirectory.presence must be absent, pogo-only or repro-only.`);
     }
     const expectedDirectorySize = Array.isArray(debug.entries) ? String(debug.entries.length * 28) : undefined;
     if (!Array.isArray(debug.entries)) {
@@ -865,8 +865,9 @@ function checkArtifactCleanliness(cleanliness, name, errors) {
       for (const [index, entry] of debug.entries.entries()) {
         const entryName = `${name}.debugDirectory.entries[${index}]`;
         if (!exactKeys(entry, entryName, ["type", "typeCode", "sizeBytes"], errors)) continue;
-        if (entry.type !== "pogo" || entry.typeCode !== 13) push(errors, `${entryName} must be POGO type 13.`);
-        positiveDecimal(entry.sizeBytes, `${entryName}.sizeBytes`, errors);
+        const pogo = entry.type === "pogo" && entry.typeCode === 13 && typeof entry.sizeBytes === "string" && /^[1-9][0-9]*$/u.test(entry.sizeBytes);
+        const repro = entry.type === "repro" && entry.typeCode === 16 && entry.sizeBytes === "0";
+        if (!pogo && !repro) push(errors, `${entryName} must be POGO type 13 with a positive payload or REPRO type 16 with no payload.`);
       }
     }
     if (debug.presence === "absent" && (debug.sizeBytes !== "0" || debug.entries?.length !== 0)) {
@@ -874,6 +875,12 @@ function checkArtifactCleanliness(cleanliness, name, errors) {
     }
     if (debug.presence === "pogo-only" && (debug.entries?.length < 1 || debug.sizeBytes !== expectedDirectorySize)) {
       push(errors, `${name}.debugDirectory pogo-only form must contain only bounded 28-byte POGO entries.`);
+    }
+    if (debug.presence === "repro-only" && (debug.entries?.length !== 1 || debug.sizeBytes !== "28" || debug.entries.some((entry) => entry.type !== "repro"))) {
+      push(errors, `${name}.debugDirectory repro-only form must contain exactly one payload-free 28-byte REPRO entry.`);
+    }
+    if (debug.presence === "pogo-only" && debug.entries?.some((entry) => entry.type !== "pogo")) {
+      push(errors, `${name}.debugDirectory pogo-only form must not contain other entry types.`);
     }
   }
   for (const [field, keys] of [

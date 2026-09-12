@@ -75,12 +75,13 @@ are removed after each run.
 C, Rust and W retained correctness artifacts are checked by a bounded in-process
 PE32+ verifier: COFF symbols, CodeView/PDB data, certificate directories,
 out-of-bounds sections, overlay bytes and release sidecars fail closed. A
-POGO-only debug directory is accepted and measured as linker optimization
-metadata, not source-level debug symbols. This cleanliness statement applies
+POGO-only debug directories and payload-free PE `REPRO` markers are accepted
+as linker optimization/reproducibility metadata, not source-level debug
+symbols. This cleanliness statement applies
 only to new results produced by the current runner. New runner-bound records
 carry `artifact.cleanliness` with exact zero counts for COFF symbols, CodeView
-entries, sidecars and overlay bytes plus bounded POGO entries and payload sizes
-when present. Migrated best cells are explicitly historical/unverified
+entries, sidecars and overlay bytes plus bounded POGO or REPRO entries and
+payload sizes when present. Migrated best cells are explicitly historical/unverified
 cleanliness and are not current clean-run evidence.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
 remains exploratory and measurement-only. W remains contextual/non-ranking
@@ -141,8 +142,9 @@ warmup, nine odd compile samples, and 101 odd fresh-process run samples by
 default. `--compile-samples`, `--run-samples`, or the shared `--samples` alias
 may override the bounded odd counts. Public C requires Clang with final
 `-std=c23` support and the MSVC target; its portable release recipe uses O3,
-full LTO, per-function/data sections, LLD dead-code/identical-code folding, and
-no debug directory or COFF symbol table. Rust records its rustc release,
+full LTO, per-function/data sections, LLD dead-code/identical-code folding, no
+CodeView/PDB data or COFF symbol table, and only payload-free REPRO metadata.
+Rust records its rustc release,
 edition 2024 and MSVC ABI; its portable release recipe uses O3, fat LTO, one
 codegen unit, panic abort, dead-code elimination, `/OPT:REF`, `/OPT:ICF`, and
 stripped symbols. The public W build Release route uses

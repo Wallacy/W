@@ -111,6 +111,7 @@ const PE_SECTION_HEADER_SIZE = 40;
 const PE_DEBUG_DIRECTORY_ENTRY_SIZE = 28;
 const PE_DEBUG_TYPE_CODEVIEW = 2;
 const PE_DEBUG_TYPE_POGO = 13;
+const PE_DEBUG_TYPE_REPRO = 16;
 export const EXECUTABLE_CHILD_TIMEOUT_MS = 120_000;
 export const EXECUTABLE_CHILD_KILL_SIGNAL = "SIGKILL";
 const EXECUTABLE_TIMEOUT_STATUS = `Bun.spawnSync enforces a ${EXECUTABLE_CHILD_TIMEOUT_MS} ms per-direct-child timeout and sends ${EXECUTABLE_CHILD_KILL_SIGNAL}; descendant termination is not guaranteed without a Windows Job Object, and timed-out children abort the run without publishing a partial result`;
@@ -1164,14 +1165,36 @@ function parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language) {
   }
   const directory = peRvaRange(bytes, sections, debugRva, debugSize, "PE debug directory", language);
   const entries = [];
+  let directoryType;
   for (let index = 0; index < debugSize / PE_DEBUG_DIRECTORY_ENTRY_SIZE; index += 1) {
     const entry = directory.offset + index * PE_DEBUG_DIRECTORY_ENTRY_SIZE;
+    const characteristics = peUInt32(bytes, entry, `PE debug directory entry ${index}`, language);
+    const majorVersion = peUInt16(bytes, entry + 8, `PE debug directory entry ${index}`, language);
+    const minorVersion = peUInt16(bytes, entry + 10, `PE debug directory entry ${index}`, language);
     const typeCode = peUInt32(bytes, entry + 12, `PE debug directory entry ${index}`, language);
     const sizeOfData = peUInt32(bytes, entry + 16, `PE debug directory entry ${index}`, language);
     const addressOfRawData = peUInt32(bytes, entry + 20, `PE debug directory entry ${index}`, language);
     const pointerToRawData = peUInt32(bytes, entry + 24, `PE debug directory entry ${index}`, language);
     if (typeCode === PE_DEBUG_TYPE_CODEVIEW) fail(`${language} artifact contains CodeView debug data`);
-    if (typeCode !== PE_DEBUG_TYPE_POGO) fail(`${language} artifact contains unsupported PE debug data type ${typeCode}`);
+    if (typeCode !== PE_DEBUG_TYPE_POGO && typeCode !== PE_DEBUG_TYPE_REPRO) {
+      fail(`${language} artifact contains unsupported PE debug data type ${typeCode}`);
+    }
+    const entryType = typeCode === PE_DEBUG_TYPE_POGO ? "pogo" : "repro";
+    if (directoryType !== undefined && directoryType !== entryType) {
+      fail(`${language} artifact mixes PE debug metadata types`);
+    }
+    directoryType = entryType;
+    if (characteristics !== 0 || majorVersion !== 0 || minorVersion !== 0) {
+      fail(`${language} artifact has an invalid ${entryType.toUpperCase()} debug directory entry`);
+    }
+    if (typeCode === PE_DEBUG_TYPE_REPRO) {
+      if (entries.length !== 0) fail(`${language} artifact contains duplicate REPRO debug markers`);
+      if (sizeOfData !== 0 || pointerToRawData !== 0 || addressOfRawData !== 0) {
+        fail(`${language} artifact has an invalid REPRO debug marker`);
+      }
+      entries.push({ type: "repro", typeCode: PE_DEBUG_TYPE_REPRO, sizeBytes: "0" });
+      continue;
+    }
     if (sizeOfData === 0 || pointerToRawData === 0 || addressOfRawData === 0) {
       fail(`${language} artifact has an invalid POGO debug payload`);
     }
@@ -1180,7 +1203,7 @@ function parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language) {
     if (payload.offset !== pointerToRawData) fail(`${language} artifact has mismatched POGO debug payload pointers`);
     entries.push({ type: "pogo", typeCode: PE_DEBUG_TYPE_POGO, sizeBytes: String(sizeOfData) });
   }
-  return { presence: "pogo-only", sizeBytes: String(debugSize), entries };
+  return { presence: `${directoryType}-only`, sizeBytes: String(debugSize), entries };
 }
 
 export function validatePeX64(bytes, language = "w") {
