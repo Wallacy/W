@@ -1492,6 +1492,8 @@ static bool test_enum_values_constructors_and_switches(void) {
         memcmp(values->arguments[1].label.data, "from", 4) == 0);
   CHECK(values->arguments[2].label.length == 2 &&
         memcmp(values->arguments[2].label.data, "to", 2) == 0);
+  CHECK(values->arguments[1].resolved_parameter_ordinal == 0u &&
+        values->arguments[2].resolved_parameter_ordinal == 1u);
   CHECK(fixture_run(values,
                     "enum Stage { ready }\n"
                     "fn value(): Stage { return .ready }\n"));
@@ -1502,20 +1504,10 @@ static bool test_enum_values_constructors_and_switches(void) {
                     "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
                     "fn f(from: Stage, to: Stage): DomainError { "
                     "return .invalidTransition(to: to, from: from) }\n"));
-  CHECK(values->result.status == W_SEED_FRONTEND_DIAGNOSTICS);
-  CHECK(has_diagnostic(values, "W-LABEL-0005"));
-  CHECK(!has_diagnostic(values, "W-PATTERN-0002"));
-  const w_seed_frontend_diagnostic *reversed_label =
-      diagnostic_for_code(values, "W-LABEL-0005");
-  static const char *const from_form[] = {"from"};
-  CHECK(reversed_label != NULL && reversed_label->fact_count == 3u &&
-        reversed_label->label_count == 0u &&
-        diagnostic_record_ranges_are_valid(values, reversed_label));
-  CHECK(diagnostic_fact_array_is(values, reversed_label, 0u, "acceptedForms",
-                                 from_form, 1u));
-  CHECK(diagnostic_fact_string_is(values, reversed_label, 1u, "declaration",
-                                  "invalidTransition"));
-  CHECK(diagnostic_fact_string_is(values, reversed_label, 2u, "label", "to"));
+  CHECK(values->result.status == W_SEED_FRONTEND_OK &&
+        values->result.written.arguments == 2u &&
+        values->arguments[0].resolved_parameter_ordinal == 1u &&
+        values->arguments[1].resolved_parameter_ordinal == 0u);
   CHECK(fixture_run(values,
                     "enum Stage { accepted reserving preparing }\n"
                     "enum DomainError { invalidTransition(from: Stage, to: Stage) }\n"
@@ -2611,7 +2603,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-19") &&
+                         "w-seed-frontend-20") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2650,8 +2642,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-19\n",
-                         strlen("schema=w-seed-frontend-19\n")));
+        receipt_contains(value, "schema=w-seed-frontend-20\n",
+                         strlen("schema=w-seed-frontend-20\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5086,7 +5078,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-19") &&
+                         "w-seed-frontend-20") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
