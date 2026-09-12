@@ -697,6 +697,19 @@ static native_benchmark_one_result run_one(
   sample.direct_process_cpu_time_ns =
       sample.direct_process_user_cpu_time_ns +
       sample.direct_process_kernel_cpu_time_ns;
+  /* Windows may expose the final root FILETIME before the Job accounting
+   * snapshot has converged after ActiveProcesses reaches zero. A process tree
+   * necessarily includes its root, so fuse the root counters as lower bounds
+   * instead of publishing an impossible aggregate smaller than its member. */
+  if (sample.job_user_cpu_time_ns < sample.direct_process_user_cpu_time_ns)
+    sample.job_user_cpu_time_ns = sample.direct_process_user_cpu_time_ns;
+  if (sample.job_kernel_cpu_time_ns < sample.direct_process_kernel_cpu_time_ns)
+    sample.job_kernel_cpu_time_ns = sample.direct_process_kernel_cpu_time_ns;
+  if (sample.job_user_cpu_time_ns >
+      UINT64_MAX - sample.job_kernel_cpu_time_ns)
+    goto metrics_failure;
+  sample.job_cpu_time_ns =
+      sample.job_user_cpu_time_ns + sample.job_kernel_cpu_time_ns;
   sample.peak_direct_working_set_bytes =
       (uint64_t)memory_counters.PeakWorkingSetSize;
   sample.peak_job_commit_bytes =

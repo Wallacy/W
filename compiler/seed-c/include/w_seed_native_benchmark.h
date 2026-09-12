@@ -46,7 +46,9 @@ typedef enum {
 /* All values are published only after one child has exited, its Job Object is
  * empty, and both output readers have joined. The direct fields describe the
  * root process only. Job fields include all descendants that stayed in the
- * same containment job. `peak_direct_working_set_bytes` is the direct root's
+ * same containment job and are fused with the final root counters as a lower
+ * bound if Windows Job accounting has not converged after tree exit.
+ * `peak_direct_working_set_bytes` is the direct root's
  * Windows RSS-equivalent peak working set; `peak_job_commit_bytes` is Job
  * Object peak committed memory, not an RSS value. */
 typedef struct {
