@@ -31,6 +31,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-branch-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-branch-mutation-multi | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w) | source-backed | partial-exploratory-ready |
 | process-entry | public-end-to-end | [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | source-backed | exploratory-ready |
+| process-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/process-enum-payload.w), [c](./executable/process_enum_payload.c), [rust](./executable/process_enum_payload.rs) | source-backed | not-performance-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
 
 ## Best values

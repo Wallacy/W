@@ -39,6 +39,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-branch-mutation-multi",
   "restaurant-composition",
   "process-entry",
+  "process-enum-payload",
   "process-handler-lifecycle",
 ]);
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
@@ -61,6 +62,7 @@ export function executableWorkloadHasRunner(workload) {
 const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
 const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
+  "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -78,6 +80,44 @@ export const PROCESS_ENTRY_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: PROCESS_ENTRY_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "received\n", stderr: "" }),
   Object.freeze({ arguments: PROCESS_ENTRY_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "received\n", stderr: "" }),
 ]);
+export const PROCESS_ENUM_PAYLOAD_WORKLOAD_ID = "process-enum-payload";
+export const PROCESS_ENUM_PAYLOAD_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
+export const PROCESS_ENUM_PAYLOAD_RECIPE_CLASS = "process-enum-payload-release";
+export const PROCESS_ENUM_PAYLOAD_TIMED_INPUT = Object.freeze(["payload"]);
+export const PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS = Object.freeze([
+  Object.freeze([]),
+  Object.freeze([""]),
+  PROCESS_ENUM_PAYLOAD_TIMED_INPUT,
+]);
+export const PROCESS_ENUM_PAYLOAD_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[0], exitCode: 7, stdout: "enum-missing true\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "enum-received false\n", stderr: "" }),
+]);
+const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
+  [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
+    kind: PROCESS_ENTRY_ORACLE_KIND,
+    timedInput: PROCESS_ENTRY_TIMED_INPUT,
+    correctnessInputs: PROCESS_ENTRY_CORRECTNESS_INPUTS,
+    cases: PROCESS_ENTRY_ORACLE_CASES,
+  }),
+  [PROCESS_ENUM_PAYLOAD_WORKLOAD_ID]: Object.freeze({
+    kind: PROCESS_ENUM_PAYLOAD_ORACLE_KIND,
+    timedInput: PROCESS_ENUM_PAYLOAD_TIMED_INPUT,
+    correctnessInputs: PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS,
+    cases: PROCESS_ENUM_PAYLOAD_ORACLE_CASES,
+  }),
+});
+export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
+  PROCESS_ENTRY_WORKLOAD_ID,
+  PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
+]);
+export function isProcessArgumentWorkload(workloadId) {
+  return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
+}
+export function processArgumentOracleFor(workloadId) {
+  return PROCESS_ARGUMENT_ORACLE_CONTRACTS[workloadId];
+}
 export const PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID = "process-handler-lifecycle";
 export const PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS = "integration-linkage";
 export const PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS = "transient-internal";
@@ -450,6 +490,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
+  if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");
@@ -473,28 +514,34 @@ function checkOracleCase(testCase, location, errors) {
   if (typeof testCase.stdout !== "string" || typeof testCase.stderr !== "string") push(errors, location + " output must be strings.");
 }
 
-function checkProcessEntryOracle(oracle, location, workloadStatus, errors) {
+function checkProcessArgumentOracle(oracle, location, workloadStatus, errors, workloadId) {
+  const expected = processArgumentOracleFor(workloadId);
+  if (!expected) {
+    push(errors, location + ".kind must identify a supported argument-dependent process workload.");
+    return;
+  }
   if (!exactKeys(oracle, location, ["kind", "status", "timedInput", "cases"], errors)) return;
-  if (oracle.kind !== PROCESS_ENTRY_ORACLE_KIND) push(errors, location + ".kind must identify argument-dependent process output.");
-  if (oracle.status !== "source-backed") push(errors, location + ".status must be source-backed for the materialized process-entry witness.");
+  if (oracle.kind !== expected.kind) push(errors, location + ".kind must identify argument-dependent process output.");
+  const witnessName = workloadId === PROCESS_ENTRY_WORKLOAD_ID ? "process-entry" : "process-enum-payload";
+  if (oracle.status !== "source-backed") push(errors, location + `.status must be source-backed for the materialized ${witnessName} witness.`);
   if (checkProcessInputVector(oracle.timedInput, location + ".timedInput", errors) &&
-      JSON.stringify(oracle.timedInput) !== JSON.stringify(PROCESS_ENTRY_TIMED_INPUT)) {
+      JSON.stringify(oracle.timedInput) !== JSON.stringify(expected.timedInput)) {
     push(errors, location + ".timedInput must remain the selected [payload] vector.");
   }
-  if (!Array.isArray(oracle.cases) || oracle.cases.length !== PROCESS_ENTRY_ORACLE_CASES.length) {
+  if (!Array.isArray(oracle.cases) || oracle.cases.length !== expected.cases.length) {
     push(errors, location + ".cases must contain the no-argument, empty-argument and payload cases.");
   } else {
     for (const [index, testCase] of oracle.cases.entries()) checkOracleCase(testCase, location + ".cases[" + index + "]", errors);
-    if (JSON.stringify(oracle.cases) !== JSON.stringify(PROCESS_ENTRY_ORACLE_CASES)) {
-      push(errors, location + ".cases must preserve the fixed process-entry input/output contract.");
+    if (JSON.stringify(oracle.cases) !== JSON.stringify(expected.cases)) {
+      push(errors, location + `.cases must preserve the fixed ${witnessName} input/output contract.`);
     }
   }
   if (workloadStatus === "source-oracle-ready" && oracle.status !== "source-backed") push(errors, location + " must be source-backed for a ready workload.");
 }
 
 function checkOracle(oracle, location, workloadStatus, errors, workloadId) {
-  if (workloadId === PROCESS_ENTRY_WORKLOAD_ID) {
-    checkProcessEntryOracle(oracle, location, workloadStatus, errors);
+  if (isProcessArgumentWorkload(workloadId)) {
+    checkProcessArgumentOracle(oracle, location, workloadStatus, errors, workloadId);
     return;
   }
   if (!exactKeys(oracle, location, ["kind", "status", "exitCode", "stdout", "stderr"], errors)) return;
@@ -1004,10 +1051,11 @@ function checkArtifactCleanliness(cleanliness, name, errors) {
   if (cleanliness.sectionData !== "in-bounds") push(errors, `${name}.sectionData must be in-bounds.`);
 }
 
-function checkProcessEntryCorrectness(correctness, workload, name, errors) {
+function checkProcessArgumentCorrectness(correctness, workload, name, errors) {
   if (!exactKeys(correctness, name, ["oracleId", "cases"], errors)) return;
   requiredString(correctness.oracleId, name + ".oracleId", errors);
-  if (workload && correctness.oracleId !== `${workload.id}:${PROCESS_ENTRY_ORACLE_KIND}`) {
+  const expectedOracleKind = processArgumentOracleFor(workload?.id)?.kind;
+  if (workload && correctness.oracleId !== `${workload.id}:${expectedOracleKind}`) {
     push(errors, name + ".oracleId must identify the workload argument-dependent output oracle.");
   }
   const oracleCases = workload?.oracle?.cases;
@@ -1072,8 +1120,8 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
       : result.identity.recipe !== source?.recipe || result.identity.recipeClass !== source?.recipeClass || result.identity.eligibility !== source?.eligibility || result.identity.platformTarget !== source?.platformTarget || result.identity.artifactTarget !== source?.artifactTarget;
     if (source && identityMismatch) push(errors, "executable result identity must match catalog target, recipe, recipe class and eligibility.");
   }
-  if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID) {
-    checkProcessEntryCorrectness(result.correctness, workload, "executable result.correctness", errors);
+  if (isProcessArgumentWorkload(workload?.id)) {
+    checkProcessArgumentCorrectness(result.correctness, workload, "executable result.correctness", errors);
   } else if (exactKeys(result.correctness, "executable result.correctness", ["oracleId", "exitCode", "stdoutDigest", "stderrDigest"], errors)) {
     requiredString(result.correctness.oracleId, "executable result.correctness.oracleId", errors);
     if (workload && result.correctness.oracleId !== `${workload.id}:exact-output`) push(errors, "executable result.correctness.oracleId must identify the workload exact-output oracle.");

@@ -56,6 +56,9 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-entry", "--language", "rust"]), {
     target: "process-entry", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
+  assert.deepEqual(parseBenchmarkArguments(["--target", "process-enum-payload", "--language", "rust"]), {
+    target: "process-enum-payload", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
+  });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
 });
@@ -321,10 +324,13 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
       }
       return { exitCode: 0, stdout: Buffer.alloc(0), stderr: Buffer.alloc(0), resourceUsage: fakeResourceUsage() };
     }
-    if (target === "process-entry") {
+    if (target === "process-entry" || target === "process-enum-payload") {
+      const enumPayload = target === "process-enum-payload";
       return {
-        exitCode: args.length === 0 ? 2 : 0,
-        stdout: Buffer.from(args.length === 0 ? "missing\n" : "received\n", "utf8"),
+        exitCode: args.length === 0 ? enumPayload ? 7 : 2 : 0,
+        stdout: Buffer.from(args.length === 0
+          ? enumPayload ? "enum-missing true\n" : "missing\n"
+          : enumPayload ? "enum-received false\n" : "received\n", "utf8"),
         stderr: Buffer.alloc(0),
         resourceUsage: fakeResourceUsage(),
       };
@@ -374,12 +380,16 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
     if (args.length === 0) {
       return target === "process-entry"
         ? result(2, Buffer.from("missing\n", "utf8"))
+        : target === "process-enum-payload"
+        ? result(7, Buffer.from("enum-missing true\n", "utf8"))
         : result(0, Buffer.from(target === "restaurant-branch" ? "Kitchen open\nAfter service\nKitchen closed\nAfter service\n" : "Hello, world!\n", "utf8"));
     }
     if (command === publicW.executable && args[0] === "build") {
       const source = target === "restaurant-branch"
         ? "compiler/seed-c/fixtures/restaurant-if.w"
-        : target === "process-entry" ? "compiler/seed-c/fixtures/process-input0.w" : "benchmarks/executable/hello.w";
+        : target === "process-entry" ? "compiler/seed-c/fixtures/process-input0.w"
+        : target === "process-enum-payload" ? "compiler/seed-c/fixtures/process-enum-payload.w"
+        : "benchmarks/executable/hello.w";
       assert.deepEqual(args.slice(0, 6), ["build", path.resolve(source), "--target", "x86_64-pc-windows-msvc", "--output", args[5]]);
       const output = args[5];
       sampleDirectories.add(options.cwd);
@@ -387,8 +397,12 @@ function fakeWRunnerExecutor(target, { symbolSidecar = false, peOptions = {} } =
       if (symbolSidecar) await writeFile(output.replace(/\.exe$/iu, ".pdb"), Buffer.from("debug symbols", "utf8"));
       return result(0);
     }
-    if (target === "process-entry") {
-      return result(args.length === 0 ? 2 : 0, Buffer.from(args.length === 0 ? "missing\n" : "received\n", "utf8"));
+    if (target === "process-entry" || target === "process-enum-payload") {
+      const enumPayload = target === "process-enum-payload";
+      return result(args.length === 0 ? enumPayload ? 7 : 2 : 0,
+        Buffer.from(args.length === 0
+          ? enumPayload ? "enum-missing true\n" : "missing\n"
+          : enumPayload ? "enum-received false\n" : "received\n", "utf8"));
     }
     throw new Error(`unexpected fake W executor invocation: ${command} ${args.join(" ")}`);
   };
@@ -633,6 +647,42 @@ test("process-entry checks every argument case before timing and pins the payloa
   assert.equal(runtimeCalls.length, 13, "W must run three correctness cases and ten timed payload cases");
   assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
   assert.equal(record.correctness.oracleId, "process-entry:argument-dependent-output");
+  assertNoFakeSampleDirectories(fake);
+});
+
+test("process-enum-payload checks every argument case before timing and pins the payload run", async () => {
+  for (const language of ["c", "rust"]) {
+    const fake = fakeRunnerExecutor({ language, target: "process-enum-payload" });
+    const { record } = await runBenchmark({ target: "process-enum-payload", language, warmup: 1, samples: 9, publish: false }, fakeRunnerDependencies(language, fake));
+    const runtimeCalls = fake.calls.filter((call) => path.extname(call.command).toLowerCase() === ".exe" && !call.args.includes("-o") && call.command !== fake.compiler);
+    assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["payload"]]);
+    assert.equal(runtimeCalls.length, 13, `${language} must run three correctness cases and ten timed payload cases`);
+    assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
+    assert.equal(record.correctness.oracleId, "process-enum-payload:argument-dependent-output");
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.arguments), [[], [""], ["payload"]]);
+    assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
+    assert.match(record.protocol.resourceScope, /no-argument, empty-argument and payload cases before timing/u);
+    assertNoFakeSampleDirectories(fake);
+  }
+
+  const fake = fakeWRunnerExecutor("process-enum-payload");
+  const { record } = await runBenchmark({ target: "process-enum-payload", language: "w", warmup: 1, samples: 9, publish: false }, {
+    executor: fake.executor,
+    commit: TEST_COMMIT,
+    environment: TEST_ENVIRONMENT,
+    runnerDigest: TEST_DIGEST,
+    catalogDigest: TEST_DIGEST,
+    testOnly: true,
+    testOnlyPlatform: { platform: "win32", arch: "x64" },
+    windowsToolchain: fake.windowsToolchain,
+    buildPublicW: async () => fake.publicW,
+  });
+  const runtimeCalls = fake.calls.filter((call) => call.command !== fake.publicW.executable && path.extname(call.command).toLowerCase() === ".exe");
+  assert.deepEqual(runtimeCalls.slice(0, 3).map((call) => call.args), [[], [""], ["payload"]]);
+  assert.equal(runtimeCalls.length, 13, "W must run three correctness cases and ten timed payload cases");
+  assert.ok(runtimeCalls.slice(3).every((call) => call.args.length === 1 && call.args[0] === "payload"));
+  assert.equal(record.correctness.oracleId, "process-enum-payload:argument-dependent-output");
+  assert.deepEqual(record.correctness.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
   assertNoFakeSampleDirectories(fake);
 });
 
