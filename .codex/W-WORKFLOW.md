@@ -117,8 +117,13 @@ public executable must register that exact source and oracle in the executable
 benchmark catalog in the same bundle. Compiler-lifecycle correctness evidence
 and executable-catalog evidence are cumulative. The catalog may defer timing
 or cross-language ranking only with explicit blockers, but it may not defer
-source/oracle registration. The executable benchmark checker must reject a
-public runnable fixture that has no catalog owner.
+source/oracle registration. A newly added or extended surface that can already
+complete the public source-to-artifact route on a supported host, and for which
+the executable runner exists, must also publish its initial live measurement in
+the same bundle. Deferring that first measurement requires a concrete missing
+toolchain, platform, runner, or semantic-equivalence blocker. The executable
+benchmark checker must reject a public runnable fixture that has no catalog
+owner.
 
 For a WBench/1 result, use `kind: result` and link the validation-oracle digest
 to later samples. The record includes raw samples, warmup, stop rule,
