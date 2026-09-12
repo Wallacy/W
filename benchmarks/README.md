@@ -153,12 +153,19 @@ claimed until a validated measurement runs.
 #### Private process-handler lifecycle executable measurements
 
 The W-1546 `process-handler-lifecycle` workload is a separate executable-catalog lane.
+After cleanup, configure its private W handler build before benchmarking:
+
+```sh
+cmake -S compiler/seed-c -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=gcc
+```
+
+This bootstrap is outside the measurements. The runner builds its gate target.
 Run `bun benchmark run --target process-handler-lifecycle --language w|c|rust`. Each
 private composite combines its handler with the shared C harness and PROCESS0
-provider;
+provider.
 The private lane is not a compatibility alias for the public `process-entry`
 workload.
-correctness checks cover empty and nonempty caller-selected CRT byte vectors
+Correctness checks cover empty and nonempty caller-selected CRT byte vectors
 plus six fault cases before timing, and only successful `[alpha,payload]` is
 timed. The handler receives `Arguments` and `Context` values but does not read
 the arguments. The timed vector tests provider construction and handler
