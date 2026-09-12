@@ -17,6 +17,7 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_MAX_DIAGNOSTIC_FACTS 8u
 #define FRONTEND_MAX_DIAGNOSTIC_ITEMS 4096u
 #define FRONTEND_MAX_DIAGNOSTIC_LABELS 8u
+#define FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES 64u
 #define FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX 128u
 #define FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS \
   (W_SEED_FRONTEND_MAX_CST_NODES * 2u)
@@ -117,6 +118,7 @@ typedef struct {
   size_t enum_cases;
   size_t enum_case_parameters;
   size_t switch_arms;
+  size_t pattern_captures;
   size_t enum_subset_members;
   size_t enum_membership_cases;
   size_t generic_parameters;
@@ -166,6 +168,12 @@ typedef struct {
   w_seed_frontend_text name;
   w_seed_span span;
 } frontend_enum_subset_item;
+
+typedef struct {
+  w_seed_frontend_text name;
+  frontend_simple_type type;
+  uint32_t capture_index;
+} frontend_active_pattern_capture;
 
 /* The D7 solver keeps only the compact scalar metadata that is needed while
  * the dry and emit passes normalize the same source.  Type indices are
@@ -217,6 +225,9 @@ typedef struct {
   size_t const_document_bases[W_SEED_FRONTEND_MAX_DOCUMENTS];
   size_t const_total_count;
   bool const_inference_complete;
+  frontend_active_pattern_capture
+      active_pattern_captures[FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES];
+  size_t active_pattern_capture_count;
 } frontend_context;
 
 /* These arrays are temporary per-thread inference workspace.  Each measure or
@@ -3568,6 +3579,30 @@ static bool receipt_size_switch_arm(
          receipt_size_span(context, value->span) &&
          receipt_size_literal(context, "|supported=") &&
          receipt_size_size(context, value->supported ? 1u : 0u) &&
+         receipt_size_literal(context, "|first-capture=") &&
+         receipt_size_size(context, value->first_capture) &&
+         receipt_size_literal(context, "|capture-count=") &&
+         receipt_size_size(context, value->capture_count) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_pattern_capture(
+    frontend_context *context,
+    const w_seed_frontend_pattern_capture *value) {
+  return receipt_size_literal(context, "pattern-capture=") &&
+         receipt_size_size(context, value->module_index) &&
+         receipt_size_literal(context, "|owner=") &&
+         receipt_size_size(context, value->owner_switch_arm) &&
+         receipt_size_literal(context, "|ordinal=") &&
+         receipt_size_size(context, value->ordinal) &&
+         receipt_size_literal(context, "|parameter=") &&
+         receipt_size_size(context, value->parameter_ordinal) &&
+         receipt_size_literal(context, "|name=") &&
+         receipt_size_text(context, value->name) &&
+         receipt_size_literal(context, "|span=") &&
+         receipt_size_span(context, value->span) &&
+         receipt_size_literal(context, "|type=") &&
+         receipt_size_size(context, value->type_index) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -4754,6 +4789,7 @@ static bool measure_document(const w_seed_frontend_document *doc,
     if (kind == W_SEED_CST_ENUM_CASE_PARAMETER)
       measure->enum_case_parameters += 1;
     if (kind == W_SEED_CST_SWITCH_ARM) measure->switch_arms += 1;
+    if (kind == W_SEED_CST_CAPTURE_PATTERN) measure->pattern_captures += 1;
     if (kind == W_SEED_CST_TYPE) measure->types += 1;
     if (kind == W_SEED_CST_ARGUMENT) measure->arguments += 1;
     if (kind_is_statement(kind)) measure->statements += 1;
@@ -5021,6 +5057,7 @@ static void counts_from_measure(const frontend_measure *measure,
   counts->enum_cases = measure->enum_cases;
   counts->enum_case_parameters = measure->enum_case_parameters;
   counts->switch_arms = measure->switch_arms;
+  counts->pattern_captures = measure->pattern_captures;
   counts->enum_subset_members = measure->enum_subset_members;
   counts->enum_membership_cases = measure->enum_membership_cases;
   counts->generic_parameters = measure->generic_parameters;
@@ -7443,6 +7480,23 @@ static bool context_append_switch_arm(
       context->emit && context->output != NULL ? context->output->switch_arms
                                                 : NULL,
       context->output == NULL ? 0 : context->output->switch_arm_capacity, index);
+}
+
+static bool context_append_pattern_capture(
+    frontend_context *context, w_seed_frontend_pattern_capture value,
+    uint32_t *index) {
+  const size_t ordinal = context->count.pattern_captures;
+  context->count.pattern_captures += 1u;
+  if (!context->emit && !receipt_size_pattern_capture(context, &value))
+    return false;
+  return context_append_record(
+      context, ordinal, &value, sizeof(value),
+      context->emit && context->output != NULL
+          ? context->output->pattern_captures
+          : NULL,
+      context->output == NULL ? 0u
+                              : context->output->pattern_capture_capacity,
+      index);
 }
 
 static bool context_append_symbol(frontend_context *context,
@@ -10371,6 +10425,12 @@ static frontend_simple_type binding_type_for_name(
     frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
   if (context == NULL) return simple_type_unknown();
+  for (size_t index = context->active_pattern_capture_count; index > 0u;
+       index -= 1u) {
+    const frontend_active_pattern_capture *capture =
+        &context->active_pattern_captures[index - 1u];
+    if (text_equal_text(capture->name, name)) return capture->type;
+  }
   const w_seed_frontend_document *doc = context_document(context);
   if (doc == NULL || context->function_node == NULL) return simple_type_unknown();
   const w_seed_span function_span = context->function_node->raw_span;
@@ -10990,10 +11050,20 @@ static bool expression_append(frontend_expression_parser *parser,
   record.member_name = (w_seed_frontend_text){NULL, 0};
   record.resolved_const_declaration = W_SEED_FRONTEND_NONE;
   record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+  record.resolved_pattern_capture = W_SEED_FRONTEND_NONE;
   record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   record.interpolation_segment_count = 0u;
   record.else_expression = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
+    for (size_t index = parser->context->active_pattern_capture_count;
+         index > 0u; index -= 1u) {
+      const frontend_active_pattern_capture *capture =
+          &parser->context->active_pattern_captures[index - 1u];
+      if (text_equal_text(capture->name, spelling)) {
+        record.resolved_pattern_capture = capture->capture_index;
+        break;
+      }
+    }
     record.resolved_local_ordinal = loop_local_ordinal_for_span(
         parser->context, spelling, span);
   }
@@ -12942,6 +13012,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.resolved_pattern_capture = W_SEED_FRONTEND_NONE;
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
     fallback.else_expression = W_SEED_FRONTEND_NONE;
@@ -12988,6 +13059,7 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.resolved_local_ordinal = W_SEED_FRONTEND_NONE;
     fallback.resolved_const_declaration = W_SEED_FRONTEND_NONE;
     fallback.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+    fallback.resolved_pattern_capture = W_SEED_FRONTEND_NONE;
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
     fallback.else_expression = W_SEED_FRONTEND_NONE;
@@ -13535,6 +13607,169 @@ static bool switch_pattern_names(
   return true;
 }
 
+static w_seed_frontend_text capture_pattern_name(
+    const w_seed_frontend_document *doc, uint32_t capture_node) {
+  if (doc == NULL || capture_node >= doc->parse.node_count)
+    return (w_seed_frontend_text){NULL, 0u};
+  frontend_token_cursor cursor =
+      token_cursor_for(doc, doc->nodes[capture_node].raw_span);
+  frontend_token token;
+  if (!cursor_take(&cursor, &token) || !token_text(doc, &token, "let") ||
+      !cursor_take(&cursor, &token) || token.kind != W_SEED_CST_WORD)
+    return (w_seed_frontend_text){NULL, 0u};
+  return text_from_span(doc, token.span);
+}
+
+static bool normalize_enum_payload_pattern(
+    frontend_context *context, uint32_t pattern_node, uint32_t case_index,
+    uint32_t owner_arm, uint32_t *first_capture, uint32_t *capture_count,
+    bool *supported) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (context == NULL || doc == NULL || first_capture == NULL ||
+      capture_count == NULL || supported == NULL ||
+      pattern_node >= doc->parse.node_count)
+    return false;
+  *first_capture = (uint32_t)context->count.pattern_captures;
+  *capture_count = 0u;
+  const size_t parameter_count = enum_case_parameter_count(context, case_index);
+  const uint32_t payload_node = first_direct_kind(
+      doc, pattern_node, W_SEED_CST_ENUM_PAYLOAD_PATTERN);
+  if (payload_node == W_SEED_CST_NONE) {
+    if (parameter_count != 0u) *supported = false;
+    return true;
+  }
+  if (parameter_count == 0u || parameter_count > 64u) {
+    *supported = false;
+    return true;
+  }
+
+  const bool labeled = count_direct_kind(
+                           doc, payload_node, W_SEED_CST_LABELED_PATTERN) != 0u;
+  bool selected[64] = {false};
+  bool saw_rest = false;
+  size_t positional = 0u;
+  uint32_t cursor = doc->nodes[payload_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    const w_seed_cst_kind child_kind = doc->nodes[child].kind;
+    if (child_kind != W_SEED_CST_CAPTURE_PATTERN &&
+        child_kind != W_SEED_CST_WILDCARD_PATTERN &&
+        child_kind != W_SEED_CST_LABELED_PATTERN &&
+        child_kind != W_SEED_CST_REST_PATTERN) {
+      guard += 1u;
+      continue;
+    }
+    if (child_kind == W_SEED_CST_REST_PATTERN) {
+      if (!labeled || saw_rest) *supported = false;
+      saw_rest = true;
+      guard += 1u;
+      continue;
+    }
+    if (saw_rest || (labeled && child_kind != W_SEED_CST_LABELED_PATTERN) ||
+        (!labeled && child_kind == W_SEED_CST_LABELED_PATTERN)) {
+      *supported = false;
+      guard += 1u;
+      continue;
+    }
+
+    uint32_t atom = child;
+    size_t parameter_ordinal = positional;
+    frontend_simple_type parameter_type = simple_type_unknown();
+    bool label_valid = false;
+    if (labeled) {
+      const w_seed_frontend_text label =
+          first_word_in_span(doc, doc->nodes[child].raw_span);
+      bool found = false;
+      for (size_t candidate = 0u; candidate < parameter_count; candidate += 1u) {
+        bool candidate_valid = false;
+        bool previous = false;
+        frontend_simple_type candidate_type = simple_type_unknown();
+        if (enum_case_argument_expected(context, case_index, candidate, label,
+                                        &candidate_type, &candidate_valid,
+                                        &previous) &&
+            candidate_valid) {
+          parameter_ordinal = candidate;
+          parameter_type = candidate_type;
+          label_valid = true;
+          found = true;
+          break;
+        }
+      }
+      atom = first_direct_kind(doc, child, W_SEED_CST_CAPTURE_PATTERN);
+      if (atom == W_SEED_CST_NONE)
+        atom = first_direct_kind(doc, child, W_SEED_CST_WILDCARD_PATTERN);
+      if (!found || atom == W_SEED_CST_NONE) *supported = false;
+    } else {
+      bool previous = false;
+      if (parameter_ordinal >= parameter_count ||
+          !enum_case_argument_expected(
+              context, case_index, parameter_ordinal,
+              (w_seed_frontend_text){NULL, 0u}, &parameter_type,
+              &label_valid, &previous) ||
+          !label_valid) {
+        *supported = false;
+      }
+      positional += 1u;
+    }
+    if (parameter_ordinal >= parameter_count || selected[parameter_ordinal]) {
+      *supported = false;
+      guard += 1u;
+      continue;
+    }
+    selected[parameter_ordinal] = true;
+
+    if (atom != W_SEED_CST_NONE &&
+        doc->nodes[atom].kind == W_SEED_CST_CAPTURE_PATTERN) {
+      const w_seed_frontend_text name = capture_pattern_name(doc, atom);
+      uint32_t type_index = W_SEED_FRONTEND_NONE;
+      if (name.length == 0u || parameter_type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
+          !parameter_type.is_signed || parameter_type.bit_width != 64u ||
+          !output_type_index_for_simple(context, parameter_type, &type_index) ||
+          type_index == W_SEED_FRONTEND_NONE) {
+        *supported = false;
+        guard += 1u;
+        continue;
+      }
+      for (size_t prior = 0u; prior < *capture_count; prior += 1u) {
+        const frontend_active_pattern_capture *active =
+            &context->active_pattern_captures[
+                context->active_pattern_capture_count - *capture_count + prior];
+        if (text_equal_text(active->name, name)) *supported = false;
+      }
+      if (context->active_pattern_capture_count >=
+          FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES) {
+        *supported = false;
+        guard += 1u;
+        continue;
+      }
+      w_seed_frontend_pattern_capture capture = {
+          (uint32_t)context->module_index,
+          owner_arm,
+          *capture_count,
+          (uint32_t)parameter_ordinal,
+          name,
+          doc->nodes[atom].raw_span,
+          type_index,
+      };
+      uint32_t capture_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_pattern_capture(context, capture, &capture_index))
+        return false;
+      context->active_pattern_captures[context->active_pattern_capture_count] =
+          (frontend_active_pattern_capture){name, parameter_type, capture_index};
+      context->active_pattern_capture_count += 1u;
+      *capture_count += 1u;
+    }
+    guard += 1u;
+  }
+  if ((!labeled && positional != parameter_count) ||
+      (labeled && !saw_rest)) {
+    for (size_t index = 0u; index < parameter_count; index += 1u)
+      if (!selected[index]) *supported = false;
+  }
+  return true;
+}
+
 static bool normalize_switch_expression(
     frontend_context *context, uint32_t switch_node,
     uint32_t *expression_index, frontend_simple_type expected,
@@ -13589,6 +13824,7 @@ static bool normalize_switch_expression(
   switch_record.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
   switch_record.resolved_function_index = W_SEED_FRONTEND_NONE;
   switch_record.resolved_binding_statement = W_SEED_FRONTEND_NONE;
+  switch_record.resolved_pattern_capture = W_SEED_FRONTEND_NONE;
   switch_record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   switch_record.interpolation_segment_count = 0u;
   switch_record.else_expression = W_SEED_FRONTEND_NONE;
@@ -13741,6 +13977,28 @@ static bool normalize_switch_expression(
       }
     }
 
+    const size_t saved_active_capture_count =
+        context->active_pattern_capture_count;
+    uint32_t arm_first_capture = (uint32_t)context->count.pattern_captures;
+    uint32_t arm_capture_count = 0u;
+    if (pattern_kind == W_SEED_FRONTEND_SWITCH_PATTERN_ENUM_CASE &&
+        arm_case != W_SEED_FRONTEND_NONE && pattern_node != W_SEED_CST_NONE) {
+      if (!normalize_enum_payload_pattern(
+              context, pattern_node, arm_case,
+              (uint32_t)context->count.switch_arms, &arm_first_capture,
+              &arm_capture_count, &arm_supported)) {
+        return false;
+      }
+      if (!arm_supported) {
+        switch_supported = false;
+        patterns_supported = false;
+        (void)context_append_fact(context,
+                                  W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION,
+                                  pattern_span,
+                                  text_from_span(doc, pattern_span));
+      }
+    }
+
     /* Preserve the statement's integer return context for unsuffixed arm
      * literals.  Enum context is still needed for short `.case` values; other
      * arm domains retain the existing join-based inference. */
@@ -13754,8 +14012,10 @@ static bool normalize_switch_expression(
     if (result_node != W_SEED_CST_NONE &&
         !normalize_expression_node(context, result_node, &result_expression,
                                    arm_expected, &arm_type, NULL)) {
+      context->active_pattern_capture_count = saved_active_capture_count;
       return false;
     }
+    context->active_pattern_capture_count = saved_active_capture_count;
     if (context->emit && context->output != NULL &&
         result_expression != W_SEED_FRONTEND_NONE &&
         result_expression < context->count.expressions &&
@@ -13798,6 +14058,8 @@ static bool normalize_switch_expression(
     arm.result_expression = result_expression;
     arm.span = doc->nodes[arm_node].raw_span;
     arm.supported = arm_supported;
+    arm.first_capture = arm_first_capture;
+    arm.capture_count = arm_capture_count;
     uint32_t arm_index = W_SEED_FRONTEND_NONE;
     if (!context_append_switch_arm(context, arm, &arm_index)) return false;
     arm_count += 1;
@@ -14984,19 +15246,35 @@ static bool resolve_frontend_links(frontend_context *context) {
     const w_seed_frontend_function *owner =
         &context->output->functions[expression->owner_function];
     if (expression->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
-      for (uint32_t ordinal = 0; ordinal < owner->parameter_count;
-           ordinal += 1u) {
-        const size_t parameter_index =
-            (size_t)owner->first_parameter + ordinal;
-        if (parameter_index >= context->count.parameters) return false;
-        const w_seed_frontend_parameter *parameter =
-            &context->output->parameters[parameter_index];
-        if (text_equal_text(parameter->name, expression->spelling)) {
-          expression->resolved_parameter_ordinal = ordinal;
-          break;
+      if (expression->resolved_pattern_capture != W_SEED_FRONTEND_NONE) {
+        if ((size_t)expression->resolved_pattern_capture >=
+                context->count.pattern_captures ||
+            context->output->pattern_captures == NULL) {
+          return false;
+        }
+        const w_seed_frontend_pattern_capture *capture =
+            &context->output
+                 ->pattern_captures[expression->resolved_pattern_capture];
+        if (capture->type_index != expression->inferred_type ||
+            !text_equal_text(capture->name, expression->spelling)) {
+          expression->supported = false;
+        }
+      } else {
+        for (uint32_t ordinal = 0; ordinal < owner->parameter_count;
+             ordinal += 1u) {
+          const size_t parameter_index =
+              (size_t)owner->first_parameter + ordinal;
+          if (parameter_index >= context->count.parameters) return false;
+          const w_seed_frontend_parameter *parameter =
+              &context->output->parameters[parameter_index];
+          if (text_equal_text(parameter->name, expression->spelling)) {
+            expression->resolved_parameter_ordinal = ordinal;
+            break;
+          }
         }
       }
-      if (expression->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) {
+      if (expression->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&
+          expression->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE) {
         expression->resolved_binding_statement =
             binding_statement_for_expression(
                 context, expression->owner_function,
@@ -15972,6 +16250,30 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_span(writer, value->span);
       receipt_write_literal(writer, "|supported=");
       receipt_write_size(writer, value->supported ? 1u : 0u);
+      receipt_write_literal(writer, "|first-capture=");
+      receipt_write_size(writer, value->first_capture);
+      receipt_write_literal(writer, "|capture-count=");
+      receipt_write_size(writer, value->capture_count);
+      receipt_write_literal(writer, "\n");
+    }
+    for (size_t index = 0; index < context->count.pattern_captures;
+         index += 1u) {
+      const w_seed_frontend_pattern_capture *value =
+          &output->pattern_captures[index];
+      receipt_write_literal(writer, "pattern-capture=");
+      receipt_write_size(writer, value->module_index);
+      receipt_write_literal(writer, "|owner=");
+      receipt_write_size(writer, value->owner_switch_arm);
+      receipt_write_literal(writer, "|ordinal=");
+      receipt_write_size(writer, value->ordinal);
+      receipt_write_literal(writer, "|parameter=");
+      receipt_write_size(writer, value->parameter_ordinal);
+      receipt_write_literal(writer, "|name=");
+      receipt_write_text(writer, value->name);
+      receipt_write_literal(writer, "|span=");
+      receipt_write_span(writer, value->span);
+      receipt_write_literal(writer, "|type=");
+      receipt_write_size(writer, value->type_index);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.enum_membership_cases;
@@ -16377,6 +16679,8 @@ static bool output_capacity_ok(const w_seed_frontend_output *output,
                      output->argument_capacity) &&
          capacity_ok(required->switch_arms, output->switch_arms,
                      output->switch_arm_capacity) &&
+         capacity_ok(required->pattern_captures, output->pattern_captures,
+                     output->pattern_capture_capacity) &&
          capacity_ok(required->enum_subset_members,
                      output->enum_subset_members,
                      output->enum_subset_member_capacity) &&

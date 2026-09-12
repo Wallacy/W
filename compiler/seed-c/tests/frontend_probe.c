@@ -47,6 +47,7 @@ enum {
   PROBE_INTERPOLATION_SEGMENTS = 262144,
   PROBE_ARGUMENTS = 65536,
   PROBE_SWITCH_ARMS = 65536,
+  PROBE_PATTERN_CAPTURES = 65536,
   PROBE_ENUM_MEMBERSHIP_CASES = 262144,
   PROBE_SYMBOLS = 131072,
   PROBE_FACTS = 131072,
@@ -99,6 +100,7 @@ static w_seed_frontend_interpolation_segment
     interpolation_segments[PROBE_INTERPOLATION_SEGMENTS];
 static w_seed_frontend_argument arguments[PROBE_ARGUMENTS];
 static w_seed_frontend_switch_arm switch_arms[PROBE_SWITCH_ARMS];
+static w_seed_frontend_pattern_capture pattern_captures[PROBE_PATTERN_CAPTURES];
 static w_seed_frontend_enum_membership_case
     enum_membership_cases[PROBE_ENUM_MEMBERSHIP_CASES];
 static w_seed_frontend_symbol symbols[PROBE_SYMBOLS];
@@ -289,6 +291,8 @@ int main(void) {
       .argument_capacity = PROBE_ARGUMENTS,
       .switch_arms = switch_arms,
       .switch_arm_capacity = PROBE_SWITCH_ARMS,
+      .pattern_captures = pattern_captures,
+      .pattern_capture_capacity = PROBE_PATTERN_CAPTURES,
       .enum_membership_cases = enum_membership_cases,
       .enum_membership_case_capacity = PROBE_ENUM_MEMBERSHIP_CASES,
       .entries = entries,
@@ -330,6 +334,7 @@ int main(void) {
                " enums=%" PRIuMAX " enum_cases=%" PRIuMAX
                " enum_case_parameters=%" PRIuMAX
                " switch_arms=%" PRIuMAX
+               " pattern_captures=%" PRIuMAX
                " enum_subset_members=%" PRIuMAX
                " enum_membership_cases=%" PRIuMAX
                " types=%" PRIuMAX " functions=%" PRIuMAX
@@ -358,6 +363,7 @@ int main(void) {
                (uintmax_t)result.written.enum_cases,
                (uintmax_t)result.written.enum_case_parameters,
                (uintmax_t)result.written.switch_arms,
+               (uintmax_t)result.written.pattern_captures,
                (uintmax_t)result.written.enum_subset_members,
                (uintmax_t)result.written.enum_membership_cases,
                (uintmax_t)result.written.types,

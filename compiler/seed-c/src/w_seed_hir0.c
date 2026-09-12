@@ -331,6 +331,7 @@ static bool frontend_counts_equal(const w_seed_frontend_counts *left,
   HIR0_COUNT(enum_cases);
   HIR0_COUNT(enum_case_parameters);
   HIR0_COUNT(switch_arms);
+  HIR0_COUNT(pattern_captures);
   HIR0_COUNT(enum_subset_members);
   HIR0_COUNT(enum_membership_cases);
   HIR0_COUNT(generic_parameters);
@@ -435,6 +436,8 @@ static bool frontend_shape_ok(const w_seed_hir0_input *input) {
   HIR0_FRONTEND_ARRAY(arguments, argument_capacity, w_seed_frontend_argument);
   HIR0_FRONTEND_ARRAY(switch_arms, switch_arm_capacity,
                       w_seed_frontend_switch_arm);
+  HIR0_FRONTEND_ARRAY(pattern_captures, pattern_capture_capacity,
+                      w_seed_frontend_pattern_capture);
   HIR0_FRONTEND_ARRAY(const_bytes, const_bytes_capacity, uint8_t);
 #undef HIR0_FRONTEND_ARRAY
   for (size_t module = 0u;
@@ -1032,6 +1035,7 @@ static bool frontend_value_common_ok(
        ((size_t)value->inferred_type >= input->frontend_result->written.types ||
         !frontend_hir_type_supported(input,
             &input->frontend_output->types[value->inferred_type]))) ||
+      value->resolved_pattern_capture != W_SEED_FRONTEND_NONE ||
       !frontend_span_ok(&input->frontend_input->documents[document_index],
                         value->span))
     return false;
@@ -1055,6 +1059,7 @@ static bool frontend_value_has_no_resolution(
          value->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
          value->resolved_local_ordinal == W_SEED_FRONTEND_NONE &&
          value->resolved_const_declaration == W_SEED_FRONTEND_NONE &&
+         value->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&
          value->member_name.length == 0u && text_valid(value->member_name);
 }
 
@@ -1077,6 +1082,7 @@ static bool frontend_unary_has_no_resolution(
          value->resolved_external_symbol_index == W_SEED_FRONTEND_NONE &&
          value->resolved_local_ordinal == W_SEED_FRONTEND_NONE &&
          value->resolved_const_declaration == W_SEED_FRONTEND_NONE &&
+         value->resolved_pattern_capture == W_SEED_FRONTEND_NONE &&
          value->member_name.length == 0u && text_valid(value->member_name);
 }
 
@@ -3678,6 +3684,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
   if (!frontend_external_process_records_ok(input))
     return HIR0_PREPARE_INVALID;
   if (frontend_result->written.enum_case_parameters != 0u ||
+      frontend_result->written.pattern_captures != 0u ||
       frontend_result->written.enum_subset_members != 0u ||
       frontend_result->written.enum_membership_cases != 0u)
     return HIR0_PREPARE_UNSUPPORTED;
@@ -3701,6 +3708,7 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.diagnostic_items != 0u ||
       frontend_result->written.diagnostic_labels != 0u ||
       frontend_result->written.enum_case_parameters != 0u ||
+      frontend_result->written.pattern_captures != 0u ||
       frontend_result->written.enum_subset_members != 0u ||
       frontend_result->written.enum_membership_cases != 0u ||
       frontend_result->written.generic_parameters != 0u ||
@@ -4078,6 +4086,7 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
   HIR0_INPUT_RANGE(enum_case_parameters, w_seed_frontend_enum_case_parameter);
   HIR0_INPUT_RANGE(const_declarations, w_seed_frontend_const_declaration);
   HIR0_INPUT_RANGE(switch_arms, w_seed_frontend_switch_arm);
+  HIR0_INPUT_RANGE(pattern_captures, w_seed_frontend_pattern_capture);
   HIR0_INPUT_RANGE(enum_subset_members, w_seed_frontend_enum_subset_member);
   HIR0_INPUT_RANGE(enum_membership_cases, w_seed_frontend_enum_membership_case);
   HIR0_INPUT_RANGE(generic_parameters, w_seed_frontend_generic_parameter);

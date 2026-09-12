@@ -101,6 +101,12 @@ typedef enum {
   W_SEED_CST_CONST_DECLARATION,
   /* Append-only pre-test loop statement. */
   W_SEED_CST_WHILE_STATEMENT,
+  /* Append-only enum payload-pattern owners.  These preserve captures and
+   * labels structurally so semantic consumers never reparse source text. */
+  W_SEED_CST_ENUM_PAYLOAD_PATTERN,
+  W_SEED_CST_CAPTURE_PATTERN,
+  W_SEED_CST_LABELED_PATTERN,
+  W_SEED_CST_REST_PATTERN,
 } w_seed_cst_kind;
 
 enum {

@@ -135,6 +135,11 @@ MLIR; the i2 sign-bit tag is written `-2` for MLIR's signed textual parser.
 This is correctness-only evidence for the bounded shape, not payloads, enum
 subsets, general/mixed CFG, public ABI/layout stability, other targets, PGO,
 timing, ranking, or performance.
+The next enum increment has started at the real product boundary: the seed
+parser/frontend now preserves positional and labeled payload patterns,
+wildcards, trailing rest, typed captures, and capture reads in
+`w-seed-frontend-19`. HIR0 rejects that record family until payload layout and
+projection are verified end to end; native execution remains payloadless.
 W-1564 advances current HIR0 to `w-seed-hir0-22` by preserving and binding each
 declared function's `exported` fact. The executable root walk now has an exact
 same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)
