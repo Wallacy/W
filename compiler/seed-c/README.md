@@ -1463,9 +1463,25 @@ This remains a correctness-only compiler-lifecycle witness. Payload-bearing
 cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
 targets, timing, ranking, and performance are not implemented or claimed.
 
+### Enum payload declaration identity (current HIR23)
+
+Current HIR0 (`w-seed-hir0-23`) copies the bounded frontend's signed-`i64`
+enum case parameters into a separate caller-owned dense range. Each case keeps
+`first_payload`/`payload_count`; each parameter keeps its owner case, ordinal,
+type, optional label, and source span. The semantic and provenance digests,
+receipt counts, capacity checks, alias barriers, and independent verifier cover
+the new records. Cases without payloads keep a zero-length range and add no
+payload record.
+
+This increment represents declarations only. Local payload constructors,
+pattern-capture values, projection, physical enum layout, MLIR lowering, native
+execution, public ABI, and performance remain explicit fail-closed boundaries.
+The existing payloadless minimum-width carrier is unchanged.
+
 ### Bounded same-module executable product closure (W-1564)
 
-Current HIR22 (`w-seed-hir0-22`) copies the frontend function `exported` fact,
+HIR22 (`w-seed-hir0-22`) introduced copying the frontend function `exported`
+fact; current HIR23 preserves that contract,
 binds it into the semantic digest, and verifies it independently. Export is
 module visibility, not an unconditional executable retention root. For the
 current one-module executable recipe, `.default` is the product root and local
