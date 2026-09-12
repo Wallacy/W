@@ -111,6 +111,15 @@ reason and is reserved for documentation or digest-only changes. A disposition
 is not a performance claim and does not turn a protocol oracle into a research
 gate.
 
+The disposition classifies the bundle's primary evidence; it is not an
+exemption for a new runnable product surface. A bundle that adds or extends a
+public executable must register that exact source and oracle in the executable
+benchmark catalog in the same bundle. Compiler-lifecycle correctness evidence
+and executable-catalog evidence are cumulative. The catalog may defer timing
+or cross-language ranking only with explicit blockers, but it may not defer
+source/oracle registration. The executable benchmark checker must reject a
+public runnable fixture that has no catalog owner.
+
 For a WBench/1 result, use `kind: result` and link the validation-oracle digest
 to later samples. The record includes raw samples, warmup, stop rule,
 randomized/interleaved order, environment, complete provenance, derived

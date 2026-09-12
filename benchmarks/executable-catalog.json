@@ -426,6 +426,272 @@
       ]
     },
     {
+      "id": "restaurant-enum-switch",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Dispatch all cases of one closed payloadless enum and preserve its exact observable output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Courses 10/30/20\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-enum.w",
+          "digest": "sha256:21598178f557950fbdcd6a2895cbd14a3cf3ccac57395ac481d9cae9cc5fc9bb",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-enum-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_enum.c",
+          "digest": "sha256:27f42fbea8c7a69bda98ba788231c32b399d803ea61e68feaa754450039a6c28",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "gcc-c23-or-c2x",
+          "recipeClass": "restaurant-enum-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-w64-mingw32",
+          "comparability": "contextual-non-ranking-across-abi",
+          "eligibility": "correctness-only-until-c23"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_enum.rs",
+          "digest": "sha256:b47605ba4605928d7e4b09f09a40c47289ac642984afa4186096b4e5589370b1",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-enum-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "process-tree-accounting"
+      ]
+    },
+    {
+      "id": "restaurant-comparisons",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Evaluate signed-i64 admission comparisons and preserve exact branching output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Seat party\nSeat party\nWaitlist\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-comparisons.w", "digest": "sha256:270c29c806d9497457613f274ecb037c763d117fc43b8dec2ae1a7939aea61b8", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-comparisons-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-comparison-composition",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Compose every signed comparison with Boolean values and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "false/true/true/true/false/false\ntrue/false/false/true/false/true\nfalse/true/false/false/true/true\nfalse/true/true/true/false/false\nfalse/true/false/false/true/true\nAllowed true\nAllowed false\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-comparison-composition.w", "digest": "sha256:4d491f7b3092df595bc89daf4d1ed2aa664965f0b027e710c8fe9a2d2815f3aa", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-comparison-composition-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-linear",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Execute a linear sequence of local calls and preserve exact output order.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Table 42 remains open\nKitchen is ready\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-linear.w", "digest": "sha256:325e35d29c121d44150a9a2c65c35d0ec763fba4ecc6de34a835b3d3d2e78961", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-linear-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-runtime-divrem",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Execute checked runtime signed division and remainder and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Each 7; left 2\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-runtime-divrem.w", "digest": "sha256:7ebcced5c54079ca490d47c812c444d2c2e2836ccd13e590cb4bd38eccedec89", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-runtime-divrem-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-unary-negate",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Execute checked runtime signed unary negation and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Balance -7\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w", "digest": "sha256:bc116697be919229eb05b397d94e8f156fac1d3f1f3c214d34864b3fcdbcbe91", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-unary-negate-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-unary-interpolation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Interpolate a directly negated signed value and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Balance -7\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w", "digest": "sha256:2dbba3f4be033fe38c1f9ea4736cbb4a944061741896831bb49664eceb582624", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-unary-interpolation-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-mutation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Execute straight-line local signed mutation and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-mutation.w", "digest": "sha256:b7482b8c7ed8449045d77ec1fd7b14c964a256082bd4197726db6bf8946d545e", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-mutation-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-conditional-mutation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Merge conditional signed mutation through SSA and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6; closed 4\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w", "digest": "sha256:ac8316cef226c9b32212da80d92ecd406364955ab0e2a7cc688c3ab7ed9b61d6", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-conditional-mutation-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-bool-mutation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Execute Boolean local mutation and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open true; closed false\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w", "digest": "sha256:84aaf1d4e240cfdf9ff6b02546727a229d55cd6fb86d35cb38327dea1da24c54", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-bool-mutation-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-branch-mutation",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Merge branch-local signed mutation and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6; closed 4\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w", "digest": "sha256:47cfa44d5568c346a29e4fdb23a5f2be335989c676e52b5b597629ba794dab7f", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-branch-mutation-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
+      "id": "restaurant-branch-mutation-multi",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Merge multiple branch-local signed mutations and preserve exact output.",
+      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 18; closed -4\n", "stderr": "" },
+      "sources": [{
+        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w", "digest": "sha256:adb35869ea95afa7c939d16580e1faf7bbc17a4bb2ceb8d73e14978c4d7c6639", "entry": "entry",
+        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-branch-mutation-multi-release",
+        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
+      }],
+      "blockedLanguages": ["c", "rust"],
+      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+    },
+    {
       "id": "restaurant-composition",
       "structureClass": "public-end-to-end",
       "status": "planned",

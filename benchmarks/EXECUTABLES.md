@@ -15,6 +15,18 @@ Migrated cells are historical/unverified cleanliness, not current clean-run evid
 | restaurant-interpolation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | deferred-to-M3b | — |
 | restaurant-scalar-if | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | deferred-to-M3b | — |
 | restaurant-nested-scalar-if | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-nested-scalar-if.w) | deferred-to-M3b | — |
+| restaurant-enum-switch | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | not-performance-ready | — |
+| restaurant-comparisons | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | not-performance-ready | — |
+| restaurant-comparison-composition | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | not-performance-ready | — |
+| restaurant-linear | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-linear.w) | not-performance-ready | — |
+| restaurant-runtime-divrem | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-runtime-divrem.w) | not-performance-ready | — |
+| restaurant-unary-negate | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-unary-negate.w) | not-performance-ready | — |
+| restaurant-unary-interpolation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-unary-interpolation.w) | not-performance-ready | — |
+| restaurant-mutation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-mutation.w) | not-performance-ready | — |
+| restaurant-conditional-mutation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-conditional-mutation.w) | not-performance-ready | — |
+| restaurant-bool-mutation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-bool-mutation.w) | not-performance-ready | — |
+| restaurant-branch-mutation | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-branch-mutation.w) | not-performance-ready | — |
+| restaurant-branch-mutation-multi | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w) | not-performance-ready | — |
 | restaurant-composition | public-end-to-end | not-materialized; oracle declared; — | planned | — |
 | process-entry | public-end-to-end | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | not-performance-ready | — |
 | process-handler-lifecycle | integration-linkage | source-and-oracle-ready; oracle source-backed; [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | exploratory-ready | transient-internal; private-process-handler; timed ["alpha","payload"]; correctness [] / ["alpha","payload"]; faults 6 |

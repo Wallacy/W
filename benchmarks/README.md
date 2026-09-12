@@ -10,11 +10,12 @@ Neither bundle produces a language or product-runtime result.
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
-`process-entry`, `process-handler-lifecycle`, the five
-source-backed Restaurant witnesses, and the future full Restaurant
+`process-entry`, `process-handler-lifecycle`, seventeen
+source-backed Restaurant workloads, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
-also has a public `w build` Release source-to-PE candidate plus C and Rust
-sources verified against its exact oracle. The other
+and the `restaurant-enum-switch` witness also have public `w build` Release
+source-to-PE candidates plus C and Rust sources verified against their exact
+oracles. The other
 Restaurant witnesses remain W-only with explicit C/Rust blockers. C is
 contextual and non-ranking across its MinGW ABI. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
@@ -127,7 +128,7 @@ this README does not duplicate measured values. No result or number is claimed
 until a validated run exists.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
-`run --target hello|restaurant-branch|process-handler-lifecycle --language w|c|rust --output benchmarks/results/<new>.json`
+`run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/live-best/projection consistency, and `update <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one

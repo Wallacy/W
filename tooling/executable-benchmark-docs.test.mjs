@@ -7,7 +7,7 @@ import { PROJECTION_PATH, formatBytes, formatNanoseconds, projectionPath, render
 test("generated projection is current, compact, and sourced only from the live catalog", async () => {
   const rendered = `${await renderFromDisk(ROOT)}\n`;
   assert.equal(fs.readFileSync(PROJECTION_PATH, "utf8"), rendered);
-  assert.ok(rendered.split(/\r?\n/u).length <= 50);
+  assert.ok(rendered.split(/\r?\n/u).length <= 64);
   assert.match(rendered, /Best known cells/u);
   assert.match(rendered, /\| Workload \| Language \| Category \| Artifact \| Compile \| Run \| Peak RSS \| CPU \|/u);
   assert.match(rendered, /historical-unverified/u);
