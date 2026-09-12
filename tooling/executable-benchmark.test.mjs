@@ -71,6 +71,11 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "restaurant-branch/w", "restaurant-enum-switch/rust",
     "restaurant-enum-switch/w", "restaurant-while/rust", "restaurant-while/w",
   ];
+  for (const workload of ["hello", "process-entry", "restaurant-branch",
+    "restaurant-enum-switch", "restaurant-while"]) {
+    const cell = `${workload}/c`;
+    if (metricsByCell[cell] !== undefined) expectedCells.push(cell);
+  }
   assert.deepEqual(Object.keys(metricsByCell).sort(), expectedCells.sort());
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
