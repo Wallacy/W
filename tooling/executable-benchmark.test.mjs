@@ -74,11 +74,15 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "restaurant-branch/c": commonMetrics,
     "restaurant-branch/rust": commonMetrics,
     "restaurant-branch/w": commonMetrics,
+    "restaurant-enum-switch/c": commonMetrics,
+    "restaurant-enum-switch/rust": commonMetrics,
+    "restaurant-enum-switch/w": commonMetrics,
   });
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
-    entry.workloadId === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID ||
-    entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID ||
-    entry.provenance.artifactCleanliness === "historical-unverified"));
+    ["historical-unverified", "verified-clean"].includes(entry.provenance.artifactCleanliness)));
+  assert.ok(documents.catalog.bestMetrics.entries
+    .filter((entry) => entry.workloadId === "restaurant-enum-switch")
+    .every((entry) => entry.provenance.artifactCleanliness === "verified-clean"));
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) => entry.value !== "0"));
   assert.ok(new Set(documents.catalog.bestMetrics.entries.map((entry) => entry.language)).size === 3);
   assert.ok(documents.catalog.bestMetrics.entries.some((entry) => entry.language === "rust" && entry.eligibility === "promotable-after-equivalence"));

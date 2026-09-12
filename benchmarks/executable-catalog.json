@@ -502,14 +502,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Evaluate signed-i64 admission comparisons and preserve exact branching output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Seat party\nSeat party\nWaitlist\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-comparisons.w", "digest": "sha256:270c29c806d9497457613f274ecb037c763d117fc43b8dec2ae1a7939aea61b8", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-comparisons-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Seat party\nSeat party\nWaitlist\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
+          "digest": "sha256:270c29c806d9497457613f274ecb037c763d117fc43b8dec2ae1a7939aea61b8",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-comparisons-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-comparison-composition",
@@ -520,14 +544,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Compose every signed comparison with Boolean values and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "false/true/true/true/false/false\ntrue/false/false/true/false/true\nfalse/true/false/false/true/true\nfalse/true/true/true/false/false\nfalse/true/false/false/true/true\nAllowed true\nAllowed false\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-comparison-composition.w", "digest": "sha256:4d491f7b3092df595bc89daf4d1ed2aa664965f0b027e710c8fe9a2d2815f3aa", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-comparison-composition-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "false/true/true/true/false/false\ntrue/false/false/true/false/true\nfalse/true/false/false/true/true\nfalse/true/true/true/false/false\nfalse/true/false/false/true/true\nAllowed true\nAllowed false\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-comparison-composition.w",
+          "digest": "sha256:4d491f7b3092df595bc89daf4d1ed2aa664965f0b027e710c8fe9a2d2815f3aa",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-comparison-composition-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-linear",
@@ -538,14 +586,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Execute a linear sequence of local calls and preserve exact output order.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Table 42 remains open\nKitchen is ready\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-linear.w", "digest": "sha256:325e35d29c121d44150a9a2c65c35d0ec763fba4ecc6de34a835b3d3d2e78961", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-linear-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Table 42 remains open\nKitchen is ready\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-linear.w",
+          "digest": "sha256:325e35d29c121d44150a9a2c65c35d0ec763fba4ecc6de34a835b3d3d2e78961",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-linear-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-runtime-divrem",
@@ -556,14 +628,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Execute checked runtime signed division and remainder and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Each 7; left 2\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-runtime-divrem.w", "digest": "sha256:7ebcced5c54079ca490d47c812c444d2c2e2836ccd13e590cb4bd38eccedec89", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-runtime-divrem-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Each 7; left 2\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-runtime-divrem.w",
+          "digest": "sha256:7ebcced5c54079ca490d47c812c444d2c2e2836ccd13e590cb4bd38eccedec89",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-runtime-divrem-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-unary-negate",
@@ -574,14 +670,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Execute checked runtime signed unary negation and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Balance -7\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w", "digest": "sha256:bc116697be919229eb05b397d94e8f156fac1d3f1f3c214d34864b3fcdbcbe91", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-unary-negate-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Balance -7\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
+          "digest": "sha256:bc116697be919229eb05b397d94e8f156fac1d3f1f3c214d34864b3fcdbcbe91",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-unary-negate-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-unary-interpolation",
@@ -592,14 +712,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Interpolate a directly negated signed value and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Balance -7\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w", "digest": "sha256:2dbba3f4be033fe38c1f9ea4736cbb4a944061741896831bb49664eceb582624", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-unary-interpolation-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Balance -7\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
+          "digest": "sha256:2dbba3f4be033fe38c1f9ea4736cbb4a944061741896831bb49664eceb582624",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-unary-interpolation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-mutation",
@@ -610,14 +754,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Execute straight-line local signed mutation and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-mutation.w", "digest": "sha256:b7482b8c7ed8449045d77ec1fd7b14c964a256082bd4197726db6bf8946d545e", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-mutation-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open 6\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-mutation.w",
+          "digest": "sha256:b7482b8c7ed8449045d77ec1fd7b14c964a256082bd4197726db6bf8946d545e",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-mutation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-conditional-mutation",
@@ -628,14 +796,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Merge conditional signed mutation through SSA and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6; closed 4\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w", "digest": "sha256:ac8316cef226c9b32212da80d92ecd406364955ab0e2a7cc688c3ab7ed9b61d6", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-conditional-mutation-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open 6; closed 4\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-conditional-mutation.w",
+          "digest": "sha256:ac8316cef226c9b32212da80d92ecd406364955ab0e2a7cc688c3ab7ed9b61d6",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-conditional-mutation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-bool-mutation",
@@ -646,14 +838,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Execute Boolean local mutation and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open true; closed false\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w", "digest": "sha256:84aaf1d4e240cfdf9ff6b02546727a229d55cd6fb86d35cb38327dea1da24c54", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-bool-mutation-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open true; closed false\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-bool-mutation.w",
+          "digest": "sha256:84aaf1d4e240cfdf9ff6b02546727a229d55cd6fb86d35cb38327dea1da24c54",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-bool-mutation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-branch-mutation",
@@ -664,14 +880,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Merge branch-local signed mutation and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 6; closed 4\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w", "digest": "sha256:47cfa44d5568c346a29e4fdb23a5f2be335989c676e52b5b597629ba794dab7f", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-branch-mutation-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open 6; closed 4\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation.w",
+          "digest": "sha256:47cfa44d5568c346a29e4fdb23a5f2be335989c676e52b5b597629ba794dab7f",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-branch-mutation-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-branch-mutation-multi",
@@ -682,14 +922,38 @@
       "benchmarkStatus": "not-performance-ready",
       "lane": "equivalent",
       "scope": "Merge multiple branch-local signed mutations and preserve exact output.",
-      "oracle": { "kind": "exact-output", "status": "source-backed", "exitCode": 0, "stdout": "Open 18; closed -4\n", "stderr": "" },
-      "sources": [{
-        "language": "w", "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w", "digest": "sha256:adb35869ea95afa7c939d16580e1faf7bbc17a4bb2ceb8d73e14978c4d7c6639", "entry": "entry",
-        "status": "source-oracle-ready", "profile": "release", "quality": "correctness-gate", "recipe": "public-w-build-release", "recipeClass": "restaurant-branch-mutation-multi-release",
-        "platformTarget": "windows-x64", "artifactTarget": "x86_64-pc-windows-msvc", "comparability": "contextual-non-ranking-until-process-tree-accounting", "eligibility": "contextual-only-until-process-tree-accounting"
-      }],
-      "blockedLanguages": ["c", "rust"],
-      "blockers": ["independent-c-rust-source-equivalents", "process-tree-accounting"]
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Open 18; closed -4\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w",
+          "digest": "sha256:adb35869ea95afa7c939d16580e1faf7bbc17a4bb2ceb8d73e14978c4d7c6639",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-branch-mutation-multi-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "independent-c-rust-source-equivalents",
+        "process-tree-accounting"
+      ]
     },
     {
       "id": "restaurant-composition",
@@ -2856,6 +3120,450 @@
           "runnerDigest": "sha256:e7c7bb3347bf221398658fcae2c00c3bdff99771c6271a184d55c6b46f78c1d9",
           "catalogDigest": "sha256:56b3604e23abbe64d138bb5bd1e91323edf09f6ff7b64ca51c9ad2c7943b89a2",
           "artifactCleanliness": "historical-unverified"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-5cea8b857ae8a063106b9c28e21dcb162f4df4fde6b7f5c6ea9ee3a8082a5717",
+        "status": "current",
+        "categoryId": "category-1fdccbd18bc3b6ef4222b21a1cf44ff41ddb13eb3efcac9c3d5cb5ad06c27183",
+        "workloadId": "restaurant-enum-switch",
+        "language": "c",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-w64-mingw32",
+        "abi": "x86_64-w64-mingw32",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-across-abi",
+        "eligibility": "correctness-only-until-c23",
+        "metric": "artifact-size",
+        "unit": "bytes",
+        "statistic": "single-artifact",
+        "value": "19456",
+        "toolchain": "gcc-13.2.0-c2x-preview-whole-program-x86_64-w64-mingw32",
+        "recipe": "gcc-c23-or-c2x",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-c-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:38.963Z",
+          "sourceDigest": "sha256:27f42fbea8c7a69bda98ba788231c32b399d803ea61e68feaa754450039a6c28",
+          "artifactDigest": "sha256:c7d9276ac0cc1b977c7fef1f7c8292d0b4185cc90a2e263c33e45d945ab34c29",
+          "recipeDigest": "sha256:d12646744282c009f3a78cbc3a87910102037dedc7aaa6d473f238156841e3b7",
+          "toolchainDigest": "sha256:bafc3e31237a10c5c0d2d0828244f081c9193eb0c2ae5e69ce769cba7e886b20",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-51b28b57b5c4e8bd45047d8eaa9c5ca08eee42a816af085ecf50066ebb5372cc",
+        "status": "current",
+        "categoryId": "category-1fdccbd18bc3b6ef4222b21a1cf44ff41ddb13eb3efcac9c3d5cb5ad06c27183",
+        "workloadId": "restaurant-enum-switch",
+        "language": "c",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-w64-mingw32",
+        "abi": "x86_64-w64-mingw32",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-across-abi",
+        "eligibility": "correctness-only-until-c23",
+        "metric": "compile-latency",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "288435900",
+        "toolchain": "gcc-13.2.0-c2x-preview-whole-program-x86_64-w64-mingw32",
+        "recipe": "gcc-c23-or-c2x",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-c-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:38.963Z",
+          "sourceDigest": "sha256:27f42fbea8c7a69bda98ba788231c32b399d803ea61e68feaa754450039a6c28",
+          "artifactDigest": "sha256:c7d9276ac0cc1b977c7fef1f7c8292d0b4185cc90a2e263c33e45d945ab34c29",
+          "recipeDigest": "sha256:d12646744282c009f3a78cbc3a87910102037dedc7aaa6d473f238156841e3b7",
+          "toolchainDigest": "sha256:bafc3e31237a10c5c0d2d0828244f081c9193eb0c2ae5e69ce769cba7e886b20",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-366ebab5925ee1c07fb65e11da6080d0af43a62aac3f16ee9b8a386cdf44337b",
+        "status": "current",
+        "categoryId": "category-1fdccbd18bc3b6ef4222b21a1cf44ff41ddb13eb3efcac9c3d5cb5ad06c27183",
+        "workloadId": "restaurant-enum-switch",
+        "language": "c",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-w64-mingw32",
+        "abi": "x86_64-w64-mingw32",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-across-abi",
+        "eligibility": "correctness-only-until-c23",
+        "metric": "peak-working-set",
+        "unit": "bytes",
+        "statistic": "median",
+        "value": "4788224",
+        "toolchain": "gcc-13.2.0-c2x-preview-whole-program-x86_64-w64-mingw32",
+        "recipe": "gcc-c23-or-c2x",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-c-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:38.963Z",
+          "sourceDigest": "sha256:27f42fbea8c7a69bda98ba788231c32b399d803ea61e68feaa754450039a6c28",
+          "artifactDigest": "sha256:c7d9276ac0cc1b977c7fef1f7c8292d0b4185cc90a2e263c33e45d945ab34c29",
+          "recipeDigest": "sha256:d12646744282c009f3a78cbc3a87910102037dedc7aaa6d473f238156841e3b7",
+          "toolchainDigest": "sha256:bafc3e31237a10c5c0d2d0828244f081c9193eb0c2ae5e69ce769cba7e886b20",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-92b3276fae0e26d12c68700935cf34332946739bfcd64eefd6b4c65e2fb11eeb",
+        "status": "current",
+        "categoryId": "category-1fdccbd18bc3b6ef4222b21a1cf44ff41ddb13eb3efcac9c3d5cb5ad06c27183",
+        "workloadId": "restaurant-enum-switch",
+        "language": "c",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-w64-mingw32",
+        "abi": "x86_64-w64-mingw32",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-across-abi",
+        "eligibility": "correctness-only-until-c23",
+        "metric": "run-wall-time",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "18163100",
+        "toolchain": "gcc-13.2.0-c2x-preview-whole-program-x86_64-w64-mingw32",
+        "recipe": "gcc-c23-or-c2x",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-c-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:38.963Z",
+          "sourceDigest": "sha256:27f42fbea8c7a69bda98ba788231c32b399d803ea61e68feaa754450039a6c28",
+          "artifactDigest": "sha256:c7d9276ac0cc1b977c7fef1f7c8292d0b4185cc90a2e263c33e45d945ab34c29",
+          "recipeDigest": "sha256:d12646744282c009f3a78cbc3a87910102037dedc7aaa6d473f238156841e3b7",
+          "toolchainDigest": "sha256:bafc3e31237a10c5c0d2d0828244f081c9193eb0c2ae5e69ce769cba7e886b20",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-55278470e629ccf54e9e5129e4fd9324233c80d5369d3470f6b198b25a961b29",
+        "status": "current",
+        "categoryId": "category-96ed6a3b97c5a1d295c3d88c15ee55f33255caca2d977548f36653af7c4d720a",
+        "workloadId": "restaurant-enum-switch",
+        "language": "rust",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
+        "metric": "artifact-size",
+        "unit": "bytes",
+        "statistic": "single-artifact",
+        "value": "113664",
+        "toolchain": "rustc-1.98.1-edition-2024-x86_64-pc-windows-msvc",
+        "recipe": "rustc-edition-2024",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-rust-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:50.034Z",
+          "sourceDigest": "sha256:b47605ba4605928d7e4b09f09a40c47289ac642984afa4186096b4e5589370b1",
+          "artifactDigest": "sha256:fee727ca482c7982b30b56e882c7eb7b8018e1a29096d947d2f2155170f39c33",
+          "recipeDigest": "sha256:525d9cc48da1afc9d91e5f073bbe1906f36a88ed96faf9a3c9f05e64c9ffa3c4",
+          "toolchainDigest": "sha256:b133e239cd1a64ceff9dd3a4b3a8aab70a4234e9c609d30fce8982497fe74494",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-017fc798ad4e360032a600ff81f026421571ee462a13372b6ea91a404fbf331f",
+        "status": "current",
+        "categoryId": "category-96ed6a3b97c5a1d295c3d88c15ee55f33255caca2d977548f36653af7c4d720a",
+        "workloadId": "restaurant-enum-switch",
+        "language": "rust",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
+        "metric": "compile-latency",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "1220482700",
+        "toolchain": "rustc-1.98.1-edition-2024-x86_64-pc-windows-msvc",
+        "recipe": "rustc-edition-2024",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-rust-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:50.034Z",
+          "sourceDigest": "sha256:b47605ba4605928d7e4b09f09a40c47289ac642984afa4186096b4e5589370b1",
+          "artifactDigest": "sha256:fee727ca482c7982b30b56e882c7eb7b8018e1a29096d947d2f2155170f39c33",
+          "recipeDigest": "sha256:525d9cc48da1afc9d91e5f073bbe1906f36a88ed96faf9a3c9f05e64c9ffa3c4",
+          "toolchainDigest": "sha256:b133e239cd1a64ceff9dd3a4b3a8aab70a4234e9c609d30fce8982497fe74494",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-4c602ca9cef6518780b3e446d67998ce70f9142392ed6676245dfda122ea6c7b",
+        "status": "current",
+        "categoryId": "category-96ed6a3b97c5a1d295c3d88c15ee55f33255caca2d977548f36653af7c4d720a",
+        "workloadId": "restaurant-enum-switch",
+        "language": "rust",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
+        "metric": "peak-working-set",
+        "unit": "bytes",
+        "statistic": "median",
+        "value": "4874240",
+        "toolchain": "rustc-1.98.1-edition-2024-x86_64-pc-windows-msvc",
+        "recipe": "rustc-edition-2024",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-rust-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:50.034Z",
+          "sourceDigest": "sha256:b47605ba4605928d7e4b09f09a40c47289ac642984afa4186096b4e5589370b1",
+          "artifactDigest": "sha256:fee727ca482c7982b30b56e882c7eb7b8018e1a29096d947d2f2155170f39c33",
+          "recipeDigest": "sha256:525d9cc48da1afc9d91e5f073bbe1906f36a88ed96faf9a3c9f05e64c9ffa3c4",
+          "toolchainDigest": "sha256:b133e239cd1a64ceff9dd3a4b3a8aab70a4234e9c609d30fce8982497fe74494",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-c354ddb9c2698e42b28b6bc84d9a4f6ba885e0916bb796dcd92bb3341e979fd4",
+        "status": "current",
+        "categoryId": "category-96ed6a3b97c5a1d295c3d88c15ee55f33255caca2d977548f36653af7c4d720a",
+        "workloadId": "restaurant-enum-switch",
+        "language": "rust",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
+        "metric": "run-wall-time",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "16801100",
+        "toolchain": "rustc-1.98.1-edition-2024-x86_64-pc-windows-msvc",
+        "recipe": "rustc-edition-2024",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-rust-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:50.034Z",
+          "sourceDigest": "sha256:b47605ba4605928d7e4b09f09a40c47289ac642984afa4186096b4e5589370b1",
+          "artifactDigest": "sha256:fee727ca482c7982b30b56e882c7eb7b8018e1a29096d947d2f2155170f39c33",
+          "recipeDigest": "sha256:525d9cc48da1afc9d91e5f073bbe1906f36a88ed96faf9a3c9f05e64c9ffa3c4",
+          "toolchainDigest": "sha256:b133e239cd1a64ceff9dd3a4b3a8aab70a4234e9c609d30fce8982497fe74494",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-18aca778907d1777d0ee370a0c89083fe8840f8ddfab46fa065884e607c288ec",
+        "status": "current",
+        "categoryId": "category-eb9d9da5245a0c9aa1677a5e832c9127c1a12502806da80d9b0d211c3037d9cc",
+        "workloadId": "restaurant-enum-switch",
+        "language": "w",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-until-process-tree-accounting",
+        "eligibility": "contextual-only-until-process-tree-accounting",
+        "metric": "artifact-size",
+        "unit": "bytes",
+        "statistic": "single-artifact",
+        "value": "3072",
+        "toolchain": "w-public-build-release-f3c8ed6ffa36ad1a8a3dc560d30854badea8485dcc966cad7bd2e643c0e79b60-x86_64-pc-windows-msvc",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-w-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:53.789Z",
+          "sourceDigest": "sha256:21598178f557950fbdcd6a2895cbd14a3cf3ccac57395ac481d9cae9cc5fc9bb",
+          "artifactDigest": "sha256:0951691470ee0759ba83bc3ddefd361df45be1da62d2d871a571365c727459fa",
+          "recipeDigest": "sha256:2f40f87fe35d46e47207872ac297c894fa53f41ea1ffe16d92eb429a204257a2",
+          "toolchainDigest": "sha256:6e798f1279c91341a3772246a52230f29358b071d1f75ec29c8523f270f6693d",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-753a516f6211345bdf152faec1abe5cb10bf2139f9377540bb322188273cee27",
+        "status": "current",
+        "categoryId": "category-eb9d9da5245a0c9aa1677a5e832c9127c1a12502806da80d9b0d211c3037d9cc",
+        "workloadId": "restaurant-enum-switch",
+        "language": "w",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-until-process-tree-accounting",
+        "eligibility": "contextual-only-until-process-tree-accounting",
+        "metric": "compile-latency",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "174714900",
+        "toolchain": "w-public-build-release-f3c8ed6ffa36ad1a8a3dc560d30854badea8485dcc966cad7bd2e643c0e79b60-x86_64-pc-windows-msvc",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-w-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:53.789Z",
+          "sourceDigest": "sha256:21598178f557950fbdcd6a2895cbd14a3cf3ccac57395ac481d9cae9cc5fc9bb",
+          "artifactDigest": "sha256:0951691470ee0759ba83bc3ddefd361df45be1da62d2d871a571365c727459fa",
+          "recipeDigest": "sha256:2f40f87fe35d46e47207872ac297c894fa53f41ea1ffe16d92eb429a204257a2",
+          "toolchainDigest": "sha256:6e798f1279c91341a3772246a52230f29358b071d1f75ec29c8523f270f6693d",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-b822bf8ff0733f6f9f1892c13c1f1a2029c409467559885c862cf4f2a35f62ed",
+        "status": "current",
+        "categoryId": "category-eb9d9da5245a0c9aa1677a5e832c9127c1a12502806da80d9b0d211c3037d9cc",
+        "workloadId": "restaurant-enum-switch",
+        "language": "w",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-until-process-tree-accounting",
+        "eligibility": "contextual-only-until-process-tree-accounting",
+        "metric": "peak-working-set",
+        "unit": "bytes",
+        "statistic": "median",
+        "value": "3760128",
+        "toolchain": "w-public-build-release-f3c8ed6ffa36ad1a8a3dc560d30854badea8485dcc966cad7bd2e643c0e79b60-x86_64-pc-windows-msvc",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-w-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:53.789Z",
+          "sourceDigest": "sha256:21598178f557950fbdcd6a2895cbd14a3cf3ccac57395ac481d9cae9cc5fc9bb",
+          "artifactDigest": "sha256:0951691470ee0759ba83bc3ddefd361df45be1da62d2d871a571365c727459fa",
+          "recipeDigest": "sha256:2f40f87fe35d46e47207872ac297c894fa53f41ea1ffe16d92eb429a204257a2",
+          "toolchainDigest": "sha256:6e798f1279c91341a3772246a52230f29358b071d1f75ec29c8523f270f6693d",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
+        }
+      },
+      {
+        "$schema": "./executable-benchmark.schema.json",
+        "schema": "w-executable-benchmark-best-metrics/1",
+        "kind": "executable-best-metric",
+        "id": "best-5064a44d19a8fa5763f5f655bf15f3e4b4900a251d566b754f95c114ec023937",
+        "status": "current",
+        "categoryId": "category-eb9d9da5245a0c9aa1677a5e832c9127c1a12502806da80d9b0d211c3037d9cc",
+        "workloadId": "restaurant-enum-switch",
+        "language": "w",
+        "equivalenceKey": "sha256:6fba3dec0528732117e862b59787e835ec54c7629c53ff65bd8c3e69512d01f6",
+        "platformTarget": "windows-x64",
+        "artifactTarget": "x86_64-pc-windows-msvc",
+        "abi": "x86_64-pc-windows-msvc",
+        "profile": "release",
+        "host": "windows-windows-nt-42f9d519186ea6d6",
+        "recipeClass": "restaurant-enum-release",
+        "comparability": "contextual-non-ranking-until-process-tree-accounting",
+        "eligibility": "contextual-only-until-process-tree-accounting",
+        "metric": "run-wall-time",
+        "unit": "nanoseconds",
+        "statistic": "median",
+        "value": "14990600",
+        "toolchain": "w-public-build-release-f3c8ed6ffa36ad1a8a3dc560d30854badea8485dcc966cad7bd2e643c0e79b60-x86_64-pc-windows-msvc",
+        "recipe": "public-w-build-release",
+        "provenance": {
+          "recordId": "restaurant-enum-switch-w-1ef59fa47398",
+          "commit": "1ef59fa47398df38f6119f22f0554e0ca13c59ce",
+          "observedAt": "2026-09-12T00:47:53.789Z",
+          "sourceDigest": "sha256:21598178f557950fbdcd6a2895cbd14a3cf3ccac57395ac481d9cae9cc5fc9bb",
+          "artifactDigest": "sha256:0951691470ee0759ba83bc3ddefd361df45be1da62d2d871a571365c727459fa",
+          "recipeDigest": "sha256:2f40f87fe35d46e47207872ac297c894fa53f41ea1ffe16d92eb429a204257a2",
+          "toolchainDigest": "sha256:6e798f1279c91341a3772246a52230f29358b071d1f75ec29c8523f270f6693d",
+          "runnerDigest": "sha256:68e94e92670846b6345df7672312dffaaa458cb364c6aaeda54faf2dda40339d",
+          "catalogDigest": "sha256:73c8468660239a05e3da94f07d967866dbf307d8945ff12c0f39552b21a89280",
+          "artifactCleanliness": "verified-clean"
         }
       }
     ]
