@@ -51,6 +51,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | 17.0056 ms | 18.0383 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-while | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.0761812 s | — | — | — | — |
 | restaurant-while | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 180.1453 ms | — | — | — | — |
+| restaurant-wmo | c | Windows x64 / MSVC | 9216 B (9.0 KiB) | 130.2986 ms | 18.0167 ms | 19.8511 ms | 4833280 B (4.61 MiB) | 12.995 ms |
+| restaurant-wmo | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.0782036 s | 17.9758 ms | 18.3719 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-wmo | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 175.5304 ms | 16.7919 ms | 17.0761 ms | 3756032 B (3.58 MiB) | 12.066 ms |
 
 Public W/C/Rust use the MSVC target; the private process-handler composite remains an explicit GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
 Machine contract and provenance: [executable-catalog.json](./executable-catalog.json). Manual commands: [README](./README.md#manual-reproduction).

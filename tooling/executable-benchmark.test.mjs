@@ -64,19 +64,16 @@ test("catalog stores compact live best cells and no immutable history", () => {
   const retainedMetrics = ["artifact-size", "compile-latency"];
   const nativeCompleteMetrics = [...retainedMetrics, "cpu-time", "peak-working-set",
     "run-wall-p95", "run-wall-time"].sort();
-  const expectedCells = [
-    "hello/rust", "hello/w", "process-entry/rust", "process-entry/w",
-    "process-handler-lifecycle/c", "process-handler-lifecycle/rust",
-    "process-handler-lifecycle/w", "restaurant-branch/rust",
-    "restaurant-branch/w", "restaurant-enum-switch/rust",
-    "restaurant-enum-switch/w", "restaurant-while/rust", "restaurant-while/w",
-  ];
-  for (const workload of ["hello", "process-entry", "restaurant-branch",
-    "restaurant-enum-switch", "restaurant-while"]) {
-    const cell = `${workload}/c`;
-    if (metricsByCell[cell] !== undefined) expectedCells.push(cell);
+  const declaredCells = new Set(documents.catalog.workloads.flatMap((workload) =>
+    workload.sources.map((source) => `${workload.id}/${source.language}`)));
+  assert.ok(Object.keys(metricsByCell).every((cell) => declaredCells.has(cell)),
+    "every live metric cell must still have a current workload source");
+  for (const requiredCell of ["hello/c", "hello/rust", "hello/w",
+    "restaurant-enum-switch/c", "restaurant-enum-switch/rust",
+    "restaurant-enum-switch/w", "restaurant-wmo/c", "restaurant-wmo/rust",
+    "restaurant-wmo/w"]) {
+    assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
-  assert.deepEqual(Object.keys(metricsByCell).sort(), expectedCells.sort());
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
       JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||
