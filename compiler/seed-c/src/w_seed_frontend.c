@@ -5485,6 +5485,52 @@ static bool enum_case_argument_expected(
   return false;
 }
 
+/* Constructor calls use the language-wide call binding rule: named payload
+ * slots may be written in any source order, while unlabeled payload slots are
+ * a separate positional sequence. Types never select a slot. */
+static bool enum_case_argument_resolve(
+    const frontend_context *context, uint32_t case_index,
+    size_t positional_ordinal, w_seed_frontend_text label,
+    uint32_t *parameter_ordinal, frontend_simple_type *expected) {
+  const w_seed_frontend_document *doc = NULL;
+  uint32_t case_node = W_SEED_CST_NONE;
+  if (parameter_ordinal == NULL || expected == NULL ||
+      !enum_case_node_for_index(context, case_index, &doc, &case_node))
+    return false;
+  *parameter_ordinal = W_SEED_FRONTEND_NONE;
+  uint32_t cursor = doc->nodes[case_node].first_child;
+  uint32_t child = W_SEED_CST_NONE;
+  size_t declaration_ordinal = 0u;
+  size_t positional_index = 0u;
+  size_t guard = 0u;
+  while (next_child(doc, &cursor, &child) && guard < doc->parse.node_count) {
+    if (doc->nodes[child].kind == W_SEED_CST_ENUM_CASE_PARAMETER) {
+      const w_seed_frontend_text parameter_label =
+          enum_case_parameter_label(doc, child);
+      const bool selected =
+          label.length != 0u
+              ? parameter_label.length != 0u &&
+                    text_equal_text(parameter_label, label)
+              : parameter_label.length == 0u &&
+                    positional_index == positional_ordinal;
+      if (selected) {
+        const uint32_t type_node = direct_type_index(doc, child);
+        if (type_node == W_SEED_CST_NONE ||
+            declaration_ordinal >= (size_t)UINT32_MAX)
+          return false;
+        *expected = contextual_type_from_span(
+            context, doc, doc->nodes[type_node].raw_span);
+        *parameter_ordinal = (uint32_t)declaration_ordinal;
+        return true;
+      }
+      if (parameter_label.length == 0u) positional_index += 1u;
+      declaration_ordinal += 1u;
+    }
+    guard += 1u;
+  }
+  return false;
+}
+
 static size_t enum_case_parameter_count(const frontend_context *context,
                                         uint32_t case_index) {
   const w_seed_frontend_document *doc = NULL;
@@ -12018,6 +12064,9 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
     (void)cursor_take(&parser->cursor, &token);
     const uint32_t first_argument = (uint32_t)parser->context->count.arguments;
     size_t argument_count = 0;
+    size_t enum_positional_argument_count = 0u;
+    uint32_t enum_bound_parameters[W_SEED_FRONTEND_MAX_NESTING];
+    size_t enum_bound_parameter_count = 0u;
     bool labels_valid = true;
     const bool enum_case_constructor = value->is_enum_case;
     const bool external_enum_case =
@@ -12115,14 +12164,24 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       bool expected_found = false;
       bool enum_label_valid = false;
       bool enum_label_previous = false;
+      uint32_t enum_parameter_ordinal = W_SEED_FRONTEND_NONE;
       if (external_enum_case) {
         expected_found = external_argument_expected(
             parser->context, value->external_member_symbol, argument_count,
             label, &expected);
       } else if (enum_case_constructor) {
-        expected_found = enum_case_argument_expected(
-            parser->context, value->enum_case_index, argument_count, label,
-            &expected, &enum_label_valid, &enum_label_previous);
+        expected_found = enum_case_argument_resolve(
+            parser->context, value->enum_case_index,
+            enum_positional_argument_count, label, &enum_parameter_ordinal,
+            &expected);
+        enum_label_valid = expected_found;
+        for (size_t used = 0u;
+             expected_found && used < enum_bound_parameter_count; used += 1u)
+          if (enum_bound_parameters[used] == enum_parameter_ordinal) {
+            enum_label_valid = false;
+            enum_label_previous = true;
+            break;
+          }
       } else if (local_signature || external_signature_found ||
                  host_signature_found) {
         expected_found = local_signature
@@ -12245,11 +12304,26 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
       argument.expression_index = argument_value.index >= (size_t)UINT32_MAX
                                       ? W_SEED_FRONTEND_NONE
                                       : (uint32_t)argument_value.index;
-      argument.resolved_parameter_ordinal = W_SEED_FRONTEND_NONE;
+      argument.resolved_parameter_ordinal =
+          enum_case_constructor && !external_enum_case && expected_found &&
+                  enum_label_valid
+              ? enum_parameter_ordinal
+              : W_SEED_FRONTEND_NONE;
       uint32_t argument_index = W_SEED_FRONTEND_NONE;
       if (!context_append_argument(parser->context, argument, &argument_index)) {
         return false;
       }
+      if (enum_case_constructor && !external_enum_case && expected_found &&
+          enum_label_valid) {
+        if (enum_bound_parameter_count >= W_SEED_FRONTEND_MAX_NESTING) {
+          labels_valid = false;
+        } else {
+          enum_bound_parameters[enum_bound_parameter_count++] =
+              enum_parameter_ordinal;
+        }
+      }
+      if (enum_case_constructor && !external_enum_case && label.length == 0u)
+        enum_positional_argument_count += 1u;
       argument_count += 1;
       if (!cursor_peek_text(&parser->cursor, ",")) break;
       (void)cursor_take_text(&parser->cursor, ",", NULL);
@@ -15314,6 +15388,47 @@ static bool resolve_frontend_links(frontend_context *context) {
     w_seed_frontend_expression *callee =
         &context->output->expressions[expression->left];
     if (callee->kind == W_SEED_FRONTEND_EXPR_ENUM_CASE) {
+      if (callee->enum_index != W_SEED_FRONTEND_NONE) {
+        if (!callee->supported || !expression->supported ||
+            callee->enum_case_index == W_SEED_FRONTEND_NONE ||
+            (size_t)callee->enum_case_index >= context->count.enum_cases ||
+            expression->enum_index != callee->enum_index ||
+            expression->enum_case_index != callee->enum_case_index ||
+            expression->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_NONE ||
+            expression->argument_count !=
+                context->output->enum_cases[callee->enum_case_index]
+                    .payload_count) {
+          expression->supported = false;
+          continue;
+        }
+        const w_seed_frontend_enum_case *enum_case =
+            &context->output->enum_cases[callee->enum_case_index];
+        for (uint32_t offset = 0u; offset < expression->argument_count;
+             offset += 1u) {
+          const size_t argument_index =
+              (size_t)expression->first_argument + offset;
+          if (argument_index >= context->count.arguments) return false;
+          const w_seed_frontend_argument *argument =
+              &context->output->arguments[argument_index];
+          if (argument->resolved_parameter_ordinal == W_SEED_FRONTEND_NONE ||
+              argument->resolved_parameter_ordinal >=
+                  enum_case->payload_count) {
+            expression->supported = false;
+            break;
+          }
+          const w_seed_frontend_enum_case_parameter *parameter =
+              &context->output->enum_case_parameters[
+                  (size_t)enum_case->first_payload +
+                  argument->resolved_parameter_ordinal];
+          if (parameter->has_label != (argument->label.length != 0u) ||
+              (parameter->has_label &&
+               !text_equal_text(parameter->label, argument->label))) {
+            expression->supported = false;
+            break;
+          }
+        }
+        continue;
+      }
       /* External enum cases carry their provider identity on the case
        * expression itself.  A constructor call must copy that identity to
        * the CALL record so dry sizing and emitted receipts agree. */

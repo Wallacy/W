@@ -1303,7 +1303,7 @@ try {
     "W-LABEL-0005",
     "enum constructor wrong arity",
   )
-  expectDiagnostic(
+  const reorderedEnumConstructor = expectOk(
     probeExecutable,
     Buffer.concat([
       stageEnumPrefix,
@@ -1314,9 +1314,11 @@ try {
         "utf8",
       ),
     ]),
-    "W-LABEL-0005",
-    "enum constructor inverted labels",
+    "enum constructor reordered labels",
   )
+  if (reorderedEnumConstructor.parsed.arguments !== 2) {
+    fail("enum constructor reordered labels did not retain both arguments")
+  }
   expectDiagnostic(
     probeExecutable,
     Buffer.concat([
