@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:5289e56589a8c427c52359c8bc58cd34c1c0a963b2988b9d491f0692d84ee3d8",
+    "sha256": "sha256:a57637c221f3f759fedc8240f698bdec9dc82050680223deec1801dd890721b6",
     "count": 1563,
     "first": "W-001",
     "last": "W-1563"
@@ -441,7 +441,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-010 (módulos, sha256:e518b3bef0d7d1080c9c39b75f95ff6dee19d9556115ade87c7198cd11eefcbe) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -2373,7 +2373,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-068 (SDK, sha256:fa09b150d56deae9a79d66dca5ea9b8d5955753971da612a293b3afe7f0e0d16) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -2600,7 +2600,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-075 (IR, sha256:528b099ea1771b379e906a621404f52a601e0a7076df29dedae216285926d49a) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -2633,7 +2633,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-076 (bootstrap, sha256:9455be981c70620bb9a74ee6c3591c02cefd15d40adfe497e690dd343d898baa) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -2666,7 +2666,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-077 (build tool, sha256:ebaea877ffc8113004f6d6e6f85bf2c93a3e1ce24b01ff486683d5f41567a9f4) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -3192,7 +3192,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-093 (GPU/HDL, sha256:56f429dcea9b67cb21d63b6563a3860242d6155b4f3674584de2f2c1ad24ec97) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -3502,7 +3502,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-103 (camadas de memória, sha256:e593d375bcfade69c3b0a04e32365743c24f5e575ede6857d7ad4aa13931a40b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -8910,7 +8910,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-268 (target, sha256:5b82196211b2e51222aea784c6ccc9ce3fc3a3705cab1d709bff633ef0c5564f) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -8943,7 +8943,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-269 (build input, sha256:21e62a7854350c07f2fa162cae4d98a78fead029ee62f3ff08ab53adf8aa4cda) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -9172,7 +9172,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-276 (bootstrap const, sha256:0ed43ce4ef1800368e3933fb8b52a80e8d1b388f08e25d14a68cb04d2f9e8d77) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -9597,7 +9597,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-289 (coherence, sha256:7c37cd52c6360cd7b6da4990faa2ac11f8db0def2b285e9ff640a99167b68a18) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -9663,7 +9663,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-291 (default witness, sha256:3fd4c5038beb00a26de998601508009a4eebba2e29688490719ebbd611b61fef) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -10315,7 +10315,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-311 (reflection visibility, sha256:4bbe7d52f3a34978c1f9502f447bd584483c49cbe072a70c07e7a72a4a50a299) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -11524,7 +11524,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-348 (domains portáteis, sha256:99089ba81aef6f11165f40d08014400a257edd31d41de543c007f28817341b3b) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -11634,7 +11634,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-351 (domain de módulo, sha256:d36578f2a23ebfb18248d41b1d2d099419d8b04be50d034be8cfffe744d08826) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -12556,7 +12556,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-379 (explicação de performance, sha256:c0558e3961ea0856bfbf4f04117cb760bd994cfff4d7966c001362fc3215f6ef) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -13766,7 +13766,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-416 (cópia shared, sha256:dddb9096250cca1b7b77cc45ad04c940d3366ea35d53107b1727313ab97e5c21) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -14263,7 +14263,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-431 (COW de String, sha256:c5790c83cce2dd9a66e2b1632d8935bef0d664993ac22cd2c6b365a576611fc1) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -17291,7 +17291,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-520 (module set, sha256:6a970940748d4ccf8a22cfc28e496f08f95b9a9200ec08b85339f2efde9097da) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -17390,7 +17390,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-523 (interface de graph aberto, sha256:6c0a7f95662be2899adc64a984d4faf85a0e636572be3200c81905018f145dd0) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -18506,7 +18506,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-557 (commit de step, sha256:5261da243e5eeb0e85930e4b7aa7c583ce91fc5e0a2cf5de43f44bc33a5540a7) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -19100,7 +19100,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-575 (nome de dependency, sha256:a56c8e42bfad6a08421002c1ec1466d8299ab8d82bcb60e31bd410796534bd35) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -19463,7 +19463,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-586 (adaptação de plataforma, sha256:b84245011be63591c524b12f4cac76100744c2ef8aa1a74c4462cd04d6af0df6) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -19826,7 +19826,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-597 (sysroot, sha256:e3d02c97bb38229530265003286b0fd335a4140c2e2b8b482a5c8d508745482b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -19925,7 +19925,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-600 (claim de reprodução, sha256:2d56c2f406e5f3fa26e62fbd7ab891db8b7982cb00ddd957b55be6e850e660ce) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -19948,34 +19948,34 @@
     },
     {
       "decisionId": "W-601",
-      "summary": "granularidade física",
-      "canonicalClaim": "module é semântico; recipe pode usar object, archive, LTO ou incremental unit",
-      "claimDigest": "sha256:f869e09e7c07e83d92c5d10e5c0a1dd5e4c0bc515d63e69a0ece483d2b579f49",
+      "summary": "granularidade física e optimization region",
+      "canonicalClaim": "arquivo nunca é translation unit; module é a região semântica mínima e package source é compilado com seu grafo de módulos visível; recipe pode particionar cache, object, archive ou incremental unit sem reduzir essa visão",
+      "claimDigest": "sha256:630163028d0387d29dfdbb9aa513664445a15b5a6574612c6fae1dad4f3b276f",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
         "kind": "design-contract",
         "path": "DESIGN.md",
-        "section": "8",
-        "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "section": "20.4.12",
+        "heading": "#### 20.4.12 LTO, intermediate artifacts e observabilidade",
+        "sectionDigest": "sha256:d8261200105e77506ef5af9e4a9fa6809984b36b64b88fcff3bdbee68bf480bc"
       },
       "evidence": [],
-      "reason": "W-601 (granularidade física, sha256:f869e09e7c07e83d92c5d10e5c0a1dd5e4c0bc515d63e69a0ece483d2b579f49) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
-      "stopCondition": "Do not claim W-601 as implemented. Close the types-and-generics gap at DESIGN.md §8 / 8. Tipos e conversões with granularidade física executable witness evidence and fresh digests.",
+      "reason": "W-601 (granularidade física e optimization region, sha256:630163028d0387d29dfdbb9aa513664445a15b5a6574612c6fae1dad4f3b276f) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade.",
+      "stopCondition": "Do not claim W-601 as implemented. Close the packages-and-release gap at DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade with whole-module/package optimization-region executable witness evidence and fresh digests.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-601",
-        "claimDigest": "sha256:f869e09e7c07e83d92c5d10e5c0a1dd5e4c0bc515d63e69a0ece483d2b579f49"
+        "claimDigest": "sha256:630163028d0387d29dfdbb9aa513664445a15b5a6574612c6fae1dad4f3b276f"
       },
       "gap": {
-        "component": "types-and-generics",
-        "gate": "DESIGN.md §8 / 8. Tipos e conversões",
+        "component": "packages-and-release",
+        "gate": "DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade",
         "missingEvidence": [
-          "granularidade física executable witness"
+          "whole-module/package optimization-region executable witness"
         ]
       }
     },
@@ -20761,34 +20761,34 @@
     },
     {
       "decisionId": "W-626",
-      "summary": "LTO e IR",
-      "canonicalClaim": "HIR, MLIR e bitcode são artifacts exatos da recipe; LTO não define package ABI",
-      "claimDigest": "sha256:c31c6425012fcf352884a65da24a26360bdc189aac24c9f052caee0e751935da",
+      "summary": "WMO/WPO, LTO e IR",
+      "canonicalClaim": "`release` aplica whole-module por default e amplia automaticamente até package/workspace/product quando o grafo é provadamente fechado; roots vêm do product e de boundaries observáveis, enquanto HIR, MLIR, summaries e bitcode são artifacts exatos da recipe e não package ABI",
+      "claimDigest": "sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a",
       "category": "implementation-evidence-gap",
       "basis": "current-ledger-claim-without-executable-witness",
       "authorityRef": {
         "kind": "design-contract",
         "path": "DESIGN.md",
-        "section": "21",
-        "heading": "## 21. Packages, builds e releases",
-        "sectionDigest": "sha256:ea2159dda7b79ba978a241d92bd8711798e7eb4db0d3e0004894fa7622a7d6e3"
+        "section": "20.4.12",
+        "heading": "#### 20.4.12 LTO, intermediate artifacts e observabilidade",
+        "sectionDigest": "sha256:d8261200105e77506ef5af9e4a9fa6809984b36b64b88fcff3bdbee68bf480bc"
       },
       "evidence": [],
-      "reason": "W-626 (LTO e IR, sha256:c31c6425012fcf352884a65da24a26360bdc189aac24c9f052caee0e751935da) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §21 / 21. Packages, builds e releases.",
-      "stopCondition": "Do not claim W-626 as implemented. Close the packages-and-release gap at DESIGN.md §21 / 21. Packages, builds e releases with LTO e IR executable witness evidence and fresh digests.",
+      "reason": "W-626 (WMO/WPO, LTO e IR, sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a) has no executable witness for component packages-and-release. The checked current contract is DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade.",
+      "stopCondition": "Do not claim W-626 as implemented. Close the packages-and-release gap at DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade with WMO/WPO roots and closed-graph executable witness evidence and fresh digests.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-626",
-        "claimDigest": "sha256:c31c6425012fcf352884a65da24a26360bdc189aac24c9f052caee0e751935da"
+        "claimDigest": "sha256:7a72d1acf56ae11fd758e4a046476cdcfc61170adbb74058db2bcb44ab94317a"
       },
       "gap": {
         "component": "packages-and-release",
-        "gate": "DESIGN.md §21 / 21. Packages, builds e releases",
+        "gate": "DESIGN.md §20.4.12 / 20.4.12 LTO, intermediate artifacts e observabilidade",
         "missingEvidence": [
-          "LTO e IR executable witness"
+          "WMO/WPO roots and closed-graph executable witness"
         ]
       }
     },
@@ -20965,7 +20965,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-632 (resolução de symbol dinâmico, sha256:1971bb760e00b7a04b150087bb481e8a238020bf68b68367c421c8c4ef89e3e2) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -28630,7 +28630,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-866 (limite de R0S, sha256:9feb577de22aaecacb25517125f4f58baadd1916bd6346af458f8def511ed35b) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -38474,7 +38474,7 @@
         "path": "DESIGN.md",
         "section": "20",
         "heading": "## 20. Compilador e bootstrap",
-        "sectionDigest": "sha256:8b8a65bd15fa2ebdfc89bbc5b0c8f219860d6f403d21d3793fadb3a2d99db8c9"
+        "sectionDigest": "sha256:0531be67ae4df6afffb39d512d907a1beb3cb1567c75228ae6ea72b9dc50af63"
       },
       "evidence": [],
       "reason": "W-1170 (comparativos de execução, sha256:d7192d4dc4e461091ccc80cfa749d86d48ebfca924b2f93bdba702eb68a2b7e9) has no executable witness for component compiler-bootstrap. The checked current contract is DESIGN.md §20 / 20. Compilador e bootstrap.",
@@ -40929,7 +40929,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-1238 (placement data-only, sha256:6b5a3768c9163ed81c1a14295a6982cfe6ba7069dba55533df928651bd2ac799) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -44561,7 +44561,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-1345 (bundle R1S1 de fases source, sha256:dd2bc01c39aeed649c43aa610485dd8cf5b99a794ca0701d2fe1367c22bb7494) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -45589,7 +45589,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-1376 (output source-shape SYN1, sha256:484ec3f83a76edfdcf6fc3baded0d06e75ef089086c3824cbece142b766c5235) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -46118,7 +46118,7 @@
         "path": "DESIGN.md",
         "section": "6",
         "heading": "## 6. Módulos, imports e visibilidade",
-        "sectionDigest": "sha256:96bd92146e5c0ab11db7bf29583c3e0e88769f195b3800158c450953e1bf3f8c"
+        "sectionDigest": "sha256:fd5fcdaba97be09580d498f89623c976470b5d1961730706cc42cb189b788389"
       },
       "evidence": [],
       "reason": "W-1392 (problema-first DYN1, sha256:b1e59721fa1f19eec7a449acd32090cb13828e8a595f4edb260e5502eed16be2) has no executable witness for component modules-and-visibility. The checked current contract is DESIGN.md §6 / 6. Módulos, imports e visibilidade.",
@@ -53069,7 +53069,7 @@
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:4a30c40bf0cbae76ed1dcd4d4ec1f30628b65ca22bb07ff99fe639d942bc4939"
+          "sha256": "sha256:13c2de40387d3b3119a1e94b722c3ad5b9a4daca92fdb7d4478746853e9b44e7"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
