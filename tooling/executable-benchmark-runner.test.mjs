@@ -361,6 +361,14 @@ test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certifi
         entries: [{ type: "pogo", typeCode: 13, sizeBytes: "16" }],
       },
     });
+    assert.deepEqual(validatePeX64(fakePeX64({ debugType: 16, debugPayloadSize: 0, debugPayloadRva: 0, debugPayloadPointer: 0 }), language), {
+      ...EXPECTED_PE_IMAGE_CLEANLINESS,
+      debugDirectory: {
+        presence: "repro-only",
+        sizeBytes: "28",
+        entries: [{ type: "repro", typeCode: 16, sizeBytes: "0" }],
+      },
+    });
     const codeViewBytesInSection = fakePeX64();
     Buffer.from("RSDS", "ascii").copy(codeViewBytesInSection, 0x200);
     assert.doesNotThrow(() => validatePeX64(codeViewBytesInSection, language), `${language} section bytes are not a debug directory`);
@@ -374,6 +382,8 @@ test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certifi
       [{ debugType: 1 }, /unsupported PE debug data type 1/u],
       [{ debugType: 13, debugPayloadPointer: 0 }, /invalid POGO debug payload/u],
       [{ debugType: 13, debugPayloadRva: 0x2000 }, /invalid POGO debug payload 0 RVA range/u],
+      [{ debugType: 16, debugPayloadSize: 1 }, /invalid REPRO debug marker/u],
+      [{ debugType: 16, debugPayloadPointer: 0x240 }, /invalid REPRO debug marker/u],
       [{ certificatePointer: 0x400 }, /PE certificate directory/u],
       [{ certificateSize: 1 }, /PE certificate directory/u],
       [{ overlay: Buffer.from("RSDS synthetic CodeView overlay", "ascii") }, /overlay bytes/u],
