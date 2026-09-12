@@ -569,7 +569,10 @@ static bool test_failures_and_output_atomicity(void) {
   CHECK(run_fixture(&backend) == W_SEED_EPHEMERAL_DRIVER_UNSUPPORTED);
   CHECK(fixture.result.failure == W_SEED_EPHEMERAL_DRIVER_FAILURE_MISSING_LOCAL);
   CHECK(((const unsigned char *)fixture.inventory)[0] == inventory_before);
-  CHECK(((const unsigned char *)fixture.documents)[0] == 0xA5u);
+  unsigned char documents_first_byte;
+  (void)memcpy(&documents_first_byte, fixture.documents,
+               sizeof(documents_first_byte));
+  CHECK(documents_first_byte == 0xA5u);
   CHECK(fixture.output.document_count == 91u);
 
   backend = (fake_backend){0};

@@ -117,6 +117,12 @@ typedef struct {
 static fixture first_fixture;
 static fixture second_fixture;
 
+static bool first_byte_equals(const void *object, unsigned char expected) {
+  unsigned char actual;
+  (void)memcpy(&actual, object, sizeof(actual));
+  return actual == expected;
+}
+
 static void fixture_init_output(fixture *value) {
   value->frontend_input = (w_seed_frontend_input){
       .documents = &value->document,
@@ -1695,15 +1701,15 @@ static bool test_capacity_and_barrier(void) {
   (void)memset(value->constir_diagnostics, 0xa5, sizeof(value->constir_diagnostics));
   (void)memset(value->constir_receipt, 0xa5, sizeof(value->constir_receipt));
 #define CHECK_CONSTIR_SENTINELS()                                               \
-  CHECK(((const uint8_t *)value->constir_functions)[0] == 0xa5u &&             \
-        ((const uint8_t *)value->constir_parameters)[0] == 0xa5u &&             \
-        ((const uint8_t *)value->constir_nodes)[0] == 0xa5u &&                  \
-        ((const uint8_t *)value->constir_arguments)[0] == 0xa5u &&              \
-        ((const uint8_t *)value->constir_switch)[0] == 0xa5u &&                 \
-        ((const uint8_t *)value->constir_membership)[0] == 0xa5u &&             \
-        ((const uint8_t *)value->constir_statements)[0] == 0xa5u &&             \
-        ((const uint8_t *)value->constir_locals)[0] == 0xa5u &&                 \
-        ((const uint8_t *)value->constir_diagnostics)[0] == 0xa5u &&            \
+  CHECK(first_byte_equals(value->constir_functions, 0xa5u) &&                  \
+        first_byte_equals(value->constir_parameters, 0xa5u) &&                 \
+        first_byte_equals(value->constir_nodes, 0xa5u) &&                      \
+        first_byte_equals(value->constir_arguments, 0xa5u) &&                  \
+        first_byte_equals(value->constir_switch, 0xa5u) &&                     \
+        first_byte_equals(value->constir_membership, 0xa5u) &&                 \
+        first_byte_equals(value->constir_statements, 0xa5u) &&                 \
+        first_byte_equals(value->constir_locals, 0xa5u) &&                     \
+        first_byte_equals(value->constir_diagnostics, 0xa5u) &&                \
         value->constir_receipt[0] == 0xa5u)
 
   fixture_init_output(value);
