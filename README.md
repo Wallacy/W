@@ -138,17 +138,22 @@ timing, ranking, or performance.
 The next enum increment has started at the real product boundary. The seed
 parser/frontend preserves positional and labeled payload patterns, wildcards,
 trailing rest, typed captures, and capture reads in `w-seed-frontend-20`.
-Current HIR0 `w-seed-hir0-25` owns dense signed-`i64` case-parameter
+Current HIR0 `w-seed-hir0-25` owns dense `Bool` and signed-`i64` case-parameter
 declarations and constructor payload values. Constructor records preserve source
 evaluation order separately from declaration-slot identity, so reordered named
 payloads do not become calls or silently reorder effects. Payloadless cases emit
 neither parameter nor constructor-payload records. Switch capture records link
 each binding to its declaration slot and selected arm. The bounded native route
-now lowers signed-`i64` payloads as an SSA aggregate containing a minimum-width
-tag and shared slots for the largest case. Local calls accept and return these
+now lowers these payloads as an SSA aggregate containing a minimum-width
+tag and shared lanes sized by the largest case byte extent. Bool-only payloads
+use byte lanes. Mixed payloads pack Bool bytes into aligned `i64` lanes.
+Local calls accept and return these
 enums. The Windows LLVM/MLIR 23.1.1 gate executes
 [`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
-as `Bills 32/44/10/7\n`. General payload types, niche optimization, recursive
+as `Bills 32/44/10/7\n`. The mixed-payload witness
+[`restaurant-enum-bool-payload.w`](compiler/seed-c/fixtures/restaurant-enum-bool-payload.w)
+exercises reordered Bool fields, enum-returning calls, and Bool/i64 captures.
+General payload types, niche optimization, recursive
 payloads, and public payload ABI remain gaps. This internal carrier does not
 require heap allocation or establish a fixed in-memory layout.
 W-1564 introduced HIR0 `w-seed-hir0-22` by preserving and binding each declared

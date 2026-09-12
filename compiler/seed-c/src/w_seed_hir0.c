@@ -707,9 +707,9 @@ static bool frontend_sources_ok(const w_seed_hir0_input *input) {
 }
 
 /* The bounded enum surface owns dense case and case-parameter ranges plus a
- * canonical TYPE record. HIR0 first admits signed-i64 payload declarations;
- * construction and projection remain separate lowering gates. This check runs
- * before any HIR output is touched, so forged ownership/ranges are rejected
+ * canonical TYPE record. HIR0 admits only the scalar payload types that the
+ * native lowering can carry without allocation. This check runs before any
+ * HIR output is touched, so forged ownership/ranges are rejected
  * transactionally. */
 static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_input == NULL ||
@@ -828,7 +828,8 @@ static bool frontend_enum_payload_types_supported(
     if (type_index == W_SEED_FRONTEND_NONE ||
         (size_t)type_index >= result->written.types ||
         !frontend_type_supported(&output->types[type_index]) ||
-        output->types[type_index].kind != W_SEED_FRONTEND_TYPE_INTEGER)
+        (output->types[type_index].kind != W_SEED_FRONTEND_TYPE_INTEGER &&
+         output->types[type_index].kind != W_SEED_FRONTEND_TYPE_BOOL))
       return false;
   }
   return true;
@@ -2811,6 +2812,7 @@ static bool frontend_switch_flat_value_ok(
     return true;
   }
   return value->kind == W_SEED_FRONTEND_EXPR_INTEGER ||
+         value->kind == W_SEED_FRONTEND_EXPR_BOOL ||
          value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER;
 }
 
@@ -2836,8 +2838,8 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
           walk->result->written.switch_arms ||
       root->inferred_type == W_SEED_FRONTEND_NONE ||
       (size_t)root->inferred_type >= walk->result->written.types ||
-      !frontend_expression_is_i64(
-          walk->output, &walk->output->expressions[root_index]) ||
+      !frontend_type_is_scalar(
+          &walk->output->types[root->inferred_type]) ||
       (walk->output->functions[walk->function_index].return_type ==
            W_SEED_FRONTEND_NONE ||
        (size_t)walk->output->functions[walk->function_index].return_type >=
@@ -2920,10 +2922,8 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
           capture->parameter_ordinal >= case_value->payload_count ||
           capture->type_index == W_SEED_FRONTEND_NONE ||
           capture->type_index >= walk->result->written.types ||
-          walk->output->types[capture->type_index].kind !=
-              W_SEED_FRONTEND_TYPE_INTEGER ||
-          walk->output->types[capture->type_index].bit_width != 64u ||
-          !walk->output->types[capture->type_index].is_signed ||
+          !frontend_type_is_scalar(
+              &walk->output->types[capture->type_index]) ||
           !text_valid(capture->name) || capture->name.length == 0u ||
           !frontend_span_ok(&walk->input->frontend_input
                                  ->documents[walk->document_index],
@@ -2956,9 +2956,15 @@ static bool frontend_switch_return_ok(hir0_statement_walk *walk,
       if (previous->enum_case_index == arm->enum_case_index) return false;
     }
     if ((size_t)arm->result_expression >= walk->result->written.expressions ||
-        !frontend_expression_is_i64(
-            walk->output,
-            &walk->output->expressions[arm->result_expression]) ||
+        walk->output->expressions[arm->result_expression].inferred_type ==
+            W_SEED_FRONTEND_NONE ||
+        (size_t)walk->output->expressions[arm->result_expression]
+                .inferred_type >= walk->result->written.types ||
+        walk->output->expressions[arm->result_expression].inferred_type !=
+            root->inferred_type ||
+        !frontend_type_is_scalar(
+            &walk->output->types[walk->output->expressions[
+                arm->result_expression].inferred_type]) ||
         !frontend_switch_flat_value_ok(walk->input, arm->result_expression,
                                        0u) ||
         !frontend_value_tree_ok(
@@ -7159,12 +7165,19 @@ static uint32_t hir0_emit_value_m2(
           (uint32_t)*context->enum_payload_index;
       w_seed_hir0_enum_payload *payload =
           &context->output->enum_payloads[*context->enum_payload_index];
+      if (argument->expression_index >=
+          context->frontend_result->written.expressions)
+        return W_SEED_HIR0_NONE;
+      const w_seed_frontend_expression *payload_expression =
+          &context->frontend->expressions[argument->expression_index];
       *payload = (w_seed_hir0_enum_payload){
           .owner_value = W_SEED_HIR0_NONE,
           .ordinal = (uint32_t)ordinal,
           .parameter_ordinal = argument->resolved_parameter_ordinal,
           .value_index = W_SEED_HIR0_NONE,
-          .type_index = 2u,
+          .type_index = hir_type_from_frontend(
+              context->frontend, context->frontend_result,
+              payload_expression->inferred_type),
           .source_span = argument->span};
       *context->enum_payload_index += 1u;
       payload->value_index = hir0_emit_value_m2(
@@ -9166,7 +9179,9 @@ static bool verify_enum_records(const w_seed_hir0_program *program) {
         const w_seed_hir0_enum_case_parameter *payload =
             &program->enum_case_parameters[payload_index];
         if (payload->owner_case != case_index ||
-            payload->ordinal != payload_ordinal || payload->type_index != 2u ||
+            payload->ordinal != payload_ordinal ||
+            (payload->type_index != W_SEED_HIR0_TYPE_I64 &&
+             payload->type_index != W_SEED_HIR0_TYPE_BOOL) ||
             !hir_text_valid(program, payload->label) ||
             payload->has_label != (payload->label.count != 0u) ||
             !span_valid(payload->source_span,
@@ -9378,7 +9393,8 @@ static bool verify_value_tree(
 
   if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
     if (value->pattern_capture_index >= program->switch_capture_count ||
-        value->type_index != 2u ||
+        (value->type_index != W_SEED_HIR0_TYPE_I64 &&
+         value->type_index != W_SEED_HIR0_TYPE_BOOL) ||
         value->binding_index != W_SEED_HIR0_NONE ||
         value->parameter_index != W_SEED_HIR0_NONE ||
         value->left_value != W_SEED_HIR0_NONE ||
@@ -9529,7 +9545,8 @@ static bool verify_value_tree(
       if (payload->owner_value != root_index || payload->ordinal != ordinal ||
           payload->parameter_ordinal >= enum_case->payload_count ||
           payload->value_index >= program->value_count ||
-          payload->type_index != 2u ||
+          (payload->type_index != W_SEED_HIR0_TYPE_I64 &&
+           payload->type_index != W_SEED_HIR0_TYPE_BOOL) ||
           !span_valid(payload->source_span, source_length))
         return false;
       for (size_t prior = 0u; prior < ordinal; prior += 1u)
@@ -11873,7 +11890,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
           if (capture->owner_switch_edge != edge_index ||
               capture->ordinal != capture_ordinal ||
               capture->parameter_ordinal >= enum_case->payload_count ||
-              capture->type_index != 2u ||
+              (capture->type_index != W_SEED_HIR0_TYPE_I64 &&
+               capture->type_index != W_SEED_HIR0_TYPE_BOOL) ||
               !hir_text_valid(program, capture->name) || capture->name.count == 0u ||
               !span_valid(capture->source_span, source_length) ||
               program->enum_case_parameters[(size_t)enum_case->first_payload +

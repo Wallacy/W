@@ -417,7 +417,8 @@ static bool program_enum_type_supported(const w_seed_hir0_program *program,
       const uint32_t field_type = program->enum_case_parameters[
           (size_t)item->first_payload + slot].type_index;
       if (field_type >= program->type_count ||
-          program->types[field_type].kind != W_SEED_HIR0_TYPE_I64)
+          (program->types[field_type].kind != W_SEED_HIR0_TYPE_I64 &&
+           program->types[field_type].kind != W_SEED_HIR0_TYPE_BOOL))
         return false;
     }
   }
@@ -819,7 +820,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ) {
-    if (type != W_SEED_HIR0_TYPE_I64 ||
+    if ((type != W_SEED_HIR0_TYPE_I64 && type != W_SEED_HIR0_TYPE_BOOL) ||
         value->pattern_capture_index >= program->switch_capture_count)
       return false;
     const w_seed_hir0_switch_capture *capture =

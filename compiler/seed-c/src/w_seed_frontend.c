@@ -13797,8 +13797,11 @@ static bool normalize_enum_payload_pattern(
         doc->nodes[atom].kind == W_SEED_CST_CAPTURE_PATTERN) {
       const w_seed_frontend_text name = capture_pattern_name(doc, atom);
       uint32_t type_index = W_SEED_FRONTEND_NONE;
-      if (name.length == 0u || parameter_type.kind != W_SEED_FRONTEND_TYPE_INTEGER ||
-          !parameter_type.is_signed || parameter_type.bit_width != 64u ||
+      const bool payload_capture_supported =
+          parameter_type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+          (parameter_type.kind == W_SEED_FRONTEND_TYPE_INTEGER &&
+           parameter_type.is_signed && parameter_type.bit_width == 64u);
+      if (name.length == 0u || !payload_capture_supported ||
           !output_type_index_for_simple(context, parameter_type, &type_index) ||
           type_index == W_SEED_FRONTEND_NONE) {
         *supported = false;
