@@ -46,6 +46,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-branch | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 291.4917 ms | 16.4601 ms | 4673536 B (4.46 MiB) | — |
 | restaurant-branch | rust | Windows x64 / MSVC | 114688 B (112.0 KiB) | 1.4136568 s | 21.4716 ms | 4763648 B (4.54 MiB) | — |
 | restaurant-branch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 202.5762 ms | 15.2738 ms | 3719168 B (3.55 MiB) | — |
+| restaurant-enum-switch | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 288.4359 ms | 18.1631 ms | 4788224 B (4.57 MiB) | — |
+| restaurant-enum-switch | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.2204827 s | 16.8011 ms | 4874240 B (4.65 MiB) | — |
+| restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | 14.9906 ms | 3760128 B (3.59 MiB) | — |
 
 W/Rust MSVC and C MinGW values are contextual, not cross-ABI rankings. Zero CPU medians are omitted.
 Machine contract and provenance: [executable-catalog.json](./executable-catalog.json). Manual commands: [README](./README.md#manual-reproduction).
