@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { deriveSummary } from "./executable-benchmark-runner.mjs";
 import {
@@ -16,6 +17,12 @@ import {
   PROCESS_ENTRY_RECIPE_CLASS,
   PROCESS_ENTRY_TIMED_INPUT,
   PROCESS_ENTRY_WORKLOAD_ID,
+  PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS,
+  PROCESS_ENUM_PAYLOAD_ORACLE_CASES,
+  PROCESS_ENUM_PAYLOAD_ORACLE_KIND,
+  PROCESS_ENUM_PAYLOAD_RECIPE_CLASS,
+  PROCESS_ENUM_PAYLOAD_TIMED_INPUT,
+  PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -26,6 +33,7 @@ import {
   PROCESS_HANDLER_LIFECYCLE_EXECUTION_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_STRUCTURE_CLASS,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  ROOT,
   deriveExecutableBestMetrics,
   executableEquivalenceKey,
   executableHostIdentity,
@@ -186,6 +194,55 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
     entry.artifactTarget === EXECUTABLE_ARTIFACT_TARGET_MSVC));
   assert.ok(liveMetrics.every((entry) =>
     entry.provenance.artifactCleanliness === "verified-clean"));
+});
+
+test("process-enum-payload catalog pins the backend-blocked tagged-union contract", () => {
+  const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID);
+  assert.ok(workload);
+  assert.equal(workload.structureClass, "public-end-to-end");
+  assert.equal(workload.status, "source-oracle-ready");
+  assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
+  assert.equal(workload.demoEvidence, "not-run");
+  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.deepEqual(workload.blockedLanguages, []);
+  assert.deepEqual(workload.blockers, ["native-backend"]);
+  assert.equal(workload.oracle.kind, PROCESS_ENUM_PAYLOAD_ORACLE_KIND);
+  assert.deepEqual(workload.oracle.timedInput, PROCESS_ENUM_PAYLOAD_TIMED_INPUT);
+  assert.deepEqual(workload.oracle.cases, PROCESS_ENUM_PAYLOAD_ORACLE_CASES);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.arguments), PROCESS_ENUM_PAYLOAD_CORRECTNESS_INPUTS);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.exitCode), [7, 0, 0]);
+  assert.deepEqual(workload.oracle.cases.map((testCase) => testCase.stdout), [
+    "enum-missing true\n",
+    "enum-received false\n",
+    "enum-received false\n",
+  ]);
+  assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ENUM_PAYLOAD_RECIPE_CLASS));
+  assert.equal(workload.sources.find((source) => source.language === "w").entry, "dispatch");
+  assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
+  assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
+  assert.equal(documents.catalog.bestMetrics.entries.some((entry) => entry.workloadId === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID), false);
+});
+
+test("process-enum-payload C and Rust variants retain independent runtime enum paths", () => {
+  const c = readFileSync(`${ROOT}/benchmarks/executable/process_enum_payload.c`, "utf8");
+  const rust = readFileSync(`${ROOT}/benchmarks/executable/process_enum_payload.rs`, "utf8");
+  assert.match(c, /int main\(int argc, char \*\*argv\)/u);
+  assert.match(c, /enum admission_state_kind/u);
+  assert.match(c, /union \{/u);
+  assert.match(c, /int64_t amount/u);
+  assert.match(c, /static struct admission_state build_admission/u);
+  assert.match(c, /switch \(state\.kind\)/u);
+  assert.match(c, /argc\s*==\s*1/u);
+  assert.match(c, /printf\("enum-missing %s\\n"/u);
+  assert.match(c, /repeated \? "true" : "false"/u);
+  assert.doesNotMatch(c, /\b(?:extern|ffi)\b/iu);
+  assert.match(rust, /fn main\(\)/u);
+  assert.match(rust, /enum AdmissionState/u);
+  assert.match(rust, /fn build_admission/u);
+  assert.match(rust, /match state/u);
+  assert.match(rust, /let repeated = std::env::args_os\(\)\.nth\(1\)\.is_none\(\)/u);
+  assert.match(rust, /write!\(stdout, "\{label\} \{repeated\}\\n"\)/u);
+  assert.doesNotMatch(rust, /\b(?:extern|unsafe|ffi)\b/iu);
 });
 
 test("structure taxonomy rejects unknown and contradictory classes", () => {

@@ -1322,6 +1322,98 @@
       "blockers": []
     },
     {
+      "id": "process-enum-payload",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "not-run",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Measure runtime process input through functions, enum payloads, branches and interpolation. This is end-to-end composition, not an isolated enum-layout benchmark; scalar replacement is permitted.",
+      "oracle": {
+        "kind": "argument-dependent-output",
+        "status": "source-backed",
+        "timedInput": [
+          "payload"
+        ],
+        "cases": [
+          {
+            "arguments": [],
+            "exitCode": 7,
+            "stdout": "enum-missing true\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              ""
+            ],
+            "exitCode": 0,
+            "stdout": "enum-received false\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              "payload"
+            ],
+            "exitCode": 0,
+            "stdout": "enum-received false\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-enum-payload.w",
+          "digest": "sha256:4e9dc2aef0fd0aa95af02abb1efdd7f8264291efed6aea3f98c2ccad440e41ad",
+          "entry": "dispatch",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-enum-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/process_enum_payload.c",
+          "digest": "sha256:f0a965119579435b2f5954bda53edbbb32dc0c32a9091a78d424c170a6fb6a83",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "process-enum-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/process_enum_payload.rs",
+          "digest": "sha256:6fa92a0a2f9a2170ec1f60f7d5b6648e5e4105d228716da89383faa15fb98957",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "process-enum-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "native-backend"
+      ]
+    },
+    {
       "id": "process-handler-lifecycle",
       "structureClass": "integration-linkage",
       "status": "source-oracle-ready",

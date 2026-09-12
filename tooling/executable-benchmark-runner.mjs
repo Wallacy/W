@@ -22,11 +22,6 @@ import {
   EXECUTABLE_PLATFORM_TARGET,
   EXECUTABLE_RESULT_SCHEMA,
   EXECUTABLE_RUN_TARGETS,
-  PROCESS_ENTRY_CORRECTNESS_INPUTS,
-  PROCESS_ENTRY_ORACLE_CASES,
-  PROCESS_ENTRY_ORACLE_KIND,
-  PROCESS_ENTRY_TIMED_INPUT,
-  PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENTRY0_CORRECTNESS_INPUTS,
   PROCESS_ENTRY0_EXECUTION_KIND,
   PROCESS_ENTRY0_FAULT_CASES,
@@ -40,7 +35,9 @@ import {
   executableEquivalenceKey,
   executableHostIdentity,
   exactOutputDigest,
+  isProcessArgumentWorkload,
   loadExecutableDocuments,
+  processArgumentOracleFor,
   validateExecutableCatalog,
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
@@ -313,7 +310,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-argument workloads validate all declared argument cases before timing and pin the declared timed vector; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23, the MSVC ABI, and the DLL runtime; Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -922,13 +919,16 @@ function processExecution(workload) {
   return execution;
 }
 
-function processEntryOracle(workload) {
+function processArgumentOracle(workload) {
   const oracle = workload?.oracle;
-  if (!isObject(oracle) || oracle.kind !== PROCESS_ENTRY_ORACLE_KIND || oracle.status !== "source-backed" ||
-      JSON.stringify(oracle.timedInput) !== JSON.stringify(PROCESS_ENTRY_TIMED_INPUT) ||
-      JSON.stringify(oracle.cases) !== JSON.stringify(PROCESS_ENTRY_ORACLE_CASES) ||
-      JSON.stringify(oracle.cases.map((testCase) => testCase.arguments)) !== JSON.stringify(PROCESS_ENTRY_CORRECTNESS_INPUTS)) {
-    fail("process-entry catalog oracle is not the ratified public argument/output contract");
+  const expected = processArgumentOracleFor(workload?.id);
+  if (!expected || !isObject(oracle) || oracle.kind !== expected.kind || oracle.status !== "source-backed" ||
+      JSON.stringify(oracle.timedInput) !== JSON.stringify(expected.timedInput) ||
+      !Array.isArray(oracle.cases) ||
+      JSON.stringify(oracle.cases) !== JSON.stringify(expected.cases) ||
+      JSON.stringify(oracle.cases.map((testCase) => testCase.arguments)) !== JSON.stringify(expected.correctnessInputs)) {
+    const label = workload?.id ?? "process argument";
+    fail(`${label} catalog oracle is not the ratified public argument/output contract`);
   }
   return oracle;
 }
@@ -1265,7 +1265,7 @@ async function runArtifact(executor, artifact, language = "w", target = DEFAULT_
     fail(`${language} ${target} executable arguments must contain only strings`);
   }
   const step = await timedStep(executor, artifact, argumentsVector, path.dirname(artifact), `${language} ${target} run`);
-  if (target !== PROCESS_ENTRY_WORKLOAD_ID) requireSuccess(step, `${language} ${target} executable`);
+  if (!isProcessArgumentWorkload(target)) requireSuccess(step, `${language} ${target} executable`);
   return {
     sample: sampleFrom(step.start, step.end, [step.usage], `${language} ${target} run`),
     stdout: step.stdout,
@@ -1615,10 +1615,10 @@ async function correctnessBuild(context) {
         artifactPeLayout,
       };
     }
-    const oracle = context.target === PROCESS_ENTRY_WORKLOAD_ID
-      ? processEntryOracle(context.source.workload)
+    const oracle = isProcessArgumentWorkload(context.target)
+      ? processArgumentOracle(context.source.workload)
       : context.source.workload.oracle;
-    if (context.target === PROCESS_ENTRY_WORKLOAD_ID) {
+    if (isProcessArgumentWorkload(context.target)) {
       for (const [index, testCase] of oracle.cases.entries()) {
         const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target, testCase.arguments);
         assertOracle(execution, testCase, context.target, `${context.language} ${context.target} correctness case ${index}`);
@@ -1645,7 +1645,7 @@ function protocol(context, workload = undefined) {
   const compileScope = language === "w"
     ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
-  const processEntry = workload?.id === PROCESS_ENTRY_WORKLOAD_ID;
+  const processEntry = isProcessArgumentWorkload(workload?.id);
   const runScope = context.nativeBenchmark
     ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
     : "Test-only run observations cover the direct target process; descendants are not aggregated.";
@@ -1908,9 +1908,9 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       recipeDigest,
       eligibility: source.eligibility,
     },
-    correctness: context.target === PROCESS_ENTRY_WORKLOAD_ID
+    correctness: isProcessArgumentWorkload(context.target)
       ? {
-        oracleId: `${context.target}:${PROCESS_ENTRY_ORACLE_KIND}`,
+        oracleId: `${context.target}:${processArgumentOracleFor(context.target).kind}`,
         cases: workload.oracle.cases.map((testCase) => ({
           arguments: [...testCase.arguments],
           exitCode: testCase.exitCode,
@@ -2155,10 +2155,10 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     for (let round = 0; round < compileSamples; round += 1) compileRaw.push((await compileSource(context, false)).sample);
     const runWarmup = [];
     const runRaw = [];
-    const oracle = target === PROCESS_ENTRY_WORKLOAD_ID
-      ? processEntryOracle(source.workload)
+    const oracle = isProcessArgumentWorkload(target)
+      ? processArgumentOracle(source.workload)
       : source.workload.oracle;
-    const timedOracleCase = target === PROCESS_ENTRY_WORKLOAD_ID
+    const timedOracleCase = isProcessArgumentWorkload(target)
       ? oracle.cases.find((testCase) => JSON.stringify(testCase.arguments) === JSON.stringify(oracle.timedInput))
       : undefined;
     const timedArguments = timedOracleCase?.arguments ?? [];
