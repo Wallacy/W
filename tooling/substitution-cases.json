@@ -5713,6 +5713,98 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir22-same-module-product-closure",
+      "reviewItem": "same-module executable product roots against retain-all-exports and source-name shortcuts",
+      "decisions": [
+        "W-1564"
+      ],
+      "task": "Preserve function export identity in verified HIR22 and prove the bounded executable entry closure without claiming cross-module WMO.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn bill(total: i64): i64 {",
+          "  return total + 2",
+          "}",
+          "export fn unusedReceipt(total: i64): i64 {",
+          "  return total / 2",
+          "}",
+          "fn hiddenMenu() {",
+          "  print(\"Never served\")",
+          "}",
+          "entry {",
+          "  let total = bill(total: 40)",
+          "  print(\"Bill ${total}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "retain-every-source-export",
+          "language": "text",
+          "source": [
+            "treat every module-visible declaration as an executable product root"
+          ],
+          "expectedDifference": "The selected executable recipe distinguishes module visibility from product roots and omits an unused source export."
+        },
+        {
+          "name": "fixture-name-output-shortcut",
+          "language": "text",
+          "source": [
+            "recognize restaurant-wmo.w and write Bill 42 directly"
+          ],
+          "expectedDifference": "The selected route retains the verified local bill callee and executes its lowered addition."
+        },
+        {
+          "name": "claim-cross-module-wpo",
+          "language": "text",
+          "source": [
+            "generalize one-module reachability to package and workspace optimization"
+          ],
+          "expectedDifference": "The selected evidence remains explicitly bounded until a graph-to-HIR bridge and complete product-root planner exist."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "digest_program",
+          "claim": "HIR22 copies, semantically binds, and independently verifies each declared function export fact."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_function_export_facts",
+          "claim": "Focused HIR tests distinguish exported, private, and synthesized-entry functions and reject forged facts."
+        },
+        {
+          "path": "tooling/check-mlir0.mjs",
+          "symbol": "restaurantWmoFixture",
+          "claim": "The MLIR gate proves the used local helper is retained while unused functions, text, and checked-divide support are omitted."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantWmoFixture",
+          "claim": "The pinned Windows native gate executes the same-module product closure with exact output."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantWmoFixture",
+          "claim": "The Linux/WSL native gate executes the same source with exact output."
+        }
+      ],
+      "checks": [
+        "HIR22 measure, emit, digest, and verify preserve the exported bit",
+        "anonymous entry export and declared-function export forgeries fail closed",
+        "raw MLIR retains the used helper and omits unused exported/private functions, dead text, and unrelated checked-divide support",
+        "native routes execute exact Bill 42 output with empty stderr and zero exit",
+        "the evidence is labelled same-module executable closure rather than package or cross-module WPO"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

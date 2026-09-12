@@ -500,6 +500,75 @@
       ]
     },
     {
+      "id": "restaurant-wmo",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "not-performance-ready",
+      "lane": "equivalent",
+      "scope": "Retain the executable entry closure inside one W module while omitting unused exported and private functions.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Bill 42\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-wmo.w",
+          "digest": "sha256:96556769281f0abbc0bf8ffa5be14b356d97bdf9a6232308ffa7d9f3814ab9f5",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-wmo-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "contextual-non-ranking-until-process-tree-accounting",
+          "eligibility": "contextual-only-until-process-tree-accounting"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_wmo.c",
+          "digest": "sha256:18b68b7abe6d51e6e1bde7d09346be1a91b00d34965a874f92718ed8ca124510",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-wmo-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_wmo.rs",
+          "digest": "sha256:076896646d66b9a7cbbc8feb80c33a19e2d95472f160534831580e634020be83",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-wmo-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": [
+        "cross-module-graph-to-hir",
+        "process-tree-accounting"
+      ]
+    },
+    {
       "id": "restaurant-enum-switch",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

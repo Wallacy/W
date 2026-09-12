@@ -16,6 +16,7 @@ const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures"
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
 const restaurantNestedIfFixture = resolve(seedDirectory, "fixtures", "restaurant-nested-if.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
+const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantRuntimeDivremFixture = resolve(seedDirectory,
   "fixtures", "restaurant-runtime-divrem.w")
 const restaurantUnaryNegateFixture = resolve(seedDirectory,
@@ -664,6 +665,9 @@ try {
   expectSuccess(binary, ["run", toWsl(restaurantWhileFixture)],
     Buffer.from("Served 3\n", "utf8"),
     "Restaurant natural while lowered through structured MLIR")
+  expectSuccess(binary, ["run", toWsl(restaurantWmoFixture)],
+    Buffer.from("Bill 42\n", "utf8"),
+    "Restaurant whole-module product closure")
   expectSuccess(binary, ["run", toWsl(w1531MinimalFixture)],
     Buffer.from("then\n", "utf8"), "W-1531 minimal if/else")
   expectSuccess(binary, ["run", toWsl(w1531NoElseFixture)],

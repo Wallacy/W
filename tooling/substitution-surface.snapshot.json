@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:44e978ab67302f7efb8261e03b84bd794e192bf0e08753e341c34d5cd4520c23",
+  "corpusDigest": "sha256:86a30503f7dc1c1868572ba0128f5425b25dcf85231e0f113d1a63e8ed94e298",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6372,6 +6372,66 @@
             "nonWhitespaceCodePoints": 46,
             "lines": 1,
             "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir22-same-module-product-closure",
+      "task": {
+        "utf8Bytes": 133,
+        "codePoints": 133,
+        "nonWhitespaceCodePoints": 116,
+        "lines": 1,
+        "surfaceLexemes": 21
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:275d0b5e672969fed5bf72a7482f6fa2f511bf5c01309b8ae2e8ee8c675bde38",
+        "metrics": {
+          "utf8Bytes": 220,
+          "codePoints": 220,
+          "nonWhitespaceCodePoints": 174,
+          "lines": 13,
+          "surfaceLexemes": 57
+        }
+      },
+      "alternatives": [
+        {
+          "name": "retain-every-source-export",
+          "language": "text",
+          "sourceDigest": "sha256:13cb121b057395e2841ca5056f426002709329fab114afb6bce0dae5cd7bdfa6",
+          "metrics": {
+            "utf8Bytes": 68,
+            "codePoints": 68,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "fixture-name-output-shortcut",
+          "language": "text",
+          "sourceDigest": "sha256:e9e898dd9a2c1887b90f1465f9e2e0f53903fa7bfd36b22fec5b85bc791e5cea",
+          "metrics": {
+            "utf8Bytes": 53,
+            "codePoints": 53,
+            "nonWhitespaceCodePoints": 47,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        },
+        {
+          "name": "claim-cross-module-wpo",
+          "language": "text",
+          "sourceDigest": "sha256:b8a368d53869e4afa013c768f781ee1ce028328d832c76f46ce2ce61fb50dc5b",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 65,
+            "lines": 1,
+            "surfaceLexemes": 10
           }
         }
       ]

@@ -37975,6 +37975,31 @@ mixed CFG, public ABI/layout stability, other targets, and performance remain
 gaps. The benchmark disposition is `compiler-lifecycle`, correctness-only,
 with no timing, ranking, or benchmark result.
 
+#### 26.4.1.45 W-1564 — bounded same-module executable product closure (Current form)
+
+HIR0 advances to schema `w-seed-hir0-22` and preserves the frontend `exported`
+fact on every declared function. The producer copies the fact, the semantic
+digest binds it, and the independent verifier rejects a forged export bit or
+an exported synthesized entry. This fact is module visibility metadata; it is
+not by itself a retention root for every product.
+
+For the current single-module executable recipe, the anonymous `.default`
+entry is the product root. MLIR0 follows verified local callees transitively,
+emits the selected entry closure, and omits other module functions and their
+private helper data. The exact
+[`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w) witness retains
+the private `bill` helper but omits both an unused exported function and an
+unused private function, including the latter's `Never served` text. Its native
+artifact executes with stdout `Bill 42\n`, empty stderr, and exit zero.
+
+This is evidence for one bounded executable product closure inside one module,
+not cross-module WMO/WPO. HIR0 still admits exactly one source document and one
+module. Package/workspace graph lowering, library product exports, reflection,
+FFI, provider, service and dynamic-loading roots, incremental summary reuse,
+cross-module inlining, other targets, and optimization-quality claims remain
+gaps. The executable catalog owns exploratory W/C/Rust measurements separately
+from this correctness claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -987,7 +987,8 @@ static bool frontend_symbol_records_ok(const w_seed_hir0_input *input) {
     if (symbol->kind != W_SEED_FRONTEND_SYMBOL_FUNCTION ||
         symbol->module_index != source->module_index ||
         symbol->owner_index != function || !text_equal(symbol->name, source->name) ||
-        symbol->exported || symbol->type_index != source->return_type ||
+        symbol->exported != source->exported ||
+        symbol->type_index != source->return_type ||
         !frontend_span_ok(&input->frontend_input->documents[0], symbol->span))
       return false;
   }
@@ -7320,6 +7321,7 @@ static void emit_records(const w_seed_hir0_input *input,
     target->identity_index = (uint32_t)(function_identity_base + function);
     append_text_unchecked(source->name, output->text_bytes, &text_offset,
                           &target->name);
+    target->exported = source->exported;
     target->source_span = source->span;
     target->body_span = source->body_span;
     target->return_type = hir_type_from_frontend(
@@ -7965,6 +7967,7 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->module_index);
     digest_u32(&state, value->identity_index);
     digest_text(&state, program, value->name);
+    digest_bool(&state, value->exported);
     digest_u32(&state, value->return_type);
     digest_u32(&state, value->first_parameter);
     digest_u32(&state, value->parameter_count);
@@ -10736,7 +10739,8 @@ static bool verify_records(const w_seed_hir0_program *program) {
                      program->block_count))
       return false;
     if (value->is_anonymous_entry &&
-        (value->parameter_count != 0u || value->return_type != 0u))
+        (value->exported || value->parameter_count != 0u ||
+         value->return_type != 0u))
       return false;
     for (size_t parameter = 0u; parameter < value->parameter_count; parameter += 1u) {
       const w_seed_hir0_parameter *item =
