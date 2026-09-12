@@ -244,6 +244,11 @@ Windows artifact is `unit-structured-cfg-enum-switch`; the i2 sign-bit tag is
 printed as `-2` for MLIR 23.1.1's signed textual parser. Payloads, subsets,
 general/mixed CFG, public ABI/layout stability, other targets, timing, ranking,
 and performance remain outside this correctness-only compiler-lifecycle cut.
+W-1564 advances HIR0 to HIR22 and preserves the function export bit as verified
+semantic input. The `restaurant-wmo.w` gate proves only a same-module
+executable product closure: retain the used private helper, omit unused
+exported/private functions and dead text, then execute exact `Bill 42\n`.
+Cross-module graph lowering and complete product-root planning remain gaps.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

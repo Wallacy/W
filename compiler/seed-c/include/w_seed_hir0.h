@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-21"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-22"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -295,6 +295,7 @@ typedef struct {
   uint32_t module_index;
   uint32_t identity_index;
   w_seed_hir0_text name;
+  bool exported;
   w_seed_span source_span;
   w_seed_span body_span;
   uint32_t return_type;

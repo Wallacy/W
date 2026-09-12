@@ -1428,6 +1428,22 @@ This remains a correctness-only compiler-lifecycle witness. Payload-bearing
 cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
 targets, timing, ranking, and performance are not implemented or claimed.
 
+### Bounded same-module executable product closure (W-1564)
+
+Current HIR22 (`w-seed-hir0-22`) copies the frontend function `exported` fact,
+binds it into the semantic digest, and verifies it independently. Export is
+module visibility, not an unconditional executable retention root. For the
+current one-module executable recipe, `.default` is the product root and local
+call reachability retains only its transitive closure.
+
+[`restaurant-wmo.w`](fixtures/restaurant-wmo.w) proves the bounded shape: the
+used private `bill` helper is present, while unused exported/private functions,
+the `Never served` text, and unrelated checked-divide support are absent from
+the raw program artifact. Public native routes require exact `Bill 42\n`, empty
+stderr, and exit zero. Package/workspace graph lowering, library export roots,
+reflection/FFI/provider/service/dynamic roots, cross-module optimization, and
+optimization-quality claims remain gaps.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

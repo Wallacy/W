@@ -32,6 +32,7 @@ const restaurantBranchMutationFixture = resolve(seedDirectory,
 const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation-multi.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
+const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -276,7 +277,6 @@ try {
   const directCallPath = resolve(artifactDirectory, "direct-call.w")
   const scalarReturnPath = resolve(artifactDirectory, "scalar-return.w")
   const boolReturnPath = resolve(artifactDirectory, "bool-return.w")
-  const deadUnusedPath = resolve(artifactDirectory, "dead-unused.w")
   const checkedOverflowPath = resolve(artifactDirectory, "checked-overflow.w")
   const runtimeMinimumRemainderPath = resolve(artifactDirectory,
     "runtime-minimum-remainder.w")
@@ -337,14 +337,6 @@ try {
     'fn kitchenOpen(): Bool { return true }\n' +
     'fn main() { let open = kitchenOpen() ' +
     'print("Open ${open}") }\nentry(main)\n')
-  await writeFile(deadUnusedPath,
-    'fn deadArithmetic(value: i64): i64 { return value + 1 }\n' +
-    'fn deadDivision(value: i64): i64 { return value / 2 }\n' +
-    'fn deadRemainder(value: i64): i64 { return value % 2 }\n' +
-    'fn deadNegate(value: i64): i64 { return -value }\n' +
-    'fn secret() { print("secret") }\n' +
-    'fn dead() { secret() }\n' +
-    'fn main() { print("Hello, world!") }\nentry(main)\n')
   await writeFile(checkedOverflowPath,
     'fn addOne(value: i64): i64 { return value + 1 }\n' +
     'fn main() { let result = addOne(value: 9223372036854775807) ' +
@@ -446,8 +438,8 @@ try {
       expected: Buffer.from("Open 18; closed -4\n", "utf8") },
     { name: "restaurant-while", source: restaurantWhileFixture,
       expected: Buffer.from("Served 3\n", "utf8") },
-    { name: "dead-unused", source: deadUnusedPath,
-      expected: Buffer.from("Hello, world!\n", "utf8") },
+    { name: "restaurant-wmo", source: restaurantWmoFixture,
+      expected: Buffer.from("Bill 42\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -588,16 +580,14 @@ try {
   assert(typedArithmeticArtifact.includes("llvm.sdiv %v") &&
     typedArithmeticArtifact.includes("llvm.srem %v"),
   "constant division and remainder did not retain LLVM arithmetic lowering")
+  const wmoArtifact = artifacts.get("restaurant-wmo")
   assert(!artifacts.get("hello").includes("@w_seed_checked_") &&
-    !artifacts.get("dead-unused").includes("@w_seed_checked_") &&
-    !artifacts.get("dead-unused").includes("@w_fn_0(") &&
-    !artifacts.get("dead-unused").includes("@w_fn_1(") &&
-    !artifacts.get("dead-unused").includes("@w_fn_2(") &&
-    !artifacts.get("dead-unused").includes("@w_fn_3(") &&
-    !artifacts.get("dead-unused").includes("@w_fn_4(") &&
-    !artifacts.get("dead-unused").includes("@w_fn_5(") &&
-    !artifacts.get("dead-unused").includes("\\73\\65\\63\\72\\65\\74"),
-  "unreachable function, text, or checked arithmetic helper was emitted")
+    wmoArtifact.includes("@w_fn_0(") &&
+    !wmoArtifact.includes("@w_fn_1(") &&
+    !wmoArtifact.includes("@w_fn_2(") &&
+    !wmoArtifact.includes("@w_seed_checked_divide_i64") &&
+    !wmoArtifact.includes("\\4E\\65\\76\\65\\72\\20\\73\\65\\72\\76\\65\\64"),
+  "whole-module reachability did not retain only the selected product closure")
   assert(artifacts.get("typed-bindings").includes(
     "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : (i64, i64) -> i64"),
   "typed binding arithmetic was precomputed before MLIR")

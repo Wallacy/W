@@ -144,6 +144,11 @@ may override the bounded odd counts. Public C requires Clang with final
 `-std=c23` support and the MSVC target; its portable release recipe uses O3,
 full LTO, per-function/data sections, LLD dead-code/identical-code folding, no
 CodeView/PDB data or COFF symbol table, and only payload-free REPRO metadata.
+The larger C artifacts for numeric Restaurant workloads are a reachable-runtime
+effect, not missing section GC: integer `printf` formatting pulls additional
+UCRT conversion/output objects that `/OPT:REF` cannot discard. Replacing that
+with custom formatting or a dynamic-runtime recipe would be a different
+implementation or distribution lane and must not silently replace this one.
 Rust records its rustc release,
 edition 2024 and MSVC ABI; its portable release recipe uses O3, fat LTO, one
 codegen unit, panic abort, dead-code elimination, `/OPT:REF`, `/OPT:ICF`, and

@@ -4873,6 +4873,41 @@ static bool test_short_entry_hir(void) {
   return true;
 }
 
+static bool test_function_export_facts(void) {
+  static const char SOURCE[] =
+      "export fn public() { }\n"
+      "fn private() { }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  CHECK(fixture.hir_program.function_count == 3u &&
+        fixture.hir_program.entry_count == 1u &&
+        fixture.hir_program.functions[0].exported &&
+        !fixture.hir_program.functions[1].exported &&
+        !fixture.hir_program.functions[2].exported &&
+        !fixture.hir_program.functions[0].is_anonymous_entry &&
+        !fixture.hir_program.functions[1].is_anonymous_entry &&
+        fixture.hir_program.functions[2].is_anonymous_entry);
+
+  const w_seed_hir0_function saved_public = fixture.hir_functions[0];
+  fixture.hir_functions[0].exported = false;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_public;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_function saved_private = fixture.hir_functions[1];
+  fixture.hir_functions[1].exported = true;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[1] = saved_private;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  const w_seed_hir0_function saved_entry = fixture.hir_functions[2];
+  fixture.hir_functions[2].exported = true;
+  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_functions[2] = saved_entry;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
+}
+
 int main(void) {
   if (!test_frontend_inferred_call_interpolation()) return 1;
   if (!test_process_hir()) return 1;
@@ -4926,6 +4961,7 @@ int main(void) {
   if (!test_nested_logical_positive()) return 1;
   if (!test_logical_rhs_call_argument_positive()) return 1;
   if (!test_logical_adversarial_barriers()) return 1;
+  if (!test_function_export_facts()) return 1;
   (void)puts("hir0 tests: ok");
   return 0;
 }

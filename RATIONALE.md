@@ -174,6 +174,7 @@ O corpus compara, no mínimo:
 - subset print-literal input-driven source → HIR0 → HLO0 → HLO1/RUN0 contra hardcode Hello-only, stdout direto e bypass sem source provenance.
 - verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - closed local payloadless enum exhaustive switch against raw integer tags, incomplete coverage, and expected-output shortcuts.
+- same-module executable product roots against retain-all-exports and source-name shortcuts.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
 - typed topological interpolation HIR against precomputed output, source reparsing, and witness-specific print paths.
 - runtime signed-i64 interpolation against precomputed output, printInt bypass, and unchecked LLVM arithmetic.
@@ -7840,6 +7841,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1561 | structured MLIR and native execution for the bounded natural loop | The W-1560 loop is selected from verified HIR and emitted as `scf.while` with one carried signed-`i64` value. `scf.condition` and `scf.yield` retain the structured loop until the pinned `convert-scf-to-cf` and `convert-cf-to-llvm` passes. Public Linux/WSL and native Windows `w run` routes execute the exact Restaurant witness without a source-variable allocation, generated C, host-C loop, or expected-output shortcut. | `source-backed-current` only for this exact one-carrier four-block shape and capability scope `unit-structured-cfg-natural-loop`. Correctness evidence covers Linux x86_64 WSL LLVM/MLIR 20.1.2 and Windows x86_64 MSVC LLVM/MLIR 23.1.1. Multiple carriers, labels, break/continue, `while let`, nesting, mixed control, effects, other root types, macOS, optimization quality, PGO, ranking, and general performance remain gaps. The executable catalog owns separate exploratory measurements. `benchmarkDisposition: compiler-lifecycle`. |
 | W-1562 | local payloadless enum identity in verified HIR | HIR0 schema `w-seed-hir0-20` owns local enum and enum-case records. Each enum has a lexical dense case range. Each payloadless case has equal ordinal and tag with `payload_count == 0`. `TYPE_ENUM` records retain nominal enum identity through `enum_index`, and `VALUE_ENUM_CASE` records retain the owning enum and case indices. Local enum types publish lifecycle `VALUE_COPY` with release contract `NONE`. `w_seed_hir0_measure`, `w_seed_hir0_run`, and `w_seed_hir0_verify` keep records caller-owned and enforce capacity, alias, semantic-digest, provenance-digest, receipt, and all-or-nothing barriers. Native0 proves source → frontend → verified HIR, then returns `W_SEED_NATIVE0_UNSUPPORTED` at the MLIR boundary. `compiler/seed-c/fixtures/restaurant-enum.w` is a future switch target and not execution evidence. | `source-backed-current` only for this bounded HIR20 local payloadless enum identity slice and the Native0 frontend → verified-HIR stop. Switch and exhaustiveness semantics, the native minimum-width carrier and invalid patterns, payloads, subsets, `Result`, `throws`, ABI, and performance remain gaps. `benchmarkDisposition: compiler-lifecycle`, correctness-only, with no timing, ranking, or performance result. |
 | W-1563 | closed local payloadless enum exhaustive switch through native execution | HIR0 schema `w-seed-hir0-21` extends the local payloadless enum identity with one explicit `SWITCH_ENUM` terminator and dense caller-owned switch edges retaining the subject enum, enum-case identity, canonical declaration order, ordinal, arm block, and source span. The target block's `RETURN_VALUE` terminator carries and proves the arm result. The verifier admits only the bounded dispatch-plus-one-return-block-per-case shape and rejects incomplete, duplicate, unknown, or forged edges, carriers, targets, values, and default paths. NativeSubset0 proves the private minimum logical carrier width (`iN`, three cases => `i2`, with at most 64 cases); MLIR0 emits canonical `cf.switch` tags and a backend-only synthetic default ending in `llvm.unreachable`. The pinned Windows x86_64 MSVC LLVM/MLIR 23.1.1 route executes `compiler/seed-c/fixtures/restaurant-enum.w` with exact `Courses 10/30/20\n`, empty stderr, and exit zero through source → frontend → verified HIR → MLIR → conversion → LLVM/native execution. | `source-backed-current` only for this bounded local payloadless enum switch, HIR21 edge/verifier shape, private minimum-width carrier, MLIR0 `cf.switch` lowering, and the pinned native Windows witness. Payload-bearing cases, enum subsets, general or mixed CFG, public ABI/layout stability, other targets, and performance remain gaps. The MLIR 23.1.1 parser spells the i2 sign-bit tag `2` as the equivalent signed literal `-2`; this preserves the carrier bit pattern and is not a public representation. `benchmarkDisposition: compiler-lifecycle`, correctness-only, with no timing, ranking, or performance result. |
+| W-1564 | bounded same-module executable product closure | HIR0 schema `w-seed-hir0-22` preserves and semantically binds the frontend function `exported` fact. For the current single-module executable recipe, the anonymous `.default` entry is the product root: MLIR0 follows verified local callees transitively, retains the used private helper, and omits unused exported and private functions plus their unreachable helper data. The native Restaurant witness executes with exact `Bill 42\n`, empty stderr, and exit zero. | `source-backed-current` only for this bounded same-module executable closure, HIR22 export fact, structural omission evidence, and current native execution routes. It is not cross-module WMO/WPO: graph-to-HIR lowering, library exports, reflection/FFI/provider/service/dynamic roots, summary reuse, cross-module inlining, other targets, and optimization-quality claims remain gaps. `benchmarkDisposition: compiler-lifecycle`; exploratory executable metrics are catalogued separately. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11354,3 +11356,28 @@ subsets, general or mixed CFG, public ABI/layout stability, other targets, and
 performance remain gaps. The benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing, ranking, or benchmark
 result.
+
+#### W-1564 — bounded same-module executable product closure
+
+The language contract makes a module the minimum semantic optimization region,
+but source visibility and product retention are different decisions. HIR22
+therefore preserves the frontend `exported` bit instead of discarding it. The
+bit participates in the semantic digest and independent verification, so a
+later product planner can distinguish public module surface from private
+implementation without consulting frontend storage. Anonymous entry functions
+cannot forge export visibility.
+
+The first executable witness intentionally stays below the cross-module claim.
+For an executable containing one module, `.default` is the sole product root.
+The MLIR emitter walks verified local calls from that root. In
+`restaurant-wmo.w`, it retains the private `bill` function and omits the unused
+exported `unusedReceipt`, the private `hiddenMenu`, its `Never served` bytes,
+and unrelated checked-arithmetic helpers. The generated program still executes
+as `Bill 42\n`. Parallel C23 and Rust sources exist only as executable-catalog
+comparisons; they are not evidence for W's HIR or reachability algorithm.
+
+This closes neither package WMO nor WPO. The graph-to-HIR bridge, product-kind
+root planner, library exports, reflection, FFI, provider/service/dynamic roots,
+incremental summaries, cross-module inlining, and optimization-quality evidence
+remain explicit gaps. The correctness witness and the exploratory benchmark
+therefore stay separate.

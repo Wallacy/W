@@ -135,6 +135,13 @@ MLIR; the i2 sign-bit tag is written `-2` for MLIR's signed textual parser.
 This is correctness-only evidence for the bounded shape, not payloads, enum
 subsets, general/mixed CFG, public ABI/layout stability, other targets, PGO,
 timing, ranking, or performance.
+W-1564 advances current HIR0 to `w-seed-hir0-22` by preserving and binding each
+declared function's `exported` fact. The executable root walk now has an exact
+same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)
+retains its used private helper, omits unused exported/private functions and
+unreachable text, and runs as `Bill 42\n`. This is bounded same-module product
+closure, not package/workspace WMO or WPO; those still require graph-to-HIR and
+complete product-root planning.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
