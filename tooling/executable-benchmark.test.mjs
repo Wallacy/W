@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { deriveSummary } from "./executable-benchmark-runner.mjs";
 import {
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
@@ -43,7 +44,7 @@ const digest = "sha256:111111111111111111111111111111111111111111111111111111111
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
-  assert.equal(documents.schema.$id, "w-executable-benchmark/4");
+  assert.equal(documents.schema.$id, "w-executable-benchmark/5");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
@@ -70,7 +71,7 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "process-entry/w": commonMetrics,
     "process-handler-lifecycle/c": commonMetrics,
     "process-handler-lifecycle/rust": commonMetrics,
-    "process-handler-lifecycle/w": [...commonMetrics, "cpu-time"].sort(),
+    "process-handler-lifecycle/w": commonMetrics,
     "restaurant-branch/c": commonMetrics,
     "restaurant-branch/rust": commonMetrics,
     "restaurant-branch/w": commonMetrics,
@@ -252,6 +253,20 @@ test("best derivation excludes zero CPU and preserves category/provenance", () =
   hostVariant.identity.host = executableHostIdentity(hostVariant.environment);
   const variant = deriveExecutableBestMetrics(documents.catalog, [result, hostVariant]);
   assert.equal(new Set(variant.entries.map((entry) => entry.categoryId)).size, 2);
+});
+
+test("101 fresh runs publish mean CPU and nearest-rank P95 wall time", () => {
+  const result = validResult();
+  result.run.raw = Array.from({ length: 101 }, (_, index) => sample(index));
+  result.run.summary = deriveSummary(result.run.raw);
+  const derived = deriveExecutableBestMetrics(documents.catalog, [result]);
+  const cpu = derived.entries.find((entry) => entry.metric === "cpu-time");
+  const p95 = derived.entries.find((entry) => entry.metric === "run-wall-p95");
+  assert.equal(cpu?.statistic, "arithmeticMean");
+  assert.equal(cpu?.value, "1");
+  assert.equal(p95?.statistic, "p95");
+  assert.equal(p95?.value, "96");
+  assert.deepEqual(validateExecutableBestMetrics(derived, documents.catalog), []);
 });
 
 test("update replaces only lower cells and is idempotent for non-improving values", () => {

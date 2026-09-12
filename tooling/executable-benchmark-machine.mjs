@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
-export const EXECUTABLE_SCHEMA = "w-executable-benchmark/4";
+export const EXECUTABLE_SCHEMA = "w-executable-benchmark/5";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
 export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/4";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
@@ -85,6 +85,7 @@ export const PROCESS_ENTRY0_SUPPORT_ROLES = Object.freeze([
 export const EXECUTABLE_METRICS = Object.freeze([
   { id: "compile-latency", unit: "nanoseconds", kind: "duration" },
   { id: "run-wall-time", unit: "nanoseconds", kind: "duration" },
+  { id: "run-wall-p95", unit: "nanoseconds", kind: "duration" },
   { id: "cpu-user-time", unit: "microseconds", kind: "duration" },
   { id: "cpu-system-time", unit: "microseconds", kind: "duration" },
   { id: "cpu-time", unit: "microseconds", kind: "duration" },
@@ -122,6 +123,7 @@ export const MEASUREMENT_PROFILES = Object.freeze(["release", "size-experimental
 export const OPTIMIZABLE_METRICS = Object.freeze([
   "compile-latency",
   "run-wall-time",
+  "run-wall-p95",
   "cpu-time",
   "peak-working-set",
   "artifact-size",
@@ -649,7 +651,7 @@ function sourcePolicy(workload, language, recipe) {
 
 function canonicalEquivalencePayload(workload, platformTarget, profile, recipeClass) {
   const payload = {
-    schema: EXECUTABLE_SCHEMA,
+    schema: "w-executable-equivalence/1",
     workloadId: workload.id,
     lane: workload.lane,
     scope: workload.scope,
@@ -987,19 +989,30 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
 function resultMetricValue(record, metric) {
   if (metric === "compile-latency") return record.compile.summary.wallNs.median;
   if (metric === "run-wall-time") return record.run.summary.wallNs.median;
-  if (metric === "cpu-time") return record.run.summary.cpuTotalUs.median;
+  if (metric === "run-wall-p95") {
+    const values = record.run.raw.map((sample) => BigInt(sample.wallNs))
+      .sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+    const index = Number((BigInt(values.length) * 95n + 99n) / 100n - 1n);
+    return values[index]?.toString(10);
+  }
+  if (metric === "cpu-time") return record.run.summary.cpuTotalUs.arithmeticMean;
   if (metric === "peak-working-set") return record.run.summary.peakRssBytes.median;
   if (metric === "artifact-size") return record.artifact.sizeBytes;
   return undefined;
 }
 
 function bestMetricStatistic(metric) {
-  return metric === "artifact-size" ? "single-artifact" : "median";
+  if (metric === "artifact-size") return "single-artifact";
+  if (metric === "cpu-time") return "arithmeticMean";
+  if (metric === "run-wall-p95") return "p95";
+  return "median";
 }
 
 function bestMetricIsEligible(record, metric) {
   const value = resultMetricValue(record, metric);
-  // CPU counters can be valid at microsecond resolution, but a zero value
+  if (["cpu-time", "run-wall-p95"].includes(metric) && record.run.raw.length < 101) return false;
+  // Averaging 101 fresh processes can recover a useful scheduler-accounted
+  // CPU estimate from quantized per-process counters. An all-zero mean still
   // cannot establish a useful lower-is-better cell.
   return value !== undefined && (!metric.startsWith("cpu-") || value !== "0");
 }
@@ -1171,7 +1184,7 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
   if (record.profile !== "release") push(errors, "executable best metric.profile must be release.");
   const expectedUnit = EXECUTABLE_METRICS.find((item) => item.id === record.metric)?.unit;
   if (record.unit !== expectedUnit) push(errors, "executable best metric.unit must match the declared metric.");
-  const expectedStatistic = record.metric === "artifact-size" ? "single-artifact" : "median";
+  const expectedStatistic = bestMetricStatistic(record.metric);
   if (record.statistic !== expectedStatistic) push(errors, "executable best metric.statistic must be " + expectedStatistic + ".");
   digest(record.equivalenceKey, "executable best metric.equivalenceKey", errors);
   checkSafeIdentityString(record.toolchain, "executable best metric.toolchain", errors);

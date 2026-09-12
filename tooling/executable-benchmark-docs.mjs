@@ -108,7 +108,7 @@ export function formatBytes(value) {
 }
 
 function formatValue(entry) {
-  if (entry.metric === "compile-latency" || entry.metric === "run-wall-time") return formatNanoseconds(entry.value);
+  if (["compile-latency", "run-wall-time", "run-wall-p95"].includes(entry.metric)) return formatNanoseconds(entry.value);
   if (entry.metric === "cpu-time") return formatMicroseconds(entry.value);
   return formatBytes(entry.value);
 }
@@ -166,14 +166,14 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   for (const workload of catalog.workloads) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best values", "", "| Workload | Language | Target | Artifact | Compile | Run | Peak RSS | CPU |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("", "## Best values", "", "| Workload | Language | Target | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const group of rows) {
     const entry = group.entry;
-    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
   }
   lines.push(
     "",
-    "W/Rust MSVC and C MinGW values are contextual, not cross-ABI rankings. Zero CPU medians are omitted.",
+    "W/Rust MSVC and C MinGW values are contextual, not cross-ABI rankings. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

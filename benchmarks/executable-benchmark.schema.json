@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "w-executable-benchmark/4",
+  "$id": "w-executable-benchmark/5",
   "title": "W executable benchmark live catalog and local result contracts",
   "oneOf": [
     { "$ref": "#/$defs/catalog" },
@@ -202,7 +202,7 @@
         },
         "artifact": { "type": "string" },
         "metrics": {
-          "const": ["compile-latency", "run-wall-time", "cpu-user-time", "cpu-system-time", "cpu-time", "peak-working-set", "artifact-size", "exit-code", "stdout", "stderr"]
+          "const": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-user-time", "cpu-system-time", "cpu-time", "peak-working-set", "artifact-size", "exit-code", "stdout", "stderr"]
         },
         "storage": { "type": "string" }
       }
@@ -215,7 +215,7 @@
         "schema": { "const": "w-executable-benchmark-best-metrics/1" },
         "status": { "const": "defined" },
         "storage": { "type": "string" },
-        "optimizableMetrics": { "const": ["compile-latency", "run-wall-time", "cpu-time", "peak-working-set", "artifact-size"] },
+        "optimizableMetrics": { "const": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-time", "peak-working-set", "artifact-size"] },
         "forbiddenMetrics": { "const": ["exit-code", "stdout", "stderr"] },
         "categoryAxes": { "const": ["workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility"] },
         "provenanceFields": { "const": ["recordId", "commit", "observedAt", "sourceDigest", "artifactDigest", "recipeDigest", "toolchainDigest", "runnerDigest", "catalogDigest", "artifactCleanliness"] },
@@ -228,7 +228,7 @@
       "required": ["$schema", "schema", "kind", "id", "status", "metrics", "comparabilityAxes", "workloads", "resultContract", "bestMetricsContract", "bestMetrics"],
       "properties": {
         "$schema": { "const": "./executable-benchmark.schema.json" },
-        "schema": { "const": "w-executable-benchmark/4" },
+        "schema": { "const": "w-executable-benchmark/5" },
         "kind": { "const": "executable-benchmark-catalog" },
         "id": { "const": "w-executable-benchmark-catalog" },
         "status": { "const": "catalog-ready" },
@@ -545,9 +545,9 @@
         "recipeClass": { "type": "string", "minLength": 1 },
         "comparability": { "type": "string", "minLength": 1 },
         "eligibility": { "type": "string", "minLength": 1 },
-        "metric": { "enum": ["compile-latency", "run-wall-time", "cpu-time", "peak-working-set", "artifact-size"] },
+        "metric": { "enum": ["compile-latency", "run-wall-time", "run-wall-p95", "cpu-time", "peak-working-set", "artifact-size"] },
         "unit": { "enum": ["nanoseconds", "microseconds", "bytes"] },
-        "statistic": { "enum": ["median", "single-artifact"] },
+        "statistic": { "enum": ["median", "arithmeticMean", "p95", "single-artifact"] },
         "value": { "$ref": "#/$defs/positiveDecimal" },
         "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipe": { "type": "string", "minLength": 1 },

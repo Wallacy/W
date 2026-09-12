@@ -9,7 +9,7 @@ test("generated projection is current, compact, and sourced only from the live c
   assert.equal(fs.readFileSync(PROJECTION_PATH, "utf8"), rendered);
   assert.ok(rendered.split(/\r?\n/u).length <= 56);
   assert.match(rendered, /Best values/u);
-  assert.match(rendered, /\| Workload \| Language \| Target \| Artifact \| Compile \| Run \| Peak RSS \| CPU \|/u);
+  assert.match(rendered, /\| Workload \| Language \| Target \| Artifact \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
   assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c/u);

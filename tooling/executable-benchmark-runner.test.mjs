@@ -27,27 +27,29 @@ import {
   W_MLIR_OPT_FLAGS,
 } from "./executable-release-recipes.mjs";
 
-test("benchmark arguments select a language and keep the fixed raw count", () => {
+test("benchmark arguments separate compile cost from high-resolution run sampling", () => {
   assert.deepEqual(parseBenchmarkArguments([]), {
-    target: "hello", language: "w", output: undefined, warmup: 1, samples: 9, help: false,
+    target: "hello", language: "w", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "hello", "--language", "c", "--output", "benchmarks/results/hello-c.local.json", "--warmup", "2", "--samples", "11"]), {
-    target: "hello", language: "c", output: "benchmarks/results/hello-c.local.json", warmup: 2, samples: 11, help: false,
+    target: "hello", language: "c", output: "benchmarks/results/hello-c.local.json", warmup: 2, compileSamples: 11, runSamples: 11, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--language=rust"]), {
-    target: "hello", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
+    target: "hello", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--language", "swift"]), /unsupported/);
   assert.throws(() => parseBenchmarkArguments(["--samples", "10"]), /odd/);
+  assert.throws(() => parseBenchmarkArguments(["--run-samples", "100"]), /odd/);
+  assert.throws(() => parseBenchmarkArguments(["--run-samples", "1003"]), /between 9 and 1001/);
   assert.throws(() => parseBenchmarkArguments(["--warmup", "0"]), /between 1/);
   assert.deepEqual(parseBenchmarkArguments(["--target", "restaurant-branch", "--language", "rust"]), {
-    target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
+    target: "restaurant-branch", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-handler-lifecycle", "--language", "c"]), {
-    target: "process-handler-lifecycle", language: "c", output: undefined, warmup: 1, samples: 9, help: false,
+    target: "process-handler-lifecycle", language: "c", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.deepEqual(parseBenchmarkArguments(["--target", "process-entry", "--language", "rust"]), {
-    target: "process-entry", language: "rust", output: undefined, warmup: 1, samples: 9, help: false,
+    target: "process-entry", language: "rust", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101, help: false,
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);

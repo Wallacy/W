@@ -64,8 +64,9 @@ const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-too
 const DEFAULT_TARGET = "hello";
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
 const DEFAULT_WARMUP = 1;
-const DEFAULT_SAMPLES = 9;
-const MAX_SAMPLES = 1001;
+const DEFAULT_COMPILE_SAMPLES = 9;
+const DEFAULT_RUN_SAMPLES = 101;
+export const EXECUTABLE_MAX_SAMPLES = 1001;
 const RUN_DIRECTORY_PREFIX = "w-executable-run-";
 const SAMPLE_DIRECTORY_PREFIX = "w-executable-sample-";
 const PUBLIC_W_BUILD_RECIPE = "public-w-build-release";
@@ -196,7 +197,8 @@ export function parseBenchmarkArguments(argv) {
     language: "w",
     output: undefined,
     warmup: DEFAULT_WARMUP,
-    samples: DEFAULT_SAMPLES,
+    compileSamples: DEFAULT_COMPILE_SAMPLES,
+    runSamples: DEFAULT_RUN_SAMPLES,
     help: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
@@ -223,20 +225,28 @@ export function parseBenchmarkArguments(argv) {
       result.output = argument.slice("--output=".length);
       if (result.output.length === 0) fail("--output requires a path");
     } else if (argument === "--warmup") {
-      result.warmup = integerOption(argv[++index], "--warmup", 1, MAX_SAMPLES);
+      result.warmup = integerOption(argv[++index], "--warmup", 1, EXECUTABLE_MAX_SAMPLES);
     } else if (argument.startsWith("--warmup=")) {
-      result.warmup = integerOption(argument.slice("--warmup=".length), "--warmup", 1, MAX_SAMPLES);
+      result.warmup = integerOption(argument.slice("--warmup=".length), "--warmup", 1, EXECUTABLE_MAX_SAMPLES);
+    } else if (argument === "--compile-samples") {
+      result.compileSamples = integerOption(argv[++index], "--compile-samples", 9, EXECUTABLE_MAX_SAMPLES);
+    } else if (argument.startsWith("--compile-samples=")) {
+      result.compileSamples = integerOption(argument.slice("--compile-samples=".length), "--compile-samples", 9, EXECUTABLE_MAX_SAMPLES);
+    } else if (argument === "--run-samples") {
+      result.runSamples = integerOption(argv[++index], "--run-samples", 9, EXECUTABLE_MAX_SAMPLES);
+    } else if (argument.startsWith("--run-samples=")) {
+      result.runSamples = integerOption(argument.slice("--run-samples=".length), "--run-samples", 9, EXECUTABLE_MAX_SAMPLES);
     } else if (argument === "--samples") {
-      result.samples = integerOption(argv[++index], "--samples", 9, MAX_SAMPLES);
+      result.compileSamples = result.runSamples = integerOption(argv[++index], "--samples", 9, EXECUTABLE_MAX_SAMPLES);
     } else if (argument.startsWith("--samples=")) {
-      result.samples = integerOption(argument.slice("--samples=".length), "--samples", 9, MAX_SAMPLES);
+      result.compileSamples = result.runSamples = integerOption(argument.slice("--samples=".length), "--samples", 9, EXECUTABLE_MAX_SAMPLES);
     } else {
       fail(`unknown option: ${argument}`);
     }
   }
   if (!RUN_TARGETS.includes(result.target)) fail(`unsupported benchmark target: ${result.target}`);
   if (!EXECUTABLE_LANGUAGES.includes(result.language)) fail(`unsupported language: ${result.language}`);
-  if (result.samples % 2 === 0) fail("--samples must be odd");
+  if (result.compileSamples % 2 === 0 || result.runSamples % 2 === 0) fail("sample counts must be odd");
   return result;
 }
 
@@ -244,7 +254,7 @@ export function benchmarkUsage() {
   return [
     "usage: bun tooling/executable-benchmark-runner.mjs --output <new-json> [options]",
     "",
-    "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --samples <odd n> (default 9).",
+    "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
     "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
@@ -1644,11 +1654,13 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   const target = options.target ?? DEFAULT_TARGET;
   const language = options.language ?? "w";
   const warmup = options.warmup ?? DEFAULT_WARMUP;
-  const samples = options.samples ?? DEFAULT_SAMPLES;
+  const compileSamples = options.compileSamples ?? options.samples ?? DEFAULT_COMPILE_SAMPLES;
+  const runSamples = options.runSamples ?? options.samples ?? DEFAULT_RUN_SAMPLES;
   if (!RUN_TARGETS.includes(target)) fail(`unsupported benchmark target: ${target}`);
   if (!EXECUTABLE_LANGUAGES.includes(language)) fail(`unsupported language: ${language}`);
-  if (!Number.isSafeInteger(warmup) || warmup < 1) fail("warmup must be at least one");
-  if (!Number.isSafeInteger(samples) || samples < 9 || samples % 2 === 0) fail("samples must be odd and at least nine");
+  if (!Number.isSafeInteger(warmup) || warmup < 1 || warmup > EXECUTABLE_MAX_SAMPLES) fail(`warmup must be between 1 and ${EXECUTABLE_MAX_SAMPLES}`);
+  if (!Number.isSafeInteger(compileSamples) || compileSamples < 9 || compileSamples > EXECUTABLE_MAX_SAMPLES || compileSamples % 2 === 0) fail(`compileSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
+  if (!Number.isSafeInteger(runSamples) || runSamples < 9 || runSamples > EXECUTABLE_MAX_SAMPLES || runSamples % 2 === 0) fail(`runSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
   const publish = options.publish !== false;
   const processTarget = isProcessHandlerLifecycle(target);
   measurementPlatform(dependencies, publish);
@@ -1741,7 +1753,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     const compileWarmup = [];
     const compileRaw = [];
     for (let round = 0; round < warmup; round += 1) compileWarmup.push((await compileSource(context, false)).sample);
-    for (let round = 0; round < samples; round += 1) compileRaw.push((await compileSource(context, false)).sample);
+    for (let round = 0; round < compileSamples; round += 1) compileRaw.push((await compileSource(context, false)).sample);
     const runWarmup = [];
     const runRaw = [];
     const oracle = target === PROCESS_ENTRY_WORKLOAD_ID
@@ -1758,7 +1770,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
           context.processExecution.timedInput, `process-handler-lifecycle timed warmup ${round + 1}`);
         runWarmup.push(execution.sample);
       }
-      for (let round = 0; round < samples; round += 1) {
+      for (let round = 0; round < runSamples; round += 1) {
         const execution = await runProcessArtifact(context, correctness.compiled.artifact,
           context.processExecution.timedInput, `process-handler-lifecycle timed raw ${round + 1}`);
         runRaw.push(execution.sample);
@@ -1769,7 +1781,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
         assertOracle(execution, timedExpected, target, `${language} ${target} warmup`);
         runWarmup.push(execution.sample);
       }
-      for (let round = 0; round < samples; round += 1) {
+      for (let round = 0; round < runSamples; round += 1) {
         const execution = await runArtifact(executor, correctness.compiled.artifact, language, target, timedArguments);
         assertOracle(execution, timedExpected, target, `${language} ${target} raw`);
         runRaw.push(execution.sample);
