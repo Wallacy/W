@@ -2052,7 +2052,10 @@ export async function runBenchmark(options = {}, dependencies = {}) {
     const record = makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, runRaw, new Date().toISOString());
     if (publish) {
       await publishRecord(outputPath, record);
-      console.error(`executable benchmark: published exploratory ${language} record=${outputPath} (non-benchmark timing evidence)`);
+      const evidence = source.workload.benchmarkStatus === "exploratory-ready"
+        ? "exploratory benchmark evidence"
+        : "non-benchmark timing evidence";
+      console.error(`executable benchmark: published exploratory ${language} record=${outputPath} (${evidence})`);
     }
     return { record, outputPath };
   } finally {
