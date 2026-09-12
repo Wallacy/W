@@ -10950,6 +10950,22 @@ O passe escolhe uma destas classes:
 | low-bit | alignment interno provado | somente storage não exposto |
 | high-bit | tagged address ou NaN boxing | pesquisa target-specific |
 
+An enum is a logical value, not a universal pointer or boxed object.
+Representation selection works per enum and optimization region. Its candidates
+include a payload without a discriminant for one case, a compact discriminant
+for payloadless cases, proven niches, tagged values, and an inline tagged union.
+A tagged value may combine immediate cases with cases whose payloads already
+contain references. It must not introduce an allocation to fit a fixed word.
+Passing an aggregate by address under a calling convention does not itself
+introduce boxing or change value semantics.
+
+These candidates form a cost comparison, not an unconditional priority order.
+Only candidates that preserve every valid value, ownership, addressability,
+hardening, and boundary contract are eligible. Source ranges must not shrink
+to reserve tag bits. Proven local ranges may enable internal specialization.
+HIR keeps case and payload identity until representation selection. Public
+binary layouts remain subject to the `RepresentationMap` contract in §9.10.
+
 #### 9.9.1 Validade, tags e metadata
 
 **Exemplo:** estes estados continuam semanticamente distintos, mesmo quando um

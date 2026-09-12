@@ -2719,6 +2719,15 @@ e os
 [extra inhabitants do ABI Swift](https://github.com/swiftlang/swift/blob/main/docs/ABI/TypeLayout.rst).
 Nenhuma garantia de layout atravessa uma boundary sem fingerprint compatível.
 
+The per-enum representation policy avoids both universal boxing and a universal
+tagged word. A pointer-sized carrier cannot encode arbitrary larger payloads
+without moving data elsewhere. For example, all `u64` values plus one empty
+case require more than 64 bits without indirection or a proven value restriction.
+Inline aggregates therefore remain a valid baseline, while niches and tagged
+values can remove redundant storage. Address passing under a target ABI is not
+heap allocation. The bounded native enum carrier is an implementation choice,
+not the final representation of every W enum.
+
 Tagged addresses e hardening foram confrontados com o
 [Tagged Address ABI](https://docs.kernel.org/arch/arm64/tagged-address-abi.html),
 [MTE](https://docs.kernel.org/arch/arm64/memory-tagging-extension.html),
