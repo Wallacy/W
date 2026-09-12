@@ -1,557 +1,268 @@
 # W
 
-> **Working Draft · 10 de agosto de 2026**
->
-> **Joy for humans. Clarity for machines.**
->
-> Prazer para humanos. Clareza para máquinas.
+> Working draft. Joy for humans. Clarity for machines.
 
-W é uma proposta de linguagem nativa para aplicações, sistemas, concorrência,
-paralelismo e computação científica. O compiler W completo, o runtime e
-o package manager continuam gaps. O seed C possui source reader, lexer lossless,
-scanner C de validação de fonte, parser seed caller-owned e incremental,
-formatter seed CST-driven e adapter D0 caller-owned, com suporte sintático
-coberto por 28 IDs F0. O target bootstrap `w` executa a rota pública `w check`
-no perfil CHK9 de root efêmera explícita e imports locais alcançáveis.
-O seed também executa o subset print-literal input-driven verified-HLO0 por
-HLO1/RUN0 em gates internos bounded e test-only. W-1522 define a rota nativa
-real corrente: source → parser/frontend → HIR0 verificada → MLIR0 → LLVM dialect
-→ LLVM IR → llc → native host link, sem passar por C source ou depender de HLO0. A forma
-NAT1 aceita uma sequência linear bounded de `print`. W-1528 adiciona bindings
-imutáveis `i64`, Bool e String no mesmo bloco. W-1529 adiciona chamadas diretas
-`Unit` com parâmetros `i64`/Bool e uma `llvm.call` real. W-1530 adiciona
-retornos escalares `i64`/Bool, inferência do binding no caller e SSA real entre
-`llvm.return` e a call. W-1520 registra a forma
-schema-v2 histórica. W-1531 adiciona `if` top-level e W-1535 estende a forma
-para `if` aninhado em funções `Unit`: HIR0 `w-seed-hir0-8` publica CFG
-estruturada bounded com `BRANCH`/`JUMP`, e MLIR0 `w-seed-mlir0-11` emite
-`llvm.cond_br`, blocos rotulados e joins forward (limite de 64 níveis).
-O witness Restaurant [aninhado](compiler/seed-c/fixtures/restaurant-nested-if.w)
-executa os quatro caminhos e o corpo pós-join. Native0
-permanece v6 porque seu contrato público de bytes/records não mudou.
-W-1538 adiciona BOOL0: HIR0 `w-seed-hir0-10` verifica `!`, `&&` e `||` como
-valores Bool e diamonds estruturados com argumentos no join; MLIR0
-`w-seed-mlir0-13` emite `llvm.xor`, `llvm.cond_br` e branches com incoming
-`i1`, com Windows label `w-seed-mlir0-windows-4`. A fixture Restaurant de
-short-circuit passou nos gates Linux/WSL e Windows nativo com stdout exato;
-isso não promove CFG geral ou suporte de plataforma geral.
-W-1539 adds SCALAR-IF0 as the first bounded scalar-value cut: `if condition {
-scalar } else { scalar }` is accepted only in a scalar `return` or immutable
-`let` initializer, with a Bool condition and homogeneous `i64` or Bool arms.
-HIR0 `w-seed-hir0-11` uses a typed join and MLIR0
-`w-seed-mlir0-14`/Windows5 emits real CFG with `llvm.cond_br` and typed
-`llvm.br`; `llvm.select` and eager evaluation remain outside the cut. The
-Restaurant [scalar-if](compiler/seed-c/fixtures/restaurant-scalar-if.w)
-fixture passed the public Windows route with exact stdout `Open 5; closed 2\n`
-in both directions. Runtime `+/-` remains blocked by W-390 checked-overflow
-semantics; there is no claim for general scalar CFG, Linux/WSL, C/Rust or
-performance. A local Release build measured its `w.exe` at 10,078,208 B before
-post-validation cleanup; the generated tool artifact was discarded afterward.
-This is a tool-build fact, not a baseline or benchmark of the produced
-executable.
+W is an experimental language and compiler research project for native
+applications, systems, concurrency, parallelism, and scientific computing.
+The repository contains design contracts, executable specifications, and a
+bounded seed compiler. The complete compiler, runtime, SDK, package manager,
+and registry are not implemented.
 
-W-1540 adds ARITH0 for checked signed-`i64` `+`, `-`, and `*` through verified
-HIR0, now `w-seed-hir0-17`, and MLIR0 `w-seed-mlir0-15`/Windows6; Native0
-remains v6.
-Runtime operations use LLVM signed-overflow intrinsics and a trap boundary.
-Helpers are emitted only for reachable operations, and existing HIR call
-evaluation remains left-to-right and once-only. Constant overflow and faulting
-constant `/` or `%` fail closed. Safe constant `/` and `%` emit `llvm.sdiv` and
-`llvm.srem`. W-1551 adds checked dynamic/runtime `/` and `%` without changing
-the current record schemas: zero and `i64.min / -1` fault before output, while
-`i64.min % -1` returns zero. W-1552 retains prefix signed-`i64` negation as an
-explicit verified HIR value: constants use direct `llvm.sub`, runtime operands
-reuse the reachable checked-subtract helper, and `-i64.min` faults before
-output. Its Restaurant witness prints exact `Balance -7\n` on Linux WRT0 and
-native Windows. W-1553 also admits the direct composition
-`print("Balance ${-7}")`: interpolation typing no longer leaks the enclosing
-`String` expectation into the numeric child, and the constant product omits
-the checked helper. Power, other widths, named numeric APIs, and general panic
-runtime remain outside this cut.
-The short-entry Restaurant fixture produces exact `Open 6; closed 1\n` on the
-Linux/WSL LLVM 20.1.2 route. No native Windows evidence is claimed. A trap
-proves only bounded nonzero process/fault termination with no later success
-output. It does not prove `PanicEvent`, runtime payload, or cleanup behavior.
-W-1541 also closes the bounded `entry {}` path introduced through frontend15
-and HIR13; the current HIR schema is HIR17 after W-1552.
-The canonical Hello and checked-arithmetic Restaurant fixtures use the short
-form. `entry(functionName)` remains valid. The public Linux/WSL Hello route
-passes end to end. This is compiler-lifecycle correctness-only evidence with
-no timing or benchmark result.
-The bounded process track (W-1542–W-1547) now carries resolver-owned
-`std.process@1` identity from frontend16 through HIR16. The verifier accepts
-only closed process shapes with `Arguments` then `Context` owners and a
-`RELEASE_HANDLER_OWNERS` cleanup range.
-The seed has a private `PROCESS_HANDLER` artifact with schema
-`w-seed-mlir0-process-handler-1` and Native0 `w-seed-native0-7`. The existing
-default executable bytes stay compatible. W-1547 adds the distinct
-`w-seed-mlir0-process-executable-1` Windows artifact for one exact
-`args.isEmpty` branch. See [`DESIGN.md` §26.4.1.29](DESIGN.md).
+The seed is a real caller-owned C implementation for selected language
+surfaces. It has a native lowering path and a local Windows x64 candidate
+route. The evidence is correctness-scoped unless a source explicitly states
+otherwise.
 
-Run [`bun check --target process-entry0`](tooling/check-process-entry0.mjs) with
-the configured CMake build and external MLIR/LLVM tool cache. The last focused
-private-handler gate used LLVM 23.1.0 and passed source → verified
-HIR16/Native0 → MLIR → LLVM
-x64 COFF → GCC 13.2 private harness/PROCESS0 provider → Windows PE execution,
-including empty/nonempty selected vectors, exercised alias/trivia identity,
-source rejection, and cleanup fault cases. This is private-handler evidence;
-the runner cleans its temporary artifacts.
+## Start here
 
-The native Windows `w run` and `w build` routes now accept the exact
-[`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) witness. The
-same 3,584-byte PE writes `missing\n` and exits 2 without arguments, or writes
-`received\n` and exits 0 with one argument (including an empty argument), with
-empty stderr. It skips `argv[0]`, creates the private process root, and releases
-Context then Arguments before root finalization. This is bounded correctness
-evidence, not a benchmark: full Windows quoting, argument text/indexing,
-general process bodies, async runtime, other platforms, and the stable public
-`std.process` ABI remain pending.
+- [About W](ABOUT.md) gives the short origin, principles, and current state.
+- [Design index](DESIGN-INDEX.md) locates sections in the normative design.
+- [DESIGN.md](DESIGN.md) is the authority for current language contracts.
+- [RATIONALE.md](RATIONALE.md) records reasons, alternatives, and evidence.
+- [Repository map](REPOSITORY.md) explains ownership and generated surfaces.
+- [Tooling guide](tooling/README.md) documents local checks and utilities.
 
-W-1549 supersedes only W-1539's former nesting exclusion: an unparenthesized
-trailing nested value such as `return if outer { if inner { open } else {
-middle } } else { closed }` is accepted within the bounded scalar-if route.
-The Restaurant witness
-[`restaurant-nested-scalar-if.w`](compiler/seed-c/fixtures/restaurant-nested-scalar-if.w)
-emits exact `1,2,3\n`; it is source-backed correctness evidence only, with
-C/Rust equivalents, runner wiring, and performance deferred.
-W-1559 gives ordinary `while` an explicit parser/frontend owner, W-1560 lowers
-one root-block signed-`i64` carrier to a verified four-block natural loop, and
-W-1561 preserves that loop as `scf.while` until explicit SCF-to-CF and
-CF-to-LLVM conversion. Public Linux/WSL and native Windows `w run` paths execute
-[`restaurant-while.w`](compiler/seed-c/fixtures/restaurant-while.w) with exact
-`Served 3\n`, no source-variable stack cell, generated C, or host-C fallback.
-This is a one-carrier correctness witness on Linux/WSL LLVM/MLIR 20.1.2 and
-Windows MSVC LLVM/MLIR 23.1.1. It is not evidence for general loops, macOS,
-PGO, ranking, or general performance.
-W-1563 now closes one bounded local payloadless enum exhaustive-switch slice:
-HIR0 `w-seed-hir0-21` retains nominal subject/case identity and canonical
-switch edges, Native0 `w-seed-native0-8` derives a private minimum carrier
-(`i2` for the three-case witness), and MLIR0 `w-seed-mlir0-16` emits canonical
-`cf.switch` plus a synthetic `llvm.unreachable` default. The pinned native
-Windows 23.1.1 `w run` gate executes
-[`restaurant-enum.w`](compiler/seed-c/fixtures/restaurant-enum.w) with exact
-`Courses 10/30/20\n`, empty stderr, and exit zero through verified HIR and
-MLIR; the i2 sign-bit tag is written `-2` for MLIR's signed textual parser.
-This is correctness-only evidence for the bounded shape, not payloads, enum
-subsets, general/mixed CFG, public ABI/layout stability, other targets, PGO,
-timing, ranking, or performance.
-The next enum increment has started at the real product boundary. The seed
-parser/frontend preserves positional and labeled payload patterns, wildcards,
-trailing rest, typed captures, and capture reads in `w-seed-frontend-20`.
-Current HIR0 `w-seed-hir0-25` owns dense `Bool` and signed-`i64` case-parameter
-declarations and constructor payload values. Constructor records preserve source
-evaluation order separately from declaration-slot identity, so reordered named
-payloads do not become calls or silently reorder effects. Payloadless cases emit
-neither parameter nor constructor-payload records. Switch capture records link
-each binding to its declaration slot and selected arm. The bounded native route
-now lowers these payloads as an SSA aggregate containing a minimum-width
-tag and shared lanes sized by the largest case byte extent. Bool-only payloads
-use byte lanes. Mixed payloads pack Bool bytes into aligned `i64` lanes.
-Local calls accept and return these
-enums. The Windows LLVM/MLIR 23.1.1 gate executes
-[`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
-as `Bills 32/44/10/7\n`. The mixed-payload witness
-[`restaurant-enum-bool-payload.w`](compiler/seed-c/fixtures/restaurant-enum-bool-payload.w)
-exercises reordered Bool fields, enum-returning calls, and Bool/i64 captures.
-General payload types, niche optimization, recursive
-payloads, and public payload ABI remain gaps. This internal carrier does not
-require heap allocation or establish a fixed in-memory layout.
-W-1564 introduced HIR0 `w-seed-hir0-22` by preserving and binding each declared
-function's `exported` fact. The executable root walk now has an exact
-same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)
-retains its used private helper, omits unused exported/private functions and
-unreachable text, and runs as `Bill 42\n`. This is bounded same-module product
-closure, not package/workspace WMO or WPO; those still require graph-to-HIR and
-complete product-root planning.
-W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
-em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
-continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,
-não suporte Windows nativo.
-O companion finito `w build <explicit-path.w> --target <exact-supported-triple>
---output <new-artifact>` retém um executável caller-owned do mesmo subset. Ele
-exige source, target e output explícitos, rejeita output existente, usa staging
-owned e publicação atômica sem clobber, e não cria receipt ou `WArtifactRecord`.
-`w build` seleciona a receita interna release por padrão; `w run` preserva a
-receita dev rápida. Somente as triples Linux GNU e Windows MSVC já configuradas
-são aceitas. O
-runner geral, package/workspace/lock/registry behavior e benchmark migration
-continuam fora deste corte.
-W-1532 records bounded candidate evidence for Windows x86_64: users can
-materialize the external development toolchain with `bun tooling/command-runner.mjs
---command acquire:mlir0-windows` (network is enabled only by this opt-in) and build a
-persistent `w.exe` with `bun tooling/command-runner.mjs --command build:w-windows`. The build uses only the
-validated cache and explicit Visual Studio/SDK paths; it does not copy the
-toolchain, and the future runtime does not download or search for tools. The
-Windows route uses MLIR → LLVM IR → `llc` → `lld-link` and does not promote
-general support. The heavy cache is never the user package; see
-[`TOOLCHAIN.md`](TOOLCHAIN.md) for the compact cross-target direction. Unicode
-source paths are not proven. The older `check:mlir0` Linux/WSL 20.1.2
-profile remains `update-required`.
+## Current capabilities
 
-The public Linux runner now separates LLVM object generation from native
-linking. `llc` emits PIC program and WRT0 objects. An absolute native linker
-produces a static PIE with compiler-owned `_start`, stdout, and exit adapters;
-the retained ELF has no interpreter, `DT_NEEDED`, CRT, or libc. No generated C
-source or Clang dependency is involved. Local WSL gates passed with LLVM
-20.1.2 and, separately, 23.1.0. The local Linux harness used Bun 1.3.4.
-The mandatory Linux and Windows CI jobs use Bun 1.4.0 and have not run.
-This evidence does not establish hosted CI success or general cross-target support.
+| Surface | Current boundary |
+| --- | --- |
+| Language design | Contracts cover ownership, automatic memory management, structured concurrency, parallelism, placement, and explicit boundaries. |
+| Seed frontend | The seed provides lossless source reading, parsing, formatting, and bounded semantic validation. It is not the complete frontend. |
+| Native seed route | A verified HIR slice lowers through MLIR0 to native code for selected values, calls, returns, structured control flow, arithmetic, and loops. |
+| Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
+| Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
+| Public CLI | Explicit source paths support w check, bounded w run, and bounded w build on configured routes. Package and workspace resolution are outside this surface. |
+| Process witness | process-input0.w is an exact process-entry witness with fixed missing and received cases. Arbitrary process handler bodies are not supported. |
+| Windows candidate | A local Windows x64 route uses the pinned LLVM, MLIR, and LLD toolchain when its prerequisites are materialized. |
+| Benchmarks | WBench records exact-oracle executable evidence and current artifact or timing cells when available. The published status remains exploratory and measurement-only. |
 
-The primary Windows build command is `bun tooling/command-runner.mjs --command build:w-windows`. It selects the `release`
-toolchain profile by default. It preserves C23 as the request and records the
-MSVC `/std:clatest` mode as `c23-msvc-preview`, correctness-only and not a final
-C23 result. To reproduce the current C11 evidence, use exactly
-`bun tooling/command-runner.mjs --command build:w-windows -- --c11-recovery`.
+The enum payload carrier is an internal implementation detail. Bool and
+signed i64 fields have bounded native representations. Mixed payloads use
+aligned scalar lanes sized by the largest case. This does not establish a
+stable in-memory layout, pointer tagging, heap boxing, or a public ABI.
 
-The builder also accepts exactly one `--profile` value: `development` maps to
-CMake `Debug`, `release` maps to `Release`, `benchmark` maps to a
-recipe-constrained `Release`, and `size-experimental` maps to `MinSizeRel`.
-`benchmark` requires a clean Git worktree and probes the supported `/Brepro`
-and `/pathmap` flags before it builds. This bounded recipe evidence does not
-claim a reproducible binary or a double-build result. `size-experimental` is
-for size comparison only. The option is a tooling option. It is not a `w` CLI
-option.
+## Current limits
 
-The persistent `build/w-windows` output contains only `w.exe` and
-`receipt.json`. The receipt records local toolchain, source, artifact, and
-exact Hello and Restaurant staged-smoke evidence, including each fixture's
-SHA-256. It is not a package, budget, or performance proof. A failed
-pre-commit validation preserves the previous output directory. A HEAD change
-during the build is rejected, and there is no implicit C standard fallback.
-DEVCLI1 adds a short declarative facade: `bun check` defaults to the manifest's
-quick suite, `bun demo` names public `w run` fixtures, `bun bootstrap
---target host` builds the local development artifact, and `bun dev run
-<explicit .w path> [-- args]` forwards a source invocation without a shell.
-Bootstrap/demo/dev are an explicitly Windows x64-only first cut; Linux is
-unsupported here. The facade validates the canonical receipt and artifact
-hash, requires a development profile and matching HEAD, and labels dirty
-source identities as non-strong DX evidence. `dev run` accepts an explicit,
-existing regular `.w` source outside the checkout; its catalog, fixture,
-binary, and receipt paths remain repository-contained. Internal colon-named
-leaves are resolved through the shell-free command registry; they are not root
-package scripts.
-[`PLATFORM-SUPPORT.md`](PLATFORM-SUPPORT.md) publica a matriz operacional de
-targets, compiler hosts e cross-compilation. O baseline primário tem nove
-edges host→target, incluindo self edges. Nenhum edge é supported. A edge WSL
-de desenvolvimento fica fora da matriz nativa e não promove Windows. A
-evidência histórica de `check:mlir0` usa 20.1.2 e está marcada `update-required`.
-The separate public-runner 23.1.0 local evidence does not promote the catalog's
-native host-to-target edges. Remote CI, packaging, and general support remain gaps.
-[`DEPENDENCIES.md`](DEPENDENCIES.md) publica o catálogo gerado de currency,
-compatibility floors, evidence snapshots e external evaluations.
-HIR0/W-1494 continua uma representação intermediária bounded mais ampla; é o
-seletor HLO0 W-1505, sobre HIR0 verificada, que aplica a forma direta de uma
-função/entry/block/call/argument. W-1519 adds a bounded verified binding shape.
-W-1522 extends only the direct MLIR0 consumer to ordered linear print
-sequences; HLO0/HLO1/RUN0 retain their single-print contracts.
-W-1523 advances the seed frontend to schema `w-seed-frontend-12`. The parser
-keeps literal-event identity and parses `${...}` bodies as nested expressions;
-the frontend publishes ordered text/expression segments and canonical `i64`
-typing for the current built-in interpolation subset. W-1524 advances HIR0 to
-schema `w-seed-hir0-3` and preserves those expressions as typed postorder
-values and ordered text/value segments. MLIR0, Native0, and public `w run`
-did not accept those values at the W-1524 boundary. W-1525 accepts the
-panic-free signed-`i64` subset. W-1527 adds constant Bool and
-compile-time-known String values. W-1528 adds typed immutable binding
-initializers and later reads for `i64`, Bool, and String. W-1529 adds bounded
-direct Unit calls with `i64`/Bool parameters. W-1530 advances HIR0 to
-`w-seed-hir0-6` and MLIR0 to `w-seed-mlir0-9` for final scalar returns and
-direct call-result binding initializers. W-1535 advances HIR0 to
-`w-seed-hir0-8` and MLIR0 to `w-seed-mlir0-11` for bounded nested Unit
-structured CFG. Other value domains and general CFG remain gaps.
-W-1537 adds the ICMP0 signed-`i64` comparison cut using the six existing
-comparison operators. HIR9 and MLIR12 produce Bool values through real
-`llvm.icmp` operations. Windows uses artifact label3, and Native0 remains v6.
-Six focused C23 suites and native Linux/Windows comparison gates have passed.
-The Restaurant fixtures verify admission, signed boundaries, and Bool composition.
-W-1538 adds BOOL0 short-circuit values: HIR10 and MLIR13/Windows4 preserve
-`!`, `&&`, and `||` through join block arguments and incoming `i1` edges, with
-RHS calls confined to the evaluated arm. The Restaurant short-circuit fixture
-passed the Linux/WSL and native Windows gates with exact output. Neither cut
-promotes general runtime arithmetic, scalar CFG, String comparisons, general
-platform support, or performance.
-W-1539 adds the bounded SCALAR-IF0 value cut: HIR11 and MLIR14/Windows5 accept
-only `if Bool { i64|Bool } else { i64|Bool }` with matching arm types in scalar
-`return` and immutable `let` initializer contexts. Real `llvm.cond_br` and
-typed `llvm.br` carry one join value, and the native Windows Restaurant
-fixture passed both conditions with exact `Open 5; closed 2\n`. W-390 checked
-overflow keeps runtime `+/-` outside the witness; this is compiler-lifecycle
-correctness evidence, with no general CFG, target, or performance claim.
-The runner also keeps minimal/no-else microproofs and equivalent learner,
-idiomatic, and frontier source-style candidates for correctness only; frontier
-is exploratory, with no timing, result, or ranking claim.
-W-1540 is the current ARITH0 cut: checked runtime `+`, `-`, and `*` use
-signed-overflow intrinsics and a trap boundary in MLIR15/Windows6. Safe
-constant `/` and `%` retain `llvm.sdiv`/`llvm.srem`; dynamic/runtime forms and
-faulting constants failed closed at that boundary. W-1551 now routes reachable
-runtime division and remainder through checked helpers, while safe constant
-trees retain direct operations. The Restaurant runtime-divrem fixture produces
-`Each 7; left 2\n` on Linux/WSL and native Windows. The earlier short-entry fixture produces
-`Open 6; closed 1\n` on Linux/WSL LLVM 20.1.2 only. Helpers are reachability-only,
-and no `PanicEvent`, runtime payload, cleanup, native Windows, timing, or
-benchmark result is claimed. W-1541 implements the bounded short default entry
-while preserving the existing `entry(functionName)` path. Additional named
-entry descriptors and parameterized inline entry bodies remain gaps.
-Os nomes target/handler são byte strings
-derivadas da HIR0, iguais e zero-tail; o verifier de plano isolado não prova
-source provenance nem identifier válido.
-Essa evidência não publica o runner geral nem a leitura geral dos arquivos de
-entrada. W-1521 cobre somente um path `.w` explícito no subset seed bounded.
-Owner detection, resolução externa, provider `std`, package/workspace e o
-frontend normativo completo continuam gaps.
+- The seed implements bounded slices, not the full W language or runtime.
+- General types, general control flow, async runtime behavior, and provider
+  integration remain outside the current product boundary.
+- w run and w build require one explicit source path. w build also requires an
+  exact target triple and a new output artifact.
+- The public process feature is an exact process-entry witness. It does not
+  compose arbitrary handler bodies or general argument-processing resources.
+- Windows execution is local candidate evidence. It is not a supported
+  platform claim.
+- The platform matrix currently reports zero supported targets. It records
+  one evidence-only Linux target and keeps WSL separate from native Windows.
+- Package, workspace, lockfile, registry, SDK, distribution, and hosted CI
+  behavior remain future work.
+- General payload types, recursive payloads, niche optimization, and stable
+  public enum layout remain future work.
+- Benchmark results do not rank languages or prove product performance.
 
-W-1519 is `source-backed-current` for the first bounded immutable local String
-path. Frontend schema version 11 introduced an indexed lexical binding
-relation; current schema `w-seed-frontend-16` preserves it. HIR0 schema
-`w-seed-hir0-9` gives each binding one typed initializer root in the common
-postorder value graph. It verifies owners, order, types, spans, dense ranges,
-alias barriers, digests, and receipt. HLO0 schema `w-seed-hlo0-2` retains its
-direct `CONST_STRING` or single `BINDING → CALL` recovery subset.
-HLO0 proves that binding plan independently; MLIR0 consumes the same verified
-HIR directly. The Restaurant witness reaches MLIR0 and native execution with
-exact stdout `Table 42 remains open\n`.
-W-1525 advances the direct adapter to MLIR0 `w-seed-mlir0-4` and Native0
-`w-seed-native0-3`. Its internal API accepts only
-`{ program, hir_result }`, re-verifies HIR through the private shared
-native-subset selector, and performs no textual lookup. It retains the W-1522
-linear String path. It also lowers panic-free signed-`i64` arithmetic inside
-bounded String interpolation and formats the value at runtime. HLO0/HLO1/RUN0 remain
-bootstrap, audit, and recovery paths, not native prerequisites.
-W-1526 replaced target-ABI integer formatting with private LLVM-dialect copy
-and signed-`i64` helpers. W-1527 added constant Bool and compile-time-known
-String value segments. W-1528 advances the current adapter to MLIR0
-`w-seed-mlir0-7` and Native0 `w-seed-native0-6`. W-1529 advances MLIR0 to
-`w-seed-mlir0-8`; W-1530 advances it to `w-seed-mlir0-9`, while Native0
-remains v6. W-1531 adds actual LLVM-dialect diamond blocks and a bounded
-top-level Unit CFG route. The bounded native route now
-also accepts typed immutable `i64`, Bool, and String binding reads.
-It also emits real internal calls for an acyclic bounded graph of Unit
-functions with `i64`/Bool parameters, plus final scalar `i64`/Bool returns and
-indexed caller-side results. The Restaurant witness produces
-`Kitchen open\nAfter service\nKitchen closed\nAfter service\n`.
-`Bool` writes exact lowercase `true` or `false`; counted String data preserves
-NUL. The frontend supplies canonical Bool identity and resolves prior immutable
-String bindings inside interpolation. These helpers and compile-time String
-selection are seed implementation details, not a stable runtime ABI, general
-Display dispatch, or a performance claim.
-This decision does not claim general locals, `var`, assignment, nested scopes,
-general SSA, nested CFG, ownership, additional targets, the general public `w run` surface,
-or performance. W-1521 covers only the bounded public seed CLI, whose NAT1
-sequence extension is defined by W-1522.
+See [platform support](PLATFORM-SUPPORT.md), [toolchain policy](TOOLCHAIN.md),
+and the [seed compiler boundary](compiler/seed-c/README.md) for exact
+conditions. Do not infer a broader capability from a bounded fixture.
 
-MAN0 é o reader C controlado, compilado em modo C23, guarded, caller-owned e
-bounded de manifests estruturais. C11 é somente a lane explícita de
-recovery/compatibilidade do seed.
-Ele lê todos os candidates OWN0 em duas waves e publica somente depois de
-igualdade de bytes, bindings e digests. O gate Linux real usa a sessão retida;
-em host Windows, WSL Ubuntu é obrigatório e o adapter Windows permanece um
-stub direto `UNSUPPORTED` fail-closed. A evidência é estreita e não fecha
-Windows operacional, vínculo ACQ0, schema decoder, WSP0 ou produto público.
+## Design direction
 
-BND0 compõe ACQ0, OWN0 e MAN0 em uma binding caller-owned e bounded. A
-publication é all-or-nothing e fica presa à generation do guard. O adapter
-Linux exige o token `linux-openat2-v2` e a identidade
-`STATX_MNT_ID_UNIQUE` + device major/minor + inode. Adapters ausentes falham
-fechados. BND0 não abre `w run`, package/workspace geral, registry, backend ou
-runtime, e sua evidência Linux permanece limitada ao gate bounded.
+W keeps these goals separate from implementation claims:
 
-Dois objetivos centrais orientam o design: gerência automática de memória sem
-anotações de lifetime no caminho comum e execução estruturada que mantém
-concorrência, paralelismo e placement explícitos no call site. Esses contratos
-estão especificados e possuem oracles de design. Eles ainda não são claims de
-uma implementação pronta.
+- Automatic memory management should avoid lifetime annotations on the common
+  path.
+- Structured execution should make concurrency, parallelism, and placement
+  explicit at the call site.
+- Performance work must establish correctness and semantic equivalence before
+  ranking measurements.
+- Ownership, provenance, security, and ABI boundaries must remain explicit.
 
-Contribuições humanas, assistidas por IA e automatizadas são bem-vindas. W
-avalia o resultado, a evidência e a responsabilidade. A ferramenta usada não
-define a qualidade da contribuição.
+DESIGN.md defines the current contract. Its oracles check bounded projections
+against that contract. An oracle is not a compiler, runtime, provider, or user
+result.
 
-Leia [Sobre o W](ABOUT.md) para uma visão curta da origem, dos princípios e do
-estado atual do projeto.
-Leia [Mapa do repositório](REPOSITORY.md) para a organização da infraestrutura
-e [Catálogo de estudos](STUDIES.md) para a projeção humana dos estudos.
+## Minimal executable
 
-## Fontes canônicas
-
-Leia estes artefatos nesta ordem:
-
-1. [DESIGN-INDEX.md](DESIGN-INDEX.md) — índice gerado com intervalos, métricas e
-   pesquisas abertas; não define semântica;
-2. [DESIGN.md](DESIGN.md) — autoridade normativa para contratos correntes,
-   estado, pesquisas que alteram o contrato e ordem de implementação;
-3. [RATIONALE.md](RATIONALE.md) — justificativas, evidência, alternativas e
-   proveniência; é complementar e não normativa;
-4. [Última Luz](reference/last-light/README.md) — produto de referência,
-   oracles e fontes `.w`;
-5. [Atlas sintático](reference/syntax-atlas/README.md) — projeção gerada dos
-   snippets marcados, com evidência Tree-sitter parse-only; não é um tutorial;
-6. [Cheatsheet W](CHEATSHEET.md) — guia editorial de uso, alternativas,
-   trade-offs e limites de evidência; ele não é gerado pelo atlas;
-7. [Catálogo de diagnostics](DIAGNOSTICS.md) — índice humano gerado para
-   códigos, fatos, papéis, fixes e referências normativas;
-8. [Catálogo de estudos](STUDIES.md) — status, função, path, gate e entrypoint
-   dos estudos registrados;
-9. [Mapa do repositório](REPOSITORY.md) — diretórios, autoridade, dependências
-   e comandos públicos;
-10. [Catálogo de dependency currency](DEPENDENCIES.md) — versões gerenciadas,
-    pisos de compatibilidade, snapshots e avaliações externas;
-11. [Build do Última Luz](reference/last-light/BUILD.md) — products, target
-   specs, toolchain plans, ABIs, artifacts e gates;
-12. [Rascunho da std](std/README.md) — contratos da standard library em W;
-13. [Tooling](tooling/README.md) — infraestrutura, Tree-sitter, TextMate e
-    extensão local.
-
-O [portal](portal/README.md) é um protótipo visual congelado. Ele não precisa
-acompanhar cada mudança antes do design freeze.
-
-`DESIGN.md` é a autoridade normativa para o estado atual. `RATIONALE.md` explica
-por que o contrato existe, sem definir comportamento. O Book e o produto de
-referência mostram esse contrato, mas não criam regras próprias.
-
-## Superfícies humanas e de máquina
-
-Use o [Cheatsheet W](CHEATSHEET.md) para rotas de uso e trade-offs. Use o
-[catálogo humano de diagnostics](DIAGNOSTICS.md) para buscar códigos e abrir a
-referência normativa correspondente. Use o
-[SYNTAX-COVERAGE.md](reference/syntax-atlas/SYNTAX-COVERAGE.md) para cobertura
-técnica de snippets parse-only.
-Use [STUDIES.md](STUDIES.md) para consultar estudos por status sem percorrer os
-JSONs. Os READMEs locais explicam cada estudo quando disponíveis.
-Use [DEPENDENCIES.md](DEPENDENCIES.md) para consultar currency, pisos,
-snapshots e avaliações sem percorrer os manifests.
-
-As superfícies de máquina ficam em `tooling/*.json`, nos checkers e no manifest
-do atlas. Elas sustentam geração e gates. Nenhuma projeção substitui
-`DESIGN.md` como autoridade semântica.
-
-O arquivo [`reference/syntax-atlas/SYNTAX-COVERAGE.md`](reference/syntax-atlas/SYNTAX-COVERAGE.md)
-é gerado por `bun tooling/syntax-atlas.mjs --write` e prova somente o parse dos
-snippets marcados. O [Cheatsheet W](CHEATSHEET.md) é mantido como texto
-editorial e explica quando usar cada forma. O [catálogo de diagnostics](DIAGNOSTICS.md)
-é outra projeção gerada para consulta humana. Não confunda essas superfícies.
-
-Use `DESIGN-INDEX.md` para localizar uma seção sem carregar o documento
-integral. O check do tooling falha quando o índice fica desatualizado.
-
-Para extrair somente uma seção, um heading ou uma decisão com contexto, use o
-leitor sem escrita:
-
-```powershell
-bun tooling/design-slice.mjs --heading 12.13
-bun tooling/design-slice.mjs --id W-711 --context 2
-bun tooling/design-slice.mjs --rationale-heading 1.1
-```
-
-O leitor recorta `DESIGN.md` para contratos e `RATIONALE.md` para evidência e
-ledger; ele não cria uma segunda fonte de autoridade.
-
-`bun check --target docs` é o gate focal para as projeções documentais,
-dependency currency, o índice, BMD e a cadeia do Tree-sitter.
-
-Para validar somente documentação e índice:
-
-```powershell
-bun check --target docs
-```
-
-Para a manutenção diária, use `bun check --target quick`; para os gates do
-compilador seed use `bun check --target compiler`.
-
-Para regenerar somente as projeções de documentação:
-
-```powershell
-bun run docs:write
-```
-
-Para validar também BMD e toda a cadeia documental do Tree-sitter:
-
-```powershell
-bun run tooling:install
-bun check --target docs
-```
-
-Use `bun check --target all` quando grammar, corpus, std ou sources `.w`
-mudarem; `bun check` é a seleção rápida.
-
-## Estado atual
-
-| Camada | Estado |
-|---|---|
-| Visão e invariantes | **Direção** |
-| Forma integrada da linguagem | **Forma vigente** para avaliação |
-| Alternativas | justificadas em `RATIONALE.md`; o contrato escolhido fica em `DESIGN.md` |
-| Tree-sitter e highlighting | protótipo funcional |
-| Oracles host de memória | M1 lógico e A0 físico congelados como evidência de design; não são runtime |
-| [Seed C: source reader, lexer, scanner C, parser, formatter, frontend seed, HIR0/HLO0/HLO1/MLIR0/RUN0 e target bootstrap w](compiler/seed-c/README.md) | seed mínimo caller-owned: `w check` CHK9, HIR0/HLO0 bounded, HLO1 C23 bootstrap/recovery, MLIR0 v15 LLVM-dialect terminal para o target fechado com NAT1, Display signed-`i64`, BOOL0, SCALAR-IF0 e ARITH0 bounded, RUN0 interno test-only e W-1521 `w run`/retained-artifact `w build` bounded em Linux/WSL e Windows nativo configurado. O runner público geral continua gap |
-| [Matriz de platform support](PLATFORM-SUPPORT.md) | catálogo gerado de targets, compiler hosts e baseline cross-compilation 3x3; evidence WSL é dev-only e não é Windows nativo; os planos nativos pinam LLVM 23.1.1, mas aguardam build/proveniência |
-| Formatter normativo, frontend normativo completo, HIR geral e W/MLIR geral | planejados, não implementados; formatter, frontend seed, HIR0 verificada e ponte MLIR0 são fatias fechadas e não substituem essas camadas |
-| Runtime, SDK e package manager | planejados, não implementados |
-| Governança | liderança inicial; contribuição aberta e revisão baseada em evidência |
-| services, `ServiceLink`, `pipeline` e wRPC | **Direção**; implementação na fase 6 |
-| wWire | **Pesquisa**; layout, registro core v0 e seed vectors vigentes; decoder e custo exigem protótipo |
-| wQL, V6, GPU e HDL | **Pesquisa** ou módulos separados fora do bootstrap |
-
-## Amostra
-
+<!-- w-example role=executable use=print observable=effect -->
 ```w
-import http from std
-import { Command } from command
-import { lastLight } from restaurant
-
-async fn fetch(request: http.Request, ctx: http.Context): http.Response throws AppError {
-  let command = try await (take request).json<Command>(maximumBytes: 64<KiB>)
-  let response = try await dispatch(take command, restaurant: lastLight)
-  return try http.Response.json(value: ref response, maximumBytes: 64<KiB>)
+entry {
+  print("Hello, world!")
 }
-
-entry(runNative)
-entry LastLightTui(runTuiEntry)
 ```
 
-O descriptor anônimo é o default do product nativo. O mesmo binário atende CLI,
-TUI e servidor local. Um segundo product escolhe `LastLightTui` para gerar uma
-TUI dedicada. Linux, Darwin e Windows mantêm o mesmo import; o manifest escolhe
-o module set nativo. O entry registra os process signals no runtime. Um worker
-usa outro product e outro host lifecycle.
+Run this fixture after the local Windows host artifact is available:
 
-Um arquivo único é um módulo normal. Ele exige uma declaração `fn` e um
-`entry`. W-1521 publica somente `w run path/file.w [-- <args...>]` para o
-subset seed bounded em Linux x86_64 (ou o binário Linux por WSL no host
-Windows). A direção futura geral seleciona `.default` ou usa `--entry` com
-contexto de package/workspace; o checkout não fecha essa surface geral.
-Statements finais sem `entry` são rejeitados.
+```text
+bun dev run compiler/seed-c/fixtures/hlo0-hello.w
+```
 
-O Última Luz também é um workspace. O package `last-light/menu-compiler`
-descreve uma build transform tipada para o package principal. O contrato recebe
-somente o cardápio declarado e prepara candidatos para um action-result/manifest
-no CAS. O host publica esse record somente após success, outputs obrigatórios e
-budgets válidos. O provider `std.build@1` continua missing.
+The fixture is also the smallest w run demonstration. Its exact source and
+other witnesses live in [compiler/seed-c/fixtures](compiler/seed-c/fixtures).
 
-O mesmo package publica uma static library `.wExact` e uma façade C dinâmica do
-horizon monitor. Esse laboratório separa `WInterface`, ABI W, runtime
-requirements e carriers C.
+## Setup
 
-O `place()` dessa rota permanece um oracle de closed turn longo. A rota alvo
-resolve `ServiceFamilyRef<OrderCoordinatorApi, OrderId>`. O runtime graph
-passa um `WorkKeyRef` limitado ao pedido para o initializer. Consulte
-[`supervision.w`](reference/last-light/supervision.w).
+Run commands from the repository root.
 
-## Participar
+Required local tools:
 
-Comece pelo [guia de contribuição](CONTRIBUTING.md). Ele define o fluxo comum
-para pessoas, equipes, automação e agentes de IA.
+- Bun >=1.4.2.
+- Git.
+- For the native Windows route, Visual Studio, the Windows SDK, CMake, Ninja,
+  and the materialized MLIR/LLVM/LLD cache.
 
-- [Governança](GOVERNANCE.md) define autoridade, decisão, recurso e transição.
-- [Guia para maintainers](MAINTAINERS.md) define revisão, merge e manutenção.
-- [Código de Conduta](CODE_OF_CONDUCT.md) protege colaboração respeitosa.
-- [Política de segurança](SECURITY.md) define relato privado e escopo atual.
+Use [dependencies](DEPENDENCIES.md), [toolchain](TOOLCHAIN.md), and
+[platform support](PLATFORM-SUPPORT.md) for current prerequisites. These
+documents own version and support inventories.
 
-Somente pessoas podem ser maintainers, aprovar merges e assinar releases.
-Ferramentas podem ajudar em qualquer etapa verificável. A pessoa que envia ou
-aprova uma mudança continua responsável pelo resultado.
+Install the Tree-sitter workspace and run the fast repository checks:
 
-## Sobre e proveniência
+```text
+bun run tooling:install
+bun check
+```
 
-[Sobre o W](ABOUT.md) resume a origem, o método do restaurante, os princípios e
-o estado atual. A proveniência removida do checkout permanece no histórico do
-Git. `ABOUT.md` resume a narrativa e `RATIONALE.md` registra as decisões e a
-evidência sem definir o W atual.
+bun check selects the quick suite. It does not replace the compiler, docs, or
+benchmark targets.
+
+## Windows development
+
+The Windows facade is native x64 and uses the local development recipe. It
+does not download a toolchain during bootstrap.
+
+If the pinned external cache is absent, acquire it explicitly:
+
+```text
+bun tooling/command-runner.mjs --command acquire:mlir0-windows
+```
+
+Build and validate the retained development artifact:
+
+```text
+bun bootstrap --target host
+```
+
+Run the named Hello demo or an explicit source path:
+
+```text
+bun demo --target hello
+bun dev run compiler/seed-c/fixtures/hlo0-hello.w
+```
+
+The underlying executable accepts these bounded public commands:
+
+```text
+& build/w-windows/w.exe check compiler/seed-c/fixtures/hlo0-hello.w --json
+& build/w-windows/w.exe run compiler/seed-c/fixtures/hlo0-hello.w
+New-Item -ItemType Directory -Force build/manual | Out-Null
+& build/w-windows/w.exe build compiler/seed-c/fixtures/hlo0-hello.w --target x86_64-pc-windows-msvc --output build/manual/hello.exe
+& build/manual/hello.exe
+```
+
+The w build output must not exist before the command. The builder publishes
+the new artifact without clobbering an existing path.
+
+The internal builder command is useful when the retained w.exe itself must be
+rebuilt:
+
+```text
+bun tooling/command-runner.mjs --command build:w-windows
+```
+
+Use the [tooling guide](tooling/README.md) for profile and receipt details.
+
+## Repository checks
+
+Choose a narrow target when possible:
+
+```text
+bun check --target quick
+bun check --target docs
+bun check --target compiler
+bun check --target benchmark
+bun check --target all
+```
+
+The docs target checks generated documentation projections, dependency
+currency, the design index, and links. The benchmark target checks catalogs
+and protocols without running workload measurements. The compiler target runs
+the bounded seed compiler gates. The all target combines the repository
+suites.
+
+Use --list, --list-all, and --dry-run to inspect the available plans:
+
+```text
+bun check --list
+bun check --list-all
+bun check --target docs --dry-run
+```
+
+## Benchmarks
+
+[WBench/1](benchmarks/README.md) defines the benchmark protocol.
+[EXECUTABLES.md](benchmarks/EXECUTABLES.md) is its generated compact
+projection. The projection lists runnable source-backed candidates. Planned
+or source-less workloads are not listed.
+
+The runner checks the exact exit code, stdout, and stderr oracle before it
+records a measurement. Current records are exploratory, measurement-only, and
+not-evaluated. They are not language, runtime, or performance claims.
+
+List and run one local result:
+
+```text
+bun benchmark list
+bun benchmark run --target hello --language w --output benchmarks/results/hello-w.local.json
+bun benchmark validate benchmarks/results/hello-w.local.json
+```
+
+Updating the live catalog requires a clean committed HEAD and matching
+provenance. A successful update consumes the local result:
+
+```text
+bun benchmark update benchmarks/results/hello-w.local.json
+bun benchmark check
+```
+
+The benchmark documents own exact measurements, runner semantics, and
+workload status. This README does not copy those values.
+
+## Canonical sources and references
+
+Read these sources in this order:
+
+1. [DESIGN-INDEX.md](DESIGN-INDEX.md) locates a contract. It is generated and
+   does not define semantics.
+2. [DESIGN.md](DESIGN.md) defines current language contracts and decisions.
+3. [RATIONALE.md](RATIONALE.md) records evidence and alternatives. It is
+   complementary, not normative.
+4. [Last Light](reference/last-light/README.md) is a rich reference product,
+   oracle collection, and source corpus. It is not a claim that the reference
+   product executes.
+
+Additional navigation:
+
+- [Syntax atlas](reference/syntax-atlas/README.md) and
+  [syntax coverage](reference/syntax-atlas/SYNTAX-COVERAGE.md) show marked
+  parse-only examples.
+- [W cheatsheet](CHEATSHEET.md) gives editorial usage guidance and trade-offs.
+- [Diagnostics](DIAGNOSTICS.md) and [studies](STUDIES.md) index machine-checked
+  evidence.
+- [Dependencies](DEPENDENCIES.md), [toolchain](TOOLCHAIN.md), and
+  [platform support](PLATFORM-SUPPORT.md) own environment facts.
+- [Tooling](tooling/README.md) and [benchmarks](benchmarks/README.md) own
+  commands, protocols, and generated projections.
+
+The [repository map](REPOSITORY.md) identifies source, generated, and
+experimental surfaces. The [portal](portal/README.md) is a frozen visual
+prototype and does not define current behavior.
+
+## Contributing, security, and license
+
+Start with [CONTRIBUTING.md](CONTRIBUTING.md). Human, AI-assisted, and
+automated contributions are welcome when their results and evidence are
+reviewable. [GOVERNANCE.md](GOVERNANCE.md) defines authority and decisions.
+[MAINTAINERS.md](MAINTAINERS.md) defines review and maintenance.
+
+Report security issues through the private process in
+[SECURITY.md](SECURITY.md). Do not publish sensitive details in an issue.
+
+W is licensed under the [MIT License](LICENSE).
