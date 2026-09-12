@@ -1751,44 +1751,62 @@ blockers, and stop condition remain canonical in [`DESIGN.md`](../../DESIGN.md)
 §26.4.1.28; the measurement protocol is in the
 [`private process-handler lifecycle benchmark section`](../../benchmarks/README.md#private-process-handler-lifecycle-executable-measurements).
 
-### Public Windows process-input executable (W-1547)
+### Public Windows process executable bodies (W-1547)
 
-The source fixture `fixtures/process-input0.w` is the first public executable
-that observes native process input. It imports the exact compiler-owned
-`std.process@1` identities, branches on `args.isEmpty`, prints `missing` and
-returns `.failure(2)` when empty, or prints `received` and returns `.success`
-when nonempty. Frontend and verified HIR16 represent the member read,
-`failure(code: i64)` payload, and both return paths without downstream source
-or name reconstruction.
+The canonical fixture [`fixtures/process-input0.w`](fixtures/process-input0.w)
+remains the smallest public process body. It imports the exact compiler-owned
+`std.process@1` identities, keeps `Arguments` before `Context`, reads
+`args.isEmpty`, prints one of two literals, and returns `.success` or a bounded
+`.failure` status. The public route lowers the verified body through existing
+HIR25 and normal MLIR/LLVM records. It does not reconstruct source spellings or
+recognize one fixed function shape.
+
+The linked [`fixtures/process-enum-payload.w`](fixtures/process-enum-payload.w)
+is the composition fixture. It uses helpers declared before the entry, a local
+enum with Bool and signed `i64` payloads, constructor and exhaustive switch
+captures, the canonical process read, interpolated output, and
+`.failure(7)`. Accepted process bodies are currently one-block returns or
+three-block terminal `if` bodies over the bounded normal call graph. Failure
+status values must be compile-time constants in `1..255`. Dynamic values and
+out-of-range values are rejected without truncation.
 
 Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
-verified HIR on `x86_64-pc-windows-msvc`; the explicit artifact mode emits the
-same bytes and digest. The generated `mainCRTStartup` captures
+verified HIR on `x86_64-pc-windows-msvc`. Explicit artifact selection uses the
+same verified route. The public six-symbol ABI remains separate from the
+private four-symbol handler. The generated `mainCRTStartup` captures
 `GetCommandLineW`, skips the program token, and retains at most 256 borrowed
 UTF-16 descriptors. The descriptor table is a zero-initialized private PE
 global rather than a large stack frame, so the `/nodefaultlib` link needs only
 `kernel32.lib` and does not acquire `__chkstk`/CRT support. This storage is
-single-startup artifact state, not a W runtime ABI.
+single-startup artifact state, not a W runtime ABI or public layout.
 
-The adapter constructs a private root and distinct Arguments/Context owner
-records, executes the verified body, releases Context, releases Arguments, and
-then finalizes the root. `WriteFile` and `ExitProcess` publish the exact result.
-The parser currently proves only empty versus nonempty arguments; it supports
-spaces, tabs, and simple quoted tokens but does not claim the complete Windows
-backslash-before-quote algorithm or expose argument text to W.
+The adapter constructs a private root and distinct `Arguments`/`Context` owner
+records, executes the verified body, releases `Context`, releases `Arguments`,
+and then finalizes the root. Only the canonical `isEmpty` receiver read may
+consume those root owners in this slice. Ordinary copies, local-call
+arguments, enum payloads, and returns are rejected. Direct entry is published
+only after the complete reachable body proves non-suspending. Direct text,
+signed `i64`, and Bool print values, including known String literal chains, are
+admitted without a global String relaxation. The shared callgraph/path proof
+caps stdout at 4096 bytes and rejects over-limit 4097- and 8192-byte cases
+before publication.
 
-`bun check --target w-run-windows` builds a temporary native `w.exe`, exercises
-`w run` with no argument, one normal argument, and one empty argument, then
-uses `w build` to create one PE and executes the same bytes both empty and
-nonempty. It requires exact stdout, empty stderr, exits 2/0, PE x64 identity,
-and cleanup. The focused Native0 unit additionally checks automatic/explicit
-selection identity, all-or-nothing short capacity, and Linux-target rejection.
-The local PE observed during this implementation is 3,584 bytes; that value is
-gate feedback, not a retained benchmark baseline.
+The focused frontend, HIR0, MLIR0, and Native0 CTest units cover positive
+composition and fail-closed identity, owner, range, capacity, CFG, and receipt
+cases. The pinned Windows LLVM/MLIR/LLD 23.1.1 `w-run-windows` gate passes the
+source-to-PE route for both public fixtures. It executes each fixture's
+no-argument, empty-argument, and payload cases from source and from the same
+built PE, with exact stdout, empty stderr, exit status, and cleanup checks. The
+existing public `process-entry` and `process-enum-payload` benchmark lanes
+retain their current correctness and measurement evidence in the
+[`executable benchmark catalog`](../../benchmarks/EXECUTABLES.md). The catalog
+owns artifact and timing cells and cross-language comparability. W-1547 makes
+no independent performance or ranking claim.
 
-General argument decoding/indexing, arbitrary handler bodies, throws,
+General argument decoding/indexing, general CFG and loops, throws,
 cancellation, Context capabilities, general async/provider runtime, other OS
-adapters, cross-compilation, stable public ABI, and performance remain gaps.
+adapters, cross-compilation, stable public ABI/layout, and performance remain
+gaps.
 
 ### PROCESS0 provider kernel (post-W-1546)
 

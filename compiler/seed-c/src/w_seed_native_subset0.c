@@ -434,11 +434,16 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
                                     uint32_t owner_function,
                                     bool allow_string, size_t depth);
 
+static bool process_value_lowerable(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t owner_function, const w_seed_native_subset0_process *process,
+    bool allow_string, size_t depth);
+
 static bool interpolation_maximum_bytes(
     const w_seed_hir0_program *program, const w_seed_hir0_value *value,
     const w_seed_hir0_binding *const *bindings, size_t binding_count,
     size_t current_instruction, size_t *binding_reads,
-    size_t *maximum_bytes) {
+    size_t *maximum_bytes, const w_seed_native_subset0_process *process) {
   if (program == NULL || value == NULL || maximum_bytes == NULL ||
       value->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
       value->first_interpolation_segment >
@@ -473,7 +478,8 @@ static bool interpolation_maximum_bytes(
           parameter_read || effective->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
           effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
-          effective->kind == W_SEED_HIR0_VALUE_BINARY_I64;
+          effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          effective->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER;
       switch (program->types[embedded->type_index].kind) {
         case W_SEED_HIR0_TYPE_I64: {
           if (!runtime_value) {
@@ -482,23 +488,41 @@ static bool interpolation_maximum_bytes(
                     program, (uint32_t)(effective - program->values), 0u,
                     &ignored))
               return false;
-          } else if (!program_value_lowerable(
-                         program, (uint32_t)(effective - program->values),
-                         program->blocks[program->instructions[current_instruction]
-                                            .owner_block]
-                             .owner_function,
-                         false, 0u)) {
+          } else if (process != NULL
+                         ? !process_value_lowerable(
+                               program,
+                               (uint32_t)(effective - program->values),
+                               program->blocks[program->instructions[current_instruction]
+                                                  .owner_block]
+                                   .owner_function,
+                               process, false, 0u)
+                         : !program_value_lowerable(
+                               program,
+                               (uint32_t)(effective - program->values),
+                               program->blocks[program->instructions[current_instruction]
+                                                  .owner_block]
+                                   .owner_function,
+                               false, 0u)) {
             return false;
           }
           bytes = 20u;
           break;
         }
         case W_SEED_HIR0_TYPE_BOOL:
-          if (runtime_value && !program_value_lowerable(
-                  program, (uint32_t)(effective - program->values),
-                  program->blocks[program->instructions[current_instruction]
-                                      .owner_block].owner_function,
-                  false, 0u))
+          if (runtime_value &&
+              (process != NULL
+                   ? !process_value_lowerable(
+                         program, (uint32_t)(effective - program->values),
+                         program->blocks[program->instructions[current_instruction]
+                                            .owner_block]
+                             .owner_function,
+                         process, false, 0u)
+                   : !program_value_lowerable(
+                         program, (uint32_t)(effective - program->values),
+                         program->blocks[program->instructions[current_instruction]
+                                            .owner_block]
+                             .owner_function,
+                         false, 0u)))
             return false;
           if (!runtime_value &&
               effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL)
@@ -720,8 +744,9 @@ w_seed_native_subset0_status w_seed_native_subset0_select_sequence(
     } else if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
       size_t maximum_payload_bytes = 0u;
       if (!interpolation_maximum_bytes(
-              program, value, candidate.bindings, binding_cursor,
-              instruction_index, binding_reads, &maximum_payload_bytes))
+               program, value, candidate.bindings, binding_cursor,
+               instruction_index, binding_reads, &maximum_payload_bytes,
+               NULL))
         return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
       size_t maximum_stdout_bytes = 0u;
       if (!sequence_stdout_add(candidate.maximum_stdout_bytes,
@@ -956,6 +981,281 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
   }
   return false;
 }
+
+/* Process executable values have two nominal leaves which the ordinary
+ * scalar subset deliberately rejects: Args.isEmpty and ExitCode cases.  Keep
+ * this extension local to the selected process entry.  In particular, a
+ * nominal value is never treated as an integer merely because it happens to
+ * be passed in an ABI pointer register. */
+static bool process_nominal_type_is(const w_seed_hir0_program *program,
+                                    uint32_t type_index, uint32_t module_index,
+                                    uint32_t symbol_index) {
+  if (program == NULL || type_index >= program->type_count ||
+      module_index >= program->external_module_count ||
+      symbol_index >= program->external_symbol_count)
+    return false;
+  const w_seed_hir0_type *type = &program->types[type_index];
+  return type->kind == W_SEED_HIR0_TYPE_NOMINAL &&
+         type->external_module_index == module_index &&
+         type->external_symbol_index == symbol_index;
+}
+
+static bool process_external_symbol_is(const w_seed_hir0_program *program,
+                                       uint32_t module_index,
+                                       uint32_t symbol_index,
+                                       w_seed_hir0_external_kind kind,
+                                       const uint8_t *name,
+                                       size_t name_count) {
+  if (program == NULL || name == NULL || module_index >=
+          program->external_module_count ||
+      symbol_index >= program->external_symbol_count)
+    return false;
+  const w_seed_hir0_external_symbol *symbol =
+      &program->external_symbols[symbol_index];
+  return symbol->module_index == module_index && symbol->kind == kind &&
+         text_is(program, symbol->name, name, name_count);
+}
+
+static bool process_failure_constant(const w_seed_hir0_program *program,
+                                     uint32_t value_index) {
+  return program != NULL && value_index < program->value_count &&
+         value_index < W_SEED_NATIVE_SUBSET0_MAX_VALUES &&
+         program->values[value_index].kind == W_SEED_HIR0_VALUE_CONST_I64 &&
+         program->values[value_index].integer_value >= 1 &&
+         program->values[value_index].integer_value <= 255;
+}
+
+static bool process_value_lowerable(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t owner_function, const w_seed_native_subset0_process *process,
+    bool allow_string, size_t depth);
+
+static bool process_value_lowerable(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t owner_function, const w_seed_native_subset0_process *process,
+    bool allow_string, size_t depth) {
+  if (program == NULL || process == NULL || depth > 256u ||
+      value_index >= program->value_count ||
+      owner_function != process->function_index)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count) return false;
+
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
+    if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        value->external_module_index != 0u ||
+        value->external_symbol_index != process->is_empty_symbol_index ||
+        !process_external_symbol_is(
+            program, 0u, process->is_empty_symbol_index,
+            W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"isEmpty", 7u) ||
+        !text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u) ||
+        value->left_value >= program->value_count)
+      return false;
+    const w_seed_hir0_value *receiver = &program->values[value->left_value];
+    return receiver->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+           receiver->parameter_index ==
+               process->function->first_parameter +
+                   process->arguments_parameter_ordinal &&
+           process_nominal_type_is(program, receiver->type_index, 0u,
+                                   process->arguments_symbol_index);
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) {
+    if (!process_nominal_type_is(program, value->type_index, 0u,
+                                 process->exit_code_symbol_index) ||
+        value->external_module_index != 0u ||
+        (value->left_value != W_SEED_HIR0_NONE &&
+         value->left_value >= program->value_count))
+      return false;
+    if (value->external_symbol_index == process->success_symbol_index)
+      return value->left_value == W_SEED_HIR0_NONE &&
+             process_external_symbol_is(
+                 program, 0u, process->success_symbol_index,
+                 W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"success", 7u) &&
+             text_is(program, value->member_name, (const uint8_t *)"success",
+                     7u);
+    if (value->external_symbol_index == process->failure_symbol_index)
+      return value->left_value != W_SEED_HIR0_NONE &&
+             process_external_symbol_is(
+                 program, 0u, process->failure_symbol_index,
+                 W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"failure", 7u) &&
+             text_is(program, value->member_name, (const uint8_t *)"failure",
+                     7u) &&
+             process_failure_constant(program, value->left_value);
+    return false;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->parameter_index >= program->parameter_count) return false;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[value->parameter_index];
+    if (parameter->owner_function != owner_function) return false;
+    if (value->parameter_index ==
+            process->function->first_parameter +
+                process->arguments_parameter_ordinal &&
+        process_nominal_type_is(program, value->type_index, 0u,
+                                process->arguments_symbol_index))
+      return true;
+    if (value->parameter_index ==
+            process->function->first_parameter +
+                process->context_parameter_ordinal &&
+        process_nominal_type_is(program, value->type_index, 0u,
+                                process->context_symbol_index))
+      return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
+    uint32_t enum_index = W_SEED_HIR0_NONE;
+    if (!program_enum_type_supported(program, value->type_index, &enum_index,
+                                     NULL) ||
+        value->enum_index != enum_index ||
+        value->enum_case_index >= program->enum_case_count ||
+        program->enum_cases[value->enum_case_index].owner_enum != enum_index ||
+        value->first_enum_payload > program->enum_payload_count ||
+        value->enum_payload_count >
+            program->enum_payload_count - value->first_enum_payload ||
+        program->enum_cases[value->enum_case_index].payload_count !=
+            value->enum_payload_count)
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->enum_payload_count;
+         ordinal += 1u)
+      if (!process_value_lowerable(
+              program,
+              program->enum_payloads[(size_t)value->first_enum_payload +
+                                     ordinal]
+                  .value_index,
+              owner_function, process, false, depth + 1u))
+        return false;
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL ||
+      value->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
+      value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
+      if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+          value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+          value->left_value == W_SEED_HIR0_NONE ||
+          value->right_value != W_SEED_HIR0_NONE ||
+          value->binding_index != W_SEED_HIR0_NONE ||
+          value->parameter_index != W_SEED_HIR0_NONE ||
+          value->call_index != W_SEED_HIR0_NONE ||
+          value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+          value->interpolation_segment_count != 0u ||
+          value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+          value->block_argument_index != W_SEED_HIR0_NONE)
+        return false;
+      return process_value_lowerable(program, value->left_value, owner_function,
+                                     process, false, depth + 1u);
+    }
+    if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+      if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+          value->unary_operator != W_SEED_HIR0_UNARY_NEGATE ||
+          value->left_value == W_SEED_HIR0_NONE ||
+          value->right_value != W_SEED_HIR0_NONE ||
+          value->binding_index != W_SEED_HIR0_NONE ||
+          value->parameter_index != W_SEED_HIR0_NONE ||
+          value->call_index != W_SEED_HIR0_NONE ||
+          value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+          value->interpolation_segment_count != 0u ||
+          value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+          value->block_argument_index != W_SEED_HIR0_NONE ||
+          !process_value_lowerable(program, value->left_value, owner_function,
+                                   process, false, depth + 1u))
+        return false;
+      if (program_value_is_constant_i64(program, value_index, 0u)) {
+        int64_t ignored = 0;
+        if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+      }
+      return true;
+    }
+
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        program->values[value->left_value].type_index >= program->type_count ||
+        program->values[value->right_value].type_index >= program->type_count ||
+        program->types[program->values[value->left_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_I64 ||
+        program->types[program->values[value->right_value].type_index].kind !=
+            W_SEED_HIR0_TYPE_I64 ||
+        !process_value_lowerable(program, value->left_value, owner_function,
+                                 process, false, depth + 1u) ||
+        !process_value_lowerable(program, value->right_value, owner_function,
+                                 process, false, depth + 1u))
+      return false;
+    if (value->binary_operator >= W_SEED_HIR0_BINARY_EQUAL &&
+        value->binary_operator <= W_SEED_HIR0_BINARY_GREATER_EQUAL)
+      return program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL;
+    if (value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+      return false;
+    if (program_value_is_constant_i64(program, value_index, 0u)) {
+      int64_t ignored = 0;
+      if (!evaluate_i64(program, value_index, 0u, &ignored)) return false;
+    }
+    return true;
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    const w_seed_hir0_binding *binding =
+        &program->bindings[value->binding_index];
+    return binding->owner_block < program->block_count &&
+           program->blocks[binding->owner_block].owner_function ==
+               owner_function &&
+           process_value_lowerable(program, binding->initializer_value,
+                                   owner_function, process, allow_string,
+                                   depth + 1u);
+  }
+
+  if (value->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_STRING ||
+        value->first_interpolation_segment >
+            program->interpolation_segment_count ||
+        value->interpolation_segment_count >
+            program->interpolation_segment_count -
+                value->first_interpolation_segment)
+      return false;
+    for (size_t ordinal = 0u; ordinal < value->interpolation_segment_count;
+         ordinal += 1u) {
+      const w_seed_hir0_interpolation_segment *segment =
+          &program->interpolation_segments[(size_t)value->first_interpolation_segment +
+                                           ordinal];
+      if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+          !process_value_lowerable(program, segment->value_index,
+                                   owner_function, process, false,
+                                   depth + 1u))
+        return false;
+      if (segment->kind != W_SEED_HIR0_INTERPOLATION_TEXT &&
+          segment->kind != W_SEED_HIR0_INTERPOLATION_VALUE)
+        return false;
+    }
+    return true;
+  }
+
+  /* All remaining leaves and local values use exactly the already-validated
+   * scalar/enum rules.  This fallback intentionally rejects nominal values,
+   * local external reads, and unknown value kinds. */
+  return program_value_lowerable(program, value_index, owner_function,
+                                 allow_string, depth);
+}
+
+static bool process_or_program_value_lowerable(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t owner_function, const w_seed_native_subset0_process *process,
+    bool allow_string, size_t depth) {
+  if (process != NULL && owner_function == process->function_index)
+    return process_value_lowerable(program, value_index, owner_function, process,
+                                   allow_string, depth);
+  return program_value_lowerable(program, value_index, owner_function,
+                                 allow_string, depth);
+}
+
+static bool process_host_call_supported(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call,
+    uint32_t owner_function,
+    const w_seed_native_subset0_process *process);
 
 /* HIR0 verification proves each branch is a structured diamond. Scalar
  * functions may use the same forward-only value-if diamonds, including a
@@ -1279,6 +1579,63 @@ static bool program_scalar_cfg_is_supported(
   return false;
 }
 
+/* The process entry may end in a terminal source-level if. HIR deliberately
+ * elides that if's synthetic join because both arms return ExitCode directly.
+ * Keep this admission separate from the ordinary diamond recognizer: the
+ * shared maximum walker still proves forward-only edges and checks every
+ * value/body shape before emission. */
+static bool program_process_terminal_return_cfg_is_supported(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 3u ||
+      function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const size_t start = function->first_block;
+  const size_t first_arm = start + 1u;
+  const size_t second_arm = start + 2u;
+  const w_seed_hir0_block *entry = &program->blocks[start];
+  const w_seed_hir0_block *then_block = &program->blocks[first_arm];
+  const w_seed_hir0_block *else_block = &program->blocks[second_arm];
+  if (entry->owner_function != function_index ||
+      then_block->owner_function != function_index ||
+      else_block->owner_function != function_index ||
+      entry->terminator_index >= program->terminator_count ||
+      then_block->terminator_index >= program->terminator_count ||
+      else_block->terminator_index >= program->terminator_count ||
+      then_block->block_argument_count != 0u ||
+      else_block->block_argument_count != 0u)
+    return false;
+  const w_seed_hir0_terminator *branch =
+      &program->terminators[entry->terminator_index];
+  const w_seed_hir0_terminator *then_return =
+      &program->terminators[then_block->terminator_index];
+  const w_seed_hir0_terminator *else_return =
+      &program->terminators[else_block->terminator_index];
+  if (branch->owner_block != start ||
+      branch->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      branch->target_block != first_arm || branch->else_block != second_arm ||
+      branch->target_block <= start || branch->else_block <= start ||
+      then_return->owner_block != first_arm ||
+      else_return->owner_block != second_arm)
+    return false;
+  const w_seed_hir0_terminator *returns[] = {then_return, else_return};
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_terminator *terminator = returns[ordinal];
+    if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        terminator->result_type != function->return_type ||
+        terminator->value_index >= program->value_count ||
+        terminator->target_block != W_SEED_HIR0_NONE ||
+        terminator->else_block != W_SEED_HIR0_NONE ||
+        terminator->first_edge_argument != W_SEED_HIR0_NONE ||
+        terminator->edge_argument_count != 0u)
+      return false;
+  }
+  return true;
+}
+
 /* HIR0 has already proved W-1560's exact natural-loop invariants. This
  * selector repeats the backend-relevant boundary: four ordered blocks, one
  * carried i64, one backedge, and only scalar value trees the MLIR adapter can
@@ -1450,7 +1807,8 @@ static bool program_enum_switch_is_supported(
 static bool program_host_print_maximum(
     const w_seed_hir0_program *program, const w_seed_hir0_call *call,
     const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
-    size_t *maximum, bool *has_interpolation) {
+    size_t *maximum, bool *has_interpolation,
+    const w_seed_native_subset0_process *process) {
   if (program == NULL || call == NULL || bindings == NULL ||
       binding_reads == NULL || maximum == NULL || has_interpolation == NULL ||
       call->callee_identity >= program->identity_count ||
@@ -1484,7 +1842,7 @@ static bool program_host_print_maximum(
   if (root->kind == W_SEED_HIR0_VALUE_INTERPOLATED_STRING) {
     if (!interpolation_maximum_bytes(
             program, root, bindings, program->binding_count,
-            call->owner_instruction, binding_reads, &payload))
+            call->owner_instruction, binding_reads, &payload, process))
       return false;
     *has_interpolation = true;
   } else if (!interpolation_string_bytes(
@@ -1502,6 +1860,7 @@ static bool program_host_print_maximum(
  * while a branch combines mutually-exclusive arm maxima with max(). */
 static bool program_function_maximum(
     const w_seed_hir0_program *program, size_t function_index,
+    const w_seed_native_subset0_process *process,
     const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
     uint8_t *state, size_t *cached, bool *has_interpolation,
     bool *has_local_calls) {
@@ -1515,12 +1874,20 @@ static bool program_function_maximum(
   state[function_index] = 1u;
 
   const w_seed_hir0_function *function = &program->functions[function_index];
+  const bool process_entry =
+      process != NULL && process->function_index == function_index;
   if (function->return_type >= program->type_count ||
-      (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
-       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64 &&
-       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL &&
-       !program_enum_type_supported(program, function->return_type, NULL, NULL)) ||
-      function->is_async || function->is_throws || function->is_unsafe ||
+      (!(program->types[function->return_type].kind ==
+             W_SEED_HIR0_TYPE_UNIT ||
+         program->types[function->return_type].kind == W_SEED_HIR0_TYPE_I64 ||
+         program->types[function->return_type].kind == W_SEED_HIR0_TYPE_BOOL ||
+         program_enum_type_supported(program, function->return_type, NULL,
+                                      NULL)) &&
+       !(process_entry &&
+         process_nominal_type_is(program, function->return_type, 0u,
+                                 process->exit_code_symbol_index))) ||
+       (function->is_async && !process_entry) || function->is_throws ||
+       function->is_unsafe ||
       function->has_borrow_clause || function->block_count == 0u ||
       function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
       function->first_block >= program->block_count ||
@@ -1528,11 +1895,14 @@ static bool program_function_maximum(
     return false;
   const bool enum_switch =
       program_enum_switch_is_supported(program, function_index);
+  const bool process_terminal_return_cfg =
+      process_entry &&
+      program_process_terminal_return_cfg_is_supported(program, function_index);
   if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
       function->block_count > 1u &&
       !program_scalar_cfg_is_supported(program, function_index) &&
       !program_natural_loop_is_supported(program, function_index) &&
-      !enum_switch)
+      !enum_switch && !process_terminal_return_cfg)
     return false;
   for (size_t parameter = 0u; parameter < function->parameter_count;
        parameter += 1u) {
@@ -1540,14 +1910,27 @@ static bool program_function_maximum(
         (size_t)function->first_parameter + parameter;
     if (parameter_index >= program->parameter_count) return false;
     const uint32_t type_index = program->parameters[parameter_index].type_index;
-    if (type_index >= program->type_count ||
-        (program->types[type_index].kind != W_SEED_HIR0_TYPE_I64 &&
-         program->types[type_index].kind != W_SEED_HIR0_TYPE_BOOL &&
-         !program_enum_type_supported(program, type_index, NULL, NULL)))
+    if (type_index >= program->type_count) return false;
+    const bool scalar_or_enum =
+        program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
+        program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL ||
+        program_enum_type_supported(program, type_index, NULL, NULL);
+    const bool process_owner =
+        process_entry &&
+        ((parameter_index ==
+              (size_t)(process->arguments_parameter - program->parameters) &&
+          process_nominal_type_is(program, type_index, 0u,
+                                  process->arguments_symbol_index)) ||
+         (parameter_index ==
+              (size_t)(process->context_parameter - program->parameters) &&
+          process_nominal_type_is(program, type_index, 0u,
+                                  process->context_symbol_index)));
+    if (!scalar_or_enum && !process_owner)
       return false;
   }
 
   if (program_natural_loop_is_supported(program, function_index)) {
+    if (process_entry) return false;
     cached[function_index] = 0u;
     state[function_index] = 2u;
     return true;
@@ -1580,10 +1963,10 @@ static bool program_function_maximum(
       if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
         if (instruction->binding_index >= program->binding_count ||
             bindings[instruction->binding_index] == NULL ||
-            !program_value_lowerable(
+            !process_or_program_value_lowerable(
                 program, program->bindings[instruction->binding_index]
                            .initializer_value,
-                (uint32_t)function_index, true, 0u))
+                (uint32_t)function_index, process, true, 0u))
           return false;
         continue;
       }
@@ -1603,7 +1986,11 @@ static bool program_function_maximum(
       size_t addition = 0u;
       if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
         if (!program_host_print_maximum(program, call, bindings, binding_reads,
-                                        &addition, has_interpolation))
+                                        &addition, has_interpolation,
+                                        process_entry ? process : NULL) ||
+            (process_entry &&
+             !process_host_call_supported(program, call,
+                                          (uint32_t)function_index, process)))
           return false;
       } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
         if (callee->target_index >= program->function_count ||
@@ -1613,13 +2000,14 @@ static bool program_function_maximum(
              argument += 1u) {
           const w_seed_hir0_argument *item =
               &program->arguments[(size_t)call->first_argument + argument];
-          if (!program_value_lowerable(program, item->value_index,
-                                       (uint32_t)function_index, false, 0u))
+           if (!process_or_program_value_lowerable(
+                   program, item->value_index, (uint32_t)function_index,
+                   process, false, 0u))
             return false;
         }
         if (!program_function_maximum(
-                program, callee->target_index, bindings, binding_reads, state,
-                cached, has_interpolation, has_local_calls))
+                program, callee->target_index, NULL, bindings, binding_reads,
+                state, cached, has_interpolation, has_local_calls))
           return false;
         addition = cached[callee->target_index];
         *has_local_calls = true;
@@ -1647,8 +2035,9 @@ static bool program_function_maximum(
           (!enum_switch && terminator->value_index < program->value_count &&
            program->values[terminator->value_index].kind ==
                W_SEED_HIR0_VALUE_CALL_RESULT) ||
-          !program_value_lowerable(program, terminator->value_index,
-                                    (uint32_t)function_index, false, 0u)) {
+           !process_or_program_value_lowerable(
+               program, terminator->value_index, (uint32_t)function_index,
+               process, false, 0u)) {
         return false;
       }
       block_maximum[local_block] = total;
@@ -1684,8 +2073,9 @@ static bool program_function_maximum(
               program->type_count ||
           program->types[program->values[terminator->value_index].type_index]
                   .kind != W_SEED_HIR0_TYPE_BOOL ||
-          !program_value_lowerable(program, terminator->value_index,
-                                   (uint32_t)function_index, false, 0u))
+           !process_or_program_value_lowerable(
+               program, terminator->value_index, (uint32_t)function_index,
+               process, false, 0u))
         return false;
       const size_t then_maximum =
           block_maximum[(size_t)terminator->target_block - start];
@@ -1700,9 +2090,10 @@ static bool program_function_maximum(
       continue;
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
-      if (!enum_switch || terminator->value_index >= program->value_count ||
-          !program_value_lowerable(program, terminator->value_index,
-                                   (uint32_t)function_index, false, 0u))
+       if (!enum_switch || terminator->value_index >= program->value_count ||
+           !process_or_program_value_lowerable(
+               program, terminator->value_index, (uint32_t)function_index,
+               process, false, 0u))
         return false;
       size_t arm_maximum = 0u;
       for (size_t ordinal = 1u; ordinal < function->block_count; ordinal += 1u)
@@ -1769,7 +2160,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
   for (size_t function = 0u; function < program->function_count;
        function += 1u)
     if (!program_function_maximum(
-            program, function, bindings, binding_reads, state, cached,
+            program, function, NULL, bindings, binding_reads, state, cached,
             &has_interpolation, &has_local_calls))
       return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
   if (cached[entry->target_function] == 0u)
@@ -1939,9 +2330,232 @@ w_seed_native_subset0_status w_seed_native_subset0_select_process(
   selection->function = function;
   selection->arguments_parameter = arguments_parameter;
   selection->context_parameter = context_parameter;
+  selection->function_index = (uint32_t)(function - program->functions);
+  selection->arguments_symbol_index = (uint32_t)arguments_symbol;
+  selection->context_symbol_index = (uint32_t)context_symbol;
+  selection->exit_code_symbol_index = (uint32_t)exit_code_symbol;
+  selection->is_empty_symbol_index = W_SEED_HIR0_NONE;
+  selection->success_symbol_index = (uint32_t)success_symbol;
+  selection->failure_symbol_index = W_SEED_HIR0_NONE;
   selection->arguments_parameter_ordinal = 0u;
   selection->context_parameter_ordinal = 1u;
   return W_SEED_NATIVE_SUBSET0_OK;
+}
+
+static bool process_host_call_supported(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call,
+    uint32_t owner_function,
+    const w_seed_native_subset0_process *process) {
+  if (program == NULL || call == NULL || process == NULL ||
+      call->callee_identity >= program->identity_count ||
+      call->first_argument > program->argument_count ||
+      call->argument_count != 1u || call->first_requirement >=
+          program->requirement_count || call->requirement_count != 1u)
+    return false;
+  const w_seed_hir0_identity *callee =
+      &program->identities[call->callee_identity];
+  const w_seed_hir0_requirement *requirement =
+      &program->requirements[call->first_requirement];
+  const w_seed_hir0_argument *argument =
+      &program->arguments[call->first_argument];
+  if (callee->kind != W_SEED_HIR0_IDENTITY_HOST_PRELUDE ||
+      !text_is(program, callee->name, (const uint8_t *)"print", 5u) ||
+      !text_is(program, callee->profile, NATIVE_SUBSET0_PROFILE,
+               sizeof(NATIVE_SUBSET0_PROFILE) - 1u) ||
+      requirement->owner_kind != W_SEED_HIR0_REQUIREMENT_HOST_IDENTITY ||
+      requirement->owner_index != call->callee_identity ||
+      !text_is(program, requirement->name, NATIVE_SUBSET0_REQUIREMENT,
+               sizeof(NATIVE_SUBSET0_REQUIREMENT) - 1u) ||
+      argument->owner_call != (uint32_t)(call - program->calls) ||
+      argument->parameter_ordinal != 0u || argument->type_index >=
+                                               program->type_count ||
+      program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_STRING ||
+      argument->value_index >= program->value_count)
+    return false;
+  return process_value_lowerable(program, argument->value_index,
+                                 owner_function, process, true, 0u) &&
+         program->values[argument->value_index].type_index ==
+             argument->type_index;
+}
+
+static bool process_local_call_supported(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call,
+    uint32_t owner_function,
+    const w_seed_native_subset0_process *process) {
+  if (program == NULL || call == NULL || process == NULL ||
+      call->callee_identity >= program->identity_count ||
+      call->first_argument > program->argument_count ||
+      call->argument_count > program->argument_count - call->first_argument)
+    return false;
+  const w_seed_hir0_identity *callee =
+      &program->identities[call->callee_identity];
+  if (callee->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      callee->target_index >= program->function_count ||
+      callee->target_index == process->function_index ||
+      call->argument_count != callee->parameter_count)
+    return false;
+  const w_seed_hir0_function *target = &program->functions[callee->target_index];
+  if (call->result_type != target->return_type ||
+      call->result_type >= program->type_count)
+    return false;
+  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
+  if (call->argument_count > sizeof(values) / sizeof(values[0])) return false;
+  for (size_t index = 0u; index < sizeof(values) / sizeof(values[0]); index += 1u)
+    values[index] = W_SEED_HIR0_NONE;
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + ordinal];
+    if (argument->parameter_ordinal >= call->argument_count ||
+        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE ||
+        argument->value_index >= program->value_count)
+      return false;
+    values[argument->parameter_ordinal] = argument->value_index;
+  }
+  for (size_t ordinal = 0u; ordinal < target->parameter_count; ordinal += 1u) {
+    const size_t parameter_index = (size_t)target->first_parameter + ordinal;
+    if (parameter_index >= program->parameter_count ||
+        values[ordinal] == W_SEED_HIR0_NONE ||
+        program->parameters[parameter_index].type_index >= program->type_count ||
+        program->values[values[ordinal]].type_index !=
+            program->parameters[parameter_index].type_index ||
+        !process_value_lowerable(program, values[ordinal], owner_function,
+                                 process, false, 0u))
+      return false;
+  }
+  return program->types[call->result_type].kind !=
+             W_SEED_HIR0_TYPE_NOMINAL &&
+         (call->result_type == 0u ||
+          program->types[call->result_type].kind == W_SEED_HIR0_TYPE_I64 ||
+          program->types[call->result_type].kind == W_SEED_HIR0_TYPE_BOOL ||
+          program_enum_type_supported(program, call->result_type, NULL, NULL));
+}
+
+static bool process_function_body_supported(
+    const w_seed_hir0_program *program,
+    const w_seed_native_subset0_process *process) {
+  if (program == NULL || process == NULL || process->function == NULL ||
+      process->function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = process->function;
+  if (function->first_block >= program->block_count || function->block_count == 0u ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const size_t start = function->first_block;
+  const size_t end = start + function->block_count;
+  for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
+    const size_t block_index = start + ordinal;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->owner_function != process->function_index ||
+        block->terminator_index >= program->terminator_count ||
+        block->first_instruction > program->instruction_count ||
+        block->instruction_count >
+            program->instruction_count - block->first_instruction)
+      return false;
+    for (size_t instruction_ordinal = 0u;
+         instruction_ordinal < block->instruction_count; instruction_ordinal += 1u) {
+      const size_t instruction_index =
+          (size_t)block->first_instruction + instruction_ordinal;
+      const w_seed_hir0_instruction *instruction =
+          &program->instructions[instruction_index];
+      if (instruction->owner_block != block_index ||
+          instruction->ordinal != instruction_ordinal)
+        return false;
+      if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+        if (instruction->binding_index >= program->binding_count ||
+            !process_value_lowerable(
+                program,
+                program->bindings[instruction->binding_index].initializer_value,
+                process->function_index, process, true, 0u))
+          return false;
+        continue;
+      }
+      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+          instruction->call_index >= program->call_count)
+        return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->owner_instruction != instruction_index ||
+          call->owner_block != block_index ||
+          call->result_type >= program->type_count)
+        return false;
+      if (call->callee_identity >= program->identity_count)
+        return false;
+      const w_seed_hir0_identity *callee =
+          &program->identities[call->callee_identity];
+      if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
+        if (!process_host_call_supported(program, call,
+                                         process->function_index, process))
+          return false;
+      } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
+        if (!process_local_call_supported(program, call,
+                                          process->function_index, process))
+          return false;
+      } else {
+        return false;
+      }
+    }
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[block->terminator_index];
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
+      if (terminator->value_index >= program->value_count ||
+          terminator->target_block != W_SEED_HIR0_NONE ||
+          terminator->else_block != W_SEED_HIR0_NONE ||
+          program->values[terminator->value_index].type_index !=
+              function->return_type ||
+          !process_value_lowerable(program, terminator->value_index,
+                                   process->function_index, process, false,
+                                   0u))
+        return false;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_UNIT)
+      return false;
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_BRANCH) {
+      if (terminator->value_index >= program->value_count ||
+          terminator->target_block < start || terminator->target_block >= end ||
+          terminator->else_block < start || terminator->else_block >= end ||
+          program->values[terminator->value_index].type_index >=
+              program->type_count ||
+          program->types[program->values[terminator->value_index].type_index]
+                  .kind != W_SEED_HIR0_TYPE_BOOL ||
+          !process_value_lowerable(program, terminator->value_index,
+                                   process->function_index, process, false,
+                                   0u))
+        return false;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_JUMP) {
+      if (terminator->target_block < start || terminator->target_block >= end ||
+          terminator->else_block != W_SEED_HIR0_NONE ||
+          terminator->edge_argument_count > program->edge_argument_count ||
+          (terminator->edge_argument_count != 0u &&
+           (terminator->first_edge_argument == W_SEED_HIR0_NONE ||
+            (size_t)terminator->first_edge_argument >
+                program->edge_argument_count - terminator->edge_argument_count)))
+        return false;
+      for (size_t edge = 0u; edge < terminator->edge_argument_count; edge += 1u) {
+        const w_seed_hir0_edge_argument *argument =
+            &program->edge_arguments[(size_t)terminator->first_edge_argument + edge];
+        if (argument->value_index >= program->value_count ||
+            !process_value_lowerable(program, argument->value_index,
+                                     process->function_index, process, false,
+                                     0u))
+          return false;
+      }
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
+      if (terminator->value_index >= program->value_count ||
+          terminator->switch_enum_index >= program->enum_count ||
+          !program_enum_switch_is_supported(program, process->function_index) ||
+          !process_value_lowerable(program, terminator->value_index,
+                                   process->function_index, process, false,
+                                   0u))
+        return false;
+      continue;
+    }
+    return false;
+  }
+  return true;
 }
 
 w_seed_native_subset0_status
@@ -1953,51 +2567,206 @@ w_seed_native_subset0_select_process_executable(
       !w_seed_hir0_verify(program, hir_result))
     return W_SEED_NATIVE_SUBSET0_INVALID;
 
-  /* HIR verification has already rederived the exact public process-input
-   * witness. Keep this consumer boundary explicit so a private four-symbol
-   * handler cannot be emitted as a public executable by accident. */
+  /* HIR verification proves the ownership/direct-entry contract.  The
+   * executable consumer checks the identity set and the bounded body shape,
+   * but deliberately does not use record counts as a source witness: helper
+   * functions, local enums, bindings, and source order are all permitted. */
   if (program->module_count != 1u || program->external_module_count != 1u ||
-      program->external_symbol_count != 6u || program->function_count != 1u ||
-      program->parameter_count != 2u || program->block_count != 3u ||
-      program->instruction_count != 2u || program->binding_count != 0u ||
-      program->call_count != 2u || program->argument_count != 2u ||
-      program->value_count != 7u || program->terminator_count != 3u ||
+      program->external_symbol_count == 0u ||
+      program->external_symbol_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      program->function_count == 0u ||
+      program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
+      program->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
+      program->block_count == 0u ||
+      program->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
+      program->instruction_count > W_SEED_NATIVE_SUBSET0_MAX_INSTRUCTIONS *
+                                        W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
+      program->binding_count > W_SEED_NATIVE_SUBSET0_MAX_BINDINGS ||
+      program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS ||
+      program->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS *
+                                    W_SEED_NATIVE_SUBSET0_MAX_CALLS ||
+      program->value_count == 0u ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      program->terminator_count != program->block_count ||
       program->entry_count != 1u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
+  const w_seed_hir0_external_module *external_module =
+      &program->external_modules[0];
+  if (external_module->module_index != 0u ||
+      external_module->first_symbol > program->external_symbol_count ||
+      external_module->symbol_count >
+          program->external_symbol_count - external_module->first_symbol ||
+      !text_is(program, external_module->module_id,
+               (const uint8_t *)"std.process", 11u))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  size_t arguments_symbol = SIZE_MAX;
+  size_t context_symbol = SIZE_MAX;
+  size_t exit_code_symbol = SIZE_MAX;
+  size_t is_empty_symbol = SIZE_MAX;
+  size_t success_symbol = SIZE_MAX;
+  size_t failure_symbol = SIZE_MAX;
+  for (size_t symbol_index = external_module->first_symbol;
+       symbol_index < (size_t)external_module->first_symbol +
+                           external_module->symbol_count;
+       symbol_index += 1u) {
+    const w_seed_hir0_external_symbol *symbol =
+        &program->external_symbols[symbol_index];
+    if (symbol->module_index != 0u || !symbol->exported) continue;
+    if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+        text_is(program, symbol->name, (const uint8_t *)"Arguments", 9u))
+      arguments_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+             text_is(program, symbol->name, (const uint8_t *)"Context", 7u))
+      context_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_TYPE &&
+             text_is(program, symbol->name, (const uint8_t *)"ExitCode", 8u))
+      exit_code_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
+             text_is(program, symbol->name, (const uint8_t *)"isEmpty", 7u))
+      is_empty_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
+             text_is(program, symbol->name, (const uint8_t *)"success", 7u))
+      success_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
+             text_is(program, symbol->name, (const uint8_t *)"failure", 7u))
+      failure_symbol = symbol_index;
+  }
+  if (arguments_symbol == SIZE_MAX || context_symbol == SIZE_MAX ||
+      exit_code_symbol == SIZE_MAX || is_empty_symbol == SIZE_MAX ||
+      success_symbol == SIZE_MAX || failure_symbol == SIZE_MAX)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
+  const w_seed_hir0_external_symbol *arguments_external =
+      &program->external_symbols[arguments_symbol];
+  const w_seed_hir0_external_symbol *context_external =
+      &program->external_symbols[context_symbol];
+  const w_seed_hir0_external_symbol *exit_code_external =
+      &program->external_symbols[exit_code_symbol];
+  const w_seed_hir0_external_symbol *is_empty_external =
+      &program->external_symbols[is_empty_symbol];
+  const w_seed_hir0_external_symbol *success_external =
+      &program->external_symbols[success_symbol];
+  const w_seed_hir0_external_symbol *failure_external =
+      &program->external_symbols[failure_symbol];
+  if (arguments_external->parameter_count != 0u ||
+      context_external->parameter_count != 0u ||
+      exit_code_external->parameter_count != 0u ||
+      is_empty_external->parameter_count != 0u ||
+      success_external->parameter_count != 0u ||
+      failure_external->parameter_count != 1u ||
+      failure_external->parameter_abi !=
+          W_SEED_HIR0_EXTERNAL_PARAMETER_PROCESS_FAILURE_I64 ||
+      is_empty_external->parameter_abi != W_SEED_HIR0_EXTERNAL_PARAMETER_NONE ||
+      success_external->parameter_abi != W_SEED_HIR0_EXTERNAL_PARAMETER_NONE ||
+      !text_is(program, is_empty_external->receiver_type,
+               (const uint8_t *)"Arguments", 9u) ||
+      !text_is(program, is_empty_external->return_type,
+               (const uint8_t *)"Bool", 4u) ||
+      !text_is(program, success_external->receiver_type,
+               (const uint8_t *)"ExitCode", 8u) ||
+      !text_is(program, success_external->return_type,
+               (const uint8_t *)"ExitCode", 8u) ||
+      !text_is(program, failure_external->receiver_type,
+               (const uint8_t *)"ExitCode", 8u) ||
+      !text_is(program, failure_external->return_type,
+               (const uint8_t *)"ExitCode", 8u))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+
   const w_seed_hir0_entry *entry = &program->entries[0];
-  if (entry->target_function != 0u ||
+  if (entry->target_function >= program->function_count ||
       entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_NATIVE_PROCESS ||
       entry->cleanup_obligation !=
           W_SEED_HIR0_ENTRY_CLEANUP_RELEASE_HANDLER_OWNERS ||
-      entry->first_cleanup_owner_parameter != 0u ||
       entry->cleanup_owner_parameter_count != 2u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
-  const w_seed_hir0_function *function = &program->functions[0];
-  if (function->first_parameter != 0u || function->parameter_count != 2u ||
-      function->first_block != 0u || function->block_count != 3u ||
+  w_seed_native_subset0_process candidate;
+  (void)memset(&candidate, 0, sizeof(candidate));
+  candidate.entry = entry;
+  candidate.function_index = entry->target_function;
+  candidate.function = &program->functions[candidate.function_index];
+  candidate.arguments_symbol_index = (uint32_t)arguments_symbol;
+  candidate.context_symbol_index = (uint32_t)context_symbol;
+  candidate.exit_code_symbol_index = (uint32_t)exit_code_symbol;
+  candidate.is_empty_symbol_index = (uint32_t)is_empty_symbol;
+  candidate.success_symbol_index = (uint32_t)success_symbol;
+  candidate.failure_symbol_index = (uint32_t)failure_symbol;
+  const w_seed_hir0_function *function = candidate.function;
+  if (function->first_parameter >= program->parameter_count ||
+      function->parameter_count != 2u ||
+      function->first_parameter >
+          program->parameter_count - function->parameter_count ||
       !function->is_async || function->is_const || function->is_throws ||
       function->is_unsafe || function->has_borrow_clause ||
       function->is_anonymous_entry ||
       function->suspension != W_SEED_HIR0_SUSPENSION_MAY ||
-      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE)
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE ||
+      !process_nominal_type_is(program, function->return_type, 0u,
+                               (uint32_t)exit_code_symbol) ||
+      program->types[function->return_type].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_VALUE_COPY ||
+      program->types[function->return_type].release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_NONE)
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  candidate.arguments_parameter =
+      &program->parameters[(size_t)function->first_parameter];
+  candidate.context_parameter =
+      &program->parameters[(size_t)function->first_parameter + 1u];
+  candidate.arguments_parameter_ordinal = candidate.arguments_parameter->ordinal;
+  candidate.context_parameter_ordinal = candidate.context_parameter->ordinal;
+  if (candidate.arguments_parameter_ordinal >= 2u ||
+      candidate.context_parameter_ordinal >= 2u ||
+      candidate.arguments_parameter_ordinal == candidate.context_parameter_ordinal ||
+      entry->first_cleanup_owner_parameter != function->first_parameter ||
+      candidate.arguments_parameter->owner_function != candidate.function_index ||
+      candidate.context_parameter->owner_function != candidate.function_index ||
+      !process_nominal_type_is(program, candidate.arguments_parameter->type_index,
+                               0u, (uint32_t)arguments_symbol) ||
+      !process_nominal_type_is(program, candidate.context_parameter->type_index,
+                               0u, (uint32_t)context_symbol) ||
+      program->types[candidate.arguments_parameter->type_index].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[candidate.context_parameter->type_index].lifecycle !=
+          W_SEED_HIR0_LIFECYCLE_ENTRY_ROOT_OWNER ||
+      program->types[candidate.arguments_parameter->type_index]
+              .release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE ||
+      program->types[candidate.context_parameter->type_index]
+              .release_contract !=
+          W_SEED_HIR0_RELEASE_CONTRACT_PROCESS_V1_WRAPPER_RELEASE)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
-  const w_seed_hir0_parameter *arguments_parameter = &program->parameters[0];
-  const w_seed_hir0_parameter *context_parameter = &program->parameters[1];
-  if (arguments_parameter->owner_function != 0u ||
-      arguments_parameter->ordinal != 0u ||
-      context_parameter->owner_function != 0u ||
-      context_parameter->ordinal != 1u)
+  /* All non-entry functions remain on the ordinary, nominal-free lowering
+   * path.  A local call back into the async process entry is rejected there;
+   * the process body itself is checked with its explicit nominal context. */
+  const w_seed_hir0_binding *bindings[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] =
+      {NULL};
+  size_t binding_reads[W_SEED_NATIVE_SUBSET0_MAX_BINDINGS] = {0u};
+  for (size_t binding = 0u; binding < program->binding_count; binding += 1u)
+    bindings[binding] = &program->bindings[binding];
+  uint8_t state[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {0u};
+  size_t cached[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS] = {0u};
+  bool has_interpolation = false;
+  bool has_local_calls = false;
+  if (!process_function_body_supported(program, &candidate))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  if (!program_function_maximum(
+          program, candidate.function_index, &candidate, bindings,
+          binding_reads, state, cached, &has_interpolation, &has_local_calls))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  candidate.maximum_stdout_bytes = cached[candidate.function_index];
+  for (size_t index = 0u; index < program->function_count; index += 1u)
+    candidate.natural_loop_functions[index] =
+        program_natural_loop_is_supported(program, index);
+  for (size_t index = 0u; index < program->function_count; index += 1u)
+    if (index != candidate.function_index &&
+        !program_function_maximum(
+            program, index, NULL, bindings, binding_reads, state, cached,
+            &has_interpolation, &has_local_calls))
+      return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
-  (void)memset(selection, 0, sizeof(*selection));
-  selection->entry = entry;
-  selection->function = function;
-  selection->arguments_parameter = arguments_parameter;
-  selection->context_parameter = context_parameter;
-  selection->arguments_parameter_ordinal = 0u;
-  selection->context_parameter_ordinal = 1u;
+  (void)memcpy(selection, &candidate, sizeof(candidate));
   return W_SEED_NATIVE_SUBSET0_OK;
 }

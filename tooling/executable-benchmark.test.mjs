@@ -196,16 +196,16 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
     entry.provenance.artifactCleanliness === "verified-clean"));
 });
 
-test("process-enum-payload catalog pins the backend-blocked tagged-union contract", () => {
+test("process-enum-payload catalog pins the promoted tagged-union contract", () => {
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
   assert.equal(workload.status, "source-oracle-ready");
   assert.equal(workload.sourceReadiness, "source-and-oracle-ready");
-  assert.equal(workload.demoEvidence, "not-run");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.demoEvidence, "bounded-w-demo");
+  assert.equal(workload.benchmarkStatus, "exploratory-ready");
   assert.deepEqual(workload.blockedLanguages, []);
-  assert.deepEqual(workload.blockers, ["native-backend"]);
+  assert.deepEqual(workload.blockers, []);
   assert.equal(workload.oracle.kind, PROCESS_ENUM_PAYLOAD_ORACLE_KIND);
   assert.deepEqual(workload.oracle.timedInput, PROCESS_ENUM_PAYLOAD_TIMED_INPUT);
   assert.deepEqual(workload.oracle.cases, PROCESS_ENUM_PAYLOAD_ORACLE_CASES);

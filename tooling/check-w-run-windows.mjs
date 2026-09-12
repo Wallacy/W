@@ -48,6 +48,8 @@ const restaurantBranchMutationFixture = resolve(seedDirectory,
 const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation-multi.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
+const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
+  "process-enum-payload.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
@@ -465,10 +467,21 @@ try {
     Buffer.from("received\n", "utf8"), "public process input with one argument")
   expectExact(binary, ["run", processInputFixture, "--", ""], 0,
     Buffer.from("received\n", "utf8"), "public process input with empty argument")
+  expectExact(binary, ["run", processEnumPayloadFixture], 7,
+    Buffer.from("enum-missing true\n", "utf8"),
+    "public enum payload process input without arguments")
+  expectExact(binary, ["run", processEnumPayloadFixture, "--", ""], 0,
+    Buffer.from("enum-received false\n", "utf8"),
+    "public enum payload process input with empty argument")
+  expectExact(binary, ["run", processEnumPayloadFixture, "--", "payload"], 0,
+    Buffer.from("enum-received false\n", "utf8"),
+    "public enum payload process input with one argument")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
+  const buildProcessEnumPayload = join(fixtureDirectory,
+    "process-enum-payload-build.exe")
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
   const buildMissingParent = join(fixtureDirectory, "missing", "artifact.exe")
   expectExact(binary, ["build", helloFixture, "--target", targetTriple,
@@ -504,6 +517,24 @@ try {
   expectExact(buildProcessInput,
     Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
     "reject process-input descriptor overflow without partial output")
+  expectExact(binary, ["build", processEnumPayloadFixture, "--target", targetTriple,
+    "--output", buildProcessEnumPayload], 0, Buffer.alloc(0),
+    "build public enum payload process fixture")
+  const builtProcessEnumPayloadStats = await lstat(buildProcessEnumPayload)
+  assert(builtProcessEnumPayloadStats.isFile() &&
+    !builtProcessEnumPayloadStats.isSymbolicLink(),
+    "build enum payload process fixture did not produce a regular artifact")
+  assertPeX64(await readFile(buildProcessEnumPayload),
+    "built enum payload process artifact")
+  expectExact(buildProcessEnumPayload, [], 7,
+    Buffer.from("enum-missing true\n", "utf8"),
+    "execute built enum payload process artifact without arguments")
+  expectExact(buildProcessEnumPayload, [""], 0,
+    Buffer.from("enum-received false\n", "utf8"),
+    "execute built enum payload process artifact with empty argument")
+  expectExact(buildProcessEnumPayload, ["payload"], 0,
+    Buffer.from("enum-received false\n", "utf8"),
+    "execute built enum payload process artifact with one argument")
   expectBuildFailure(binary, ["build", helloFixture, "--target",
     "x86_64-unknown-linux-gnu", "--output", buildWrongTarget],
     "reject unsupported build target")

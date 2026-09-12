@@ -10,7 +10,7 @@ Neither bundle produces a language or product-runtime result.
 
 [`executable-catalog.json`](executable-catalog.json) is the machine-readable
 catalog of executable workloads. It keeps stable IDs for `hello`,
-`process-entry`, `process-handler-lifecycle`, seventeen
+`process-entry`, `process-enum-payload`, `process-handler-lifecycle`, seventeen
 source-backed Restaurant workloads, and the future full Restaurant
 composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 and the `restaurant-enum-switch` witness also have public `w build` Release
@@ -58,7 +58,8 @@ covers the Job tree while compile CPU/memory remains direct-process evidence.
 Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate. Hello,
 Restaurant branch, natural loop, closed enum switch, bounded same-module
-product closure, and public process entry are `exploratory-ready`: each has
+product closure, public process entry, and public process enum-payload are
+`exploratory-ready`: each has
 equivalent W/C/Rust sources, an exact oracle, and the native runtime
 process-tree route. Published cells remain optional evidence rather than the
 definition of runner readiness.
@@ -96,8 +97,9 @@ Each workload declares one machine-checked `structureClass`. `public-end-to-end`
 identifies a user-visible workload and its complete executable path.
 `integration-linkage` identifies a composite that links implementation pieces
 for integration evidence. `transient-internal` identifies an ephemeral
-execution descriptor or implementation witness. Hello, Restaurant and
-`process-entry` workloads use `public-end-to-end`. `process-handler-lifecycle` uses `integration-linkage`,
+execution descriptor or implementation witness. Hello, Restaurant,
+`process-entry`, and `process-enum-payload` workloads use `public-end-to-end`.
+`process-handler-lifecycle` uses `integration-linkage`,
 and its private execution descriptor uses `transient-internal`. The field
 identifies the measured subject or intended subject. It does not identify
 readiness or completeness.
@@ -149,6 +151,16 @@ executables, and Rust does not call shared C support. Runtime samples pin the
 `[payload]` vector. The workload remains contextual/non-ranking until
 compile-side process-tree accounting exists; no result or best-metric cell is
 claimed until a validated measurement runs.
+
+#### Public process-enum-payload executable measurements
+
+The `process-enum-payload` workload is the public end-to-end process composition
+witness. Invoke the same runner with `--target process-enum-payload`; correctness
+covers no arguments, one empty argument, and one payload argument before timing,
+while only `[payload]` is timed. Its exact oracle is `enum-missing true\n` with
+exit `7` for no arguments and `enum-received false\n` with exit `0` for either
+argument case, always with empty stderr. Runtime input flows through functions,
+enum payloads, branches, and interpolation; scalar replacement is permitted.
 
 #### Private process-handler lifecycle executable measurements
 

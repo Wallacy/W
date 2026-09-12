@@ -13308,6 +13308,36 @@ static frontend_simple_type infer_expression_span_inner(
       return simple_type_from_view(host->return_type);
     }
   }
+  /* A local binding may be inferred from a receiver-aware external member
+   * initializer before its normalized statement record exists.  Keep this
+   * dry-pass inference as narrow as the expression parser's member path:
+   * exact `local.member`, an externally identified nominal receiver, and one
+   * exported external value.  This makes the dry and emit passes agree on
+   * `let repeated = input.isEmpty` without treating arbitrary dotted names as
+   * resolved locals. */
+  if (first.kind == W_SEED_CST_WORD) {
+    frontend_token_cursor member_cursor = cursor;
+    frontend_token member_dot;
+    frontend_token member_token;
+    frontend_token trailing;
+    if (cursor_take(&member_cursor, &first) &&
+        cursor_take(&member_cursor, &member_dot) &&
+        token_text(doc, &member_dot, ".") &&
+        cursor_take(&member_cursor, &member_token) &&
+        member_token.kind == W_SEED_CST_WORD &&
+        !cursor_peek(&member_cursor, &trailing)) {
+      const frontend_simple_type receiver =
+          binding_type_for_name(context, first_text, first.span);
+      const w_seed_frontend_external_symbol *member = NULL;
+      if (receiver.kind == W_SEED_FRONTEND_TYPE_NOMINAL &&
+          external_member_for_receiver(context, receiver,
+                                        text_from_span(doc, member_token.span),
+                                        NULL, NULL, &member) &&
+          member != NULL) {
+        return external_contextual_type(context, member->return_type);
+      }
+    }
+  }
   frontend_token token;
   while (cursor_take(&cursor, &token)) {
     const w_seed_frontend_text text = text_from_span(doc, token.span);

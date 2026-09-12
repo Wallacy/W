@@ -105,8 +105,20 @@ typedef struct {
   const w_seed_hir0_function *function;
   const w_seed_hir0_parameter *arguments_parameter;
   const w_seed_hir0_parameter *context_parameter;
+  /* Dense HIR indices are carried explicitly so the MLIR adapter can keep
+   * the source-declared entry/parameter order without assuming ordinal zero
+   * or a particular external-symbol layout. */
+  uint32_t function_index;
+  uint32_t arguments_symbol_index;
+  uint32_t context_symbol_index;
+  uint32_t exit_code_symbol_index;
+  uint32_t is_empty_symbol_index;
+  uint32_t success_symbol_index;
+  uint32_t failure_symbol_index;
   uint32_t arguments_parameter_ordinal;
   uint32_t context_parameter_ordinal;
+  size_t maximum_stdout_bytes;
+  bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_process;
 
 w_seed_native_subset0_status w_seed_native_subset0_select(

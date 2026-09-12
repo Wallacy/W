@@ -32,7 +32,7 @@ otherwise.
 | Enum payloads | The current bounded slice supports Bool and signed i64 payloads, captures, constructor values, and exhaustive switches. It has no public payload ABI. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
 | Public CLI | Explicit source paths support w check, bounded w run, and bounded w build on configured routes. Package and workspace resolution are outside this surface. |
-| Process witness | process-input0.w is an exact process-entry witness with fixed missing and received cases. Arbitrary process handler bodies are not supported. |
+| Public process entry | The bounded Windows route lowers normal verified HIR/MLIR bodies. [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) is the minimal fixture. [`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w) composes helpers, enum payloads, switch, and interpolation. Identity, owner, CFG, stdout, and exit-range proofs remain required. |
 | Windows candidate | A local Windows x64 route uses the pinned LLVM, MLIR, and LLD toolchain when its prerequisites are materialized. |
 | Benchmarks | WBench records exact-oracle executable evidence and current artifact or timing cells when available. The published status remains exploratory and measurement-only. |
 
@@ -48,8 +48,9 @@ stable in-memory layout, pointer tagging, heap boxing, or a public ABI.
   integration remain outside the current product boundary.
 - w run and w build require one explicit source path. w build also requires an
   exact target triple and a new output artifact.
-- The public process feature is an exact process-entry witness. It does not
-  compose arbitrary handler bodies or general argument-processing resources.
+- Public process execution is a bounded Windows candidate. It composes only
+  admitted normal-HIR body forms and scalar/enum values. General CFG, runtime,
+  and argument-processing resources remain outside the current surface.
 - Windows execution is local candidate evidence. It is not a supported
   platform claim.
 - The platform matrix currently reports zero supported targets. It records
