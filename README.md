@@ -135,13 +135,15 @@ MLIR; the i2 sign-bit tag is written `-2` for MLIR's signed textual parser.
 This is correctness-only evidence for the bounded shape, not payloads, enum
 subsets, general/mixed CFG, public ABI/layout stability, other targets, PGO,
 timing, ranking, or performance.
-The next enum increment has started at the real product boundary: the seed
-parser/frontend now preserves positional and labeled payload patterns,
-wildcards, trailing rest, typed captures, and capture reads in
-`w-seed-frontend-19`. HIR0 rejects that record family until payload layout and
-projection are verified end to end; native execution remains payloadless.
-W-1564 advances current HIR0 to `w-seed-hir0-22` by preserving and binding each
-declared function's `exported` fact. The executable root walk now has an exact
+The next enum increment has started at the real product boundary. The seed
+parser/frontend preserves positional and labeled payload patterns, wildcards,
+trailing rest, typed captures, and capture reads in `w-seed-frontend-19`.
+Current HIR0 `w-seed-hir0-23` also owns dense signed-`i64` case-parameter
+declarations: a payloadless case still emits no parameter records. Constructors,
+pattern captures, physical payload layout, and native payload execution remain
+fail-closed gates rather than inferred support.
+W-1564 introduced HIR0 `w-seed-hir0-22` by preserving and binding each declared
+function's `exported` fact. The executable root walk now has an exact
 same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)
 retains its used private helper, omits unused exported/private functions and
 unreachable text, and runs as `Bill 42\n`. This is bounded same-module product

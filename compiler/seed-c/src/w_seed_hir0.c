@@ -10,7 +10,7 @@ _Static_assert(CHAR_BIT == 8, "w-seed HIR0 requires 8-bit bytes");
 enum {
   HIR0_DIGEST_BYTES = 32,
   HIR0_RECEIPT_SCHEMA_BYTES = 16,
-  HIR0_RECEIPT_COUNT_FIELDS = 25,
+  HIR0_RECEIPT_COUNT_FIELDS = 26,
   /* M2 keeps branch-local mutation bounded without adding storage to the
    * public frontend schema. The existing nesting bound is also a safe upper
    * bound for the number of simple statements in one accepted arm. */
@@ -375,6 +375,7 @@ static bool hir_counts_equal(const w_seed_hir0_counts *left,
   HIR0_COUNT(external_symbols);
   HIR0_COUNT(enums);
   HIR0_COUNT(enum_cases);
+  HIR0_COUNT(enum_case_parameters);
   HIR0_COUNT(receipt_bytes);
 #undef HIR0_COUNT
   return true;
@@ -692,21 +693,25 @@ static bool frontend_sources_ok(const w_seed_hir0_input *input) {
   return true;
 }
 
-/* The M1 enum surface is intentionally tiny: each local declaration owns a
- * dense, payloadless case range and a canonical TYPE record.  This
- * check runs before any HIR output is touched, so forged ownership/ranges are
- * rejected transactionally. */
+/* The bounded enum surface owns dense case and case-parameter ranges plus a
+ * canonical TYPE record. HIR0 first admits signed-i64 payload declarations;
+ * construction and projection remain separate lowering gates. This check runs
+ * before any HIR output is touched, so forged ownership/ranges are rejected
+ * transactionally. */
 static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
   if (input == NULL || input->frontend_input == NULL ||
       input->frontend_output == NULL || input->frontend_result == NULL)
     return false;
   const w_seed_frontend_output *output = input->frontend_output;
   const w_seed_frontend_result *result = input->frontend_result;
-  if (result->written.enums == 0u) return result->written.enum_cases == 0u;
+  if (result->written.enums == 0u)
+    return result->written.enum_cases == 0u &&
+           result->written.enum_case_parameters == 0u;
   if (output->enums == NULL || output->enum_cases == NULL ||
       result->written.enum_cases == 0u)
     return false;
   size_t case_cursor = 0u;
+  size_t payload_cursor = 0u;
   for (size_t index = 0u; index < result->written.enums; index += 1u) {
     const w_seed_frontend_enum *decl = &output->enums[index];
     if (decl->module_index >= result->written.modules ||
@@ -738,7 +743,7 @@ static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
       const w_seed_frontend_enum_case *value = &output->enum_cases[case_index];
       if (value->module_index != decl->module_index ||
           value->owner_enum != index || !text_valid(value->name) ||
-          value->name.length == 0u || value->payload_count != 0u ||
+          value->name.length == 0u || value->first_payload != payload_cursor ||
           !range_valid(value->first_payload, value->payload_count,
                        result->written.enum_case_parameters) ||
           !frontend_span_ok(&input->frontend_input->documents[
@@ -749,10 +754,39 @@ static bool frontend_local_enum_records_ok(const w_seed_hir0_input *input) {
         if (text_equal(value->name,
                        output->enum_cases[case_cursor + prior].name))
           return false;
+      for (size_t payload_ordinal = 0u;
+           payload_ordinal < value->payload_count; payload_ordinal += 1u) {
+        const size_t payload_index = payload_cursor + payload_ordinal;
+        const w_seed_frontend_enum_case_parameter *payload =
+            &output->enum_case_parameters[payload_index];
+        if (payload->module_index != decl->module_index ||
+            payload->owner_case != case_index || !text_valid(payload->label) ||
+            payload->has_label != (payload->label.length != 0u) ||
+            payload->type_index == W_SEED_FRONTEND_NONE ||
+            (size_t)payload->type_index >= result->written.types ||
+            !frontend_hir_type_supported(
+                input, &output->types[payload->type_index]) ||
+            !frontend_span_ok(
+                &input->frontend_input->documents[
+                    output->modules[decl->module_index].document_index],
+                payload->span))
+          return false;
+        if (payload->has_label)
+          for (size_t prior = 0u; prior < payload_ordinal; prior += 1u) {
+            const w_seed_frontend_enum_case_parameter *previous =
+                &output->enum_case_parameters[payload_cursor + prior];
+            if (previous->has_label &&
+                text_equal(previous->label, payload->label))
+              return false;
+          }
+      }
+      if (!add_size(payload_cursor, value->payload_count, &payload_cursor))
+        return false;
     }
     if (!add_size(case_cursor, decl->case_count, &case_cursor)) return false;
   }
-  return case_cursor == result->written.enum_cases;
+  return case_cursor == result->written.enum_cases &&
+         payload_cursor == result->written.enum_case_parameters;
 }
 
 static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
@@ -763,6 +797,25 @@ static bool frontend_type_records_ok(const w_seed_hir0_input *input) {
     const w_seed_frontend_type *type = &output->types[index];
     if (!frontend_hir_type_supported(input, type) || !frontend_span_ok(
             &input->frontend_input->documents[0], type->span))
+      return false;
+  }
+  return true;
+}
+
+static bool frontend_enum_payload_types_supported(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  for (size_t index = 0u; index < result->written.enum_case_parameters;
+       index += 1u) {
+    const uint32_t type_index = output->enum_case_parameters[index].type_index;
+    if (type_index == W_SEED_FRONTEND_NONE ||
+        (size_t)type_index >= result->written.types ||
+        !frontend_type_supported(&output->types[type_index]) ||
+        output->types[type_index].kind != W_SEED_FRONTEND_TYPE_INTEGER)
       return false;
   }
   return true;
@@ -3587,6 +3640,10 @@ static bool text_size_for_input(const w_seed_hir0_input *input, size_t *total) {
               &value))
         return false;
   }
+  for (size_t index = 0u; index < result->written.enum_case_parameters;
+       index += 1u)
+    if (!add_text_size(output->enum_case_parameters[index].label, &value))
+      return false;
   for (size_t index = 0u; index < result->written.parameters; index += 1u)
     if (!add_text_size(output->parameters[index].name, &value) ||
         !add_text_size(output->parameters[index].label, &value))
@@ -3683,8 +3740,9 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_INVALID;
   if (!frontend_external_process_records_ok(input))
     return HIR0_PREPARE_INVALID;
-  if (frontend_result->written.enum_case_parameters != 0u ||
-      frontend_result->written.pattern_captures != 0u ||
+  if (!frontend_enum_payload_types_supported(input))
+    return HIR0_PREPARE_UNSUPPORTED;
+  if (frontend_result->written.pattern_captures != 0u ||
       frontend_result->written.enum_subset_members != 0u ||
       frontend_result->written.enum_membership_cases != 0u)
     return HIR0_PREPARE_UNSUPPORTED;
@@ -3707,7 +3765,6 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       frontend_result->written.diagnostic_facts != 0u ||
       frontend_result->written.diagnostic_items != 0u ||
       frontend_result->written.diagnostic_labels != 0u ||
-      frontend_result->written.enum_case_parameters != 0u ||
       frontend_result->written.pattern_captures != 0u ||
       frontend_result->written.enum_subset_members != 0u ||
       frontend_result->written.enum_membership_cases != 0u ||
@@ -3787,7 +3844,10 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
     return HIR0_PREPARE_UNSUPPORTED;
   counts->enums = frontend_result->written.enums;
   counts->enum_cases = frontend_result->written.enum_cases;
-  if (!count_u32(counts->enums) || !count_u32(counts->enum_cases))
+  counts->enum_case_parameters =
+      frontend_result->written.enum_case_parameters;
+  if (!count_u32(counts->enums) || !count_u32(counts->enum_cases) ||
+      !count_u32(counts->enum_case_parameters))
     return HIR0_PREPARE_UNSUPPORTED;
   counts->functions = functions;
   counts->parameters = frontend_result->written.parameters;
@@ -3860,6 +3920,7 @@ static bool output_capacity_ok(const w_seed_hir0_output *output,
   HIR0_OUTPUT(types, type_capacity);
   HIR0_OUTPUT(enums, enum_capacity);
   HIR0_OUTPUT(enum_cases, enum_case_capacity);
+  HIR0_OUTPUT(enum_case_parameters, enum_case_parameter_capacity);
   HIR0_OUTPUT(functions, function_capacity);
   HIR0_OUTPUT(parameters, parameter_capacity);
   HIR0_OUTPUT(blocks, block_capacity);
@@ -3943,13 +4004,15 @@ static bool output_range_table(const w_seed_hir0_output *output,
   if (output == NULL || ranges == NULL || count == NULL) return false;
   *count = 0u;
 #define HIR0_ADD_OUTPUT(field, capacity_field, type)                          \
-  if (!range_table_add(ranges, count, 34u, output->field,                    \
+  if (!range_table_add(ranges, count, 35u, output->field,                    \
                        output->capacity_field, sizeof(type))) return false
   HIR0_ADD_OUTPUT(modules, module_capacity, w_seed_hir0_module);
   HIR0_ADD_OUTPUT(identities, identity_capacity, w_seed_hir0_identity);
   HIR0_ADD_OUTPUT(types, type_capacity, w_seed_hir0_type);
   HIR0_ADD_OUTPUT(enums, enum_capacity, w_seed_hir0_enum);
   HIR0_ADD_OUTPUT(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
+  HIR0_ADD_OUTPUT(enum_case_parameters, enum_case_parameter_capacity,
+                  w_seed_hir0_enum_case_parameter);
   HIR0_ADD_OUTPUT(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_OUTPUT(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_OUTPUT(blocks, block_capacity, w_seed_hir0_block);
@@ -3976,11 +4039,11 @@ static bool output_range_table(const w_seed_hir0_output *output,
   HIR0_ADD_OUTPUT(external_symbols, external_symbol_capacity,
                   w_seed_hir0_external_symbol);
 #undef HIR0_ADD_OUTPUT
-  if (!range_table_add(ranges, count, 34u, output->text_bytes,
+  if (!range_table_add(ranges, count, 35u, output->text_bytes,
                        output->text_byte_capacity, sizeof(uint8_t)) ||
-      !range_table_add(ranges, count, 34u, output->value_bytes,
+      !range_table_add(ranges, count, 35u, output->value_bytes,
                        output->value_byte_capacity, sizeof(uint8_t)) ||
-      !range_table_add(ranges, count, 34u, output->receipt,
+      !range_table_add(ranges, count, 35u, output->receipt,
                        output->receipt_capacity, sizeof(uint8_t)))
     return false;
   return true;
@@ -3989,7 +4052,7 @@ static bool output_range_table(const w_seed_hir0_output *output,
 static bool output_aliases(const w_seed_hir0_output *output,
                            const w_seed_hir0_counts *counts) {
   (void)counts;
-  hir0_memory_range ranges[34];
+  hir0_memory_range ranges[35];
   size_t count = 0u;
   if (!output_range_table(output, ranges, &count)) return true;
   for (size_t first = 0u; first < count; first += 1u)
@@ -4035,10 +4098,10 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
       input->frontend_output == NULL || input->frontend_result == NULL ||
       result == NULL)
     return true;
-  hir0_memory_range outputs[35];
+  hir0_memory_range outputs[36];
   size_t output_count = 0u;
   if (!output_range_table(output, outputs, &output_count)) return true;
-  if (output_count >= 35u) return true;
+  if (output_count >= 36u) return true;
   if (output_overlaps_memory(outputs, output_count, result, sizeof(*result)))
     return true;
   outputs[output_count++] = (hir0_memory_range){result, sizeof(*result)};
@@ -4237,6 +4300,13 @@ static bool output_overlaps_input(const w_seed_hir0_input *input,
               frontend->enum_cases[(size_t)decl->first_case + ordinal].name))
         return true;
   }
+  for (size_t payload = 0u;
+       payload < frontend_result->written.enum_case_parameters;
+       payload += 1u)
+    if (output_overlaps_frontend_text(
+            outputs, output_count,
+            frontend->enum_case_parameters[payload].label))
+      return true;
   for (size_t parameter = 0u; parameter < frontend_result->written.parameters;
        parameter += 1u)
     if (output_overlaps_frontend_text(outputs, output_count,
@@ -4275,13 +4345,15 @@ static bool program_range_table(const w_seed_hir0_program *program,
   if (program == NULL || ranges == NULL || count == NULL) return false;
   *count = 0u;
 #define HIR0_ADD_PROGRAM(field, capacity_field, type)                         \
-  if (!range_table_add(ranges, count, 34u, program->field,                   \
+  if (!range_table_add(ranges, count, 35u, program->field,                   \
                        program->capacity_field, sizeof(type))) return false
   HIR0_ADD_PROGRAM(modules, module_capacity, w_seed_hir0_module);
   HIR0_ADD_PROGRAM(identities, identity_capacity, w_seed_hir0_identity);
   HIR0_ADD_PROGRAM(types, type_capacity, w_seed_hir0_type);
   HIR0_ADD_PROGRAM(enums, enum_capacity, w_seed_hir0_enum);
   HIR0_ADD_PROGRAM(enum_cases, enum_case_capacity, w_seed_hir0_enum_case);
+  HIR0_ADD_PROGRAM(enum_case_parameters, enum_case_parameter_capacity,
+                   w_seed_hir0_enum_case_parameter);
   HIR0_ADD_PROGRAM(functions, function_capacity, w_seed_hir0_function);
   HIR0_ADD_PROGRAM(parameters, parameter_capacity, w_seed_hir0_parameter);
   HIR0_ADD_PROGRAM(blocks, block_capacity, w_seed_hir0_block);
@@ -4308,11 +4380,11 @@ static bool program_range_table(const w_seed_hir0_program *program,
   HIR0_ADD_PROGRAM(external_symbols, external_symbol_capacity,
                    w_seed_hir0_external_symbol);
 #undef HIR0_ADD_PROGRAM
-  if (!range_table_add(ranges, count, 34u, program->text_bytes,
+  if (!range_table_add(ranges, count, 35u, program->text_bytes,
                        program->text_byte_capacity, sizeof(uint8_t)) ||
-      !range_table_add(ranges, count, 34u, program->value_bytes,
+      !range_table_add(ranges, count, 35u, program->value_bytes,
                        program->value_byte_capacity, sizeof(uint8_t)) ||
-      !range_table_add(ranges, count, 34u, program->receipt,
+      !range_table_add(ranges, count, 35u, program->receipt,
                        program->receipt_capacity, sizeof(uint8_t)))
     return false;
   return true;
@@ -7103,6 +7175,9 @@ static void emit_records(const w_seed_hir0_input *input,
   zero_bytes(output->enums, counts->enums * sizeof(*output->enums));
   zero_bytes(output->enum_cases,
              counts->enum_cases * sizeof(*output->enum_cases));
+  zero_bytes(output->enum_case_parameters,
+             counts->enum_case_parameters *
+                 sizeof(*output->enum_case_parameters));
   zero_bytes(output->functions,
              counts->functions * sizeof(*output->functions));
   zero_bytes(output->parameters,
@@ -7277,10 +7352,29 @@ static void emit_records(const w_seed_hir0_input *input,
       case_target->owner_enum = (uint32_t)enum_index;
       case_target->ordinal = (uint32_t)ordinal;
       case_target->tag = (uint32_t)ordinal;
-      case_target->payload_count = 0u;
+      case_target->first_payload = case_source->first_payload;
+      case_target->payload_count = case_source->payload_count;
       append_text_unchecked(case_source->name, output->text_bytes, &text_offset,
                             &case_target->name);
       case_target->source_span = case_source->span;
+      for (size_t payload_ordinal = 0u;
+           payload_ordinal < case_source->payload_count;
+           payload_ordinal += 1u) {
+        const size_t payload_index =
+            (size_t)case_source->first_payload + payload_ordinal;
+        const w_seed_frontend_enum_case_parameter *payload_source =
+            &frontend->enum_case_parameters[payload_index];
+        w_seed_hir0_enum_case_parameter *payload_target =
+            &output->enum_case_parameters[payload_index];
+        payload_target->owner_case = (uint32_t)case_index;
+        payload_target->ordinal = (uint32_t)payload_ordinal;
+        payload_target->type_index = hir_type_from_frontend(
+            frontend, frontend_result, payload_source->type_index);
+        append_text_unchecked(payload_source->label, output->text_bytes,
+                              &text_offset, &payload_target->label);
+        payload_target->has_label = payload_source->has_label;
+        payload_target->source_span = payload_source->span;
+      }
     }
   }
   /* Module, function, and entry identities have deterministic dense ranges. */
@@ -7895,6 +7989,7 @@ static void digest_counts(w_seed_sha256_state *state,
   digest_u64(state, counts->external_symbols);
   digest_u64(state, counts->enums);
   digest_u64(state, counts->enum_cases);
+  digest_u64(state, counts->enum_case_parameters);
 }
 
 static void digest_program(const w_seed_hir0_program *program,
@@ -7967,8 +8062,19 @@ static void digest_program(const w_seed_hir0_program *program,
     digest_u32(&state, value->owner_enum);
     digest_u32(&state, value->ordinal);
     digest_u32(&state, value->tag);
+    digest_u32(&state, value->first_payload);
     digest_u32(&state, value->payload_count);
     digest_text(&state, program, value->name);
+  }
+  for (size_t index = 0u; index < counts->enum_case_parameters; index += 1u) {
+    const w_seed_hir0_enum_case_parameter *value =
+        &program->enum_case_parameters[index];
+    HIR0_RECORD_TAG(23u);
+    digest_u32(&state, value->owner_case);
+    digest_u32(&state, value->ordinal);
+    digest_u32(&state, value->type_index);
+    digest_text(&state, program, value->label);
+    digest_bool(&state, value->has_label);
   }
   for (size_t index = 0u; index < counts->functions; index += 1u) {
     const w_seed_hir0_function *value = &program->functions[index];
@@ -8230,6 +8336,8 @@ static void digest_provenance(const w_seed_hir0_program *program,
     digest_span(&state, program->enums[index].source_span);
   for (size_t index = 0u; index < counts->enum_cases; index += 1u)
     digest_span(&state, program->enum_cases[index].source_span);
+  for (size_t index = 0u; index < counts->enum_case_parameters; index += 1u)
+    digest_span(&state, program->enum_case_parameters[index].source_span);
   for (size_t index = 0u; index < counts->blocks; index += 1u)
     digest_span(&state, program->blocks[index].source_span);
   for (size_t index = 0u; index < counts->block_arguments; index += 1u)
@@ -8290,7 +8398,8 @@ static void write_receipt_unchecked(uint8_t *buffer,
       counts->value_bytes,    counts->external_modules,
       counts->external_symbols,
       counts->enums,
-      counts->enum_cases};
+      counts->enum_cases,
+      counts->enum_case_parameters};
   size_t offset = HIR0_RECEIPT_SCHEMA_BYTES;
   for (size_t index = 0u; index < HIR0_RECEIPT_COUNT_FIELDS; index += 1u) {
     write_u64_be(buffer, offset, (uint64_t)fields[index]);
@@ -8322,6 +8431,9 @@ static bool basic_program_shape(const w_seed_hir0_program *program,
   HIR0_PROGRAM(enums, enum_count, enum_capacity, w_seed_hir0_enum);
   HIR0_PROGRAM(enum_cases, enum_case_count, enum_case_capacity,
                w_seed_hir0_enum_case);
+  HIR0_PROGRAM(enum_case_parameters, enum_case_parameter_count,
+               enum_case_parameter_capacity,
+               w_seed_hir0_enum_case_parameter);
   HIR0_PROGRAM(functions, function_count, function_capacity,
                w_seed_hir0_function);
   HIR0_PROGRAM(parameters, parameter_count, parameter_capacity,
@@ -8367,7 +8479,7 @@ static bool basic_program_shape(const w_seed_hir0_program *program,
 
 static bool program_aliases(const w_seed_hir0_program *program) {
   if (program == NULL) return true;
-  hir0_memory_range ranges[34];
+  hir0_memory_range ranges[35];
   size_t count = 0u;
   if (!program_range_table(program, ranges, &count)) return true;
   for (size_t first = 0u; first < count; first += 1u)
@@ -8560,6 +8672,7 @@ static bool hir_external_pair_valid(const w_seed_hir0_program *program,
 static bool verify_enum_records(const w_seed_hir0_program *program) {
   if (program == NULL) return false;
   size_t case_cursor = 0u;
+  size_t payload_cursor = 0u;
   const size_t type_base =
       4u + (program->external_module_count == 0u ? 0u : 3u);
   for (size_t index = 0u; index < program->enum_count; index += 1u) {
@@ -8592,7 +8705,9 @@ static bool verify_enum_records(const w_seed_hir0_program *program) {
       const size_t case_index = case_cursor + ordinal;
       const w_seed_hir0_enum_case *value = &program->enum_cases[case_index];
       if (value->owner_enum != index || value->ordinal != ordinal ||
-          value->tag != ordinal || value->payload_count != 0u ||
+          value->tag != ordinal || value->first_payload != payload_cursor ||
+          !range_valid(value->first_payload, value->payload_count,
+                       program->enum_case_parameter_count) ||
           !hir_text_valid(program, value->name) || value->name.count == 0u ||
           !span_valid(value->source_span,
                       program->modules[decl->module_index].source_length))
@@ -8601,10 +8716,34 @@ static bool verify_enum_records(const w_seed_hir0_program *program) {
         if (hir_text_equal(program, value->name,
                            program->enum_cases[case_cursor + prior].name))
           return false;
+      for (size_t payload_ordinal = 0u;
+           payload_ordinal < value->payload_count; payload_ordinal += 1u) {
+        const size_t payload_index = payload_cursor + payload_ordinal;
+        const w_seed_hir0_enum_case_parameter *payload =
+            &program->enum_case_parameters[payload_index];
+        if (payload->owner_case != case_index ||
+            payload->ordinal != payload_ordinal || payload->type_index != 2u ||
+            !hir_text_valid(program, payload->label) ||
+            payload->has_label != (payload->label.count != 0u) ||
+            !span_valid(payload->source_span,
+                        program->modules[decl->module_index].source_length))
+          return false;
+        if (payload->has_label)
+          for (size_t prior = 0u; prior < payload_ordinal; prior += 1u) {
+            const w_seed_hir0_enum_case_parameter *previous =
+                &program->enum_case_parameters[payload_cursor + prior];
+            if (previous->has_label &&
+                hir_text_equal(program, previous->label, payload->label))
+              return false;
+          }
+      }
+      if (!add_size(payload_cursor, value->payload_count, &payload_cursor))
+        return false;
     }
     if (!add_size(case_cursor, decl->case_count, &case_cursor)) return false;
   }
-  return case_cursor == program->enum_case_count;
+  return case_cursor == program->enum_case_count &&
+         payload_cursor == program->enum_case_parameter_count;
 }
 
 static bool hir_type_index_valid(const w_seed_hir0_program *program,
@@ -11318,7 +11457,7 @@ bool w_seed_hir0_program_from_output(const w_seed_hir0_output *output,
   const w_seed_hir0_counts counts = result->written;
   const w_seed_hir0_counts required = result->required;
   if (!hir_counts_equal(&counts, &required)) return false;
-  hir0_memory_range output_ranges[34];
+  hir0_memory_range output_ranges[35];
   size_t output_range_count = 0u;
   if (!output_range_table(output, output_ranges, &output_range_count) ||
       ranges_overlap(program, sizeof(*program), output, sizeof(*output)) ||
@@ -11342,6 +11481,9 @@ bool w_seed_hir0_program_from_output(const w_seed_hir0_output *output,
       .enum_cases = output->enum_cases,
       .enum_case_count = counts.enum_cases,
       .enum_case_capacity = output->enum_case_capacity,
+      .enum_case_parameters = output->enum_case_parameters,
+      .enum_case_parameter_count = counts.enum_case_parameters,
+      .enum_case_parameter_capacity = output->enum_case_parameter_capacity,
       .functions = output->functions,
       .function_count = counts.functions,
       .function_capacity = output->function_capacity,
@@ -11441,7 +11583,8 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       .external_modules = program->external_module_count,
       .external_symbols = program->external_symbol_count,
       .enums = program->enum_count,
-      .enum_cases = program->enum_case_count};
+      .enum_cases = program->enum_case_count,
+      .enum_case_parameters = program->enum_case_parameter_count};
   if (result->required.modules != counts.modules ||
       result->required.identities != counts.identities ||
       result->required.types != counts.types ||
@@ -11492,8 +11635,10 @@ bool w_seed_hir0_verify(const w_seed_hir0_program *program,
       result->written.external_symbols != counts.external_symbols ||
       result->required.enums != counts.enums ||
       result->required.enum_cases != counts.enum_cases ||
+      result->required.enum_case_parameters != counts.enum_case_parameters ||
       result->written.enums != counts.enums ||
       result->written.enum_cases != counts.enum_cases ||
+      result->written.enum_case_parameters != counts.enum_case_parameters ||
       !verify_records(program))
     return false;
   if (!verify_process_lifecycle_facts(program)) return false;

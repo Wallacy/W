@@ -114,6 +114,8 @@ typedef struct {
   w_seed_hir0_type hir_types[TEST_HIR_RECORDS];
   w_seed_hir0_enum hir_enums[TEST_HIR_RECORDS];
   w_seed_hir0_enum_case hir_enum_cases[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_case_parameter
+      hir_enum_case_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_function hir_functions[TEST_HIR_RECORDS];
   w_seed_hir0_parameter hir_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
@@ -505,6 +507,8 @@ static void setup_hir_output(void) {
       .enum_capacity = TEST_HIR_RECORDS,
       .enum_cases = fixture.hir_enum_cases,
       .enum_case_capacity = TEST_HIR_RECORDS,
+      .enum_case_parameters = fixture.hir_enum_case_parameters,
+      .enum_case_parameter_capacity = TEST_HIR_RECORDS,
       .functions = fixture.hir_functions,
       .function_capacity = TEST_HIR_RECORDS,
       .parameters = fixture.hir_parameters,
@@ -2249,6 +2253,103 @@ static bool test_local_enum_hir(void) {
   CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
   CHECK(hir_output_is_byte(sentinel) &&
         memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  return true;
+}
+
+static bool test_local_enum_payload_declarations_hir(void) {
+  static const char SOURCE[] =
+      "enum Course { starter main(price: i64) shared(i64, i64) }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(fixture.result.written.enums == 1u &&
+        fixture.result.written.enum_cases == 3u &&
+        fixture.result.written.enum_case_parameters == 3u &&
+        fixture.hir_counts.enums == 1u && fixture.hir_counts.enum_cases == 3u &&
+        fixture.hir_counts.enum_case_parameters == 3u &&
+        program->enum_count == 1u && program->enum_case_count == 3u &&
+        program->enum_case_parameter_count == 3u);
+
+  CHECK(program->enum_cases[0].first_payload == 0u &&
+        program->enum_cases[0].payload_count == 0u &&
+        program->enum_cases[1].first_payload == 0u &&
+        program->enum_cases[1].payload_count == 1u &&
+        program->enum_cases[2].first_payload == 1u &&
+        program->enum_cases[2].payload_count == 2u);
+  CHECK(program->enum_case_parameters[0].owner_case == 1u &&
+        program->enum_case_parameters[0].ordinal == 0u &&
+        program->enum_case_parameters[0].type_index == 2u &&
+        program->enum_case_parameters[0].has_label &&
+        hir_text_is(program, program->enum_case_parameters[0].label, "price"));
+  for (size_t ordinal = 0u; ordinal < 2u; ordinal += 1u) {
+    const w_seed_hir0_enum_case_parameter *payload =
+        &program->enum_case_parameters[1u + ordinal];
+    CHECK(payload->owner_case == 2u && payload->ordinal == ordinal &&
+          payload->type_index == 2u && !payload->has_label &&
+          payload->label.count == 0u);
+  }
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_enum_case saved_case = fixture.hir_enum_cases[1];
+  fixture.hir_enum_cases[1].first_payload = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_cases[1] = saved_case;
+
+  const w_seed_hir0_enum_case_parameter saved_payload =
+      fixture.hir_enum_case_parameters[0];
+  fixture.hir_enum_case_parameters[0].owner_case = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_case_parameters[0] = saved_payload;
+  fixture.hir_enum_case_parameters[0].ordinal = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_case_parameters[0] = saved_payload;
+  fixture.hir_enum_case_parameters[0].type_index = 3u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_case_parameters[0] = saved_payload;
+  fixture.hir_enum_case_parameters[0].has_label = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_case_parameters[0] = saved_payload;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_input input = hir_input();
+  const uint8_t sentinel = 0x6bu;
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x42, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.enum_case_parameter_capacity =
+      fixture.hir_counts.enum_case_parameters - 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.enum_case_parameters =
+      (w_seed_hir0_enum_case_parameter *)(void *)alias.enum_cases;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  CHECK(fixture_frontend(
+      "enum Message { text(value: String) }\nentry { }\n"));
+  setup_hir_output();
+  const w_seed_hir0_input unsupported = hir_input();
+  w_seed_hir0_counts unsupported_counts;
+  w_seed_hir0_result unsupported_result;
+  CHECK(w_seed_hir0_measure(&unsupported, &unsupported_counts,
+                            &unsupported_result) == W_SEED_HIR0_UNSUPPORTED);
   return true;
 }
 
@@ -2262,6 +2363,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_types, value, sizeof(fixture.hir_types));
   (void)memset(fixture.hir_enums, value, sizeof(fixture.hir_enums));
   (void)memset(fixture.hir_enum_cases, value, sizeof(fixture.hir_enum_cases));
+  (void)memset(fixture.hir_enum_case_parameters, value,
+               sizeof(fixture.hir_enum_case_parameters));
   (void)memset(fixture.hir_functions, value, sizeof(fixture.hir_functions));
   (void)memset(fixture.hir_parameters, value, sizeof(fixture.hir_parameters));
   (void)memset(fixture.hir_blocks, value, sizeof(fixture.hir_blocks));
@@ -2308,6 +2411,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_types,
       (const uint8_t *)fixture.hir_enums,
       (const uint8_t *)fixture.hir_enum_cases,
+      (const uint8_t *)fixture.hir_enum_case_parameters,
       (const uint8_t *)fixture.hir_functions,
       (const uint8_t *)fixture.hir_parameters,
       (const uint8_t *)fixture.hir_blocks,
@@ -2332,7 +2436,9 @@ static bool hir_output_is_byte(uint8_t value) {
   const size_t sizes[] = {
       sizeof(fixture.hir_modules), sizeof(fixture.hir_identities),
       sizeof(fixture.hir_types), sizeof(fixture.hir_enums),
-      sizeof(fixture.hir_enum_cases), sizeof(fixture.hir_functions),
+      sizeof(fixture.hir_enum_cases),
+      sizeof(fixture.hir_enum_case_parameters),
+      sizeof(fixture.hir_functions),
       sizeof(fixture.hir_parameters), sizeof(fixture.hir_blocks),
       sizeof(fixture.hir_block_arguments),
       sizeof(fixture.hir_edge_arguments),
@@ -3156,8 +3262,6 @@ static bool test_closed_frontend_barriers(void) {
        &fixture.result.written.diagnostic_items},
       {&fixture.result.required.diagnostic_labels,
        &fixture.result.written.diagnostic_labels},
-      {&fixture.result.required.enum_case_parameters,
-       &fixture.result.written.enum_case_parameters},
       {&fixture.result.required.switch_arms,
        &fixture.result.written.switch_arms},
       {&fixture.result.required.enum_subset_members,
@@ -4934,6 +5038,7 @@ int main(void) {
   if (!test_bindings_across_functions()) return 1;
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_local_enum_hir()) return 1;
+  if (!test_local_enum_payload_declarations_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;

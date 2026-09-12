@@ -333,6 +333,30 @@ static bool test_enum_frontend_storage(void) {
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa6u);
   CHECK(memcmp(&result, &hir_result_snapshot, sizeof(result)) == 0);
+
+  static const uint8_t payload_source[] =
+      "enum Marker { clear flagged(code: i64) }\nentry { }\n";
+  (void)memset(output, 0xa7u, sizeof(output));
+  (void)memset(&result, 0x7au, sizeof(result));
+  const w_seed_native0_result payload_result_snapshot = result;
+  const w_seed_native0_status payload_status = run_source(
+      payload_source, sizeof(payload_source) - 1u, "enum-payload", 12u,
+      output, sizeof(output), &result);
+  CHECK(payload_status == W_SEED_NATIVE0_UNSUPPORTED &&
+        storage.hir_result.status == W_SEED_HIR0_OK &&
+        storage.hir_program.enum_count == 1u &&
+        storage.hir_program.enum_case_count == 2u &&
+        storage.hir_program.enum_case_parameter_count == 1u &&
+        storage.hir_program.enum_cases[0].payload_count == 0u &&
+        storage.hir_program.enum_cases[1].first_payload == 0u &&
+        storage.hir_program.enum_cases[1].payload_count == 1u &&
+        storage.hir_program.enum_case_parameters[0].owner_case == 1u &&
+        storage.hir_program.enum_case_parameters[0].type_index == 2u &&
+        w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+  /* Payload declarations reach verified HIR; MLIR layout is still closed. */
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xa7u);
+  CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);
   return true;
 }
 
