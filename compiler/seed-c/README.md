@@ -1390,15 +1390,17 @@ this exact shape; general loops, timing, and performance remain pending.
 NativeSubset0 accepts only the exact verified W-1560 shape. MLIR0 emits one
 `scf.while` carrying the signed-`i64` value through `scf.condition` and
 `scf.yield`, with no source-variable `llvm.alloca`. The pinned tool recipe uses
-`convert-scf-to-cf` and `convert-cf-to-llvm` before translation. The Linux/WSL
-public `w run` gate executes `restaurant-while.w` and requires exact
-`Served 3\n`, empty stderr, and zero exit; a non-carried condition fails closed.
+`convert-scf-to-cf` and `convert-cf-to-llvm` before translation. Public
+Linux/WSL and native Windows `w run` gates execute `restaurant-while.w` and
+require exact `Served 3\n`, empty stderr, and zero exit. A non-carried condition
+fails closed.
 
-The artifact schema remains `w-seed-mlir0-15`; the capability scope is now
-`unit-structured-cfg-natural-loop`. Evidence is Linux x86_64 under WSL with
-LLVM/MLIR 20.1.2, correctness-only. General or nested loops, multiple carried
-values, effects, native Windows/macOS, LLVM/MLIR 23.1.1 promotion, PGO, timing,
-code-size quality, and performance remain outside this cut.
+The original artifact record and byte envelope remain unchanged; the current
+global schema also contains later independent enum records. The capability
+scope is `unit-structured-cfg-natural-loop`. Correctness evidence covers Linux
+x86_64 under WSL with LLVM/MLIR 20.1.2 and Windows x86_64 MSVC with 23.1.1.
+General or nested loops, multiple carried values, effects, macOS, PGO,
+code-size quality, ranking, and general performance remain outside this cut.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 

@@ -37798,20 +37798,22 @@ direct return value.
 The pinned native recipe preserves this structured form until `mlir-opt`, then
 applies `convert-scf-to-cf` and `convert-cf-to-llvm` with verification enabled.
 Only after those explicit conversions may `mlir-translate` consume the module.
-The public Linux/WSL route executes the Restaurant witness and produces exact
-`Served 3\n`. A non-carried condition remains unsupported and must fail before
-publishing an artifact or program output.
+The public Linux/WSL route and the native Windows route execute the Restaurant
+witness and produce exact `Served 3\n`. The Windows route uses the pinned
+MLIR/LLVM 23.1.1 toolchain and the CRT-free MSVC target. A non-carried
+condition remains unsupported and must fail before publishing an artifact or
+program output.
 
 This evidence is limited to one loop per function, one root-block mutable
-signed-`i64` carrier, the W-1560 four-block CFG, Linux x86_64 under WSL, and
-LLVM/MLIR 20.1.2. MLIR0 keeps schema `w-seed-mlir0-15` because its artifact
-record and byte envelope are unchanged; the toolchain capability scope is
-`unit-structured-cfg-natural-loop`. Multiple carriers, labels, `break`,
-`continue`, `while let`, nested or mixed control, calls/effects, other root
-types, native Windows/macOS, LLVM/MLIR 23.1.1 promotion, PGO, proof-guided
-optimization, timing, ranking, and performance remain gaps. The benchmark
-disposition is `compiler-lifecycle`, correctness-only, with no timing or
-benchmark result.
+signed-`i64` carrier and the W-1560 four-block CFG. Native evidence covers
+Linux x86_64 under WSL with LLVM/MLIR 20.1.2 and Windows x86_64 MSVC with
+LLVM/MLIR 23.1.1. The original MLIR0 record and byte envelope remain unchanged;
+the current global schema also contains later independent enum records. The
+toolchain capability scope is `unit-structured-cfg-natural-loop`. Multiple
+carriers, labels, `break`, `continue`, `while let`, nested or mixed control,
+calls/effects, other root types, macOS, PGO, proof-guided optimization, ranking,
+and general performance remain gaps. Executable-catalog measurements are
+exploratory and separate from the `compiler-lifecycle` disposition.
 
 ```w
 fn countTo(limit: i64): i64 {

@@ -117,11 +117,12 @@ C/Rust equivalents, runner wiring, and performance deferred.
 W-1559 gives ordinary `while` an explicit parser/frontend owner, W-1560 lowers
 one root-block signed-`i64` carrier to a verified four-block natural loop, and
 W-1561 preserves that loop as `scf.while` until explicit SCF-to-CF and
-CF-to-LLVM conversion. The public Linux/WSL `w run` path executes
+CF-to-LLVM conversion. Public Linux/WSL and native Windows `w run` paths execute
 [`restaurant-while.w`](compiler/seed-c/fixtures/restaurant-while.w) with exact
 `Served 3\n`, no source-variable stack cell, generated C, or host-C fallback.
-This is a one-carrier correctness witness on LLVM/MLIR 20.1.2, not general loop,
-Windows/macOS, LLVM 23.1.1, PGO, size, or performance evidence.
+This is a one-carrier correctness witness on Linux/WSL LLVM/MLIR 20.1.2 and
+Windows MSVC LLVM/MLIR 23.1.1. It is not evidence for general loops, macOS,
+PGO, ranking, or general performance.
 W-1563 now closes one bounded local payloadless enum exhaustive-switch slice:
 HIR0 `w-seed-hir0-21` retains nominal subject/case identity and canonical
 switch edges, Native0 `w-seed-native0-8` derives a private minimum carrier
