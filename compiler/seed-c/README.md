@@ -39,6 +39,9 @@ overflow, and oracle failure leave the sample array unchanged.
 
 The ABI v2 API reports user/kernel/total CPU for the root separately from the
 aggregate Job CPU, plus root peak working set and Job peak committed memory.
+After tree exit, final root CPU counters are fused as lower bounds when the Job
+snapshot has not yet converged, so an aggregate can never be smaller than its
+root member.
 Peak Job commit is deliberately not called RSS. Zero warmups are valid for a
 caller that owns warmup and measured series separately.
 `cli/native_benchmark.c` exposes the same boundary as one compact JSON receipt
