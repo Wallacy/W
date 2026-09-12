@@ -14,6 +14,7 @@ import {
   writeFile,
 } from "node:fs/promises";
 import path from "node:path";
+import { createServer } from "node:net";
 import {
   EXECUTABLE_ARTIFACT_TARGET_MINGW,
   EXECUTABLE_ARTIFACT_TARGET_MSVC,
@@ -89,6 +90,44 @@ const PUBLIC_W_EXECUTABLE = path.join(PUBLIC_W_BUILD_DIRECTORY, "w.exe");
 const PUBLIC_W_RECEIPT = path.join(PUBLIC_W_BUILD_DIRECTORY, "receipt.json");
 const PROCESS_ENTRY0_GATE_TARGET = "w_seed_process_entry0_gate";
 const PROCESS_ENTRY0_GATE = path.resolve(ROOT, "build", `${PROCESS_ENTRY0_GATE_TARGET}.exe`);
+
+function benchmarkLeaseAddress(root = ROOT) {
+  const identity = path.resolve(root).replaceAll("\\", "/");
+  const digest = crypto.createHash("sha256").update(
+    process.platform === "win32" ? identity.toLowerCase() : identity,
+    "utf8",
+  ).digest("hex").slice(0, 32);
+  return process.platform === "win32"
+    ? `\\\\.\\pipe\\w-executable-benchmark-${digest}`
+    : `\0w-executable-benchmark-${digest}`;
+}
+
+export async function acquireExecutableBenchmarkLease(root = ROOT) {
+  const server = createServer((socket) => socket.destroy());
+  const address = benchmarkLeaseAddress(root);
+  await new Promise((resolve, reject) => {
+    const onError = (error) => {
+      server.removeListener("listening", onListening);
+      reject(new Error(error?.code === "EADDRINUSE"
+        ? "another executable benchmark is already running for this checkout"
+        : `executable benchmark lease failed: ${error?.code ?? error?.message ?? error}`));
+    };
+    const onListening = () => {
+      server.removeListener("error", onError);
+      resolve();
+    };
+    server.once("error", onError);
+    server.once("listening", onListening);
+    server.listen(address);
+  });
+  let released = false;
+  return async () => {
+    if (released) return;
+    released = true;
+    await new Promise((resolve, reject) =>
+      server.close((error) => error ? reject(error) : resolve()));
+  };
+}
 const PROCESS_ENTRY0_FAULT_ENV = "W_SEED_PROCESS_ENTRY0_FAULT";
 const PROCESS_ENTRY0_HANDLER_SYMBOL = "w_seed_process_entry0_handler";
 const PROCESS_ENTRY0_GENERATED_TRAP_EXIT_CODE = 0x1d;
@@ -1893,7 +1932,7 @@ async function cleanupOwned(directory) {
   }
 }
 
-export async function runBenchmark(options = {}, dependencies = {}) {
+async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const target = options.target ?? DEFAULT_TARGET;
   const language = options.language ?? "w";
   const warmup = options.warmup ?? DEFAULT_WARMUP;
@@ -2061,6 +2100,16 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   } finally {
     for (const directory of retained) await cleanupOwned(directory);
     await cleanupOwned(tempRoot);
+  }
+}
+
+export async function runBenchmark(options = {}, dependencies = {}) {
+  if (options.publish === false) return runBenchmarkUnlocked(options, dependencies);
+  const release = await acquireExecutableBenchmarkLease();
+  try {
+    return await runBenchmarkUnlocked(options, dependencies);
+  } finally {
+    await release();
   }
 }
 

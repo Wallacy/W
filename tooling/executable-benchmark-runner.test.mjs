@@ -6,6 +6,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   RESULTS_DIRECTORY,
+  acquireExecutableBenchmarkLease,
   defaultExecutor,
   deriveSummary,
   EXECUTABLE_CHILD_KILL_SIGNAL,
@@ -56,6 +57,20 @@ test("benchmark arguments separate compile cost from high-resolution run samplin
   });
   assert.throws(() => parseBenchmarkArguments(["--target", "process-entry0", "--language", "c"]), /unsupported benchmark target/);
   assert.throws(() => parseBenchmarkArguments(["--target", "restaurant-composition"]), /unsupported/);
+});
+
+test("checkout lease rejects concurrent benchmark runs and is reusable after release", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "w-benchmark-lease-test-"));
+  try {
+    const release = await acquireExecutableBenchmarkLease(root);
+    await assert.rejects(() => acquireExecutableBenchmarkLease(root),
+      /another executable benchmark is already running/u);
+    await release();
+    const releaseAgain = await acquireExecutableBenchmarkLease(root);
+    await releaseAgain();
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test("default executor enforces the Bun child timeout and preserves termination metadata", () => {

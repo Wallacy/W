@@ -75,6 +75,11 @@ production executable runner builds this kernel temporarily, consumes its
 versioned receipts for warmup and runtime series, and deletes it with the
 measurement directory. Test-only injected runners remain explicitly identified
 as `bun-direct-test/1`; they cannot publish.
+Production `bun benchmark run` also holds one OS-managed lease derived from the
+checkout identity for the complete build-and-run interval. A concurrent run for
+the same checkout fails before toolchain setup instead of publishing
+scheduler-contaminated samples; the operating system releases the lease if the
+runner exits unexpectedly.
 
 Each workload declares one machine-checked `structureClass`. `public-end-to-end`
 identifies a user-visible workload and its complete executable path.
