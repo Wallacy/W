@@ -377,6 +377,47 @@ static bool interpolation_string_bytes(
   return true;
 }
 
+static uint32_t program_enum_carrier_width(size_t case_count) {
+  size_t representable = 1u;
+  uint32_t bits = 0u;
+  /* Native0 owns at most 64 enum cases; MLIR0 consequently emits i1..i6. */
+  if (case_count == 0u || case_count > 64u) return 0u;
+  while (representable < case_count) {
+    if (representable > SIZE_MAX / 2u || bits == UINT32_MAX) return 0u;
+    representable *= 2u;
+    bits += 1u;
+  }
+  return bits == 0u ? 1u : bits;
+}
+
+static bool program_enum_type_supported(const w_seed_hir0_program *program,
+                                        uint32_t type_index,
+                                        uint32_t *enum_index,
+                                        uint32_t *carrier_width) {
+  if (program == NULL || type_index >= program->type_count ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM)
+    return false;
+  const uint32_t selected_enum = program->types[type_index].enum_index;
+  if (selected_enum >= program->enum_count) return false;
+  const w_seed_hir0_enum *decl = &program->enums[selected_enum];
+  if (decl->type_index != type_index || decl->case_count == 0u ||
+      decl->first_case > program->enum_case_count ||
+      decl->case_count > program->enum_case_count - decl->first_case)
+    return false;
+  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+    const w_seed_hir0_enum_case *item =
+        &program->enum_cases[(size_t)decl->first_case + ordinal];
+    if (item->owner_enum != selected_enum || item->ordinal != ordinal ||
+        item->tag != ordinal || item->payload_count != 0u)
+      return false;
+  }
+  const uint32_t width = program_enum_carrier_width(decl->case_count);
+  if (width == 0u) return false;
+  if (enum_index != NULL) *enum_index = selected_enum;
+  if (carrier_width != NULL) *carrier_width = width;
+  return true;
+}
+
 static bool program_value_lowerable(const w_seed_hir0_program *program,
                                     uint32_t value_index,
                                     uint32_t owner_function,
@@ -745,8 +786,24 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
     return type == W_SEED_HIR0_TYPE_BOOL;
   if (value->kind == W_SEED_HIR0_VALUE_CONST_STRING)
     return allow_string && type == W_SEED_HIR0_TYPE_STRING;
+  if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
+    uint32_t enum_index = W_SEED_HIR0_NONE;
+    return type == W_SEED_HIR0_TYPE_ENUM &&
+           program_enum_type_supported(program, value->type_index,
+                                       &enum_index, NULL) &&
+           value->enum_index == enum_index &&
+           value->enum_case_index < program->enum_case_count &&
+           program->enum_cases[value->enum_case_index].owner_enum ==
+               enum_index &&
+           program->enum_cases[value->enum_case_index].payload_count == 0u;
+  }
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
-    return (type == W_SEED_HIR0_TYPE_I64 || type == W_SEED_HIR0_TYPE_BOOL) &&
+    const bool scalar = type == W_SEED_HIR0_TYPE_I64 ||
+                        type == W_SEED_HIR0_TYPE_BOOL;
+    const bool enumeration = type == W_SEED_HIR0_TYPE_ENUM &&
+                             program_enum_type_supported(
+                                 program, value->type_index, NULL, NULL);
+    return (scalar || enumeration) &&
            value->parameter_index < program->parameter_count &&
            program->parameters[value->parameter_index].owner_function ==
                owner_function;
@@ -1290,6 +1347,72 @@ static bool program_natural_loop_is_supported(
                                  (uint32_t)function_index, false, 0u);
 }
 
+/* The only admitted enum CFG is the HIR21 dense dispatch followed by one
+ * return block per canonical payloadless case.  Keep this proof independent
+ * from the scalar-diamond recognizer so a forged switch cannot be treated as
+ * an ordinary branch. */
+static bool program_enum_switch_is_supported(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count) return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count < 2u || function->first_block >= program->block_count ||
+      function->block_count > program->block_count - function->first_block)
+    return false;
+  const size_t dispatch_index = function->first_block;
+  const w_seed_hir0_block *dispatch_block = &program->blocks[dispatch_index];
+  if (dispatch_block->owner_function != function_index ||
+      dispatch_block->terminator_index >= program->terminator_count)
+    return false;
+  const w_seed_hir0_terminator *dispatch =
+      &program->terminators[dispatch_block->terminator_index];
+  if (dispatch->kind != W_SEED_HIR0_TERMINATOR_SWITCH_ENUM ||
+      dispatch->owner_block != dispatch_index ||
+      dispatch->switch_edge_count == 0u ||
+      (size_t)dispatch->switch_edge_count + 1u != function->block_count ||
+      dispatch->switch_enum_index >= program->enum_count ||
+      dispatch->value_index >= program->value_count ||
+      dispatch->first_switch_edge == W_SEED_HIR0_NONE ||
+      (size_t)dispatch->first_switch_edge > program->switch_edge_count ||
+      dispatch->switch_edge_count >
+          program->switch_edge_count - dispatch->first_switch_edge)
+    return false;
+  uint32_t subject_enum = W_SEED_HIR0_NONE;
+  uint32_t carrier_width = 0u;
+  const w_seed_hir0_value *subject = &program->values[dispatch->value_index];
+  if (!program_enum_type_supported(program, subject->type_index, &subject_enum,
+                                   &carrier_width) ||
+      subject_enum != dispatch->switch_enum_index ||
+      dispatch->switch_carrier_width != carrier_width)
+    return false;
+  const w_seed_hir0_enum *decl = &program->enums[dispatch->switch_enum_index];
+  const size_t end = dispatch_index + function->block_count;
+  if (end > program->block_count || decl->case_count != dispatch->switch_edge_count)
+    return false;
+  for (size_t ordinal = 0u; ordinal < dispatch->switch_edge_count; ordinal += 1u) {
+    const w_seed_hir0_switch_edge *edge =
+        &program->switch_edges[(size_t)dispatch->first_switch_edge + ordinal];
+    const size_t target = dispatch_index + 1u + ordinal;
+    if (edge->owner_terminator != dispatch_block->terminator_index ||
+        edge->ordinal != ordinal || edge->enum_index != dispatch->switch_enum_index ||
+        edge->enum_case_index != (uint32_t)((size_t)decl->first_case + ordinal) ||
+        edge->target_block != target || target >= end ||
+        program->blocks[target].owner_function != function_index ||
+        program->blocks[target].block_argument_count != 0u ||
+        program->blocks[target].terminator_index >= program->terminator_count)
+      return false;
+    const w_seed_hir0_terminator *arm =
+        &program->terminators[program->blocks[target].terminator_index];
+    if (arm->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        arm->owner_block != target || arm->target_block != W_SEED_HIR0_NONE ||
+        arm->else_block != W_SEED_HIR0_NONE ||
+        arm->first_edge_argument != W_SEED_HIR0_NONE ||
+        arm->edge_argument_count != 0u || arm->result_type != function->return_type ||
+        arm->value_index >= program->value_count)
+      return false;
+  }
+  return true;
+}
+
 static bool program_host_print_maximum(
     const w_seed_hir0_program *program, const w_seed_hir0_call *call,
     const w_seed_hir0_binding *const *bindings, size_t *binding_reads,
@@ -1366,12 +1489,15 @@ static bool program_function_maximum(
       function->has_borrow_clause || function->block_count == 0u ||
       function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
       function->first_block >= program->block_count ||
-      function->block_count > program->block_count - function->first_block)
+       function->block_count > program->block_count - function->first_block)
     return false;
+  const bool enum_switch =
+      program_enum_switch_is_supported(program, function_index);
   if (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_UNIT &&
       function->block_count > 1u &&
       !program_scalar_cfg_is_supported(program, function_index) &&
-      !program_natural_loop_is_supported(program, function_index))
+      !program_natural_loop_is_supported(program, function_index) &&
+      !enum_switch)
     return false;
   for (size_t parameter = 0u; parameter < function->parameter_count;
        parameter += 1u) {
@@ -1381,7 +1507,8 @@ static bool program_function_maximum(
     const uint32_t type_index = program->parameters[parameter_index].type_index;
     if (type_index >= program->type_count ||
         (program->types[type_index].kind != W_SEED_HIR0_TYPE_I64 &&
-         program->types[type_index].kind != W_SEED_HIR0_TYPE_BOOL))
+         program->types[type_index].kind != W_SEED_HIR0_TYPE_BOOL &&
+         !program_enum_type_supported(program, type_index, NULL, NULL)))
       return false;
   }
 
@@ -1482,7 +1609,7 @@ static bool program_function_maximum(
     }
     if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
       if (function->return_type == 0u ||
-          (terminator->value_index < program->value_count &&
+          (!enum_switch && terminator->value_index < program->value_count &&
            program->values[terminator->value_index].kind ==
                W_SEED_HIR0_VALUE_CALL_RESULT) ||
           !program_value_lowerable(program, terminator->value_index,
@@ -1535,6 +1662,21 @@ static bool program_function_maximum(
           total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - branch_maximum)
         return false;
       block_maximum[local_block] = total + branch_maximum;
+      continue;
+    }
+    if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
+      if (!enum_switch || terminator->value_index >= program->value_count ||
+          !program_value_lowerable(program, terminator->value_index,
+                                   (uint32_t)function_index, false, 0u))
+        return false;
+      size_t arm_maximum = 0u;
+      for (size_t ordinal = 1u; ordinal < function->block_count; ordinal += 1u)
+        if (block_maximum[ordinal] > arm_maximum)
+          arm_maximum = block_maximum[ordinal];
+      if (arm_maximum > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES ||
+          total > W_SEED_NATIVE_SUBSET0_MAX_STDOUT_BYTES - arm_maximum)
+        return false;
+      block_maximum[local_block] = total + arm_maximum;
       continue;
     }
     return false;
@@ -1607,6 +1749,11 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
         program->types[program->values[value].type_index].kind ==
             W_SEED_HIR0_TYPE_BOOL)
       has_bool = true;
+  bool has_enum_switch = false;
+  for (size_t function = 0u; function < program->function_count;
+       function += 1u)
+    if (program_enum_switch_is_supported(program, function))
+      has_enum_switch = true;
   bool has_mutable_bindings = false;
   for (size_t binding = 0u; binding < program->binding_count; binding += 1u)
     if (program->bindings[binding].is_mutable ||
@@ -1631,6 +1778,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_program(
       .has_bool = has_bool,
       .has_local_calls = has_local_calls,
       .has_cfg = has_cfg,
+      .has_enum_switch = has_enum_switch,
       .has_mutable_bindings = has_mutable_bindings};
   (void)memcpy(selection->natural_loop_functions, natural_loop_functions,
                sizeof(natural_loop_functions));

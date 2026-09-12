@@ -19,6 +19,7 @@ const materializedPath = join(defaultCacheDirectory(), MATERIALIZED_MANIFEST)
 const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
+const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
@@ -336,6 +337,9 @@ try {
     Buffer.from("Hello, world!\n", "utf8"), "Hello fixture")
   expectExact(binary, ["run", restaurantIfFixture], 0, expectedIf,
     "Restaurant if fixture")
+  expectExact(binary, ["run", restaurantEnumFixture], 0,
+    Buffer.from("Courses 10/30/20\n", "utf8"),
+    "Restaurant payloadless enum exhaustive switch fixture")
   expectExact(binary, ["run", restaurantComparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")

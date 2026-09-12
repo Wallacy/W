@@ -157,7 +157,7 @@ one transaction and repeats until metadata dependencies reach a fixed point.
 Missing paths, invalid JSON, duplicates, and cycles fail before each wave.
 
 After changing normative text or classified evidence, run
-`bun run design:refresh-evidence`. The command updates only mechanical
+`bun tooling/refresh-design-freeze-evidence.mjs`. The command updates only mechanical
 identities in the freeze classification: ledger text and claim digests,
 source/oracle case digests, remaining file digests, and exact `DESIGN.md`
 section digests. Case digests use stable-key JSON, so key order alone does not
@@ -219,8 +219,10 @@ The C23 route `source → parser → frontend → verified HIR0 → HLO0 → HLO
 remains limited to the documented subsets and witnesses. The W-1522 primary
 native route is independent: `source → parser/frontend → verified HIR0 → MLIR0 →
 mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1, and RUN0 are
-bootstrap, audit, and recovery, not prerequisites for that route. The current
-MLIR0 adapter is `w-seed-mlir0-15` and Native0 is `w-seed-native0-7`; the
+bootstrap, audit, and recovery, not prerequisites for that route. The historical
+Linux/WSL adapter remains `w-seed-mlir0-15` for its 20.1.2 evidence; the current
+pinned Windows adapter is `w-seed-mlir0-16`/`w-seed-mlir0-windows-7` and Native0
+is `w-seed-native0-8`; the
 private `PROCESS_HANDLER` artifact uses
 `w-seed-mlir0-process-handler-1` without changing the `EXECUTABLE` artifact
 bytes. MLIR0 also accepts signed-`i64` interpolation with internal Display and
@@ -230,6 +232,16 @@ W-1561 adds one structured natural-loop witness: raw MLIR retains
 `convert-scf-to-cf` plus `convert-cf-to-llvm` before translation. The capability
 scope is `unit-structured-cfg-natural-loop`; Linux/WSL `w run` requires exact
 `Served 3\n`. This is correctness-only evidence, not a PGO or performance run.
+W-1563 adds one closed local payloadless enum exhaustive-switch witness. HIR21
+retains nominal enum/case identity and canonical edge order; NativeSubset0
+derives the private minimum carrier (`i2` for the three-case fixture); raw MLIR
+contains `cf.switch` and a backend-only `llvm.unreachable` default. The pinned
+native Windows 23.1.1 `w run` gate executes `restaurant-enum.w` with exact
+`Courses 10/30/20\n`, empty stderr, and exit zero. The scope of this live
+Windows artifact is `unit-structured-cfg-enum-switch`; the i2 sign-bit tag is
+printed as `-2` for MLIR 23.1.1's signed textual parser. Payloads, subsets,
+general/mixed CFG, public ABI/layout stability, other targets, timing, ranking,
+and performance remain outside this correctness-only compiler-lifecycle cut.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

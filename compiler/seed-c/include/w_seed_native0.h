@@ -18,7 +18,7 @@ extern "C" {
 /* Native0 is the bounded source-to-MLIR0 adapter used by the seed gate. It
  * reads one explicit file path, retains no heap state, and uses only storage
  * supplied by its caller. */
-#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-7"
+#define W_SEED_NATIVE0_SCHEMA_VERSION "w-seed-native0-8"
 #define W_SEED_NATIVE0_MAX_SOURCE_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_PATH_BYTES 4096u
 #define W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES 4096u
@@ -68,6 +68,7 @@ enum {
   /* Logical HIR diamonds own one Bool argument at their join. */
   W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS = W_SEED_NATIVE0_HIR_BLOCKS,
+  W_SEED_NATIVE0_HIR_SWITCH_EDGES = W_SEED_NATIVE0_SWITCH_ARMS,
   W_SEED_NATIVE0_HIR_TERMINATORS = W_SEED_NATIVE0_HIR_BLOCKS,
   W_SEED_NATIVE0_HIR_INSTRUCTIONS = 128,
   W_SEED_NATIVE0_HIR_BINDINGS = 128,
@@ -134,6 +135,7 @@ _Static_assert(W_SEED_NATIVE0_STATEMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BLOCKS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS <= UINT32_MAX &&
+                   W_SEED_NATIVE0_HIR_SWITCH_EDGES <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_INSTRUCTIONS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_BINDINGS <= UINT32_MAX &&
                    W_SEED_NATIVE0_HIR_CALLS <= UINT32_MAX &&
@@ -267,6 +269,8 @@ typedef struct {
       hir_block_arguments[W_SEED_NATIVE0_HIR_BLOCK_ARGUMENTS];
   w_seed_hir0_edge_argument
       hir_edge_arguments[W_SEED_NATIVE0_HIR_EDGE_ARGUMENTS];
+  w_seed_hir0_switch_edge
+      hir_switch_edges[W_SEED_NATIVE0_HIR_SWITCH_EDGES];
   w_seed_hir0_instruction hir_instructions[W_SEED_NATIVE0_HIR_INSTRUCTIONS];
   w_seed_hir0_binding hir_bindings[W_SEED_NATIVE0_HIR_BINDINGS];
   w_seed_hir0_call hir_calls[W_SEED_NATIVE0_HIR_CALLS];

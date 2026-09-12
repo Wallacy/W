@@ -1400,6 +1400,32 @@ LLVM/MLIR 20.1.2, correctness-only. General or nested loops, multiple carried
 values, effects, native Windows/macOS, LLVM/MLIR 23.1.1 promotion, PGO, timing,
 code-size quality, and performance remain outside this cut.
 
+### Closed local payloadless enum exhaustive switch (W-1563)
+
+HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense
+caller-owned switch edges. Each edge preserves the nominal enum and case,
+canonical declaration ordinal, source span, and arm-entry block; the target
+block's `RETURN_VALUE` terminator carries and proves the arm result.
+The verifier admits only one dispatch block followed by one direct-return block
+per case and rejects incomplete, duplicate, unknown, forged, or cross-function
+relations. The bounded switch cannot be mixed with the existing `if`, logical,
+or `while` CFG shapes.
+
+NativeSubset0 derives a private minimum logical carrier (`iN`; three cases are
+`i2`, with at most 64 cases supported). MLIR0 schema
+`w-seed-mlir0-16`/Windows label `w-seed-mlir0-windows-7` emits canonical
+`cf.switch` tags and a unique backend-only default block ending in
+`llvm.unreachable`; Native0 is `w-seed-native0-8`. Pinned Windows x86_64 MSVC
+LLVM/MLIR 23.1.1 runs the exact
+[`restaurant-enum.w`](fixtures/restaurant-enum.w) fixture through verified HIR,
+MLIR conversion, translation, native link, and execution, requiring
+`Courses 10/30/20\n`, empty stderr, and exit zero. The i2 sign-bit tag is
+spelled `-2` for the pinned MLIR textual parser while retaining tag-2 bits.
+
+This remains a correctness-only compiler-lifecycle witness. Payload-bearing
+cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
+targets, timing, ranking, and performance are not implemented or claimed.
+
 ### Short default entry (W-1541)
 
 The seed parser accepts `entry { statements }` and `entry(functionName)`.

@@ -122,6 +122,18 @@ CF-to-LLVM conversion. The public Linux/WSL `w run` path executes
 `Served 3\n`, no source-variable stack cell, generated C, or host-C fallback.
 This is a one-carrier correctness witness on LLVM/MLIR 20.1.2, not general loop,
 Windows/macOS, LLVM 23.1.1, PGO, size, or performance evidence.
+W-1563 now closes one bounded local payloadless enum exhaustive-switch slice:
+HIR0 `w-seed-hir0-21` retains nominal subject/case identity and canonical
+switch edges, Native0 `w-seed-native0-8` derives a private minimum carrier
+(`i2` for the three-case witness), and MLIR0 `w-seed-mlir0-16` emits canonical
+`cf.switch` plus a synthetic `llvm.unreachable` default. The pinned native
+Windows 23.1.1 `w run` gate executes
+[`restaurant-enum.w`](compiler/seed-c/fixtures/restaurant-enum.w) with exact
+`Courses 10/30/20\n`, empty stderr, and exit zero through verified HIR and
+MLIR; the i2 sign-bit tag is written `-2` for MLIR's signed textual parser.
+This is correctness-only evidence for the bounded shape, not payloads, enum
+subsets, general/mixed CFG, public ABI/layout stability, other targets, PGO,
+timing, ranking, or performance.
 W-1521 publica somente o subset bounded `w run <explicit-path.w> [-- <args...>]`
 em Linux x86_64 e aponta essa CLI para a extensão NAT1; o runner público geral
 continua gap. A evidência MLIR0 é Linux x86_64 sob WSL no checkout Windows,

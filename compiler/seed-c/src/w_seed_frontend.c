@@ -557,6 +557,10 @@ static bool function_signature_for_name(
 static bool external_symbol_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     const w_seed_frontend_external_symbol **symbol);
+static bool host_symbol_for_name(
+    const frontend_context *context, w_seed_frontend_text name,
+    const w_seed_frontend_host_prelude_symbol **symbol,
+    uint32_t *symbol_index);
 static bool external_type_identity_for_name(
     const frontend_context *context, w_seed_frontend_text name,
     uint32_t *module_index, uint32_t *symbol_index,
@@ -13138,6 +13142,26 @@ static frontend_simple_type infer_expression_span_inner(
   if (text_equal(first_text, "!")) {
     return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
   }
+  /* A direct call's arguments may contain member syntax (for example an enum
+   * case literal). Resolve the callee before the generic operator scan, but
+   * only for an exact call span; a bare function name is not its result. The
+   * normal expression parser still performs full argument/label validation. */
+  if (first.kind == W_SEED_CST_WORD && expression_is_direct_call(doc, span)) {
+    const w_seed_frontend_document *owner_doc = NULL;
+    uint32_t function_node = W_SEED_CST_NONE;
+    if (function_signature_for_name(context, first_text, &owner_doc,
+                                    &function_node)) {
+      return function_return_type(context, owner_doc, function_node);
+    }
+    const w_seed_frontend_external_symbol *external = NULL;
+    if (external_symbol_for_name(context, first_text, &external)) {
+      return external_contextual_type(context, external->return_type);
+    }
+    const w_seed_frontend_host_prelude_symbol *host = NULL;
+    if (host_symbol_for_name(context, first_text, &host, NULL)) {
+      return simple_type_from_view(host->return_type);
+    }
+  }
   frontend_token token;
   while (cursor_take(&cursor, &token)) {
     const w_seed_frontend_text text = text_from_span(doc, token.span);
@@ -13717,9 +13741,14 @@ static bool normalize_switch_expression(
       }
     }
 
-    frontend_simple_type arm_expected = frontend_type_is_enum(expected)
-                                            ? expected
-                                            : simple_type_unknown();
+    /* Preserve the statement's integer return context for unsuffixed arm
+     * literals.  Enum context is still needed for short `.case` values; other
+     * arm domains retain the existing join-based inference. */
+    frontend_simple_type arm_expected =
+        (expected.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+         frontend_type_is_enum(expected))
+            ? expected
+            : simple_type_unknown();
     frontend_simple_type arm_type = simple_type_unknown();
     uint32_t result_expression = W_SEED_FRONTEND_NONE;
     if (result_node != W_SEED_CST_NONE &&

@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-20"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-21"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -129,6 +129,8 @@ typedef enum {
   W_SEED_HIR0_TERMINATOR_RETURN_VALUE,
   W_SEED_HIR0_TERMINATOR_BRANCH,
   W_SEED_HIR0_TERMINATOR_JUMP,
+  /* Closed local payloadless-enum exhaustive dispatch. */
+  W_SEED_HIR0_TERMINATOR_SWITCH_ENUM,
 } w_seed_hir0_terminator_kind;
 
 typedef enum {
@@ -356,6 +358,19 @@ typedef struct {
   w_seed_span source_span;
 } w_seed_hir0_edge_argument;
 
+/* Dense, canonical declaration-order case edges owned by a SWITCH_ENUM
+ * terminator.  The enum and
+ * case identities are retained independently of the carrier tag so a
+ * verifier can prove that dispatch coverage is exact. */
+typedef struct {
+  uint32_t owner_terminator;
+  uint32_t ordinal;
+  uint32_t enum_index;
+  uint32_t enum_case_index;
+  uint32_t target_block;
+  w_seed_span source_span;
+} w_seed_hir0_switch_edge;
+
 typedef struct {
   w_seed_hir0_instruction_kind kind;
   uint32_t owner_block;
@@ -484,6 +499,12 @@ typedef struct {
   uint32_t first_edge_argument;
   uint32_t edge_argument_count;
   w_seed_hir0_logical_operator logical_operator;
+  /* SWITCH_ENUM uses value_index as its subject and records the nominal enum
+   * plus its internal carrier width and dense edge range here. */
+  uint32_t switch_enum_index;
+  uint32_t first_switch_edge;
+  uint32_t switch_edge_count;
+  uint32_t switch_carrier_width;
   w_seed_span source_span;
 } w_seed_hir0_terminator;
 
@@ -516,6 +537,7 @@ typedef struct {
   size_t blocks;
   size_t block_arguments;
   size_t edge_arguments;
+  size_t switch_edges;
   size_t instructions;
   size_t bindings;
   size_t calls;
@@ -568,6 +590,9 @@ typedef struct {
   const w_seed_hir0_edge_argument *edge_arguments;
   size_t edge_argument_count;
   size_t edge_argument_capacity;
+  const w_seed_hir0_switch_edge *switch_edges;
+  size_t switch_edge_count;
+  size_t switch_edge_capacity;
   const w_seed_hir0_instruction *instructions;
   size_t instruction_count;
   size_t instruction_capacity;
@@ -636,6 +661,8 @@ typedef struct {
   size_t block_argument_capacity;
   w_seed_hir0_edge_argument *edge_arguments;
   size_t edge_argument_capacity;
+  w_seed_hir0_switch_edge *switch_edges;
+  size_t switch_edge_capacity;
   w_seed_hir0_instruction *instructions;
   size_t instruction_capacity;
   w_seed_hir0_binding *bindings;

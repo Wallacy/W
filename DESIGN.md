@@ -37859,6 +37859,71 @@ and performance remain gaps. The benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing, ranking, or performance
 result.
 
+```w
+enum Stage {
+  cold
+  ready
+  done
+}
+
+fn choose(): Stage {
+  return .ready
+}
+```
+
+#### 26.4.1.44 W-1563 — closed local payloadless enum exhaustive switch through native execution (Current form)
+
+HIR0 advances to schema `w-seed-hir0-21` with an explicit `SWITCH_ENUM`
+terminator and dense caller-owned switch-edge records. The subject remains a
+nominal local enum value. Every edge retains the same enum and enum-case
+identity, canonical declaration ordinal, source span, and real arm-entry
+block. The target block's `RETURN_VALUE` terminator carries and proves the arm
+result. The verifier admits only one dispatch block followed by
+one direct-return block per case; incomplete, duplicate, unknown, forged, or
+cross-function edge/subject/case/target/value relations fail closed. A switch
+cannot be composed with the bounded `if`, logical, or `while` CFG shapes in
+this cut.
+
+NativeSubset0 derives an internal minimum logical carrier width from the
+closed case count: `iN`, with three cases represented as `i2` and at most 64
+cases admitted by this emitter. This is not a public ABI or layout contract.
+MLIR0 emits one `cf.switch` with canonical declaration-order tags and a
+backend-only synthetic default block ending in `llvm.unreachable`. In the
+pinned MLIR 23.1.1 textual grammar, the sign-bit tag of an `i2` carrier is
+spelled as signed `-2`; it preserves the canonical tag-2 bit pattern and is
+only a parser-compatible textual spelling.
+
+The pinned Windows x86_64 MSVC route retains the direct verified-HIR path and
+applies `convert-scf-to-cf`, `convert-cf-to-llvm`, `mlir-translate`, `llc`, and
+the CRT-free native link. The exact fixture
+[`restaurant-enum.w`](compiler/seed-c/fixtures/restaurant-enum.w)
+executes with stdout `Courses 10/30/20\n`, empty stderr, and exit zero. The
+gate observes raw `cf.switch`, the `i2` carrier, and the unique synthetic
+`llvm.unreachable` default. No generated C, source-text recognition, host
+switch, or expected-output shortcut is an implementation path.
+
+```w
+enum Course {
+  starter
+  main
+  dessert
+}
+
+fn price(course: Course): i64 {
+  return switch course {
+    case .starter: 10
+    case .main: 30
+    case .dessert: 20
+  }
+}
+```
+
+The evidence remains bounded to one closed local payloadless enum and this
+exhaustive dispatch shape. Payload-bearing cases, enum subsets, general or
+mixed CFG, public ABI/layout stability, other targets, and performance remain
+gaps. The benchmark disposition is `compiler-lifecycle`, correctness-only,
+with no timing, ranking, or benchmark result.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

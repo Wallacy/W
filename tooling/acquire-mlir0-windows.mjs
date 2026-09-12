@@ -44,8 +44,8 @@ export function validateManifest(manifest) {
   pushError(errors, manifest.version === 1, "manifest.version must be 1")
   pushError(errors, manifest.status === "external-evaluation",
     "manifest.status must be external-evaluation")
-  pushError(errors, manifest.artifact?.schema === "w-seed-mlir0-15" &&
-    manifest.artifact?.scope === "unit-structured-cfg-natural-loop",
+  pushError(errors, manifest.artifact?.schema === "w-seed-mlir0-16" &&
+    manifest.artifact?.scope === "unit-structured-cfg-enum-switch",
   "manifest artifact scope is invalid")
   pushError(errors, manifest.host?.platform === "windows" &&
     manifest.host?.architecture === "x86_64" &&

@@ -5614,6 +5614,100 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-hir21-enum-switch",
+      "reviewItem": "closed local payloadless enum exhaustive switch against raw integer tags, incomplete coverage, and expected-output shortcuts",
+      "decisions": [
+        "W-1563"
+      ],
+      "task": "Carry one closed local payloadless enum through verified HIR21, lower its exhaustive switch through MLIR0, and execute the exact Windows Restaurant witness.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "enum Course {",
+          "  starter",
+          "  main",
+          "  dessert",
+          "}",
+          "fn price(course: Course): i64 {",
+          "  return switch course {",
+          "    case .starter: 10",
+          "    case .main: 30",
+          "    case .dessert: 20",
+          "  }",
+          "}",
+          "entry {",
+          "  let starter = price(course: .starter)",
+          "  let main = price(course: .main)",
+          "  let dessert = price(course: .dessert)",
+          "  print(\"Courses ${starter}/${main}/${dessert}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "raw-integer-comparisons",
+          "language": "text",
+          "source": [
+            "compare an unowned integer tag with 0, 1, and 2"
+          ],
+          "expectedDifference": "The selected route retains nominal enum/case identity, canonical edge records, and a typed cf.switch carrier."
+        },
+        {
+          "name": "expected-output-shortcut",
+          "language": "text",
+          "source": [
+            "write Courses 10/30/20 directly from the fixture name"
+          ],
+          "expectedDifference": "The selected route translates verified HIR through MLIR and executes the linked native artifact."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_switch",
+          "claim": "HIR21 independently verifies canonical enum-switch ownership, coverage, target blocks, result values, and the bounded dispatch shape."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_enum_switch_is_supported",
+          "claim": "NativeSubset0 admits only the verified enum-switch shape and derives its private minimum-width carrier."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_enum_switch_case_value",
+          "claim": "MLIR0 emits the iN carrier, canonical cf.switch cases, and the backend-only unreachable default."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_enum_switch_mlir",
+          "claim": "Focused MLIR0 tests observe i2, canonical tags, cf.switch, the unique llvm.unreachable default, and forged-HIR rejection."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_enum_switch_native_lowering",
+          "claim": "Native0 tests cover reordered arms, local calls, the exact Restaurant fixture, and the emitted switch markers."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantEnumFixture",
+          "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit."
+        }
+      ],
+      "checks": [
+        "HIR21 measure/emit/verify preserve subject enum identity, canonical edges, arm targets, values, capacities, aliases, receipts, and digests",
+        "duplicate, missing, unknown, forged carrier/subject/enum/case/ordinal/target/value/default relations fail closed",
+        "NativeSubset0 derives i2 for the three-case enum and rejects unsupported mixed CFG",
+        "raw MLIR contains canonical cf.switch and one synthetic llvm.unreachable default, with no llvm.switch or source shortcut",
+        "the pinned Windows 23.1.1 pipeline converts, translates, links, and runs the exact fixture with Courses 10/30/20 output"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
     }
   ]
 }

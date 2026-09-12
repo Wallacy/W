@@ -92,6 +92,7 @@ typedef struct {
   bool has_bool;
   bool has_local_calls;
   bool has_cfg;
+  bool has_enum_switch;
   bool has_mutable_bindings;
   bool natural_loop_functions[W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS];
 } w_seed_native_subset0_program;

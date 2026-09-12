@@ -3,8 +3,8 @@
   "version": 1,
   "status": "external-evaluation",
   "artifact": {
-    "schema": "w-seed-mlir0-15",
-    "scope": "unit-structured-cfg-natural-loop"
+    "schema": "w-seed-mlir0-16",
+    "scope": "unit-structured-cfg-enum-switch"
   },
   "host": {
     "platform": "windows",
