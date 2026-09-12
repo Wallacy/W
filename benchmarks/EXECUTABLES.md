@@ -36,8 +36,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 | Workload | Language | Target | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| hello | rust | Windows x64 / MSVC | 113152 B (110.5 KiB) | 237.4533 ms | — | — | — | — |
-| hello | w | Windows x64 / MSVC | 2560 B (2.5 KiB) | 171.9469 ms | — | — | — | — |
+| hello | c | Windows x64 / MSVC | 9216 B (9.0 KiB) | 128.6005 ms | 18.0147 ms | 19.1762 ms | 4808704 B (4.59 MiB) | 14.077 ms |
+| hello | rust | Windows x64 / MSVC | 113152 B (110.5 KiB) | 237.4533 ms | 17.9911 ms | 18.2935 ms | 4857856 B (4.63 MiB) | 13.149 ms |
+| hello | w | Windows x64 / MSVC | 2560 B (2.5 KiB) | 166.3367 ms | 16.9718 ms | 17.6093 ms | 3751936 B (3.58 MiB) | 12.376 ms |
 | process-entry | rust | Windows x64 / MSVC | 115200 B (112.5 KiB) | 1.1528318 s | — | — | — | — |
 | process-entry | w | Windows x64 / MSVC | 3584 B (3.5 KiB) | 193.1899 ms | — | — | — | — |
 | process-handler-lifecycle | c | Windows x64 / MinGW | 20480 B (20.0 KiB) | 1.0647585 s | — | — | — | — |
