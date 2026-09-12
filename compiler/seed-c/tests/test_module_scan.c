@@ -51,8 +51,9 @@ static bool parse_text(fixture *value, const char *text) {
   return w_seed_parser_parse(&value->parser, &value->parse);
 }
 
-static bool all_bytes_equal(const uint8_t *bytes, size_t length,
-                            uint8_t value) {
+static bool all_bytes_equal(const void *object, size_t length,
+                            unsigned char value) {
+  const unsigned char *bytes = (const unsigned char *)object;
   for (size_t index = 0u; index < length; index += 1u) {
     if (bytes[index] != value) return false;
   }
@@ -121,8 +122,7 @@ static bool test_capacity_and_all_or_nothing(void) {
                            &value.parse, origins, 1u, &result) ==
         W_SEED_MODULE_SCAN_CAPACITY);
   CHECK(result.required == 2u && result.written == 0u);
-  CHECK(((const uint8_t *)origins)[0] == 0xa5u &&
-        ((const uint8_t *)origins)[sizeof(origins) - 1u] == 0xa5u);
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                            &value.parse, origins, 2u, &result) ==
         W_SEED_MODULE_SCAN_OK);
@@ -160,7 +160,7 @@ static bool test_invalid_inputs(void) {
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                            &incomplete, origins, 1u, &result) ==
         W_SEED_MODULE_SCAN_INVALID);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
 
   w_seed_cst_node root_saved = value.nodes[value.parse.root];
   value.nodes[value.parse.root].raw_span.end_byte += 1u;
@@ -168,7 +168,7 @@ static bool test_invalid_inputs(void) {
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                            &value.parse, origins, 1u, &result) ==
         W_SEED_MODULE_SCAN_INVALID);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   value.nodes[value.parse.root] = root_saved;
 
   uint32_t import_node = W_SEED_CST_NONE;
@@ -185,7 +185,7 @@ static bool test_invalid_inputs(void) {
   CHECK(w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                            &value.parse, origins, 1u, &result) ==
         W_SEED_MODULE_SCAN_INVALID);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   value.nodes[import_node] = saved;
 
   value.nodes[value.parse.root].kind = W_SEED_CST_IMPORT;
@@ -218,7 +218,7 @@ static bool test_invalid_inputs(void) {
       w_seed_module_scan(&value.source, value.nodes, value.parse.node_count,
                          &value.parse, origins, 1u, &result);
   CHECK(malformed_status == W_SEED_MODULE_SCAN_UNSUPPORTED);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   value.nodes[import_token] = malformed_token;
 
   static const char utf8_source[] = "import caf\xc3\xa9\n";
@@ -234,7 +234,7 @@ static bool test_invalid_inputs(void) {
   CHECK(w_seed_module_scan(&utf8.source, utf8.nodes, utf8.parse.node_count,
                            &utf8.parse, origins, 1u, &result) ==
         W_SEED_MODULE_SCAN_INVALID);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   utf8.nodes[utf8_import] = saved;
 
   static const char ordered_source[] = "import one\nimport two\n";
@@ -251,7 +251,7 @@ static bool test_invalid_inputs(void) {
   CHECK(w_seed_module_scan(&ordered.source, ordered.nodes,
                            ordered.parse.node_count, &ordered.parse, origins,
                            2u, &result) == W_SEED_MODULE_SCAN_INVALID);
-  CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+  CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   ordered.nodes[second_import] = saved;
 
   w_seed_span path;
@@ -280,7 +280,7 @@ static bool test_invalid_inputs(void) {
               &malformed_alias.source, malformed_alias.nodes,
               malformed_alias.parse.node_count, &malformed_alias.parse,
               origins, TEST_ORIGINS, &result) == W_SEED_MODULE_SCAN_INVALID);
-    CHECK(all_bytes_equal((const uint8_t *)origins, sizeof(origins), 0xa5u));
+    CHECK(all_bytes_equal(origins, sizeof(origins), 0xa5u));
   }
   return true;
 }
