@@ -7,16 +7,14 @@ import { PROJECTION_PATH, formatBytes, formatNanoseconds, projectionPath, render
 test("generated projection is current, compact, and sourced only from the live catalog", async () => {
   const rendered = `${await renderFromDisk(ROOT)}\n`;
   assert.equal(fs.readFileSync(PROJECTION_PATH, "utf8"), rendered);
-  assert.ok(rendered.split(/\r?\n/u).length <= 64);
-  assert.match(rendered, /Best known cells/u);
-  assert.match(rendered, /\| Workload \| Language \| Category \| Artifact \| Compile \| Run \| Peak RSS \| CPU \|/u);
-  assert.match(rendered, /historical-unverified/u);
+  assert.ok(rendered.split(/\r?\n/u).length <= 56);
+  assert.match(rendered, /Best values/u);
+  assert.match(rendered, /\| Workload \| Language \| Target \| Artifact \| Compile \| Run \| Peak RSS \| CPU \|/u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
-  assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c.*transient-internal; private-process-handler; timed \["alpha","payload"\]/u);
+  assert.match(rendered, /\x7c process-handler-lifecycle \x7c integration-linkage \x7c/u);
   assert.match(rendered, /public-end-to-end/u);
-  assert.match(rendered, /Execution witness/u);
-  assert.doesNotMatch(rendered, /history|best-known|recorded evidence/iu);
+  assert.doesNotMatch(rendered, /recordId|equivalenceKey|sha256:|historical-unverified|verified-clean|Execution witness/iu);
 });
 
 test("projection formatting and links remain deterministic", () => {
