@@ -5482,7 +5482,7 @@
       "decisions": [
         "W-1561"
       ],
-      "task": "Preserve the bounded verified-HIR natural loop as structured MLIR and execute it through the public Linux/WSL native route.",
+    "task": "Preserve the bounded verified-HIR natural loop as structured MLIR and execute it through public Linux/WSL and native Windows routes.",
       "selected": {
         "language": "w",
         "source": [
@@ -5528,16 +5528,21 @@
           "symbol": "restaurantWhileFixture",
           "claim": "The MLIR gate observes structured operations before conversion, CFG afterward, exact native output, and fail-closed unsupported input."
         },
-        {
-          "path": "tooling/check-w-run.mjs",
-          "symbol": "restaurantWhileFixture",
-          "claim": "The public Linux/WSL w run route executes the Restaurant loop with exact output."
-        }
+      {
+        "path": "tooling/check-w-run.mjs",
+        "symbol": "restaurantWhileFixture",
+        "claim": "The public Linux/WSL w run route executes the Restaurant loop with exact output."
+      },
+      {
+        "path": "tooling/check-w-run-windows.mjs",
+        "symbol": "restaurantWhileFixture",
+        "claim": "The pinned native Windows 23.1.1 route executes the same Restaurant loop with exact output."
+      }
       ],
       "checks": [
         "raw MLIR contains scf.while, scf.condition and scf.yield",
         "converted MLIR contains real conditional and backward branches and no SCF operations",
-        "the public native executable prints exact Served 3 with empty stderr and zero exit",
+      "the public Linux/WSL and native Windows executables print exact Served 3 with empty stderr and zero exit",
         "no source-variable alloca, generated C, host-C loop, or expected-output shortcut is used",
         "a non-carried loop condition fails before artifact or program output"
       ],

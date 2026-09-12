@@ -231,7 +231,9 @@ W-1561 adds one structured natural-loop witness: raw MLIR retains
 `scf.while`/`scf.condition`/`scf.yield`, and the pinned recipe explicitly runs
 `convert-scf-to-cf` plus `convert-cf-to-llvm` before translation. The capability
 scope is `unit-structured-cfg-natural-loop`; Linux/WSL `w run` requires exact
-`Served 3\n`. This is correctness-only evidence, not a PGO or performance run.
+`Served 3\n`. The native Windows 23.1.1 route requires the same output. This is
+correctness-only evidence; executable metrics remain exploratory and do not
+promote a general PGO or performance claim.
 W-1563 adds one closed local payloadless enum exhaustive-switch witness. HIR21
 retains nominal enum/case identity and canonical edge order; NativeSubset0
 derives the private minimum carrier (`i2` for the three-case fixture); raw MLIR

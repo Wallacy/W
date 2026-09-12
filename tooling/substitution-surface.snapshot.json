@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:69f881d272b429d35f201a281ac489d4915d9e77e77bae4771ee4768fc408113",
+  "corpusDigest": "sha256:44e978ab67302f7efb8261e03b84bd794e192bf0e08753e341c34d5cd4520c23",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6235,11 +6235,11 @@
     {
       "id": "R0-structured-natural-loop-native",
       "task": {
-        "utf8Bytes": 123,
-        "codePoints": 123,
-        "nonWhitespaceCodePoints": 106,
+        "utf8Bytes": 132,
+        "codePoints": 132,
+        "nonWhitespaceCodePoints": 114,
         "lines": 1,
-        "surfaceLexemes": 23
+        "surfaceLexemes": 24
       },
       "selected": {
         "name": "selected",

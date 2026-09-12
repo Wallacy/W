@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:fd85d2cfa0e0dc512c14818a2624aa2d4b79063f63c282965dddd42da076bb44",
+    "sha256": "sha256:5289e56589a8c427c52359c8bc58cd34c1c0a963b2988b9d491f0692d84ee3d8",
     "count": 1563,
     "first": "W-001",
     "last": "W-1563"
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:b8835db8c7d632cc1e157b8c22f793db95a7e9981366b640e9bf66d3e7955c2c"
+        "sectionDigest": "sha256:e36bda037f011a45e604851908c74109590a224167ff20456fdd227061533888"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -51689,7 +51689,7 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70",
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -52012,7 +52012,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52089,7 +52089,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52172,7 +52172,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52910,7 +52910,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The public gate runs source and one built PE with empty, normal, and empty-string arguments.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53063,13 +53063,13 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:6bf57ef7184fd40969c06662260743eec06f185651322d015191b648efaeeb35"
+          "sha256": "sha256:dad9c595560ad1d3c1c6d1fcd34f81186c240a26c4aa8bb388ecc24eacb2fa67"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:8f5c62aea8cea8e4fd0a5637402b8cb9ea3d54be88f86b887df6b47b98ac24da"
+          "sha256": "sha256:4a30c40bf0cbae76ed1dcd4d4ec1f30628b65ca22bb07ff99fe639d942bc4939"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -53229,7 +53229,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53318,7 +53318,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53389,7 +53389,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53466,7 +53466,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53537,7 +53537,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53602,7 +53602,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53679,7 +53679,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53762,7 +53762,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53871,32 +53871,32 @@
     {
       "decisionId": "W-1561",
       "summary": "structured MLIR and native execution for the bounded natural loop",
-      "canonicalClaim": "The W-1560 loop is selected from verified HIR and emitted as `scf.while` with one carried signed-`i64` value. `scf.condition` and `scf.yield` retain the structured loop until the pinned `convert-scf-to-cf` and `convert-cf-to-llvm` passes; the public Linux/WSL `w run` path then executes the exact Restaurant witness without a source-variable allocation, generated C, host-C loop, or expected-output shortcut.",
-      "claimDigest": "sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b",
+      "canonicalClaim": "The W-1560 loop is selected from verified HIR and emitted as `scf.while` with one carried signed-`i64` value. `scf.condition` and `scf.yield` retain the structured loop until the pinned `convert-scf-to-cf` and `convert-cf-to-llvm` passes. Public Linux/WSL and native Windows `w run` routes execute the exact Restaurant witness without a source-variable allocation, generated C, host-C loop, or expected-output shortcut.",
+      "claimDigest": "sha256:67e05ed5178dcbaf9fce8e2cf3133ab37ef98571325f92616e92e918783fdfc6",
       "category": "source-backed-current",
       "basis": "linked-source-comparison-case",
       "authorityRef": {
         "kind": "source-case",
         "path": "tooling/substitution-cases.json",
         "caseId": "R0-structured-natural-loop-native",
-        "caseDigest": "sha256:20dac1cf7aef516219d6e2d5895775efa2524369ed4c99075afc368c7606ef70"
+        "caseDigest": "sha256:db9d3e39030d5bf1bcef4d99a71af854546a458e3cffea7bfd6e1f33bc4bf933"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "tooling/substitution-cases.json",
           "caseId": "R0-structured-natural-loop-native",
-          "caseDigest": "sha256:20dac1cf7aef516219d6e2d5895775efa2524369ed4c99075afc368c7606ef70"
+          "caseDigest": "sha256:db9d3e39030d5bf1bcef4d99a71af854546a458e3cffea7bfd6e1f33bc4bf933"
         }
       ],
-      "reason": "W-1561 (structured MLIR and native execution for the bounded natural loop, sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b) is source-backed-current only for the exact one-carrier natural loop, structured SCF emission, pinned conversion pipeline, and Linux/WSL public native witness; general loops, other targets, optimization quality, PGO, and performance remain gaps.",
+      "reason": "W-1561 (structured MLIR and native execution for the bounded natural loop, sha256:67e05ed5178dcbaf9fce8e2cf3133ab37ef98571325f92616e92e918783fdfc6) is source-backed-current only for the exact one-carrier natural loop, structured SCF emission, pinned conversion pipeline, and Linux/WSL plus native Windows public witnesses; general loops, other targets, optimization quality, PGO, ranking, and general performance remain gaps.",
       "selection": "explicit-ledger-id",
       "basisRef": {
         "kind": "ledger-row",
         "path": "RATIONALE.md",
         "section": "3. Ledger",
         "decisionId": "W-1561",
-        "claimDigest": "sha256:e317e2f8d17d7e5051bd1ce7b17e45106bd398c3ff40b26be307b4246433bb3b"
+        "claimDigest": "sha256:67e05ed5178dcbaf9fce8e2cf3133ab37ef98571325f92616e92e918783fdfc6"
       },
       "sourceRefs": [
         {
@@ -53934,6 +53934,12 @@
           "symbol": "restaurantWhileFixture",
           "claim": "The public Linux/WSL runner executes exact Served 3 output.",
           "sha256": "sha256:879e09ef332398b2225d263835c5e116a728cd310e47a55ab690d20c293d5b7a"
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantWhileFixture",
+          "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54057,7 +54063,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:34a71d30775dbfc84f0150ac73975c66cda6ebf4c5ed4dbc4b477c479b5c2a70"
+          "sha256": "sha256:09a56b12d3fb82e3710e93d167e0fc4d6892be9d440e4ffe7aae342469beafbf"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",

@@ -14,6 +14,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-interpolation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | source-backed | deferred-to-M3b |
 | restaurant-scalar-if | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | source-backed | deferred-to-M3b |
 | restaurant-nested-scalar-if | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-scalar-if.w) | source-backed | deferred-to-M3b |
+| restaurant-while | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while.w), [c](./executable/restaurant_while.c), [rust](./executable/restaurant_while.rs) | source-backed | not-performance-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | not-performance-ready |
 | restaurant-comparisons | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | source-backed | not-performance-ready |
 | restaurant-comparison-composition | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparison-composition.w) | source-backed | not-performance-ready |
