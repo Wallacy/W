@@ -170,6 +170,18 @@ work. Published live cells are kept in [`EXECUTABLES.md`](EXECUTABLES.md);
 this README does not duplicate measured values. No result or number is claimed
 until a validated run exists.
 
+#### Restaurant enum-payload executable registration
+
+`restaurant-enum-payload` is a fixed-input, end-to-end executable witness, not
+an isolated enum-layout or dispatch microbenchmark. It constructs payloads,
+reorders named arguments and switch captures, and prints the exact
+`Bills 32/44/10/7\n` oracle. The C23 reference uses a tagged union and the Rust
+2024 reference uses an enum with payload fields; all three sources declare the
+same inputs and arithmetic under language-specific portable MSVC-target release
+recipes. Constant folding is allowed by this scope. A runtime-driven enum
+workload would be a separate future witness. Live measurements belong to
+[`EXECUTABLES.md`](EXECUTABLES.md), without an isolated dispatch ranking.
+
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,

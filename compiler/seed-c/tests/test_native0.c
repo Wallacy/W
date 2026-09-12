@@ -314,7 +314,6 @@ static bool test_enum_frontend_storage(void) {
       "entry { print(\"enum hir\") }\n";
   (void)memset(output, 0xa6u, sizeof(output));
   (void)memset(&result, 0x6au, sizeof(result));
-  const w_seed_native0_result hir_result_snapshot = result;
   const w_seed_native0_status hir_status =
       run_source(hir_source, sizeof(hir_source) - 1u, "enum-hir", 8u,
                  output, sizeof(output), &result);
@@ -322,17 +321,14 @@ static bool test_enum_frontend_storage(void) {
   for (size_t value = 0u; value < storage.hir_program.value_count; value += 1u)
     if (storage.hir_program.values[value].kind == W_SEED_HIR0_VALUE_ENUM_CASE)
       has_enum_value = true;
-  CHECK(hir_status == W_SEED_NATIVE0_UNSUPPORTED);
+  CHECK(hir_status == W_SEED_NATIVE0_OK);
   CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
         storage.hir_program.enum_count == 1u &&
         storage.hir_program.enum_case_count == 2u &&
         storage.hir_program.types[4].kind == W_SEED_HIR0_TYPE_ENUM &&
         has_enum_value &&
         w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
-  /* The admitted HIR is real. MLIR0 remains the next explicit barrier. */
-  for (size_t index = 0u; index < sizeof(output); index += 1u)
-    CHECK(output[index] == 0xa6u);
-  CHECK(memcmp(&result, &hir_result_snapshot, sizeof(result)) == 0);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.func"));
 
   static const uint8_t payload_source[] =
       "enum Marker { clear flagged(code: i64) }\n"
@@ -362,7 +358,7 @@ static bool test_enum_frontend_storage(void) {
         storage.hir_program.values[1].first_enum_payload == 0u &&
         storage.hir_program.values[1].enum_payload_count == 1u &&
         w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
-  /* Payload declarations and values reach HIR; MLIR layout is still closed. */
+  /* An empty entry still has no supported output plan. */
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa7u);
   CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);
@@ -373,18 +369,62 @@ static bool test_enum_frontend_storage(void) {
       "case .main(tax: let fee, price: let amount): amount + fee "
       "case .starter: 10 } }\n"
       "entry { let order: Course = .main(tax: 2, price: 30) "
-      "let total = bill(course: order) }\n";
+      "let total = bill(course: order) print(\"Bill ${total}\") }\n";
   CHECK(run_source(capture_source, sizeof(capture_source) - 1u,
                    "enum-capture", 12u, output, sizeof(output), &result) ==
-        W_SEED_NATIVE0_UNSUPPORTED);
+        W_SEED_NATIVE0_OK);
   CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
         storage.hir_program.switch_capture_count == 2u &&
         storage.hir_switch_captures[0].parameter_ordinal == 1u &&
         storage.hir_switch_captures[1].parameter_ordinal == 0u &&
         w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
-  for (size_t index = 0u; index < sizeof(output); index += 1u)
-    CHECK(output[index] == 0xa7u);
-  CHECK(memcmp(&result, &payload_result_snapshot, sizeof(result)) == 0);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.insertvalue"));
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.extractvalue"));
+  return true;
+}
+
+static bool test_enum_payload_native_lowering(void) {
+  static const uint8_t source[] =
+      "enum Course { starter main(price: i64, tax: i64) dessert(price: i64) }\n"
+      "fn order(price: i64, tax: i64): Course { "
+      "return .main(tax: tax + 1, price: price) }\n"
+      "fn bill(course: Course): i64 { return switch course { "
+      "case .dessert(price: let amount): amount "
+      "case .starter: 10 "
+      "case .main(tax: let fee, price: let amount): amount + fee } }\n"
+      "entry { let first = order(price: 30, tax: 2) "
+      "let starter: Course = .starter "
+      "let dessert: Course = .dessert(price: 7) "
+      "let firstBill = bill(course: first) "
+      "let starterBill = bill(course: starter) "
+      "let dessertBill = bill(course: dessert) "
+      "print(\"Bills ${firstBill}/${starterBill}/${dessertBill}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_mlir0_target targets[] = {TARGET, WINDOWS_TARGET};
+  for (size_t target = 0u; target < 2u; target += 1u) {
+    CHECK(run_source_mode(source, sizeof(source) - 1u, "enum-payload-run", 16u,
+                          &targets[target], W_SEED_MLIR0_ARTIFACT_EXECUTABLE,
+                          output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+    const size_t length = result.mlir.written.mlir_bytes;
+    CHECK(length == result.mlir.required.mlir_bytes);
+    CHECK(storage.hir_program.switch_capture_count == 3u &&
+          w_seed_hir0_verify(&storage.hir_program, &storage.hir_result));
+    CHECK(contains_bytes(output, length, "!llvm.struct<(i2, array<2 x i64>)>"));
+    CHECK(contains_bytes(output, length, "llvm.insertvalue"));
+    CHECK(contains_bytes(output, length, "llvm.extractvalue"));
+    CHECK(contains_bytes(output, length, "llvm.mlir.zero : !llvm.struct"));
+    CHECK(contains_bytes(output, length, "llvm.intr.sadd.with.overflow"));
+    CHECK(!contains_bytes(output, length, "malloc"));
+    (void)memset(output, 0xacu, sizeof(output));
+    const w_seed_native0_result snapshot = result;
+    CHECK(run_source_mode(source, sizeof(source) - 1u, "enum-payload-run", 16u,
+                          &targets[target], W_SEED_MLIR0_ARTIFACT_EXECUTABLE,
+                          output, length - 1u, &result) == W_SEED_NATIVE0_CAPACITY);
+    CHECK(memcmp(&snapshot, &result, sizeof(result)) == 0);
+    for (size_t byte = 0u; byte < sizeof(output); byte += 1u)
+      CHECK(output[byte] == 0xacu);
+  }
   return true;
 }
 
@@ -1406,6 +1446,7 @@ static bool test_signed_comparison_products(void) {
 int main(void) {
   const bool products = test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&
+                        test_enum_payload_native_lowering() &&
                         test_enum_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact();

@@ -1496,17 +1496,28 @@ The tests cover reordered arms and labels, positional `_`, labeled trailing
 forgeries must still fail ownership, type, slot, and arm-scope verification.
 Capture names remain valid after the frontend records and source bytes are cleared.
 
-Physical enum layout, MLIR payload lowering, native payload execution, public
-payload ABI, and performance remain explicit fail-closed boundaries.
-The existing payloadless minimum-width carrier is unchanged.
-The benchmark disposition is `compiler-lifecycle`. HIR verification is compiler
-correctness evidence; this increment adds no runnable payload workload or timing.
+The native route now accepts and returns these enums through local calls.
+For payload-bearing enums, MLIR uses `!llvm.struct<(iN, array<M x i64>)>`.
+`N` is the minimum supported tag width. `M` is the largest case payload count.
+Construction starts with a zero aggregate and inserts fields at declaration
+ordinals after evaluating child values in source order. Dispatch extracts the
+tag. Capture reads extract the selected case's declared slot inside its arm.
+The aggregate remains SSA data, without an enum-specific heap allocation or
+forced stack slot. Target lowering determines any materialized alignment and
+padding. This recipe does not establish a public ABI. The existing payloadless
+minimum-width carrier and its artifact bytes remain unchanged.
 
-The next native witness must construct a restaurant order, pass its enum through
-a local function, and compute the bill from captured payloads. Different payload
-values must change the output. That executable must enter the benchmark catalog
-with its source, correctness oracle, and initial measurement. Physical lowering
-must preserve source evaluation order and read only the selected case's fields.
+The Windows LLVM/MLIR 23.1.1 `w run` gate executes
+[`restaurant-enum-payload.w`](fixtures/restaurant-enum-payload.w) as
+`Bills 32/44/10/7\n`. It constructs three variants, returns an enum from a
+local function, and computes four bills through reordered captures.
+Native0 tests cover both target adapters and short-capacity atomic failure.
+The bundle's primary disposition is `compiler-lifecycle`; its runnable fixture
+also belongs to the executable benchmark catalog. Initial live measurements
+and C/Rust references use that catalog, not compiler-unit timings.
+General payload types, recursive payloads, niches, public payload ABI, and
+general mixed control flow remain unsupported. These limits are not syntax
+restrictions in the language design.
 
 ### Bounded same-module executable product closure (W-1564)
 

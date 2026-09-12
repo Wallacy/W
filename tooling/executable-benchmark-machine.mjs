@@ -24,6 +24,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-while",
   "restaurant-wmo",
   "restaurant-enum-switch",
+  "restaurant-enum-payload",
   "restaurant-comparisons",
   "restaurant-comparison-composition",
   "restaurant-linear",

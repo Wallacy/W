@@ -37995,6 +37995,24 @@ mixed CFG, public ABI/layout stability, other targets, and performance remain
 gaps. The benchmark disposition is `compiler-lifecycle`, correctness-only,
 with no timing, ranking, or benchmark result.
 
+The current payload extension uses HIR25's dense signed-`i64` case parameters,
+constructor relations, and arm-owned capture records. Local calls can accept
+and return these enums. The native adapter represents a payload enum as an SSA
+aggregate `!llvm.struct<(iN, array<M x i64>)>`, where `M` is the maximum case
+payload count. Construction evaluates children in source order and writes
+declaration slots. Unused slots start at zero. Dispatch reads the tag, and
+captures read only the selected arm's slots. Payloadless enums retain `iN`.
+This representation is recipe-private, not a public memory layout or ABI.
+It requires no enum-specific heap allocation. LLVM may scalarize or eliminate
+the aggregate, while materialized values follow the target data layout.
+
+The Windows LLVM/MLIR 23.1.1 route executes
+[`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
+with stdout `Bills 32/44/10/7\n`, empty stderr, and exit zero. The executable
+catalog owns its oracle, C/Rust references, and initial live measurements.
+General payload types, recursive payloads, niches, mixed CFG, and stable public
+payload ABI remain gaps. The compiler-lifecycle tests do not prove those features.
+
 #### 26.4.1.45 W-1564 — bounded same-module executable product closure (Current form)
 
 HIR0 advances to schema `w-seed-hir0-22` and preserves the frontend `exported`

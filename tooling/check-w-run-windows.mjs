@@ -20,6 +20,7 @@ const smokePath = resolve(import.meta.dir, "smoke-mlir0-windows.mjs")
 const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
+const restaurantEnumPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-payload.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
@@ -342,6 +343,21 @@ try {
   expectExact(binary, ["run", restaurantEnumFixture], 0,
     Buffer.from("Courses 10/30/20\n", "utf8"),
     "Restaurant payloadless enum exhaustive switch fixture")
+  expectExact(binary, ["run", restaurantEnumPayloadFixture], 0,
+    Buffer.from("Bills 32/44/10/7\n", "utf8"),
+    "Restaurant enum payload return, reordered captures, and shared variant storage")
+  const enumPayloadMutation = join(fixtureDirectory, "enum-payload-mutation.w")
+  const enumPayloadSource = await readFile(restaurantEnumPayloadFixture, "utf8")
+  const enumPayloadMutatedSource = enumPayloadSource
+    .replace(".main(tax: tax, price: price)", ".main(tax: tax + 1, price: price)")
+    .replace("price: 30, tax: 2", "price: -30, tax: 2")
+    .replace(".dessert(price: 7)", ".dessert(price: -7)")
+  assert(enumPayloadMutatedSource !== enumPayloadSource,
+    "enum payload mutation did not change its source")
+  await writeFile(enumPayloadMutation, enumPayloadMutatedSource, "utf8")
+  expectExact(binary, ["run", enumPayloadMutation], 0,
+    Buffer.from("Bills -27/45/10/-7\n", "utf8"),
+    "Enum payload runtime arithmetic and negative source mutation")
   expectExact(binary, ["run", restaurantWhileFixture], 0,
     Buffer.from("Served 3\n", "utf8"),
     "Restaurant structured natural while fixture")

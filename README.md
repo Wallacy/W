@@ -143,8 +143,14 @@ declarations and constructor payload values. Constructor records preserve source
 evaluation order separately from declaration-slot identity, so reordered named
 payloads do not become calls or silently reorder effects. Payloadless cases emit
 neither parameter nor constructor-payload records. Switch capture records link
-each binding to its declaration slot and selected arm. Physical payload layout
-and native payload execution remain fail-closed gates.
+each binding to its declaration slot and selected arm. The bounded native route
+now lowers signed-`i64` payloads as an SSA aggregate containing a minimum-width
+tag and shared slots for the largest case. Local calls accept and return these
+enums. The Windows LLVM/MLIR 23.1.1 gate executes
+[`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
+as `Bills 32/44/10/7\n`. General payload types, niche optimization, recursive
+payloads, and public payload ABI remain gaps. This internal carrier does not
+require heap allocation or establish a fixed in-memory layout.
 W-1564 introduced HIR0 `w-seed-hir0-22` by preserving and binding each declared
 function's `exported` fact. The executable root walk now has an exact
 same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)
