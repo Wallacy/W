@@ -4245,6 +4245,13 @@ introduzir undefined behavior.
 Um pacote produz uma library, um executable ou outro product. Ele contém um ou
 mais módulos. Um módulo pode usar um ou mais arquivos do mesmo pacote.
 
+Essa distinção também fecha o modelo de otimização. Arquivo nunca é uma
+translation unit ou uma boundary de otimização. O compiler vê todos os arquivos
+de um módulo como uma única região semântica e, ao compilar um package source,
+vê o grafo exato de seus módulos na mesma transação. Cache, object, archive e
+partições incrementais são escolhas físicas da recipe; não reduzem essa visão
+semântica.
+
 O nome do módulo é o nome do arquivo sem `.w` por default. Um header opcional
 define outro nome e contratos estáticos:
 
@@ -27553,6 +27560,47 @@ libraries preservam sua boundary. O optimizer pode:
 - eliminar hidden runtime context não usado;
 - importar bodies permitidos pela interface.
 
+Whole-module optimization é o piso dos profiles otimizados, não uma flag que o
+usuário precisa descobrir. Todos os files que compõem o módulo entram na mesma
+optimization region. Como package é a unidade de compilação, uma recipe com os
+sources do package disponíveis estende essa região pelo grafo exato de módulos.
+Workspace e product podem ampliá-la novamente até o maior grafo provadamente
+fechado. O compiler não inventa closed world quando uma dynamic library, um
+provider tardio, um package binário sem body compatível ou outra boundary
+observável impede essa prova.
+
+As roots dependem do artifact produzido:
+
+- um executable retém entries selecionados, callbacks do host, placement ou
+  `retain` explícito e superfícies dinâmicas realmente usadas;
+- uma library retém somente os exports escolhidos pelo product e os símbolos de
+  ABI estrangeira publicados;
+- reflexão retém apenas metadata alcançável pedida pelo contrato;
+- runtime, service e provider operations são incluídas por reachability e por
+  suas boundaries observáveis.
+
+`export` concede visibilidade source entre módulos; ele não é sozinho uma ordem
+para manter machine code no artifact final. Em um package ou executable fechado,
+um export não alcançado pode ser internalizado ou eliminado. Quando esse símbolo
+faz parte da interface do product, de uma dynamic boundary ou de um manifest
+publicado, ele se torna root e permanece observável.
+
+O profile `release` usa automaticamente o maior destes escopos que a recipe
+consegue provar:
+
+| Escopo | Conhecimento | Oportunidades |
+|---|---|---|
+| module | todos os files e declarations do módulo | DCE, inlining, specialization, escape/alias e layout local |
+| package | grafo exato dos módulos source do package | internalization cross-module, generic sharing/specialization e runtime closure |
+| workspace/product | packages construídos juntos e dependências com bodies compatíveis | WPO, deduplication, devirtualização e eliminação de adapters/thunks fechados |
+
+Incremental build não cria uma boundary semântica. O compiler pode reutilizar
+interface, body summaries, HIR ou object chunks recipe-exact e reotimizar apenas
+o closure invalidado. Um package binário pode oferecer body chunks privados para
+a toolchain exata; sem eles, continua linkável, mas não recebe as otimizações que
+dependem de seu body. Summaries e IR usados para otimizar não precisam sobreviver
+no executable final.
+
 Um service binding `.startup` mantém dispatch e service ABI porque o provider
 pode mudar antes do entry. Um binding `.fixed` permite devirtualização limitada.
 O optimizer ainda preserva turn, failure boundary, cancellation e trace.
@@ -27565,7 +27613,8 @@ Ele não pode:
 - alterar ownership ou error semantics;
 - usar um intermediate artifact de outra toolchain key.
 
-Module continua uma unidade semântica; LTO é estratégia da recipe.
+Module continua uma unidade semântica; as partições físicas e o mecanismo usado
+para realizar otimização cross-module são estratégias da recipe.
 
 **WEC0 — intermediários e escopo (W-1518 design contract; implementation evidence missing):**
 HIR, MLIR e LLVM bitcode continuam privados da recipe. Um índice de cápsula
