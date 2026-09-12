@@ -48,9 +48,12 @@ const restaurantBranchMutationFixture = resolve(seedDirectory,
 const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation-multi.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
+const processArgumentsCountFixture = resolve(seedDirectory, "fixtures",
+  "process-arguments-count.w")
 const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
   "process-enum-payload.w")
 const targetTriple = "x86_64-pc-windows-msvc"
+const maxWindowsCommandLineChars = 32767
 const expectedHelp =
   "usage: w check <path/file.w> [--json]\n" +
   "usage: w run <path/file.w> [-- <args...>]\n" +
@@ -107,6 +110,35 @@ function runRequired(label, command, args, cwd = root) {
     fail(`${label} failed${shortOutput(result.stderr) || shortOutput(result.stdout)
       ? `: ${shortOutput(result.stderr) || shortOutput(result.stdout)}` : ""}`)
   return result
+}
+
+function windowsCommandLineArgumentLength(value) {
+  const text = String(value)
+  let length = 2
+  let slashes = 0
+  for (let index = 0; index < text.length; index += 1) {
+    const character = text[index]
+    if (character === "\\") {
+      slashes += 1
+    } else if (character === '"') {
+      length += slashes * 2 + 2
+      slashes = 0
+    } else {
+      length += slashes + 1
+      slashes = 0
+    }
+  }
+  return length + slashes * 2
+}
+
+function assertWindowsCommandLineSafe(command, args, label) {
+  if (process.platform !== "win32") return
+  const length = windowsCommandLineArgumentLength(command) +
+    args.reduce((total, argument) =>
+      total + 1 + windowsCommandLineArgumentLength(argument), 0) + 1
+  assert(length <= maxWindowsCommandLineChars,
+    `${label} exceeds the Windows command-line limit: ${length} > ` +
+    `${maxWindowsCommandLineChars}`)
 }
 
 function outsideRepository(pathValue) {
@@ -180,6 +212,7 @@ async function readMaterialized(manifest) {
 }
 
 function expectExact(binary, args, expectedExit, expectedStdout, label) {
+  assertWindowsCommandLineSafe(binary, args, label)
   const result = spawn(binary, args)
   assert(result.exitCode === expectedExit && result.stdout.equals(expectedStdout) &&
     result.stderr.length === 0,
@@ -480,6 +513,8 @@ try {
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
+  const buildProcessArgumentsCount = join(fixtureDirectory,
+    "process-arguments-count-build.exe")
   const buildProcessEnumPayload = join(fixtureDirectory,
     "process-enum-payload-build.exe")
   const buildWrongTarget = join(fixtureDirectory, "wrong-target-build.exe")
@@ -517,6 +552,28 @@ try {
   expectExact(buildProcessInput,
     Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
     "reject process-input descriptor overflow without partial output")
+  expectExact(binary, ["build", processArgumentsCountFixture, "--target",
+    targetTriple, "--output", buildProcessArgumentsCount], 0,
+    Buffer.alloc(0), "build public process-arguments-count fixture")
+  const builtProcessArgumentsCountStats = await lstat(buildProcessArgumentsCount)
+  assert(builtProcessArgumentsCountStats.isFile() &&
+    !builtProcessArgumentsCountStats.isSymbolicLink(),
+    "build process-arguments-count did not produce a regular artifact")
+  assertPeX64(await readFile(buildProcessArgumentsCount),
+    "built process-arguments-count artifact")
+  const argumentCountCases = [
+    ["without user arguments", []],
+    ["with one empty argument", [""]],
+    ["with two ordinary arguments", ["alpha", "beta"]],
+    ["with exactly 256 user arguments", Array.from({ length: 256 }, () => "x")],
+  ]
+  for (const [label, argumentsList] of argumentCountCases) {
+    assert(argumentsList.length <= 256,
+      `process-arguments-count case exceeds the 256-argument bound: ${label}`)
+    expectExact(buildProcessArgumentsCount, argumentsList, 0,
+      Buffer.from(`Argument count ${argumentsList.length}\n`, "utf8"),
+      `execute built process-arguments-count artifact ${label}`)
+  }
   expectExact(binary, ["build", processEnumPayloadFixture, "--target", targetTriple,
     "--output", buildProcessEnumPayload], 0, Buffer.alloc(0),
     "build public enum payload process fixture")
@@ -589,7 +646,7 @@ try {
   const diskAfterRuns = await diskFree(buildDirectory)
   const residueAfter = await snapshotResidue()
   assertNoNewResidue(residueBefore, residueAfter)
-  console.log(`W RUN Windows: native E2E passed toolchain=${defaultCacheDirectory()} sdk=${sdk.version} vs=${visualStudio.installationPath} wExeBytes=${binaryStats.size} peBytes=${exeMatch[1]} processPeBytes=${builtProcessInputStats.size} diskFreeBefore=${diskBefore} diskFreeAfter=${diskAfterRuns}`)
+  console.log(`W RUN Windows: native E2E passed toolchain=${defaultCacheDirectory()} sdk=${sdk.version} vs=${visualStudio.installationPath} wExeBytes=${binaryStats.size} peBytes=${exeMatch[1]} processPeBytes=${builtProcessInputStats.size} processArgumentsCountPeBytes=${builtProcessArgumentsCountStats.size} diskFreeBefore=${diskBefore} diskFreeAfter=${diskAfterRuns}`)
 } finally {
   await rm(unsupportedBuildDirectory, { recursive: true, force: true })
   await rm(buildDirectory, { recursive: true, force: true })

@@ -508,6 +508,18 @@ static bool interpolation_maximum_bytes(
           bytes = 20u;
           break;
         }
+        case W_SEED_HIR0_TYPE_USIZE:
+          if (!runtime_value || process == NULL ||
+              !process_value_lowerable(
+                  program, (uint32_t)(effective - program->values),
+                  program->blocks[program->instructions[current_instruction]
+                                      .owner_block]
+                      .owner_function,
+                  process, false, 0u))
+            return false;
+          /* The current public executable target proves a 64-bit usize. */
+          bytes = 20u;
+          break;
         case W_SEED_HIR0_TYPE_BOOL:
           if (runtime_value &&
               (process != NULL
@@ -983,7 +995,7 @@ static bool program_value_lowerable(const w_seed_hir0_program *program,
 }
 
 /* Process executable values have two nominal leaves which the ordinary
- * scalar subset deliberately rejects: Args.isEmpty and ExitCode cases.  Keep
+ * scalar subset deliberately rejects: Args.isEmpty/count and ExitCode cases. Keep
  * this extension local to the selected process entry.  In particular, a
  * nominal value is never treated as an integer merely because it happens to
  * be passed in an ABI pointer register. */
@@ -1042,13 +1054,21 @@ static bool process_value_lowerable(
   if (value->type_index >= program->type_count) return false;
 
   if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
-    if (program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
-        value->external_module_index != 0u ||
-        value->external_symbol_index != process->is_empty_symbol_index ||
-        !process_external_symbol_is(
+    const bool is_empty =
+        value->external_symbol_index == process->is_empty_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+        process_external_symbol_is(
             program, 0u, process->is_empty_symbol_index,
-            W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"isEmpty", 7u) ||
-        !text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u) ||
+            W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"isEmpty", 7u) &&
+        text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u);
+    const bool is_count =
+        value->external_symbol_index == process->count_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+        process_external_symbol_is(
+            program, 0u, process->count_symbol_index,
+            W_SEED_HIR0_EXTERNAL_VALUE, (const uint8_t *)"count", 5u) &&
+        text_is(program, value->member_name, (const uint8_t *)"count", 5u);
+    if ((!is_empty && !is_count) || value->external_module_index != 0u ||
         value->left_value >= program->value_count)
       return false;
     const w_seed_hir0_value *receiver = &program->values[value->left_value];
@@ -1085,24 +1105,11 @@ static bool process_value_lowerable(
     return false;
   }
 
-  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
-    if (value->parameter_index >= program->parameter_count) return false;
-    const w_seed_hir0_parameter *parameter =
-        &program->parameters[value->parameter_index];
-    if (parameter->owner_function != owner_function) return false;
-    if (value->parameter_index ==
-            process->function->first_parameter +
-                process->arguments_parameter_ordinal &&
-        process_nominal_type_is(program, value->type_index, 0u,
-                                process->arguments_symbol_index))
-      return true;
-    if (value->parameter_index ==
-            process->function->first_parameter +
-                process->context_parameter_ordinal &&
-        process_nominal_type_is(program, value->type_index, 0u,
-                                process->context_symbol_index))
-      return true;
-  }
+  /* Raw root-owner parameter reads are never lowerable as values.  The only
+   * admitted use is the direct receiver checked in the external-member branch
+   * above; this prevents binding, call arguments, enum payloads, or returns
+   * from copying/escaping Arguments or Context. */
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) return false;
 
   if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
     uint32_t enum_index = W_SEED_HIR0_NONE;
@@ -2335,6 +2342,7 @@ w_seed_native_subset0_status w_seed_native_subset0_select_process(
   selection->context_symbol_index = (uint32_t)context_symbol;
   selection->exit_code_symbol_index = (uint32_t)exit_code_symbol;
   selection->is_empty_symbol_index = W_SEED_HIR0_NONE;
+  selection->count_symbol_index = W_SEED_HIR0_NONE;
   selection->success_symbol_index = (uint32_t)success_symbol;
   selection->failure_symbol_index = W_SEED_HIR0_NONE;
   selection->arguments_parameter_ordinal = 0u;
@@ -2568,11 +2576,11 @@ w_seed_native_subset0_select_process_executable(
     return W_SEED_NATIVE_SUBSET0_INVALID;
 
   /* HIR verification proves the ownership/direct-entry contract.  The
-   * executable consumer checks the identity set and the bounded body shape,
-   * but deliberately does not use record counts as a source witness: helper
-   * functions, local enums, bindings, and source order are all permitted. */
+   * executable consumer binds the exact public seven-symbol catalog; helper
+   * functions, local enums, bindings, and source order remain independent of
+   * that fixed external ABI. */
   if (program->module_count != 1u || program->external_module_count != 1u ||
-      program->external_symbol_count == 0u ||
+      program->external_symbol_count != 7u ||
       program->external_symbol_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
       program->function_count == 0u ||
       program->function_count > W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS ||
@@ -2597,6 +2605,8 @@ w_seed_native_subset0_select_process_executable(
       external_module->first_symbol > program->external_symbol_count ||
       external_module->symbol_count >
           program->external_symbol_count - external_module->first_symbol ||
+      external_module->first_symbol != 0u ||
+      external_module->symbol_count != 7u ||
       !text_is(program, external_module->module_id,
                (const uint8_t *)"std.process", 11u))
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
@@ -2605,6 +2615,7 @@ w_seed_native_subset0_select_process_executable(
   size_t context_symbol = SIZE_MAX;
   size_t exit_code_symbol = SIZE_MAX;
   size_t is_empty_symbol = SIZE_MAX;
+  size_t count_symbol = SIZE_MAX;
   size_t success_symbol = SIZE_MAX;
   size_t failure_symbol = SIZE_MAX;
   for (size_t symbol_index = external_module->first_symbol;
@@ -2627,6 +2638,9 @@ w_seed_native_subset0_select_process_executable(
              text_is(program, symbol->name, (const uint8_t *)"isEmpty", 7u))
       is_empty_symbol = symbol_index;
     else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
+             text_is(program, symbol->name, (const uint8_t *)"count", 5u))
+      count_symbol = symbol_index;
+    else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
              text_is(program, symbol->name, (const uint8_t *)"success", 7u))
       success_symbol = symbol_index;
     else if (symbol->kind == W_SEED_HIR0_EXTERNAL_VALUE && symbol->is_const &&
@@ -2635,6 +2649,7 @@ w_seed_native_subset0_select_process_executable(
   }
   if (arguments_symbol == SIZE_MAX || context_symbol == SIZE_MAX ||
       exit_code_symbol == SIZE_MAX || is_empty_symbol == SIZE_MAX ||
+      count_symbol == SIZE_MAX ||
       success_symbol == SIZE_MAX || failure_symbol == SIZE_MAX)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
@@ -2646,6 +2661,8 @@ w_seed_native_subset0_select_process_executable(
       &program->external_symbols[exit_code_symbol];
   const w_seed_hir0_external_symbol *is_empty_external =
       &program->external_symbols[is_empty_symbol];
+  const w_seed_hir0_external_symbol *count_external =
+      &program->external_symbols[count_symbol];
   const w_seed_hir0_external_symbol *success_external =
       &program->external_symbols[success_symbol];
   const w_seed_hir0_external_symbol *failure_external =
@@ -2654,16 +2671,22 @@ w_seed_native_subset0_select_process_executable(
       context_external->parameter_count != 0u ||
       exit_code_external->parameter_count != 0u ||
       is_empty_external->parameter_count != 0u ||
+      count_external->parameter_count != 0u ||
       success_external->parameter_count != 0u ||
       failure_external->parameter_count != 1u ||
       failure_external->parameter_abi !=
           W_SEED_HIR0_EXTERNAL_PARAMETER_PROCESS_FAILURE_I64 ||
       is_empty_external->parameter_abi != W_SEED_HIR0_EXTERNAL_PARAMETER_NONE ||
+      count_external->parameter_abi != W_SEED_HIR0_EXTERNAL_PARAMETER_NONE ||
       success_external->parameter_abi != W_SEED_HIR0_EXTERNAL_PARAMETER_NONE ||
       !text_is(program, is_empty_external->receiver_type,
                (const uint8_t *)"Arguments", 9u) ||
       !text_is(program, is_empty_external->return_type,
                (const uint8_t *)"Bool", 4u) ||
+      !text_is(program, count_external->receiver_type,
+               (const uint8_t *)"Arguments", 9u) ||
+      !text_is(program, count_external->return_type,
+               (const uint8_t *)"usize", 5u) ||
       !text_is(program, success_external->receiver_type,
                (const uint8_t *)"ExitCode", 8u) ||
       !text_is(program, success_external->return_type,
@@ -2671,7 +2694,14 @@ w_seed_native_subset0_select_process_executable(
       !text_is(program, failure_external->receiver_type,
                (const uint8_t *)"ExitCode", 8u) ||
       !text_is(program, failure_external->return_type,
-               (const uint8_t *)"ExitCode", 8u))
+               (const uint8_t *)"ExitCode", 8u) ||
+      arguments_symbol != external_module->first_symbol ||
+      context_symbol != external_module->first_symbol + 1u ||
+      exit_code_symbol != external_module->first_symbol + 2u ||
+      success_symbol != external_module->first_symbol + 3u ||
+      is_empty_symbol != external_module->first_symbol + 4u ||
+      failure_symbol != external_module->first_symbol + 5u ||
+      count_symbol != external_module->first_symbol + 6u)
     return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
 
   const w_seed_hir0_entry *entry = &program->entries[0];
@@ -2691,6 +2721,7 @@ w_seed_native_subset0_select_process_executable(
   candidate.context_symbol_index = (uint32_t)context_symbol;
   candidate.exit_code_symbol_index = (uint32_t)exit_code_symbol;
   candidate.is_empty_symbol_index = (uint32_t)is_empty_symbol;
+  candidate.count_symbol_index = (uint32_t)count_symbol;
   candidate.success_symbol_index = (uint32_t)success_symbol;
   candidate.failure_symbol_index = (uint32_t)failure_symbol;
   const w_seed_hir0_function *function = candidate.function;

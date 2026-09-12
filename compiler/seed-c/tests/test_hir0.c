@@ -457,7 +457,16 @@ static void configure_process_input_external(void) {
       .return_type = (w_seed_frontend_text){"ExitCode", 8u},
       .is_const = true,
       .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
-  fixture.external_modules[0].symbol_count = 6u;
+  fixture.external_symbols[6] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"count", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"usize", 5u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture.external_modules[0].symbol_count = 7u;
   (void)empty;
 }
 
@@ -635,13 +644,35 @@ static bool lower_process_input0(const char *source) {
   w_seed_hir0_result measure_result;
   CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
         W_SEED_HIR0_OK);
-  CHECK(measured.external_modules == 1u && measured.external_symbols == 6u &&
-        measured.types == 7u && measured.functions == 1u &&
+  CHECK(measured.external_modules == 1u && measured.external_symbols == 7u &&
+        measured.types == 8u && measured.functions == 1u &&
         measured.parameters == 2u && measured.blocks == 3u &&
         measured.instructions == 2u && measured.calls == 2u &&
         measured.arguments == 2u && measured.requirements == 1u &&
         measured.values == 7u && measured.terminators == 3u &&
         measured.entries == 1u && measured.value_bytes == 15u);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
+/* The public count witness is intentionally not the terminal-branch fixture
+ * above.  Keep this path shape-independent so the scalar count contract is
+ * tested independently of the isEmpty branch's fixed record counts. */
+static bool lower_process_input0_generic(const char *source) {
+  CHECK(fixture_process_input0_frontend(source));
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
         W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
@@ -685,6 +716,24 @@ static bool expect_process_input0_rejected(const char *source,
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
   return true;
+}
+
+/* A parser rejection is itself a valid source negative.  If the source gets
+ * as far as HIR, require the HIR boundary to reject the raw external owner. */
+static bool expect_process_input0_source_rejected(const char *source) {
+  if (!fixture_parse(source)) return true;
+  configure_process_input_host();
+  configure_process_input_external();
+  if (!resolve_process_import()) return true;
+  if (w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) !=
+      W_SEED_FRONTEND_OK)
+    return true;
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  return w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK;
 }
 
 static bool test_process_input0_hir(void) {
@@ -790,7 +839,7 @@ static bool test_process_input0_hir(void) {
         fixture.result.written.statements == 5u &&
         fixture.result.written.expressions == 12u &&
         fixture.result.written.arguments == 3u);
-  CHECK(fixture.input.external_modules[0].symbol_count == 6u &&
+  CHECK(fixture.input.external_modules[0].symbol_count == 7u &&
         fixture.result.written.imports == 1u &&
         fixture.result.written.import_items == 3u);
   CHECK(fixture.output.expressions[1].kind == W_SEED_FRONTEND_EXPR_MEMBER &&
@@ -808,13 +857,13 @@ static bool test_process_input0_hir(void) {
         text_equal(fixture.output.expressions[6].spelling,
                    (w_seed_frontend_text){"2", 1u}));
   CHECK(fixture.hir_counts.external_modules == 1u &&
-        fixture.hir_counts.external_symbols == 6u &&
+        fixture.hir_counts.external_symbols == 7u &&
         fixture.hir_counts.blocks == 3u && fixture.hir_counts.instructions == 2u &&
         fixture.hir_counts.calls == 2u && fixture.hir_counts.arguments == 2u &&
         fixture.hir_counts.requirements == 1u &&
         fixture.hir_counts.values == 7u && fixture.hir_counts.terminators == 3u);
-  CHECK(fixture.hir_program.external_modules[0].symbol_count == 6u &&
-        fixture.hir_program.external_symbol_count == 6u &&
+  CHECK(fixture.hir_program.external_modules[0].symbol_count == 7u &&
+        fixture.hir_program.external_symbol_count == 7u &&
         fixture.hir_program.functions[0].direct_entry ==
             W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
         fixture.hir_program.entries[0].adapter_kind ==
@@ -905,6 +954,291 @@ static void reseal_hir_fixture(void) {
                sizeof(provenance_digest));
   write_receipt_unchecked(fixture.hir_receipt, &fixture.hir_counts,
                           semantic_digest, provenance_digest);
+}
+
+static bool test_process_arguments_count_hir(void) {
+  static const char COUNT_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"count ${args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_BIND_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let observed = args.count print(\"count\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char OPTIONAL_MEMBER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"count ${args?.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+
+  CHECK(lower_process_input0_generic(COUNT_SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  size_t usize_type = SIZE_MAX;
+  size_t arguments_type = SIZE_MAX;
+  for (size_t type = 0u; type < program->type_count; type += 1u) {
+    if (program->types[type].kind == W_SEED_HIR0_TYPE_USIZE)
+      usize_type = type;
+    if (program->types[type].kind == W_SEED_HIR0_TYPE_NOMINAL &&
+        program->types[type].external_module_index == 0u &&
+        program->types[type].external_symbol_index == 0u)
+      arguments_type = type;
+  }
+  CHECK(usize_type != SIZE_MAX && arguments_type != SIZE_MAX &&
+        usize_type == 7u + program->enum_count &&
+        program->types[usize_type].lifecycle ==
+            W_SEED_HIR0_LIFECYCLE_VALUE_COPY &&
+        program->types[usize_type].release_contract ==
+            W_SEED_HIR0_RELEASE_CONTRACT_NONE);
+  CHECK(program->external_symbol_count == 7u &&
+        program->external_symbols[6].parameter_count == 0u &&
+        program->external_symbols[6].parameter_abi ==
+            W_SEED_HIR0_EXTERNAL_PARAMETER_NONE &&
+        hir_text_is(program, program->external_symbols[6].name, "count") &&
+        hir_text_is(program, program->external_symbols[6].receiver_type,
+                    "Arguments") &&
+        hir_text_is(program, program->external_symbols[6].return_type,
+                    "usize"));
+
+  uint32_t count_member = W_SEED_HIR0_NONE;
+  size_t count_member_count = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+        value->external_module_index != 0u ||
+        value->external_symbol_index != 6u ||
+        value->type_index != usize_type ||
+        !hir_text_is(program, value->member_name, "count"))
+      continue;
+    CHECK(count_member_count == 0u && value->left_value < program->value_count);
+    count_member = (uint32_t)value_index;
+    count_member_count += 1u;
+    const w_seed_hir0_value *receiver = &program->values[value->left_value];
+    CHECK(receiver->kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+          receiver->type_index == arguments_type && receiver->parameter_index <
+              program->parameter_count &&
+          program->parameters[receiver->parameter_index].ordinal == 0u);
+  }
+  CHECK(count_member_count == 1u && count_member != W_SEED_HIR0_NONE);
+
+  bool interpolated_count = false;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_INTERPOLATED_STRING ||
+        value->first_interpolation_segment == W_SEED_HIR0_NONE)
+      continue;
+    CHECK((size_t)value->first_interpolation_segment +
+              value->interpolation_segment_count <=
+          program->interpolation_segment_count);
+    for (size_t segment = 0u; segment < value->interpolation_segment_count;
+         segment += 1u) {
+      const w_seed_hir0_interpolation_segment *item =
+          &program->interpolation_segments[
+              (size_t)value->first_interpolation_segment + segment];
+      if (item->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
+          item->value_index == count_member)
+        interpolated_count = true;
+    }
+  }
+  CHECK(interpolated_count);
+
+  /* A usize member is an ordinary scalar binding, independent of the
+   * process adapter's fixed positive source shape. */
+  CHECK(lower_process_input0_generic(COUNT_BIND_SOURCE));
+  program = &fixture.hir_program;
+  size_t observed_binding = SIZE_MAX;
+  for (size_t binding = 0u; binding < program->binding_count; binding += 1u)
+    if (hir_text_is(program, program->bindings[binding].name, "observed"))
+      observed_binding = binding;
+  CHECK(observed_binding != SIZE_MAX &&
+        program->bindings[observed_binding].initializer_value <
+            program->value_count);
+  const w_seed_hir0_value *observed =
+      &program->values[program->bindings[observed_binding].initializer_value];
+  CHECK(observed->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        observed->type_index < program->type_count &&
+        program->types[observed->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+        observed->external_module_index == 0u &&
+        observed->external_symbol_index == 6u &&
+        hir_text_is(program, observed->member_name, "count"));
+
+  /* Raw external owners stay blocked in every ownership position. */
+  static const char *const RAW_REJECTED[] = {
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let saved = args return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let saved = ctx return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let copied = copy args return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let copied = copy ctx return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn takeArgs(value: ProcessArguments) { }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { takeArgs(value: args) return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn takeContext(value: ProcessContext) { }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { takeContext(value: ctx) return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return ctx }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args.length }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return args[0] }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return ctx.count }\n"
+      "entry(run)\n"};
+  for (size_t index = 0u;
+       index < sizeof(RAW_REJECTED) / sizeof(RAW_REJECTED[0]); index += 1u)
+    CHECK(expect_process_input0_source_rejected(RAW_REJECTED[index]));
+
+  /* The parser must preserve `?.`; the non-Option Arguments receiver is then
+   * rejected by the frontend/HIR boundary rather than lowered as `.`. */
+  CHECK(fixture_parse(OPTIONAL_MEMBER_SOURCE));
+  configure_process_input_host();
+  configure_process_input_external();
+  CHECK(resolve_process_import());
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
+        W_SEED_FRONTEND_OK);
+  bool saw_optional_count = false;
+  for (size_t expression = 0u; expression < fixture.result.written.expressions;
+       expression += 1u) {
+    const w_seed_frontend_expression *value = &fixture.output.expressions[expression];
+    if (value->kind == W_SEED_FRONTEND_EXPR_MEMBER &&
+        text_is(value->member_name, "count")) {
+      CHECK(text_is(value->operator_text, "?."));
+      saw_optional_count = true;
+    }
+  }
+  CHECK(saw_optional_count);
+  setup_hir_output();
+  const w_seed_hir0_input optional_input = {&fixture.input, &fixture.output,
+                                            &fixture.result};
+  w_seed_hir0_counts optional_counts;
+  w_seed_hir0_result optional_result;
+  CHECK(w_seed_hir0_measure(&optional_input, &optional_counts,
+                             &optional_result) != W_SEED_HIR0_OK);
+
+  /* Each mutation is resealed so the verifier, not the digest guard, owns the
+   * rejection.  Reload the same positive witness before every independent
+   * mutation and restore it after the check. */
+  CHECK(lower_process_input0_generic(COUNT_SOURCE));
+  program = &fixture.hir_program;
+  uint32_t count_value = W_SEED_HIR0_NONE;
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    if (program->values[value].kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        program->values[value].external_symbol_index == 6u &&
+        hir_text_is(program, program->values[value].member_name, "count")) {
+      count_value = (uint32_t)value;
+      break;
+    }
+  CHECK(count_value != W_SEED_HIR0_NONE);
+  const w_seed_hir0_value saved_count_value = fixture.hir_values[count_value];
+  const w_seed_hir0_external_symbol saved_count_symbol =
+      fixture.hir_external_symbols[6];
+
+  fixture.hir_values[count_value].member_name =
+      fixture.hir_external_symbols[4].name;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[count_value] = saved_count_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_external_symbols[6].name = fixture.hir_external_symbols[4].name;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[6] = saved_count_symbol;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[count_value].external_symbol_index = 4u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[count_value] = saved_count_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_external_symbols[6].receiver_type =
+      fixture.hir_external_symbols[1].name;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[6] = saved_count_symbol;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_external_symbols[6].return_type =
+      fixture.hir_external_symbols[4].return_type;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[6] = saved_count_symbol;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[count_value].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[count_value] = saved_count_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_external_symbols[6].parameter_abi =
+      W_SEED_HIR0_EXTERNAL_PARAMETER_PROCESS_FAILURE_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_external_symbols[6] = saved_count_symbol;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[count_value].owner_index = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[count_value] = saved_count_value;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
 }
 
 static bool test_process_hir(void) {
@@ -5322,6 +5656,7 @@ int main(void) {
   if (!test_frontend_inferred_call_interpolation()) return 1;
   if (!test_process_hir()) return 1;
   if (!test_process_input0_hir()) return 1;
+  if (!test_process_arguments_count_hir()) return 1;
   if (!test_process_hir_adversarial()) return 1;
   if (!test_direct_entry_facts()) return 1;
   if (!test_direct_entry_effect_barrier()) return 1;

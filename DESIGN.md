@@ -37409,8 +37409,9 @@ computed values, and `0`, `-1`, or `256`, are rejected without truncation.
 Native0 and MLIR0 consume the normal verified body plan. The public process
 shape is currently one-block return or a three-block terminal `if`, with a
 forward-only, acyclic process call graph. General loops and arbitrary CFG are
-not admitted. The public six-symbol ABI remains stable and separate from the
-private four-symbol handler. The shared callgraph/path proof caps stdout at
+not admitted. W-1565 advances the public catalog to seven symbols by appending
+`Arguments.count`; the private four-symbol handler remains unchanged. The
+shared callgraph/path proof caps stdout at
 `4096` bytes and rejects over-limit constructions (including the focused
 `4097`- and `8192`-byte cases) before publication, with all-or-nothing output
 and receipt barriers.
@@ -37420,8 +37421,9 @@ this verified HIR and `x86_64-pc-windows-msvc`. The generated artifact owns
 `mainCRTStartup`, captures `GetCommandLineW`, skips `argv[0]`, and publishes a
 bounded table of at most 256 borrowed UTF-16 argument descriptors. The table is
 one zero-initialized private executable global because startup executes once.
-It is not a W ABI or shared runtime singleton. The current parser proves only
-argument-count emptiness. It handles spaces, tabs, and simple quotes, but does
+It is not a W ABI or shared runtime singleton. The current parser proves
+bounded argument count and emptiness. It handles spaces, tabs, and simple
+quotes, but does
 not yet claim the complete Windows backslash-before-quote decoding contract or
 W-visible argument text.
 
@@ -38114,6 +38116,75 @@ FFI, provider, service and dynamic-loading roots, incremental summary reuse,
 cross-module inlining, other targets, and optimization-quality claims remain
 gaps. The executable catalog owns exploratory W/C/Rust measurements separately
 from this correctness claim.
+
+#### 26.4.1.46 W-1565 — bounded public `Arguments.count` lowering (Current form)
+
+W-1565 appends one exported constant member to the compiler-owned public
+`std.process@1` catalog:
+
+```w
+import {
+  Arguments as ProcessArguments,
+  Context as ProcessContext,
+  ExitCode as ProcessExitCode,
+} from std.process
+
+async fn run(
+  args: ProcessArguments,
+  ctx: ProcessContext,
+): ProcessExitCode {
+  print("Argument count ${args.count}")
+  return .success
+}
+
+entry(run)
+```
+
+The public catalog has exactly seven symbols. `count` is symbol ordinal `6`,
+after the existing `failure` member, and has the closed metadata shape
+exported constant value, zero parameters, receiver `Arguments`, return `usize`,
+and no parameter ABI. The private W-1546 four-symbol handler catalog does not
+change. Because this widens the closed set of records accepted by verified
+HIR, the schema advances from HIR25 to `w-seed-hir0-26` even though no record
+layout or value kind changes. HIR26 adds a distinct logical `USIZE` type kind;
+it does not erase target-width unsigned identity into fixed-width signed
+`i64`.
+
+The producer and verifier preserve the resolver-owned external module and
+symbol pair; member source spelling is not authority. The receiver must be the
+actual `Arguments` parameter of the selected process entry. Raw `Arguments`
+and `Context` reads are not ordinary lowerable values: neither owner may be
+bound, copied, passed to a local call, stored in an enum payload, or returned.
+The scalar `usize` result of `count` may participate in the currently admitted
+bindings and direct-print interpolation. General `usize` arithmetic,
+comparisons, helper parameters, and returns remain outside this bounded
+increment. `args?.count` remains invalid because
+`Arguments` is not an `Option`; optional chaining is never accepted as a
+no-op.
+
+MLIR lowers the member to the internal
+`w_seed_process_arguments_count(!llvm.ptr) -> i64` helper. The helper reads the
+existing argument-vector count field from the process root; it performs no
+scan, allocation, copy, or suspension. The Windows adapter excludes `argv[0]`,
+counts an empty argument as one, admits `0...256` user arguments, and rejects a
+257th argument before publishing the vector or calling W code. The verified
+Windows x86_64 target layout lowers logical `usize` to physical `i64`; the
+bounded `0...256` value is therefore represented exactly, without a signed
+semantic conversion or host-`size_t` truncation.
+
+Direct entry is still derived from the complete verified body and is not
+implied by the member itself. The source-to-PE gate executes one built image
+with zero, empty, ordinary multiple, and exactly 256 user arguments and checks
+exact stdout, empty stderr, and exit status. Focused HIR and Native tests reject
+forged identity, metadata, type, receiver, and ownership relations before
+artifact publication.
+
+This is `source-backed-current` only for the bounded frontend → HIR26 →
+MLIR/Native0 → Windows x86_64 route. Argument indexing, iteration, decoded
+`OsString` access, complete Windows quoting, Linux/macOS adapters, general
+process capabilities, stable public ABI/layout, and language-level benchmark
+ranking remain gaps. A separate public executable-catalog workload owns the
+exploratory W/C/Rust artifact and timing cells for this source shape.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

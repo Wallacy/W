@@ -161,7 +161,7 @@
           }
         },
         {
-          "if": { "properties": { "id": { "enum": ["process-entry", "process-enum-payload"] } } },
+          "if": { "properties": { "id": { "enum": ["process-entry", "process-enum-payload", "process-arguments-count"] } } },
           "then": { "properties": { "oracle": { "$ref": "#/$defs/processEntryOracle" } } },
           "else": { "properties": { "oracle": { "$ref": "#/$defs/oracle" } } }
         }

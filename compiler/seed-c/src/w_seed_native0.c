@@ -115,11 +115,21 @@ static void configure_process_catalog(w_seed_native0_storage *storage,
             .return_type = (w_seed_frontend_text){"ExitCode", 8u},
             .is_const = true,
             .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+    storage->process_external_symbols[6] =
+        (w_seed_frontend_external_symbol){
+            .name = (w_seed_frontend_text){"count", 5u},
+            .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+            .exported = true,
+            .parameters = NULL,
+            .parameter_count = 0u,
+            .return_type = (w_seed_frontend_text){"usize", 5u},
+            .is_const = true,
+            .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
   }
   storage->process_external_modules[0] = (w_seed_frontend_external_module){
       .module_id = (w_seed_frontend_text){"std.process", 11u},
       .symbols = storage->process_external_symbols,
-      .symbol_count = public_process ? 6u : 4u};
+      .symbol_count = public_process ? 7u : 4u};
 }
 
 /* Resolve the process catalog from parser-owned import records rather than
@@ -506,7 +516,7 @@ w_seed_native0_status w_seed_native0_run(
   w_seed_mlir0_artifact_kind artifact_kind = input->artifact_kind;
   if (artifact_kind == W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
       storage->hir_program.external_module_count == 1u &&
-      storage->hir_program.external_symbol_count == 6u)
+      storage->hir_program.external_symbol_count == 7u)
     artifact_kind = W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
   const w_seed_mlir0_input mlir_input = {
       .program = &storage->hir_program,

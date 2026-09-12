@@ -1772,8 +1772,9 @@ out-of-range values are rejected without truncation.
 
 Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
 verified HIR on `x86_64-pc-windows-msvc`. Explicit artifact selection uses the
-same verified route. The public six-symbol ABI remains separate from the
-private four-symbol handler. The generated `mainCRTStartup` captures
+same verified route. W-1565 appends `Arguments.count` to form the current
+seven-symbol public catalog; the private four-symbol handler remains unchanged.
+The generated `mainCRTStartup` captures
 `GetCommandLineW`, skips the program token, and retains at most 256 borrowed
 UTF-16 descriptors. The descriptor table is a zero-initialized private PE
 global rather than a large stack frame, so the `/nodefaultlib` link needs only
@@ -1782,8 +1783,9 @@ single-startup artifact state, not a W runtime ABI or public layout.
 
 The adapter constructs a private root and distinct `Arguments`/`Context` owner
 records, executes the verified body, releases `Context`, releases `Arguments`,
-and then finalizes the root. Only the canonical `isEmpty` receiver read may
-consume those root owners in this slice. Ordinary copies, local-call
+and then finalizes the root. W-1547 admitted only the canonical `isEmpty`
+receiver read; W-1565 also admits the canonical scalar `count` read. Ordinary
+copies, local-call
 arguments, enum payloads, and returns are rejected. Direct entry is published
 only after the complete reachable body proves non-suspending. Direct text,
 signed `i64`, and Bool print values, including known String literal chains, are
@@ -1794,10 +1796,11 @@ before publication.
 The focused frontend, HIR0, MLIR0, and Native0 CTest units cover positive
 composition and fail-closed identity, owner, range, capacity, CFG, and receipt
 cases. The pinned Windows LLVM/MLIR/LLD 23.1.1 `w-run-windows` gate passes the
-source-to-PE route for both public fixtures. It executes each fixture's
-no-argument, empty-argument, and payload cases from source and from the same
-built PE, with exact stdout, empty stderr, exit status, and cleanup checks. The
-existing public `process-entry` and `process-enum-payload` benchmark lanes
+source-to-PE route for the public process fixtures. It executes their bounded
+no-argument, empty-argument, payload, and count cases from source or from one
+built PE per product, with exact stdout, empty stderr, exit status, and cleanup
+checks. The public `process-entry`, `process-enum-payload`, and
+`process-arguments-count` benchmark lanes
 retain their current correctness and measurement evidence in the
 [`executable benchmark catalog`](../../benchmarks/EXECUTABLES.md). The catalog
 owns artifact and timing cells and cross-language comparability. W-1547 makes
@@ -1807,6 +1810,30 @@ General argument decoding/indexing, general CFG and loops, throws,
 cancellation, Context capabilities, general async/provider runtime, other OS
 adapters, cross-compilation, stable public ABI/layout, and performance remain
 gaps.
+
+### Public bounded `Arguments.count` (W-1565)
+
+HIR26 reuses `W_SEED_HIR0_VALUE_EXTERNAL_MEMBER` for the exact exported
+constant `std.process.Arguments.count: usize` symbol at public ordinal 6. The
+producer and verifier require the resolver-owned identity, zero parameters,
+no parameter ABI, the actual entry `Arguments` receiver, and canonical scalar
+type. HIR represents it with a distinct logical `USIZE` kind. Raw
+`Arguments`/`Context` values still cannot bind, escape, enter a local call, or
+become an enum payload; only the resulting `usize` is an ordinary copy value,
+currently admitted in bindings and direct-print interpolation. Non-optional
+`Arguments` also makes `args?.count` invalid rather than a spelling alias for
+`args.count`.
+
+MLIR0 emits `w_seed_process_arguments_count`, which loads the count already
+stored in the public process root. The helper does not rescan the command line,
+allocate, copy, or suspend. The Windows startup adapter excludes `argv[0]`,
+counts an empty argument as one, supports 0 through 256 user arguments, and
+rejects the next argument before publishing the vector. Its verified x86_64
+layout selects physical `i64` for logical `usize`, with no loss in the bounded
+domain. The focused
+`w-run-windows` gate executes the same built PE for zero, empty, ordinary
+multiple, and exactly 256 user arguments. The executable catalog owns the
+separate exploratory W/C/Rust measurement lane.
 
 ### PROCESS0 provider kernel (post-W-1546)
 
