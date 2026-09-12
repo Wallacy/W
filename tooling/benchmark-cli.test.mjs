@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { benchmarkUsage, consumeLocalResult, parseBenchmarkCliArguments, validateUpdateBoundary } from "./benchmark-cli.mjs";
+import { benchmarkUsage, consumeLocalResult, main, parseBenchmarkCliArguments, validateUpdateBoundary } from "./benchmark-cli.mjs";
 
 test("benchmark facade exposes update and preserves bounded run arguments", () => {
   assert.deepEqual(parseBenchmarkCliArguments(["list"]), { command: "list" });
@@ -30,6 +30,24 @@ test("benchmark facade exposes update and preserves bounded run arguments", () =
   assert.match(benchmarkUsage(), /process-handler-lifecycle/u);
   assert.match(benchmarkUsage(), /process-entry/u);
   assert.doesNotMatch(benchmarkUsage(), /process-entry0/u);
+});
+
+test("list exposes runner-backed workloads and omits the planned backlog", async () => {
+  const output = [];
+  const originalLog = console.log;
+  console.log = (value) => output.push(value);
+  try {
+    await main(["list"]);
+  } finally {
+    console.log = originalLog;
+  }
+  assert.equal(output.length, 1);
+  const listing = JSON.parse(output[0]);
+  assert.equal(listing.workloads.some((workload) => workload.id === "restaurant-composition"), false);
+  assert.ok(listing.workloads.every((workload) => workload.benchmarkStatus !== "planned"));
+  assert.equal(listing.workloads.filter((workload) =>
+    workload.benchmarkStatus === "partial-exploratory-ready" && workload.languages.length === 1 && workload.languages[0] === "w",
+  ).length, 16);
 });
 
 test("successful update consumption removes only the local result and empty directory", async () => {

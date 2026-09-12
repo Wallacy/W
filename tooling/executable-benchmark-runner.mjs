@@ -151,12 +151,16 @@ const PE_FILE_HEADER_SIZE = 20;
 const PE_OPTIONAL_HEADER_MINIMUM_SIZE = 240;
 const PE_OPTIONAL_HEADER_DATA_DIRECTORY_OFFSET = 108;
 const PE_DATA_DIRECTORY_OFFSET = 112;
+const PE_OPTIONAL_HEADER_SECTION_ALIGNMENT_OFFSET = 32;
+const PE_OPTIONAL_HEADER_FILE_ALIGNMENT_OFFSET = 36;
+const PE_OPTIONAL_HEADER_SIZE_OF_HEADERS_OFFSET = 60;
 const PE_DATA_DIRECTORY_ENTRY_SIZE = 8;
 const PE_DEBUG_DIRECTORY_INDEX = 6;
 const PE_SECURITY_DIRECTORY_INDEX = 4;
 const PE_REQUIRED_DIRECTORY_COUNT = PE_DEBUG_DIRECTORY_INDEX + 1;
 const PE_MAX_DIRECTORY_COUNT = 16;
 const PE_SECTION_HEADER_SIZE = 40;
+const PE_SECTION_NAME_SIZE = 8;
 const PE_DEBUG_DIRECTORY_ENTRY_SIZE = 28;
 const PE_DEBUG_TYPE_CODEVIEW = 2;
 const PE_DEBUG_TYPE_POGO = 13;
@@ -1323,7 +1327,7 @@ async function processCorrectness(context, compiled) {
   }
 }
 
-function assertOracle(execution, oracle, target, label) {
+export function assertOracle(execution, oracle, target, label) {
   if (!isObject(oracle) || !Number.isSafeInteger(oracle.exitCode) || typeof oracle.stdout !== "string" || typeof oracle.stderr !== "string") {
     fail(`${label} requires a source-backed executable oracle`);
   }
@@ -1347,6 +1351,33 @@ function peUInt16(bytes, offset, label, language) {
 function peUInt32(bytes, offset, label, language) {
   peRange(bytes, offset, 4, label, language);
   return bytes.readUInt32LE(offset);
+}
+
+function isPowerOfTwo(value) {
+  return value > 0 && (value & (value - 1)) === 0;
+}
+
+function peSectionName(bytes, offset, index, language) {
+  peRange(bytes, offset, PE_SECTION_NAME_SIZE, `PE section ${index} name`, language);
+  let length = 0;
+  while (length < PE_SECTION_NAME_SIZE && bytes[offset + length] !== 0) {
+    const code = bytes[offset + length];
+    if (code < 0x20 || code > 0x7e) {
+      fail(`${language} artifact has an invalid PE section ${index} name`);
+    }
+    length += 1;
+  }
+  if (length === 0) fail(`${language} artifact has an empty PE section ${index} name`);
+  return bytes.subarray(offset, offset + length).toString("ascii");
+}
+
+function rejectOverlappingRanges(ranges, label, language) {
+  const ordered = [...ranges].sort((left, right) => left.start - right.start || left.index - right.index);
+  for (let index = 1; index < ordered.length; index += 1) {
+    if (ordered[index].start < ordered[index - 1].end) {
+      fail(`${language} artifact has overlapping ${label} ranges for sections ${ordered[index - 1].index} and ${ordered[index].index}`);
+    }
+  }
 }
 
 function peRvaRange(bytes, sections, rva, length, label, language) {
@@ -1469,8 +1500,36 @@ export function validatePeX64(bytes, language = "w") {
     fail(`${language} artifact contains a PE certificate directory`);
   }
 
-  const sizeOfHeaders = peUInt32(bytes, optionalHeader + 60, "PE optional header", language);
+  const sectionAlignment = peUInt32(
+    bytes,
+    optionalHeader + PE_OPTIONAL_HEADER_SECTION_ALIGNMENT_OFFSET,
+    "PE optional header section alignment",
+    language,
+  );
+  const fileAlignment = peUInt32(
+    bytes,
+    optionalHeader + PE_OPTIONAL_HEADER_FILE_ALIGNMENT_OFFSET,
+    "PE optional header file alignment",
+    language,
+  );
+  const sizeOfHeaders = peUInt32(
+    bytes,
+    optionalHeader + PE_OPTIONAL_HEADER_SIZE_OF_HEADERS_OFFSET,
+    "PE optional header",
+    language,
+  );
+  if (!isPowerOfTwo(fileAlignment) || fileAlignment > 65_536) {
+    fail(`${language} artifact has an invalid PE file alignment`);
+  }
+  if (!isPowerOfTwo(sectionAlignment) || sectionAlignment < fileAlignment) {
+    fail(`${language} artifact has an invalid PE section alignment`);
+  }
+  if ((sectionAlignment >= 4096 && fileAlignment < 512) ||
+      (sectionAlignment < 4096 && sectionAlignment !== fileAlignment)) {
+    fail(`${language} artifact has an incompatible PE alignment pair`);
+  }
   if (sizeOfHeaders === 0 || sizeOfHeaders > bytes.length) fail(`${language} artifact has invalid PE headers size`);
+  if (sizeOfHeaders % fileAlignment !== 0) fail(`${language} artifact PE headers size is not file-aligned`);
   const sectionTable = optionalHeader + optionalHeaderSize;
   const sectionTableBytes = sectionCount * PE_SECTION_HEADER_SIZE;
   peRange(bytes, sectionTable, sectionTableBytes, "PE section table", language);
@@ -1478,28 +1537,63 @@ export function validatePeX64(bytes, language = "w") {
   if (sizeOfHeaders < sectionTableEnd) fail(`${language} artifact has invalid PE headers size`);
 
   const sections = [];
+  const rawRanges = [];
+  const virtualRanges = [];
   let rawEnd = sizeOfHeaders;
   for (let index = 0; index < sectionCount; index += 1) {
     const section = sectionTable + index * PE_SECTION_HEADER_SIZE;
+    const name = peSectionName(bytes, section, index, language);
     const virtualSize = peUInt32(bytes, section + 8, `PE section ${index} header`, language);
     const virtualAddress = peUInt32(bytes, section + 12, `PE section ${index} header`, language);
     const rawSize = peUInt32(bytes, section + 16, `PE section ${index} header`, language);
     const rawPointer = peUInt32(bytes, section + 20, `PE section ${index} header`, language);
-    sections.push({ virtualSize, virtualAddress, rawSize, rawPointer });
-    if (rawSize === 0) continue;
+    if (virtualAddress === 0 || virtualAddress % sectionAlignment !== 0) {
+      fail(`${language} artifact section ${index} virtual address is not section-aligned`);
+    }
+    const virtualSpan = Math.max(virtualSize, rawSize);
+    if (virtualAddress + virtualSpan > 0x1_0000_0000) {
+      fail(`${language} artifact section ${index} virtual range overflows PE32+ address space`);
+    }
+    if (virtualSpan > 0) virtualRanges.push({ index, start: virtualAddress, end: virtualAddress + virtualSpan });
+    sections.push({ name, virtualSize, virtualAddress, rawSize, rawPointer });
+    if (rawSize === 0) {
+      if (rawPointer !== 0) fail(`${language} artifact section ${index} has a raw pointer without raw data`);
+      continue;
+    }
     if (rawPointer < sizeOfHeaders) fail(`${language} artifact section ${index} overlaps PE headers`);
+    if (sectionAlignment < 4096 && rawPointer !== virtualAddress) {
+      fail(`${language} artifact section ${index} low-alignment raw pointer must equal its virtual address`);
+    }
+    if (rawPointer % fileAlignment !== 0 || rawSize % fileAlignment !== 0) {
+      fail(`${language} artifact section ${index} raw range is not file-aligned`);
+    }
     peRange(bytes, rawPointer, rawSize, `PE section ${index} raw data`, language);
+    rawRanges.push({ index, start: rawPointer, end: rawPointer + rawSize });
     rawEnd = Math.max(rawEnd, rawPointer + rawSize);
   }
+  rejectOverlappingRanges(rawRanges, "PE section raw", language);
+  rejectOverlappingRanges(virtualRanges, "PE section virtual", language);
   if (bytes.length > rawEnd) fail(`${language} artifact contains overlay bytes`);
 
   return {
-    coffSymbols: { pointer: String(symbolTablePointer), count: String(symbolCount) },
-    codeView: { count: "0", sizeBytes: "0" },
-    debugDirectory: parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language),
-    certificateDirectory: { pointer: String(securityPointer), sizeBytes: String(securitySize) },
-    sectionData: "in-bounds",
-    overlay: { sizeBytes: "0" },
+    cleanliness: {
+      coffSymbols: { pointer: String(symbolTablePointer), count: String(symbolCount) },
+      codeView: { count: "0", sizeBytes: "0" },
+      debugDirectory: parsePeDebugDirectory(bytes, sections, debugRva, debugSize, language),
+      certificateDirectory: { pointer: String(securityPointer), sizeBytes: String(securitySize) },
+      sectionData: "in-bounds",
+      overlay: { sizeBytes: "0" },
+    },
+    peLayout: {
+      fileAlignment: String(fileAlignment),
+      sectionAlignment: String(sectionAlignment),
+      sizeOfHeaders: String(sizeOfHeaders),
+      sections: sections.map(({ name, virtualSize, rawSize }) => ({
+        name,
+        virtualSize: String(virtualSize),
+        rawSize: String(rawSize),
+      })),
+    },
   };
 }
 
@@ -1507,11 +1601,19 @@ async function correctnessBuild(context) {
   const compiled = await compileSource(context, true);
   try {
     const bytes = await readFile(compiled.artifact);
-    const artifactCleanliness = validatePeX64(bytes, context.language);
+    const validatedPe = validatePeX64(bytes, context.language);
+    const artifactCleanliness = validatedPe.cleanliness;
+    const artifactPeLayout = validatedPe.peLayout;
     artifactCleanliness.sidecars = { count: "0" };
     if (isProcessHandlerLifecycle(context.target)) {
       await processCorrectness(context, compiled);
-      return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
+      return {
+        compiled,
+        artifactDigest: sha256Bytes(bytes),
+        artifactSizeBytes: String(bytes.length),
+        artifactCleanliness,
+        artifactPeLayout,
+      };
     }
     const oracle = context.target === PROCESS_ENTRY_WORKLOAD_ID
       ? processEntryOracle(context.source.workload)
@@ -1525,7 +1627,13 @@ async function correctnessBuild(context) {
       const execution = await runArtifact(context.executor, compiled.artifact, context.language, context.target);
       assertOracle(execution, oracle, context.target, `${context.language} ${context.target} correctness`);
     }
-    return { compiled, artifactDigest: sha256Bytes(bytes), artifactSizeBytes: String(bytes.length), artifactCleanliness };
+    return {
+      compiled,
+      artifactDigest: sha256Bytes(bytes),
+      artifactSizeBytes: String(bytes.length),
+      artifactCleanliness,
+      artifactPeLayout,
+    };
   } catch (error) {
     await rm(compiled.sampleDirectory, { recursive: true, force: true });
     throw error;
@@ -1820,6 +1928,7 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       digest: correctness.artifactDigest,
       sizeBytes: correctness.artifactSizeBytes,
       cleanliness: correctness.artifactCleanliness,
+      peLayout: correctness.artifactPeLayout,
     },
     protocol: isProcessHandlerLifecycle(context.target) ? processProtocol(context) : protocol(context, workload),
     environment: context.environment,
@@ -2091,8 +2200,10 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
     const record = makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, runRaw, new Date().toISOString());
     if (publish) {
       await publishRecord(outputPath, record);
-      const evidence = source.workload.benchmarkStatus === "exploratory-ready"
-        ? "exploratory benchmark evidence"
+      const evidence = ["exploratory-ready", "partial-exploratory-ready"].includes(source.workload.benchmarkStatus)
+        ? source.workload.benchmarkStatus === "partial-exploratory-ready"
+          ? "exploratory benchmark evidence; cross-language baselines incomplete"
+          : "exploratory benchmark evidence"
         : "non-benchmark timing evidence";
       console.error(`executable benchmark: published exploratory ${language} record=${outputPath} (${evidence})`);
     }

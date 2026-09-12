@@ -41,6 +41,12 @@ import {
 const documents = loadExecutableDocuments();
 const clone = (value) => structuredClone(value);
 const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111";
+const VALID_PE_LAYOUT = {
+  fileAlignment: "512",
+  sectionAlignment: "4096",
+  sizeOfHeaders: "512",
+  sections: [{ name: ".text", virtualSize: "384", rawSize: "512" }],
+};
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
@@ -232,11 +238,16 @@ function validResult(language = "rust") {
     equivalenceKey: executableEquivalenceKey(documents.catalog, "hello", EXECUTABLE_PLATFORM_TARGET, "release", source.recipeClass),
     identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, recipeDigest: digest, eligibility: source.eligibility },
     correctness: { oracleId: "hello:exact-output", exitCode: 0, stdoutDigest: exactOutputDigest("Hello, world!\n"), stderrDigest: exactOutputDigest("") },
-    artifact: { digest, sizeBytes: "123", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
+    artifact: { digest, sizeBytes: "1024", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
     protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
     environment, compile: sampleSeries(), run: sampleSeries(),
     provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z" },
   };
+}
+
+function withPeLayout(result, layout = VALID_PE_LAYOUT) {
+  result.artifact.peLayout = clone(layout);
+  return result;
 }
 
 function zeroRunCpu(result) {
@@ -299,4 +310,54 @@ test("update replaces only lower cells and is idempotent for non-improving value
   const zero = clone(documents.catalog.bestMetrics.entries[0]);
   zero.value = "0";
   assert.match(validateExecutableBestMetric(zero, documents.catalog).join("\n"), /positive/);
+});
+
+test("artifact-size derivation preserves historical absence and enriches equal-size evidence atomically", () => {
+  const historical = validResult();
+  const historicalDerived = deriveExecutableBestMetrics(documents.catalog, [historical]);
+  const historicalArtifact = historicalDerived.entries.find((entry) => entry.metric === "artifact-size");
+  assert.equal(Object.hasOwn(historicalArtifact, "peLayout"), false, "historical metadata must not be invented");
+
+  const emptyCatalog = clone(documents.catalog);
+  emptyCatalog.bestMetrics = { ...emptyCatalog.bestMetrics, entries: [] };
+  const incrementalHistorical = updateExecutableBestMetrics(emptyCatalog, historical);
+  assert.deepEqual(incrementalHistorical.catalog.bestMetrics, historicalDerived, "incremental publication must match derivation");
+
+  const enriched = withPeLayout(validResult());
+  enriched.id = "hello-rust-enriched";
+  enriched.artifact.digest = "sha256:2222222222222222222222222222222222222222222222222222222222222222";
+  enriched.provenance.artifactDigest = enriched.artifact.digest;
+  enriched.provenance.commit = "2".repeat(40);
+  enriched.provenance.observedAt = "2026-09-09T00:00:00.000Z";
+  const enrichedUpdate = updateExecutableBestMetrics(incrementalHistorical.catalog, enriched);
+  assert.equal(enrichedUpdate.changed, true, "same-size validated layout should enrich the artifact cell");
+  const enrichedArtifact = enrichedUpdate.catalog.bestMetrics.entries.find((entry) => entry.metric === "artifact-size");
+  const expectedEnrichedArtifact = deriveExecutableBestMetrics(documents.catalog, [enriched]).entries
+    .find((entry) => entry.metric === "artifact-size");
+  assert.deepEqual(enrichedArtifact, expectedEnrichedArtifact, "an enrichment replaces the whole cell with fresh provenance");
+  assert.deepEqual(enrichedArtifact.peLayout, VALID_PE_LAYOUT);
+  assert.equal(enrichedArtifact.provenance.recordId, enriched.id);
+  for (const order of [[historical, enriched], [enriched, historical]]) {
+    const derived = deriveExecutableBestMetrics(documents.catalog, order).entries.find((entry) => entry.metric === "artifact-size");
+    assert.deepEqual(derived, enrichedArtifact);
+  }
+  const oversizedSections = clone(enriched);
+  oversizedSections.artifact.peLayout.sections[0].rawSize = "2048";
+  assert.match(validateExecutableResult(oversizedSections, documents.catalog).join("\n"), /fit within the artifact/u);
+  const unverifiedLayout = clone(enrichedArtifact);
+  unverifiedLayout.provenance.artifactCleanliness = "historical-unverified";
+  assert.match(validateExecutableBestMetric(unverifiedLayout, documents.catalog).join("\n"), /verified-clean artifact provenance/u);
+
+  const repeated = updateExecutableBestMetrics(enrichedUpdate.catalog, enriched);
+  assert.equal(repeated.changed, false, "an already-enriched equal-size tie is a no-op");
+  assert.deepEqual(repeated.catalog.bestMetrics, enrichedUpdate.catalog.bestMetrics);
+
+  const regression = clone(enriched);
+  regression.id = "hello-rust-larger-artifact";
+  regression.artifact.sizeBytes = "2048";
+  regression.artifact.digest = "sha256:3333333333333333333333333333333333333333333333333333333333333333";
+  regression.provenance.artifactDigest = regression.artifact.digest;
+  const regressed = updateExecutableBestMetrics(enrichedUpdate.catalog, regression);
+  assert.equal(regressed.changed, false, "a larger artifact must not promote any best cell");
+  assert.deepEqual(regressed.catalog.bestMetrics, enrichedUpdate.catalog.bestMetrics);
 });

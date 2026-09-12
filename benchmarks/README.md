@@ -39,6 +39,13 @@ is validated as a distinct receipt fact and is never called RSS. Results keep
 an explicit disclosure when CPU samples are zero. CPU best cells use the
 arithmetic mean across 101 runs because short Windows processes are charged in
 coarse scheduler quanta; a median can remain zero even when work occurred.
+New runner-bound results also retain PE layout evidence from that same
+validated artifact: FileAlignment, SectionAlignment, SizeOfHeaders, and each
+section's name, VirtualSize, and raw size, as defined by the
+[PE format](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#section-table-section-headers). VirtualSize includes section
+padding and zero-fill; it is not a useful-instruction count. Historical cells
+without this optional metadata remain `not measured`, and missing or ambiguous
+`.text`/`.rdata` sections are not fabricated as zero.
 Each result freezes a
 fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
 compile-side Bun CPU/working-set counters do not aggregate descendants. The
@@ -54,9 +61,13 @@ Restaurant branch, natural loop, closed enum switch, bounded same-module
 product closure, and public process entry are `exploratory-ready`: each has
 equivalent W/C/Rust sources, an exact oracle, and the native runtime
 process-tree route. Published cells remain optional evidence rather than the
-definition of runner readiness. Other workloads stay explicitly unready until
-their independent source equivalents or missing runner path exists.
-`catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
+definition of runner readiness.
+Sources with a materialized, runner-supported executable but explicit missing
+language equivalents may use `partial-exploratory-ready`; that status permits
+measurement of the materialized source without claiming cross-language
+equivalence. The generated projection omits planned or source-less workloads,
+while retaining source-backed candidates whose recipe is supported by the
+runner. `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
 
@@ -107,7 +118,7 @@ may be replaced during that Release build. Sample directories and target EXEs
 are removed after each run.
 C, Rust and W retained correctness artifacts are checked by a bounded in-process
 PE32+ verifier: COFF symbols, CodeView/PDB data, certificate directories,
-out-of-bounds sections, overlay bytes and release sidecars fail closed. A
+out-of-bounds sections, overlay bytes and release sidecars fail closed.
 POGO-only debug directories and payload-free PE `REPRO` markers are accepted
 as linker optimization/reproducibility metadata, not source-level debug
 symbols. This cleanliness statement applies
