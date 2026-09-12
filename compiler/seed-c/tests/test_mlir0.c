@@ -65,6 +65,11 @@ typedef struct {
   w_seed_frontend_import_item import_items[TEST_IMPORT_ITEMS];
   w_seed_frontend_struct structs[TEST_STRUCTS];
   w_seed_frontend_field fields[TEST_FIELDS];
+  w_seed_frontend_enum enums[TEST_HIR_RECORDS];
+  w_seed_frontend_enum_case enum_cases[TEST_HIR_RECORDS];
+  w_seed_frontend_enum_case_parameter
+      enum_case_parameters[TEST_HIR_RECORDS];
+  w_seed_frontend_switch_arm switch_arms[TEST_HIR_RECORDS];
   w_seed_frontend_type_declaration type_declarations[TEST_STRUCTS];
   w_seed_frontend_alias aliases[TEST_STRUCTS];
   w_seed_frontend_type types[TEST_TYPES];
@@ -104,6 +109,7 @@ typedef struct {
   w_seed_hir0_block hir_blocks[TEST_HIR_RECORDS];
   w_seed_hir0_block_argument hir_block_arguments[TEST_HIR_RECORDS];
   w_seed_hir0_edge_argument hir_edge_arguments[TEST_HIR_RECORDS];
+  w_seed_hir0_switch_edge hir_switch_edges[TEST_HIR_RECORDS];
   w_seed_hir0_instruction hir_instructions[TEST_HIR_RECORDS];
   w_seed_hir0_binding hir_bindings[TEST_HIR_RECORDS];
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
@@ -163,6 +169,8 @@ static void configure_process_external(void);
 static bool resolve_process_import(void);
 static bool contains_bytes(const uint8_t *bytes, size_t length,
                            const char *needle);
+static size_t count_bytes(const uint8_t *bytes, size_t length,
+                          const char *needle);
 static size_t find_bytes(const uint8_t *bytes, size_t length,
                          const char *needle, size_t start);
 
@@ -215,6 +223,14 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
       .struct_capacity = TEST_STRUCTS,
       .fields = fixture.fields,
       .field_capacity = TEST_FIELDS,
+      .enums = fixture.enums,
+      .enum_capacity = TEST_HIR_RECORDS,
+      .enum_cases = fixture.enum_cases,
+      .enum_case_capacity = TEST_HIR_RECORDS,
+      .enum_case_parameters = fixture.enum_case_parameters,
+      .enum_case_parameter_capacity = TEST_HIR_RECORDS,
+      .switch_arms = fixture.switch_arms,
+      .switch_arm_capacity = TEST_HIR_RECORDS,
       .type_declarations = fixture.type_declarations,
       .type_declaration_capacity = TEST_STRUCTS,
       .aliases = fixture.aliases,
@@ -384,6 +400,8 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
       .block_argument_capacity = TEST_HIR_RECORDS,
       .edge_arguments = fixture.hir_edge_arguments,
       .edge_argument_capacity = TEST_HIR_RECORDS,
+      .switch_edges = fixture.hir_switch_edges,
+      .switch_edge_capacity = TEST_HIR_RECORDS,
       .instructions = fixture.hir_instructions,
       .instruction_capacity = TEST_HIR_RECORDS,
       .bindings = fixture.hir_bindings,
@@ -419,8 +437,9 @@ static bool lower_hir(const uint8_t *source_bytes, size_t source_length) {
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
-  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
-        W_SEED_HIR0_OK);
+  const w_seed_hir0_status hir_status =
+      w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result);
+  CHECK(hir_status == W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
                                         &fixture.hir_result,
                                         &fixture.hir_program));
@@ -703,6 +722,113 @@ static bool emit_current(uint8_t *bytes, size_t capacity,
   return w_seed_mlir0_emit(&input, &TARGET,
                            &(w_seed_mlir0_output){bytes, capacity}, result) ==
          W_SEED_MLIR0_OK;
+}
+
+static bool test_enum_switch_mlir(void) {
+  static const uint8_t SOURCE[] =
+      "enum Course { starter main dessert }\n"
+      "fn price(course: Course): i64 { return switch course { "
+      "case .dessert: twenty() case .starter: ten() "
+      "case .main: thirty(value: 30) } }\n"
+      "fn ten(): i64 { return 10 }\n"
+      "fn thirty(value: i64): i64 { return value }\n"
+      "fn twenty(): i64 { return 20 }\n"
+       "entry {\n"
+       "  let starter = price(course: .starter)\n"
+       "  let main = price(course: .main)\n"
+       "  let dessert = price(course: .dessert)\n"
+       "  print(\"x\")\n"
+       "}\n";
+  CHECK(lower_hir(SOURCE, sizeof(SOURCE) - 1u));
+  CHECK(fixture.hir_program.function_count == 5u &&
+        fixture.hir_program.functions[0].parameter_count == 1u);
+  const w_seed_hir0_function *price = &fixture.hir_program.functions[0];
+  CHECK(price->first_parameter < fixture.hir_program.parameter_count);
+  const uint32_t enum_type =
+      fixture.hir_program.parameters[price->first_parameter].type_index;
+  const size_t dispatch_block = price->first_block;
+  CHECK(dispatch_block < fixture.hir_program.block_count);
+  const w_seed_hir0_terminator *dispatch =
+      &fixture.hir_program.terminators[
+          fixture.hir_program.blocks[dispatch_block].terminator_index];
+  CHECK(dispatch->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM &&
+        dispatch->value_index < fixture.hir_program.value_count &&
+        dispatch->switch_carrier_width == 2u &&
+        dispatch->switch_edge_count == 3u);
+  const w_seed_hir0_value *subject =
+      &fixture.hir_program.values[dispatch->value_index];
+  CHECK(subject->type_index == enum_type &&
+        fixture.hir_program.types[enum_type].kind ==
+            W_SEED_HIR0_TYPE_ENUM);
+
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_mlir0_result result;
+  const w_seed_mlir0_input input = mlir_input();
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result measure_result;
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &measure_result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){artifact, sizeof(artifact)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.required.mlir_bytes == counts.mlir_bytes &&
+        result.written.mlir_bytes == counts.mlir_bytes);
+  CHECK(contains_bytes(
+            artifact, result.written.mlir_bytes,
+            "llvm.func internal @w_fn_0(%buffer: !llvm.ptr, "
+            "%cursor_address: !llvm.ptr, %p0: i2) -> i64") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "cf.switch %p0 : i2, [") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      default: ^w_fn_0_switch_default,") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      0: ^w_fn_0_b_1,") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      1: ^w_fn_0_b_2,") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "      -2: ^w_fn_0_b_3\n") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "^w_fn_0_switch_default:\n    llvm.unreachable\n") &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "^w_fn_0_switch_default:") == 1u &&
+        count_bytes(artifact, result.written.mlir_bytes,
+                    "llvm.unreachable\n") == 1u &&
+        !contains_bytes(artifact, result.written.mlir_bytes, "llvm.switch") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(0 : i2) : i2") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(1 : i2) : i2") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.mlir.constant(2 : i2) : i2") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.call @w_fn_1") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.call @w_fn_2") &&
+        contains_bytes(artifact, result.written.mlir_bytes,
+                       "llvm.call @w_fn_3"));
+
+  uint8_t forged_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(forged_output, 0xa5u, sizeof(forged_output));
+  w_seed_mlir0_result forged_result;
+  (void)memset(&forged_result, 0x5au, sizeof(forged_result));
+  const w_seed_mlir0_result forged_snapshot = forged_result;
+  const uint32_t dispatch_terminator =
+      fixture.hir_program.blocks[dispatch_block].terminator_index;
+  const uint32_t saved_carrier =
+      fixture.hir_terminators[dispatch_terminator].switch_carrier_width;
+  fixture.hir_terminators[dispatch_terminator].switch_carrier_width = 1u;
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){forged_output, sizeof(forged_output)},
+            &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(forged_output); index += 1u)
+    CHECK(forged_output[index] == 0xa5u);
+  CHECK(memcmp(&forged_result, &forged_snapshot, sizeof(forged_result)) == 0);
+  fixture.hir_terminators[dispatch_terminator].switch_carrier_width =
+      saved_carrier;
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  return true;
 }
 
 static bool contains_bytes(const uint8_t *bytes, size_t length,
@@ -2522,6 +2648,7 @@ static bool test_aliases(void) {
   const w_seed_mlir0_input input = mlir_input();
   uint8_t output[W_SEED_MLIR0_MAX_BYTES];
   uint8_t output_snapshot[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t input_range_snapshot[TEST_RECEIPT];
   w_seed_mlir0_result result;
   (void)memset(&result, 0x4au, sizeof(result));
   const w_seed_mlir0_result result_snapshot = result;
@@ -2532,11 +2659,17 @@ static bool test_aliases(void) {
       {(void *)fixture.hir_modules, sizeof(fixture.hir_modules)},
       {(void *)fixture.hir_identities, sizeof(fixture.hir_identities)},
       {(void *)fixture.hir_types, sizeof(fixture.hir_types)},
+      {(void *)fixture.hir_enums, sizeof(fixture.hir_enums)},
+      {(void *)fixture.hir_enum_cases, sizeof(fixture.hir_enum_cases)},
       {(void *)fixture.hir_functions, sizeof(fixture.hir_functions)},
       {(void *)fixture.hir_parameters, sizeof(fixture.hir_parameters)},
       {(void *)fixture.hir_blocks, sizeof(fixture.hir_blocks)},
       {(void *)fixture.hir_block_arguments,
        sizeof(fixture.hir_block_arguments)},
+      {(void *)fixture.hir_edge_arguments,
+       sizeof(fixture.hir_edge_arguments)},
+      {(void *)fixture.hir_switch_edges,
+       sizeof(fixture.hir_switch_edges)},
       {(void *)fixture.hir_instructions, sizeof(fixture.hir_instructions)},
       {(void *)fixture.hir_bindings, sizeof(fixture.hir_bindings)},
       {(void *)fixture.hir_calls, sizeof(fixture.hir_calls)},
@@ -2553,6 +2686,9 @@ static bool test_aliases(void) {
   };
   for (size_t index = 0u; index < sizeof(ranges) / sizeof(ranges[0]);
        index += 1u) {
+    CHECK(ranges[index].bytes <= sizeof(input_range_snapshot));
+    (void)memcpy(input_range_snapshot, ranges[index].address,
+                 ranges[index].bytes);
     (void)memset(output, 0x7eu, sizeof(output));
     (void)memcpy(output_snapshot, output, sizeof(output_snapshot));
     CHECK(w_seed_mlir0_emit(
@@ -2560,6 +2696,8 @@ static bool test_aliases(void) {
               &(w_seed_mlir0_output){(uint8_t *)ranges[index].address,
                                      ranges[index].bytes},
               &result) == W_SEED_MLIR0_ALIAS);
+    CHECK(memcmp(ranges[index].address, input_range_snapshot,
+                 ranges[index].bytes) == 0);
     CHECK(memcmp(output, output_snapshot, sizeof(output)) == 0);
     CHECK(memcmp(&result, &result_snapshot, sizeof(result)) == 0);
   }
@@ -2992,6 +3130,7 @@ static bool test_natural_loop_preserves_structured_mlir(void) {
 
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
+  if (!test_enum_switch_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;
   if (!test_conditional_mutation_merge_is_ssa()) return 1;

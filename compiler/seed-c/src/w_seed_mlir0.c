@@ -433,6 +433,19 @@ static bool append_i64(uint8_t *buffer, size_t capacity, size_t *offset,
   return append_bytes(buffer, capacity, offset, digits, length);
 }
 
+/* cf.switch parses case literals as signed APInt values in MLIR 23.1.1.
+ * Render the canonical unsigned HIR tag as its sign-equivalent spelling when
+ * the carrier's sign bit is set; the iN bit pattern remains unchanged. */
+static bool append_enum_switch_case_value(uint8_t *buffer, size_t capacity,
+                                           size_t *offset, uint32_t tag,
+                                           uint32_t width) {
+  if (width == 0u || width > 6u || tag >= (1u << width)) return false;
+  const uint32_t modulus = 1u << width;
+  const int64_t signed_value =
+      tag >= (modulus >> 1u) ? (int64_t)tag - (int64_t)modulus : (int64_t)tag;
+  return append_i64(buffer, capacity, offset, signed_value);
+}
+
 static bool append_hex_byte(uint8_t *buffer, size_t capacity, size_t *offset,
                             uint8_t value) {
   const uint8_t escaped[] = {'\\', (uint8_t)MLIR0_HEX[value >> 4u],
@@ -922,6 +935,63 @@ static bool append_program_value_operand(
 
 static const char *program_type_name(const w_seed_hir0_program *program,
                                      uint32_t type_index);
+
+static uint32_t mlir0_enum_carrier_width(size_t case_count) {
+  size_t representable = 1u;
+  uint32_t bits = 0u;
+  if (case_count == 0u || case_count > 64u) return 0u;
+  while (representable < case_count) {
+    representable *= 2u;
+    bits += 1u;
+  }
+  return bits == 0u ? 1u : bits;
+}
+
+static const char *mlir0_enum_carrier_type_name(uint32_t width) {
+  switch (width) {
+    case 1u:
+      return "i1";
+    case 2u:
+      return "i2";
+    case 3u:
+      return "i3";
+    case 4u:
+      return "i4";
+    case 5u:
+      return "i5";
+    case 6u:
+      return "i6";
+    default:
+      return NULL;
+  }
+}
+
+static bool mlir0_enum_type_info(const w_seed_hir0_program *program,
+                                 uint32_t type_index, uint32_t *enum_index,
+                                 uint32_t *carrier_width) {
+  if (program == NULL || type_index >= program->type_count ||
+      program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM)
+    return false;
+  const uint32_t selected_enum = program->types[type_index].enum_index;
+  if (selected_enum >= program->enum_count) return false;
+  const w_seed_hir0_enum *decl = &program->enums[selected_enum];
+  if (decl->type_index != type_index || decl->case_count == 0u ||
+      decl->first_case > program->enum_case_count ||
+      decl->case_count > program->enum_case_count - decl->first_case)
+    return false;
+  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+    const w_seed_hir0_enum_case *item =
+        &program->enum_cases[(size_t)decl->first_case + ordinal];
+    if (item->owner_enum != selected_enum || item->ordinal != ordinal ||
+        item->tag != ordinal || item->payload_count != 0u)
+      return false;
+  }
+  const uint32_t width = mlir0_enum_carrier_width(decl->case_count);
+  if (width == 0u || mlir0_enum_carrier_type_name(width) == NULL) return false;
+  if (enum_index != NULL) *enum_index = selected_enum;
+  if (carrier_width != NULL) *carrier_width = width;
+  return true;
+}
 
 static bool append_binary_value_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
@@ -1428,6 +1498,12 @@ static bool mark_program_reachable_values(
                   has_remainder, 0u))
             return false;
         }
+      } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
+        if (terminator->value_index >= program->value_count ||
+            !mark_reachable_value_tree(
+                program, terminator->value_index, reachable, has_add,
+                has_subtract, has_multiply, has_divide, has_remainder, 0u))
+          return false;
       } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
                  !mark_reachable_value_tree(
                      program, terminator->value_index, reachable, has_add,
@@ -1634,7 +1710,8 @@ static bool append_program_value_operand(
         capacity, offset);
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
-          value->kind == W_SEED_HIR0_VALUE_BINARY_I64) &&
+          value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) &&
          append_literal(artifact, capacity, offset, "%v") &&
          append_size(artifact, capacity, offset, value_index);
 }
@@ -1759,6 +1836,32 @@ static bool append_program_value_tree(
     emitted[value_index] = true;
     return true;
   }
+  if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
+    uint32_t enum_index = W_SEED_HIR0_NONE;
+    uint32_t carrier_width = 0u;
+    const char *type = NULL;
+    if (!mlir0_enum_type_info(program, value->type_index, &enum_index,
+                              &carrier_width) ||
+        value->enum_index != enum_index ||
+        value->enum_case_index >= program->enum_case_count ||
+        program->enum_cases[value->enum_case_index].owner_enum != enum_index ||
+        program->enum_cases[value->enum_case_index].payload_count != 0u ||
+        (type = mlir0_enum_carrier_type_name(carrier_width)) == NULL ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.mlir.constant(") ||
+        !append_size(artifact, capacity, offset,
+                     program->enum_cases[value->enum_case_index].tag) ||
+        !append_literal(artifact, capacity, offset, " : ") ||
+        !append_literal(artifact, capacity, offset, type) ||
+        !append_literal(artifact, capacity, offset, ") : ") ||
+        !append_literal(artifact, capacity, offset, type) ||
+        !append_literal(artifact, capacity, offset, "\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
   return false;
 }
 
@@ -1767,6 +1870,12 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   if (program == NULL || type_index >= program->type_count) return NULL;
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM) {
+    uint32_t carrier_width = 0u;
+    if (!mlir0_enum_type_info(program, type_index, NULL, &carrier_width))
+      return NULL;
+    return mlir0_enum_carrier_type_name(carrier_width);
+  }
   return NULL;
 }
 
@@ -2236,6 +2345,7 @@ static bool append_program_function(
     return append_program_natural_loop(program, function_index, artifact,
                                        capacity, offset);
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  bool enum_switch_emitted = false;
   for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
     const size_t block_index = (size_t)function->first_block + ordinal;
     const w_seed_hir0_block *block = &program->blocks[block_index];
@@ -2390,10 +2500,79 @@ static bool append_program_function(
           !append_literal(artifact, capacity, offset, return_type) ||
           !append_literal(artifact, capacity, offset, "\n"))
         return false;
+    } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM) {
+      uint32_t enum_index = W_SEED_HIR0_NONE;
+      uint32_t carrier_width = 0u;
+      const char *carrier_type = NULL;
+      if (enum_switch_emitted || terminator->value_index >= program->value_count ||
+          !mlir0_enum_type_info(
+              program, program->values[terminator->value_index].type_index,
+              &enum_index, &carrier_width) ||
+          enum_index != terminator->switch_enum_index ||
+          (carrier_type = mlir0_enum_carrier_type_name(carrier_width)) == NULL ||
+          terminator->first_switch_edge == W_SEED_HIR0_NONE ||
+          (size_t)terminator->first_switch_edge > program->switch_edge_count ||
+          terminator->switch_edge_count >
+              program->switch_edge_count - terminator->first_switch_edge ||
+          enum_index >= program->enum_count ||
+          program->enums[enum_index].case_count !=
+              terminator->switch_edge_count ||
+          !append_program_value_tree(
+              program, terminator->value_index, (uint32_t)function_index,
+              emitted, artifact, capacity, offset, 0u) ||
+          !append_literal(artifact, capacity, offset, "    cf.switch ") ||
+          !append_program_value_operand(
+              program, terminator->value_index, (uint32_t)function_index,
+              artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, " : ") ||
+          !append_literal(artifact, capacity, offset, carrier_type) ||
+          !append_literal(artifact, capacity, offset, ", [\n") ||
+          !append_literal(artifact, capacity, offset,
+                          "      default: ^w_fn_") ||
+          !append_size(artifact, capacity, offset, function_index) ||
+          !append_literal(artifact, capacity, offset, "_switch_default,\n"))
+        return false;
+      const w_seed_hir0_enum *decl = &program->enums[enum_index];
+      const size_t function_start = function->first_block;
+      const size_t function_end = function_start + function->block_count;
+      for (size_t edge_ordinal = 0u;
+           edge_ordinal < terminator->switch_edge_count; edge_ordinal += 1u) {
+        const w_seed_hir0_switch_edge *edge =
+            &program->switch_edges[(size_t)terminator->first_switch_edge +
+                                   edge_ordinal];
+        const size_t target_block = function_start + 1u + edge_ordinal;
+        if (edge->owner_terminator != block->terminator_index ||
+            edge->ordinal != edge_ordinal || edge->enum_index != enum_index ||
+            edge->enum_case_index != decl->first_case + edge_ordinal ||
+            edge->target_block != target_block || target_block >= function_end ||
+            edge->enum_case_index >= program->enum_case_count ||
+            program->enum_cases[edge->enum_case_index].tag != edge_ordinal ||
+            !append_literal(artifact, capacity, offset, "      ") ||
+            !append_enum_switch_case_value(
+                artifact, capacity, offset,
+                program->enum_cases[edge->enum_case_index].tag, carrier_width) ||
+            !append_literal(artifact, capacity, offset, ": ") ||
+            !append_program_block_label(
+                artifact, capacity, offset, (uint32_t)function_index,
+                (uint32_t)target_block, false) ||
+            !append_literal(artifact, capacity, offset,
+                            edge_ordinal + 1u == terminator->switch_edge_count
+                                ? "\n"
+                                : ",\n"))
+          return false;
+      }
+      if (!append_literal(artifact, capacity, offset, "    ]\n")) return false;
+      enum_switch_emitted = true;
     } else {
       return false;
     }
   }
+  if (enum_switch_emitted &&
+      (!append_literal(artifact, capacity, offset, "  ^w_fn_") ||
+       !append_size(artifact, capacity, offset, function_index) ||
+       !append_literal(artifact, capacity, offset,
+                       "_switch_default:\n    llvm.unreachable\n")))
+    return false;
   return append_literal(artifact, capacity, offset, "  }\n");
 }
 
@@ -2404,6 +2583,7 @@ static bool build_program_artifact(
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL ||
       (!selection->has_local_calls && !selection->has_cfg &&
+       !selection->has_enum_switch &&
        !selection->has_mutable_bindings &&
        selection->function_count <= 1u) ||
       !target_is_supported(target) || artifact == NULL || written == NULL ||
@@ -3027,7 +3207,7 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
                                   const w_seed_mlir0_result *result) {
   if (input == NULL || input->program == NULL || input->hir_result == NULL)
     return true;
-  mlir0_range ranges[32];
+  mlir0_range ranges[40];
   size_t range_count = 0u;
   const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
   if (range_add_or_alias(ranges, range_capacity, &range_count, input, 1u,
@@ -3054,6 +3234,9 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
       {program->identities, program->identity_capacity,
        sizeof(*program->identities)},
       {program->types, program->type_capacity, sizeof(*program->types)},
+      {program->enums, program->enum_capacity, sizeof(*program->enums)},
+      {program->enum_cases, program->enum_case_capacity,
+       sizeof(*program->enum_cases)},
       {program->functions, program->function_capacity,
        sizeof(*program->functions)},
       {program->parameters, program->parameter_capacity,
@@ -3061,6 +3244,10 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
       {program->blocks, program->block_capacity, sizeof(*program->blocks)},
       {program->block_arguments, program->block_argument_capacity,
        sizeof(*program->block_arguments)},
+      {program->edge_arguments, program->edge_argument_capacity,
+       sizeof(*program->edge_arguments)},
+      {program->switch_edges, program->switch_edge_capacity,
+       sizeof(*program->switch_edges)},
       {program->instructions, program->instruction_capacity,
        sizeof(*program->instructions)},
       {program->bindings, program->binding_capacity,
@@ -3159,6 +3346,7 @@ w_seed_mlir0_status w_seed_mlir0_measure(
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,
@@ -3236,6 +3424,7 @@ w_seed_mlir0_status w_seed_mlir0_emit(
             sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else if (program_selection.has_local_calls || program_selection.has_cfg ||
+             program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
     if (!build_program_artifact(input->program, &program_selection, target,

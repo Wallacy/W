@@ -158,8 +158,8 @@ static bool make_nested_tree_source(char *buffer, size_t capacity,
 }
 
 static bool test_products(void) {
-  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-7") == 0);
-  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-15") == 0);
+  CHECK(strcmp(W_SEED_NATIVE0_SCHEMA_VERSION, "w-seed-native0-8") == 0);
+  CHECK(strcmp(W_SEED_MLIR0_SCHEMA_VERSION, "w-seed-mlir0-16") == 0);
   static const uint8_t literal[] =
       "fn serve() { print(\"Table 42 remains open\") }\n"
       "entry(serve)\n";
@@ -333,6 +333,166 @@ static bool test_enum_frontend_storage(void) {
   for (size_t index = 0u; index < sizeof(output); index += 1u)
     CHECK(output[index] == 0xa6u);
   CHECK(memcmp(&result, &hir_result_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
+static bool test_enum_switch_native_lowering(void) {
+  /* Source arms are deliberately out of declaration order.  HIR and MLIR
+   * must still dispatch in the enum's canonical starter/main/dessert order. */
+  static const uint8_t source[] =
+      "enum Course {\n"
+      "  starter\n"
+      "  main\n"
+      "  dessert\n"
+      "}\n"
+      "\n"
+      "fn price(course: Course): i64 {\n"
+      "  return switch course {\n"
+      "    case .dessert: 20\n"
+      "    case .starter: 10\n"
+      "    case .main: 30\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let starter = price(course: .starter)\n"
+      "  print(\"Courses ${starter}\")\n"
+      "}\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status switch_status =
+      run_source(source, sizeof(source) - 1u, "enum-switch", 11u, output,
+                 sizeof(output), &result);
+  CHECK(switch_status == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes);
+
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &storage.hir_program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.has_enum_switch && selection.has_cfg &&
+        storage.hir_program.function_count == 2u);
+  const w_seed_hir0_function *price = &storage.hir_program.functions[0];
+  CHECK(price->parameter_count == 1u && price->first_block <
+                                            storage.hir_program.block_count);
+  const uint32_t parameter_index = price->first_parameter;
+  CHECK(parameter_index < storage.hir_program.parameter_count);
+  const uint32_t enum_type =
+      storage.hir_program.parameters[parameter_index].type_index;
+  CHECK(enum_type < storage.hir_program.type_count &&
+        storage.hir_program.types[enum_type].kind == W_SEED_HIR0_TYPE_ENUM);
+  const w_seed_hir0_terminator *dispatch =
+      &storage.hir_program.terminators[
+          storage.hir_program.blocks[price->first_block].terminator_index];
+  CHECK(dispatch->kind == W_SEED_HIR0_TERMINATOR_SWITCH_ENUM &&
+        dispatch->value_index < storage.hir_program.value_count &&
+        storage.hir_program.values[dispatch->value_index].type_index ==
+            enum_type &&
+        dispatch->switch_carrier_width == 2u &&
+        dispatch->switch_edge_count == 3u);
+  for (size_t ordinal = 0u; ordinal < dispatch->switch_edge_count; ordinal += 1u) {
+    const w_seed_hir0_switch_edge *edge =
+        &storage.hir_program.switch_edges[dispatch->first_switch_edge + ordinal];
+    CHECK(edge->ordinal == ordinal && edge->enum_index == dispatch->switch_enum_index &&
+          edge->enum_case_index ==
+              storage.hir_program.enums[dispatch->switch_enum_index].first_case +
+                  ordinal &&
+           edge->target_block == price->first_block + 1u + ordinal);
+  }
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "cf.switch %p0 : i2, [") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "default: ^w_fn_0_switch_default,") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "      0: ^w_fn_0_b_1,") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "      1: ^w_fn_0_b_2,") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "      -2: ^w_fn_0_b_3\n") &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "^w_fn_0_switch_default:\n    llvm.unreachable") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "llvm.switch"));
+  const size_t switch_offset =
+      find_bytes(output, result.mlir.written.mlir_bytes, "cf.switch", 0u);
+  const size_t default_offset = find_bytes(
+      output, result.mlir.written.mlir_bytes, "^w_fn_0_switch_default:",
+      switch_offset == SIZE_MAX ? 0u : switch_offset);
+  const size_t comparison_offset =
+      find_bytes(output, result.mlir.written.mlir_bytes, "llvm.icmp",
+                 switch_offset == SIZE_MAX ? 0u : switch_offset);
+  CHECK(switch_offset != SIZE_MAX && default_offset > switch_offset &&
+        (comparison_offset == SIZE_MAX || comparison_offset > default_offset));
+
+  /* A forged HIR carrier proof is rejected before any caller-owned bytes or
+   * result fields are published. */
+  const uint32_t dispatch_index = storage.hir_program.blocks[price->first_block]
+                                      .terminator_index;
+  storage.hir_terminators[dispatch_index].switch_carrier_width = 1u;
+  uint8_t forged_output[W_SEED_MLIR0_MAX_BYTES];
+  (void)memset(forged_output, 0xa5u, sizeof(forged_output));
+  w_seed_mlir0_result forged_result;
+  (void)memset(&forged_result, 0x5au, sizeof(forged_result));
+  const w_seed_mlir0_result forged_snapshot = forged_result;
+  const w_seed_mlir0_input forged_input = {
+      &storage.hir_program, &storage.hir_result,
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
+  CHECK(w_seed_mlir0_emit(
+            &forged_input, &TARGET,
+            &(w_seed_mlir0_output){forged_output, sizeof(forged_output)},
+            &forged_result) == W_SEED_MLIR0_INVALID_HIR);
+  for (size_t index = 0u; index < sizeof(forged_output); index += 1u)
+    CHECK(forged_output[index] == 0xa5u);
+  CHECK(memcmp(&forged_result, &forged_snapshot, sizeof(forged_result)) == 0);
+
+  /* The checked-in Restaurant fixture exercises the complete carrier path:
+   * three enum arguments, three local calls, and full interpolation. */
+  static const uint8_t restaurant_source[] =
+      "enum Course {\n"
+      "  starter\n"
+      "  main\n"
+      "  dessert\n"
+      "}\n"
+      "\n"
+      "fn price(course: Course): i64 {\n"
+      "  return switch course {\n"
+      "    case .starter: 10\n"
+      "    case .main: 30\n"
+      "    case .dessert: 20\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry {\n"
+      "  let starter = price(course: .starter)\n"
+      "  let main = price(course: .main)\n"
+      "  let dessert = price(course: .dessert)\n"
+      "  print(\"Courses ${starter}/${main}/${dessert}\")\n"
+      "}\n";
+  static uint8_t restaurant_output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result restaurant_result;
+  const w_seed_native0_status restaurant_status =
+      run_source(restaurant_source, sizeof(restaurant_source) - 1u,
+                 "restaurant-enum", 15u, restaurant_output,
+                 sizeof(restaurant_output), &restaurant_result);
+  CHECK(restaurant_status == W_SEED_NATIVE0_OK);
+  CHECK(restaurant_result.status == W_SEED_NATIVE0_OK &&
+        contains_bytes(restaurant_output, restaurant_result.mlir.written.mlir_bytes,
+                       "cf.switch %p0 : i2, [") &&
+        contains_bytes(restaurant_output, restaurant_result.mlir.written.mlir_bytes,
+                       "\\43\\6f\\75\\72\\73\\65\\73\\20"));
+  w_seed_native0_result restaurant_windows_result;
+  const w_seed_native0_status restaurant_windows_status = run_source_mode(
+      restaurant_source, sizeof(restaurant_source) - 1u, "restaurant-enum.w",
+      17u, &WINDOWS_TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE,
+      restaurant_output, sizeof(restaurant_output), &restaurant_windows_result);
+  CHECK(restaurant_windows_status == W_SEED_NATIVE0_OK &&
+        restaurant_windows_result.status == W_SEED_NATIVE0_OK &&
+        contains_bytes(restaurant_output,
+                       restaurant_windows_result.mlir.written.mlir_bytes,
+                       "cf.switch %p0 : i2, [") &&
+        contains_bytes(restaurant_output,
+                       restaurant_windows_result.mlir.written.mlir_bytes,
+                       "      -2: ^w_fn_0_b_3\n"));
   return true;
 }
 
@@ -1192,10 +1352,9 @@ static bool test_signed_comparison_products(void) {
 }
 
 int main(void) {
-  (void)fprintf(stderr, "native0 storage bytes: %llu\n",
-                (unsigned long long)sizeof(w_seed_native0_storage));
   const bool products = test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&
+                        test_enum_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
