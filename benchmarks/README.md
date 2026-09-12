@@ -50,10 +50,12 @@ and timing are currently public `w build` candidate evidence; runtime CPU now
 covers the Job tree while compile CPU/memory remains direct-process evidence.
 Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate. Hello,
-the closed enum switch, and the bounded same-module product closure are
-`exploratory-ready` because all three language routes passed their exact oracle
-and the same native runtime process-tree protocol. Other workloads stay
-explicitly unready until their own complete receipts exist.
+Restaurant branch, natural loop, closed enum switch, bounded same-module
+product closure, and public process entry are `exploratory-ready`: each has
+equivalent W/C/Rust sources, an exact oracle, and the native runtime
+process-tree route. Published cells remain optional evidence rather than the
+definition of runner readiness. Other workloads stay explicitly unready until
+their independent source equivalents or missing runner path exists.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.

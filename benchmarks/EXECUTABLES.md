@@ -8,13 +8,13 @@ Current portable-release values. Lower is better; `—` means no published measu
 | Workload | Class | Sources | Oracle | Benchmark |
 | --- | --- | --- | --- | --- |
 | hello | public-end-to-end | [w](./executable/hello.w), [c](./executable/hello.c), [rust](./executable/hello.rs) | source-backed | exploratory-ready |
-| restaurant-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | source-backed | not-performance-ready |
+| restaurant-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-if.w), [c](./executable/restaurant_branch.c), [rust](./executable/restaurant_branch.rs) | source-backed | exploratory-ready |
 | restaurant-nested-branch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-if.w) | source-backed | deferred-to-M3b |
 | bool-short-circuit | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-bool-short-circuit.w) | source-backed | deferred-to-M3b |
 | restaurant-interpolation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-interpolation.w) | source-backed | deferred-to-M3b |
 | restaurant-scalar-if | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-scalar-if.w) | source-backed | deferred-to-M3b |
 | restaurant-nested-scalar-if | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-scalar-if.w) | source-backed | deferred-to-M3b |
-| restaurant-while | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while.w), [c](./executable/restaurant_while.c), [rust](./executable/restaurant_while.rs) | source-backed | not-performance-ready |
+| restaurant-while | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while.w), [c](./executable/restaurant_while.c), [rust](./executable/restaurant_while.rs) | source-backed | exploratory-ready |
 | restaurant-wmo | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-wmo.w), [c](./executable/restaurant_wmo.c), [rust](./executable/restaurant_wmo.rs) | source-backed | exploratory-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | exploratory-ready |
 | restaurant-comparisons | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-comparisons.w) | source-backed | not-performance-ready |
@@ -29,7 +29,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-branch-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation.w) | source-backed | not-performance-ready |
 | restaurant-branch-mutation-multi | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w) | source-backed | not-performance-ready |
 | restaurant-composition | public-end-to-end | — | declared | planned |
-| process-entry | public-end-to-end | [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | source-backed | not-performance-ready |
+| process-entry | public-end-to-end | [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | source-backed | exploratory-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
 
 ## Best values

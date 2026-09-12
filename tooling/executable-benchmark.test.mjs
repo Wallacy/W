@@ -49,6 +49,10 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
   assert.deepEqual(documents.schema.$defs.structureClass.enum, EXECUTABLE_STRUCTURE_CLASSES);
+  assert.deepEqual(documents.schema.$defs.source.properties.comparability.enum,
+    ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite"]);
+  assert.deepEqual(documents.schema.$defs.source.properties.eligibility.enum,
+    ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite"]);
   for (const definition of ["catalog", "result", "bestMetric", "bestMetrics", "bestMetricProvenance", "sample", "sampleSeries", "processExecution", "processSupportSource"]) {
     assert.equal(documents.schema.$defs[definition].additionalProperties, false);
   }
@@ -74,7 +78,8 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "restaurant-wmo/w"]) {
     assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
-  for (const workloadId of ["hello", "restaurant-enum-switch", "restaurant-wmo"]) {
+  for (const workloadId of ["hello", "process-entry", "restaurant-branch",
+    "restaurant-enum-switch", "restaurant-while", "restaurant-wmo"]) {
     const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
     assert.equal(workload.benchmarkStatus, "exploratory-ready");
     assert.deepEqual(workload.blockers, []);
@@ -82,12 +87,6 @@ test("catalog stores compact live best cells and no immutable history", () => {
       source.comparability === "promotable-after-equivalence" &&
       source.eligibility === "promotable-after-equivalence"));
   }
-  const staleReadiness = clone(documents.catalog);
-  const staleHello = staleReadiness.workloads.find((item) => item.id === "hello");
-  staleHello.benchmarkStatus = "not-performance-ready";
-  staleHello.blockers = ["process-tree-accounting"];
-  assert.match(validateExecutableCatalog(staleReadiness, staleReadiness).join("\n"),
-    /comparability does not match the language ABI and benchmark readiness/u);
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
       JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||
@@ -160,7 +159,7 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
   const workload = documents.catalog.workloads.find((item) => item.id === PROCESS_ENTRY_WORKLOAD_ID);
   assert.ok(workload);
   assert.equal(workload.structureClass, "public-end-to-end");
-  assert.equal(workload.benchmarkStatus, "not-performance-ready");
+  assert.equal(workload.benchmarkStatus, "exploratory-ready");
   assert.equal(workload.oracle.kind, PROCESS_ENTRY_ORACLE_KIND);
   assert.deepEqual(workload.oracle.timedInput, PROCESS_ENTRY_TIMED_INPUT);
   assert.deepEqual(workload.oracle.cases, PROCESS_ENTRY_ORACLE_CASES);
