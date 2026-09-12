@@ -3,9 +3,9 @@ import fs from "node:fs";
 import path from "node:path";
 
 export const ROOT = path.resolve(import.meta.dir, "..");
-export const EXECUTABLE_SCHEMA = "w-executable-benchmark/5";
+export const EXECUTABLE_SCHEMA = "w-executable-benchmark/6";
 export const EXECUTABLE_CATALOG_ID = "w-executable-benchmark-catalog";
-export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/4";
+export const EXECUTABLE_RESULT_SCHEMA = "w-executable-benchmark-result/5";
 export const EXECUTABLE_BEST_SCHEMA = "w-executable-benchmark-best-metrics/1";
 export const EXECUTABLE_LANGUAGES = Object.freeze(["w", "c", "rust"]);
 export const EXECUTABLE_STRUCTURE_CLASSES = Object.freeze([
@@ -176,7 +176,7 @@ const ARTIFACT_CLEANLINESS_FIELDS = Object.freeze([
 export const PROTOCOL_FIELDS = Object.freeze([
   "warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock",
   "processIsolation", "order", "resourceScope", "knownNoiseControls",
-  "unknownNoiseControls", "directProcessDisclosure",
+  "unknownNoiseControls", "directProcessDisclosure", "measurementKernel",
 ]);
 export const CATALOG_STATUS = "catalog-ready";
 export const BEST_METRICS_CONTRACT_STATUS = "defined";
@@ -778,12 +778,19 @@ function checkProtocol(protocol, name, errors) {
     push(errors, name + ".order must declare a supported deterministic measurement order.");
   }
   requiredString(protocol.resourceScope, name + ".resourceScope", errors);
+  if (!["w-native-benchmark/2", "bun-direct-test/1"].includes(protocol.measurementKernel)) {
+    push(errors, name + ".measurementKernel must identify the native production kernel or the bounded test adapter.");
+  }
   stringArray(protocol.knownNoiseControls, name + ".knownNoiseControls", errors, 1);
   stringArray(protocol.unknownNoiseControls, name + ".unknownNoiseControls", errors, 1);
+  const disclosure = String(protocol.directProcessDisclosure ?? "");
+  const legacyDisclosure = /Bun.*direct.*process|direct.*process.*Bun/iu.test(disclosure) &&
+    /process[- ]tree.*aggregat|aggregat.*process[- ]tree/iu.test(disclosure);
+  const nativeDisclosure = /QPC/iu.test(disclosure) && /Job Object/iu.test(disclosure) &&
+    /working set/iu.test(disclosure) && /commit/iu.test(disclosure);
   if (!requiredString(protocol.directProcessDisclosure, name + ".directProcessDisclosure", errors) ||
-      !/Bun.*direct.*process|direct.*process.*Bun/iu.test(protocol.directProcessDisclosure) ||
-      !/process[- ]tree.*aggregat|aggregat.*process[- ]tree/iu.test(protocol.directProcessDisclosure)) {
-    push(errors, name + ".directProcessDisclosure must state Bun direct-process limits and the process-tree aggregation gap.");
+      (protocol.measurementKernel === "w-native-benchmark/2" ? !nativeDisclosure : !legacyDisclosure)) {
+    push(errors, name + ".directProcessDisclosure must match the selected measurement kernel and distinguish process-tree CPU, root working set, and Job commit.");
   }
 }
 

@@ -30,20 +30,25 @@ stdout/stderr. A local
 `executable-result` retains correctness artifact facts, one warmup, and an odd
 set of at least nine raw compile samples and 101 raw fresh-process run samples
 by default; summaries are derived from those samples. P95 uses nearest rank.
-The live catalog still preserves Bun's direct-child CPU microseconds and RSS
-bytes, including an
-explicit disclosure when CPU samples are zero. CPU best cells use the
+Compile samples preserve Bun's direct-child CPU microseconds and peak working
+set. Production runtime samples consume the C23 native kernel receipt: wall
+time comes from QPC, CPU user/kernel totals come from the complete contained
+Job Object and are normalized to floor microseconds for the current result
+shape, and peak working set remains the root process. Job peak committed memory
+is validated as a distinct receipt fact and is never called RSS. Results keep
+an explicit disclosure when CPU samples are zero. CPU best cells use the
 arithmetic mean across 101 runs because short Windows processes are charged in
 coarse scheduler quanta; a median can remain zero even when work occurred.
 Each result freezes a
 fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
-direct Bun-process CPU/RSS counters do not aggregate descendants. The
+compile-side Bun CPU/working-set counters do not aggregate descendants. The
 arithmetic mean is an integer floor, and the safe host identity is derived from
 the normalized redacted environment rather than a hostname or user identity.
 The live `bestMetrics` catalog stores only positive lower-is-better cells, never
 exit-code/stdout/stderr; zero CPU measurements cannot become best. W execution
-and timing are currently public `w build` candidate evidence, not process-tree-
-complete timing. Recorded measurement evidence is `exploratory`,
+and timing are currently public `w build` candidate evidence; runtime CPU now
+covers the Job tree while compile CPU/memory remains direct-process evidence.
+Recorded measurement evidence is `exploratory`,
 `measurement-only`, and `not-evaluated`; it is not a correctness gate.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
@@ -59,9 +64,11 @@ from aggregate Job CPU/peak committed memory; Job commit is not mislabeled as
 RSS. `bun check --target benchmark` builds it with Clang C23 in a temporary
 directory, exercises quoting, timeout, descendant completion, capture
 overflow, oracle failure, and all-or-nothing publication, validates the
-receipt, and deletes the build. Bun remains the catalog orchestrator until the
-result schema consumes these receipts; existing live timing cells remain
-direct-child evidence and are not silently reclassified.
+receipt, and deletes the build. Bun remains the catalog orchestrator, but the
+production executable runner builds this kernel temporarily, consumes its
+versioned receipts for warmup and runtime series, and deletes it with the
+measurement directory. Test-only injected runners remain explicitly identified
+as `bun-direct-test/1`; they cannot publish.
 
 Each workload declares one machine-checked `structureClass`. `public-end-to-end`
 identifies a user-visible workload and its complete executable path.
@@ -115,8 +122,8 @@ timing; the exact cases are `missing\n` with exit `2` for no arguments and
 W uses the public `w build` Release route, C and Rust use standalone reference
 executables, and Rust does not call shared C support. Runtime samples pin the
 `[payload]` vector. The workload remains contextual/non-ranking until
-process-tree accounting exists; no result or best-metric cell is claimed until
-a validated measurement runs.
+compile-side process-tree accounting exists; no result or best-metric cell is
+claimed until a validated measurement runs.
 
 #### Private process-handler lifecycle executable measurements
 
@@ -140,8 +147,9 @@ are disclosed separately as MSVC-origin. The private C/Rust/W recipes pin
 shared Release optimization and stripping flags. GCC LTO can optimize the C
 handler together with its support; W and Rust cross a native COFF boundary.
 Rust fat LTO does not extend across that boundary into the GCC-built support.
-Direct-child CPU/RSS counters do not
-aggregate descendants. These are descriptive `exploratory`,
+Compile-side Bun CPU/working-set counters do not aggregate descendants;
+runtime CPU is Job-tree aggregate and runtime working set is the root PE.
+These are descriptive `exploratory`,
 `measurement-only`, `not-evaluated` artifact measurements, not language-track
 results; W-1546's deferred language comparison does not defer this catalog
 work. Published live cells are kept in [`EXECUTABLES.md`](EXECUTABLES.md);
@@ -187,8 +195,9 @@ consume the local result.
 
 ## Manual reproduction
 
-The supported path runs the oracle, one discarded warmup, nine fresh-process
-samples, artifact inspection, and cleanup:
+The supported path runs the oracle, one discarded runtime warmup, nine
+fresh-process compile samples, 101 fresh-process runtime samples, artifact
+inspection, and cleanup:
 
 ```powershell
 bun benchmark list

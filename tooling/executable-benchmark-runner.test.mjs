@@ -10,6 +10,7 @@ import {
   deriveSummary,
   EXECUTABLE_CHILD_KILL_SIGNAL,
   EXECUTABLE_CHILD_TIMEOUT_MS,
+  nativeReceiptSamples,
   parseBenchmarkArguments,
   publishRecord,
   resolveResultPath,
@@ -85,6 +86,42 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:icf"));
   const all = [...C_RELEASE_FLAGS, ...CLANG_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
   assert.equal(all.some((flag) => /(?:^|=)(?:s|z)$|native/iu.test(flag)), false);
+});
+
+test("native receipts map Job CPU and root working set without relabeling commit as RSS", () => {
+  const receipt = {
+    schema: "w-native-benchmark/2",
+    status: "ok",
+    warmupCount: 0,
+    sampleCount: 1,
+    oracle: true,
+    samples: [{
+      wallNs: 101,
+      directProcessUserCpuNs: 1200,
+      directProcessKernelCpuNs: 2300,
+      directProcessCpuNs: 3500,
+      jobUserCpuNs: 4500,
+      jobKernelCpuNs: 6700,
+      jobCpuNs: 11200,
+      peakDirectWorkingSetBytes: 8192,
+      peakJobCommitBytes: 16384,
+      exitCode: 0,
+      stdoutBytes: 0,
+      stderrBytes: 0,
+    }],
+    summary: {},
+    measurement: "bounded native test receipt",
+  };
+  assert.deepEqual(nativeReceiptSamples(receipt, 1), [{
+    wallNs: "101",
+    cpuUserUs: "4",
+    cpuSystemUs: "6",
+    cpuTotalUs: "10",
+    peakRssBytes: "8192",
+  }]);
+  const inconsistent = structuredClone(receipt);
+  inconsistent.samples[0].jobCpuNs = 11201;
+  assert.throws(() => nativeReceiptSamples(inconsistent, 1), /inconsistent native measurement/u);
 });
 
 test("summary arithmetic means use integer floor and preserve zero CPU", () => {

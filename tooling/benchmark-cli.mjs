@@ -12,7 +12,7 @@ import {
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./executable-benchmark-docs.mjs";
-import { EXECUTABLE_MAX_SAMPLES, runBenchmark } from "./executable-benchmark-runner.mjs";
+import { benchmarkRunnerDigest, EXECUTABLE_MAX_SAMPLES, runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
@@ -168,7 +168,9 @@ export async function validateUpdateBoundary(result, { root = ROOT, gitState } =
   if (result.provenance.commit !== state.commit) fail("update result provenance.commit does not match current HEAD");
   const expectedCatalogDigest = await fileDigest(path.resolve(root, "benchmarks/executable-catalog.json"), "catalog");
   if (result.provenance.catalogDigest !== expectedCatalogDigest) fail("update result provenance.catalogDigest is stale");
-  const expectedRunnerDigest = await fileDigest(path.resolve(root, "tooling/executable-benchmark-runner.mjs"), "runner");
+  const expectedRunnerDigest = root === ROOT
+    ? await benchmarkRunnerDigest()
+    : await fileDigest(path.resolve(root, "tooling/executable-benchmark-runner.mjs"), "runner");
   if (result.provenance.runnerDigest !== expectedRunnerDigest) fail("update result provenance.runnerDigest is stale");
   return state;
 }

@@ -36,7 +36,7 @@ typedef struct {
 static void print_error(w_seed_native_benchmark_status status,
                         uint32_t os_error) {
   (void)printf(
-      "{\"schema\":\"w-native-benchmark/1\",\"status\":\"error\","
+      "{\"schema\":\"w-native-benchmark/2\",\"status\":\"error\","
       "\"error\":\"%s\",\"osError\":%" PRIu32 "}\n",
       w_seed_native_benchmark_status_name(status), os_error);
 }
@@ -141,7 +141,7 @@ static bool parse_options(int argc, wchar_t **argv,
       if (!option_value(argc, argv, &index, &value) ||
           !parse_u32(value, W_SEED_NATIVE_BENCHMARK_MAX_SAMPLES,
                      &options->warmup_count) ||
-          options->warmup_count == 0u)
+          options->warmup_count > W_SEED_NATIVE_BENCHMARK_MAX_SAMPLES)
         return false;
     } else if (wcscmp(argv[index], L"--samples") == 0) {
       if (!option_value(argc, argv, &index, &value) ||
@@ -269,7 +269,7 @@ static void print_success(const native_benchmark_options *options,
                           NATIVE_BENCHMARK_JOB_CPU, &job_cpu_minimum,
                           &job_cpu_median, &job_cpu_p95, &job_cpu_mean);
   (void)printf(
-      "{\"schema\":\"w-native-benchmark/1\",\"status\":\"ok\","
+      "{\"schema\":\"w-native-benchmark/2\",\"status\":\"ok\","
       "\"warmupCount\":%" PRIu32 ",\"sampleCount\":%" PRIu32
       ",\"oracle\":%s,\"samples\":[",
       options->warmup_count, options->sample_count,
@@ -278,14 +278,22 @@ static void print_success(const native_benchmark_options *options,
     const w_seed_native_benchmark_sample sample = samples[index];
     if (index != 0u) (void)fputc(',', stdout);
     (void)printf(
-        "{\"wallNs\":%" PRIu64 ",\"directProcessCpuNs\":%" PRIu64
+        "{\"wallNs\":%" PRIu64
+        ",\"directProcessUserCpuNs\":%" PRIu64
+        ",\"directProcessKernelCpuNs\":%" PRIu64
+        ",\"directProcessCpuNs\":%" PRIu64
+        ",\"jobUserCpuNs\":%" PRIu64
+        ",\"jobKernelCpuNs\":%" PRIu64
         ",\"jobCpuNs\":%" PRIu64
         ",\"peakDirectWorkingSetBytes\":%" PRIu64
         ",\"peakJobCommitBytes\":%" PRIu64
         ",\"exitCode\":%" PRIu32
         ",\"stdoutBytes\":%" PRIu32 ",\"stderrBytes\":%" PRIu32 "}",
-        sample.wall_time_ns, sample.direct_process_cpu_time_ns,
-        sample.job_cpu_time_ns, sample.peak_direct_working_set_bytes,
+        sample.wall_time_ns, sample.direct_process_user_cpu_time_ns,
+        sample.direct_process_kernel_cpu_time_ns,
+        sample.direct_process_cpu_time_ns, sample.job_user_cpu_time_ns,
+        sample.job_kernel_cpu_time_ns, sample.job_cpu_time_ns,
+        sample.peak_direct_working_set_bytes,
         sample.peak_job_commit_bytes, sample.exit_code, sample.stdout_bytes,
         sample.stderr_bytes);
   }

@@ -63,6 +63,16 @@ import {
 
 export const RESULTS_DIRECTORY = path.resolve(ROOT, "benchmarks", "results");
 const CATALOG_PATH = path.resolve(ROOT, "benchmarks", "executable-catalog.json");
+const SEED_C_PATH = path.resolve(ROOT, "compiler", "seed-c");
+const NATIVE_BENCHMARK_ABI = "w-native-benchmark/2";
+const NATIVE_BENCHMARK_TARGET = "w_seed_native_benchmark_cli";
+const NATIVE_BENCHMARK_CAPTURE_LIMIT = 65_536;
+const RUNNER_SOURCE_PATHS = Object.freeze([
+  path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"),
+  path.join(SEED_C_PATH, "include", "w_seed_native_benchmark.h"),
+  path.join(SEED_C_PATH, "src", "w_seed_native_benchmark.c"),
+  path.join(SEED_C_PATH, "cli", "native_benchmark.c"),
+]);
 const TOOLCHAIN_MANIFEST_PATH = path.resolve(ROOT, "tooling", "mlir0-windows-toolchain.json");
 const DEFAULT_TARGET = "hello";
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
@@ -273,6 +283,17 @@ async function sha256File(filePath) {
   return sha256Bytes(await readFile(filePath));
 }
 
+export async function benchmarkRunnerDigest() {
+  const hash = crypto.createHash("sha256");
+  for (const filePath of RUNNER_SOURCE_PATHS) {
+    hash.update(path.relative(ROOT, filePath).replaceAll("\\", "/"));
+    hash.update("\0");
+    hash.update(await readFile(filePath));
+    hash.update("\0");
+  }
+  return `sha256:${hash.digest("hex")}`;
+}
+
 function sha256Json(value) {
   return sha256Bytes(Buffer.from(JSON.stringify(value), "utf8"));
 }
@@ -415,7 +436,7 @@ export function deriveSummary(raw) {
   return summary;
 }
 
-function sampleSeries(warmup, raw) {
+function sampleSeries(warmup, raw, measurementKernel = "bun-direct/1") {
   return {
     warmup,
     raw,
@@ -423,8 +444,156 @@ function sampleSeries(warmup, raw) {
     cpuResolution: {
       unit: "microseconds",
       zeroAllowed: true,
-      disclosure: "Bun resourceUsage reports CPU counters in microseconds; zero-valued samples are preserved and do not imply nanosecond precision.",
+      disclosure: measurementKernel === NATIVE_BENCHMARK_ABI
+        ? "Windows Job Object CPU counters originate in 100 ns units and are normalized with floor rounding to catalog microseconds; zero-valued samples are preserved."
+        : "Bun resourceUsage reports CPU counters in microseconds; zero-valued samples are preserved and do not imply nanosecond precision.",
     },
+  };
+}
+
+function nativeCounter(value, label) {
+  if (!Number.isSafeInteger(value) || value < 0) fail(`${label} must be a non-negative safe integer`);
+  return BigInt(value);
+}
+
+export function nativeReceiptSamples(receipt, expectedCount, label = "native benchmark",
+                                     expected = undefined) {
+  const receiptFields = ["measurement", "oracle", "sampleCount", "samples",
+    "schema", "status", "summary", "warmupCount"];
+  if (!isObject(receipt) || receipt.schema !== NATIVE_BENCHMARK_ABI ||
+      receipt.status !== "ok" || receipt.warmupCount !== 0 ||
+      receipt.sampleCount !== expectedCount || receipt.oracle !== true ||
+      !Array.isArray(receipt.samples) || receipt.samples.length !== expectedCount ||
+      Object.keys(receipt).sort().join("\0") !== receiptFields.sort().join("\0")) {
+    fail(`${label} receipt identity or sample count is invalid`);
+  }
+  return receipt.samples.map((sample, index) => {
+    const name = `${label}.samples[${index}]`;
+    if (!isObject(sample)) fail(`${name} must be an object`);
+    const sampleFields = ["directProcessCpuNs", "directProcessKernelCpuNs",
+      "directProcessUserCpuNs", "exitCode", "jobCpuNs", "jobKernelCpuNs",
+      "jobUserCpuNs", "peakDirectWorkingSetBytes", "peakJobCommitBytes",
+      "stderrBytes", "stdoutBytes", "wallNs"];
+    if (Object.keys(sample).sort().join("\0") !== sampleFields.sort().join("\0")) {
+      fail(`${name} fields are invalid`);
+    }
+    const wall = nativeCounter(sample.wallNs, `${name}.wallNs`);
+    const directUser = nativeCounter(sample.directProcessUserCpuNs, `${name}.directProcessUserCpuNs`);
+    const directKernel = nativeCounter(sample.directProcessKernelCpuNs, `${name}.directProcessKernelCpuNs`);
+    const directTotal = nativeCounter(sample.directProcessCpuNs, `${name}.directProcessCpuNs`);
+    const jobUser = nativeCounter(sample.jobUserCpuNs, `${name}.jobUserCpuNs`);
+    const jobKernel = nativeCounter(sample.jobKernelCpuNs, `${name}.jobKernelCpuNs`);
+    const jobTotal = nativeCounter(sample.jobCpuNs, `${name}.jobCpuNs`);
+    const workingSet = nativeCounter(sample.peakDirectWorkingSetBytes, `${name}.peakDirectWorkingSetBytes`);
+    const jobCommit = nativeCounter(sample.peakJobCommitBytes, `${name}.peakJobCommitBytes`);
+    if (wall === 0n || workingSet === 0n || directTotal !== directUser + directKernel ||
+        jobCommit === 0n || jobTotal !== jobUser + jobKernel || jobTotal < directTotal) {
+      fail(`${name} contains an inconsistent native measurement`);
+    }
+    if (expected && (sample.exitCode !== expected.exitCode ||
+        sample.stdoutBytes !== expected.stdoutBytes ||
+        sample.stderrBytes !== expected.stderrBytes)) {
+      fail(`${name} does not match the requested exact oracle receipt`);
+    }
+    const userUs = jobUser / 1000n;
+    const systemUs = jobKernel / 1000n;
+    return {
+      wallNs: wall.toString(10),
+      cpuUserUs: userUs.toString(10),
+      cpuSystemUs: systemUs.toString(10),
+      cpuTotalUs: (userUs + systemUs).toString(10),
+      peakRssBytes: workingSet.toString(10),
+    };
+  });
+}
+
+async function prepareNativeBenchmark(executor, tempRoot) {
+  const cmake = Bun.which("cmake");
+  const ninja = Bun.which("ninja");
+  const installedClang = process.env.ProgramFiles
+    ? path.join(process.env.ProgramFiles, "LLVM", "bin", "clang.exe")
+    : undefined;
+  const clang = Bun.which("clang") ?? (installedClang && await regularFile(installedClang, "native benchmark Clang").then(() => installedClang, () => undefined));
+  if (!cmake || !ninja || !clang) fail("native runtime measurement requires CMake, Ninja, and Clang");
+  const buildDirectory = path.join(tempRoot, "native-benchmark");
+  const environment = captureVisualStudioEnvironment(findVisualStudio().devCommand);
+  const configured = await executeChild(executor, cmake, [
+    "-S", SEED_C_PATH,
+    "-B", buildDirectory,
+    "-G", "Ninja",
+    "-DCMAKE_BUILD_TYPE=Release",
+    "-DW_SEED_C_STANDARD=23",
+    `-DCMAKE_MAKE_PROGRAM=${ninja}`,
+    `-DCMAKE_C_COMPILER=${clang}`,
+  ], { cwd: ROOT, env: environment }, "native benchmark configure");
+  requireSuccess(configured, "native benchmark configure");
+  const built = await executeChild(executor, cmake, [
+    "--build", buildDirectory, "--target", NATIVE_BENCHMARK_TARGET,
+    "--parallel", "2",
+  ], { cwd: ROOT, env: environment }, "native benchmark build");
+  requireSuccess(built, "native benchmark build");
+  const executable = path.join(buildDirectory, "w_seed_native_benchmark.exe");
+  await regularFile(executable, "native benchmark executable");
+  return { abi: NATIVE_BENCHMARK_ABI, executable, digest: await sha256File(executable) };
+}
+
+async function measureNativeBatch(context, artifact, argumentsVector, oracle,
+                                  count, label, environment) {
+  const stdout = Buffer.from(oracle.stdout, "utf8");
+  const stderr = Buffer.from(oracle.stderr, "utf8");
+  if (stdout.length > NATIVE_BENCHMARK_CAPTURE_LIMIT || stderr.length > NATIVE_BENCHMARK_CAPTURE_LIMIT) {
+    fail(`${label} oracle exceeds the native capture limit`);
+  }
+  const request = {
+    executable: artifact,
+    cwd: path.dirname(artifact),
+    arguments: [...argumentsVector],
+    warmup: 0,
+    samples: count,
+    timeoutMs: EXECUTABLE_CHILD_TIMEOUT_MS,
+    expectedExitCode: oracle.exitCode,
+    expectedStdoutHex: stdout.toString("hex"),
+    expectedStderrHex: stderr.toString("hex"),
+  };
+  let receipt;
+  if (typeof context.nativeBenchmark.measureBatch === "function") {
+    receipt = await context.nativeBenchmark.measureBatch(request);
+  } else {
+    const args = [
+      "--exe", request.executable,
+      "--cwd", request.cwd,
+      ...request.arguments.flatMap((argument) => ["--arg", argument]),
+      "--warmup", "0",
+      "--samples", String(request.samples),
+      "--timeout-ms", String(request.timeoutMs),
+      "--expect-exit", String(request.expectedExitCode),
+      "--expect-stdout-hex", request.expectedStdoutHex,
+      "--expect-stderr-hex", request.expectedStderrHex,
+    ];
+    const measured = await executeChild(context.executor, context.nativeBenchmark.executable,
+      args, { cwd: request.cwd, env: environment, timeout: 900_000 }, label);
+    requireSuccess(measured, label);
+    if (measured.stderr.length !== 0) fail(`${label} wrote stderr`);
+    try {
+      receipt = JSON.parse(outputText(measured.stdout));
+    } catch (error) {
+      fail(`${label} did not emit one native receipt: ${error.message}`);
+    }
+  }
+  return nativeReceiptSamples(receipt, count, label, {
+    exitCode: oracle.exitCode,
+    stdoutBytes: stdout.length,
+    stderrBytes: stderr.length,
+  });
+}
+
+async function nativeRuntimeSeries(context, artifact, argumentsVector, oracle,
+                                   warmupCount, sampleCount, label, environment) {
+  return {
+    warmup: await measureNativeBatch(context, artifact, argumentsVector, oracle,
+      warmupCount, `${label} warmup`, environment),
+    raw: await measureNativeBatch(context, artifact, argumentsVector, oracle,
+      sampleCount, `${label} raw`, environment),
   };
 }
 
@@ -1324,11 +1493,15 @@ async function correctnessBuild(context) {
   }
 }
 
-function protocol(language, workload = undefined) {
+function protocol(context, workload = undefined) {
+  const { language } = context;
   const compileScope = language === "w"
     ? "W compile wall-clock spans the complete direct w.exe build interval, including its compiler descendants; direct-process CPU/RSS counters cover w.exe only, are non-comparable to C/Rust until process-tree accounting exists, and child process-tree counters are unavailable."
     : `${language} compile measures the direct compiler process only; compiler descendants are not aggregated.`;
   const processEntry = workload?.id === PROCESS_ENTRY_WORKLOAD_ID;
+  const runScope = context.nativeBenchmark
+    ? "Production run CPU covers the complete contained Job tree and peak working set covers the root target process."
+    : "Test-only run observations cover the direct target process; descendants are not aggregated.";
   return {
     warmupMinimum: 1,
     rawMinimum: 9,
@@ -1338,18 +1511,21 @@ function protocol(language, workload = undefined) {
     wallClock: "monotonic-nanoseconds",
     processIsolation: "fresh-process-per-sample",
     order: "compile-series-then-run-series",
+    measurementKernel: context.nativeBenchmark?.abi ?? "bun-direct-test/1",
     resourceScope: processEntry
-      ? `${compileScope} Run is the direct target process only; descendants are not aggregated. Correctness executes the no-argument, empty-argument and payload cases before timing; runtime samples use the pinned [payload] vector.`
-      : `${compileScope} Run is the direct target process only; descendants are not aggregated.`,
+      ? `${compileScope} ${runScope} Correctness executes the no-argument, empty-argument and payload cases before timing; runtime samples use the pinned [payload] vector.`
+      : `${compileScope} ${runScope}`,
     knownNoiseControls: processEntry
       ? ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order", "pinned-runtime-vector", "correctness-before-timing"]
       : ["warmup-discarded", "fresh-process-per-sample", "fixed-variant-order"],
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
-    directProcessDisclosure: `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
+    directProcessDisclosure: context.nativeBenchmark
+      ? "Runtime wall time uses Windows QPC; CPU uses aggregate Job Object user/kernel accounting normalized to floor microseconds; peak working set is the root process, while Job peak commit remains a distinct receipt fact and is not mislabeled as RSS. Compile samples remain Bun direct-process observations."
+      : `Bun direct-process CPU and RSS counters cover spawned processes only; process-tree CPU/RSS are not aggregated. ${EXECUTABLE_TIMEOUT_STATUS}.`,
   };
 }
 
-function processProtocol() {
+function processProtocol(context) {
   const compileScope = "Private process-handler-lifecycle compile wall-clock spans the complete selected handler pipeline (W source gate through Native0/HIR16/MLIR, MLIR optimization, LLVM translation, object lowering, or the direct C/Rust handler object) plus fresh shared PROCESS0 harness/provider compilation and the final GCC PE link. Direct child CPU counters are summed and peak RSS is the maximum across these explicit pipeline steps; descendants of any child are not aggregated.";
   return {
     warmupMinimum: 1,
@@ -1360,6 +1536,7 @@ function processProtocol() {
     wallClock: "monotonic-nanoseconds",
     processIsolation: "fresh-process-per-sample",
     order: "compile-series-then-run-series",
+    measurementKernel: context.nativeBenchmark?.abi ?? "bun-direct-test/1",
     resourceScope: `${compileScope} Runtime samples execute the final private handler PE directly with the pinned [alpha, payload] vector; the empty vector is correctness-only. Fault witnesses are correctness-only and are not timed.`,
     knownNoiseControls: [
       "warmup-discarded",
@@ -1369,7 +1546,9 @@ function processProtocol() {
       "fault-environment-cleared-for-timed-runs",
     ],
     unknownNoiseControls: ["host-scheduler", "filesystem-cache", "thermal-state"],
-    directProcessDisclosure: `Bun direct-process CPU and RSS counters cover each spawned compiler, lowering tool, linker and runtime process only; process-tree CPU/RSS are not aggregated. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim. ${EXECUTABLE_TIMEOUT_STATUS}`,
+    directProcessDisclosure: context.nativeBenchmark
+      ? `Runtime wall time uses Windows QPC; CPU aggregates the contained Job Object, peak working set describes the root PE, and Job peak commit remains a distinct receipt fact rather than RSS. Compile samples remain Bun direct-child observations. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim.`
+      : `Bun direct-process CPU and RSS counters cover each spawned compiler, lowering tool, linker and runtime process only; process-tree CPU/RSS are not aggregated. The final artifact target is ${EXECUTABLE_ARTIFACT_TARGET_MINGW}; W and Rust handler objects originate from ${RUST_TARGET}, while the private composite uses a GCC MinGW C ABI link and is contextual/non-ranking, not a production MSVC CRT claim. ${EXECUTABLE_TIMEOUT_STATUS}`,
   };
 }
 
@@ -1603,10 +1782,10 @@ function makeResult(context, correctness, compileWarmup, compileRaw, runWarmup, 
       sizeBytes: correctness.artifactSizeBytes,
       cleanliness: correctness.artifactCleanliness,
     },
-    protocol: isProcessHandlerLifecycle(context.target) ? processProtocol() : protocol(context.language, workload),
+    protocol: isProcessHandlerLifecycle(context.target) ? processProtocol(context) : protocol(context, workload),
     environment: context.environment,
     compile: sampleSeries(compileWarmup, compileRaw),
-    run: sampleSeries(runWarmup, runRaw),
+    run: sampleSeries(runWarmup, runRaw, context.nativeBenchmark?.abi),
     provenance: {
       sourceDigest: source.digest,
       artifactDigest: correctness.artifactDigest,
@@ -1726,6 +1905,10 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   if (!Number.isSafeInteger(compileSamples) || compileSamples < 9 || compileSamples > EXECUTABLE_MAX_SAMPLES || compileSamples % 2 === 0) fail(`compileSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
   if (!Number.isSafeInteger(runSamples) || runSamples < 9 || runSamples > EXECUTABLE_MAX_SAMPLES || runSamples % 2 === 0) fail(`runSamples must be odd and between 9 and ${EXECUTABLE_MAX_SAMPLES}`);
   const publish = options.publish !== false;
+  if (dependencies.nativeBenchmark !== undefined &&
+      (dependencies.testOnly !== true || publish)) {
+    fail("native benchmark injection is test-only and cannot publish");
+  }
   const processTarget = isProcessHandlerLifecycle(target);
   measurementPlatform(dependencies, publish);
   if (language === "w") {
@@ -1751,7 +1934,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
   if (language === "w" && !processTarget && source.source.recipe !== PUBLIC_W_BUILD_RECIPE) {
     fail(`${target} W cannot run: catalog recipe ${source.source.recipe} has no retained-artifact and separate compile-run benchmark support`);
   }
-  const runnerDigest = dependencies.runnerDigest ?? await sha256File(path.resolve(import.meta.dir, "executable-benchmark-runner.mjs"));
+  const runnerDigest = dependencies.runnerDigest ?? await benchmarkRunnerDigest();
   const catalogDigest = dependencies.catalogDigest ?? await sha256File(CATALOG_PATH);
   const commit = dependencies.commit ?? await currentCommit(executor);
   if (!/^[0-9a-f]{40}$/u.test(commit)) fail("commit provenance must be a full lowercase identity");
@@ -1792,6 +1975,9 @@ export async function runBenchmark(options = {}, dependencies = {}) {
         target: EXECUTABLE_ARTIFACT_TARGET_MSVC,
       }
       : languageToolchain;
+    const nativeBenchmark = dependencies.nativeBenchmark ??
+      (dependencies.testOnly === true ? undefined :
+        await prepareNativeBenchmark(executor, tempRoot));
     const context = {
       executor,
       catalog,
@@ -1811,6 +1997,7 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       runnerDigest,
       catalogDigest,
       tempRoot,
+      nativeBenchmark,
     };
     const correctness = await correctnessBuild(context);
     retained.push(correctness.compiled.sampleDirectory);
@@ -1828,7 +2015,18 @@ export async function runBenchmark(options = {}, dependencies = {}) {
       : undefined;
     const timedArguments = timedOracleCase?.arguments ?? [];
     const timedExpected = timedOracleCase ?? oracle;
-    if (processTarget) {
+    if (context.nativeBenchmark) {
+      const runtimeEnvironment = processTarget ? clearProcessFaultEnvironment() : undefined;
+      const nativeSeries = await nativeRuntimeSeries(
+        context, correctness.compiled.artifact, processTarget
+          ? context.processExecution.timedInput
+          : timedArguments,
+        processTarget ? { exitCode: 0, stdout: "", stderr: "" } : timedExpected,
+        warmup, runSamples, `${language} ${target}`, runtimeEnvironment,
+      );
+      runWarmup.push(...nativeSeries.warmup);
+      runRaw.push(...nativeSeries.raw);
+    } else if (processTarget) {
       for (let round = 0; round < warmup; round += 1) {
         const execution = await runProcessArtifact(context, correctness.compiled.artifact,
           context.processExecution.timedInput, `process-handler-lifecycle timed warmup ${round + 1}`);

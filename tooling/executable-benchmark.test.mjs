@@ -44,7 +44,7 @@ const digest = "sha256:111111111111111111111111111111111111111111111111111111111
 
 test("catalog stores compact live best cells and no immutable history", () => {
   assert.deepEqual(validateExecutableCatalog(documents.catalog, documents), []);
-  assert.equal(documents.schema.$id, "w-executable-benchmark/5");
+  assert.equal(documents.schema.$id, "w-executable-benchmark/6");
   assert.deepEqual(documents.schema.oneOf.map((entry) => entry.$ref), [
     "#/$defs/catalog", "#/$defs/result", "#/$defs/bestMetric", "#/$defs/bestMetrics",
   ]);
@@ -61,29 +61,24 @@ test("catalog stores compact live best cells and no immutable history", () => {
       (entry) => `${entry.workloadId}/${entry.language}`,
     )).map(([cell, entries]) => [cell, entries.map((entry) => entry.metric).sort()]),
   );
-  const commonMetrics = ["artifact-size", "compile-latency", "peak-working-set", "run-wall-time"];
-  const sampledMetrics = [...commonMetrics, "cpu-time", "run-wall-p95"].sort();
-  const expectedMetricsByCell = {
-    "hello/rust": commonMetrics,
-    "hello/w": commonMetrics,
-    "process-entry/rust": commonMetrics,
-    "process-entry/w": commonMetrics,
-    "process-handler-lifecycle/c": commonMetrics,
-    "process-handler-lifecycle/rust": commonMetrics,
-    "process-handler-lifecycle/w": commonMetrics,
-    "restaurant-branch/rust": commonMetrics,
-    "restaurant-branch/w": commonMetrics,
-    "restaurant-while/rust": sampledMetrics,
-    "restaurant-while/w": sampledMetrics,
-    "restaurant-enum-switch/rust": sampledMetrics,
-    "restaurant-enum-switch/w": sampledMetrics,
-  };
-  for (const workload of ["hello", "process-entry", "restaurant-branch",
-    "restaurant-while", "restaurant-enum-switch"]) {
-    const cell = `${workload}/c`;
-    if (metricsByCell[cell] !== undefined) expectedMetricsByCell[cell] = sampledMetrics;
+  const retainedMetrics = ["artifact-size", "compile-latency"];
+  const nativeCompleteMetrics = [...retainedMetrics, "cpu-time", "peak-working-set",
+    "run-wall-p95", "run-wall-time"].sort();
+  const expectedCells = [
+    "hello/rust", "hello/w", "process-entry/rust", "process-entry/w",
+    "process-handler-lifecycle/c", "process-handler-lifecycle/rust",
+    "process-handler-lifecycle/w", "restaurant-branch/rust",
+    "restaurant-branch/w", "restaurant-enum-switch/rust",
+    "restaurant-enum-switch/w", "restaurant-while/rust", "restaurant-while/w",
+  ];
+  assert.deepEqual(Object.keys(metricsByCell).sort(), expectedCells.sort());
+  for (const [cell, metrics] of Object.entries(metricsByCell)) {
+    assert.ok(
+      JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||
+      JSON.stringify(metrics) === JSON.stringify(nativeCompleteMetrics),
+      `${cell} must retain compile/artifact facts alone or one complete native runtime set`,
+    );
   }
-  assert.deepEqual(metricsByCell, expectedMetricsByCell);
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
     ["historical-unverified", "verified-clean"].includes(entry.provenance.artifactCleanliness)));
   assert.ok(documents.catalog.bestMetrics.entries
@@ -223,7 +218,7 @@ function validResult(language = "rust") {
     identity: { sourceDigest: source.digest, platformTarget: EXECUTABLE_PLATFORM_TARGET, artifactTarget, profile: "release", toolchain: language === "rust" ? "rustc-1.94" : "gcc-13.2", host: executableHostIdentity(environment), recipe: source.recipe, recipeClass: source.recipeClass, recipeDigest: digest, eligibility: source.eligibility },
     correctness: { oracleId: "hello:exact-output", exitCode: 0, stdoutDigest: exactOutputDigest("Hello, world!\n"), stderrDigest: exactOutputDigest("") },
     artifact: { digest, sizeBytes: "123", cleanliness: { coffSymbols: { pointer: "0", count: "0" }, codeView: { count: "0", sizeBytes: "0" }, debugDirectory: { presence: "absent", sizeBytes: "0", entries: [] }, certificateDirectory: { pointer: "0", sizeBytes: "0" }, sectionData: "in-bounds", sidecars: { count: "0" }, overlay: { sizeBytes: "0" } } },
-    protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated." },
+    protocol: { warmupMinimum: 1, rawMinimum: 9, rawParity: "odd", arithmeticMeanRounding: "floor-integer", stopRule: "fixed-count", wallClock: "monotonic-nanoseconds", processIsolation: "fresh-process-per-sample", order: "deterministic-interleaved", resourceScope: "direct child process only; descendants are not aggregated", knownNoiseControls: ["warmup-discarded", "fresh-process-per-sample"], unknownNoiseControls: ["host-scheduler", "filesystem-cache"], directProcessDisclosure: "Bun direct-process counters cover the spawned process only; process-tree CPU/RSS are not aggregated.", measurementKernel: "bun-direct-test/1" },
     environment, compile: sampleSeries(), run: sampleSeries(),
     provenance: { sourceDigest: source.digest, artifactDigest: digest, recipeDigest: digest, toolchainDigest: digest, runnerDigest: digest, catalogDigest: digest, commit: "1".repeat(40), observedAt: "2026-09-08T00:00:00.000Z" },
   };

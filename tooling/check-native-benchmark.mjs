@@ -60,7 +60,7 @@ function clangAndEnvironment() {
 }
 
 function assertReceipt(value) {
-  if (value?.schema !== "w-native-benchmark/1" || value.status !== "ok" ||
+  if (value?.schema !== "w-native-benchmark/2" || value.status !== "ok" ||
       value.warmupCount !== 1 || value.sampleCount !== 3 || value.oracle !== true ||
       !Array.isArray(value.samples) || value.samples.length !== 3)
     fail("CLI receipt identity or sample counts are invalid");
@@ -71,6 +71,17 @@ function assertReceipt(value) {
         !Number.isSafeInteger(summary.mean) || summary.min < 0 ||
         summary.median < summary.min || summary.p95 < summary.median)
       fail(`CLI summary ${metric} is invalid`);
+  }
+  for (const [index, sample] of value.samples.entries()) {
+    const fields = ["wallNs", "directProcessUserCpuNs", "directProcessKernelCpuNs",
+      "directProcessCpuNs", "jobUserCpuNs", "jobKernelCpuNs", "jobCpuNs",
+      "peakDirectWorkingSetBytes", "peakJobCommitBytes", "exitCode",
+      "stdoutBytes", "stderrBytes"];
+    if (fields.some((field) => !Number.isSafeInteger(sample?.[field]) || sample[field] < 0) ||
+        sample.wallNs === 0 || sample.peakDirectWorkingSetBytes === 0 ||
+        sample.directProcessCpuNs !== sample.directProcessUserCpuNs + sample.directProcessKernelCpuNs ||
+        sample.jobCpuNs !== sample.jobUserCpuNs + sample.jobKernelCpuNs)
+      fail(`CLI sample ${index} is invalid`);
   }
   if (!Number.isSafeInteger(value.summary?.peakDirectWorkingSetBytes) ||
       value.summary.peakDirectWorkingSetBytes <= 0 ||
