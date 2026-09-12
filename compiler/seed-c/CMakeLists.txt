@@ -636,6 +636,74 @@ target_include_directories(w_seed_cli_io_tests PRIVATE
 )
 target_link_libraries(w_seed_cli_io_tests PRIVATE w_seed_source)
 
+# This bounded adapter is intentionally separate from the executable catalog
+# runner. It owns no target artifacts or result files and is consumed either
+# through its C API or through the compact JSON CLI summary.
+add_library(w_seed_native_benchmark STATIC
+  include/w_seed_native_benchmark.h
+  src/w_seed_native_benchmark.c
+)
+target_include_directories(w_seed_native_benchmark PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+if(WIN32)
+  target_link_libraries(w_seed_native_benchmark PUBLIC psapi)
+endif()
+
+add_executable(w_seed_native_benchmark_cli
+  cli/native_benchmark.c
+)
+set_target_properties(w_seed_native_benchmark_cli PROPERTIES
+  OUTPUT_NAME w_seed_native_benchmark
+)
+target_link_libraries(w_seed_native_benchmark_cli PRIVATE w_seed_native_benchmark)
+
+add_executable(w_seed_native_benchmark_tests
+  tests/test_native_benchmark.c
+)
+target_link_libraries(w_seed_native_benchmark_tests PRIVATE w_seed_native_benchmark)
+
+if(WIN32 AND NOT MSVC)
+  # MinGW's wide-character startup requires the Unicode CRT entry point for
+  # the wmain-based CLI and self-launching integration test.
+  target_link_options(w_seed_native_benchmark_cli PRIVATE -municode)
+  target_link_options(w_seed_native_benchmark_tests PRIVATE -municode)
+endif()
+
+if(MSVC)
+  target_compile_options(w_seed_native_benchmark PRIVATE /W4 /WX)
+  target_compile_options(w_seed_native_benchmark_cli PRIVATE /W4 /WX)
+  target_compile_options(w_seed_native_benchmark_tests PRIVATE /W4 /WX)
+else()
+  target_compile_options(w_seed_native_benchmark PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_native_benchmark_cli PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+  target_compile_options(w_seed_native_benchmark_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
+endif()
+
 if(MSVC)
   target_compile_options(w_seed_source_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_manifest_tests PRIVATE /W4 /WX)
@@ -1224,3 +1292,5 @@ add_test(NAME w_seed_check_pipeline_unit COMMAND w_seed_check_pipeline_tests)
 add_test(NAME w_seed_check_host_unit COMMAND w_seed_check_host_tests)
 add_test(NAME w_seed_constir_unit COMMAND w_seed_constir_tests)
 add_test(NAME w_seed_generic_validation_unit COMMAND w_seed_generic_validation_tests)
+add_test(NAME w_seed_native_benchmark_integration
+  COMMAND w_seed_native_benchmark_tests)

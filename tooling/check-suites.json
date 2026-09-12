@@ -112,10 +112,11 @@
       ]
     },
     "root-benchmark": {
-      "description": "Benchmark-driven-development and executable catalog integrity without workload execution.",
+      "description": "Benchmark protocols, executable catalog integrity, and the native measurement kernel without public workload publication.",
       "steps": [
         { "package": "root", "script": "check:bmd" },
-        { "package": "root", "script": "check:executable" }
+        { "package": "root", "script": "check:executable" },
+        { "package": "root", "script": "check:native-benchmark" }
       ]
     },
     "tree-check": {

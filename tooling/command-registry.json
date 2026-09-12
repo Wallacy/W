@@ -3022,6 +3022,18 @@
           ]
         }
       ]
+    },
+    "check:native-benchmark": {
+      "description": "Build and verify the bounded C23 native benchmark measurement kernel.",
+      "steps": [
+        {
+          "kind": "bun",
+          "cwd": ".",
+          "args": [
+            "tooling/check-native-benchmark.mjs"
+          ]
+        }
+      ]
     }
   }
 }

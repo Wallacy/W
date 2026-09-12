@@ -25,6 +25,27 @@ C23 para uma ABI C externa. C permanece backend de validation, differential e
 recovery; MLIR0 é a rota nativa primária somente para o subset fechado, e W/MLIR
 geral continua futuro.
 
+## Native benchmark measurement kernel
+
+`include/w_seed_native_benchmark.h` and
+`src/w_seed_native_benchmark.c` provide the bounded C23 measurement kernel used
+to replace Bun's coarse direct-child counters. The Windows adapter launches a
+fresh suspended process, assigns it to a kill-on-close Job Object before
+execution, applies one QPC deadline to the root and all descendants, drains
+bounded stdout/stderr concurrently, and checks exact raw-byte output and exit
+status for every warmup and sample. Caller-owned samples are committed only
+after the Job Object is empty and both readers have joined; timeout, capture
+overflow, and oracle failure leave the sample array unchanged.
+
+The API reports root CPU and peak working set separately from aggregate Job CPU
+and peak committed memory. Peak Job commit is deliberately not called RSS.
+`cli/native_benchmark.c` exposes the same boundary as one compact JSON receipt
+with raw samples plus min, median, nearest-rank P95, and arithmetic mean. Run
+`bun check --target benchmark` for a temporary Clang C23 build and adversarial
+integration test. The executable catalog still needs a schema/runner migration
+before these receipts become authoritative published measurements; Linux and
+macOS adapters remain future work.
+
 ## Limite de medição BMD1
 
 O runner BMD1 mede somente o ponto `clean × check-end-to-end` da matriz
