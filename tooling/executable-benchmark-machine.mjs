@@ -182,13 +182,9 @@ export const CATALOG_STATUS = "catalog-ready";
 export const BEST_METRICS_CONTRACT_STATUS = "defined";
 
 const SOURCE_ELIGIBILITY = Object.freeze({
-  wPublicMeasured: Object.freeze({
+  wPublicBuild: Object.freeze({
     comparability: "promotable-after-equivalence",
     eligibility: "promotable-after-equivalence",
-  }),
-  wPublicBuild: Object.freeze({
-    comparability: "contextual-non-ranking-until-process-tree-accounting",
-    eligibility: "contextual-only-until-process-tree-accounting",
   }),
   processHandler: Object.freeze({
     comparability: "contextual-non-ranking-private-composite",
@@ -659,9 +655,7 @@ function sourcePolicy(workload, language, recipe) {
   if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
   return recipe === "public-w-build-release"
-    ? workload?.benchmarkStatus === "exploratory-ready"
-      ? SOURCE_ELIGIBILITY.wPublicMeasured
-      : SOURCE_ELIGIBILITY.wPublicBuild
+    ? SOURCE_ELIGIBILITY.wPublicBuild
     : SOURCE_ELIGIBILITY.wDeferred;
 }
 

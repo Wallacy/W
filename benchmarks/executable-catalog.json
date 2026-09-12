@@ -157,7 +157,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "exploratory-ready",
       "lane": "equivalent",
       "scope": "Run the source-backed Restaurant branch witness and preserve its exact observable output.",
       "oracle": {
@@ -180,8 +180,8 @@
           "recipeClass": "restaurant-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         },
         {
           "language": "c",
@@ -215,9 +215,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": [
-        "process-tree-accounting"
-      ]
+      "blockers": []
     },
     {
       "id": "restaurant-nested-branch",
@@ -435,7 +433,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "exploratory-ready",
       "lane": "equivalent",
       "scope": "Carry one signed integer through a natural loop and preserve its exact observable output.",
       "oracle": {
@@ -458,8 +456,8 @@
           "recipeClass": "restaurant-while-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         },
         {
           "language": "c",
@@ -493,9 +491,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": [
-        "process-tree-accounting"
-      ]
+      "blockers": []
     },
     {
       "id": "restaurant-wmo",
@@ -658,8 +654,8 @@
           "recipeClass": "restaurant-comparisons-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -667,8 +663,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -700,8 +695,8 @@
           "recipeClass": "restaurant-comparison-composition-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -709,8 +704,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -742,8 +736,8 @@
           "recipeClass": "restaurant-linear-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -751,8 +745,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -784,8 +777,8 @@
           "recipeClass": "restaurant-runtime-divrem-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -793,8 +786,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -826,8 +818,8 @@
           "recipeClass": "restaurant-unary-negate-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -835,8 +827,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -868,8 +859,8 @@
           "recipeClass": "restaurant-unary-interpolation-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -877,8 +868,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -910,8 +900,8 @@
           "recipeClass": "restaurant-mutation-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -919,8 +909,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -952,8 +941,8 @@
           "recipeClass": "restaurant-conditional-mutation-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -961,8 +950,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -994,8 +982,8 @@
           "recipeClass": "restaurant-bool-mutation-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -1003,8 +991,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -1036,8 +1023,8 @@
           "recipeClass": "restaurant-branch-mutation-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -1045,8 +1032,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -1078,8 +1064,8 @@
           "recipeClass": "restaurant-branch-mutation-multi-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -1087,8 +1073,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "process-tree-accounting"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -1125,7 +1110,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "exploratory-ready",
       "lane": "equivalent",
       "scope": "Run the public process entry with no arguments or at least one argument, preserving its exact output and exit contract.",
       "oracle": {
@@ -1172,8 +1157,8 @@
           "recipeClass": "process-entry-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "contextual-non-ranking-until-process-tree-accounting",
-          "eligibility": "contextual-only-until-process-tree-accounting"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         },
         {
           "language": "c",
@@ -1207,9 +1192,7 @@
         }
       ],
       "blockedLanguages": [],
-      "blockers": [
-        "process-tree-accounting"
-      ]
+      "blockers": []
     },
     {
       "id": "process-handler-lifecycle",
@@ -2192,9 +2175,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-224309e933ea3dc2030814619e1662bdecb0a0dc66be521b7e5ebe96f681e334",
+        "id": "best-da5f3574f2b4907e373fea88d2728d3a77c61371d6a93d302964eddb71eb0945",
         "status": "current",
-        "categoryId": "category-7bcffeca1fb6ed0ab2caf2ff2b7e4baa6550cd937e6f385ec64b4e5cc93dc0f4",
+        "categoryId": "category-be34d0dff99e5bb2287fe5b58dfe42f42388ed424d4192c98cd103beed55b28d",
         "workloadId": "process-entry",
         "language": "w",
         "equivalenceKey": "sha256:285389ee7aac5c85f7220665580093525db5f694f8db9b4fe320f6aeee095a53",
@@ -2204,8 +2187,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "process-entry-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "artifact-size",
         "unit": "bytes",
         "statistic": "single-artifact",
@@ -2229,9 +2212,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-0fa7639c0396cf898ddf30729cc891dd34e5a7615936d65ab8f30a54c606eb71",
+        "id": "best-930f5d5f02bfec595c5cf92832674a105d61160cbd74ee37dc8af27cc8999c5b",
         "status": "current",
-        "categoryId": "category-7bcffeca1fb6ed0ab2caf2ff2b7e4baa6550cd937e6f385ec64b4e5cc93dc0f4",
+        "categoryId": "category-be34d0dff99e5bb2287fe5b58dfe42f42388ed424d4192c98cd103beed55b28d",
         "workloadId": "process-entry",
         "language": "w",
         "equivalenceKey": "sha256:285389ee7aac5c85f7220665580093525db5f694f8db9b4fe320f6aeee095a53",
@@ -2241,8 +2224,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "process-entry-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "compile-latency",
         "unit": "nanoseconds",
         "statistic": "median",
@@ -2562,9 +2545,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-ab333b58f6e53bb186adbebdd30f2b80bab0332d7e5fe15616e3140826221a50",
+        "id": "best-cea5c3ccdbabc730102ca52a679792e86aa57fe5ec07b0377a721101ebc670d7",
         "status": "current",
-        "categoryId": "category-ec65026c4b52a64d0ade0da3355989a33c980883e00be267a51ac5112af98e69",
+        "categoryId": "category-a7989ad476cc4b85a9fb7d50e13b8c1803683d100643dabf50377b518085ba8c",
         "workloadId": "restaurant-branch",
         "language": "w",
         "equivalenceKey": "sha256:6c5567f9d73fb5b47dab29052d587ea3514ff6bc9eb4fa22b753c264e75cb668",
@@ -2574,8 +2557,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "restaurant-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "artifact-size",
         "unit": "bytes",
         "statistic": "single-artifact",
@@ -2599,9 +2582,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-626f859ab1703c13b5867f6904f3a23997ec476201fa3ea921765028907d51a7",
+        "id": "best-74ff055b23aafda9d5f5b7f33e0efaeefa2f5d83f41dc967e63c6552f899385f",
         "status": "current",
-        "categoryId": "category-ec65026c4b52a64d0ade0da3355989a33c980883e00be267a51ac5112af98e69",
+        "categoryId": "category-a7989ad476cc4b85a9fb7d50e13b8c1803683d100643dabf50377b518085ba8c",
         "workloadId": "restaurant-branch",
         "language": "w",
         "equivalenceKey": "sha256:6c5567f9d73fb5b47dab29052d587ea3514ff6bc9eb4fa22b753c264e75cb668",
@@ -2611,8 +2594,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "restaurant-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "compile-latency",
         "unit": "nanoseconds",
         "statistic": "median",
@@ -3376,9 +3359,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-ae101be1fa86207048f2bc72f059ebf5dd8a98829b2b3ce203d9e1d6e393a6cc",
+        "id": "best-1add7424ca571d907952cd49619b48a94a2f9baca2f69a9f0d6c490d5c5acce6",
         "status": "current",
-        "categoryId": "category-07f504d198460c211f8d670f3cee2767fca941bbb32845f1a8d357ef09b64257",
+        "categoryId": "category-fba61fbbb81fc23ecd9f42be5f480c132aeb88281df60e1ec95610e261274a9e",
         "workloadId": "restaurant-while",
         "language": "w",
         "equivalenceKey": "sha256:e066d6607d322d1daafbfb0a0946b96ce53d3b5832fbbe906af5946e83658c19",
@@ -3388,8 +3371,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "restaurant-while-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "artifact-size",
         "unit": "bytes",
         "statistic": "single-artifact",
@@ -3413,9 +3396,9 @@
         "$schema": "./executable-benchmark.schema.json",
         "schema": "w-executable-benchmark-best-metrics/1",
         "kind": "executable-best-metric",
-        "id": "best-221d1f0d59a23b0373f5647488a52c9fc3ade74397b36f835899b4daef34bdf9",
+        "id": "best-70f70d4cc825fd135698b45a21209a53e61bc267d6d056459bf91919de65c76b",
         "status": "current",
-        "categoryId": "category-07f504d198460c211f8d670f3cee2767fca941bbb32845f1a8d357ef09b64257",
+        "categoryId": "category-fba61fbbb81fc23ecd9f42be5f480c132aeb88281df60e1ec95610e261274a9e",
         "workloadId": "restaurant-while",
         "language": "w",
         "equivalenceKey": "sha256:e066d6607d322d1daafbfb0a0946b96ce53d3b5832fbbe906af5946e83658c19",
@@ -3425,8 +3408,8 @@
         "profile": "release",
         "host": "windows-windows-nt-42f9d519186ea6d6",
         "recipeClass": "restaurant-while-release",
-        "comparability": "contextual-non-ranking-until-process-tree-accounting",
-        "eligibility": "contextual-only-until-process-tree-accounting",
+        "comparability": "promotable-after-equivalence",
+        "eligibility": "promotable-after-equivalence",
         "metric": "compile-latency",
         "unit": "nanoseconds",
         "statistic": "median",

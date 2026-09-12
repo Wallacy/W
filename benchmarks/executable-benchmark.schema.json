@@ -52,8 +52,8 @@
         "recipeClass": { "type": "string" },
         "platformTarget": { "const": "windows-x64" },
         "artifactTarget": { "enum": ["x86_64-pc-windows-msvc", "x86_64-w64-mingw32"] },
-        "comparability": { "enum": ["deferred-until-M3b", "contextual-non-ranking-until-process-tree-accounting", "contextual-non-ranking-across-abi", "promotable-after-equivalence", "contextual-non-ranking-private-composite"] },
-        "eligibility": { "enum": ["promotable-after-equivalence", "correctness-only-until-c23", "contextual-only-until-process-tree-accounting", "deferred-to-M3b", "exploratory-private-composite"] }
+        "comparability": { "enum": ["deferred-until-M3b", "promotable-after-equivalence", "contextual-non-ranking-private-composite"] },
+        "eligibility": { "enum": ["promotable-after-equivalence", "deferred-to-M3b", "exploratory-private-composite"] }
       }
     },
     "oracle": {
