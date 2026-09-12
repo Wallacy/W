@@ -173,7 +173,7 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
   }
   lines.push(
     "",
-    "W/Rust MSVC and C MinGW values are contextual, not cross-ABI rankings. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
+    "Public W/C/Rust use the MSVC target; the private process-handler composite remains an explicit GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

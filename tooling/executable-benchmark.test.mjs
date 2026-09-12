@@ -62,22 +62,19 @@ test("catalog stores compact live best cells and no immutable history", () => {
     )).map(([cell, entries]) => [cell, entries.map((entry) => entry.metric).sort()]),
   );
   const commonMetrics = ["artifact-size", "compile-latency", "peak-working-set", "run-wall-time"];
+  const sampledMetrics = [...commonMetrics, "cpu-time", "run-wall-p95"].sort();
   assert.deepEqual(metricsByCell, {
-    "hello/c": commonMetrics,
     "hello/rust": commonMetrics,
     "hello/w": commonMetrics,
-    "process-entry/c": commonMetrics,
     "process-entry/rust": commonMetrics,
     "process-entry/w": commonMetrics,
     "process-handler-lifecycle/c": commonMetrics,
     "process-handler-lifecycle/rust": commonMetrics,
     "process-handler-lifecycle/w": commonMetrics,
-    "restaurant-branch/c": commonMetrics,
     "restaurant-branch/rust": commonMetrics,
     "restaurant-branch/w": commonMetrics,
-    "restaurant-enum-switch/c": commonMetrics,
-    "restaurant-enum-switch/rust": commonMetrics,
-    "restaurant-enum-switch/w": commonMetrics,
+    "restaurant-enum-switch/rust": sampledMetrics,
+    "restaurant-enum-switch/w": sampledMetrics,
   });
   assert.ok(documents.catalog.bestMetrics.entries.every((entry) =>
     ["historical-unverified", "verified-clean"].includes(entry.provenance.artifactCleanliness)));
@@ -152,12 +149,13 @@ test("process-entry catalog pins the public argument-dependent contract", () => 
   assert.deepEqual(workload.sources.map((source) => source.language), EXECUTABLE_LANGUAGES);
   assert.ok(workload.sources.every((source) => source.recipeClass === PROCESS_ENTRY_RECIPE_CLASS));
   assert.equal(workload.sources.find((source) => source.language === "w").entry, "run");
-  assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MINGW);
+  assert.equal(workload.sources.find((source) => source.language === "c").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   assert.equal(workload.sources.find((source) => source.language === "rust").artifactTarget, EXECUTABLE_ARTIFACT_TARGET_MSVC);
   const liveMetrics = documents.catalog.bestMetrics.entries.filter(
     (entry) => entry.workloadId === PROCESS_ENTRY_WORKLOAD_ID,
   );
-  assert.equal(liveMetrics.length, EXECUTABLE_LANGUAGES.length * 4);
+  assert.equal(liveMetrics.length, 2 * 4, "invalidated GCC public cells stay absent until Clang is measured");
+  assert.equal(liveMetrics.some((entry) => entry.language === "c"), false);
   assert.ok(liveMetrics.every((entry) =>
     entry.provenance.artifactCleanliness === "verified-clean"));
 });

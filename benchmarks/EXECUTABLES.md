@@ -34,21 +34,17 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 | Workload | Language | Target | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| hello | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 209.0802 ms | 22.1156 ms | — | 4669440 B (4.45 MiB) | — |
 | hello | rust | Windows x64 / MSVC | 113152 B (110.5 KiB) | 237.4533 ms | 18.5136 ms | — | 4763648 B (4.54 MiB) | — |
 | hello | w | Windows x64 / MSVC | 2560 B (2.5 KiB) | 171.9469 ms | 15.8529 ms | — | 3715072 B (3.54 MiB) | — |
-| process-entry | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 282.3706 ms | 17.5777 ms | — | 5337088 B (5.09 MiB) | — |
 | process-entry | rust | Windows x64 / MSVC | 115200 B (112.5 KiB) | 1.1528318 s | 16.887 ms | — | 5050368 B (4.82 MiB) | — |
 | process-entry | w | Windows x64 / MSVC | 3584 B (3.5 KiB) | 193.1899 ms | 16.6848 ms | — | 4337664 B (4.14 MiB) | — |
 | process-handler-lifecycle | c | Windows x64 / MinGW | 20480 B (20.0 KiB) | 1.0647585 s | 17.6305 ms | — | 5324800 B (5.08 MiB) | — |
 | process-handler-lifecycle | rust | Windows x64 / MinGW | 21504 B (21.0 KiB) | 1.6676626 s | 22.7109 ms | — | 5324800 B (5.08 MiB) | — |
 | process-handler-lifecycle | w | Windows x64 / MinGW | 20992 B (20.5 KiB) | 1.1450499 s | 17.7071 ms | — | 5324800 B (5.08 MiB) | — |
-| restaurant-branch | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 291.4917 ms | 16.4601 ms | — | 4673536 B (4.46 MiB) | — |
 | restaurant-branch | rust | Windows x64 / MSVC | 114688 B (112.0 KiB) | 1.4136568 s | 21.4716 ms | — | 4763648 B (4.54 MiB) | — |
 | restaurant-branch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 202.5762 ms | 15.2738 ms | — | 3719168 B (3.55 MiB) | — |
-| restaurant-enum-switch | c | Windows x64 / MinGW | 19456 B (19.0 KiB) | 288.4359 ms | 18.1631 ms | — | 4788224 B (4.57 MiB) | — |
-| restaurant-enum-switch | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.2204827 s | 16.8011 ms | — | 4874240 B (4.65 MiB) | — |
-| restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | 14.9906 ms | — | 3760128 B (3.59 MiB) | — |
+| restaurant-enum-switch | rust | Windows x64 / MSVC | 113664 B (111.0 KiB) | 1.2204827 s | 16.8011 ms | 22.5617 ms | 4870144 B (4.64 MiB) | 7.116 ms |
+| restaurant-enum-switch | w | Windows x64 / MSVC | 3072 B (3.0 KiB) | 174.7149 ms | 14.9906 ms | 15.4316 ms | 3756032 B (3.58 MiB) | 3.867 ms |
 
-W/Rust MSVC and C MinGW values are contextual, not cross-ABI rankings. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
+Public W/C/Rust use the MSVC target; the private process-handler composite remains an explicit GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
 Machine contract and provenance: [executable-catalog.json](./executable-catalog.json). Manual commands: [README](./README.md#manual-reproduction).

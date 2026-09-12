@@ -16,12 +16,12 @@ composition. Hello has W, C, and Rust sources. The `restaurant-branch` witness
 and the `restaurant-enum-switch` witness also have public `w build` Release
 source-to-PE candidates plus C and Rust sources verified against their exact
 oracles. The other
-Restaurant witnesses remain W-only with explicit C/Rust blockers. C is
-contextual and non-ranking across its MinGW ABI. Equivalent Hello sources live in
+Restaurant witnesses remain W-only with explicit C/Rust blockers. Public C
+uses final C23 through Clang and the MSVC ABI; the private handler composite
+retains its explicitly contextual GCC/MinGW lane. Equivalent Hello sources live in
 [`executable/`](executable/) and share the exact `Hello, world!\n` / exit `0`
-oracle. The shared platform target is `windows-x64`; W and Rust use
-`x86_64-pc-windows-msvc`, while GCC C uses `x86_64-w64-mingw32`.
-The C c2x fallback is correctness-only and cannot enter promoted C23 ranking;
+oracle. The shared public artifact target is `x86_64-pc-windows-msvc` for W,
+Clang C, and Rust. Public C has no silent GCC or c2x fallback.
 the current Rust baseline uses edition 2024.
 
 The catalog declares compile latency, median and P95 run wall time,
@@ -139,10 +139,10 @@ for a local candidate measurement, `validate <json>` for a contained result,
 from a clean committed HEAD. The runner uses the exact oracle before one
 warmup, nine odd compile samples, and 101 odd fresh-process run samples by
 default. `--compile-samples`, `--run-samples`, or the shared `--samples` alias
-may override the bounded odd counts. C probes `-std=c23`
-then `-std=c2x` and records the accepted standard plus MinGW ABI; its portable
-release recipe uses O3, LTO, per-function/data sections, linker section GC,
-stripped symbols, and probed `-fwhole-program`. Rust records its rustc release,
+may override the bounded odd counts. Public C requires Clang with final
+`-std=c23` support and the MSVC target; its portable release recipe uses O3,
+full LTO, per-function/data sections, LLD dead-code/identical-code folding, and
+no debug directory or COFF symbol table. Rust records its rustc release,
 edition 2024 and MSVC ABI; its portable release recipe uses O3, fat LTO, one
 codegen unit, panic abort, dead-code elimination, `/OPT:REF`, `/OPT:ICF`, and
 stripped symbols. The public W build Release route uses
@@ -153,10 +153,9 @@ Host tuning is a separate future/local `release-native` category (`-march=native
 for C and `-C target-cpu=native` for Rust), never a portable-cell replacement. W
 compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
 The catalog's current `release` cells therefore mean portable release. C stays
-in standards-only `c23`/`c2x` mode rather than `gnu23`; GNU extensions are not
-needed by these sources. PIE/hardening remains a separate artifact-policy axis
-until W, MinGW C, and MSVC Rust have an equivalent declared recipe, so the
-portable comparison does not add `-fpie` to only one ABI.
+in standards-only `c23` mode rather than `gnu23`; GNU extensions are not needed
+by these sources. PIE/hardening remains a separate artifact-policy axis, so the
+portable comparison does not add it to only one language.
 Publication accepts one or more result paths and atomically replaces the live
 catalog plus its concise human projection. Passing all W/C/Rust results from a
 single clean HEAD avoids stale provenance between updates. A crash between the
@@ -191,16 +190,16 @@ build/w-windows/w.exe build benchmarks/executable/restaurant-enum.w --target x86
 The equivalent portable comparison recipes are:
 
 ```powershell
-gcc -std=c2x -O3 -flto -ffunction-sections -fdata-sections -Wl,--gc-sections -s -fwhole-program benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
+clang -std=c23 -O3 -flto=full -ffunction-sections -fdata-sections -fuse-ld=lld -Wl,/Brepro -Wl,/OPT:REF -Wl,/OPT:ICF -Wl,/INCREMENTAL:NO -Wl,/DEBUG:NONE benchmarks/executable/restaurant_enum.c -o build/manual-benchmark/restaurant-enum-c.exe
 & build/manual-benchmark/restaurant-enum-c.exe
 rustc benchmarks/executable/restaurant_enum.rs --edition=2024 -C opt-level=3 -C lto=fat -C codegen-units=1 -C panic=abort -C debuginfo=0 -C strip=symbols -C link-dead-code=no -C link-arg=/OPT:REF -C link-arg=/OPT:ICF -C link-arg=/INCREMENTAL:NO -C link-arg=/DEBUG:NONE --target=x86_64-pc-windows-msvc -o build/manual-benchmark/restaurant-enum-rust.exe
 & build/manual-benchmark/restaurant-enum-rust.exe
 Remove-Item -LiteralPath build/manual-benchmark -Recurse -Force
 ```
 
-The command above matches the current GCC 13.2 host. The runner prefers
-`-std=c23`, falls back to `-std=c2x`, and adds
-`-fwhole-program` only when the selected compiler accepts it. The W backend
+The C command requires a Visual Studio x64 developer environment. The runner
+captures that environment once, then invokes Clang directly so compiler CPU/RSS
+remain attributable to the measured child. The W backend
 recipe is `mlir-opt --verify-each --canonicalize --cse`, then
 `llc -O3 -filetype=obj -mtriple=x86_64-pc-windows-msvc`, then `lld-link` with
 `/entry:mainCRTStartup /subsystem:console /nodefaultlib /machine:x64 /opt:ref
