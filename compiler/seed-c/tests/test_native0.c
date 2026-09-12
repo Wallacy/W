@@ -428,6 +428,76 @@ static bool test_enum_payload_native_lowering(void) {
   return true;
 }
 
+static bool test_bool_payload_native_lowering(void) {
+  static const uint8_t source[] =
+      "enum Flags { none bits(open: Bool, staffed: Bool, stocked: Bool, licensed: Bool) }\n"
+      "fn opened(state: Flags): Bool { return switch state { "
+      "case .bits(open: let value, ...): value "
+      "case .none: false } }\n"
+      "entry { let state: Flags = .bits(licensed: true, open: true, staffed: false, stocked: true) "
+      "let value = opened(state: state) print(\"Open ${value}\") }\n";
+  static const uint8_t mixed_source[] =
+      "enum Mixed { "
+      "none "
+      "packed(b0: Bool, b1: Bool, b2: Bool, b3: Bool, b4: Bool, "
+      "b5: Bool, b6: Bool, b7: Bool, b8: Bool) "
+      "amount(value: i64) "
+      "checked(flag: Bool, amount: i64) }\n"
+      "fn boundary(state: Mixed): Bool { return switch state { "
+      "case .checked(flag: let value, amount: _): value "
+      "case .amount(value: _): false "
+      "case .none: false "
+      "case .packed(b7: let value, ...): value } }\n"
+      "fn nextLane(state: Mixed): Bool { return switch state { "
+      "case .checked(flag: let value, amount: _): value "
+      "case .amount(value: _): false "
+      "case .none: false "
+      "case .packed(b8: let value, ...): value } }\n"
+      "fn charge(state: Mixed): i64 { return switch state { "
+      "case .checked(flag: _, amount: let value): value "
+      "case .amount(value: let value): value "
+      "case .none: 0 "
+      "case .packed(b0: _, b1: _, b2: _, b3: _, b4: _, b5: _, b6: _, "
+      "b7: _, b8: _): 0 } }\n"
+      "entry { "
+      "let packed: Mixed = .packed(b8: true, b0: false, b7: true, b1: false, "
+      "b2: true, b3: false, b4: true, b5: false, b6: true) "
+      "let checked: Mixed = .checked(amount: 31, flag: true) "
+      "let high = nextLane(state: packed) "
+      "let edge = boundary(state: packed) "
+      "let total = charge(state: checked) "
+      "print(\"Mixed ${high}/${edge}/${total}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_mlir0_target targets[] = {TARGET, WINDOWS_TARGET};
+  for (size_t target = 0u; target < 2u; target += 1u) {
+    const w_seed_native0_status pure_status = run_source_mode(
+        source, sizeof(source) - 1u, "enum-bool-pure", 14u, &targets[target],
+        W_SEED_MLIR0_ARTIFACT_EXECUTABLE, output, sizeof(output), &result);
+    CHECK(pure_status == W_SEED_NATIVE0_OK);
+    CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "!llvm.struct<(i1, array<4 x i8>)>") &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "llvm.zext") &&
+          contains_bytes(output, result.mlir.written.mlir_bytes,
+                         "llvm.trunc") &&
+          !contains_bytes(output, result.mlir.written.mlir_bytes, "malloc"));
+    CHECK(run_source_mode(
+              mixed_source, sizeof(mixed_source) - 1u, "enum-bool-mixed", 15u,
+              &targets[target], W_SEED_MLIR0_ARTIFACT_EXECUTABLE, output,
+              sizeof(output), &result) == W_SEED_NATIVE0_OK);
+    const size_t length = result.mlir.written.mlir_bytes;
+    CHECK(contains_bytes(output, length, "!llvm.struct<(i2, array<2 x i64>)>") &&
+          contains_bytes(output, length, "llvm.shl") &&
+          contains_bytes(output, length, "llvm.lshr") &&
+          contains_bytes(output, length, "llvm.and") &&
+          contains_bytes(output, length, "llvm.trunc") &&
+          !contains_bytes(output, length, "array<9 x i64>") &&
+          !contains_bytes(output, length, "malloc"));
+  }
+  return true;
+}
+
 static bool test_enum_switch_native_lowering(void) {
   /* Source arms are deliberately out of declaration order.  HIR and MLIR
    * must still dispatch in the enum's canonical starter/main/dessert order. */
@@ -1447,6 +1517,7 @@ int main(void) {
   const bool products = test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&
+                        test_bool_payload_native_lowering() &&
                         test_enum_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact();

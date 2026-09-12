@@ -21,6 +21,7 @@ const helloFixture = resolve(seedDirectory, "fixtures", "hlo0-hello.w")
 const restaurantIfFixture = resolve(seedDirectory, "fixtures", "restaurant-if.w")
 const restaurantEnumFixture = resolve(seedDirectory, "fixtures", "restaurant-enum.w")
 const restaurantEnumPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-payload.w")
+const restaurantEnumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "restaurant-enum-bool-payload.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
@@ -358,6 +359,49 @@ try {
   expectExact(binary, ["run", enumPayloadMutation], 0,
     Buffer.from("Bills -27/45/10/-7\n", "utf8"),
     "Enum payload runtime arithmetic and negative source mutation")
+  expectExact(binary, ["run", restaurantEnumBoolPayloadFixture], 0,
+    Buffer.from("States true/false/false/true; charges 17/31; licensed true\n", "utf8"),
+    "Restaurant Bool and i64 payload union with reordered fields and captures")
+  const enumBoolMutation = join(fixtureDirectory, "enum-bool-payload-mutation.w")
+  const enumBoolSource = await readFile(restaurantEnumBoolPayloadFixture, "utf8")
+  const enumBoolMutatedSource = enumBoolSource
+    .replace("licensed: true, open: open", "licensed: false, open: open")
+    .replace(".charge(amount: 17)", ".charge(amount: -17)")
+    .replace(".checked(amount: 31, open: true)", ".checked(amount: -31, open: false)")
+  assert(enumBoolMutatedSource !== enumBoolSource,
+    "enum Bool payload mutation did not change its source")
+  await writeFile(enumBoolMutation, enumBoolMutatedSource, "utf8")
+  expectExact(binary, ["run", enumBoolMutation], 0,
+    Buffer.from("States true/false/false/false; charges -17/-31; licensed false\n", "utf8"),
+    "Enum Bool byte independence and signed-i64 payload mutation")
+  for (const mixed of [false, true]) {
+    const fields = Array.from({ length: 9 }, (_, index) => `b${index}`)
+    const payload = fields.map(field => `${field}: Bool`).join(", ")
+    const sourcePath = join(fixtureDirectory, `enum-bool-${mixed ? "mixed" : "pure"}-lanes.w`)
+    // Stay within the native subset's eight-function bound without weakening
+    // coverage: each executable reads one half of the same nine-field value.
+    for (const readFields of [fields.slice(0, 5), fields.slice(5)]) {
+      const readers = readFields.map(field =>
+        `fn read${field}(state: Flags): Bool { return switch state { ` +
+        `case .bits(${field}: let value, ...): value case .none: false ` +
+        (mixed ? "case .amount(value: _): false " : "") + "} }").join("\n")
+      for (const inverted of [false, true]) {
+        const value = index => (index % 2 === 0) !== inverted
+        const argumentsText = [...fields].reverse().map(field =>
+          `${field}: ${value(Number(field.slice(1)))}`).join(", ")
+        const bindings = readFields.map(field =>
+          `let ${field} = read${field}(state: state)`).join("\n")
+        const interpolation = readFields.map(field => "${" + field + "}").join("/")
+        await writeFile(sourcePath,
+          `enum Flags { none bits(${payload}) ${mixed ? "amount(value: i64)" : ""} }\n` +
+          readers + `\nentry { let state: Flags = .bits(${argumentsText})\n` +
+          bindings + `\nprint("${interpolation}") }\n`, "utf8")
+        expectExact(binary, ["run", sourcePath], 0,
+          Buffer.from(readFields.map(field => String(value(Number(field.slice(1))))).join("/") + "\n", "utf8"),
+          `Enum Bool ${mixed ? "mixed" : "pure"} byte lanes ${readFields.join(",")} with reversed labels (${inverted ? "inverted" : "alternating"})`)
+      }
+    }
+  }
   expectExact(binary, ["run", restaurantWhileFixture], 0,
     Buffer.from("Served 3\n", "utf8"),
     "Restaurant structured natural while fixture")

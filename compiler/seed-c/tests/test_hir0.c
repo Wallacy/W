@@ -2327,6 +2327,10 @@ static bool test_local_enum_payload_declarations_hir(void) {
   fixture.hir_enum_case_parameters[0] = saved_payload;
   fixture.hir_enum_case_parameters[0].type_index = 3u;
   reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_case_parameters[0] = saved_payload;
+  fixture.hir_enum_case_parameters[0].type_index = 5u;
+  reseal_hir_fixture();
   CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
   fixture.hir_enum_case_parameters[0] = saved_payload;
   fixture.hir_enum_case_parameters[0].has_label = false;

@@ -692,6 +692,72 @@
       "blockers": []
     },
     {
+      "id": "restaurant-enum-bool-payload",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Fixed-input end-to-end executable: construct boolean and scalar enum payloads, reorder named arguments and captures, and preserve exact state and charge output; this is not an isolated enum-layout or dispatch microbenchmark.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "States true/false/false/true; charges 17/31; licensed true\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-enum-bool-payload.w",
+          "digest": "sha256:3d887cd59efd2505dc56ecca00715dad749f9068c6f57272a2c94174448a8c27",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-enum-bool-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_enum_bool_payload.c",
+          "digest": "sha256:b0f29e3fd22a09e294b43e662d616d773da3179d66c1e84aeca69c4c75d19c0a",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-enum-bool-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_enum_bool_payload.rs",
+          "digest": "sha256:4b3c7fbeb5029ce19591edc2ae867536759299d7079b4d11dafcd90fe7bdb6f3",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-enum-bool-payload-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": []
+    },
+    {
       "id": "restaurant-comparisons",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

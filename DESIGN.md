@@ -38011,13 +38011,18 @@ mixed CFG, public ABI/layout stability, other targets, and performance remain
 gaps. The benchmark disposition is `compiler-lifecycle`, correctness-only,
 with no timing, ranking, or benchmark result.
 
-The current payload extension uses HIR25's dense signed-`i64` case parameters,
+The current payload extension uses HIR25's dense `Bool` and signed-`i64` case parameters,
 constructor relations, and arm-owned capture records. Local calls can accept
 and return these enums. The native adapter represents a payload enum as an SSA
-aggregate `!llvm.struct<(iN, array<M x i64>)>`, where `M` is the maximum case
-payload count. Construction evaluates children in source order and writes
-declaration slots. Unused slots start at zero. Dispatch reads the tag, and
-captures read only the selected arm's slots. Payloadless enums retain `iN`.
+aggregate with a minimum-width tag and shared payload lanes. Fields use private
+size/alignment pairs of 1/1 bytes for Bool and 8/8 bytes for `i64`, with offsets
+computed independently per case. Enums containing `i64` use `array<M x i64>`
+for the maximum case byte extent rounded to eight bytes. Bool-only payloads
+use `array<M x i8>`. Construction evaluates children in source order and writes
+the selected case's field offsets. Unused lanes start at zero. Bool packing
+uses canonical zero/one bytes and shifts/masks, without pointer tagging.
+Dispatch reads the tag, and captures decode only the selected arm's fields.
+Payloadless enums retain `iN`. Existing all-`i64` carriers remain unchanged.
 This representation is recipe-private, not a public memory layout or ABI.
 It requires no enum-specific heap allocation. LLVM may scalarize or eliminate
 the aggregate, while materialized values follow the target data layout.
@@ -38026,6 +38031,11 @@ The Windows LLVM/MLIR 23.1.1 route executes
 [`restaurant-enum-payload.w`](compiler/seed-c/fixtures/restaurant-enum-payload.w)
 with stdout `Bills 32/44/10/7\n`, empty stderr, and exit zero. The executable
 catalog owns its oracle, C/Rust references, and initial live measurements.
+The mixed-payload witness
+[`restaurant-enum-bool-payload.w`](compiler/seed-c/fixtures/restaurant-enum-bool-payload.w)
+executes reordered Bool fields, enum-returning calls, and Bool/i64 captures.
+Its exact output is `States true/false/false/true; charges 17/31; licensed true\n`.
+The same gate mutates Bool fields and signed amounts independently.
 General payload types, recursive payloads, niches, mixed CFG, and stable public
 payload ABI remain gaps. The compiler-lifecycle tests do not prove those features.
 

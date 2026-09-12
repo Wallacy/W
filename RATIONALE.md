@@ -11366,15 +11366,20 @@ performance remain gaps. The benchmark disposition is
 `compiler-lifecycle`, correctness-only, with no timing, ranking, or benchmark
 result.
 
-The current HIR25 payload successor uses a tag plus a shared array of `i64`
-slots in SSA. It avoids heap boxing and preserves declared field identity
-without committing to a heterogeneous public layout. The largest variant sets
-the slot count. Starting unused slots at zero avoids undefined aggregate lanes;
+The current HIR25 payload successor uses a tag plus shared payload lanes in SSA.
+Per-case byte offsets admit Bool and signed `i64` without reserving eight bytes
+for every Bool. Bool-only payloads use byte lanes. Mixed payloads use aligned
+`i64` lanes sized for the largest case extent. This avoids heap boxing and
+preserves declared field identity without committing to a public layout.
+Starting unused lanes at zero avoids undefined aggregate lanes;
 these zeros do not promise a serialized representation or initialized padding.
 The Windows native restaurant witness constructs and returns payload enums,
 then reads reordered captures to produce `Bills 32/44/10/7\n`.
+The Bool successor shares two `i64` lanes between four Bool fields, one `i64`,
+and a Bool-plus-i64 case. A largest-field-count recipe would reserve four lanes.
+This carrier comparison is not a claim about final stack use or binary size.
 Its executable-catalog measurements are separate from compiler-lifecycle tests.
-Heterogeneous layouts, niche encoding, and recursive payloads remain future work.
+General heterogeneous layouts, niche encoding, and recursive payloads remain future work.
 
 #### W-1564 — bounded same-module executable product closure
 

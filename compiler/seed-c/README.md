@@ -1497,11 +1497,15 @@ forgeries must still fail ownership, type, slot, and arm-scope verification.
 Capture names remain valid after the frontend records and source bytes are cleared.
 
 The native route now accepts and returns these enums through local calls.
-For payload-bearing enums, MLIR uses `!llvm.struct<(iN, array<M x i64>)>`.
-`N` is the minimum supported tag width. `M` is the largest case payload count.
-Construction starts with a zero aggregate and inserts fields at declaration
-ordinals after evaluating child values in source order. Dispatch extracts the
-tag. Capture reads extract the selected case's declared slot inside its arm.
+Payload fields currently admit `Bool` and signed `i64`. Their private field
+sizes and alignments are 1/1 and 8/8 bytes. Each case has its own field offsets.
+An enum containing `i64` uses `!llvm.struct<(iN, array<M x i64>)>`, where
+`M` covers the largest case byte extent, rounded to eight bytes. A Bool-only
+payload enum uses `array<M x i8>` instead. `N` is the minimum supported tag width.
+Bool bytes contain zero or one. Packing uses shifts and masks, not pointer tags.
+Construction starts with a zero aggregate and writes each case's field offsets
+after evaluating child values in source order. Dispatch extracts the tag.
+Capture reads decode the selected case's field inside its arm.
 The aggregate remains SSA data, without an enum-specific heap allocation or
 forced stack slot. Target lowering determines any materialized alignment and
 padding. This recipe does not establish a public ABI. The existing payloadless
@@ -1511,6 +1515,11 @@ The Windows LLVM/MLIR 23.1.1 `w run` gate executes
 [`restaurant-enum-payload.w`](fixtures/restaurant-enum-payload.w) as
 `Bills 32/44/10/7\n`. It constructs three variants, returns an enum from a
 local function, and computes four bills through reordered captures.
+The mixed-payload witness
+[`restaurant-enum-bool-payload.w`](fixtures/restaurant-enum-bool-payload.w)
+produces `States true/false/false/true; charges 17/31; licensed true\n`.
+Its four-Bool case shares two `i64` lanes with the larger Bool-plus-i64 case.
+The gate also changes Bool fields and signed amounts independently.
 Native0 tests cover both target adapters and short-capacity atomic failure.
 The bundle's primary disposition is `compiler-lifecycle`; its runnable fixture
 also belongs to the executable benchmark catalog. Initial live measurements

@@ -182,6 +182,14 @@ recipes. Constant folding is allowed by this scope. A runtime-driven enum
 workload would be a separate future witness. Live measurements belong to
 [`EXECUTABLES.md`](EXECUTABLES.md), without an isolated dispatch ranking.
 
+`restaurant-enum-bool-payload` follows the same fixed-input end-to-end policy.
+Its boolean and scalar payload variants, reordered named fields, and reordered
+captures are one executable contract with the exact
+`States true/false/false/true; charges 17/31; licensed true\n` oracle. The C23
+tagged union and Rust 2024 enum preserve those inputs and results; this target
+does not claim a runtime-only enum-layout ranking. Live measurements belong to
+[`EXECUTABLES.md`](EXECUTABLES.md), without a timing or ranking claim here.
+
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
 for a local candidate measurement, `validate <json>` for a contained result,

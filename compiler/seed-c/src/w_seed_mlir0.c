@@ -978,53 +978,163 @@ static const char *mlir0_enum_carrier_type_name(uint32_t width) {
   }
 }
 
+/* Enum payloads keep their logical declaration ordinals in HIR.  Native
+ * lowering derives a C-like per-case layout here, so cases with different
+ * shapes can share one bounded carrier without making a Bool occupy an i64
+ * slot.  Mixed carriers use i64 lanes because that is the existing native
+ * aggregate carrier recipe; a pure-Bool carrier uses byte lanes instead. */
+typedef struct {
+  bool has_payload;
+  bool has_i64;
+  bool has_bool;
+  size_t max_case_extent;
+  size_t physical_slots;
+} mlir0_enum_layout;
+
+static bool mlir0_align_up(size_t value, size_t alignment, size_t *aligned) {
+  if (aligned == NULL || alignment == 0u) return false;
+  const size_t remainder = value % alignment;
+  if (remainder == 0u) {
+    *aligned = value;
+    return true;
+  }
+  const size_t padding = alignment - remainder;
+  if (value > SIZE_MAX - padding) return false;
+  *aligned = value + padding;
+  return true;
+}
+
+static bool mlir0_enum_case_layout(
+    const w_seed_hir0_program *program, uint32_t enum_index,
+    uint32_t enum_case_index, uint32_t parameter_ordinal,
+    w_seed_hir0_type_kind *parameter_kind, size_t *parameter_offset,
+    size_t *case_extent) {
+  if (program == NULL || case_extent == NULL || enum_index >= program->enum_count ||
+      enum_case_index >= program->enum_case_count)
+    return false;
+  const w_seed_hir0_enum *decl = &program->enums[enum_index];
+  if (decl->case_count == 0u || decl->first_case > program->enum_case_count ||
+      decl->case_count > program->enum_case_count - decl->first_case ||
+      enum_case_index < decl->first_case ||
+      (size_t)enum_case_index >=
+          (size_t)decl->first_case + (size_t)decl->case_count)
+    return false;
+  const w_seed_hir0_enum_case *item = &program->enum_cases[enum_case_index];
+  const size_t expected_ordinal =
+      (size_t)enum_case_index - (size_t)decl->first_case;
+  if (item->owner_enum != enum_index || item->ordinal != expected_ordinal ||
+      item->tag != expected_ordinal ||
+      item->first_payload > program->enum_case_parameter_count ||
+      item->payload_count >
+          program->enum_case_parameter_count - item->first_payload)
+    return false;
+  if (parameter_ordinal != W_SEED_HIR0_NONE &&
+      (parameter_kind == NULL || parameter_offset == NULL))
+    return false;
+
+  size_t cursor = 0u;
+  bool found_parameter = parameter_ordinal == W_SEED_HIR0_NONE;
+  for (size_t ordinal = 0u; ordinal < item->payload_count; ordinal += 1u) {
+    const w_seed_hir0_enum_case_parameter *parameter =
+        &program->enum_case_parameters[(size_t)item->first_payload + ordinal];
+    if (parameter->owner_case != enum_case_index ||
+        parameter->ordinal != ordinal || parameter->type_index >= program->type_count)
+      return false;
+    const w_seed_hir0_type_kind kind = program->types[parameter->type_index].kind;
+    const size_t alignment = kind == W_SEED_HIR0_TYPE_I64
+                                 ? 8u
+                                 : kind == W_SEED_HIR0_TYPE_BOOL ? 1u : 0u;
+    const size_t size = alignment;
+    if (alignment == 0u) return false;
+    size_t aligned = 0u;
+    if (!mlir0_align_up(cursor, alignment, &aligned) ||
+        aligned > SIZE_MAX - size)
+      return false;
+    cursor = aligned + size;
+    if (ordinal == parameter_ordinal) {
+      *parameter_kind = kind;
+      *parameter_offset = aligned;
+      found_parameter = true;
+    }
+  }
+  if (!found_parameter) return false;
+  *case_extent = cursor;
+  return true;
+}
+
+static bool mlir0_enum_layout_info(const w_seed_hir0_program *program,
+                                   uint32_t enum_index,
+                                   mlir0_enum_layout *layout) {
+  if (program == NULL || layout == NULL || enum_index >= program->enum_count)
+    return false;
+  const w_seed_hir0_enum *decl = &program->enums[enum_index];
+  if (decl->type_index >= program->type_count ||
+      program->types[decl->type_index].kind != W_SEED_HIR0_TYPE_ENUM ||
+      program->types[decl->type_index].enum_index != enum_index)
+    return false;
+  mlir0_enum_layout result = {false, false, false, 0u, 0u};
+  if (decl->case_count == 0u || decl->first_case > program->enum_case_count ||
+      decl->case_count > program->enum_case_count - decl->first_case)
+    return false;
+  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
+    const uint32_t case_index = (uint32_t)((size_t)decl->first_case + ordinal);
+    size_t case_extent = 0u;
+    if (!mlir0_enum_case_layout(program, enum_index, case_index,
+                                W_SEED_HIR0_NONE, NULL, NULL, &case_extent))
+      return false;
+    if (case_extent > result.max_case_extent)
+      result.max_case_extent = case_extent;
+    const w_seed_hir0_enum_case *item = &program->enum_cases[case_index];
+    if (item->payload_count != 0u) result.has_payload = true;
+    for (size_t parameter_ordinal = 0u;
+         parameter_ordinal < item->payload_count; parameter_ordinal += 1u) {
+      const w_seed_hir0_enum_case_parameter *parameter =
+          &program->enum_case_parameters[(size_t)item->first_payload +
+                                         parameter_ordinal];
+      if (program->types[parameter->type_index].kind == W_SEED_HIR0_TYPE_I64)
+        result.has_i64 = true;
+      else if (program->types[parameter->type_index].kind ==
+               W_SEED_HIR0_TYPE_BOOL)
+        result.has_bool = true;
+      else
+        return false;
+    }
+  }
+  if (result.has_payload) {
+    if (result.has_i64) {
+      size_t rounded_extent = 0u;
+      if (!mlir0_align_up(result.max_case_extent, 8u, &rounded_extent) ||
+          rounded_extent == 0u) return false;
+      result.physical_slots = rounded_extent / 8u;
+    } else {
+      result.physical_slots = result.max_case_extent;
+      if (result.physical_slots == 0u) return false;
+    }
+  }
+  *layout = result;
+  return true;
+}
+
 static bool mlir0_enum_type_info(const w_seed_hir0_program *program,
                                  uint32_t type_index, uint32_t *enum_index,
-                                 uint32_t *carrier_width) {
+                                 uint32_t *carrier_width,
+                                 mlir0_enum_layout *layout) {
   if (program == NULL || type_index >= program->type_count ||
       program->types[type_index].kind != W_SEED_HIR0_TYPE_ENUM)
     return false;
   const uint32_t selected_enum = program->types[type_index].enum_index;
   if (selected_enum >= program->enum_count) return false;
   const w_seed_hir0_enum *decl = &program->enums[selected_enum];
-  if (decl->type_index != type_index || decl->case_count == 0u ||
-      decl->first_case > program->enum_case_count ||
-      decl->case_count > program->enum_case_count - decl->first_case)
+  if (decl->type_index != type_index) return false;
+  mlir0_enum_layout computed_layout;
+  if (!mlir0_enum_layout_info(program, selected_enum, &computed_layout))
     return false;
-  for (size_t ordinal = 0u; ordinal < decl->case_count; ordinal += 1u) {
-    const w_seed_hir0_enum_case *item =
-        &program->enum_cases[(size_t)decl->first_case + ordinal];
-    if (item->owner_enum != selected_enum || item->ordinal != ordinal ||
-        item->tag != ordinal ||
-        item->first_payload > program->enum_case_parameter_count ||
-        item->payload_count >
-            program->enum_case_parameter_count - item->first_payload)
-      return false;
-    for (size_t slot = 0u; slot < item->payload_count; slot += 1u) {
-      const w_seed_hir0_enum_case_parameter *parameter =
-          &program->enum_case_parameters[(size_t)item->first_payload + slot];
-      if (parameter->type_index >= program->type_count ||
-          program->types[parameter->type_index].kind != W_SEED_HIR0_TYPE_I64)
-        return false;
-    }
-  }
   const uint32_t width = mlir0_enum_carrier_width(decl->case_count);
   if (width == 0u || mlir0_enum_carrier_type_name(width) == NULL) return false;
   if (enum_index != NULL) *enum_index = selected_enum;
   if (carrier_width != NULL) *carrier_width = width;
+  if (layout != NULL) *layout = computed_layout;
   return true;
-}
-
-static size_t mlir0_enum_payload_slots(const w_seed_hir0_program *program,
-                                      uint32_t enum_index) {
-  const w_seed_hir0_enum *decl = &program->enums[enum_index];
-  size_t slots = 0u;
-  for (size_t index = 0u; index < decl->case_count; index += 1u) {
-    const size_t count =
-        program->enum_cases[(size_t)decl->first_case + index].payload_count;
-    if (count > slots) slots = count;
-  }
-  return slots;
 }
 
 static bool append_binary_value_operation(
@@ -1883,35 +1993,147 @@ static bool append_program_value_tree(
     const uint32_t subject =
         program->terminators[edge->owner_terminator].value_index;
     if (subject >= program->value_count) return false;
+    uint32_t enum_index = W_SEED_HIR0_NONE;
+    uint32_t carrier_width = 0u;
+    mlir0_enum_layout layout;
+    if (!mlir0_enum_type_info(program, program->values[subject].type_index,
+                              &enum_index, &carrier_width, &layout) ||
+        edge->enum_index != enum_index ||
+        edge->enum_case_index >= program->enum_case_count)
+      return false;
+    w_seed_hir0_type_kind parameter_kind;
+    size_t parameter_offset = 0u;
+    size_t case_extent = 0u;
+    if (!mlir0_enum_case_layout(
+            program, enum_index, edge->enum_case_index,
+            capture->parameter_ordinal, &parameter_kind, &parameter_offset,
+            &case_extent) ||
+        capture->type_index >= program->type_count ||
+        program->types[capture->type_index].kind != parameter_kind)
+      return false;
     char type_buffer[96];
     const char *type = program_type_name(
         program, program->values[subject].type_index, type_buffer);
-    if (type == NULL ||
-        !append_literal(artifact, capacity, offset, "    %v") ||
-        !append_size(artifact, capacity, offset, value_index) ||
-        !append_literal(artifact, capacity, offset, " = llvm.extractvalue ") ||
-        !append_program_value_operand(program, subject, function_index, artifact, capacity, offset) ||
-        !append_literal(artifact, capacity, offset, "[1, ") ||
-        !append_size(artifact, capacity, offset, capture->parameter_ordinal) ||
-        !append_literal(artifact, capacity, offset, "] : ") ||
-        !append_literal(artifact, capacity, offset, type) ||
-        !append_literal(artifact, capacity, offset, "\n"))
-      return false;
+    if (type == NULL) return false;
+    const bool all_i64 = layout.has_i64 && !layout.has_bool;
+    if (all_i64) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.extractvalue ") ||
+          !append_program_value_operand(program, subject, function_index,
+                                        artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, "[1, ") ||
+          !append_size(artifact, capacity, offset,
+                       capture->parameter_ordinal) ||
+          !append_literal(artifact, capacity, offset, "] : ") ||
+          !append_literal(artifact, capacity, offset, type) ||
+          !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+    } else if (parameter_kind == W_SEED_HIR0_TYPE_I64) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.extractvalue ") ||
+          !append_program_value_operand(program, subject, function_index,
+                                        artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, "[1, ") ||
+          !append_size(artifact, capacity, offset, parameter_offset / 8u) ||
+          !append_literal(artifact, capacity, offset, "] : ") ||
+          !append_literal(artifact, capacity, offset, type) ||
+          !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+    } else if (!layout.has_i64) {
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_byte = llvm.extractvalue ") ||
+          !append_program_value_operand(program, subject, function_index,
+                                        artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, "[1, ") ||
+          !append_size(artifact, capacity, offset, parameter_offset) ||
+          !append_literal(artifact, capacity, offset, "] : ") ||
+          !append_literal(artifact, capacity, offset, type) ||
+          !append_literal(artifact, capacity, offset, "\n    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.trunc %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_byte : i8 to i1\n"))
+        return false;
+    } else {
+      const size_t lane = parameter_offset / 8u;
+      const size_t shift = (parameter_offset % 8u) * 8u;
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_lane = llvm.extractvalue ") ||
+          !append_program_value_operand(program, subject, function_index,
+                                        artifact, capacity, offset) ||
+          !append_literal(artifact, capacity, offset, "[1, ") ||
+          !append_size(artifact, capacity, offset, lane) ||
+          !append_literal(artifact, capacity, offset, "] : ") ||
+          !append_literal(artifact, capacity, offset, type) ||
+          !append_literal(artifact, capacity, offset, "\n"))
+        return false;
+      if (shift != 0u &&
+          (!append_literal(artifact, capacity, offset, "    %v") ||
+           !append_size(artifact, capacity, offset, value_index) ||
+           !append_literal(artifact, capacity, offset,
+                           "_shift = llvm.mlir.constant(") ||
+           !append_size(artifact, capacity, offset, shift) ||
+           !append_literal(artifact, capacity, offset,
+                           " : i64) : i64\n    %v") ||
+           !append_size(artifact, capacity, offset, value_index) ||
+           !append_literal(artifact, capacity, offset,
+                           "_shifted = llvm.lshr %v") ||
+           !append_size(artifact, capacity, offset, value_index) ||
+           !append_literal(artifact, capacity, offset,
+                           "_lane, %v") ||
+           !append_size(artifact, capacity, offset, value_index) ||
+           !append_literal(artifact, capacity, offset,
+                           "_shift : i64\n")))
+        return false;
+      if (!append_literal(artifact, capacity, offset, "    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          "_mask = llvm.mlir.constant(1 : i64) : i64\n    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_byte = llvm.and %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          shift == 0u ? "_lane, %v" : "_shifted, %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_mask : i64\n    %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset,
+                          " = llvm.trunc %v") ||
+          !append_size(artifact, capacity, offset, value_index) ||
+          !append_literal(artifact, capacity, offset, "_byte : i64 to i1\n"))
+        return false;
+    }
+    (void)carrier_width;
+    (void)case_extent;
     emitted[value_index] = true;
     return true;
   }
   if (value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) {
     uint32_t enum_index = W_SEED_HIR0_NONE;
     uint32_t carrier_width = 0u;
+    mlir0_enum_layout layout;
     const char *type = NULL;
     if (!mlir0_enum_type_info(program, value->type_index, &enum_index,
-                              &carrier_width) ||
+                              &carrier_width, &layout) ||
         value->enum_index != enum_index ||
         value->enum_case_index >= program->enum_case_count ||
         program->enum_cases[value->enum_case_index].owner_enum != enum_index ||
+        value->first_enum_payload > program->enum_payload_count ||
+        value->enum_payload_count >
+            program->enum_payload_count - value->first_enum_payload ||
+        program->enum_cases[value->enum_case_index].payload_count !=
+            value->enum_payload_count ||
         (type = mlir0_enum_carrier_type_name(carrier_width)) == NULL)
       return false;
-    const bool aggregate = mlir0_enum_payload_slots(program, enum_index) != 0u;
+    const bool aggregate = layout.has_payload;
     for (size_t index = 0u; index < value->enum_payload_count; index += 1u)
       if (!append_program_value_tree(program, program->enum_payloads[
               (size_t)value->first_enum_payload + index].value_index,
@@ -1950,26 +2172,203 @@ static bool append_program_value_tree(
           !append_literal(artifact, capacity, offset, aggregate_type) ||
           !append_literal(artifact, capacity, offset, "\n"))
         return false;
-      for (size_t index = 0u; index < value->enum_payload_count; index += 1u) {
-        const w_seed_hir0_enum_payload *payload =
-            &program->enum_payloads[(size_t)value->first_enum_payload + index];
-        if (!append_literal(artifact, capacity, offset, "    %v") ||
-            !append_size(artifact, capacity, offset, value_index) ||
-            (index + 1u < value->enum_payload_count &&
-             (!append_literal(artifact, capacity, offset, "_pack") ||
-              !append_size(artifact, capacity, offset, index + 1u))) ||
-            !append_literal(artifact, capacity, offset, " = llvm.insertvalue ") ||
-            !append_program_value_operand(program, payload->value_index, function_index, artifact, capacity, offset) ||
-            !append_literal(artifact, capacity, offset, ", %v") ||
-            !append_size(artifact, capacity, offset, value_index) ||
-            !append_literal(artifact, capacity, offset, "_pack") ||
-            !append_size(artifact, capacity, offset, index) ||
-            !append_literal(artifact, capacity, offset, "[1, ") ||
-            !append_size(artifact, capacity, offset, payload->parameter_ordinal) ||
-            !append_literal(artifact, capacity, offset, "] : ") ||
-            !append_literal(artifact, capacity, offset, aggregate_type) ||
-            !append_literal(artifact, capacity, offset, "\n"))
-          return false;
+      const bool all_i64 = layout.has_i64 && !layout.has_bool;
+      if (all_i64) {
+        /* Preserve the established all-i64 artifact, including its logical
+         * ordinal lane indices and SSA naming. */
+        for (size_t index = 0u; index < value->enum_payload_count;
+             index += 1u) {
+          const w_seed_hir0_enum_payload *payload =
+              &program->enum_payloads[(size_t)value->first_enum_payload + index];
+          if (!append_literal(artifact, capacity, offset, "    %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              (index + 1u < value->enum_payload_count &&
+               (!append_literal(artifact, capacity, offset, "_pack") ||
+                !append_size(artifact, capacity, offset, index + 1u))) ||
+              !append_literal(artifact, capacity, offset,
+                              " = llvm.insertvalue ") ||
+              !append_program_value_operand(
+                  program, payload->value_index, function_index, artifact,
+                  capacity, offset) ||
+              !append_literal(artifact, capacity, offset, ", %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_pack") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset, "[1, ") ||
+              !append_size(artifact, capacity, offset,
+                           payload->parameter_ordinal) ||
+              !append_literal(artifact, capacity, offset, "] : ") ||
+              !append_literal(artifact, capacity, offset, aggregate_type) ||
+              !append_literal(artifact, capacity, offset, "\n"))
+            return false;
+        }
+      } else {
+        for (size_t index = 0u; index < value->enum_payload_count;
+             index += 1u) {
+          const w_seed_hir0_enum_payload *payload =
+              &program->enum_payloads[(size_t)value->first_enum_payload + index];
+          w_seed_hir0_type_kind parameter_kind;
+          size_t parameter_offset = 0u;
+          size_t case_extent = 0u;
+          if (!mlir0_enum_case_layout(
+                  program, enum_index, value->enum_case_index,
+                  payload->parameter_ordinal, &parameter_kind,
+                  &parameter_offset, &case_extent) ||
+              payload->type_index >= program->type_count ||
+              program->types[payload->type_index].kind != parameter_kind)
+            return false;
+          (void)case_extent;
+          const bool last = index + 1u == value->enum_payload_count;
+          if (!layout.has_i64) {
+            if (parameter_kind != W_SEED_HIR0_TYPE_BOOL ||
+                !append_literal(artifact, capacity, offset, "    %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                !append_literal(artifact, capacity, offset, "_bool") ||
+                !append_size(artifact, capacity, offset, index) ||
+                !append_literal(artifact, capacity, offset,
+                                " = llvm.zext ") ||
+                !append_program_value_operand(
+                    program, payload->value_index, function_index, artifact,
+                    capacity, offset) ||
+                !append_literal(artifact, capacity, offset,
+                                " : i1 to i8\n    %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                (!last &&
+                 (!append_literal(artifact, capacity, offset, "_pack") ||
+                  !append_size(artifact, capacity, offset, index + 1u))) ||
+                !append_literal(artifact, capacity, offset,
+                                " = llvm.insertvalue %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                !append_literal(artifact, capacity, offset, "_bool") ||
+                !append_size(artifact, capacity, offset, index) ||
+                !append_literal(artifact, capacity, offset, ", %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                !append_literal(artifact, capacity, offset, "_pack") ||
+                !append_size(artifact, capacity, offset, index) ||
+                !append_literal(artifact, capacity, offset, "[1, ") ||
+                !append_size(artifact, capacity, offset, parameter_offset) ||
+                !append_literal(artifact, capacity, offset, "] : ") ||
+                !append_literal(artifact, capacity, offset, aggregate_type) ||
+                !append_literal(artifact, capacity, offset, "\n"))
+              return false;
+            continue;
+          }
+
+          const size_t lane = parameter_offset / 8u;
+          if (parameter_kind == W_SEED_HIR0_TYPE_I64) {
+            if (!append_literal(artifact, capacity, offset, "    %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                (!last &&
+                 (!append_literal(artifact, capacity, offset, "_pack") ||
+                  !append_size(artifact, capacity, offset, index + 1u))) ||
+                !append_literal(artifact, capacity, offset,
+                                " = llvm.insertvalue ") ||
+                !append_program_value_operand(
+                    program, payload->value_index, function_index, artifact,
+                    capacity, offset) ||
+                !append_literal(artifact, capacity, offset, ", %v") ||
+                !append_size(artifact, capacity, offset, value_index) ||
+                !append_literal(artifact, capacity, offset, "_pack") ||
+                !append_size(artifact, capacity, offset, index) ||
+                !append_literal(artifact, capacity, offset, "[1, ") ||
+                !append_size(artifact, capacity, offset, lane) ||
+                !append_literal(artifact, capacity, offset, "] : ") ||
+                !append_literal(artifact, capacity, offset, aggregate_type) ||
+                !append_literal(artifact, capacity, offset, "\n"))
+              return false;
+            continue;
+          }
+
+          if (parameter_kind != W_SEED_HIR0_TYPE_BOOL ||
+              !append_literal(artifact, capacity, offset, "    %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset,
+                              "_lane = llvm.extractvalue %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_pack") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset, "[1, ") ||
+              !append_size(artifact, capacity, offset, lane) ||
+              !append_literal(artifact, capacity, offset, "] : ") ||
+              !append_literal(artifact, capacity, offset, aggregate_type) ||
+              !append_literal(artifact, capacity, offset, "\n    %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset,
+                              "_value = llvm.zext ") ||
+              !append_program_value_operand(
+                  program, payload->value_index, function_index, artifact,
+                  capacity, offset) ||
+              !append_literal(artifact, capacity, offset,
+                              " : i1 to i64\n"))
+            return false;
+          const size_t shift = (parameter_offset % 8u) * 8u;
+          if (shift != 0u &&
+              (!append_literal(artifact, capacity, offset, "    %v") ||
+               !append_size(artifact, capacity, offset, value_index) ||
+               !append_literal(artifact, capacity, offset, "_bool") ||
+               !append_size(artifact, capacity, offset, index) ||
+               !append_literal(artifact, capacity, offset,
+                               "_shift = llvm.mlir.constant(") ||
+               !append_size(artifact, capacity, offset, shift) ||
+               !append_literal(artifact, capacity, offset,
+                               " : i64) : i64\n    %v") ||
+               !append_size(artifact, capacity, offset, value_index) ||
+               !append_literal(artifact, capacity, offset, "_bool") ||
+               !append_size(artifact, capacity, offset, index) ||
+               !append_literal(artifact, capacity, offset,
+                               "_shifted = llvm.shl %v") ||
+               !append_size(artifact, capacity, offset, value_index) ||
+               !append_literal(artifact, capacity, offset, "_bool") ||
+               !append_size(artifact, capacity, offset, index) ||
+               !append_literal(artifact, capacity, offset,
+                               "_value, %v") ||
+               !append_size(artifact, capacity, offset, value_index) ||
+               !append_literal(artifact, capacity, offset, "_bool") ||
+               !append_size(artifact, capacity, offset, index) ||
+               !append_literal(artifact, capacity, offset,
+                               "_shift : i64\n")))
+            return false;
+          if (!append_literal(artifact, capacity, offset, "    %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset,
+                              "_merged = llvm.or %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset, "_lane, %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset,
+                              shift == 0u ? "_value" : "_shifted") ||
+              !append_literal(artifact, capacity, offset,
+                              " : i64\n    %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              (!last &&
+               (!append_literal(artifact, capacity, offset, "_pack") ||
+                !append_size(artifact, capacity, offset, index + 1u))) ||
+              !append_literal(artifact, capacity, offset,
+                              " = llvm.insertvalue %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_bool") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset, "_merged, %v") ||
+              !append_size(artifact, capacity, offset, value_index) ||
+              !append_literal(artifact, capacity, offset, "_pack") ||
+              !append_size(artifact, capacity, offset, index) ||
+              !append_literal(artifact, capacity, offset, "[1, ") ||
+              !append_size(artifact, capacity, offset, lane) ||
+              !append_literal(artifact, capacity, offset, "] : ") ||
+              !append_literal(artifact, capacity, offset, aggregate_type) ||
+              !append_literal(artifact, capacity, offset, "\n"))
+            return false;
+        }
       }
     }
     emitted[value_index] = true;
@@ -1986,17 +2385,22 @@ static const char *program_type_name(const w_seed_hir0_program *program,
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM) {
     uint32_t carrier_width = 0u;
     uint32_t enum_index = 0u;
-    if (!mlir0_enum_type_info(program, type_index, &enum_index, &carrier_width))
+    mlir0_enum_layout layout;
+    if (!mlir0_enum_type_info(program, type_index, &enum_index, &carrier_width,
+                              &layout))
       return NULL;
     const char *tag = mlir0_enum_carrier_type_name(carrier_width);
-    const size_t slots = mlir0_enum_payload_slots(program, enum_index);
-    if (slots == 0u) return tag;
+    if (!layout.has_payload) return tag;
+    const char *payload_type = layout.has_i64 ? "i64" : "i8";
     size_t offset = 0u;
     if (!append_literal((uint8_t *)buffer, 95u, &offset, "!llvm.struct<(") ||
         !append_literal((uint8_t *)buffer, 95u, &offset, tag) ||
         !append_literal((uint8_t *)buffer, 95u, &offset, ", array<") ||
-        !append_size((uint8_t *)buffer, 95u, &offset, slots) ||
-        !append_literal((uint8_t *)buffer, 95u, &offset, " x i64>)>"))
+        !append_size((uint8_t *)buffer, 95u, &offset,
+                     layout.physical_slots) ||
+        !append_literal((uint8_t *)buffer, 95u, &offset, " x ") ||
+        !append_literal((uint8_t *)buffer, 95u, &offset, payload_type) ||
+        !append_literal((uint8_t *)buffer, 95u, &offset, ">)>"))
       return NULL;
     buffer[offset] = '\0';
     return buffer;
@@ -2008,8 +2412,10 @@ static bool append_program_switch_subject(
     const w_seed_hir0_program *program, const w_seed_hir0_terminator *terminator,
     uint32_t function_index, uint8_t *artifact, size_t capacity, size_t *offset) {
   const uint32_t subject = terminator->value_index;
-  const bool aggregate =
-      mlir0_enum_payload_slots(program, terminator->switch_enum_index) != 0u;
+  mlir0_enum_layout layout;
+  if (!mlir0_enum_layout_info(program, terminator->switch_enum_index, &layout))
+    return false;
+  const bool aggregate = layout.has_payload;
   if (aggregate) {
     char type_buffer[96];
     const char *type = program_type_name(program, program->values[subject].type_index, type_buffer);
@@ -2558,7 +2964,7 @@ static bool append_program_function(
       if (enum_switch_emitted || terminator->value_index >= program->value_count ||
           !mlir0_enum_type_info(
               program, program->values[terminator->value_index].type_index,
-              &enum_index, &carrier_width) ||
+              &enum_index, &carrier_width, NULL) ||
           enum_index != terminator->switch_enum_index ||
           (carrier_type = mlir0_enum_carrier_type_name(carrier_width)) == NULL ||
           terminator->first_switch_edge == W_SEED_HIR0_NONE ||
