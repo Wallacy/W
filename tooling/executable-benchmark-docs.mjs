@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { lstat, mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
+  executableWorkloadHasRunner,
   ROOT,
   loadExecutableDocuments,
   validateExecutableCatalog,
@@ -142,6 +143,29 @@ function metricCell(group, metric) {
   return entry ? formatValue(entry) : "—";
 }
 
+function uniqueSection(layout, name) {
+  const matches = Array.isArray(layout?.sections) ? layout.sections.filter((section) => section?.name === name) : [];
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+function artifactCell(group) {
+  const entry = group.metrics.get("artifact-size");
+  if (!entry) return "—";
+  return formatValue(entry);
+}
+
+function sectionVirtualSizeCell(group, name) {
+  const entry = group.metrics.get("artifact-size");
+  const section = uniqueSection(entry?.peLayout, name);
+  return section?.virtualSize ?? "—";
+}
+
+function projectionWorkload(workload) {
+  return workload?.status === "source-oracle-ready" &&
+    workload.sourceReadiness === "source-and-oracle-ready" &&
+    executableWorkloadHasRunner(workload);
+}
+
 function targetLabel(entry) {
   if (entry.artifactTarget.endsWith("windows-msvc")) return "Windows x64 / MSVC";
   if (entry.artifactTarget.endsWith("w64-mingw32")) return "Windows x64 / MinGW";
@@ -171,17 +195,18 @@ export function renderExecutableProjection({ catalog, root = ROOT } = {}) {
     "| Workload | Class | Sources | Oracle | Benchmark |",
     "| --- | --- | --- | --- | --- |",
   ];
-  for (const workload of catalog.workloads) {
+  for (const workload of catalog.workloads.filter(projectionWorkload)) {
     lines.push(`| ${workload.id} | ${workload.structureClass} | ${sourceLinks(workload)} | ${workload.oracle.status} | ${workload.benchmarkStatus} |`);
   }
-  lines.push("", "## Best values", "", "| Workload | Language | Target | Runtime | Artifact | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: |");
+  lines.push("", "## Best values", "", "| Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |", "| --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |");
   for (const group of rows) {
     const entry = group.entry;
-    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${metricCell(group, "artifact-size")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
+    lines.push(`| ${entry.workloadId} | ${entry.language} | ${targetLabel(entry)} | ${runtimeLabel(entry)} | ${artifactCell(group)} | ${sectionVirtualSizeCell(group, ".text")} | ${sectionVirtualSizeCell(group, ".rdata")} | ${metricCell(group, "compile-latency")} | ${metricCell(group, "run-wall-time")} | ${metricCell(group, "run-wall-p95")} | ${metricCell(group, "peak-working-set")} | ${metricCell(group, "cpu-time")} |`);
   }
   lines.push(
     "",
-    "Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
+    "Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane.",
+    "The `.text B` and `.rdata B` columns are the unique sections' validated PE VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. FileAlignment, SectionAlignment and SizeOfHeaders remain in the machine catalog metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.",
     `Machine contract and provenance: ${jsonPathLink(projectionPath("benchmarks/executable-catalog.json"), "executable-catalog.json")}. Manual commands: [README](./README.md#manual-reproduction).`,
   );
   return lines.join("\n");

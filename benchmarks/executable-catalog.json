@@ -223,7 +223,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Run the nested Restaurant branch witness with an exact oracle for both branch levels.",
       "oracle": {
@@ -242,12 +242,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "public-w-build-release",
           "recipeClass": "restaurant-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -255,8 +255,7 @@
         "rust"
       ],
       "blockers": [
-        "cross-language-source-variants",
-        "w-executable-runner-and-timing-deferred-to-M3b"
+        "cross-language-source-variants"
       ]
     },
     {
@@ -265,7 +264,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Evaluate !, && and || once, preserving observable short-circuit calls.",
       "oracle": {
@@ -284,12 +283,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "public-w-build-release",
           "recipeClass": "bool-short-circuit-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -297,8 +296,7 @@
         "rust"
       ],
       "blockers": [
-        "cross-language-source-variants",
-        "w-executable-runner-and-timing-deferred-to-M3b"
+        "cross-language-source-variants"
       ]
     },
     {
@@ -307,7 +305,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Interpolate a bounded Restaurant value and preserve exact text output.",
       "oracle": {
@@ -326,12 +324,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "public-w-build-release",
           "recipeClass": "restaurant-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -339,8 +337,7 @@
         "rust"
       ],
       "blockers": [
-        "cross-language-source-variants",
-        "w-executable-runner-and-timing-deferred-to-M3b"
+        "cross-language-source-variants"
       ]
     },
     {
@@ -349,7 +346,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Run the source-backed Restaurant scalar-if witness and preserve its exact observable output.",
       "oracle": {
@@ -368,12 +365,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "public-w-build-release",
           "recipeClass": "scalar-if-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -381,8 +378,7 @@
         "rust"
       ],
       "blockers": [
-        "cross-language-source-variants",
-        "w-executable-runner-and-timing-deferred-to-M3b"
+        "cross-language-source-variants"
       ]
     },
     {
@@ -391,7 +387,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "deferred-to-M3b",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Run the source-backed Restaurant nested scalar-if witness and preserve its exact observable output.",
       "oracle": {
@@ -410,12 +406,12 @@
           "status": "source-oracle-ready",
           "profile": "release",
           "quality": "correctness-gate",
-          "recipe": "public-w-run",
+          "recipe": "public-w-build-release",
           "recipeClass": "nested-scalar-if-release",
           "platformTarget": "windows-x64",
           "artifactTarget": "x86_64-pc-windows-msvc",
-          "comparability": "deferred-until-M3b",
-          "eligibility": "deferred-to-M3b"
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
         }
       ],
       "blockedLanguages": [
@@ -423,8 +419,7 @@
         "rust"
       ],
       "blockers": [
-        "independent-c-rust-source-equivalents",
-        "w-executable-runner-and-timing-deferred-to-M3b"
+        "independent-c-rust-source-equivalents"
       ]
     },
     {
@@ -763,7 +758,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Evaluate signed-i64 admission comparisons and preserve exact branching output.",
       "oracle": {
@@ -804,7 +799,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Compose every signed comparison with Boolean values and preserve exact output.",
       "oracle": {
@@ -845,7 +840,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Execute a linear sequence of local calls and preserve exact output order.",
       "oracle": {
@@ -886,7 +881,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Execute checked runtime signed division and remainder and preserve exact output.",
       "oracle": {
@@ -927,7 +922,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Execute checked runtime signed unary negation and preserve exact output.",
       "oracle": {
@@ -968,7 +963,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Interpolate a directly negated signed value and preserve exact output.",
       "oracle": {
@@ -1009,7 +1004,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Execute straight-line local signed mutation and preserve exact output.",
       "oracle": {
@@ -1050,7 +1045,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Merge conditional signed mutation through SSA and preserve exact output.",
       "oracle": {
@@ -1091,7 +1086,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Execute Boolean local mutation and preserve exact output.",
       "oracle": {
@@ -1132,7 +1127,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Merge branch-local signed mutation and preserve exact output.",
       "oracle": {
@@ -1173,7 +1168,7 @@
       "status": "source-oracle-ready",
       "sourceReadiness": "source-and-oracle-ready",
       "demoEvidence": "bounded-w-demo",
-      "benchmarkStatus": "not-performance-ready",
+      "benchmarkStatus": "partial-exploratory-ready",
       "lane": "equivalent",
       "scope": "Merge multiple branch-local signed mutations and preserve exact output.",
       "oracle": {
@@ -1497,7 +1492,7 @@
       "logicalCores",
       "ramBytes"
     ],
-    "artifact": "Artifact digest and sizeBytes are correctness-build facts, not repeated samples.",
+    "artifact": "Artifact digest and sizeBytes are correctness-build facts, not repeated samples. New runner-bound results may also carry validated PE layout metadata (FileAlignment, SectionAlignment, SizeOfHeaders and section name/VirtualSize/rawSize); historical records without it are not measured.",
     "metrics": [
       "compile-latency",
       "run-wall-time",
@@ -1555,7 +1550,7 @@
       "catalogDigest",
       "artifactCleanliness"
     ],
-    "rule": "Update compares only lower-is-better positive values inside one exact workload, source-equivalence, platform, artifact target, ABI, profile, host, recipe class and policy category; toolchain and recipe may improve that same cell, while correctness outputs never rank."
+    "rule": "Update compares only lower-is-better positive values inside one exact workload, source-equivalence, platform, artifact target, ABI, profile, host, recipe class and policy category; toolchain and recipe may improve that same cell, while correctness outputs never rank. Artifact layout metadata is emitted only on the artifact-size cell; an equal-size validated candidate with the same equivalence, source and recipe evidence may replace a metadata-less winner as a complete provenance update, while different cells or evidence are never merged."
   },
   "bestMetrics": {
     "$schema": "./executable-benchmark.schema.json",

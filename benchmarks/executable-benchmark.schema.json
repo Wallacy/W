@@ -134,7 +134,7 @@
         "status": { "enum": ["source-oracle-ready", "planned", "blocked"] },
         "sourceReadiness": { "enum": ["source-and-oracle-ready", "not-materialized"] },
         "demoEvidence": { "enum": ["bounded-w-demo", "not-run"] },
-        "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "exploratory-ready", "planned"] },
+        "benchmarkStatus": { "enum": ["not-performance-ready", "deferred-to-M3b", "partial-exploratory-ready", "exploratory-ready", "planned"] },
         "lane": { "const": "equivalent" },
         "scope": { "type": "string" },
         "oracle": {
@@ -302,7 +302,34 @@
       "properties": {
         "digest": { "$ref": "#/$defs/digest" },
         "sizeBytes": { "$ref": "#/$defs/positiveDecimal" },
-        "cleanliness": { "$ref": "#/$defs/artifactCleanliness" }
+        "cleanliness": { "$ref": "#/$defs/artifactCleanliness" },
+        "peLayout": { "$ref": "#/$defs/peLayout" }
+      }
+    },
+    "peLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fileAlignment", "sectionAlignment", "sizeOfHeaders", "sections"],
+      "properties": {
+        "fileAlignment": { "$ref": "#/$defs/positiveDecimal" },
+        "sectionAlignment": { "$ref": "#/$defs/positiveDecimal" },
+        "sizeOfHeaders": { "$ref": "#/$defs/positiveDecimal" },
+        "sections": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 65535,
+          "items": { "$ref": "#/$defs/peSection" }
+        }
+      }
+    },
+    "peSection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "virtualSize", "rawSize"],
+      "properties": {
+        "name": { "type": "string", "pattern": "^[ -~]{1,8}$" },
+        "virtualSize": { "$ref": "#/$defs/decimal" },
+        "rawSize": { "$ref": "#/$defs/decimal" }
       }
     },
     "artifactCleanliness": {
@@ -552,6 +579,7 @@
         "value": { "$ref": "#/$defs/positiveDecimal" },
         "toolchain": { "type": "string", "pattern": "^[a-z0-9][a-z0-9._-]*$" },
         "recipe": { "type": "string", "minLength": 1 },
+        "peLayout": { "$ref": "#/$defs/peLayout" },
         "provenance": { "$ref": "#/$defs/bestMetricProvenance" }
       }
     },

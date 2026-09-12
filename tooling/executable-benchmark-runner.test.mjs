@@ -7,6 +7,7 @@ import path from "node:path";
 import {
   RESULTS_DIRECTORY,
   acquireExecutableBenchmarkLease,
+  assertOracle,
   defaultExecutor,
   deriveSummary,
   EXECUTABLE_CHILD_KILL_SIGNAL,
@@ -184,6 +185,16 @@ const EXPECTED_PE_ARTIFACT_CLEANLINESS = {
   overlay: { sizeBytes: "0" },
 };
 const { sidecars: _sidecars, ...EXPECTED_PE_IMAGE_CLEANLINESS } = EXPECTED_PE_ARTIFACT_CLEANLINESS;
+const EXPECTED_PE_LAYOUT = {
+  fileAlignment: "512",
+  sectionAlignment: "4096",
+  sizeOfHeaders: "512",
+  sections: [{ name: ".text0", virtualSize: "512", rawSize: "512" }],
+};
+const EXPECTED_PE_IMAGE = {
+  cleanliness: EXPECTED_PE_IMAGE_CLEANLINESS,
+  peLayout: EXPECTED_PE_LAYOUT,
+};
 
 function fakePeX64({
   symbolTablePointer = 0,
@@ -195,10 +206,14 @@ function fakePeX64({
   overlay = Buffer.alloc(0),
   rawPointer = 0x200,
   rawSize = 0x200,
+  virtualSize = rawSize,
+  virtualAddress = 0x1000,
   sectionCount = 1,
   optionalHeaderSize = 0xf0,
   directoryCount = 16,
   sizeOfHeaders = 0x200,
+  fileAlignment = 0x200,
+  sectionAlignment = 0x1000,
   debugType,
   debugPayloadSize = 16,
   debugPayloadRva = 0x1040,
@@ -221,6 +236,8 @@ function fakePeX64({
   bytes.writeUInt32LE(symbolCount, fileHeader + 12);
   bytes.writeUInt16LE(optionalHeaderSize, fileHeader + 16);
   bytes.writeUInt16LE(0x20b, optionalHeader);
+  bytes.writeUInt32LE(sectionAlignment, optionalHeader + 32);
+  bytes.writeUInt32LE(fileAlignment, optionalHeader + 36);
   bytes.writeUInt32LE(sizeOfHeaders, optionalHeader + 60);
   bytes.writeUInt32LE(directoryCount, optionalHeader + 108);
   bytes.writeUInt32LE(debugRva, optionalHeader + 112 + 6 * 8);
@@ -231,8 +248,8 @@ function fakePeX64({
     const section = sectionTable + index * 40;
     Buffer.from(`.text${index}\0`, "ascii").copy(bytes, section, 0, 8);
     if (index === 0) {
-      bytes.writeUInt32LE(rawSize, section + 8);
-      bytes.writeUInt32LE(0x1000, section + 12);
+      bytes.writeUInt32LE(virtualSize, section + 8);
+      bytes.writeUInt32LE(virtualAddress, section + 12);
       bytes.writeUInt32LE(rawSize, section + 16);
       bytes.writeUInt32LE(rawPointer, section + 20);
     }
@@ -415,21 +432,27 @@ function assertNoFakeSampleDirectories(fake) {
 
 test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certificate, overlay and malformed metadata", () => {
   for (const language of ["w", "c", "rust"]) {
-    assert.deepEqual(validatePeX64(fakePeX64(), language), EXPECTED_PE_IMAGE_CLEANLINESS);
+    assert.deepEqual(validatePeX64(fakePeX64(), language), EXPECTED_PE_IMAGE);
     assert.deepEqual(validatePeX64(fakePeX64({ debugType: 13 }), language), {
-      ...EXPECTED_PE_IMAGE_CLEANLINESS,
-      debugDirectory: {
-        presence: "pogo-only",
-        sizeBytes: "28",
-        entries: [{ type: "pogo", typeCode: 13, sizeBytes: "16" }],
+      ...EXPECTED_PE_IMAGE,
+      cleanliness: {
+        ...EXPECTED_PE_IMAGE_CLEANLINESS,
+        debugDirectory: {
+          presence: "pogo-only",
+          sizeBytes: "28",
+          entries: [{ type: "pogo", typeCode: 13, sizeBytes: "16" }],
+        },
       },
     });
     assert.deepEqual(validatePeX64(fakePeX64({ debugType: 16, debugPayloadSize: 0, debugPayloadRva: 0, debugPayloadPointer: 0 }), language), {
-      ...EXPECTED_PE_IMAGE_CLEANLINESS,
-      debugDirectory: {
-        presence: "repro-only",
-        sizeBytes: "28",
-        entries: [{ type: "repro", typeCode: 16, sizeBytes: "0" }],
+      ...EXPECTED_PE_IMAGE,
+      cleanliness: {
+        ...EXPECTED_PE_IMAGE_CLEANLINESS,
+        debugDirectory: {
+          presence: "repro-only",
+          sizeBytes: "28",
+          entries: [{ type: "repro", typeCode: 16, sizeBytes: "0" }],
+        },
       },
     });
     const codeViewBytesInSection = fakePeX64();
@@ -465,13 +488,70 @@ test("bounded PE verifier accepts clean PE32+ and rejects symbol, debug, certifi
     shortOptionalHeader.writeUInt16LE(0xa0, 0x94);
     assert.throws(() => validatePeX64(shortOptionalHeader, language), /optional header is too small/u);
 
-    const shortSectionTable = fakePeX64().subarray(0, 0x1af);
-    shortSectionTable.writeUInt32LE(0x1a0, 0xd4);
+    const shortSectionTable = fakePeX64({ optionalHeaderSize: 0x180 }).subarray(0, 0x230);
     assert.throws(() => validatePeX64(shortSectionTable, language), /truncated or invalid PE section table/u);
 
     const outOfBoundsSection = fakePeX64();
     outOfBoundsSection.writeUInt32LE(0x1000, 0x198);
     assert.throws(() => validatePeX64(outOfBoundsSection, language), /truncated or invalid PE section 0 raw data/u);
+
+    const distinctSectionSizes = validatePeX64(fakePeX64({ virtualSize: 0x180 }), language);
+    assert.deepEqual(distinctSectionSizes.peLayout.sections[0], { name: ".text0", virtualSize: "384", rawSize: "512" });
+    assert.equal(distinctSectionSizes.cleanliness.sectionData, "in-bounds");
+
+    const lowAlignment = fakePeX64({ fileAlignment: 0x200, sectionAlignment: 0x200, virtualAddress: 0x200 });
+    assert.doesNotThrow(() => validatePeX64(lowAlignment, language), `${language} must accept a valid low-alignment PE`);
+    assert.deepEqual(validatePeX64(lowAlignment, language).peLayout, {
+      ...EXPECTED_PE_LAYOUT,
+      sectionAlignment: "512",
+    });
+    const lowerAlignment = fakePeX64({ fileAlignment: 0x100, sectionAlignment: 0x100, virtualAddress: 0x200 });
+    assert.doesNotThrow(() => validatePeX64(lowerAlignment, language), `${language} must accept equal low alignments below 512`);
+    assert.equal(validatePeX64(lowerAlignment, language).peLayout.fileAlignment, "256");
+
+    const invalidAlignment = fakePeX64();
+    invalidAlignment.writeUInt32LE(0x300, 0x98 + 36);
+    assert.throws(() => validatePeX64(invalidAlignment, language), /invalid PE file alignment/u);
+
+    const invalidSectionName = fakePeX64();
+    invalidSectionName.writeUInt8(0x1f, 0x188);
+    assert.throws(() => validatePeX64(invalidSectionName, language), /invalid PE section 0 name/u);
+
+    const oversizedRaw = fakePeX64();
+    oversizedRaw.writeUInt32LE(0x1000, 0x188 + 16);
+    assert.throws(() => validatePeX64(oversizedRaw, language), /truncated or invalid PE section 0 raw data/u);
+
+    const overlappingRaw = fakePeX64({ sectionCount: 2 });
+    const secondSection = 0x188 + 40;
+    Buffer.from(".rdata\0", "ascii").copy(overlappingRaw, secondSection, 0, 8);
+    overlappingRaw.writeUInt32LE(0x200, secondSection + 8);
+    overlappingRaw.writeUInt32LE(0x2000, secondSection + 12);
+    overlappingRaw.writeUInt32LE(0x200, secondSection + 16);
+    overlappingRaw.writeUInt32LE(0x200, secondSection + 20);
+    assert.throws(() => validatePeX64(overlappingRaw, language), /overlapping PE section raw ranges/u);
+
+    const overlappingVirtual = Buffer.concat([fakePeX64({ sectionCount: 2 }), Buffer.alloc(0x200)]);
+    const secondVirtualSection = 0x188 + 40;
+    Buffer.from(".rdata\0", "ascii").copy(overlappingVirtual, secondVirtualSection, 0, 8);
+    overlappingVirtual.writeUInt32LE(0x200, secondVirtualSection + 8);
+    overlappingVirtual.writeUInt32LE(0x1000, secondVirtualSection + 12);
+    overlappingVirtual.writeUInt32LE(0x200, secondVirtualSection + 16);
+    overlappingVirtual.writeUInt32LE(0x400, secondVirtualSection + 20);
+    assert.throws(() => validatePeX64(overlappingVirtual, language), /overlapping PE section virtual ranges/u);
+  }
+});
+
+test("assertOracle rejects altered exit, stdout and stderr", () => {
+  const oracle = { exitCode: 0, stdout: "ok\n", stderr: "" };
+  for (const execution of [
+    { exitCode: 1, stdout: Buffer.from("ok\n"), stderr: Buffer.alloc(0) },
+    { exitCode: 0, stdout: Buffer.from("not ok\n"), stderr: Buffer.alloc(0) },
+    { exitCode: 0, stdout: Buffer.from("ok\n"), stderr: Buffer.from("diagnostic\n") },
+  ]) {
+    assert.throws(
+      () => assertOracle(execution, oracle, "fixture", "fixture correctness"),
+      /fixture correctness output does not match the fixture exact-output oracle/u,
+    );
   }
 });
 
@@ -492,6 +572,7 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(record.run.raw.length, 9);
     assert.equal(record.correctness.oracleId, "hello:exact-output");
     assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
+    assert.deepEqual(record.artifact.peLayout, EXPECTED_PE_LAYOUT);
     assert.equal(record.artifactTarget, "x86_64-pc-windows-msvc");
     assert.match(record.protocol.resourceScope, /direct compiler process only/u);
     assert.match(record.protocol.directProcessDisclosure, /per-direct-child timeout.*SIGKILL.*descendant termination.*Job Object/iu);
@@ -670,6 +751,7 @@ test("restaurant-branch W uses public w build with a retained correctness artifa
   assert.equal(record.identity.recipe, "public-w-build-release");
   assert.equal(record.correctness.oracleId, "restaurant-branch:exact-output");
   assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
+  assert.deepEqual(record.artifact.peLayout, EXPECTED_PE_LAYOUT);
   assert.equal(record.compile.raw.length, 9);
   assert.equal(record.run.raw.length, 9);
   assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);

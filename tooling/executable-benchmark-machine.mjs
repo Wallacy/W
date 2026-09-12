@@ -44,6 +44,20 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
   EXECUTABLE_WORKLOAD_IDS.filter((id) => id !== "restaurant-composition"),
 );
+export const EXECUTABLE_BENCHMARK_STATUSES = Object.freeze([
+  "not-performance-ready",
+  "deferred-to-M3b",
+  "partial-exploratory-ready",
+  "exploratory-ready",
+  "planned",
+]);
+
+export function executableWorkloadHasRunner(workload) {
+  if (!workload || !EXECUTABLE_RUN_TARGETS.includes(workload.id) || !Array.isArray(workload.sources) || workload.sources.length === 0) return false;
+  return workload.sources.some((source) => source?.language !== "w" ||
+    source.recipe === "public-w-build-release" ||
+    (workload.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipe === PROCESS_ENTRY0_RECIPE));
+}
 const PUBLIC_WINDOWS_RUN_GATE = "tooling/check-w-run-windows.mjs";
 const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
@@ -175,6 +189,14 @@ const ARTIFACT_CLEANLINESS_FIELDS = Object.freeze([
   "sidecars",
   "overlay",
 ]);
+const PE_LAYOUT_FIELDS = Object.freeze([
+  "fileAlignment",
+  "sectionAlignment",
+  "sizeOfHeaders",
+  "sections",
+]);
+const PE_SECTION_FIELDS = Object.freeze(["name", "virtualSize", "rawSize"]);
+const PE_SECTION_NAME_PATTERN = /^[\x20-\x7e]{1,8}$/u;
 export const PROTOCOL_FIELDS = Object.freeze([
   "warmupMinimum", "rawMinimum", "rawParity", "arithmeticMeanRounding", "stopRule", "wallClock",
   "processIsolation", "order", "resourceScope", "knownNoiseControls",
@@ -567,7 +589,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     if (!["source-oracle-ready", "planned", "blocked"].includes(workload.status)) push(errors, location + ".status is invalid.");
     if (!["source-and-oracle-ready", "not-materialized"].includes(workload.sourceReadiness)) push(errors, location + ".sourceReadiness is invalid.");
     if (!["bounded-w-demo", "not-run"].includes(workload.demoEvidence)) push(errors, location + ".demoEvidence is invalid.");
-    if (!["not-performance-ready", "deferred-to-M3b", "exploratory-ready", "planned"].includes(workload.benchmarkStatus)) push(errors, location + ".benchmarkStatus is invalid.");
+    if (!EXECUTABLE_BENCHMARK_STATUSES.includes(workload.benchmarkStatus)) push(errors, location + ".benchmarkStatus is invalid.");
     if (workload.status === "source-oracle-ready" && workload.sourceReadiness !== "source-and-oracle-ready") push(errors, location + ".sourceReadiness must identify a source-backed oracle.");
     if (workload.status !== "source-oracle-ready" && workload.sourceReadiness !== "not-materialized") push(errors, location + ".sourceReadiness must remain not-materialized.");
     if (workload.status === "source-oracle-ready" && workload.benchmarkStatus === "planned") push(errors, location + ".benchmarkStatus must not be planned for a source-backed witness.");
@@ -587,6 +609,7 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
       }
     }
     const exploratoryReady = workload.benchmarkStatus === "exploratory-ready";
+    const partialExploratoryReady = workload.benchmarkStatus === "partial-exploratory-ready";
     stringArray(workload.blockers, location + ".blockers", errors, exploratoryReady ? 0 : 1);
     if (exploratoryReady && (workload.blockers?.length !== 0 || workload.blockedLanguages?.length !== 0)) {
       push(errors, location + ".benchmarkStatus cannot be exploratory-ready with active measurement blockers.");
@@ -603,6 +626,12 @@ export function validateExecutableCatalog(catalog, documents = undefined, root =
     const blockedLanguages = Array.isArray(workload.blockedLanguages) ? workload.blockedLanguages : [];
     const partition = new Set([...sourceLanguages, ...blockedLanguages]);
     for (const language of EXECUTABLE_LANGUAGES) if (!partition.has(language)) push(errors, location + " must account for language " + language + " as a source or explicit blocker.");
+    if (partialExploratoryReady && (sources.length === 0 || blockedLanguages.length === 0 || workload.blockers?.length === 0)) {
+      push(errors, location + ".benchmarkStatus partial-exploratory-ready requires materialized sources plus explicit blocked languages and blockers.");
+    }
+    if (partialExploratoryReady && !executableWorkloadHasRunner(workload)) {
+      push(errors, location + ".benchmarkStatus partial-exploratory-ready requires a runner-supported source recipe.");
+    }
     if (workload.status === "source-oracle-ready" && !sourceLanguages.has("w")) push(errors, location + " must have a source-backed W witness.");
     if (workload.demoEvidence === "bounded-w-demo" && !sourceLanguages.has("w")) push(errors, location + ".demoEvidence requires a W source witness.");
     if (workload.status !== "source-oracle-ready" && sources.length > 0) push(errors, location + " cannot materialize sources before its oracle is ready.");
@@ -852,6 +881,74 @@ function checkEnvironment(environment, name, errors) {
   positiveDecimal(environment.ramBytes, name + ".ramBytes", errors);
 }
 
+function boundedPeUInt32(value, name, errors, positive = false) {
+  const valid = decimal(value, name, errors);
+  if (!valid) return undefined;
+  if (positive && value === "0") {
+    push(errors, name + " must be positive.");
+    return undefined;
+  }
+  try {
+    const parsed = BigInt(value);
+    if (parsed > 0xffff_ffffn) {
+      push(errors, name + " must fit in a PE uint32.");
+      return undefined;
+    }
+    return parsed;
+  } catch {
+    return undefined;
+  }
+}
+
+function isPowerOfTwo(value) {
+  return value > 0n && (value & (value - 1n)) === 0n;
+}
+
+function checkPeLayout(layout, name, errors, artifactSize = undefined) {
+  if (!exactKeys(layout, name, PE_LAYOUT_FIELDS, errors)) return;
+  const fileAlignment = boundedPeUInt32(layout.fileAlignment, `${name}.fileAlignment`, errors, true);
+  const sectionAlignment = boundedPeUInt32(layout.sectionAlignment, `${name}.sectionAlignment`, errors, true);
+  const sizeOfHeaders = boundedPeUInt32(layout.sizeOfHeaders, `${name}.sizeOfHeaders`, errors, true);
+  if (fileAlignment !== undefined && (!isPowerOfTwo(fileAlignment) || fileAlignment > 65_536n)) {
+    push(errors, `${name}.fileAlignment must be a power-of-two PE file alignment no greater than 65536.`);
+  }
+  if (sectionAlignment !== undefined && (!isPowerOfTwo(sectionAlignment) || sectionAlignment < (fileAlignment ?? 0n))) {
+    push(errors, `${name}.sectionAlignment must be a power-of-two alignment at least as large as fileAlignment.`);
+  }
+  if (fileAlignment !== undefined && sectionAlignment !== undefined &&
+      ((sectionAlignment >= 4096n && fileAlignment < 512n) ||
+       (sectionAlignment < 4096n && sectionAlignment !== fileAlignment))) {
+    push(errors, `${name} has an incompatible PE alignment pair.`);
+  }
+  if (fileAlignment !== undefined && sizeOfHeaders !== undefined && sizeOfHeaders % fileAlignment !== 0n) {
+    push(errors, `${name}.sizeOfHeaders must be file-aligned.`);
+  }
+  if (!Array.isArray(layout.sections) || layout.sections.length === 0 || layout.sections.length > 65_535) {
+    push(errors, `${name}.sections must contain between one and 65535 PE sections.`);
+    return;
+  }
+  let rawTotal = 0n;
+  for (const [index, section] of layout.sections.entries()) {
+    const sectionName = `${name}.sections[${index}]`;
+    if (!exactKeys(section, sectionName, PE_SECTION_FIELDS, errors)) continue;
+    if (typeof section.name !== "string" || !PE_SECTION_NAME_PATTERN.test(section.name)) {
+      push(errors, `${sectionName}.name must be one to eight printable ASCII characters.`);
+    }
+    boundedPeUInt32(section.virtualSize, `${sectionName}.virtualSize`, errors);
+    const rawSize = boundedPeUInt32(section.rawSize, `${sectionName}.rawSize`, errors);
+    if (fileAlignment !== undefined && rawSize !== undefined && rawSize % fileAlignment !== 0n) {
+      push(errors, `${sectionName}.rawSize must be file-aligned.`);
+    }
+    if (rawSize !== undefined) rawTotal += rawSize;
+  }
+  const parsedArtifactSize = typeof artifactSize === "string" && /^[1-9][0-9]*$/u.test(artifactSize)
+    ? BigInt(artifactSize)
+    : undefined;
+  if (sizeOfHeaders !== undefined && parsedArtifactSize !== undefined && sizeOfHeaders + rawTotal > parsedArtifactSize) {
+    push(errors, `${name} headers plus section raw sizes must fit within the artifact.`);
+  }
+}
+
 function checkArtifactCleanliness(cleanliness, name, errors) {
   if (!exactKeys(cleanliness, name, ARTIFACT_CLEANLINESS_FIELDS, errors)) return;
   if (exactKeys(cleanliness.coffSymbols, `${name}.coffSymbols`, ["pointer", "count"], errors)) {
@@ -992,10 +1089,16 @@ export function validateExecutableResult(result, catalog = loadExecutableDocumen
   const artifactFields = hasArtifactCleanliness
     ? ["digest", "sizeBytes", "cleanliness"]
     : ["digest", "sizeBytes"];
+  const hasPeLayout = isObject(result.artifact) && Object.prototype.hasOwnProperty.call(result.artifact, "peLayout");
+  if (hasPeLayout && !hasArtifactCleanliness) {
+    push(errors, "executable result.artifact.peLayout requires validated artifact.cleanliness.");
+  }
+  if (hasPeLayout) artifactFields.push("peLayout");
   if (exactKeys(result.artifact, "executable result.artifact", artifactFields, errors)) {
     digest(result.artifact.digest, "executable result.artifact.digest", errors);
     positiveDecimal(result.artifact.sizeBytes, "executable result.artifact.sizeBytes", errors);
     if (artifactFields.includes("cleanliness")) checkArtifactCleanliness(result.artifact.cleanliness, "executable result.artifact.cleanliness", errors);
+    if (artifactFields.includes("peLayout")) checkPeLayout(result.artifact.peLayout, "executable result.artifact.peLayout", errors, result.artifact.sizeBytes);
   }
   checkProtocol(result.protocol, "executable result.protocol", errors);
   checkEnvironment(result.environment, "executable result.environment", errors);
@@ -1065,6 +1168,29 @@ function compareResultForTie(left, right) {
     compareText(String(left?.provenance?.commit ?? ""), String(right?.provenance?.commit ?? ""));
 }
 
+function hasPeLayout(value) {
+  return isObject(value?.artifact?.peLayout) || isObject(value?.peLayout);
+}
+
+function sameArtifactEvidence(left, right) {
+  return left?.equivalenceKey === right?.equivalenceKey &&
+    (left?.provenance?.sourceDigest ?? left?.identity?.sourceDigest) ===
+      (right?.provenance?.sourceDigest ?? right?.identity?.sourceDigest) &&
+    (left?.provenance?.recipeDigest ?? left?.identity?.recipeDigest) ===
+      (right?.provenance?.recipeDigest ?? right?.identity?.recipeDigest);
+}
+
+function chooseBestRecord(values, metric) {
+  const minimum = values.reduce((best, item) => item.value < best ? item.value : best, values[0].value);
+  const tied = values.filter((item) => item.value === minimum).map((item) => item.record).sort(compareResultForTie);
+  let primary = tied[0];
+  if (metric === "artifact-size" && !hasPeLayout(primary)) {
+    const withLayout = tied.filter((candidate) => hasPeLayout(candidate) && sameArtifactEvidence(primary, candidate));
+    if (withLayout.length > 0) primary = withLayout[0];
+  }
+  return primary;
+}
+
 function entryFromResult(record, catalog, metric) {
   const workload = workloadFor(catalog, record.workloadId);
   const source = sourceFor(workload, record.language);
@@ -1082,7 +1208,7 @@ function entryFromResult(record, catalog, metric) {
     eligibility: source?.eligibility,
   };
   const categoryKey = executableCategoryKey(category);
-  return {
+  const entry = {
     $schema: "./executable-benchmark.schema.json",
     schema: EXECUTABLE_BEST_SCHEMA,
     kind: "executable-best-metric",
@@ -1119,6 +1245,10 @@ function entryFromResult(record, catalog, metric) {
       artifactCleanliness: record.artifact?.cleanliness ? "verified-clean" : "historical-unverified",
     },
   };
+  if (metric === "artifact-size" && record.artifact?.peLayout !== undefined) {
+    entry.peLayout = structuredClone(record.artifact.peLayout);
+  }
+  return entry;
 }
 
 export function deriveExecutableBestMetrics(catalog, results) {
@@ -1164,8 +1294,7 @@ export function deriveExecutableBestMetrics(catalog, results) {
         .filter((record) => bestMetricIsEligible(record, metric))
         .map((record) => ({ record, value: BigInt(resultMetricValue(record, metric)) }));
       if (values.length === 0) continue;
-      const minimum = values.reduce((best, item) => item.value < best ? item.value : best, values[0].value);
-      const primary = values.filter((item) => item.value === minimum).map((item) => item.record).sort(compareResultForTie)[0];
+      const primary = chooseBestRecord(values, metric);
       entries.push(entryFromResult(primary, catalog, metric));
     }
   }
@@ -1195,6 +1324,7 @@ function bestMetricSort(left, right) {
 export function validateExecutableBestMetric(record, catalog = loadExecutableDocuments().catalog) {
   const errors = [];
   const keys = ["$schema", "schema", "kind", "id", "status", "categoryId", "workloadId", "language", "equivalenceKey", "platformTarget", "artifactTarget", "abi", "profile", "host", "recipeClass", "comparability", "eligibility", "metric", "unit", "statistic", "value", "toolchain", "recipe", "provenance"];
+  if (isObject(record) && Object.prototype.hasOwnProperty.call(record, "peLayout")) keys.push("peLayout");
   if (!exactKeys(record, "executable best-metric record", keys, errors)) return errors;
   if (record.$schema !== "./executable-benchmark.schema.json" || record.schema !== EXECUTABLE_BEST_SCHEMA || record.kind !== "executable-best-metric" || record.status !== "current") push(errors, "executable best-metric identity or status is invalid.");
   requiredString(record.id, "executable best metric.id", errors);
@@ -1234,6 +1364,11 @@ export function validateExecutableBestMetric(record, catalog = loadExecutableDoc
     if (!['historical-unverified', 'verified-clean'].includes(record.provenance.artifactCleanliness)) push(errors, "executable best metric.provenance.artifactCleanliness must be historical-unverified or verified-clean.");
     if (source && record.provenance.sourceDigest !== source.digest) push(errors, "executable best metric.provenance.sourceDigest must match the catalog source.");
     if (record.provenance.recipeDigest === undefined) push(errors, "executable best metric provenance must include recipeDigest.");
+  }
+  if (Object.prototype.hasOwnProperty.call(record, "peLayout")) {
+    if (record.metric !== "artifact-size") push(errors, "executable best metric.peLayout is only valid for the artifact-size cell.");
+    if (record.provenance?.artifactCleanliness !== "verified-clean") push(errors, "executable best metric.peLayout requires verified-clean artifact provenance.");
+    checkPeLayout(record.peLayout, "executable best metric.peLayout", errors, record.value);
   }
   return errors;
 }
@@ -1277,7 +1412,11 @@ export function updateExecutableBestMetrics(catalog, result) {
   for (const entry of candidate.entries) {
     const key = `${entry.categoryId}\u0000${entry.metric}`;
     const previous = byCell.get(key);
-    if (!previous || BigInt(entry.value) < BigInt(previous.value)) {
+    const improves = !previous || BigInt(entry.value) < BigInt(previous.value);
+    const fillsArtifactLayout = previous && entry.metric === "artifact-size" &&
+      BigInt(entry.value) === BigInt(previous.value) &&
+      !hasPeLayout(previous) && hasPeLayout(entry) && sameArtifactEvidence(previous, entry);
+    if (improves || fillsArtifactLayout) {
       byCell.set(key, entry);
       updatedMetrics.push(entry.metric);
     }

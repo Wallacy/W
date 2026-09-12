@@ -15,9 +15,16 @@ test("generated projection is current, compact, and sourced only from the live c
   const maximumCompactLines = documents.catalog.workloads.length + measuredCells + 18;
   assert.ok(rendered.split(/\r?\n/u).length <= maximumCompactLines);
   assert.match(rendered, /Best values/u);
-  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
-  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| 9216 B/u);
-  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| 2560 B/u);
+  assert.match(rendered, /\| Workload \| Language \| Target \| Runtime \| Artifact \| \.text B \| \.rdata B \| Compile p50 \| Run p50 \| Run p95 \| Peak RSS \| CPU mean \|/u);
+  assert.match(rendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B/u);
+  assert.match(rendered, /\| hello \| w \| Windows x64 \/ MSVC \| CRT-free \| [0-9]+ B/u);
+  const partialWOnly = documents.catalog.workloads.filter((workload) =>
+    workload.benchmarkStatus === "partial-exploratory-ready" &&
+    workload.sources.length === 1 && workload.sources[0].language === "w",
+  );
+  assert.equal(partialWOnly.length, 16);
+  assert.ok(partialWOnly.every((workload) => rendered.includes(`| ${workload.id} |`)));
+  assert.doesNotMatch(rendered, /restaurant-composition/u, "planned workloads stay out of the projection");
   assert.match(rendered, /Artifact size counts only the PE file\. It excludes imported runtime DLLs\./u);
   assert.match(rendered, /\[w\]\(\.\/executable\/hello\.w\)/u);
   assert.match(rendered, /\[w\]\(\.\.\/compiler\/seed-c\/fixtures\/restaurant-if\.w\)/u);
@@ -35,4 +42,24 @@ test("projection formatting and links remain deterministic", () => {
   assert.equal(projectionPath("compiler/seed-c/fixtures/restaurant-if.w"), "../compiler/seed-c/fixtures/restaurant-if.w");
   const copy = structuredClone(documents.catalog);
   assert.equal(renderExecutableProjection({ catalog: copy }), renderExecutableProjection({ catalog: documents.catalog }));
+
+  const withSections = structuredClone(documents.catalog);
+  const helloCArtifact = withSections.bestMetrics.entries.find((entry) =>
+    entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size");
+  delete helloCArtifact.peLayout;
+  assert.match(renderExecutableProjection({ catalog: withSections }), /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| — \| — \|/u);
+  helloCArtifact.peLayout = {
+    fileAlignment: "512",
+    sectionAlignment: "4096",
+    sizeOfHeaders: "512",
+    sections: [
+      { name: ".text", virtualSize: "111", rawSize: "512" },
+      { name: ".rdata", virtualSize: "222", rawSize: "512" },
+    ],
+  };
+  const sectionRendered = renderExecutableProjection({ catalog: withSections });
+  assert.match(sectionRendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| 111 \| 222 \|/u);
+  helloCArtifact.peLayout.sections.push({ name: ".text", virtualSize: "333", rawSize: "512" });
+  const ambiguousRendered = renderExecutableProjection({ catalog: withSections });
+  assert.match(ambiguousRendered, /\| hello \| c \| Windows x64 \/ MSVC \| MSVC CRT DLL \| [0-9]+ B[^|]*\| — \| 222 \|/u);
 });

@@ -5,6 +5,7 @@ import {
   LOCAL_RESULTS_PATH,
   ROOT,
   EXECUTABLE_RUN_TARGETS,
+  executableWorkloadHasRunner,
   updateExecutableBestMetrics,
   loadExecutableDocuments,
   validateExecutableBestMetrics,
@@ -220,7 +221,7 @@ async function listCommand(root = ROOT) {
     catalog: documents.catalog.id,
     status: documents.catalog.status,
     bestMetrics: documents.catalog.bestMetrics.entries.length,
-    workloads: documents.catalog.workloads.map((workload) => ({
+    workloads: documents.catalog.workloads.filter(executableWorkloadHasRunner).map((workload) => ({
       id: workload.id,
       structureClass: workload.structureClass,
       sourceReadiness: workload.sourceReadiness,
