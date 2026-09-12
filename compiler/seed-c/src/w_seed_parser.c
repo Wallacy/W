@@ -481,6 +481,7 @@ static bool parse_contract_envelope(w_seed_parser *parser, size_t head_end,
 static bool parse_static_value(w_seed_parser *parser);
 static bool parse_static_list(w_seed_parser *parser);
 static bool parse_switch_expression(w_seed_parser *parser);
+static bool parse_enum_payload_pattern(w_seed_parser *parser);
 static bool parse_allocator_block(w_seed_parser *parser);
 static bool parse_binding_statement(w_seed_parser *parser, const char *keyword,
                                     w_seed_cst_kind kind);
@@ -890,6 +891,10 @@ static bool parse_switch_pattern(w_seed_parser *parser) {
       return false;
     }
     (void)consume_current(parser, NULL);
+    if (current_is_text(parser, "(") && !parse_enum_payload_pattern(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
   } else if (kind == W_SEED_CST_WILDCARD_PATTERN) {
     (void)consume_current(parser, NULL);
   } else if (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT)) {
@@ -898,6 +903,130 @@ static bool parse_switch_pattern(w_seed_parser *parser) {
     } while (current_is_kind(parser, W_SEED_LEX_ITEM_LITERAL_EVENT));
   } else {
     (void)consume_current(parser, NULL);
+  }
+  pop_node(parser, parser->last_token_end);
+  return true;
+}
+
+static bool parse_enum_payload_atom(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (current_is_text(parser, "let")) {
+    if (push_node(parser, W_SEED_CST_CAPTURE_PATTERN, start) ==
+        W_SEED_CST_NONE)
+      return false;
+    (void)consume_text(parser, "let", NULL);
+    if (!current_is_kind(parser, W_SEED_LEX_ITEM_WORD)) {
+      append_missing(parser, current_span(parser).start_byte,
+                     W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+    }
+    (void)consume_current(parser, NULL);
+    pop_node(parser, parser->last_token_end);
+    return true;
+  }
+  if (current_is_text(parser, "_")) {
+    if (push_node(parser, W_SEED_CST_WILDCARD_PATTERN, start) ==
+        W_SEED_CST_NONE)
+      return false;
+    (void)consume_text(parser, "_", NULL);
+    pop_node(parser, parser->last_token_end);
+    return true;
+  }
+  if (current_is_text(parser, "...")) {
+    if (push_node(parser, W_SEED_CST_REST_PATTERN, start) == W_SEED_CST_NONE)
+      return false;
+    (void)consume_text(parser, "...", NULL);
+    pop_node(parser, parser->last_token_end);
+    return true;
+  }
+  append_missing(parser, current_span(parser).start_byte,
+                 W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+  return false;
+}
+
+static bool parse_enum_payload_pattern(w_seed_parser *parser) {
+  if (!skip_trivia(parser) || current_is_eof(parser)) return false;
+  const size_t start = current_span(parser).start_byte;
+  if (push_node(parser, W_SEED_CST_ENUM_PAYLOAD_PATTERN, start) ==
+      W_SEED_CST_NONE)
+    return false;
+  (void)consume_text(parser, "(", NULL);
+  if (current_is_text(parser, ")")) {
+    append_missing(parser, current_span(parser).start_byte,
+                   W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
+  }
+  bool labeled_mode = false;
+  bool positional_mode = false;
+  while (true) {
+    const bool labeled_item =
+        current_is_kind(parser, W_SEED_LEX_ITEM_WORD) &&
+        !current_is_text(parser, "let") && next_is_text(parser, ":");
+    if (current_is_text(parser, "...")) {
+      if (!labeled_mode || !parse_enum_payload_atom(parser)) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      if (current_is_text(parser, ",")) (void)consume_text(parser, ",", NULL);
+      if (!current_is_text(parser, ")")) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      break;
+    }
+    if (labeled_item) {
+      if (positional_mode) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      labeled_mode = true;
+      const size_t label_start = current_span(parser).start_byte;
+      if (push_node(parser, W_SEED_CST_LABELED_PATTERN, label_start) ==
+          W_SEED_CST_NONE)
+        return false;
+      (void)consume_current(parser, NULL);
+      if (!expect_text(parser, ":", W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN) ||
+          !parse_enum_payload_atom(parser)) {
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : label_start);
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      pop_node(parser, parser->last_token_end);
+    } else {
+      if (labeled_mode) {
+        append_missing(parser, current_span(parser).start_byte,
+                       W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN);
+        pop_node(parser,
+                 parser->has_last_token ? parser->last_token_end : start);
+        return false;
+      }
+      positional_mode = true;
+      if (!parse_enum_payload_atom(parser)) {
+      pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+      return false;
+      }
+    }
+    if (!current_is_text(parser, ",")) break;
+    (void)consume_text(parser, ",", NULL);
+    if (current_is_text(parser, ")")) break;
+  }
+  if (!expect_text(parser, ")", W_SEED_PARSE_ISSUE_MISSING_OWNER_CLOSE)) {
+    pop_node(parser, parser->has_last_token ? parser->last_token_end : start);
+    return false;
   }
   pop_node(parser, parser->last_token_end);
   return true;

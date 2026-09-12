@@ -868,8 +868,16 @@ e chamadas externas resolvidas por stub; um case fora do conjunto produz
 `W-TYPE-0121`. Subset para base e para superset é implícito; base para subset
 não é. `switch` usa somente o conjunto do subject: case fora é
 `W-MATCH-0002`, membro ausente é `W-MATCH-0001` e wildcard cobre o conjunto.
+Frontend schema `w-seed-frontend-19` now preserves enum payload patterns as
+structural CST owners and publishes a caller-owned capture relation. Each
+capture identifies its switch arm, declaration payload ordinal, name, span,
+and resolved type; identifier reads point back to that relation rather than
+reparsing source spelling. The current executable seed accepts signed `i64`
+captures only. HIR0 still rejects this new record family explicitly, so this
+is frontend evidence rather than native payload-enum evidence.
+
 Este D0 não implementa conversão explícita `try Subset(base)`, subsets
-importados, aliases genéricos ou empilhados, payload patterns/captures, guards,
+importados, aliases genéricos ou empilhados, payload lowering, guards,
 switches de tuple/range/struct ou facts completos de fluxo. Literals em enum
 switch preservam fato explícito unsupported. As formas sem código normativo
 continuam fatos/barreiras explícitos; o seed não apresenta esta fatia como

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-18"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-19"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -300,6 +300,7 @@ typedef struct {
   size_t enum_cases;
   size_t enum_case_parameters;
   size_t switch_arms;
+  size_t pattern_captures;
   size_t enum_subset_members;
   /* Append-only membership case records. */
   size_t enum_membership_cases;
@@ -751,7 +752,21 @@ typedef struct {
   uint32_t result_expression;
   w_seed_span span;
   bool supported;
+  uint32_t first_capture;
+  uint32_t capture_count;
 } w_seed_frontend_switch_arm;
+
+/* A switch payload capture is an explicit lexical relation to one enum-case
+ * parameter.  It is never reconstructed from spelling downstream. */
+typedef struct {
+  uint32_t module_index;
+  uint32_t owner_switch_arm;
+  uint32_t ordinal;
+  uint32_t parameter_ordinal;
+  w_seed_frontend_text name;
+  w_seed_span span;
+  uint32_t type_index;
+} w_seed_frontend_pattern_capture;
 
 typedef struct {
   w_seed_frontend_expr_kind kind;
@@ -802,6 +817,8 @@ typedef struct {
   /* Append-only lexical relation for a local binding read.  The value is a
    * normalized statement index, never a source-text identity. */
   uint32_t resolved_binding_statement;
+  /* Append-only lexical relation for a switch payload capture read. */
+  uint32_t resolved_pattern_capture;
   /* Append-only ordered interpolation range. */
   uint32_t first_interpolation_segment;
   uint32_t interpolation_segment_count;
@@ -913,6 +930,8 @@ typedef struct {
   /* Append-only switch-arm output arrays. */
   w_seed_frontend_switch_arm *switch_arms;
   size_t switch_arm_capacity;
+  w_seed_frontend_pattern_capture *pattern_captures;
+  size_t pattern_capture_capacity;
   /* Append-only normalized enum-subset member records. */
   w_seed_frontend_enum_subset_member *enum_subset_members;
   size_t enum_subset_member_capacity;

@@ -47,6 +47,7 @@ enum {
   TEST_INTERPOLATION_SEGMENTS = 1024,
   TEST_ARGUMENTS = 256,
   TEST_SWITCH_ARMS = 256,
+  TEST_PATTERN_CAPTURES = 256,
   TEST_ENUM_MEMBERSHIP_CASES = 1024,
   TEST_SYMBOLS = 512,
   TEST_FACTS = 512,
@@ -103,6 +104,7 @@ typedef struct {
       interpolation_segments[TEST_INTERPOLATION_SEGMENTS];
   w_seed_frontend_argument arguments[TEST_ARGUMENTS];
   w_seed_frontend_switch_arm switch_arms[TEST_SWITCH_ARMS];
+  w_seed_frontend_pattern_capture pattern_captures[TEST_PATTERN_CAPTURES];
   w_seed_frontend_enum_membership_case
       enum_membership_cases[TEST_ENUM_MEMBERSHIP_CASES];
   w_seed_frontend_symbol symbols[TEST_SYMBOLS];
@@ -205,6 +207,8 @@ static void fixture_fill_output(fixture *fixture_value, uint8_t value) {
                sizeof(fixture_value->arguments));
   (void)memset(fixture_value->switch_arms, value,
                sizeof(fixture_value->switch_arms));
+  (void)memset(fixture_value->pattern_captures, value,
+               sizeof(fixture_value->pattern_captures));
   (void)memset(fixture_value->enum_membership_cases, value,
                sizeof(fixture_value->enum_membership_cases));
   (void)memset(fixture_value->symbols, value, sizeof(fixture_value->symbols));
@@ -277,6 +281,8 @@ static bool fixture_output_is(const fixture *fixture_value, uint8_t value,
                          sizeof(fixture_value->arguments), value) &&
          all_bytes_equal(fixture_value->switch_arms,
                          sizeof(fixture_value->switch_arms), value) &&
+         all_bytes_equal(fixture_value->pattern_captures,
+                         sizeof(fixture_value->pattern_captures), value) &&
          all_bytes_equal(fixture_value->enum_membership_cases,
                          sizeof(fixture_value->enum_membership_cases), value) &&
          all_bytes_equal(fixture_value->enum_subset_members,
@@ -390,6 +396,8 @@ static bool fixture_parse(fixture *fixture_value, const char *text) {
       .argument_capacity = TEST_ARGUMENTS,
       .switch_arms = fixture_value->switch_arms,
       .switch_arm_capacity = TEST_SWITCH_ARMS,
+      .pattern_captures = fixture_value->pattern_captures,
+      .pattern_capture_capacity = TEST_PATTERN_CAPTURES,
       .enum_membership_cases = fixture_value->enum_membership_cases,
       .enum_membership_case_capacity = TEST_ENUM_MEMBERSHIP_CASES,
       .entries = fixture_value->entries,
@@ -581,6 +589,7 @@ static bool counts_equal(const w_seed_frontend_counts *left,
          left->interpolation_segments == right->interpolation_segments &&
          left->arguments == right->arguments && left->symbols == right->symbols &&
          left->switch_arms == right->switch_arms &&
+         left->pattern_captures == right->pattern_captures &&
          left->enum_membership_cases == right->enum_membership_cases &&
          left->facts == right->facts &&
          left->diagnostics == right->diagnostics &&
@@ -1610,6 +1619,61 @@ static bool test_enum_values_constructors_and_switches(void) {
   CHECK(memcmp(switch_repeat->receipt, switch_value->receipt,
                switch_value->result.receipt_bytes) == 0);
 
+  CHECK(fixture_run(
+      switch_value,
+      "enum Course { starter main(price: i64) dessert }\n"
+      "fn price(course: Course): i64 { return switch course { "
+      "case .starter: 10 case .main(price: let amount): amount "
+      "case .dessert: 20 } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_OK);
+  CHECK(switch_value->result.written.switch_arms == 3u &&
+        switch_value->result.written.pattern_captures == 1u);
+  CHECK(switch_value->switch_arms[0].capture_count == 0u &&
+        switch_value->switch_arms[1].first_capture == 0u &&
+        switch_value->switch_arms[1].capture_count == 1u &&
+        switch_value->switch_arms[2].capture_count == 0u);
+  CHECK(switch_value->pattern_captures[0].owner_switch_arm == 1u &&
+        switch_value->pattern_captures[0].ordinal == 0u &&
+        switch_value->pattern_captures[0].parameter_ordinal == 0u &&
+        frontend_text_is(switch_value->pattern_captures[0].name, "amount"));
+  bool saw_capture_read = false;
+  for (size_t expression = 0u;
+       expression < switch_value->result.written.expressions;
+       expression += 1u) {
+    if (switch_value->expressions[expression].kind ==
+            W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        frontend_text_is(switch_value->expressions[expression].spelling,
+                         "amount")) {
+      CHECK(switch_value->expressions[expression].resolved_pattern_capture ==
+            0u);
+      saw_capture_read = true;
+    }
+  }
+  CHECK(saw_capture_read);
+  CHECK(receipt_contains(switch_value, "pattern-capture=0|owner=1|ordinal=0",
+                         strlen("pattern-capture=0|owner=1|ordinal=0")));
+  CHECK(fixture_run(
+      switch_repeat,
+      "enum Course { starter main(price: i64) dessert }\n"
+      "fn price(course: Course): i64 { return switch course { "
+      "case .starter: 10 case .main(price: let amount): amount "
+      "case .dessert: 20 } }\n"));
+  CHECK(switch_repeat->result.status == W_SEED_FRONTEND_OK &&
+        switch_repeat->result.receipt_bytes ==
+            switch_value->result.receipt_bytes &&
+        memcmp(switch_repeat->receipt, switch_value->receipt,
+               switch_value->result.receipt_bytes) == 0);
+
+  CHECK(fixture_run(
+      switch_value,
+      "enum Course { starter main(price: i64) dessert }\n"
+      "fn price(course: Course): i64 { return switch course { "
+      "case .starter: 10 case .main(other: let amount): amount "
+      "case .dessert: 20 } }\n"));
+  CHECK(switch_value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(switch_value,
+                 W_SEED_FRONTEND_FACT_UNSUPPORTED_EXPRESSION));
+
   CHECK(fixture_run(switch_value,
                     "enum Stage { accepted reserving preparing }\n"
                     "fn label(stage: Stage): String { return switch stage { "
@@ -2547,7 +2611,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-18") &&
+                         "w-seed-frontend-19") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2586,8 +2650,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-18\n",
-                         strlen("schema=w-seed-frontend-18\n")));
+        receipt_contains(value, "schema=w-seed-frontend-19\n",
+                         strlen("schema=w-seed-frontend-19\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5022,7 +5086,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-18") &&
+                         "w-seed-frontend-19") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&

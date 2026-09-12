@@ -3316,6 +3316,70 @@ static bool test_enum_declaration_shapes(void) {
   return true;
 }
 
+static bool test_enum_payload_pattern_shapes(void) {
+  static const char source[] =
+      "enum Event { idle progress(value: i64, total: i64) failed(i64) }\n"
+      "fn amount(event: Event): i64 { return switch event { "
+      "case .idle: 0 "
+      "case .progress(value: let value, total: _): value "
+      "case Event.failed(let code): code } }\n"
+      "entry { }\n";
+  fixture value;
+  CHECK(fixture_init(&value, source,
+                     sizeof(value.nodes) / sizeof(value.nodes[0]),
+                     sizeof(value.issues) / sizeof(value.issues[0])));
+  CHECK(check_complete_shape(&value));
+  CHECK(count_kind(&value, W_SEED_CST_ENUM_PAYLOAD_PATTERN) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_CAPTURE_PATTERN) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_LABELED_PATTERN) == 2);
+  CHECK(count_kind(&value, W_SEED_CST_WILDCARD_PATTERN) == 1);
+  CHECK(count_kind(&value, W_SEED_CST_REST_PATTERN) == 0);
+  const w_seed_cst_index payload =
+      first_kind(&value, W_SEED_CST_ENUM_PAYLOAD_PATTERN);
+  CHECK(payload != W_SEED_CST_NONE);
+  CHECK(node_span_text(&value, payload,
+                       "(value: let value, total: _)"));
+  CHECK(count_direct_kind(&value, payload, W_SEED_CST_LABELED_PATTERN) == 2);
+  CHECK(check_leaf_partition(&value));
+  CHECK(check_tree_links(&value));
+
+  fixture rest;
+  CHECK(fixture_init(
+      &rest,
+      "enum Pair { values(left: i64, right: i64) } "
+      "fn left(pair: Pair): i64 { return switch pair { "
+      "case .values(left: let value, ...): value } } entry { }",
+      sizeof(rest.nodes) / sizeof(rest.nodes[0]),
+      sizeof(rest.issues) / sizeof(rest.issues[0])));
+  CHECK(check_complete_shape(&rest));
+  CHECK(count_kind(&rest, W_SEED_CST_REST_PATTERN) == 1);
+  CHECK(check_leaf_partition(&rest));
+  CHECK(check_tree_links(&rest));
+
+  static const char *const rejected[] = {
+      "enum E { pair(left: i64, right: i64) } fn f(value: E): i64 { "
+      "return switch value { case .pair(let left, right: let right): left } }",
+      "enum E { pair(left: i64, right: i64) } fn f(value: E): i64 { "
+      "return switch value { case .pair(left: let left, ..., "
+      "right: let right): left } }",
+      "enum E { pair(left: i64, right: i64) } fn f(value: E): i64 { "
+      "return switch value { case .pair(...): 0 } }",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    fixture malformed;
+    CHECK(fixture_init(&malformed, rejected[index],
+                       sizeof(malformed.nodes) / sizeof(malformed.nodes[0]),
+                       sizeof(malformed.issues) /
+                           sizeof(malformed.issues[0])));
+    CHECK(malformed.result.status != W_SEED_PARSE_COMPLETE);
+    CHECK(has_issue(&malformed, W_SEED_PARSE_ISSUE_UNEXPECTED_TOKEN));
+    CHECK(check_leaf_partition(&malformed));
+    CHECK(check_tree_links(&malformed));
+  }
+  return true;
+}
+
 int main(void) {
   const bool passed =
       test_positive_core() &&
@@ -3354,7 +3418,8 @@ int main(void) {
       test_for_markers_and_iterables() &&
       test_for_control_recovery() &&
       test_phase3_callable_closure_capture() &&
-      test_enum_declaration_shapes();
+      test_enum_declaration_shapes() &&
+      test_enum_payload_pattern_shapes();
   if (!passed) return 1;
   (void)puts("Seed C parser: caller-owned CST, recovery and incremental hand cases passed");
   return 0;
