@@ -19,6 +19,7 @@ import {
   validateProgram,
 } from "./benchmark-driven-development-machine.mjs";
 import {
+  EXECUTABLE_SCHEMA,
   loadExecutableDocuments,
   validateExecutableCatalog,
 } from "./executable-benchmark-machine.mjs";
@@ -69,7 +70,7 @@ if (!documents.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result")) 
   fail("WBench/1 root must expose kind result.");
 }
 
-if (executableDocuments.schema?.$id !== "w-executable-benchmark/4" ||
+if (executableDocuments.schema?.$id !== EXECUTABLE_SCHEMA ||
     !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/catalog") ||
     !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/result") ||
     !executableDocuments.schema?.oneOf?.some((entry) => entry.$ref === "#/$defs/bestMetric") ||

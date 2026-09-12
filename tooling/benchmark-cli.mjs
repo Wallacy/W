@@ -12,7 +12,7 @@ import {
   validateExecutableResult,
 } from "./executable-benchmark-machine.mjs";
 import { renderExecutableProjection, renderFromDisk, writeAtomicFile } from "./executable-benchmark-docs.mjs";
-import { runBenchmark } from "./executable-benchmark-runner.mjs";
+import { EXECUTABLE_MAX_SAMPLES, runBenchmark } from "./executable-benchmark-runner.mjs";
 
 const RESULTS_PATH = LOCAL_RESULTS_PATH;
 const RUN_TARGETS = EXECUTABLE_RUN_TARGETS;
@@ -38,10 +38,10 @@ function nextValue(argv, index, name) {
   return value;
 }
 
-function integer(value, name, minimum, odd = false) {
+function integer(value, name, minimum, odd = false, maximum = EXECUTABLE_MAX_SAMPLES) {
   if (!/^[0-9]+$/u.test(value ?? "")) fail(`${name} must be a decimal integer`);
   const parsed = Number(value);
-  if (!Number.isSafeInteger(parsed) || parsed < minimum) fail(`${name} is outside its allowed range`);
+  if (!Number.isSafeInteger(parsed) || parsed < minimum || parsed > maximum) fail(`${name} is outside its allowed range`);
   if (odd && parsed % 2 === 0) fail(`${name} must be odd`);
   return parsed;
 }
@@ -69,7 +69,7 @@ export function parseBenchmarkCliArguments(argv) {
     if (new Set(inputs).size !== inputs.length) fail("update result paths must be unique");
     return { command, inputs };
   }
-  const result = { command, target: "hello", language: "w", output: undefined, warmup: 1, samples: 9 };
+  const result = { command, target: "hello", language: "w", output: undefined, warmup: 1, compileSamples: 9, runSamples: 101 };
   for (let index = 1; index < argv.length; index += 1) {
     const argument = argv[index];
     if (argument === "--target") result.target = nextValue(argv, index++, "--target");
@@ -80,13 +80,16 @@ export function parseBenchmarkCliArguments(argv) {
     else if (argument.startsWith("--output=")) result.output = argument.slice("--output=".length);
     else if (argument === "--warmup") result.warmup = integer(nextValue(argv, index++, "--warmup"), "--warmup", 1);
     else if (argument.startsWith("--warmup=")) result.warmup = integer(argument.slice("--warmup=".length), "--warmup", 1);
-    else if (argument === "--samples") result.samples = integer(nextValue(argv, index++, "--samples"), "--samples", 9, true);
-    else if (argument.startsWith("--samples=")) result.samples = integer(argument.slice("--samples=".length), "--samples", 9, true);
+    else if (argument === "--compile-samples") result.compileSamples = integer(nextValue(argv, index++, "--compile-samples"), "--compile-samples", 9, true);
+    else if (argument.startsWith("--compile-samples=")) result.compileSamples = integer(argument.slice("--compile-samples=".length), "--compile-samples", 9, true);
+    else if (argument === "--run-samples") result.runSamples = integer(nextValue(argv, index++, "--run-samples"), "--run-samples", 9, true);
+    else if (argument.startsWith("--run-samples=")) result.runSamples = integer(argument.slice("--run-samples=".length), "--run-samples", 9, true);
+    else if (argument === "--samples") result.compileSamples = result.runSamples = integer(nextValue(argv, index++, "--samples"), "--samples", 9, true);
+    else if (argument.startsWith("--samples=")) result.compileSamples = result.runSamples = integer(argument.slice("--samples=".length), "--samples", 9, true);
     else fail(`unknown run option: ${argument}`);
   }
   if (!RUN_TARGETS.includes(result.target)) fail(`unsupported target: ${result.target}`);
   if (!["w", "c", "rust"].includes(result.language)) fail(`unsupported language: ${result.language}`);
-  if (result.samples < 9 || result.samples % 2 === 0) fail("--samples must be odd and at least nine");
   result.output ??= `benchmarks/results/${result.target}-${result.language}.local.json`;
   return result;
 }
@@ -96,7 +99,7 @@ export function benchmarkUsage() {
     "usage: bun benchmark <list|run|validate|update|check>",
     "",
     "  list",
-    "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--samples 9]",
+    "  run --target <runnable-catalog-id> --language w|c|rust [--output benchmarks/results/<new>.json] [--warmup 1] [--compile-samples 9] [--run-samples 101]",
     "  validate <result.json>",
     "  update <result.json>... (atomic lower-is-better live-catalog update; consumes local results on success)",
     "  check",
@@ -241,7 +244,7 @@ async function checkCommand(root = ROOT) {
 
 async function runCommand(options, root = ROOT) {
   const output = path.resolve(root, options.output);
-  await runBenchmark({ target: options.target, language: options.language, warmup: options.warmup, samples: options.samples, output });
+  await runBenchmark({ target: options.target, language: options.language, warmup: options.warmup, compileSamples: options.compileSamples, runSamples: options.runSamples, output });
 }
 
 export async function main(argv = process.argv.slice(2), dependencies = {}) {

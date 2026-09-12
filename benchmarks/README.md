@@ -24,12 +24,17 @@ oracle. The shared platform target is `windows-x64`; W and Rust use
 The C c2x fallback is correctness-only and cannot enter promoted C23 ranking;
 the current Rust baseline uses edition 2024.
 
-The catalog declares compile latency, run wall time, user/system/total CPU
-time, peak working set, artifact size, exit code, and stdout/stderr. A local
+The catalog declares compile latency, median and P95 run wall time,
+user/system/total CPU time, peak working set, artifact size, exit code, and
+stdout/stderr. A local
 `executable-result` retains correctness artifact facts, one warmup, and an odd
-set of at least nine raw compile/run samples; summaries are derived from those
-samples. Bun's native CPU microseconds and RSS bytes are preserved, including
-an explicit disclosure when CPU samples are zero. Each result freezes a
+set of at least nine raw compile samples and 101 raw fresh-process run samples
+by default; summaries are derived from those samples. P95 uses nearest rank.
+Bun's native CPU microseconds and RSS bytes are preserved, including an
+explicit disclosure when CPU samples are zero. CPU best cells use the
+arithmetic mean across 101 runs because short Windows processes are charged in
+coarse scheduler quanta; a median can remain zero even when work occurred.
+Each result freezes a
 fixed-count, monotonic-clock, fresh-process protocol and a redacted environment;
 direct Bun-process CPU/RSS counters do not aggregate descendants. The
 arithmetic mean is an integer floor, and the safe host identity is derived from
@@ -132,7 +137,9 @@ The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 for a local candidate measurement, `validate <json>` for a contained result,
 `check` for catalog/live-best/projection consistency, and `update <json>` only
 from a clean committed HEAD. The runner uses the exact oracle before one
-warmup and at least nine odd raw samples for every language. C probes `-std=c23`
+warmup, nine odd compile samples, and 101 odd fresh-process run samples by
+default. `--compile-samples`, `--run-samples`, or the shared `--samples` alias
+may override the bounded odd counts. C probes `-std=c23`
 then `-std=c2x` and records the accepted standard plus MinGW ABI; its portable
 release recipe uses O3, LTO, per-function/data sections, linker section GC,
 stripped symbols, and probed `-fwhole-program`. Rust records its rustc release,
