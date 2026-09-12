@@ -37,33 +37,49 @@ Current portable-release values. Lower is better; `—` means no published measu
 
 | Workload | Language | Target | Runtime | Artifact | .text B | .rdata B | Compile p50 | Run p50 | Run p95 | Peak RSS | CPU mean |
 | --- | --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 128.6005 ms | 18.0147 ms | 19.1762 ms | 4808704 B (4.59 MiB) | 14.077 ms |
-| hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.9911 ms | 18.2935 ms | 4857856 B (4.63 MiB) | 13.149 ms |
-| hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | — | — | 166.3367 ms | 16.9718 ms | 17.6093 ms | 3751936 B (3.58 MiB) | 12.376 ms |
-| process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 130.899 ms | 19.0573 ms | 22.1389 ms | 4804608 B (4.58 MiB) | 15.16 ms |
-| process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | — | — | 1.1528318 s | 18.0066 ms | 18.8303 ms | 4476928 B (4.27 MiB) | 12.84 ms |
-| process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | — | — | 182.3387 ms | 16.6919 ms | 17.404 ms | 3760128 B (3.59 MiB) | 9.9 ms |
-| process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | — | — | 1.0647585 s | — | — | — | — |
-| process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | — | — | 1.6676626 s | — | — | — | — |
-| process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | — | — | 1.1450499 s | — | — | — | — |
-| restaurant-branch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 133.0514 ms | 18.5437 ms | 20.9788 ms | 4808704 B (4.59 MiB) | 14.696 ms |
-| restaurant-branch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 114176 B (111.5 KiB) | — | — | 1.1116806 s | 18.461 ms | 22.7523 ms | 4857856 B (4.63 MiB) | 14.077 ms |
-| restaurant-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 177.7429 ms | 17.0417 ms | 17.5865 ms | 3760128 B (3.59 MiB) | 11.293 ms |
-| restaurant-enum-bool-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 131.7636 ms | 17.9902 ms | 19.1541 ms | 4841472 B (4.62 MiB) | 13.149 ms |
-| restaurant-enum-bool-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | — | — | 1.0919171 s | 18.0063 ms | 18.7043 ms | 4878336 B (4.65 MiB) | 13.613 ms |
-| restaurant-enum-bool-payload | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | — | — | 187.474 ms | 16.9138 ms | 17.556 ms | 3756032 B (3.58 MiB) | 11.757 ms |
-| restaurant-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 127.4699 ms | 17.9886 ms | 18.9698 ms | 4833280 B (4.61 MiB) | 12.995 ms |
-| restaurant-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | — | — | 1.0790875 s | 17.9532 ms | 18.1986 ms | 4874240 B (4.65 MiB) | 12.84 ms |
-| restaurant-enum-payload | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 180.3598 ms | 16.2686 ms | 17.0498 ms | 3756032 B (3.58 MiB) | 10.365 ms |
-| restaurant-enum-switch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 131.7933 ms | 18.2041 ms | 19.4882 ms | 4833280 B (4.61 MiB) | 13.304 ms |
-| restaurant-enum-switch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | — | — | 1.0803393 s | 17.9777 ms | 18.3868 ms | 4870144 B (4.64 MiB) | 12.53 ms |
-| restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 174.7149 ms | 17.0056 ms | 18.0383 ms | 3756032 B (3.58 MiB) | 11.912 ms |
-| restaurant-while | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 130.4101 ms | 18.4857 ms | 19.3253 ms | 4833280 B (4.61 MiB) | 12.53 ms |
-| restaurant-while | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | — | — | 1.0761812 s | 18.0109 ms | 19.2168 ms | 4870144 B (4.64 MiB) | 12.221 ms |
-| restaurant-while | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 180.1453 ms | 16.9871 ms | 18.4398 ms | 3756032 B (3.58 MiB) | 13.304 ms |
-| restaurant-wmo | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | — | — | 130.2986 ms | 18.0167 ms | 19.8511 ms | 4833280 B (4.61 MiB) | 12.995 ms |
-| restaurant-wmo | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | — | — | 1.0782036 s | 17.9758 ms | 18.3719 ms | 4870144 B (4.64 MiB) | 12.53 ms |
-| restaurant-wmo | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 175.5304 ms | 16.7919 ms | 17.0761 ms | 3756032 B (3.58 MiB) | 12.066 ms |
+| bool-short-circuit | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
+| hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
+| hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
+| hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 184 | 166.0238 ms | 15.9946 ms | 16.9434 ms | 3751936 B (3.58 MiB) | 10.674 ms |
+| process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
+| process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
+| process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1126 | 256 | 181.7506 ms | 16.0547 ms | 17.0405 ms | 3760128 B (3.59 MiB) | 9.9 ms |
+| process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
+| process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
+| process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |
+| restaurant-bool-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 224 | 177.3414 ms | 16.6843 ms | 17.1188 ms | 3756032 B (3.58 MiB) | 11.757 ms |
+| restaurant-branch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2632 | 127.7022 ms | 18.018 ms | 19.0303 ms | 4808704 B (4.59 MiB) | 12.376 ms |
+| restaurant-branch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 114176 B (111.5 KiB) | 80200 | 28332 | 1.0822891 s | 17.97 ms | 18.2438 ms | 4857856 B (4.63 MiB) | 12.53 ms |
+| restaurant-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | — | — | 177.456 ms | 16.0207 ms | 16.9866 ms | 3756032 B (3.58 MiB) | 10.21 ms |
+| restaurant-branch-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 232 | 178.0163 ms | 16.8403 ms | 17.2047 ms | 3756032 B (3.58 MiB) | 10.055 ms |
+| restaurant-branch-mutation-multi | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 710 | 232 | 178.4074 ms | 16.9609 ms | 17.2298 ms | 3756032 B (3.58 MiB) | 10.983 ms |
+| restaurant-comparison-composition | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1142 | 252 | 182.438 ms | 16.999 ms | 18.0154 ms | 3756032 B (3.58 MiB) | 12.221 ms |
+| restaurant-comparisons | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 240 | 176.0019 ms | 16.0695 ms | 17.1013 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-conditional-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 662 | 232 | 177.8021 ms | 16.909 ms | 17.2469 ms | 3756032 B (3.58 MiB) | 11.138 ms |
+| restaurant-enum-bool-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3542 | 2672 | 130.1575 ms | 17.9902 ms | 18.9828 ms | 4841472 B (4.62 MiB) | 12.84 ms |
+| restaurant-enum-bool-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79848 | 28348 | 1.0835472 s | 17.9859 ms | 18.4323 ms | 4878336 B (4.65 MiB) | 13.149 ms |
+| restaurant-enum-bool-payload | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1238 | 304 | 185.2894 ms | 16.7997 ms | 17.167 ms | 3756032 B (3.58 MiB) | 11.757 ms |
+| restaurant-enum-payload | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.4699 ms | 17.9852 ms | 18.4794 ms | 4833280 B (4.61 MiB) | 12.995 ms |
+| restaurant-enum-payload | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79736 | 28348 | 1.0790875 s | 17.9532 ms | 18.1986 ms | 4874240 B (4.65 MiB) | 12.84 ms |
+| restaurant-enum-payload | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 918 | 240 | 179.9074 ms | 16.2686 ms | 17.0498 ms | 3756032 B (3.58 MiB) | 10.365 ms |
+| restaurant-enum-switch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2632 | 127.0953 ms | 17.9873 ms | 18.3148 ms | 4833280 B (4.61 MiB) | 13.304 ms |
+| restaurant-enum-switch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79720 | 28348 | 1.0803393 s | 17.9637 ms | 18.2247 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-enum-switch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 224 | 174.7149 ms | 16.335 ms | 17.2527 ms | 3756032 B (3.58 MiB) | 10.055 ms |
+| restaurant-interpolation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 518 | 216 | 176.6327 ms | 16.7522 ms | 17.1856 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-linear | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 208 | 166.1238 ms | 16.0861 ms | 16.9756 ms | 3751936 B (3.58 MiB) | 12.53 ms |
+| restaurant-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-nested-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
+| restaurant-nested-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 216 | 176.228 ms | 16.9054 ms | 17.2046 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-runtime-divrem | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 758 | 240 | 178.0803 ms | 16.4971 ms | 17.1205 ms | 3756032 B (3.58 MiB) | 11.912 ms |
+| restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
+| restaurant-unary-interpolation | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 454 | 208 | 173.7539 ms | 16.9549 ms | 17.1994 ms | 3756032 B (3.58 MiB) | 11.912 ms |
+| restaurant-unary-negate | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 228 | 176.128 ms | 16.1193 ms | 17.1021 ms | 3756032 B (3.58 MiB) | 11.448 ms |
+| restaurant-while | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 127.5739 ms | 17.9865 ms | 19.0065 ms | 4833280 B (4.61 MiB) | 12.53 ms |
+| restaurant-while | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0761812 s | 17.952 ms | 18.2702 ms | 4870144 B (4.64 MiB) | 12.221 ms |
+| restaurant-while | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 598 | 220 | 177.0692 ms | 16.0735 ms | 16.9968 ms | 3756032 B (3.58 MiB) | 11.602 ms |
+| restaurant-wmo | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2608 | 129.8723 ms | 18.0142 ms | 19.0296 ms | 4833280 B (4.61 MiB) | 12.995 ms |
+| restaurant-wmo | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.0782036 s | 17.9632 ms | 18.3672 ms | 4870144 B (4.64 MiB) | 12.53 ms |
+| restaurant-wmo | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 582 | 220 | 175.5304 ms | 16.0403 ms | 16.9987 ms | 3756032 B (3.58 MiB) | 12.066 ms |
 
 Artifact size counts only the PE file. It excludes imported runtime DLLs. Public W is CRT-free; public C and Rust import the MSVC runtime. The private process-handler composite remains a GCC/MinGW contextual lane.
 The `.text B` and `.rdata B` columns are the unique sections' validated PE VirtualSize; VirtualSize includes padding and zero-fill and is not a useful-instruction count. `—` means absent, ambiguous, or not measured. FileAlignment, SectionAlignment and SizeOfHeaders remain in the machine catalog metadata. Only source-backed workloads with a materialized source and runner-supported recipe appear here; planned/backlog entries remain in the catalog. CPU is the arithmetic mean of 101 fresh-process counters; an all-zero estimate is omitted.
