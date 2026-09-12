@@ -74,6 +74,20 @@ test("catalog stores compact live best cells and no immutable history", () => {
     "restaurant-wmo/w"]) {
     assert.ok(metricsByCell[requiredCell], `${requiredCell} must retain live evidence`);
   }
+  for (const workloadId of ["hello", "restaurant-enum-switch", "restaurant-wmo"]) {
+    const workload = documents.catalog.workloads.find((item) => item.id === workloadId);
+    assert.equal(workload.benchmarkStatus, "exploratory-ready");
+    assert.deepEqual(workload.blockers, []);
+    assert.ok(workload.sources.every((source) =>
+      source.comparability === "promotable-after-equivalence" &&
+      source.eligibility === "promotable-after-equivalence"));
+  }
+  const staleReadiness = clone(documents.catalog);
+  const staleHello = staleReadiness.workloads.find((item) => item.id === "hello");
+  staleHello.benchmarkStatus = "not-performance-ready";
+  staleHello.blockers = ["process-tree-accounting"];
+  assert.match(validateExecutableCatalog(staleReadiness, staleReadiness).join("\n"),
+    /comparability does not match the language ABI and benchmark readiness/u);
   for (const [cell, metrics] of Object.entries(metricsByCell)) {
     assert.ok(
       JSON.stringify(metrics) === JSON.stringify(retainedMetrics) ||

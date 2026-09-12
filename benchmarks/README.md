@@ -49,7 +49,11 @@ exit-code/stdout/stderr; zero CPU measurements cannot become best. W execution
 and timing are currently public `w build` candidate evidence; runtime CPU now
 covers the Job tree while compile CPU/memory remains direct-process evidence.
 Recorded measurement evidence is `exploratory`,
-`measurement-only`, and `not-evaluated`; it is not a correctness gate.
+`measurement-only`, and `not-evaluated`; it is not a correctness gate. Hello,
+the closed enum switch, and the bounded same-module product closure are
+`exploratory-ready` because all three language routes passed their exact oracle
+and the same native runtime process-tree protocol. Other workloads stay
+explicitly unready until their own complete receipts exist.
 `catalog-ready` validates only the catalog contract; `source-and-oracle-ready`,
 `bounded-w-demo`, and `not-performance-ready` are separate workload states and do
 not claim that a W benchmark is performance-ready.
@@ -106,8 +110,11 @@ entries, sidecars and overlay bytes plus bounded POGO or REPRO entries and
 payload sizes when present. Migrated best cells are explicitly historical/unverified
 cleanliness and are not current clean-run evidence.
 C and Rust use direct compiler recipes with their declared ABIs. Every route
-remains exploratory and measurement-only. W remains contextual/non-ranking
-until process-tree accounting makes its compile CPU/RSS comparable. Local
+remains exploratory and measurement-only. Workloads with a complete native
+W/C/Rust cell are promotable only after semantic equivalence; incomplete
+workloads remain contextual. Compile CPU/RSS stays direct-process and is not a
+promoted metric; compile latency covers the complete observed build interval.
+Local
 measurements remain ignored under `benchmarks/results/`; only a rerun from a
 clean committed HEAD may update the compact catalog, and raw results are
 consumed after successful publication.
@@ -181,8 +188,9 @@ CRT. These profiles prioritize runtime performance while removing distributable
 symbols; none selects a size-only optimization level or host-specific CPU.
 Host tuning is a separate future/local `release-native` category (`-march=native`
 for C and `-C target-cpu=native` for Rust), never a portable-cell replacement. W
-compile CPU/RSS is non-comparable to C/Rust until process-tree accounting exists.
-The catalog's current `release` cells therefore mean portable release. C stays
+compile CPU/RSS is not a promoted cross-language metric. Runtime CPU uses the
+same native Job-tree protocol for W, C, and Rust. The catalog's current
+`release` cells therefore mean portable release. C stays
 in standards-only `c23` mode rather than `gnu23`; GNU extensions are not needed
 by these sources. PIE/hardening remains a separate artifact-policy axis, so the
 portable comparison does not add it to only one language.
