@@ -85,6 +85,16 @@ static bool contains_bytes(const uint8_t *bytes, size_t length,
   return false;
 }
 
+static bool hir_text_equals(const w_seed_hir0_program *program,
+                            w_seed_hir0_text text, const char *literal) {
+  if (program == NULL || literal == NULL || program->text_bytes == NULL)
+    return false;
+  const size_t length = strlen(literal);
+  return text.count == length && text.offset <= program->text_byte_count &&
+         length <= program->text_byte_count - text.offset &&
+         memcmp(program->text_bytes + text.offset, literal, length) == 0;
+}
+
 static size_t count_bytes(const uint8_t *bytes, size_t length,
                           const char *needle) {
   if (bytes == NULL || needle == NULL) return 0u;
@@ -116,6 +126,43 @@ static bool append_source_text(char *buffer, size_t capacity, size_t *offset,
   *offset += count;
   buffer[*offset] = '\0';
   return true;
+}
+
+static bool make_process_stdout_bound_source(char *buffer, size_t capacity,
+                                             size_t helper_calls,
+                                             bool extra_empty_print) {
+  if (buffer == NULL || helper_calls == 0u || helper_calls > 2u) return false;
+  /* Reuse one 255-byte literal so this source stays below Native0's 4096-byte
+   * source bound; each of the sixteen print calls still emits 256 bytes. */
+  char line[256];
+  for (size_t index = 0u; index < 255u; index += 1u) line[index] = 'x';
+  line[255] = '\0';
+  size_t offset = 0u;
+  if (!append_source_text(
+          buffer, capacity, &offset,
+          "import { Arguments as InputArgs, Context as InputContext, "
+          "ExitCode as InputExit } from std.process\n"
+          "fn emitOutput() { let line = \""))
+    return false;
+  if (!append_source_text(buffer, capacity, &offset, line) ||
+      !append_source_text(buffer, capacity, &offset, "\" "))
+    return false;
+  for (size_t index = 0u; index < 16u; index += 1u)
+    if (!append_source_text(buffer, capacity, &offset, "print(line) "))
+      return false;
+  if (!append_source_text(
+          buffer, capacity, &offset,
+          "}\nasync fn dispatch(input: InputArgs, context: InputContext): "
+          "InputExit { "))
+    return false;
+  for (size_t index = 0u; index < helper_calls; index += 1u)
+    if (!append_source_text(buffer, capacity, &offset, "emitOutput() "))
+      return false;
+  if (extra_empty_print &&
+      !append_source_text(buffer, capacity, &offset, "print(\"\") "))
+    return false;
+  return append_source_text(buffer, capacity, &offset,
+                            "return .success }\nentry(dispatch)\n");
 }
 
 static bool append_nested_chain(char *buffer, size_t capacity, size_t *offset,
@@ -870,6 +917,142 @@ static bool test_process_input0_public_artifact(void) {
   return true;
 }
 
+static bool test_process_enum_payload_public_artifact(void) {
+  static const uint8_t source[] =
+      "import {\n"
+      "  Arguments as InputArgs,\n"
+      "  Context as InputContext,\n"
+      "  ExitCode as InputExit,\n"
+      "} from std.process\n"
+      "\n"
+      "enum AdmissionState {\n"
+      "  unavailable\n"
+      "  observed(missing: Bool, amount: i64)\n"
+      "}\n"
+      "\n"
+      "fn buildAdmission(missing: Bool): AdmissionState {\n"
+      "  return .observed(amount: 17, missing: missing)\n"
+      "}\n"
+      "\n"
+      "fn admissionIsMissing(state: AdmissionState): Bool {\n"
+      "  return switch state {\n"
+      "    case .unavailable: false\n"
+      "    case .observed(missing: let missing, amount: _): missing\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "async fn dispatch(input: InputArgs, environment: InputContext): InputExit {\n"
+      "  let state = buildAdmission(missing: input.isEmpty)\n"
+      "  let missing = admissionIsMissing(state: state)\n"
+      "  let repeated = input.isEmpty\n"
+      "  if missing {\n"
+      "    print(\"enum-missing ${repeated}\")\n"
+      "    return .failure(7)\n"
+      "  } else {\n"
+      "    print(\"enum-received ${repeated}\")\n"
+      "    return .success\n"
+      "  }\n"
+      "}\n"
+      "\n"
+      "entry(dispatch)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source_mode(
+            source, sizeof(source) - 1u, "process-enum-payload",
+            sizeof("process-enum-payload") - 1u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+            sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(storage.hir_result.status == W_SEED_HIR0_OK &&
+        w_seed_hir0_verify(program, &storage.hir_result) &&
+        program->entry_count == 1u &&
+        program->entries[0].target_function != 0u &&
+        program->entries[0].target_function < program->function_count);
+
+  bool has_failure_seven = false;
+  size_t is_empty_reads = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count; value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        hir_text_equals(program, value->member_name, "isEmpty"))
+      is_empty_reads += 1u;
+    if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE &&
+        hir_text_equals(program, value->member_name, "failure") &&
+        value->left_value != W_SEED_HIR0_NONE &&
+        value->left_value < program->value_count &&
+        program->values[value->left_value].kind ==
+            W_SEED_HIR0_VALUE_CONST_I64 &&
+        program->values[value->left_value].integer_value == 7)
+      has_failure_seven = true;
+  }
+  CHECK(has_failure_seven && is_empty_reads == 2u);
+
+  const size_t length = result.mlir.written.mlir_bytes;
+  CHECK(contains_bytes(output, length, "llvm.func @mainCRTStartup") &&
+        contains_bytes(output, length, "@w_seed_append_bool") &&
+        contains_bytes(output, length, "llvm.insertvalue") &&
+        contains_bytes(output, length, "llvm.extractvalue") &&
+        contains_bytes(output, length, "!llvm.struct<(i1, array<2 x i64>)>") &&
+        contains_bytes(output, length, "cf.switch") &&
+        contains_bytes(output, length, "llvm.cond_br") &&
+        contains_bytes(output, length,
+                       "\\65\\6e\\75\\6d\\2d\\6d\\69\\73\\73\\69\\6e\\67\\20") &&
+        contains_bytes(output, length,
+                       "\\65\\6e\\75\\6d\\2d\\72\\65\\63\\65\\69\\76\\65\\64\\20") &&
+        !contains_bytes(output, length, "@w_seed_process_missing") &&
+        !contains_bytes(output, length, "@w_seed_process_received") &&
+        !contains_bytes(output, length, "missing\\0A") &&
+        !contains_bytes(output, length, "received\\0A"));
+  return true;
+}
+
+static bool test_process_stdout_bounds(void) {
+  static char source[W_SEED_NATIVE0_MAX_SOURCE_BYTES];
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const size_t source_capacity = sizeof(source) - 1u;
+  const size_t identity_length = sizeof("process-stdout-bound") - 1u;
+  CHECK(make_process_stdout_bound_source(source, source_capacity, 1u, false) &&
+        strlen(source) <= source_capacity &&
+        run_source_mode((const uint8_t *)source, strlen(source),
+                        "process-stdout-bound", identity_length,
+                        &WINDOWS_TARGET,
+                        W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+                        sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  CHECK(result.status == W_SEED_NATIVE0_OK &&
+        result.mlir.written.mlir_bytes == result.mlir.required.mlir_bytes &&
+        result.mlir.written.mlir_bytes != 0u &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.func @mainCRTStartup"));
+
+  CHECK(make_process_stdout_bound_source(source, source_capacity, 2u, false));
+  (void)memset(output, 0xa5u, sizeof(output));
+  (void)memset(&result, 0x5au, sizeof(result));
+  const w_seed_native0_result twice_snapshot = result;
+  CHECK(run_source_mode((const uint8_t *)source, strlen(source),
+                        "process-stdout-bound", identity_length,
+                        &WINDOWS_TARGET,
+                        W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+                        sizeof(output), &result) == W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xa5u);
+  CHECK(memcmp(&result, &twice_snapshot, sizeof(result)) == 0);
+
+  CHECK(make_process_stdout_bound_source(source, source_capacity, 1u, true));
+  (void)memset(output, 0xb6u, sizeof(output));
+  (void)memset(&result, 0x6bu, sizeof(result));
+  const w_seed_native0_result extra_snapshot = result;
+  CHECK(run_source_mode((const uint8_t *)source, strlen(source),
+                        "process-stdout-bound", identity_length,
+                        &WINDOWS_TARGET,
+                        W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output,
+                        sizeof(output), &result) == W_SEED_NATIVE0_UNSUPPORTED);
+  for (size_t index = 0u; index < sizeof(output); index += 1u)
+    CHECK(output[index] == 0xb6u);
+  CHECK(memcmp(&result, &extra_snapshot, sizeof(result)) == 0);
+  return true;
+}
+
 static bool test_logical_native_selector(void) {
   static const uint8_t source[] =
       "fn rhs(flag: Bool): Bool { return !flag }\n"
@@ -1520,7 +1703,9 @@ int main(void) {
                         test_bool_payload_native_lowering() &&
                         test_enum_switch_native_lowering() &&
                         test_process_handler_catalog_and_artifact() &&
-                        test_process_input0_public_artifact();
+                        test_process_input0_public_artifact() &&
+                        test_process_stdout_bounds() &&
+                        test_process_enum_payload_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
                        test_unary_i64_native_selector() &&
                        test_scalar_if_value_native() &&

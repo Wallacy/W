@@ -130,6 +130,19 @@ static const char MLIR0_WINDOWS_RUNTIME_HELPER[] =
 
 static const char MLIR0_HEX[] = "0123456789abcdef";
 
+static bool text_is(const w_seed_hir0_program *program,
+                    w_seed_hir0_text text, const uint8_t *literal,
+                    size_t literal_bytes) {
+  if (program == NULL || literal == NULL ||
+      text.offset > program->text_byte_count ||
+      text.count != literal_bytes ||
+      text.count > program->text_byte_count - text.offset ||
+      (text.count != 0u && program->text_bytes == NULL))
+    return false;
+  return text.count == 0u ||
+         memcmp(program->text_bytes + text.offset, literal, text.count) == 0;
+}
+
 static const char MLIR0_RUNTIME_HELPERS[] =
     "  llvm.func internal @w_seed_copy(%destination: !llvm.ptr, %offset: i64, %source: !llvm.ptr, %length: i64) -> i64 {\n"
     "    %copy_zero = llvm.mlir.constant(0 : i64) : i64\n"
@@ -940,13 +953,31 @@ static bool append_checked_i64_helpers(
   return true;
 }
 
+/* The process adapter lowers Args/Context as private pointer handles and
+ * ExitCode as the portable i32 status returned by the generated process
+ * function.  This context is threaded through the ordinary value emitter;
+ * it is never installed as global state, so independent measurements remain
+ * re-entrant and alias-safe. */
+typedef struct {
+  uint32_t function_index;
+  uint32_t arguments_parameter_index;
+  uint32_t context_parameter_index;
+  uint32_t arguments_symbol_index;
+  uint32_t context_symbol_index;
+  uint32_t exit_code_symbol_index;
+  uint32_t is_empty_symbol_index;
+  uint32_t success_symbol_index;
+  uint32_t failure_symbol_index;
+} mlir0_process_emit_context;
+
 static bool append_program_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset);
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset);
 
 static const char *program_type_name(const w_seed_hir0_program *program,
-                                     uint32_t type_index, char buffer[96]);
+                                     uint32_t type_index, char buffer[96],
+                                     const mlir0_process_emit_context *process);
 
 static uint32_t mlir0_enum_carrier_width(size_t case_count) {
   size_t representable = 1u;
@@ -1139,8 +1170,8 @@ static bool mlir0_enum_type_info(const w_seed_hir0_program *program,
 
 static bool append_binary_value_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count ||
       program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_I64)
@@ -1162,12 +1193,12 @@ static bool append_binary_value_operation(
            append_literal(artifact, capacity, offset, helper) &&
            append_literal(artifact, capacity, offset, "(") &&
            append_program_value_operand(program, value->left_value,
-                                        function_index, artifact, capacity,
-                                        offset) &&
+                                        function_index, process, artifact,
+                                        capacity, offset) &&
            append_literal(artifact, capacity, offset, ", ") &&
            append_program_value_operand(program, value->right_value,
-                                        function_index, artifact, capacity,
-                                        offset) &&
+                                     function_index, process, artifact,
+                                     capacity, offset) &&
            append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
   const char *operation = binary_operation(value->binary_operator);
@@ -1175,19 +1206,19 @@ static bool append_binary_value_operation(
          append_literal(artifact, capacity, offset, operation) &&
          append_literal(artifact, capacity, offset, " ") &&
          append_program_value_operand(program, value->left_value,
-                                     function_index, artifact, capacity,
-                                     offset) &&
+                                     function_index, process, artifact,
+                                     capacity, offset) &&
          append_literal(artifact, capacity, offset, ", ") &&
          append_program_value_operand(program, value->right_value,
-                                     function_index, artifact, capacity,
-                                     offset) &&
+                                     function_index, process, artifact,
+                                     capacity, offset) &&
          append_literal(artifact, capacity, offset, " : i64\n");
 }
 
 static bool append_unary_i64_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count)
     return false;
@@ -1223,8 +1254,8 @@ static bool append_unary_i64_operation(
        !append_literal(artifact, capacity, offset, "_neg_zero, ")))
     return false;
   return append_program_value_operand(program, value->left_value,
-                                      function_index, artifact, capacity,
-                                      offset) &&
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
          append_literal(artifact, capacity, offset,
                         constant ? " : i64\n" : ") : (i64, i64) -> i64\n");
 }
@@ -1281,12 +1312,12 @@ static bool append_value_operations(const w_seed_hir0_program *program,
                               : " = llvm.mlir.constant(false) : i1\n"))
         return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
-      if (!append_binary_value_operation(program, (uint32_t)index, 0u,
+      if (!append_binary_value_operation(program, (uint32_t)index, 0u, NULL,
                                          artifact, capacity, offset))
         return false;
     } else if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
-      if (!append_unary_i64_operation(program, (uint32_t)index, 0u, artifact,
-                                      capacity, offset))
+      if (!append_unary_i64_operation(program, (uint32_t)index, 0u, NULL,
+                                      artifact, capacity, offset))
         return false;
     }
   }
@@ -1748,7 +1779,7 @@ static bool program_plan_append_print(mlir0_program_plan *plan,
 }
 
 static bool build_program_plan(const w_seed_hir0_program *program,
-                               mlir0_program_plan *plan) {
+                               mlir0_program_plan *plan, bool allow_empty) {
   if (program == NULL || plan == NULL ||
       program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS)
     return false;
@@ -1788,7 +1819,8 @@ static bool build_program_plan(const w_seed_hir0_program *program,
     candidate.call_action_count[call_index] =
         candidate.action_count - candidate.call_first_action[call_index];
   }
-  if (candidate.action_count == 0u || candidate.text_bytes == 0u)
+  if (!allow_empty &&
+      (candidate.action_count == 0u || candidate.text_bytes == 0u))
     return false;
   for (size_t function_index = 0u;
        function_index < program->function_count; function_index += 1u) {
@@ -1815,8 +1847,8 @@ static bool build_program_plan(const w_seed_hir0_program *program,
 
 static bool append_program_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program == NULL || value_index >= program->value_count ||
       artifact == NULL || offset == NULL)
     return false;
@@ -1825,7 +1857,7 @@ static bool append_program_value_operand(
     if (value->binding_index >= program->binding_count) return false;
     return append_program_value_operand(
         program, program->bindings[value->binding_index].initializer_value,
-        function_index, artifact, capacity, offset);
+        function_index, process, artifact, capacity, offset);
   }
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
     if (value->parameter_index >= program->parameter_count) return false;
@@ -1856,15 +1888,18 @@ static bool append_program_value_operand(
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
           value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ ||
-          value->kind == W_SEED_HIR0_VALUE_ENUM_CASE) &&
+          value->kind == W_SEED_HIR0_VALUE_ENUM_CASE ||
+          value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
+          value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) &&
          append_literal(artifact, capacity, offset, "%v") &&
          append_size(artifact, capacity, offset, value_index);
 }
 
 static bool append_program_value_tree(
     const w_seed_hir0_program *program, uint32_t value_index,
-    uint32_t function_index, bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES],
-    uint8_t *artifact, size_t capacity, size_t *offset, size_t depth) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth) {
   if (program == NULL || emitted == NULL || artifact == NULL ||
       offset == NULL || depth > 256u || value_index >= program->value_count ||
       value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES)
@@ -1875,6 +1910,70 @@ static bool append_program_value_tree(
       value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
       value->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
       value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
+    if (process == NULL || function_index != process->function_index ||
+        value->external_module_index != 0u ||
+        value->external_symbol_index != process->is_empty_symbol_index ||
+        !text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u) ||
+        value->left_value >= program->value_count ||
+        !append_program_value_tree(
+            program, value->left_value, function_index, process, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(
+            artifact, capacity, offset,
+            " = llvm.call @w_seed_process_arguments_is_empty(") ||
+        !append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
+        !append_literal(artifact, capacity, offset,
+                        ") : (!llvm.ptr) -> i1\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) {
+    if (process == NULL || function_index != process->function_index ||
+        value->external_module_index != 0u ||
+        value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_NOMINAL ||
+        program->types[value->type_index].external_module_index != 0u ||
+        program->types[value->type_index].external_symbol_index !=
+            process->exit_code_symbol_index ||
+        (value->external_symbol_index != process->success_symbol_index &&
+         value->external_symbol_index != process->failure_symbol_index))
+      return false;
+    int64_t failure_code = 0;
+    if (value->external_symbol_index == process->success_symbol_index) {
+      if (value->left_value != W_SEED_HIR0_NONE ||
+          !text_is(program, value->member_name, (const uint8_t *)"success", 7u))
+        return false;
+    } else {
+      if (value->left_value >= program->value_count ||
+          !text_is(program, value->member_name, (const uint8_t *)"failure", 7u) ||
+          program->values[value->left_value].kind !=
+              W_SEED_HIR0_VALUE_CONST_I64 ||
+          program->values[value->left_value].type_index >= program->type_count ||
+          program->types[program->values[value->left_value].type_index].kind !=
+              W_SEED_HIR0_TYPE_I64)
+        return false;
+      failure_code = program->values[value->left_value].integer_value;
+      if (failure_code < 1 || failure_code > 255) return false;
+    }
+    if (!append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.mlir.constant(") ||
+        !append_i64(artifact, capacity, offset,
+                    value->external_symbol_index == process->success_symbol_index
+                        ? 0
+                        : failure_code) ||
+        !append_literal(artifact, capacity, offset, " : i32) : i32\n"))
+      return false;
     emitted[value_index] = true;
     return true;
   }
@@ -1889,8 +1988,8 @@ static bool append_program_value_tree(
         value->call_index != W_SEED_HIR0_NONE ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         !append_program_value_tree(program, value->left_value, function_index,
-                                   emitted, artifact, capacity, offset,
-                                   depth + 1u) ||
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
         !append_literal(artifact, capacity, offset, "    %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset,
@@ -1899,8 +1998,8 @@ static bool append_program_value_tree(
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset, " = llvm.xor ") ||
         !append_program_value_operand(program, value->left_value,
-                                      function_index, artifact, capacity,
-                                      offset) ||
+                                      function_index, process, artifact,
+                                      capacity, offset) ||
         !append_literal(artifact, capacity, offset, ", %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
         !append_literal(artifact, capacity, offset, "_not_mask : i1\n"))
@@ -1919,10 +2018,10 @@ static bool append_program_value_tree(
         value->call_index != W_SEED_HIR0_NONE ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         !append_program_value_tree(program, value->left_value, function_index,
-                                   emitted, artifact, capacity, offset,
-                                   depth + 1u) ||
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
         !append_unary_i64_operation(program, value_index, function_index,
-                                    artifact, capacity, offset))
+                                    process, artifact, capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -1935,8 +2034,9 @@ static bool append_program_value_tree(
                                            ordinal];
       if (segment->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
           !append_program_value_tree(program, segment->value_index,
-                                     function_index, emitted, artifact,
-                                     capacity, offset, depth + 1u))
+                                     function_index, process, emitted,
+                                     artifact, capacity, offset,
+                                     depth + 1u))
         return false;
     }
     emitted[value_index] = true;
@@ -1948,13 +2048,13 @@ static bool append_program_value_tree(
   }
   if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
     if (!append_program_value_tree(program, value->left_value, function_index,
-                                   emitted, artifact, capacity, offset,
-                                   depth + 1u) ||
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
         !append_program_value_tree(program, value->right_value, function_index,
-                                   emitted, artifact, capacity, offset,
-                                   depth + 1u) ||
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
         !append_binary_value_operation(program, value_index, function_index,
-                                       artifact, capacity, offset))
+                                       process, artifact, capacity, offset))
       return false;
     emitted[value_index] = true;
     return true;
@@ -2013,7 +2113,7 @@ static bool append_program_value_tree(
       return false;
     char type_buffer[96];
     const char *type = program_type_name(
-        program, program->values[subject].type_index, type_buffer);
+        program, program->values[subject].type_index, type_buffer, process);
     if (type == NULL) return false;
     const bool all_i64 = layout.has_i64 && !layout.has_bool;
     if (all_i64) {
@@ -2022,7 +2122,7 @@ static bool append_program_value_tree(
           !append_literal(artifact, capacity, offset,
                           " = llvm.extractvalue ") ||
           !append_program_value_operand(program, subject, function_index,
-                                        artifact, capacity, offset) ||
+                                        process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, "[1, ") ||
           !append_size(artifact, capacity, offset,
                        capture->parameter_ordinal) ||
@@ -2036,7 +2136,7 @@ static bool append_program_value_tree(
           !append_literal(artifact, capacity, offset,
                           " = llvm.extractvalue ") ||
           !append_program_value_operand(program, subject, function_index,
-                                        artifact, capacity, offset) ||
+                                        process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, "[1, ") ||
           !append_size(artifact, capacity, offset, parameter_offset / 8u) ||
           !append_literal(artifact, capacity, offset, "] : ") ||
@@ -2048,7 +2148,7 @@ static bool append_program_value_tree(
           !append_size(artifact, capacity, offset, value_index) ||
           !append_literal(artifact, capacity, offset, "_byte = llvm.extractvalue ") ||
           !append_program_value_operand(program, subject, function_index,
-                                        artifact, capacity, offset) ||
+                                        process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, "[1, ") ||
           !append_size(artifact, capacity, offset, parameter_offset) ||
           !append_literal(artifact, capacity, offset, "] : ") ||
@@ -2068,7 +2168,7 @@ static bool append_program_value_tree(
           !append_literal(artifact, capacity, offset,
                           "_lane = llvm.extractvalue ") ||
           !append_program_value_operand(program, subject, function_index,
-                                        artifact, capacity, offset) ||
+                                        process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, "[1, ") ||
           !append_size(artifact, capacity, offset, lane) ||
           !append_literal(artifact, capacity, offset, "] : ") ||
@@ -2137,7 +2237,8 @@ static bool append_program_value_tree(
     for (size_t index = 0u; index < value->enum_payload_count; index += 1u)
       if (!append_program_value_tree(program, program->enum_payloads[
               (size_t)value->first_enum_payload + index].value_index,
-              function_index, emitted, artifact, capacity, offset, depth + 1u))
+              function_index, process, emitted, artifact, capacity, offset,
+              depth + 1u))
         return false;
     if (!append_literal(artifact, capacity, offset, "    %v") ||
         !append_size(artifact, capacity, offset, value_index) ||
@@ -2155,7 +2256,7 @@ static bool append_program_value_tree(
     if (aggregate) {
       char type_buffer[96];
       const char *aggregate_type =
-          program_type_name(program, value->type_index, type_buffer);
+          program_type_name(program, value->type_index, type_buffer, process);
       if (aggregate_type == NULL ||
           !append_literal(artifact, capacity, offset, "    %v") ||
           !append_size(artifact, capacity, offset, value_index) ||
@@ -2188,8 +2289,8 @@ static bool append_program_value_tree(
               !append_literal(artifact, capacity, offset,
                               " = llvm.insertvalue ") ||
               !append_program_value_operand(
-                  program, payload->value_index, function_index, artifact,
-                  capacity, offset) ||
+                  program, payload->value_index, function_index, process,
+                  artifact, capacity, offset) ||
               !append_literal(artifact, capacity, offset, ", %v") ||
               !append_size(artifact, capacity, offset, value_index) ||
               !append_literal(artifact, capacity, offset, "_pack") ||
@@ -2228,8 +2329,8 @@ static bool append_program_value_tree(
                 !append_literal(artifact, capacity, offset,
                                 " = llvm.zext ") ||
                 !append_program_value_operand(
-                    program, payload->value_index, function_index, artifact,
-                    capacity, offset) ||
+                    program, payload->value_index, function_index, process,
+                    artifact, capacity, offset) ||
                 !append_literal(artifact, capacity, offset,
                                 " : i1 to i8\n    %v") ||
                 !append_size(artifact, capacity, offset, value_index) ||
@@ -2264,8 +2365,8 @@ static bool append_program_value_tree(
                 !append_literal(artifact, capacity, offset,
                                 " = llvm.insertvalue ") ||
                 !append_program_value_operand(
-                    program, payload->value_index, function_index, artifact,
-                    capacity, offset) ||
+                    program, payload->value_index, function_index, process,
+                    artifact, capacity, offset) ||
                 !append_literal(artifact, capacity, offset, ", %v") ||
                 !append_size(artifact, capacity, offset, value_index) ||
                 !append_literal(artifact, capacity, offset, "_pack") ||
@@ -2300,8 +2401,8 @@ static bool append_program_value_tree(
               !append_literal(artifact, capacity, offset,
                               "_value = llvm.zext ") ||
               !append_program_value_operand(
-                  program, payload->value_index, function_index, artifact,
-                  capacity, offset) ||
+                  program, payload->value_index, function_index, process,
+                  artifact, capacity, offset) ||
               !append_literal(artifact, capacity, offset,
                               " : i1 to i64\n"))
             return false;
@@ -2378,8 +2479,21 @@ static bool append_program_value_tree(
 }
 
 static const char *program_type_name(const w_seed_hir0_program *program,
-                                     uint32_t type_index, char buffer[96]) {
+                                     uint32_t type_index, char buffer[96],
+                                     const mlir0_process_emit_context *process) {
   if (program == NULL || type_index >= program->type_count) return NULL;
+  if (process != NULL &&
+      program->types[type_index].kind == W_SEED_HIR0_TYPE_NOMINAL) {
+    const w_seed_hir0_type *nominal = &program->types[type_index];
+    if (nominal->external_module_index == 0u &&
+        (nominal->external_symbol_index == process->arguments_symbol_index ||
+         nominal->external_symbol_index == process->context_symbol_index))
+      return "!llvm.ptr";
+    if (nominal->external_module_index == 0u &&
+        nominal->external_symbol_index == process->exit_code_symbol_index)
+      return "i32";
+    return NULL;
+  }
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
   if (program->types[type_index].kind == W_SEED_HIR0_TYPE_ENUM) {
@@ -2410,7 +2524,8 @@ static const char *program_type_name(const w_seed_hir0_program *program,
 
 static bool append_program_switch_subject(
     const w_seed_hir0_program *program, const w_seed_hir0_terminator *terminator,
-    uint32_t function_index, uint8_t *artifact, size_t capacity, size_t *offset) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   const uint32_t subject = terminator->value_index;
   mlir0_enum_layout layout;
   if (!mlir0_enum_layout_info(program, terminator->switch_enum_index, &layout))
@@ -2418,12 +2533,14 @@ static bool append_program_switch_subject(
   const bool aggregate = layout.has_payload;
   if (aggregate) {
     char type_buffer[96];
-    const char *type = program_type_name(program, program->values[subject].type_index, type_buffer);
+    const char *type = program_type_name(program, program->values[subject].type_index,
+                                         type_buffer, process);
     if (type == NULL ||
         !append_literal(artifact, capacity, offset, "    %switch_tag_") ||
         !append_size(artifact, capacity, offset, terminator->owner_block) ||
         !append_literal(artifact, capacity, offset, " = llvm.extractvalue ") ||
-        !append_program_value_operand(program, subject, function_index, artifact, capacity, offset) ||
+        !append_program_value_operand(program, subject, function_index, process,
+                                      artifact, capacity, offset) ||
         !append_literal(artifact, capacity, offset, "[0] : ") ||
         !append_literal(artifact, capacity, offset, type) ||
         !append_literal(artifact, capacity, offset, "\n"))
@@ -2433,12 +2550,14 @@ static bool append_program_switch_subject(
   if (aggregate)
     return append_literal(artifact, capacity, offset, "%switch_tag_") &&
            append_size(artifact, capacity, offset, terminator->owner_block);
-  return append_program_value_operand(program, subject, function_index, artifact, capacity, offset);
+  return append_program_value_operand(program, subject, function_index, process,
+                                      artifact, capacity, offset);
 }
 
 static bool append_program_print_actions(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
-    size_t call_index, uint32_t function_index, uint8_t *artifact,
+    size_t call_index, uint32_t function_index,
+    const mlir0_process_emit_context *process, uint8_t *artifact,
     size_t capacity, size_t *offset) {
   if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
       call_index >= program->call_count ||
@@ -2504,8 +2623,8 @@ static bool append_program_print_actions(
           !append_size(artifact, capacity, offset, ordinal) ||
           !append_literal(artifact, capacity, offset, ", ") ||
           !append_program_value_operand(program, action->value_index,
-                                        function_index, artifact, capacity,
-                                        offset) ||
+                                        function_index, process, artifact,
+                                        capacity, offset) ||
           !append_literal(artifact, capacity, offset,
                           action->kind == MLIR0_DYNAMIC_I64
                               ? ") : (!llvm.ptr, i64, i64) -> i64\n"
@@ -2525,8 +2644,8 @@ static bool append_program_print_actions(
 
 static bool append_program_local_call(
     const w_seed_hir0_program *program, const w_seed_hir0_call *call,
-    uint32_t function_index, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
   if (program == NULL || call == NULL || artifact == NULL || offset == NULL ||
       call->callee_identity >= program->identity_count)
     return false;
@@ -2567,8 +2686,8 @@ static bool append_program_local_call(
     if (values[parameter] == W_SEED_HIR0_NONE ||
         !append_literal(artifact, capacity, offset, ", ") ||
         !append_program_value_operand(program, values[parameter],
-                                      function_index, artifact, capacity,
-                                      offset))
+                                      function_index, process, artifact,
+                                      capacity, offset))
       return false;
   if (!append_literal(artifact, capacity, offset,
                       ") : (!llvm.ptr, !llvm.ptr"))
@@ -2580,7 +2699,8 @@ static bool append_program_local_call(
     const w_seed_hir0_parameter *item =
         &program->parameters[(size_t)target->first_parameter + parameter];
     char type_buffer[96];
-    const char *type = program_type_name(program, item->type_index, type_buffer);
+    const char *type = program_type_name(program, item->type_index, type_buffer,
+                                         process);
     if (type == NULL || !append_literal(artifact, capacity, offset, ", ") ||
         !append_literal(artifact, capacity, offset, type))
       return false;
@@ -2588,7 +2708,8 @@ static bool append_program_local_call(
   if (call->result_type == 0u)
     return append_literal(artifact, capacity, offset, ") -> ()\n");
   char return_type_buffer[96];
-  const char *return_type = program_type_name(program, call->result_type, return_type_buffer);
+  const char *return_type = program_type_name(program, call->result_type,
+                                              return_type_buffer, process);
   return return_type != NULL &&
          append_literal(artifact, capacity, offset, ") -> ") &&
          append_literal(artifact, capacity, offset, return_type) &&
@@ -2609,7 +2730,8 @@ static bool append_program_block_label(uint8_t *artifact, size_t capacity,
 static bool append_program_block_definition(
     const w_seed_hir0_program *program, uint32_t function_index,
     uint32_t block_index, const w_seed_hir0_block *block, uint8_t *artifact,
-    size_t capacity, size_t *offset) {
+    size_t capacity, size_t *offset,
+    const mlir0_process_emit_context *process) {
   if (program == NULL || block == NULL || artifact == NULL || offset == NULL ||
       (block->block_argument_count == 0u &&
        block->first_block_argument != W_SEED_HIR0_NONE) ||
@@ -2627,7 +2749,8 @@ static bool append_program_block_definition(
           (uint32_t)((size_t)block->first_block_argument + ordinal);
       char type_buffer[96];
       const char *type = program_type_name(
-          program, program->block_arguments[argument_index].type_index, type_buffer);
+          program, program->block_arguments[argument_index].type_index,
+          type_buffer, process);
       if (type == NULL ||
           (ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
           !append_program_block_argument_name(
@@ -2648,7 +2771,8 @@ static bool append_program_block_definition(
  * preheader/header/body/exit directly to scf.while without a stack cell. */
 static bool append_program_natural_loop(
     const w_seed_hir0_program *program, size_t function_index,
-    uint8_t *artifact, size_t capacity, size_t *offset) {
+    const mlir0_process_emit_context *process, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       function_index >= program->function_count)
     return false;
@@ -2701,7 +2825,7 @@ static bool append_program_natural_loop(
   bool preheader_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
   if (!append_program_value_tree(
           program, initial->initializer_value, (uint32_t)function_index,
-          preheader_emitted, artifact, capacity, offset, 0u) ||
+          process, preheader_emitted, artifact, capacity, offset, 0u) ||
       !append_literal(artifact, capacity, offset, "    %loop") ||
       !append_size(artifact, capacity, offset, function_index) ||
       !append_literal(artifact, capacity, offset, " = scf.while (%arg") ||
@@ -2709,8 +2833,8 @@ static bool append_program_natural_loop(
                    header->first_block_argument) ||
       !append_literal(artifact, capacity, offset, " = ") ||
       !append_program_value_operand(program, initial_edge->value_index,
-                                    (uint32_t)function_index, artifact,
-                                    capacity, offset) ||
+                                    (uint32_t)function_index, process,
+                                    artifact, capacity, offset) ||
       !append_literal(artifact, capacity, offset,
                       ") : (i64) -> i64 {\n"))
     return false;
@@ -2720,11 +2844,11 @@ static bool append_program_natural_loop(
                sizeof(condition_emitted));
   if (!append_program_value_tree(
           program, header_term->value_index, (uint32_t)function_index,
-          condition_emitted, artifact, capacity, offset, 0u) ||
+          process, condition_emitted, artifact, capacity, offset, 0u) ||
       !append_literal(artifact, capacity, offset, "      scf.condition(") ||
       !append_program_value_operand(program, header_term->value_index,
-                                    (uint32_t)function_index, artifact,
-                                    capacity, offset) ||
+                                    (uint32_t)function_index, process,
+                                    artifact, capacity, offset) ||
       !append_literal(artifact, capacity, offset, ") %arg") ||
       !append_size(artifact, capacity, offset,
                    header->first_block_argument) ||
@@ -2739,11 +2863,11 @@ static bool append_program_natural_loop(
   (void)memcpy(update_emitted, preheader_emitted, sizeof(update_emitted));
   if (!append_program_value_tree(
           program, update->initializer_value, (uint32_t)function_index,
-          update_emitted, artifact, capacity, offset, 0u) ||
+          process, update_emitted, artifact, capacity, offset, 0u) ||
       !append_literal(artifact, capacity, offset, "      scf.yield ") ||
       !append_program_value_operand(program, back_edge->value_index,
-                                    (uint32_t)function_index, artifact,
-                                    capacity, offset) ||
+                                    (uint32_t)function_index, process,
+                                    artifact, capacity, offset) ||
       !append_literal(artifact, capacity, offset, " : i64\n    }\n") ||
       !append_literal(artifact, capacity, offset, "    llvm.return %loop") ||
       !append_size(artifact, capacity, offset, function_index) ||
@@ -2754,8 +2878,9 @@ static bool append_program_natural_loop(
 
 static bool append_program_function(
     const w_seed_hir0_program *program, const mlir0_program_plan *plan,
-    size_t function_index, bool natural_loop, uint8_t *artifact, size_t capacity,
-    size_t *offset) {
+    size_t function_index, bool natural_loop,
+    const mlir0_process_emit_context *process, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || plan == NULL || artifact == NULL || offset == NULL ||
       function_index >= program->function_count)
     return false;
@@ -2775,7 +2900,8 @@ static bool append_program_function(
     const w_seed_hir0_parameter *parameter =
         &program->parameters[(size_t)function->first_parameter + ordinal];
     char type_buffer[96];
-    const char *type = program_type_name(program, parameter->type_index, type_buffer);
+    const char *type = program_type_name(program, parameter->type_index,
+                                         type_buffer, process);
     if (type == NULL ||
         !append_literal(artifact, capacity, offset, ", %p") ||
         !append_size(artifact, capacity, offset, ordinal) ||
@@ -2786,7 +2912,8 @@ static bool append_program_function(
   if (!append_literal(artifact, capacity, offset, ")")) return false;
   if (function->return_type != 0u) {
     char return_type_buffer[96];
-    const char *return_type = program_type_name(program, function->return_type, return_type_buffer);
+    const char *return_type = program_type_name(program, function->return_type,
+                                                return_type_buffer, process);
     if (return_type == NULL || !append_literal(artifact, capacity, offset,
                                                 " -> ") ||
         !append_literal(artifact, capacity, offset, return_type))
@@ -2797,8 +2924,8 @@ static bool append_program_function(
                       "@w_seed_mlir0_text : !llvm.ptr\n"))
     return false;
   if (natural_loop)
-    return append_program_natural_loop(program, function_index, artifact,
-                                       capacity, offset);
+    return append_program_natural_loop(program, function_index, process,
+                                       artifact, capacity, offset);
   bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
   bool enum_switch_emitted = false;
   for (size_t ordinal = 0u; ordinal < function->block_count; ordinal += 1u) {
@@ -2812,7 +2939,7 @@ static bool append_program_function(
         (!append_literal(artifact, capacity, offset, "  ") ||
          !append_program_block_definition(
              program, (uint32_t)function_index, (uint32_t)block_index, block,
-             artifact, capacity, offset) ||
+             artifact, capacity, offset, process) ||
          !append_literal(artifact, capacity, offset, "\n")))
       return false;
     for (size_t instruction_ordinal = 0u;
@@ -2827,8 +2954,8 @@ static bool append_program_function(
                 program,
                 program->bindings[instruction->binding_index]
                     .initializer_value,
-                (uint32_t)function_index, emitted, artifact, capacity, offset,
-                0u))
+                (uint32_t)function_index, process, emitted, artifact,
+                capacity, offset, 0u))
           return false;
         continue;
       }
@@ -2842,8 +2969,8 @@ static bool append_program_function(
                 program,
                 program->arguments[(size_t)call->first_argument + argument]
                     .value_index,
-                (uint32_t)function_index, emitted, artifact, capacity, offset,
-                0u))
+                (uint32_t)function_index, process, emitted, artifact,
+                capacity, offset, 0u))
           return false;
       if (call->callee_identity >= program->identity_count) return false;
       const w_seed_hir0_identity *callee =
@@ -2851,13 +2978,13 @@ static bool append_program_function(
       if (callee->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE) {
         if (!append_program_print_actions(program, plan,
                                           instruction->call_index,
-                                          (uint32_t)function_index, artifact,
-                                          capacity, offset))
+                                          (uint32_t)function_index, process,
+                                          artifact, capacity, offset))
           return false;
       } else if (callee->kind == W_SEED_HIR0_IDENTITY_FUNCTION) {
         if (!append_program_local_call(program, call,
-                                       (uint32_t)function_index, artifact,
-                                       capacity, offset))
+                                       (uint32_t)function_index, process,
+                                       artifact, capacity, offset))
           return false;
       } else {
         return false;
@@ -2869,11 +2996,11 @@ static bool append_program_function(
       if (terminator->value_index >= program->value_count ||
           !append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
-              emitted, artifact, capacity, offset, 0u) ||
+              process, emitted, artifact, capacity, offset, 0u) ||
           !append_literal(artifact, capacity, offset, "    llvm.cond_br ") ||
           !append_program_value_operand(
               program, terminator->value_index, (uint32_t)function_index,
-              artifact, capacity, offset) ||
+              process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, ", ") ||
           !append_program_block_label(
               artifact, capacity, offset, (uint32_t)function_index,
@@ -2898,8 +3025,8 @@ static bool append_program_function(
             &program->edge_arguments[(size_t)terminator->first_edge_argument +
                                      edge_ordinal];
         if (!append_program_value_tree(
-                program, edge->value_index, (uint32_t)function_index, emitted,
-                artifact, capacity, offset, 0u))
+                program, edge->value_index, (uint32_t)function_index, process,
+                emitted, artifact, capacity, offset, 0u))
           return false;
       }
       if (!append_literal(artifact, capacity, offset, "    llvm.br ") ||
@@ -2917,8 +3044,8 @@ static bool append_program_function(
           if ((edge_ordinal != 0u &&
                !append_literal(artifact, capacity, offset, ", ")) ||
               !append_program_value_operand(
-                  program, edge->value_index, (uint32_t)function_index, artifact,
-                  capacity, offset))
+                  program, edge->value_index, (uint32_t)function_index, process,
+                  artifact, capacity, offset))
             return false;
         }
         if (!append_literal(artifact, capacity, offset, " : ")) return false;
@@ -2928,7 +3055,8 @@ static bool append_program_function(
               &program->edge_arguments[(size_t)terminator->first_edge_argument +
                                        edge_ordinal];
           char type_buffer[96];
-          const char *type = program_type_name(program, edge->type_index, type_buffer);
+          const char *type = program_type_name(program, edge->type_index,
+                                               type_buffer, process);
           if (type == NULL ||
               (edge_ordinal != 0u &&
                !append_literal(artifact, capacity, offset, ", ")) ||
@@ -2944,15 +3072,16 @@ static bool append_program_function(
     } else if (terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE) {
       char return_type_buffer[96];
       const char *return_type =
-          program_type_name(program, function->return_type, return_type_buffer);
+          program_type_name(program, function->return_type, return_type_buffer,
+                            process);
       if (return_type == NULL || terminator->value_index >= program->value_count ||
           !append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
-              emitted, artifact, capacity, offset, 0u) ||
+              process, emitted, artifact, capacity, offset, 0u) ||
           !append_literal(artifact, capacity, offset, "    llvm.return ") ||
           !append_program_value_operand(
               program, terminator->value_index, (uint32_t)function_index,
-              artifact, capacity, offset) ||
+              process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, " : ") ||
           !append_literal(artifact, capacity, offset, return_type) ||
           !append_literal(artifact, capacity, offset, "\n"))
@@ -2976,9 +3105,9 @@ static bool append_program_function(
               terminator->switch_edge_count ||
           !append_program_value_tree(
               program, terminator->value_index, (uint32_t)function_index,
-              emitted, artifact, capacity, offset, 0u) ||
+              process, emitted, artifact, capacity, offset, 0u) ||
           !append_program_switch_subject(program, terminator,
-              (uint32_t)function_index, artifact, capacity, offset) ||
+              (uint32_t)function_index, process, artifact, capacity, offset) ||
           !append_literal(artifact, capacity, offset, " : ") ||
           !append_literal(artifact, capacity, offset, carrier_type) ||
           !append_literal(artifact, capacity, offset, ", [\n") ||
@@ -3045,7 +3174,7 @@ static bool build_program_artifact(
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
   mlir0_program_plan plan;
-  if (!build_program_plan(program, &plan)) return false;
+  if (!build_program_plan(program, &plan, false)) return false;
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   if (!append_literal(artifact, capacity, &offset,
@@ -3091,8 +3220,8 @@ static bool build_program_artifact(
     if (!plan.omitted_functions[function] &&
         !append_program_function(
             program, &plan, function,
-            selection->natural_loop_functions[function], artifact, capacity,
-            &offset))
+            selection->natural_loop_functions[function], NULL, artifact,
+            capacity, &offset))
       return false;
   if (!append_literal(
           artifact, capacity, &offset,
@@ -3161,9 +3290,6 @@ static bool build_program_artifact(
  * integer-array layout is private to this artifact and is not a W-value ABI. */
 static const char MLIR0_PROCESS_EXECUTABLE_HELPERS0[] =
     "  llvm.func @GetCommandLineW() -> !llvm.ptr\n"
-    "  llvm.func @GetStdHandle(%n: i32) -> !llvm.ptr\n"
-    "  llvm.func @WriteFile(%handle: !llvm.ptr, %buffer: !llvm.ptr, %count: i32, %written: !llvm.ptr, %overlapped: !llvm.ptr) -> i32\n"
-    "  llvm.func @ExitProcess(%code: i32)\n"
     "  llvm.func internal @w_seed_process_count_arguments(%command_line: !llvm.ptr, %items: !llvm.ptr) -> i64 {\n"
     "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
     "    %one = llvm.mlir.constant(1 : i64) : i64\n"
@@ -3409,119 +3535,6 @@ static const char MLIR0_PROCESS_EXECUTABLE_HELPERS7[] =
     "  ^invalid:\n"
     "    %not_finalized = llvm.mlir.constant(false) : i1\n"
     "    llvm.return %not_finalized : i1\n"
-    "  }\n"
-    "  llvm.func internal @w_seed_write(%buffer: !llvm.ptr, %count: i64) -> i64 {\n"
-    "    %zero32 = llvm.mlir.constant(0 : i32) : i32\n"
-    "    %zero64 = llvm.mlir.constant(0 : i64) : i64\n"
-    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %stdout = llvm.mlir.constant(-11 : i32) : i32\n"
-    "    %count32 = llvm.trunc %count : i64 to i32\n"
-    "    %written_address = llvm.alloca %one x i32 : (i64) -> !llvm.ptr\n"
-    "    llvm.store %zero32, %written_address : i32, !llvm.ptr\n"
-    "    %null = llvm.inttoptr %zero64 : i64 to !llvm.ptr\n"
-    "    %handle = llvm.call @GetStdHandle(%stdout) : (i32) -> !llvm.ptr\n"
-    "    %write_ok = llvm.call @WriteFile(%handle, %buffer, %count32, %written_address, %null) : (!llvm.ptr, !llvm.ptr, i32, !llvm.ptr, !llvm.ptr) -> i32\n"
-    "    %written = llvm.load %written_address : !llvm.ptr -> i32\n"
-    "    %write_ok_flag = llvm.icmp \"ne\" %write_ok, %zero32 : i32\n"
-    "    %write_complete = llvm.icmp \"eq\" %written, %count32 : i32\n"
-    "    %write_valid = llvm.and %write_ok_flag, %write_complete : i1\n"
-    "    %write_result = llvm.select %write_valid, %count, %zero64 : i1, i64\n"
-    "    llvm.return %write_result : i64\n"
-    "  }\n";
-
-static const char MLIR0_PROCESS_EXECUTABLE_MAIN0[] =
-    "  llvm.mlir.global private constant @w_seed_process_missing(\"missing\\0A\") : !llvm.array<8 x i8>\n"
-    "  llvm.mlir.global private constant @w_seed_process_received(\"received\\0A\") : !llvm.array<9 x i8>\n"
-    "  llvm.mlir.global internal @w_seed_process_items() : !llvm.array<768 x i64> {\n"
-    "    %items_zero = llvm.mlir.zero : !llvm.array<768 x i64>\n"
-    "    llvm.return %items_zero : !llvm.array<768 x i64>\n"
-    "  }\n"
-    "  llvm.func @mainCRTStartup() {\n"
-    "    %zero = llvm.mlir.constant(0 : i64) : i64\n"
-    "    %one = llvm.mlir.constant(1 : i64) : i64\n"
-    "    %two = llvm.mlir.constant(2 : i64) : i64\n"
-    "    %three = llvm.mlir.constant(3 : i64) : i64\n"
-    "    %eight = llvm.mlir.constant(8 : i64) : i64\n"
-    "    %nine = llvm.mlir.constant(9 : i64) : i64\n"
-    "    %minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
-    "    %failure = llvm.mlir.constant(3 : i32) : i32\n"
-    "    %missing_status = llvm.mlir.constant(2 : i32) : i32\n"
-    "    %success_status = llvm.mlir.constant(0 : i32) : i32\n"
-    "    %vector_words = llvm.mlir.constant(3 : i64) : i64\n"
-    "    %root_words = llvm.mlir.constant(8 : i64) : i64\n"
-    "    %owner_words = llvm.mlir.constant(5 : i64) : i64\n"
-    "    %items_base = llvm.mlir.addressof @w_seed_process_items : !llvm.ptr\n"
-    "    %items = llvm.getelementptr %items_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<768 x i64>\n"
-    "    %vector = llvm.alloca %vector_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %root = llvm.alloca %root_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %arguments = llvm.alloca %owner_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %context = llvm.alloca %owner_words x i64 : (i64) -> !llvm.ptr\n"
-    "    %command_line = llvm.call @GetCommandLineW() : () -> !llvm.ptr\n"
-    "    %null = llvm.inttoptr %zero : i64 to !llvm.ptr\n"
-    "    %command_line_missing = llvm.icmp \"eq\" %command_line, %null : !llvm.ptr\n"
-    "    llvm.cond_br %command_line_missing, ^early_fault, ^capture\n"
-    "  ^capture:\n"
-    "    %argument_count = llvm.call @w_seed_process_count_arguments(%command_line, %items) : (!llvm.ptr, !llvm.ptr) -> i64\n"
-    "    %parse_failed = llvm.icmp \"eq\" %argument_count, %minus_one : i64\n"
-    "    llvm.cond_br %parse_failed, ^early_fault, ^vector_items\n"
-    "  ^vector_items:\n"
-    "    %has_items = llvm.icmp \"ne\" %argument_count, %zero : i64\n"
-    "    llvm.cond_br %has_items, ^vector_nonempty, ^vector_empty\n"
-    "  ^vector_nonempty:\n"
-    "    %items_pointer = llvm.ptrtoint %items : !llvm.ptr to i64\n"
-    "    %vector_items_address = llvm.getelementptr %vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %items_pointer, %vector_items_address : i64, !llvm.ptr\n"
-    "    llvm.br ^vector_ready\n"
-    "  ^vector_empty:\n"
-    "    %vector_items_address_empty = llvm.getelementptr %vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %zero, %vector_items_address_empty : i64, !llvm.ptr\n"
-    "    llvm.br ^vector_ready\n"
-    "  ^vector_ready:\n"
-    "    %vector_encoding_address = llvm.getelementptr %vector[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %two, %vector_encoding_address : i64, !llvm.ptr\n"
-    "    %vector_count_address = llvm.getelementptr %vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
-    "    llvm.store %argument_count, %vector_count_address : i64, !llvm.ptr\n"
-    "    %root_initialized = llvm.call @w_seed_process_root_init(%vector, %root, %arguments, %context) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i1\n"
-    "    llvm.cond_br %root_initialized, ^evaluate, ^early_fault\n"
-    "  ^evaluate:\n"
-    "    %is_empty = llvm.call @w_seed_process_arguments_is_empty(%arguments) : (!llvm.ptr) -> i1\n"
-    "    llvm.cond_br %is_empty, ^print_missing, ^print_received\n"
-    "  ^print_missing:\n";
-
-static const char MLIR0_PROCESS_EXECUTABLE_MAIN0B[] =
-    "    %missing_base = llvm.mlir.addressof @w_seed_process_missing : !llvm.ptr\n"
-    "    %missing_data = llvm.getelementptr %missing_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<8 x i8>\n"
-    "    %missing_written = llvm.call @w_seed_write(%missing_data, %eight) : (!llvm.ptr, i64) -> i64\n"
-    "    %missing_ok = llvm.icmp \"eq\" %missing_written, %eight : i64\n"
-    "    %missing_result = llvm.select %missing_ok, %missing_status, %failure : i1, i32\n"
-    "    llvm.br ^release_context(%missing_result : i32)\n"
-    "  ^print_received:\n"
-    "    %received_base = llvm.mlir.addressof @w_seed_process_received : !llvm.ptr\n"
-    "    %received_data = llvm.getelementptr %received_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<9 x i8>\n"
-    "    %received_written = llvm.call @w_seed_write(%received_data, %nine) : (!llvm.ptr, i64) -> i64\n"
-    "    %received_ok = llvm.icmp \"eq\" %received_written, %nine : i64\n"
-    "    %received_result = llvm.select %received_ok, %success_status, %failure : i1, i32\n"
-    "    llvm.br ^release_context(%received_result : i32)\n"
-    "  ^release_context(%exit_status: i32):\n";
-
-static const char MLIR0_PROCESS_EXECUTABLE_MAIN1[] =
-    "    %context_released = llvm.call @w_seed_process_context_drop(%context) : (!llvm.ptr) -> i1\n"
-    "    llvm.cond_br %context_released, ^release_arguments(%exit_status : i32), ^release_fault\n"
-    "  ^release_arguments(%arguments_exit_status: i32):\n"
-    "    %arguments_released = llvm.call @w_seed_process_arguments_drop(%arguments) : (!llvm.ptr) -> i1\n"
-    "    llvm.cond_br %arguments_released, ^finalize_root(%arguments_exit_status : i32), ^release_fault\n"
-    "  ^finalize_root(%finalize_exit_status: i32):\n"
-    "    %root_finalized = llvm.call @w_seed_process_root_finalize(%root) : (!llvm.ptr) -> i1\n"
-    "    llvm.cond_br %root_finalized, ^exit(%finalize_exit_status : i32), ^release_fault\n"
-    "  ^exit(%code: i32):\n"
-    "    llvm.call @ExitProcess(%code) : (i32) -> ()\n"
-    "    llvm.return\n"
-    "  ^early_fault:\n"
-    "    llvm.call @ExitProcess(%failure) : (i32) -> ()\n"
-    "    llvm.return\n"
-    "  ^release_fault:\n"
-    "    llvm.call @ExitProcess(%failure) : (i32) -> ()\n"
-    "    llvm.return\n"
     "  }\n";
 
 static bool build_process_executable_artifact(
@@ -3530,8 +3543,42 @@ static bool build_process_executable_artifact(
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
   if (program == NULL || selection == NULL || !target_is_windows(target) ||
-      artifact == NULL || written == NULL || digest == NULL)
+      artifact == NULL || written == NULL || digest == NULL ||
+      selection->function_index >= program->function_count ||
+      selection->function != &program->functions[selection->function_index] ||
+      selection->function->parameter_count != 2u ||
+      selection->function->first_parameter >= program->parameter_count ||
+      selection->function->first_parameter >
+          program->parameter_count - selection->function->parameter_count ||
+      selection->arguments_parameter_ordinal >= 2u ||
+      selection->context_parameter_ordinal >= 2u ||
+      selection->arguments_parameter_ordinal ==
+          selection->context_parameter_ordinal ||
+      selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
+  const size_t first_parameter = selection->function->first_parameter;
+  if (selection->arguments_parameter !=
+          &program->parameters[first_parameter +
+                               selection->arguments_parameter_ordinal] ||
+      selection->context_parameter !=
+          &program->parameters[first_parameter +
+                               selection->context_parameter_ordinal])
+    return false;
+
+  mlir0_program_plan plan;
+  if (!build_program_plan(program, &plan, true) ||
+      !plan.reachable_functions[selection->function_index])
+    return false;
+  mlir0_process_emit_context process = {
+      .function_index = selection->function_index,
+      .arguments_parameter_index = selection->arguments_parameter_ordinal,
+      .context_parameter_index = selection->context_parameter_ordinal,
+      .arguments_symbol_index = selection->arguments_symbol_index,
+      .context_symbol_index = selection->context_symbol_index,
+      .exit_code_symbol_index = selection->exit_code_symbol_index,
+      .is_empty_symbol_index = selection->is_empty_symbol_index,
+      .success_symbol_index = selection->success_symbol_index,
+      .failure_symbol_index = selection->failure_symbol_index};
   size_t offset = 0u;
   if (!append_literal(artifact, capacity, &offset,
                       "// " W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION
@@ -3541,6 +3588,33 @@ static bool build_process_executable_artifact(
       !append_literal(artifact, capacity, &offset,
                       W_SEED_MLIR0_TARGET_TRIPLE_WINDOWS) ||
       !append_literal(artifact, capacity, &offset, "\"} {\n") ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "  llvm.mlir.global private constant @w_seed_mlir0_text(\""))
+    return false;
+  if (plan.text_bytes == 0u) {
+    if (!append_literal(artifact, capacity, &offset, "\\00") ||
+        !append_literal(artifact, capacity, &offset,
+                        "\") : !llvm.array<1 x i8>\n"))
+      return false;
+  } else if (!append_escaped_bytes(artifact, capacity, &offset, plan.text,
+                                   plan.text_bytes) ||
+             !append_literal(artifact, capacity, &offset,
+                             "\") : !llvm.array<") ||
+             !append_size(artifact, capacity, &offset, plan.text_bytes) ||
+             !append_literal(artifact, capacity, &offset, " x i8>\n"))
+    return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      MLIR0_WINDOWS_BUFFER_GLOBAL) ||
+      !append_literal(artifact, capacity, &offset, MLIR0_RUNTIME_HELPERS) ||
+      !append_checked_i64_helpers(
+          plan.has_checked_add, plan.has_checked_subtract,
+          plan.has_checked_multiply, plan.has_checked_divide,
+          plan.has_checked_remainder, artifact, capacity, &offset) ||
+      (plan.has_bool &&
+       !append_literal(artifact, capacity, &offset, MLIR0_BOOL_HELPER)) ||
+      !append_literal(artifact, capacity, &offset,
+                      MLIR0_WINDOWS_RUNTIME_HELPER) ||
       !append_literal(artifact, capacity, &offset,
                       MLIR0_PROCESS_EXECUTABLE_HELPERS0) ||
       !append_literal(artifact, capacity, &offset,
@@ -3559,13 +3633,117 @@ static bool build_process_executable_artifact(
                       MLIR0_PROCESS_EXECUTABLE_HELPERS6) ||
       !append_literal(artifact, capacity, &offset,
                       MLIR0_PROCESS_EXECUTABLE_HELPERS7) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          "  llvm.mlir.global internal @w_seed_process_items() : !llvm.array<768 x i64> {\n"
+          "    %process_items_zero = llvm.mlir.zero : !llvm.array<768 x i64>\n"
+          "    llvm.return %process_items_zero : !llvm.array<768 x i64>\n"
+          "  }\n"))
+    return false;
+  for (size_t function = 0u; function < program->function_count;
+       function += 1u)
+    if (!plan.omitted_functions[function] &&
+        !append_program_function(
+            program, &plan, function, selection->natural_loop_functions[function],
+            function == selection->function_index ? &process : NULL, artifact,
+            capacity, &offset))
+      return false;
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "  llvm.func @mainCRTStartup() {\n"
+          "    %process_zero = llvm.mlir.constant(0 : i64) : i64\n"
+          "    %process_one = llvm.mlir.constant(1 : i64) : i64\n"
+          "    %process_two = llvm.mlir.constant(2 : i64) : i64\n"
+          "    %process_three = llvm.mlir.constant(3 : i64) : i64\n"
+          "    %process_minus_one = llvm.mlir.constant(-1 : i64) : i64\n"
+          "    %process_failure = llvm.mlir.constant(3 : i32) : i32\n"
+          "    %process_vector_words = llvm.mlir.constant(3 : i64) : i64\n"
+          "    %process_root_words = llvm.mlir.constant(8 : i64) : i64\n"
+          "    %process_owner_words = llvm.mlir.constant(5 : i64) : i64\n"
+          "    %process_items_base = llvm.mlir.addressof @w_seed_process_items : !llvm.ptr\n"
+          "    %process_items = llvm.getelementptr %process_items_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<768 x i64>\n"
+          "    %process_vector = llvm.alloca %process_vector_words x i64 : (i64) -> !llvm.ptr\n"
+          "    %process_root = llvm.alloca %process_root_words x i64 : (i64) -> !llvm.ptr\n"
+          "    %process_arguments = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
+          "    %process_context = llvm.alloca %process_owner_words x i64 : (i64) -> !llvm.ptr\n"
+          "    %process_cursor_count = llvm.mlir.constant(1 : i64) : i64\n"
+          "    %process_cursor_address = llvm.alloca %process_cursor_count x i64 : (i64) -> !llvm.ptr\n"
+          "    %process_command_line = llvm.call @GetCommandLineW() : () -> !llvm.ptr\n"
+          "    %process_null = llvm.inttoptr %process_zero : i64 to !llvm.ptr\n"
+          "    %process_command_line_missing = llvm.icmp \"eq\" %process_command_line, %process_null : !llvm.ptr\n"
+          "    llvm.cond_br %process_command_line_missing, ^process_early_fault, ^process_capture\n"
+          "  ^process_capture:\n"
+          "    %process_argument_count = llvm.call @w_seed_process_count_arguments(%process_command_line, %process_items) : (!llvm.ptr, !llvm.ptr) -> i64\n"
+          "    %process_parse_failed = llvm.icmp \"eq\" %process_argument_count, %process_minus_one : i64\n"
+          "    llvm.cond_br %process_parse_failed, ^process_early_fault, ^process_vector_items\n"
+          "  ^process_vector_items:\n"
+          "    %process_has_items = llvm.icmp \"ne\" %process_argument_count, %process_zero : i64\n"
+          "    llvm.cond_br %process_has_items, ^process_vector_nonempty, ^process_vector_empty\n"
+          "  ^process_vector_nonempty:\n"
+          "    %process_items_pointer = llvm.ptrtoint %process_items : !llvm.ptr to i64\n"
+          "    %process_vector_items_address = llvm.getelementptr %process_vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+          "    llvm.store %process_items_pointer, %process_vector_items_address : i64, !llvm.ptr\n"
+          "    llvm.br ^process_vector_ready\n"
+          "  ^process_vector_empty:\n"
+          "    %process_vector_items_address_empty = llvm.getelementptr %process_vector[1] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+          "    llvm.store %process_zero, %process_vector_items_address_empty : i64, !llvm.ptr\n"
+          "    llvm.br ^process_vector_ready\n"
+          "  ^process_vector_ready:\n"
+          "    %process_vector_encoding_address = llvm.getelementptr %process_vector[0] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+          "    llvm.store %process_two, %process_vector_encoding_address : i64, !llvm.ptr\n"
+          "    %process_vector_count_address = llvm.getelementptr %process_vector[2] : (!llvm.ptr) -> !llvm.ptr, i64\n"
+          "    llvm.store %process_argument_count, %process_vector_count_address : i64, !llvm.ptr\n"
+          "    %process_root_initialized = llvm.call @w_seed_process_root_init(%process_vector, %process_root, %process_arguments, %process_context) : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i1\n"
+          "    llvm.cond_br %process_root_initialized, ^process_evaluate, ^process_early_fault\n"
+          "  ^process_evaluate:\n"
+          "    %process_buffer_base = llvm.mlir.addressof @w_seed_mlir0_buffer : !llvm.ptr\n"
+          "    %process_buffer = llvm.getelementptr %process_buffer_base[0, 0] : (!llvm.ptr) -> !llvm.ptr, !llvm.array<4097 x i8>\n"
+          "    llvm.store %process_zero, %process_cursor_address : i64, !llvm.ptr\n"
+          "    %process_status = llvm.call @w_fn_") ||
+      !append_size(artifact, capacity, &offset, selection->function_index) ||
       !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_MAIN0) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_MAIN0B) ||
-      !append_literal(artifact, capacity, &offset,
-                      MLIR0_PROCESS_EXECUTABLE_MAIN1) ||
-      !append_literal(artifact, capacity, &offset, "}\n"))
+                      "(%process_buffer, %process_cursor_address, "))
+    return false;
+  if (selection->arguments_parameter_ordinal == 0u) {
+    if (!append_literal(artifact, capacity, &offset,
+                        "%process_arguments, %process_context"))
+      return false;
+  } else if (!append_literal(artifact, capacity, &offset,
+                             "%process_context, %process_arguments")) {
+    return false;
+  }
+  if (!append_literal(
+          artifact, capacity, &offset,
+          ") : (!llvm.ptr, !llvm.ptr, !llvm.ptr, !llvm.ptr) -> i32\n"
+          "    %process_length = llvm.load %process_cursor_address : !llvm.ptr -> i64\n"
+          "    %process_has_output = llvm.icmp \"ne\" %process_length, %process_zero : i64\n"
+          "    llvm.cond_br %process_has_output, ^process_flush, ^process_release_context(%process_status : i32)\n"
+          "  ^process_flush:\n"
+          "    %process_written = llvm.call @w_seed_write(%process_buffer, %process_length) : (!llvm.ptr, i64) -> i64\n"
+          "    %process_flush_ok = llvm.icmp \"eq\" %process_written, %process_length : i64\n"
+          "    llvm.cond_br %process_flush_ok, ^process_release_context(%process_status : i32), ^process_write_fault\n"
+          "  ^process_write_fault:\n"
+          "    llvm.br ^process_release_context(%process_failure : i32)\n"
+          "  ^process_release_context(%process_exit_status: i32):\n"
+          "    %process_context_released = llvm.call @w_seed_process_context_drop(%process_context) : (!llvm.ptr) -> i1\n"
+          "    llvm.cond_br %process_context_released, ^process_release_arguments(%process_exit_status : i32), ^process_release_fault\n"
+          "  ^process_release_arguments(%process_arguments_exit_status: i32):\n"
+          "    %process_arguments_released = llvm.call @w_seed_process_arguments_drop(%process_arguments) : (!llvm.ptr) -> i1\n"
+          "    llvm.cond_br %process_arguments_released, ^process_finalize_root(%process_arguments_exit_status : i32), ^process_release_fault\n"
+          "  ^process_finalize_root(%process_finalize_exit_status: i32):\n"
+          "    %process_root_finalized = llvm.call @w_seed_process_root_finalize(%process_root) : (!llvm.ptr) -> i1\n"
+          "    llvm.cond_br %process_root_finalized, ^process_exit(%process_finalize_exit_status : i32), ^process_release_fault\n"
+          "  ^process_exit(%process_code: i32):\n"
+          "    llvm.call @ExitProcess(%process_code) : (i32) -> ()\n"
+          "    llvm.return\n"
+          "  ^process_early_fault:\n"
+          "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+          "    llvm.return\n"
+          "  ^process_release_fault:\n"
+          "    llvm.call @ExitProcess(%process_failure) : (i32) -> ()\n"
+          "    llvm.return\n"
+          "  }\n"
+          "}\n"))
     return false;
   *written = offset;
   w_seed_sha256_state state;

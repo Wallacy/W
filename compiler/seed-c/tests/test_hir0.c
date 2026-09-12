@@ -583,6 +583,28 @@ static bool lower(const char *source) {
   return true;
 }
 
+static bool lower_single_print_host(const char *source) {
+  CHECK(fixture_parse(source));
+  configure_process_input_host();
+  CHECK(w_seed_frontend_run(&fixture.input, &fixture.output, &fixture.result) ==
+        W_SEED_FRONTEND_OK);
+  setup_hir_output();
+  const w_seed_hir0_input input = {&fixture.input, &fixture.output,
+                                   &fixture.result};
+  w_seed_hir0_counts measured;
+  w_seed_hir0_result measure_result;
+  CHECK(w_seed_hir0_measure(&input, &measured, &measure_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
+        W_SEED_HIR0_OK);
+  CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
+                                        &fixture.hir_result,
+                                        &fixture.hir_program));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  fixture.hir_counts = measured;
+  return true;
+}
+
 static bool lower_process(const char *source) {
   CHECK(fixture_process_frontend(source));
   setup_hir_output();
@@ -709,6 +731,41 @@ static bool test_process_input0_hir(void) {
       "ProcessExitCode { if args.isEmpty { print(\"missing\") "
       "return .failure(3) } else { print(\"received\") return .success } }\n"
       "entry(run)\n";
+  static const char FAILURE_VALUE_SEVEN[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(7) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static const char FAILURE_VALUE_MAX[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(255) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static const char FAILURE_VALUE_ZERO[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(0) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static const char FAILURE_VALUE_OVERFLOW[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(256) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
+  static const char FAILURE_VALUE_NEGATIVE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.isEmpty { print(\"missing\") "
+      "return .failure(-1) } else { print(\"received\") return .success } }\n"
+      "entry(run)\n";
   static const char BAD_FAILURE_LABEL[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
@@ -797,8 +854,15 @@ static bool test_process_input0_hir(void) {
                     "success"));
   CHECK(expect_process_input0_rejected(
       BAD_MEMBER, PROCESS_INPUT0_BAD_SOURCE_MEMBER));
+  CHECK(lower_process_input0(BAD_FAILURE_VALUE));
+  CHECK(lower_process_input0(FAILURE_VALUE_SEVEN));
+  CHECK(lower_process_input0(FAILURE_VALUE_MAX));
   CHECK(expect_process_input0_rejected(
-      BAD_FAILURE_VALUE, PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE));
+      FAILURE_VALUE_ZERO, PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE));
+  CHECK(expect_process_input0_rejected(
+      FAILURE_VALUE_OVERFLOW, PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE));
+  CHECK(expect_process_input0_rejected(
+      FAILURE_VALUE_NEGATIVE, PROCESS_INPUT0_BAD_SOURCE_FAILURE_VALUE));
   CHECK(expect_process_input0_rejected(
       BAD_FAILURE_LABEL, PROCESS_INPUT0_BAD_SOURCE_FAILURE_LABEL));
   CHECK(expect_process_input0_rejected(
@@ -813,7 +877,7 @@ static bool test_process_input0_hir(void) {
   const uint8_t saved_literal_byte = fixture.hir_value_bytes[0];
   fixture.hir_value_bytes[0] = 'x';
   reseal_hir_fixture();
-  CHECK(!w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   fixture.hir_value_bytes[0] = saved_literal_byte;
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
@@ -4700,6 +4764,30 @@ static bool test_direct_i64_unary_interpolation(void) {
   return true;
 }
 
+static bool test_direct_print_interpolation(void) {
+  static const char POSITIVE_SOURCE[] =
+      "async fn main() { print(\"Balance ${-7}\") }\n"
+      "entry(main)\n";
+  CHECK(lower_single_print_host(POSITIVE_SOURCE));
+  CHECK(fixture.hir_program.function_count == 1u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE);
+
+  static const char BINDING_SOURCE[] =
+      "async fn main() { let message = \"Balance ${-7}\" "
+      "print(message) }\n"
+      "entry(main)\n";
+  CHECK(lower_single_print_host(BINDING_SOURCE));
+  CHECK(fixture.hir_program.function_count == 1u &&
+        fixture.hir_program.functions[0].suspension ==
+            W_SEED_HIR0_SUSPENSION_MAY &&
+        fixture.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT);
+  return true;
+}
+
 static bool test_logical_or_diamond_positive(void) {
   static const char SOURCE[] =
       "fn rhs(): Bool { return true }\n"
@@ -5282,6 +5370,7 @@ int main(void) {
   if (!test_logical_unary_not_positive()) return 1;
   if (!test_i64_unary_negate_positive()) return 1;
   if (!test_direct_i64_unary_interpolation()) return 1;
+  if (!test_direct_print_interpolation()) return 1;
   if (!test_logical_or_diamond_positive()) return 1;
   if (!test_nested_logical_positive()) return 1;
   if (!test_logical_rhs_call_argument_positive()) return 1;

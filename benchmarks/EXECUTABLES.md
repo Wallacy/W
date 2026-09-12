@@ -31,7 +31,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-branch-mutation | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation.w) | source-backed | partial-exploratory-ready |
 | restaurant-branch-mutation-multi | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-branch-mutation-multi.w) | source-backed | partial-exploratory-ready |
 | process-entry | public-end-to-end | [w](../compiler/seed-c/fixtures/process-input0.w), [c](./executable/process_entry.c), [rust](./executable/process_entry.rs) | source-backed | exploratory-ready |
-| process-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/process-enum-payload.w), [c](./executable/process_enum_payload.c), [rust](./executable/process_enum_payload.rs) | source-backed | not-performance-ready |
+| process-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/process-enum-payload.w), [c](./executable/process_enum_payload.c), [rust](./executable/process_enum_payload.rs) | source-backed | exploratory-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
 
 ## Best values
@@ -44,7 +44,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 184 | 166.0238 ms | 15.9946 ms | 16.9434 ms | 3751936 B (3.58 MiB) | 10.674 ms |
 | process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
 | process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
-| process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1126 | 256 | 181.7506 ms | 16.0547 ms | 17.0405 ms | 3760128 B (3.59 MiB) | 9.9 ms |
 | process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
 | process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
 | process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |

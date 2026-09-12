@@ -37335,17 +37335,25 @@ checked. Separate `process-handler-lifecycle` artifact measurements remain
 exploratory `integration-linkage` evidence. Their nested private handler is
 `transient-internal`. The
 [`executable benchmark protocol`](benchmarks/README.md#private-process-handler-lifecycle-executable-measurements)
-defines these classes and reserves `process-entry` for a future public
-end-to-end workload. These measurements do not defer or replace the
+defines the private lane. The [`public process-entry benchmark section`](benchmarks/README.md#public-process-entry-executable-measurements)
+defines the current public lane. The `process-entry` workload retains its
+current correctness and measurement cells, and `process-enum-payload` has its
+own registered oracle. These measurements do not defer or replace the
 language-track stop condition.
 
-#### 26.4.1.29 W-1547 — bounded public Windows process input and exit (Current form)
+#### 26.4.1.29 W-1547 — bounded public Windows process body and exit (Current form)
 
-W-1547 closes the first public process-entry slice without changing the
-private W-1546 handler artifact. The accepted source has exactly one module,
-one async process entry, parameters `Arguments` then `Context`, return type
-`ExitCode`, one `args.isEmpty` branch, one `print(String)` in each arm, and the
-returns `.failure(2)` and `.success` respectively:
+W-1547 adds a public executable artifact without changing the private W-1546
+handler artifact. The public route lowers a verified, ordinary process body
+through the existing HIR25 and MLIR/LLVM records. It is not a source-spelling
+or fixed-witness recognizer. The bounded process function has the resolver-owned
+`std.process@1` identities, `Arguments` then `Context` parameters, and
+`ExitCode` return type. Its entry is resolved from the verified target name and
+opaque identity, so aliases, renamed parameters, and helpers declared before
+the entry remain valid.
+
+The smallest retained example is still one process branch with direct output
+and two exit cases:
 
 <!-- w-example role=executable use=print observable=effect -->
 ```w
@@ -37371,55 +37379,89 @@ async fn run(
 entry(run)
 ```
 
-Frontend and HIR retain exact resolver-owned identities for
-`Arguments.isEmpty` and `ExitCode.failure(code: i64)`. HIR16 represents the
-member read and enum-case payload as ordinary verified value records. The
-declared async function remains `suspension: MAY`, while the complete body
-receives `direct_entry: AVAILABLE`: module-owned constant strings and the exact
-compiler-known `print(String): Unit` host call cannot suspend a W task. The
-host call may block the current OS thread; no general host-call or async claim
-follows from this closed proof.
+The composition fixture
+[`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w)
+exercises the same route with helpers before the entry, a local enum with
+`Bool` and signed `i64` payloads, constructor and exhaustive switch captures,
+the canonical `isEmpty` read, interpolated output, and `.failure(7)`. It is a
+normal body composition proof, not an enum-layout-only witness.
+
+HIR25 already represents the external member/case relations, local calls,
+enum payloads, switches, captures, interpolation, and structured control flow
+used by these bodies. W-1547 adds no HIR schema or ABI revision. The producer
+and independent verifier retain resolver-owned module, symbol, member, case,
+type, owner, capacity, alias, provenance, and receipt checks. `Arguments` and
+`Context` are the two root-owned entry parameters in that fixed order. The
+canonical `Arguments.isEmpty` receiver read is the only process-parameter read
+admitted here. `Context` has no readable members in this slice. Neither owner
+may be copied, passed to a local call, placed in an enum payload, or returned.
+The cleanup fact covers the actual entry parameter range even when helpers add
+earlier parameters.
+
+The declared async function remains `suspension: MAY`, while the complete
+reachable body receives `direct_entry: AVAILABLE` only after the non-suspending
+proof succeeds. Direct print of text, signed `i64`, and `Bool`, including
+compile-time-known String literal chains, is admitted. This does not relax the
+String-global rule or make general async/runtime calls direct-entry eligible.
+Failure status values must be literal `CONST_I64` values in `1..255`. Dynamic or
+computed values, and `0`, `-1`, or `256`, are rejected without truncation.
+
+Native0 and MLIR0 consume the normal verified body plan. The public process
+shape is currently one-block return or a three-block terminal `if`, with a
+forward-only, acyclic process call graph. General loops and arbitrary CFG are
+not admitted. The public six-symbol ABI remains stable and separate from the
+private four-symbol handler. The shared callgraph/path proof caps stdout at
+`4096` bytes and rejects over-limit constructions (including the focused
+`4097`- and `8192`-byte cases) before publication, with all-or-nothing output
+and receipt barriers.
 
 Native0 selects the new `w-seed-mlir0-process-executable-1` artifact only for
 this verified HIR and `x86_64-pc-windows-msvc`. The generated artifact owns
 `mainCRTStartup`, captures `GetCommandLineW`, skips `argv[0]`, and publishes a
 bounded table of at most 256 borrowed UTF-16 argument descriptors. The table is
-one zero-initialized private executable global because startup executes once;
-it is not a W ABI or shared runtime singleton. The current parser proves only
+one zero-initialized private executable global because startup executes once.
+It is not a W ABI or shared runtime singleton. The current parser proves only
 argument-count emptiness. It handles spaces, tabs, and simple quotes, but does
 not yet claim the complete Windows backslash-before-quote decoding contract or
 W-visible argument text.
 
 The adapter creates one private root plus distinct `Arguments` and `Context`
-owners, executes the verified branch, releases `Context`, releases `Arguments`,
+owners, executes the verified body, releases `Context`, releases `Arguments`,
 then finalizes the root. It uses `GetStdHandle`, `WriteFile`, and `ExitProcess`.
-The link is `lld-link /nodefaultlib` with `kernel32.lib` only; the argument table
-does not create an accidental CRT or `__chkstk` dependency. Normal no-argument
-execution writes exact UTF-8 `missing\n` and exits 2. The same artifact with one
-forwarded argument, including an empty string, writes `received\n` and exits 0.
-Stderr is empty in both cases.
+The link is `lld-link /nodefaultlib` with `kernel32.lib` only. The argument table
+does not create an accidental CRT or `__chkstk` dependency. The canonical
+`process-input0.w` oracle remains `missing\n`/exit 2 without arguments and
+`received\n`/exit 0 with one argument, including an empty string. The new
+fixture's registered oracle is `enum-missing true\n`/exit 7 without arguments
+and `enum-received false\n`/exit 0 with an empty or payload argument. Stderr is
+empty for these cases.
 
 `w run <fixture>` and `w build <fixture> --target
 x86_64-pc-windows-msvc --output <new.exe>` use the same public Native0 route.
-The Windows gate builds a clean temporary `w.exe`, runs both source cases,
-builds one persistent PE, runs that same PE in both cases, verifies exact bytes
-and exit codes, and removes its temporary products. Focused Native0 tests also
-prove explicit versus automatic artifact selection is byte-identical, short
-capacity is all-or-nothing, and the process executable is rejected for the
-Linux target without output mutation. Existing default executables and the
-private process handler retain their prior modes and evidence.
+The focused frontend, HIR0, MLIR0, and Native0 units prove the positive
+composition and the fail-closed identity, owner, range, capacity, CFG, and
+receipt cases. The pinned Windows LLVM/MLIR/LLD 23.1.1 gate passes the
+source-to-PE route for both public fixtures. It executes each fixture's
+no-argument, empty-argument, and payload cases from source and from the same
+built PE, with exact stdout, empty stderr, exit status, and cleanup checks.
+Existing default executables and the private process handler retain their prior
+modes and evidence.
 
-This is `source-backed-current` only for the bounded Windows x86_64 path above.
+This is `source-backed-current` for the bounded frontend → HIR25 → MLIR/Native0
+admission and lowering surface and the pinned Windows x86_64 source-to-PE gate.
 General `Arguments` indexing/iteration/text decoding, full Windows command-line
-semantics, arbitrary process handler bodies, throws/cancellation, `Context`
-capabilities, general async runtime, Linux/macOS process adapters,
-cross-compilation, stable public ABI, and performance remain gaps.
+semantics, general CFG and loops, throws/cancellation, `Context` capabilities,
+general async/provider runtime, Linux/macOS process adapters, cross-compilation,
+and stable public ABI/layout remain gaps. The existing `process-entry` and
+`process-enum-payload` catalog lanes retain their current correctness and
+measurement evidence in the [`executable benchmark catalog`](benchmarks/EXECUTABLES.md).
+The catalog owns artifact and timing cells and cross-language comparability.
 `benchmarkDisposition` remains `deferred` under task
-`process-entry-native-handler-benchmark`; W-1547 satisfies the earlier
-`public-entry-root-adapter` and bounded `argument-access-lowering` blockers for
-this single witness, but the general forms and language benchmark runner remain
-open. The 3,584-byte local PE observation is gate output, not a benchmark
-baseline or a cross-language ranking.
+`process-entry-native-handler-benchmark`. Its remaining blockers are the
+general learner, idiomatic, and frontier forms plus
+`language-benchmark-runner`. The task stops when those forms are checked and
+the runner records the catalog identity. W-1547 makes no independent
+performance or ranking claim.
 
 #### 26.4.1.30 W-1549 — bounded nested scalar `if` tail values (Current form)
 

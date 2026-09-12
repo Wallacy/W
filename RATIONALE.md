@@ -7833,7 +7833,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1544 | bounded direct-entry facts in verified HIR15 | HIR15 carries independent `suspension` (`NEVER`/`MAY`) and `direct_entry` (`ABSENT`/`AVAILABLE`) facts. The frontend `normalize_function` assigns `is_async` from the explicit CST modifier. `hir0_compute_body_never` performs the bounded whole-body fixed-point analysis; `hir0_publish_direct_entry_facts` derives the two facts and `verify_direct_entry_facts` independently recomputes them before accepting the caller-owned HIR. Ordinary pure functions are `NEVER`/`ABSENT`; an explicit async declaration is `MAY` and receives `AVAILABLE` only after its complete body proves `neverSuspend`. Local ordinary calls and recursive groups propagate without a termination claim. Unknown hosts and local async calls without call form or summary deny the proof. A `String` parameter, return, or value and opaque owners without effects/lifecycle facts also deny it. Focused frontend/HIR0/HLO0/Native0/MLIR0 CTest gates and compiler emitter gates pass for this bounded compiler-lifecycle route; HLO0 and MLIR0 continue to reject process HIR without partial output. | `source-backed-current` only for bounded HIR fact derivation, publication, independent verification, receipt/digest barriers, and fail-closed consumers. The 4 KiB scratch bitset inherits the CST32768 bound, with preflight/verifier guards, no heap, and no 256-function capacity. This evidence does not claim `sync` execution, the Restaurant process-input witness, general semantic checking, dual ABI, providers, ownership runtime, native process execution, Windows, or performance. `benchmarkDisposition: compiler-lifecycle`, correctness-only; no timing or result. |
 | W-1545 | exclusive Channel receiver cursor, close lifetime, and capacity-zero permit cancellation | The Channel receiver API is `mut async fn receive(): T?` and `mut fn close()`. Its exclusive loan starts at call staging and covers registration, suspension, settlement, cancellation, provider drain, and borrowed-child join. Capacity-zero `reserve` pairing is admission only, not item/receive commit. Pre-commit cancellation removes the waiter and revokes only its paired permit. A later send consumes that permit and returns the item in `.closed(T)` without proving global channel close. Graceful close preserves issued permits, normal unused permit drop unpairs/requeues, and a revoked permit cannot resurrect a waiter. | `oracle-backed-current` only for the CH0 contract oracle plus the authored Last Light and CHEATSHEET source examples. Borrow checker/lowering, channel runtime, scheduler/provider cancellation, typed-drop, native execution, and native performance remain implementation-evidence gaps. `benchmarkDisposition: deferred`; task `channel-receiver-close-runtime`; learner, idiomatic, frontier, allocation, latency, and size axes remain future work. |
 | W-1546 | owner-release contract for `std.process@1` | `Arguments` and `Context` adopt, pass, and release existing root-scoped non-`Copy` wrapper handles. Adoption and passing do not allocate or copy underlying OS data. Release invalidates the wrapper exactly once at handler owner-scope exit, including structured exits, and is `neverSuspend`, nonthrowing, nonblocking, and non-reentrant. It does not shut down the root, wait for provider work, reclaim root backing storage while loans, children, or provider registrations remain, admit work, consume quota, use fallback, acquire new authority, or create a hidden `Task`. Root creation, OS acquisition, capabilities, and structured drain remain adapter obligations. `ExitCode` remains a trivial `Copy` value. | `source-backed-current` only for the bounded HIR16 compiler producer, typed lifecycle/release facts, independent verification, and normal-return cleanup obligation. The provider, ABI witness, root adapter, runtime, and native consumers remain pending. The compiler uses only the fixed compiler-owned `std.process@1` identity and wrapper-release ABI. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing or result. |
-| W-1547 | bounded public Windows process input and exit | The exact HIR16 process witness adds `Arguments.isEmpty`, `ExitCode.failure(2)`, two `print(String)` arms, and a direct-entry proof. Native0 selects a distinct `w-seed-mlir0-process-executable-1` Windows artifact with `mainCRTStartup`, `GetCommandLineW`, a private bounded UTF-16 descriptor table, root/Arguments/Context ownership, Context→Arguments→root cleanup, `WriteFile`, and `ExitProcess`. The same artifact emits `missing\n`/exit 2 without arguments and `received\n`/exit 0 with one argument, including an empty argument. | `source-backed-current` only for this bounded Windows x86_64 source→verified-HIR→MLIR/LLVM→PE route and exact public `w run`/`w build` gate. Native0 covers automatic/explicit selection, short capacity, Linux rejection, and output transactionality. Full Windows quoting, argument text/indexing, general bodies, throws/cancellation, Context capabilities, general async/runtime, other OS adapters, cross-compilation, stable public ABI, and performance remain gaps. `benchmarkDisposition: deferred`; the 3,584-byte PE is a gate observation, not a benchmark baseline. |
+| W-1547 | bounded public Windows process body and exit | The public process artifact lowers a verified normal HIR25 body through MLIR/LLVM without widening the private W-1546 handler. The bounded route resolves opaque target identity, permits helpers before the entry, and accepts one-block return or three-block terminal-`if` bodies composed from local calls, Bool/signed-`i64` enum payloads, constructors, exhaustive switches, interpolation, and direct text/i64/Bool prints. `Arguments` then `Context` remain fixed root-owned parameters. Only the canonical `isEmpty` receiver read may consume them, and cleanup covers the actual entry range. `.failure` accepts only compile-time constants `1..255`. Direct-entry requires a complete non-suspending proof. Native0/MLIR0 share a 4096-byte stdout path bound and fail closed before publication. The public six-symbol ABI remains separate from the private four-symbol handler. | `source-backed-current` for the bounded frontend→HIR25→MLIR/Native0 admission and lowering surface and the pinned Windows x86_64 source-to-PE gate. Focused frontend/HIR0/MLIR0/Native0 checks pass. The gate executes both public fixtures from source and from the same built PE across no-argument, empty-argument, and payload cases, with exact output, exit status, and cleanup checks. Existing `process-entry` catalog measurements remain a separate lane. `process-enum-payload` is registered but not-performance-ready for timing. Full Windows quoting, argument text/indexing, general CFG/loops, throws/cancellation, Context capabilities, general async/provider runtime, other OS adapters, cross-compilation, stable public ABI/layout, and performance for the new composition remain gaps. `benchmarkDisposition: deferred`. W-1547 adds no timing or artifact-size result. |
 | W-1548 | external subjects shared by `w test` and `w bench` | The same `test` declaration lowers to `TestDescriptor`/`TestPlan`; `w test` runs its correctness oracle, while `w bench` must run the same oracle before warmup or sampling. Future tagged subjects include native `executable` and interpreted `script`. Executables resolve by explicit path or one frozen PATH snapshot and must validate as native target images; scripts resolve only by path and use explicit `using executable` or a closed extension map. OS associations, PATHEXT, implicit shell fallback, installation, mutable identity, and direct cross-target fallback are rejected. | `implementation-evidence-gap`. Current grammar accepts only an identifier after `for`; no external subject, `process.Command`, native `w test`/`w bench`, provider receipt, or process-tree cleanup is implemented. Script adapters, especially `.bat`/`.cmd`, remain versioned shell-capable boundaries. Test and benchmark evidence lanes stay distinct and non-ranking across different subject classes. `benchmarkDisposition: deferred`; no timing or result. |
 | W-1549 | bounded nested scalar `if` tail values through verified HIR0 and MLIR0 | W-1549 extends SCALAR-IF0 only to an unparenthesized trailing nested `if` in a value block, normalized as the block's final value. Recursion is bounded; conditions are Bool; every arm is pure, effect-free, and same-typed signed `i64` or Bool. Verified HIR0 retains two nested typed scalar diamonds with one join argument and typed incoming edge per arm; Native0 recursively traverses only effect-free scalar arm blocks; MLIR0 emits two `llvm.cond_br` diamonds and typed `llvm.br` incoming values, never `llvm.select`. Calls/effects, aggregate/String/enum values, `var`, mutation, loops, general CFG, terminal branch returns, imports, async process entry, other targets, and performance remain outside. Public HIR0, MLIR0, and Native0 record schemas are unchanged. The Restaurant fixture produces exact `1,2,3\n`, exit zero, and empty stderr on the checked source-backed route. | `source-backed-current` only for this bounded source → frontend → verified HIR0 → MLIR0 → LLVM dialect → native route and fixture. Focused frontend/HIR0/MLIR0/Native0 checks and `bun check --target mlir0` pass the exact output with empty stderr; no public Windows, C/Rust, general CFG, terminal branch return, mutation/loop, import, async process, other-target, timing, ranking, or performance evidence is claimed. `benchmarkDisposition: compiler-lifecycle`, correctness-only, no timing, ranking, or performance result. |
 | W-1550 | CRT-free Linux WRT0 seed closure | The bounded Linux x86_64 product emits separate position-independent program and WRT0 LLVM objects. WRT0 owns `_start`, stdout `write`, and terminal exit through the Linux syscall ABI. The direct native linker recipe produces a static PIE with no `PT_INTERP` or `DT_NEEDED`; release also strips symbols. The public gate parses the retained ELF before execution and the runner removes every private WRT/intermediate artifact. Ordinary W source never inherits libc/CRT from the bootstrap host. | `source-backed-current` only for W-1521's bounded Linux x86_64 CLI/product route. Allocator, TLS, unwind, panic, scheduler, async I/O, signals, dynamic loading, stable ABI, other architectures/OSes, cross-compilation, timings, ranking, and performance remain gaps. Explicit C interop may add a versioned libc/CRT runtime requirement. `benchmarkDisposition: compiler-lifecycle`, correctness-only. |
@@ -10935,34 +10935,73 @@ The executable catalog measures the same private seam separately as
 private handler descriptor is `transient-internal`. It receives arguments but
 does not read them. At the W-1546 boundary the catalog reserved `process-entry`
 for a future public end-to-end executable; W-1547 now supplies the first bounded
-correctness witness for that class, without yet publishing benchmark samples.
+correctness composition for that class. Existing `process-entry` measurements
+remain in their separate catalog lane, and this decision publishes no new
+benchmark sample.
 
-#### W-1547 — bounded public Windows process entry
+#### W-1547 — bounded public Windows process body and exit
 
-W-1547 deliberately adds a new public executable artifact instead of widening
-the W-1546 private handler ABI. That separation preserves the earlier handler
-bytes and keeps OS startup, argument acquisition, output, exit, and root
-lifecycle in one target adapter. The compiler selects it from verified HIR
-identity and shape, never from source spelling or a function name.
+W-1547 deliberately adds a public executable artifact instead of widening the
+W-1546 private handler ABI. The separation preserves the private four-symbol
+handler and keeps OS startup, argument acquisition, output, exit, and root
+lifecycle in one public target adapter. Selection consumes verified target
+identity and shape. Source spelling, declaration order, aliases, and renamed
+parameters are not a hidden recognition channel.
 
-The initial witness asks only whether the native argument vector is empty. A
-full Windows command-line decoder would add complex backslash-before-quote
-semantics before any source program can observe argument text, so this cut
-keeps that behavior an explicit gap. It still skips `argv[0]`, distinguishes no
-arguments from one empty argument, and retains a bounded 256-descriptor UTF-16
-table. The table moved from a large stack allocation to a private zeroed
-executable global: startup is single-use, and this avoids pulling `__chkstk` or
-the C runtime into an otherwise `kernel32.lib`-only artifact. It is not a W
-global, a reusable library ABI, or permission for mutable runtime singletons.
+The retained [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w)
+example remains the smallest public body: it reads the canonical
+`Arguments.isEmpty` member, prints one of two literals, and returns a success or
+failure case. The implementation boundary is broader than that example. The
+[`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w)
+fixture composes helpers declared before the entry, a local enum carrying Bool
+and signed `i64` fields, construction, exhaustive switch captures, the same
+root-owned process read, interpolation, and `.failure(7)`. It demonstrates
+normal body lowering rather than an isolated enum-layout path.
 
-The public `w run` and `w build` routes now prove the same generated PE with two
-runtime inputs. This is stronger than the earlier private C harness because the
-artifact owns the Windows startup boundary and W-visible branch. It remains
-narrower than general process support: no argument text/indexing, arbitrary
-handler CFG, throws, cancellation, Context capability, other target adapter,
-or stable public ABI is claimed. The locally observed 3,584-byte PE is useful
-size feedback but is not retained as benchmark history or promoted to a
-cross-language result.
+HIR25 already owns the records needed by this composition, so W-1547 adds no
+schema or ABI revision. The producer and independent verifier bind external
+module/symbol/member/case identity, nominal types, owner relations, capacities,
+aliases, provenance, and receipt before publication. `Arguments` then `Context`
+are fixed entry parameter ordinals and distinct root-owned records. Only a
+canonical `isEmpty` receiver read may consume either record. Copying it,
+passing it to a local call, placing it in an enum payload, or returning it is
+outside the contract. Cleanup uses the actual entry parameter range, including
+when helper parameters precede the entry parameters.
+
+The declared async process function remains conservatively `suspension: MAY`.
+`direct_entry: AVAILABLE` is published only after the complete reachable body
+proves non-suspending. Direct text, signed-`i64`, and Bool print arguments are
+admitted, including compile-time-known String literal chains. This does not
+relax global String handling. Failure status values are compile-time constants
+in `1..255`. Dynamic values and `0`, `-1`, or `256` fail closed without
+truncation.
+
+Native0 and MLIR0 consume the normal verified plan. The current process shape is
+one-block return or three-block terminal `if`, with a forward-only acyclic
+process call graph. Shared callgraph/path accounting caps stdout at `4096`
+bytes and rejects over-limit constructions, including the focused `4097` and
+`8192` cases, before output publication. The adapter still skips `argv[0]`,
+uses a private bounded UTF-16 descriptor table, and relies on
+`GetStdHandle`/`WriteFile`/`ExitProcess`. The table is startup-local artifact
+state, not a W global or public memory layout. Full Windows
+backslash-before-quote decoding and W-visible argument text remain explicit
+gaps.
+
+The focused frontend, HIR0, MLIR0, and Native0 units cover positive composition
+and fail-closed identity, owner, range, capacity, CFG, and receipt cases. The
+pinned Windows LLVM/MLIR/LLD 23.1.1 gate passes the source-to-PE route for both
+public fixtures. It executes each fixture's no-argument, empty-argument, and
+payload cases from source and from the same built PE, with exact stdout, empty
+stderr, exit status, and cleanup checks. The existing `process-entry` and
+`process-enum-payload` workloads retain their current correctness and
+measurement evidence in the [`executable benchmark catalog`](benchmarks/EXECUTABLES.md).
+The catalog owns artifact and timing cells and cross-language comparability.
+W-1547 makes no independent performance or ranking claim.
+
+General argument indexing/iteration/text decoding, general CFG and loops,
+throws, cancellation, `Context` capabilities, general async/provider runtime,
+other target adapters, cross-compilation, and stable public ABI/layout remain
+gaps.
 
 #### W-1548 — external test subjects and one `w test`/`w bench` plan
 
