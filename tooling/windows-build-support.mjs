@@ -112,3 +112,18 @@ export function runWithVisualStudio(vsDevCmd, command, args, options = {}) {
   return run("cmd.exe", ["/d", "/s", "/c", "call", vsDevCmd,
     "-arch=x64", ">nul", "&&", command, ...args], options)
 }
+
+export function captureVisualStudioEnvironment(vsDevCmd) {
+  const result = run("cmd.exe", ["/d", "/s", "/c", "call", vsDevCmd,
+    "-arch=x64", ">nul", "&&", "set"])
+  if (result.exitCode !== 0) {
+    throw new Error("Visual Studio x64 environment initialization failed")
+  }
+  const environment = { ...process.env }
+  for (const line of result.stdout.toString().split(/\r?\n/u)) {
+    const separator = line.indexOf("=")
+    if (separator <= 0) continue
+    environment[line.slice(0, separator)] = line.slice(separator + 1)
+  }
+  return environment
+}

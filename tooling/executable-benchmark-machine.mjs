@@ -47,6 +47,8 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
 export const PROCESS_ENTRY_RECIPE_CLASS = "process-entry-release";
+export const PUBLIC_C_RECIPE = "clang-c23-msvc";
+export const PRIVATE_C_RECIPE = "gcc-c23-or-c2x";
 export const PROCESS_ENTRY_TIMED_INPUT = Object.freeze(["payload"]);
 export const PROCESS_ENTRY_CORRECTNESS_INPUTS = Object.freeze([
   Object.freeze([]),
@@ -190,9 +192,13 @@ const SOURCE_ELIGIBILITY = Object.freeze({
     comparability: "deferred-until-M3b",
     eligibility: "deferred-to-M3b",
   }),
-  c: Object.freeze({
-    comparability: "contextual-non-ranking-across-abi",
-    eligibility: "correctness-only-until-c23",
+  cPublic: Object.freeze({
+    comparability: "promotable-after-equivalence",
+    eligibility: "promotable-after-equivalence",
+  }),
+  cPrivate: Object.freeze({
+    comparability: "contextual-non-ranking-private-composite",
+    eligibility: "exploratory-private-composite",
   }),
   rust: Object.freeze({
     comparability: "promotable-after-equivalence",
@@ -202,7 +208,7 @@ const SOURCE_ELIGIBILITY = Object.freeze({
 
 const SOURCE_RECIPES = Object.freeze({
   w: Object.freeze(["public-w-build-release", "public-w-run", PROCESS_ENTRY0_RECIPE]),
-  c: Object.freeze(["gcc-c23-or-c2x"]),
+  c: Object.freeze([PUBLIC_C_RECIPE, PRIVATE_C_RECIPE]),
   rust: Object.freeze(["rustc-edition-2024"]),
 });
 
@@ -414,6 +420,8 @@ function checkSource(source, location, workload, root, errors) {
   requiredString(source.recipeClass, location + ".recipeClass", errors);
   if (source.recipe === PROCESS_ENTRY0_RECIPE && workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) push(errors, location + ".recipe is private to process-handler-lifecycle.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "w" && source.recipe !== PROCESS_ENTRY0_RECIPE) push(errors, location + ".recipe must use the private process handler route.");
+  if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PRIVATE_C_RECIPE) push(errors, location + ".recipe must use the private GCC/MinGW process handler route.");
+  if (workload?.id !== PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.language === "c" && source.recipe !== PUBLIC_C_RECIPE) push(errors, location + ".recipe must use the public Clang/MSVC process route.");
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY0_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the private process handler class.");
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
@@ -637,12 +645,12 @@ function sourceFor(workload, language) {
 
 function artifactTargetFor(workload, language) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return EXECUTABLE_ARTIFACT_TARGET_MINGW;
-  return language === "c" ? EXECUTABLE_ARTIFACT_TARGET_MINGW : EXECUTABLE_ARTIFACT_TARGET_MSVC;
+  return EXECUTABLE_ARTIFACT_TARGET_MSVC;
 }
 
 function sourcePolicy(workload, language, recipe) {
   if (workload?.id === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID) return SOURCE_ELIGIBILITY.processHandler;
-  if (language === "c") return SOURCE_ELIGIBILITY.c;
+  if (language === "c") return SOURCE_ELIGIBILITY.cPublic;
   if (language === "rust") return SOURCE_ELIGIBILITY.rust;
   return recipe === "public-w-build-release"
     ? SOURCE_ELIGIBILITY.wPublicBuild

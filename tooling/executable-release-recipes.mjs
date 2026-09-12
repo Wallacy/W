@@ -16,8 +16,30 @@ export const C_RELEASE_FLAGS = Object.freeze([
 
 export const C_WHOLE_PROGRAM_FLAG = "-fwhole-program";
 
+// Public C uses the installed LLVM driver and the MSVC ABI. Keep this recipe
+// separate from the private GCC/MinGW composite because their linkers and
+// runtime libraries are not interchangeable.
+export const CLANG_C_TARGET = "x86_64-pc-windows-msvc";
+
+export const CLANG_RELEASE_FLAGS = Object.freeze([
+  "-O3",
+  "-flto=full",
+  "-ffunction-sections",
+  "-fdata-sections",
+  "-fuse-ld=lld",
+  "-Wl,/Brepro",
+  "-Wl,/OPT:REF",
+  "-Wl,/OPT:ICF",
+  "-Wl,/INCREMENTAL:NO",
+  "-Wl,/DEBUG:NONE",
+]);
+
 export function cReleaseFlags({ wholeProgram = false } = {}) {
   return wholeProgram ? [...C_RELEASE_FLAGS, C_WHOLE_PROGRAM_FLAG] : [...C_RELEASE_FLAGS];
+}
+
+export function clangReleaseFlags() {
+  return [...CLANG_RELEASE_FLAGS];
 }
 
 export const RUST_RELEASE_FLAGS = Object.freeze([

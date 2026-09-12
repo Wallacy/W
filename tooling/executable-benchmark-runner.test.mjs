@@ -19,6 +19,8 @@ import {
 import {
   C_RELEASE_FLAGS,
   C_WHOLE_PROGRAM_FLAG,
+  CLANG_C_TARGET,
+  CLANG_RELEASE_FLAGS,
   NATIVE_RECIPE_PROFILE,
   RUST_RELEASE_FLAGS,
   cReleaseFlags,
@@ -70,6 +72,8 @@ test("default executor enforces the Bun child timeout and preserves termination 
 test("release recipes prioritize runtime and strip distributable symbols", () => {
   assert.deepEqual(C_RELEASE_FLAGS, ["-O3", "-flto", "-ffunction-sections", "-fdata-sections", "-Wl,--gc-sections", "-s"]);
   assert.equal(C_WHOLE_PROGRAM_FLAG, "-fwhole-program");
+  assert.equal(CLANG_C_TARGET, "x86_64-pc-windows-msvc");
+  assert.deepEqual(CLANG_RELEASE_FLAGS, ["-O3", "-flto=full", "-ffunction-sections", "-fdata-sections", "-fuse-ld=lld", "-Wl,/Brepro", "-Wl,/OPT:REF", "-Wl,/OPT:ICF", "-Wl,/INCREMENTAL:NO", "-Wl,/DEBUG:NONE"]);
   assert.deepEqual(cReleaseFlags(), C_RELEASE_FLAGS);
   assert.deepEqual(cReleaseFlags({ wholeProgram: true }), [...C_RELEASE_FLAGS, C_WHOLE_PROGRAM_FLAG]);
   assert.equal(NATIVE_RECIPE_PROFILE, "release-native");
@@ -79,7 +83,7 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.ok(W_LLC_FLAGS.includes("-O3"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:ref"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:icf"));
-  const all = [...C_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
+  const all = [...C_RELEASE_FLAGS, ...CLANG_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
   assert.equal(all.some((flag) => /(?:^|=)(?:s|z)$|native/iu.test(flag)), false);
 });
 
@@ -188,7 +192,8 @@ function fakeResourceUsage() {
 }
 
 function fakeRunnerExecutor({ language, mismatch = false, target = "hello", timeoutMode = undefined, symbolSidecar = false, peOptions = {} }) {
-  const compiler = path.resolve(`fake-${language === "c" ? "gcc" : "rustc"}.exe`);
+  const privateC = language === "c" && target === "process-handler-lifecycle";
+  const compiler = path.resolve(`fake-${language === "c" ? privateC ? "gcc" : "clang" : "rustc"}.exe`);
   const calls = [];
   const sampleDirectories = new Set();
   const executor = async (command, args, options = {}) => {
@@ -203,17 +208,18 @@ function fakeRunnerExecutor({ language, mismatch = false, target = "hello", time
     });
     if (timeoutMode === "probe" && args.length === 1 && args[0] === "-dumpmachine") return timedOut();
     if (args.length === 1 && args[0] === "-dumpmachine") {
-      return { exitCode: 0, stdout: "x86_64-w64-mingw32", stderr: Buffer.alloc(0) };
+      return { exitCode: 0, stdout: privateC ? "x86_64-w64-mingw32" : CLANG_C_TARGET, stderr: Buffer.alloc(0) };
     }
     if (language === "c" && args.includes("-fsyntax-only")) {
+      const accepted = privateC ? args.includes("-std=c2x") : args.includes("-std=c23");
       return {
-        exitCode: args.includes("-std=c23") ? 1 : 0,
+        exitCode: accepted ? 0 : 1,
         stdout: Buffer.alloc(0),
-        stderr: Buffer.from(args.includes("-std=c23") ? "C23 preview unavailable\n" : "", "utf8"),
+        stderr: Buffer.from(accepted ? "" : "dialect unavailable\n", "utf8"),
       };
     }
     if (language === "c" && args.length === 1 && args[0] === "--version") {
-      return { exitCode: 0, stdout: "gcc (GCC) 13.2.0\n", stderr: Buffer.alloc(0) };
+      return { exitCode: 0, stdout: privateC ? "gcc (GCC) 13.2.0\n" : "clang version 22.1.8\n", stderr: Buffer.alloc(0) };
     }
     if (language === "rust" && args.includes("--print") && args.includes("target-libdir")) {
       return { exitCode: 0, stdout: "C:\\Rust\\lib\\rustlib\\x86_64-pc-windows-msvc\\lib\n", stderr: Buffer.alloc(0) };
@@ -319,6 +325,7 @@ function fakeRunnerDependencies(language, fake) {
     testOnly: true,
     testOnlyPlatform: { platform: "win32", arch: "x64" },
     testOnlyToolchains: { [language]: { command: fake.compiler } },
+    ...(language === "c" ? { testOnlyCEnvironment: { PATH: "C:\\fake" } } : {}),
   };
 }
 
@@ -412,21 +419,21 @@ test("C and Rust dispatch compile directly with declared targets and skip W tool
     assert.equal(record.run.raw.length, 9);
     assert.equal(record.correctness.oracleId, "hello:exact-output");
     assert.deepEqual(record.artifact.cleanliness, EXPECTED_PE_ARTIFACT_CLEANLINESS);
-    assert.equal(record.artifactTarget, language === "c" ? "x86_64-w64-mingw32" : "x86_64-pc-windows-msvc");
+    assert.equal(record.artifactTarget, "x86_64-pc-windows-msvc");
     assert.match(record.protocol.resourceScope, /direct compiler process only/u);
     assert.match(record.protocol.directProcessDisclosure, /per-direct-child timeout.*SIGKILL.*descendant termination.*Job Object/iu);
     assert.equal(fake.calls.some((call) => /w_seed|mlir|cmake|ninja/iu.test([call.command, ...call.args].join(" "))), false);
     if (language === "c") {
       assert.equal(fake.calls.filter((call) => call.args.includes("-dumpmachine")).length, 1);
-      assert.equal(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).length, 3, "C dialect and release-flag probes must use the injected executor");
+      assert.equal(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).length, 1, "public C final-dialect probe must use the injected executor");
       assert.ok(fake.calls.filter((call) => call.args.includes("-fsyntax-only")).every((call) => typeof call.stdin === "string" && call.stdin.includes("int main")));
-      assert.ok(fake.calls.some((call) => call.args.includes(C_WHOLE_PROGRAM_FLAG)), "C release must include probed -fwhole-program when supported");
+      assert.equal(fake.calls.some((call) => call.args.includes(C_WHOLE_PROGRAM_FLAG)), false);
       assert.equal(fake.calls.filter((call) => call.args.length === 1 && call.args[0] === "--version").length, 1);
-      assert.ok(compileCalls.every((call) => call.args.includes("-std=c2x")));
-      assert.ok(compileCalls.every((call) => C_RELEASE_FLAGS.every((flag) => call.args.includes(flag))));
-      assert.ok(compileCalls.every((call) => call.args.includes(C_WHOLE_PROGRAM_FLAG)));
-      assert.match(record.identity.toolchain, /c2x-preview/u);
-      assert.match(record.identity.toolchain, /x86_64-w64-mingw32/u);
+      assert.ok(compileCalls.every((call) => call.args.includes("-std=c23")));
+      assert.ok(compileCalls.every((call) => CLANG_RELEASE_FLAGS.every((flag) => call.args.includes(flag))));
+      assert.ok(compileCalls.every((call) => call.env?.PATH === "C:\\fake"));
+      assert.match(record.identity.toolchain, /clang-22\.1\.8-c23-portable/u);
+      assert.match(record.identity.toolchain, /x86_64-pc-windows-msvc/u);
       assert.equal(record.provenance.toolchainDigest.length, 71);
     } else {
       assert.equal(fake.calls.filter((call) => call.args.includes("target-libdir")).length, 1);

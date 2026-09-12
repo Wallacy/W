@@ -34,6 +34,7 @@ import {
   PROCESS_ENTRY0_SUPPORT_ROLES,
   PROCESS_ENTRY0_TIMED_INPUT,
   PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID,
+  PUBLIC_C_RECIPE,
   ROOT,
   executableEquivalenceKey,
   executableHostIdentity,
@@ -47,12 +48,14 @@ import {
   validateManifest,
   validateMaterialized,
 } from "./acquire-mlir0-windows.mjs";
-import { findWindowsSdkKernel32 } from "./windows-build-support.mjs";
+import { captureVisualStudioEnvironment, findVisualStudio, findWindowsSdkKernel32 } from "./windows-build-support.mjs";
 import { dialectArgs, dialectDisclosure, probeCDialect, probeCFlag } from "./c-dialect.mjs";
 import {
   C_WHOLE_PROGRAM_FLAG,
+  CLANG_C_TARGET,
   RUST_RELEASE_FLAGS,
   cReleaseFlags,
+  clangReleaseFlags,
   W_LLC_FLAGS,
   W_LLD_LINK_FLAGS,
   W_MLIR_OPT_FLAGS,
@@ -92,7 +95,7 @@ const PROCESS_ENTRY0_RUST_OBJECT_FLAGS = Object.freeze([
   "-C", "link-dead-code=no",
 ]);
 const PROCESS_ENTRY0_GCC_ORIGIN_TARGET = EXECUTABLE_ARTIFACT_TARGET_MINGW;
-const C_COMPILER_NAMES = ["gcc", "clang", "cc"];
+const PRIVATE_C_COMPILER_NAMES = ["gcc", "cc"];
 const RUST_TARGET = EXECUTABLE_ARTIFACT_TARGET_MSVC;
 const PE_DOS_HEADER_SIZE = 0x40;
 const PE_FILE_HEADER_SIZE = 20;
@@ -256,7 +259,7 @@ export function benchmarkUsage() {
     "",
     "Options: --target <runnable-catalog-id> (default hello), --language w|c|rust (default w), --warmup <n> (default 1), --compile-samples <odd n> (default 9), --run-samples <odd n> (default 101). --samples sets both counts.",
     "The output must be a new JSON file under benchmarks/results.",
-    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private handler plus shared PROCESS0 harness/provider composite and remains contextual/non-ranking. C uses a probed C23/c2x MinGW recipe, and Rust uses rustc edition 2024.",
+    "This is Windows x86_64 exploratory executable evidence. The runner selects the catalog source, recipe and exact-output oracle for each target. W uses the public w build Release source-to-PE candidate for public workloads; process-entry validates all declared argument cases before timing; process-handler-lifecycle uses the private GCC/MinGW handler composite and remains contextual/non-ranking. Public C requires Clang with final C23 and the MSVC ABI; Rust uses rustc edition 2024.",
     `Timeout guard: ${EXECUTABLE_TIMEOUT_STATUS}.`,
   ].join("\n");
 }
@@ -541,44 +544,77 @@ function normalizeCompilerCommandOverride(override, language) {
 }
 
 async function resolveCCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
+  const privateComposite = target === PROCESS_HANDLER_LIFECYCLE_WORKLOAD_ID;
   const override = dependencies.testOnlyToolchains?.c;
-  const candidates = override === undefined
-    ? C_COMPILER_NAMES.map((name) => Bun.which(name)).filter(Boolean)
-    : [normalizeCompilerCommandOverride(override, "C")];
+  let candidates;
+  if (override !== undefined) {
+    candidates = [normalizeCompilerCommandOverride(override, "C")];
+  } else if (privateComposite) {
+    candidates = PRIVATE_C_COMPILER_NAMES.map((name) => Bun.which(name)).filter(Boolean);
+  } else {
+    const installed = process.env.ProgramFiles
+      ? path.resolve(process.env.ProgramFiles, "LLVM", "bin", "clang.exe")
+      : undefined;
+    candidates = [Bun.which("clang"), installed].filter(Boolean);
+  }
+  const expectedTarget = privateComposite ? EXECUTABLE_ARTIFACT_TARGET_MINGW : CLANG_C_TARGET;
   const seen = new Set();
   for (const candidate of candidates) {
     const info = typeof candidate === "string" ? { command: candidate } : candidate;
     if (seen.has(info.command)) continue;
     seen.add(info.command);
+    if (!(override !== undefined && dependencies.testOnly === true)) {
+      try {
+        await regularFile(info.command, privateComposite ? "GCC/MinGW compiler" : "Clang/MSVC compiler");
+      } catch (error) {
+        if (override !== undefined) throw error;
+        continue;
+      }
+    }
     const targetProbe = await executeChild(executor, info.command, ["-dumpmachine"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C target probe`);
     const targetTriple = targetProbe.exitCode === 0 ? outputText(targetProbe.stdout).trim() : "";
-    if (targetTriple !== EXECUTABLE_ARTIFACT_TARGET_MINGW) continue;
+    if (targetTriple !== expectedTarget) continue;
     const dialectProbe = await probeCDialect(info.command, {
       executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C dialect probe`),
     });
     const dialect = dialectProbe ? normalizeCDialect(dialectProbe) : undefined;
-    if (!dialect) continue;
-    const wholeProgram = await probeCFlag(info.command, C_WHOLE_PROGRAM_FLAG, {
-      args: [dialect.flag],
-      executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C release flag probe`),
-    });
+    if (!dialect || (!privateComposite && !dialect.final)) continue;
+    const wholeProgram = privateComposite && await probeCFlag(info.command, C_WHOLE_PROGRAM_FLAG, {
+        args: [dialect.flag],
+        executor: (command, args, options) => executeChild(executor, command, args, options, `${target} C release flag probe`),
+      });
     const versionProbe = await executeChild(executor, info.command, ["--version"], { cwd: ROOT, stdout: "pipe", stderr: "pipe", windowsHide: true }, `${target} C compiler probe`);
     requireSuccess(versionProbe, `${target} C compiler probe`);
     const version = parseGccVersion(outputText(Buffer.concat([versionProbe.stdout, versionProbe.stderr])));
     const compilerName = path.basename(info.command).replace(/\.exe$/iu, "").toLowerCase();
-    const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(wholeProgram ? "whole-program" : "portable", "C release recipe")}-${identityToken(EXECUTABLE_ARTIFACT_TARGET_MINGW, "C ABI")}`;
-    console.error(`executable benchmark: C compiler=${identity}; standard=${dialectDisclosure(dialect)}; ABI=${EXECUTABLE_ARTIFACT_TARGET_MINGW}`);
+    if (!privateComposite && !compilerName.includes("clang")) continue;
+    const family = privateComposite ? "gcc-mingw" : "clang-msvc";
+    let environment;
+    if (!privateComposite) {
+      if (dependencies.testOnly === true) {
+        environment = dependencies.testOnlyCEnvironment;
+        if (!isObject(environment)) fail("test-only public C requires an explicit Visual Studio environment fixture");
+      } else {
+        environment = captureVisualStudioEnvironment(findVisualStudio().devCommand);
+      }
+    }
+    const recipeKind = privateComposite && wholeProgram ? "whole-program" : "portable";
+    const identity = `${identityToken(compilerName, "C compiler")}-${identityToken(version, "C compiler version")}-${identityToken(dialect.name, "C dialect")}-${identityToken(recipeKind, "C release recipe")}-${identityToken(expectedTarget, "C ABI")}`;
+    console.error(`executable benchmark: C compiler=${identity}; standard=${dialectDisclosure(dialect)}; ABI=${expectedTarget}`);
     return {
       language: "c",
       command: info.command,
-      target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      target: expectedTarget,
       version,
       dialect,
       wholeProgram,
+      family,
+      environment,
       identity,
     };
   }
-  fail(`C ${target} requires an available compiler targeting x86_64-w64-mingw32 that accepts -std=c23 or -std=c2x`);
+  if (privateComposite) fail(`C ${target} requires GCC/MinGW targeting ${EXECUTABLE_ARTIFACT_TARGET_MINGW} with -std=c23 or -std=c2x`);
+  fail(`C ${target} requires Clang targeting ${CLANG_C_TARGET} with final -std=c23 support`);
 }
 
 async function resolveRustCompiler(executor, dependencies = {}, target = DEFAULT_TARGET) {
@@ -955,10 +991,12 @@ async function compileC(context, retain) {
     const start = process.hrtime.bigint();
     const step = await timedStep(context.executor, context.languageToolchain.command, [
       ...dialectArgs(context.languageToolchain.dialect),
-      ...cReleaseFlags(context.languageToolchain),
+      ...(context.languageToolchain.family === "clang-msvc"
+        ? clangReleaseFlags()
+        : cReleaseFlags(context.languageToolchain)),
       context.source.filePath,
       "-o", artifact,
-    ], sampleDirectory, "C compiler");
+    ], sampleDirectory, "C compiler", { env: context.languageToolchain.environment });
     requireSuccess(step, "C compiler");
     const stats = await regularFile(artifact, "C PE artifact");
     if (stats.size <= 0) fail("C PE artifact is empty");
@@ -1381,13 +1419,16 @@ function recipeFor(context) {
     };
   }
   if (context.language === "c") {
+    const flags = context.languageToolchain.family === "clang-msvc"
+      ? clangReleaseFlags()
+      : cReleaseFlags(context.languageToolchain);
     return {
       command: path.basename(context.languageToolchain.command).replace(/\.exe$/iu, ""),
-      target: EXECUTABLE_ARTIFACT_TARGET_MINGW,
-      args: [context.languageToolchain.dialect.flag, ...cReleaseFlags(context.languageToolchain), "<source>", "-o", "<artifact>"],
-      flags: [context.languageToolchain.dialect.flag, ...cReleaseFlags(context.languageToolchain)],
+      target: context.languageToolchain.target,
+      args: [context.languageToolchain.dialect.flag, ...flags, "<source>", "-o", "<artifact>"],
+      flags: [context.languageToolchain.dialect.flag, ...flags],
       cStandard: dialectDisclosure(context.languageToolchain.dialect),
-      artifactAbi: EXECUTABLE_ARTIFACT_TARGET_MINGW,
+      artifactAbi: context.languageToolchain.target,
     };
   }
   if (context.language === "rust") {
