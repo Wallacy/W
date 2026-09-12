@@ -507,7 +507,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-012 (tipos nominais, sha256:a8625ffa326edfde83fdfdf757f958a5f3894505c36fe824dfb2258fe1178ff4) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -769,7 +769,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-020 (conversão, sha256:c17e9d5fb3b1d1fd56cf0a8a9d6e050e1af054059741f50d473917407acb2d53) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -1096,7 +1096,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-030 (tagged values, sha256:723d29ad26c4dea27a48f0f5163647fa49917cb10ff5905aea0dadf91dd4ca00) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -1753,7 +1753,7 @@
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_entry",
           "claim": "The parser accepts a normal block directly after the entry keyword.",
-          "sha256": "sha256:659a814b42fe813538d83b7b101dab9143853043913fbde0726e356785552a73"
+          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
         },
         {
           "path": "compiler/seed-c/fixtures/hlo0-hello.w",
@@ -2831,7 +2831,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-082 (digest, sha256:476a2ee51f5f49dbaa41d5a3e286cb07319f64b405df5c616c1acf2351b5cba1) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -3308,7 +3308,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-097 (aplicação `<...>`, sha256:ae1332d5ff7f61831184fcb3504728a0c05f350bbec9ad0a9890c6128d9b6432) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -4717,7 +4717,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-140 (foreign artifact, sha256:5a5b1570b9459bb8ef1c9cc2c78efbc687465a8302cce8f3c74f9609065be400) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -5070,7 +5070,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-151 (object singleton, sha256:017cfcbefdb59e84d1c6f10a93683c07d6149f3eb7f051e1dd42d5d3e4596421) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -5103,7 +5103,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-152 (construção, sha256:013c7acea4a85f3d73f577a68b072b50665957c6705b823ec7c56c4b7a0f2f80) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -5646,7 +5646,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-169 (limite de destructuring, sha256:a391c06397bff88e53af6ceac0500d1e9995964852b672c9c422abfa166409fb) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -6199,7 +6199,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-186 (delegação de initializer, sha256:12a4cfa3f308b0a53fd759cf309dea5e1142989a9dca1d4770a624fddd1136a5) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -7200,7 +7200,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-216 (conversão UTF-8, sha256:7284e30d8881ddd078090816e0531e31d78f22617f9e44d5af198feb7f2be35e) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -8258,7 +8258,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-248 (error type, sha256:11de9fe9416239d8c78f615b5a7bc84d6cfbcab144214b1da4424f929d4dfb63) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -9531,7 +9531,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-287 (primary associated type, sha256:5bb1bccceb3f69ca3c413c21818eb26d21a7b98d70a06692ddddbc35d193d8f9) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -10216,7 +10216,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-308 (type identity, sha256:3fc40cb50e726664e639731131529950bd86514cdd194f0b50b16785f1899a04) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -10414,7 +10414,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-314 (synthesis scope, sha256:a8e55aa8cb15b8b33b05a47292e3fd2b5dd4aa99e6d35f6fca040682c26aeb1c) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -10676,7 +10676,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-322 (formas type-level adiadas, sha256:ca9cde9e403f31671269702e5393eebe819926563bf31fbf1e785c2ab75ab5fa) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -10841,7 +10841,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-327 (dois estados, sha256:90124a88ce912c275ce6722e217b16c02ec00357340956d297d02fec2a141e03) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -10905,7 +10905,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-329 (transição typestate, sha256:38112eb34a0c267fcb22dc55b09dce0f984e806ab1cca883febe201d733dfd88) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -11035,7 +11035,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-333 (erasure de typestate, sha256:93e517ed3bd330d0760328ea489c9ad677d1bcd4a341532dd3e297bd1be8b3ca) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -11266,7 +11266,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-340 (atomics tagged, sha256:e7a8b87c3d00928c57810d3524c1f99f4f8cb3186fa3913c45f55bbd00354cfd) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -11299,7 +11299,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-341 (object header, sha256:642545c6ade776d8d057b83650655420fd2624bc3235f0afc7cc1a2c83d9bb69) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -12787,7 +12787,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-386 (defaults de literal, sha256:fa2df46978d2e280b21c82817b5f13ad8ba264c5811896da3b4ecac5f1c5a703) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -12820,7 +12820,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-387 (tipagem binária, sha256:244f1bef532d705def84d380b5d030595933b6049f371aa78b9776e8b499007a) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -12884,7 +12884,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-389 (conversão explícita, sha256:ade8b5bd49280e7ffc6a4cc4068377882e5c1731b48d6b333beb7a7a893fd215) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -13702,7 +13702,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-414 (inicialização de storage, sha256:3ce671bb0208b6225cc75270f0f369d68444c1386f00ed99ec8718429e836422) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -16776,7 +16776,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-505 (identity keyed de service, sha256:871273c7f176fe9aab73e25c579dfcd0f005f4fe6d0a35903c95a1afd7872a60) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -16898,19 +16898,19 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_entry_records_ok",
           "claim": "HIR13 validates the explicit short-entry mode and target function before emission.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -16994,7 +16994,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-511 (aplicação multimodo, sha256:09e240f8c1cedd2c5b6c474bf2fe6e9854bd9c919730a355d79fea43a53755eb) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -17225,7 +17225,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-518 (accelerator, sha256:ac6379d17824fef80c08cc512f3e6ce5173fa0ad104432f0490231ebfd7d145a) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -20705,7 +20705,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-624 (falha na façade C, sha256:4f134e70f9d84d7ed4f14cd02a3c1b429afcf09dd806adfe8703be243220d456) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -21297,7 +21297,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-642 (carrier de `Bytes`, sha256:56f01c5819601b7a5c2113c8a710a54fca91a1bf0f0ca935000fcc78e0407c0e) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -21850,7 +21850,7 @@
         "path": "DESIGN.md",
         "section": "26",
         "heading": "## 26. Plano de implementação",
-        "sectionDigest": "sha256:ab7e4b7485544307165303620a0ed8b964f798726d52cf9aea20a7ca96842967"
+        "sectionDigest": "sha256:e873182ca95dce60367177ca0291f4e123263c0c7d989dc5bb85fb80b700561f"
       },
       "evidence": [],
       "reason": "W-659 (body de entry, sha256:f66ab57406ddb51303f9190376daf72d8f538bd7bd8adfbf9992ae3d7223e74e) has no executable witness for component implementation-plan. The checked current contract is DESIGN.md §26 / 26. Plano de implementação.",
@@ -21949,7 +21949,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-662 (APIs de host, sha256:7108aff769597cd1b22531381eabe90dc888d4e07267e878667199a53bbc9e7c) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -22477,7 +22477,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-678 (consulta RestPC, sha256:baef49416c3b419a545af8e777f553aeb78b77767331c7d591ce54ec583baef7) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -23034,7 +23034,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-695 (transcript de session, sha256:bc38da5bdef765fb023e56a90a353ba40a6bf145156ef0b687246600303c3cd2) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -24344,7 +24344,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-734 (identidade e assertions, sha256:2d163b890c8fefd7d4056f8020e5d97755b93bea501c4b1d20438f1b20d08574) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -24629,7 +24629,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-743 (metadata publicável, sha256:0b6217841835fc1b1ca66ee47adc46aec5c40f98dd9ad3f0aae5276d3328729a) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -27149,7 +27149,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-821 (diagnostics de contrato, sha256:ef3dda10ce4aa588b7cb079fff5c74954268c0f0d83238f3f45360c8d1833478) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -27446,7 +27446,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-830 (range pattern, sha256:c87043cb69b8d2d6476ceeec222012d3b9973fcd3db5cdcc3cf5da30ec9a7df2) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -27545,7 +27545,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-833 (enum curto contextual, sha256:be5a3dacc1ba3bd21372208c9d02522e4dfb6a324f63217324148fd96ee57e55) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -27675,7 +27675,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-837 (aplicabilidade postfix, sha256:72cb86a4104506a41fd241f45317fa435d288ac4377586ce82db33c8a6b3fa9d) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -28003,7 +28003,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-847 (failure durante const, sha256:b5ca6a9523d337eaddf1ad108e96b569b1bbf5332889566a807aad079f3395e8) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -28135,7 +28135,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-851 (enum subset fora do domínio, sha256:0e93eed9c15b6d1e3429ec899c322e39fbbed702da143186327bd70c705601de) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -28168,7 +28168,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-852 (conversão implícita recusada, sha256:d6db0c4d32056ad4221058d52b356e61e7a04a6452ea413dd354935a371d5627) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -28267,7 +28267,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-855 (corpus TYPE/GENERIC S0, sha256:2a3124a7e7ae20d7494cd7ad4edb05e6f3211e81292f8dcd9a63107c8b95c8e2) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -28333,7 +28333,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-857 (elegibilidade wire, sha256:6e8ae03b64b00e4a2f9267d0c2e1429fc2787d00bbe43ea43c794564c33a8799) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -29675,7 +29675,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-898 (ReadableStream portátil, sha256:d9df3a8e2142de79eb2630f5bc4a0f02be13b439bdcca0e89c169952c9e993cc) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -29741,7 +29741,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-900 (JSON bounded SDK0, sha256:f2d7e80eac28ca6ed012b3753b59fd651f103325b1176ea9a089e0911d13ca66) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -37919,7 +37919,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-1153 (R1E0 fluent self, sha256:720a9058e0e2793c5b518dbac55cf2ded9e1f9900f8d04d506c48693bd3883ed) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -44594,7 +44594,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-1346 (bundle R1S1 de values delimitados, sha256:1cb967e6212e02edb0590de7db1dc8ea6e900571c1b9301dd442ee1ee9f99b8b) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -44935,7 +44935,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-1356 (snapshot mapped relocatable, generation objects e selector durability, sha256:45d72290fc40985d82b09df54b8f3c7fc595a308367702f94d58388c1f3a10bb) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -45135,7 +45135,7 @@
         "path": "DESIGN.md",
         "section": "8",
         "heading": "## 8. Tipos e conversões",
-        "sectionDigest": "sha256:674c693fc5fff47d6c64f64bd01789cee12e1ba13648e15c96e2442db9f0816b"
+        "sectionDigest": "sha256:04ab7cf3d8257295ab62dac72ba0df1983d9f6a6277d6569191d0fa24961fcca"
       },
       "evidence": [],
       "reason": "W-1362 (B artifact typed atual, sha256:4030da06b85fdca178eee67e2f98fd36c1674e0270eab0c24f4ccdba0469deda) has no executable witness for component types-and-generics. The checked current contract is DESIGN.md §8 / 8. Tipos e conversões.",
@@ -50730,14 +50730,14 @@
       "authorityRef": {
         "kind": "source-case",
         "path": "compiler/seed-c/src/w_seed_hir0.c",
-        "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+        "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
         "caseId": "W-1519-native-seed"
       },
       "evidence": [
         {
           "kind": "source",
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "caseId": "W-1519-native-seed"
         }
       ],
@@ -50753,25 +50753,25 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:dd703eaf7b36774d10eb7dad5c3867ebeb878f31f023f9a3dd03f226921b01cb",
+          "sha256": "sha256:996e8ed234122d886940d2a814df07fdb286d7d0bf97899a2a0a60e93447a49e",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend schema version and binding relation fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9",
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa",
           "symbol": "resolved_binding_statement",
           "claim": "Frontend publishes the lexical binding relation."
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389",
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR0 v2 binding record and schema fields."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "frontend_statement_and_expression_ok",
           "claim": "HIR0 lowering validates the frontend binding relation and supported shape."
         },
@@ -50783,19 +50783,19 @@
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709",
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b",
           "symbol": "test_local_binding_resolution",
           "claim": "Frontend unit covers effective type, initializer type and binding relation."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_local_binding_lowering",
           "claim": "HIR0 unit covers binding lowering and copied bytes."
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
-          "sha256": "sha256:a64756246adc7fb37d77c0ebdf4ecdf59915707c6f82a630e2e222bb6cf5316c",
+          "sha256": "sha256:e6e49078faf7268660e1ce2827625e0a5818693944e27c49fa9dcb9d3bdc3e17",
           "symbol": "test_hlo_binding_chain_all_or_nothing",
           "claim": "HLO0 unit covers binding-chain mutations and all-or-nothing rejection."
         },
@@ -50873,7 +50873,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_artifact",
           "claim": "The emitter builds deterministic LLVM dialect text directly from the verified-HIR selection."
         },
@@ -50885,7 +50885,7 @@
         },
         {
           "path": "compiler/seed-c/tests/hlo1_gate.c",
-          "sha256": "sha256:5bd6eaadb36215700f3cda70fbf114713f7e10bed441018591143fe040ae491d",
+          "sha256": "sha256:eb201643428655ee52077554d1e00d64be165e185466e0d9596a7781607830c2",
           "symbol": "W_SEED_MLIR0_GATE",
           "claim": "The gate emits MLIR0 from the direct verified-HIR fixture route."
         },
@@ -50944,13 +50944,13 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_native0.h",
-          "sha256": "sha256:97933bc4beeeeee8351fa3439a479d42a74eb492c0d08943a6fd8bc15e86ad7c",
+          "sha256": "sha256:9f12e3a12be9346cc9b0e23a2c2923bacdd2d85abc634a874421300d3b5b8c13",
           "symbol": "w_seed_native0_run",
           "claim": "Native0 provides the bounded caller-owned source-to-MLIR0 route."
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
-          "sha256": "sha256:13d5ae69f6de797f3d3393194c1120e0e2eccd33efb7bb97bb26af7bfa3644b5",
+          "sha256": "sha256:fe75629bd75c27edda6822b5366107ca508d50309b5da92e72b0ab2a3af6c2e4",
           "symbol": "w_seed_native0_run",
           "claim": "Native0 enforces source limits, direct verified HIR0 lowering and all-or-nothing output."
         },
@@ -51027,7 +51027,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_artifact",
           "claim": "The emitter preserves ordered bytes in the coalesced artifact."
         },
@@ -51039,7 +51039,7 @@
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91",
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147",
           "symbol": "test_products",
           "claim": "Native0 covers the v2 sequence route."
         },
@@ -51104,37 +51104,37 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
-          "sha256": "sha256:659a814b42fe813538d83b7b101dab9143853043913fbde0726e356785552a73",
+          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd",
           "symbol": "parse_literal_expression",
           "claim": "The parser preserves literal events and parses interpolation bodies as nested expressions."
         },
         {
           "path": "compiler/seed-c/include/w_seed_frontend.h",
-          "sha256": "sha256:dd703eaf7b36774d10eb7dad5c3867ebeb878f31f023f9a3dd03f226921b01cb",
+          "sha256": "sha256:996e8ed234122d886940d2a814df07fdb286d7d0bf97899a2a0a60e93447a49e",
           "symbol": "w_seed_frontend_interpolation_segment",
           "claim": "Frontend schema v12 publishes explicit ordered text and expression segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9",
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend normalizes interpolation segments and canonical built-in types."
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
-          "sha256": "sha256:204658df194a6606a498c004c9a3481464a0be1b38f165db57cbe3e3942cbbdb",
+          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c",
           "symbol": "test_literal_interpolation_expression_structure",
           "claim": "The parser unit covers arithmetic, grouping, and empty interpolation rejection."
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709",
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b",
           "symbol": "test_interpolated_string_projection",
           "claim": "The frontend unit proves ownership, exact text, canonical i64, and capacity transactions."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The later HIR milestone consumes the unchanged W-1523 frontend segment shape."
         }
@@ -51175,19 +51175,19 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389",
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b",
           "symbol": "w_seed_hir0_value",
           "claim": "HIR0 schema v3 defines typed postorder values, ownership, and interpolation segments."
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "emit_value_tree_unchecked",
           "claim": "Lowering retains typed operations and ordered segments after complete preflight."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_typed_interpolation_value_tree",
           "claim": "The unit proves exact graph shape, bytes, capacities, aliases, mutations, digests, and receipts."
         }
@@ -51234,7 +51234,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_dynamic_artifact",
           "claim": "MLIR0 emits LLVM arithmetic, bounded runtime formatting, and one checked write."
         },
@@ -51287,13 +51287,13 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "MLIR0_RUNTIME_HELPERS",
           "claim": "The generated artifact owns bounded byte-copy and signed-decimal helpers in LLVM dialect."
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_dynamic_plan",
           "claim": "The emitter builds an ordered counted text and integer action plan without a C format string."
         },
@@ -51346,7 +51346,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9",
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa",
           "symbol": "expression_tree_contains",
           "claim": "Frontend supplies canonical Bool identity and resolves a binding nested inside the bounded argument tree."
         },
@@ -51358,7 +51358,7 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "MLIR0_BOOL_HELPER",
           "claim": "The artifact-local LLVM dialect helper emits exact lowercase Bool bytes only when selected."
         },
@@ -51411,7 +51411,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "frontend_binding_type_supported",
           "claim": "HIR lowering emits and verifies one typed initializer root for each represented immutable binding."
         },
@@ -51423,13 +51423,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_dynamic_plan",
           "claim": "The MLIR plan retains the original initializer SSA index for later binding reads."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_typed_immutable_binding_values",
           "claim": "The unit proves typed binding roots and adversarial owner, index, and type rejection."
         },
@@ -51476,7 +51476,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "frontend_statement_and_expression_ok",
           "claim": "HIR lowering preserves source argument order and indexed declaration slots."
         },
@@ -51488,13 +51488,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_program_artifact",
           "claim": "The emitter produces distinct functions, typed parameters, and real llvm.call operations."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_local_unit_call_and_parameter_reads",
           "claim": "The unit proves indexed parameter reads and source-order versus ABI-order separation."
         },
@@ -51541,7 +51541,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "verify_value_tree",
           "claim": "HIR verifies indexed same-block call results and terminator-owned scalar values."
         },
@@ -51553,13 +51553,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "append_program_function",
           "claim": "MLIR emits typed returns and result-producing calls without precomputing the value."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_scalar_return_and_call_result",
           "claim": "The unit proves the return terminator and indexed call-result binding."
         },
@@ -51606,7 +51606,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "frontend_statement_and_expression_cfg_ok",
           "claim": "HIR walks frontend statement relations and emits explicit dense diamond blocks and terminators."
         },
@@ -51618,13 +51618,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_program_artifact",
           "claim": "MLIR emits labeled blocks, llvm.cond_br, llvm.br, and one post-join continuation."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_if_diamond_cfg",
           "claim": "The unit proves diamond topology, condition typing, ownership, and forged-target rejection."
         },
@@ -51677,7 +51677,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_program_artifact",
           "claim": "The emitter selects the Windows target triple and Win32 runtime surface."
         },
@@ -51848,7 +51848,7 @@
       "sourceRefs": [
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d",
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6",
           "symbol": "frontend_statement_and_expression_cfg_ok",
           "claim": "HIR consumes nested child and sibling IF relations and emits a deterministic forward structured CFG."
         },
@@ -51860,19 +51860,19 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599",
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b",
           "symbol": "build_program_artifact",
           "claim": "MLIR emits nested labeled blocks and typed llvm.cond_br and llvm.br operations."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70",
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4",
           "symbol": "test_nested_if_depth_boundary",
           "claim": "The HIR unit accepts depth 64 and rejects depth 65."
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91",
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147",
           "symbol": "test_nested_depth_and_linear_analysis",
           "claim": "The Native0 unit exercises a full binary nested structural stress witness, accepts depth 64 and emits it as MLIR, and rejects depth 65 with unchanged output/result snapshots."
         },
@@ -51970,19 +51970,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "Verified binary values require two i64 operands and the operator-specific result type.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "binary_operation",
           "claim": "The six operators emit real LLVM comparison predicates with signed ordering.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "statement_for_expression",
           "claim": "Existing bounded expression-tree walks locate prior-binding operands without downstream name resolution.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -51994,7 +51994,7 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_type_measure_emit_parity",
           "claim": "Contextual comparison types and prior bindings preserve dry/emit counts and capacity failure boundaries.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-comparisons.w",
@@ -52053,19 +52053,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification proves logical diamond edges, incoming Bool values, join block arguments, ownership, ranges, and dominance.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits llvm.cond_br, branch-carried i1 incoming values, llvm.xor for negation, and RHS calls only in the RHS block.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_logical_adversarial_barriers",
           "claim": "HIR units cover logical positives and malformed owner, range, edge, dominance, capacity, alias, and transaction boundaries.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52130,31 +52130,31 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_scalar_if_tree_ok",
           "claim": "Frontend value context admits the normalized nonnested scalar if only for a Bool condition and matching i64/Bool arms.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification proves yielded branch type, one typed join argument, and one typed incoming from each arm with ownership and dominance.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits llvm.cond_br and typed llvm.br join arguments without llvm.select or eager arm evaluation.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover scalar return and immutable-let positives plus diagnostic and unsupported-form boundaries.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_scalar_if_value_diamond",
           "claim": "HIR tests reject forged result type, logical mode, incoming owner/ordinal/type, join target, block argument range/type and read location transactionally.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52213,7 +52213,7 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR0 publishes schema w-seed-hir0-13 for the checked arithmetic route.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
@@ -52237,19 +52237,19 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "binary_operation",
           "claim": "Admitted safe constant division and remainder emit llvm.sdiv and llvm.srem without switch fallthrough.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_checked_i64_helpers",
           "claim": "Checked add, subtract, and multiply helpers are appended only when reachable trees require them.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_program_plan",
           "claim": "Program planning omits every unreachable function and only reachable owners contribute actions and text.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52320,37 +52320,37 @@
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_entry",
           "claim": "The parser accepts a normal block directly after the entry keyword.",
-          "sha256": "sha256:659a814b42fe813538d83b7b101dab9143853043913fbde0726e356785552a73"
+          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_entry",
           "claim": "Frontend15 synthesizes one private Unit function and records the direct entry target relation.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_entry_records_ok",
           "claim": "HIR13 validates and emits the explicit short-entry mode and target function.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_parser.c",
           "symbol": "test_short_entry_shapes",
           "claim": "Parser tests cover empty, Hello, nested, named, and duplicate default-entry boundaries.",
-          "sha256": "sha256:204658df194a6606a498c004c9a3481464a0be1b38f165db57cbe3e3942cbbdb"
+          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_short_entry_frontend",
           "claim": "Frontend tests prove the private Unit function, direct target, symbol order, and receipt mode.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_short_entry_hir",
           "claim": "HIR tests cover private identity, forged modes, and semantic and provenance digests.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/fixtures/hlo0-hello.w",
@@ -52409,13 +52409,13 @@
           "path": "compiler/seed-c/include/w_seed_frontend.h",
           "symbol": "W_SEED_FRONTEND_SCHEMA_VERSION",
           "claim": "Frontend16 publishes append-only external nominal identity fields.",
-          "sha256": "sha256:dd703eaf7b36774d10eb7dad5c3867ebeb878f31f023f9a3dd03f226921b01cb"
+          "sha256": "sha256:996e8ed234122d886940d2a814df07fdb286d7d0bf97899a2a0a60e93447a49e"
         },
         {
           "path": "compiler/seed-c/src/w_seed_parser.c",
           "symbol": "parse_import_declaration",
           "claim": "The seed parser retains an optional alias within each grouped import item.",
-          "sha256": "sha256:659a814b42fe813538d83b7b101dab9143853043913fbde0726e356785552a73"
+          "sha256": "sha256:59f56f277fdf37cb86b951a4d1a82dfb12feff2bfc3a52c7ee097f64804c26fd"
         },
         {
           "path": "compiler/seed-c/src/w_seed_module_scan.c",
@@ -52427,13 +52427,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "external_identity_pair_valid",
           "claim": "Frontend16 validates external nominal identity pairs and the bounded ExitCode success projection.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_process_abi_alias_and_exit_case",
           "claim": "Frontend tests cover valid aliases, canonical success, forged metadata, receipts, and capacity preservation.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_module_scan.c",
@@ -52480,25 +52480,25 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR14 publishes append-only external identity and entry-adapter records.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_process_handler",
           "claim": "HIR14 deep-copies and independently verifies the bounded external graph and handler adapter.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "HIR tests cover copied lifetime, aliases, forgeries, bounds, overlap, receipts, and digests.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
           "symbol": "test_process_hir_is_closed_to_hlo",
           "claim": "HLO0 rejects verified process HIR without partial output.",
-          "sha256": "sha256:a64756246adc7fb37d77c0ebdf4ecdf59915707c6f82a630e2e222bb6cf5316c"
+          "sha256": "sha256:e6e49078faf7268660e1ce2827625e0a5818693944e27c49fa9dcb9d3bdc3e17"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52545,73 +52545,73 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR15 publishes the append-only schema containing the independent direct-entry facts.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_suspension_kind",
           "claim": "HIR15 defines the independent NEVER and MAY suspension facts.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_direct_entry_kind",
           "claim": "HIR15 defines the independent ABSENT and AVAILABLE direct-entry facts.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_function",
           "claim": "Each caller-owned HIR function record carries both independent facts.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_function",
           "claim": "The frontend assigns is_async from the explicit CST async modifier before HIR publication.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "HIR0_DIRECT_FUNCTION_BITSET_BYTES",
           "claim": "The bounded HIR15 analysis derives scratch capacity from the inherited CST32768 bound.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_compute_body_never",
           "claim": "The bounded whole-body analysis computes the scratch-only never-suspend fixed point before publication.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_publish_direct_entry_facts",
           "claim": "HIR15 publishes suspension and direct-entry facts from explicit async state and the complete-body result.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_direct_entry_facts",
           "claim": "The verifier independently recomputes the expected suspension and direct-entry facts.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_type_is_blocked",
           "claim": "Blocked nominal lifecycle types such as String remove the bounded direct-entry proof.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_facts",
           "claim": "The C unit covers bounded fact publication, local-call propagation cases, and forged-fact rejection.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_entry_effect_barrier",
           "claim": "The C unit verifies unsupported effect/defer boundaries fail closed without mutating HIR output or result state.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52695,55 +52695,55 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "HIR16 publishes closed lifecycle, release-contract, and entry-cleanup fields in caller-owned records.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_lifecycle_kind",
           "claim": "The lifecycle enum distinguishes UNKNOWN, VALUE_COPY, and ENTRY_ROOT_OWNER without a generic ownership waiver.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_release_contract_kind",
           "claim": "The release enum keeps PROCESS_V1_WRAPPER_RELEASE versioned and compiler-owned.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_entry_cleanup_kind",
           "claim": "Each entry records cleanup kind and exact owner-parameter range separately from root drain and reclamation.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "hir0_publish_process_lifecycle_facts",
           "claim": "The producer derives process lifecycle and normal-return cleanup facts before direct-entry and digest publication.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_process_lifecycle_facts",
           "claim": "The verifier independently recomputes lifecycle and cleanup facts after structural and canonical identity validation.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "HIR0_PROCESS_RELEASE_ABI",
           "claim": "The semantic digest binds the exact std.process@1 wrapper-release-v1 drop symbols without claiming provider execution.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_process_hir_adversarial",
           "claim": "The HIR unit covers scalar and unknown lifecycle facts, exact process owners, resealed forged release or String lifecycle values, and shortened or rebound cleanup-range mutations.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hlo0.c",
           "symbol": "test_process_hir_is_closed_to_hlo",
           "claim": "HLO0 rejects valid process HIR without partial output when HIR direct-entry is AVAILABLE.",
-          "sha256": "sha256:a64756246adc7fb37d77c0ebdf4ecdf59915707c6f82a630e2e222bb6cf5316c"
+          "sha256": "sha256:e6e49078faf7268660e1ce2827625e0a5818693944e27c49fa9dcb9d3bdc3e17"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -52773,19 +52773,19 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_process_handler_artifact",
           "claim": "The process handler artifact emits opaque owner parameters, reverse cleanup calls, checked int32 statuses, and no public main or I/O.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_native0.h",
           "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
           "claim": "Native0 schema 7 carries the artifact selector and private process catalog capacity.",
-          "sha256": "sha256:97933bc4beeeeee8351fa3439a479d42a74eb492c0d08943a6fd8bc15e86ad7c"
+          "sha256": "sha256:9f12e3a12be9346cc9b0e23a2c2923bacdd2d85abc634a874421300d3b5b8c13"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native0.c",
           "symbol": "configure_external_catalog",
           "claim": "Native0 resolves only the compiler-owned std.process catalog from the scanned import path.",
-          "sha256": "sha256:13d5ae69f6de797f3d3393194c1120e0e2eccd33efb7bb97bb26af7bfa3644b5"
+          "sha256": "sha256:fe75629bd75c27edda6822b5366107ca508d50309b5da92e72b0ab2a3af6c2e4"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -52797,7 +52797,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_handler_catalog_and_artifact",
           "claim": "The Native0 unit covers catalog selection, artifact separation, reverse cleanup order, no-main/no-I/O output, and transactional failures.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         },
         {
           "path": "compiler/seed-c/tests/process_entry0_gate.c",
@@ -52880,13 +52880,13 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression",
           "claim": "Frontend recognizes the closed Arguments.isEmpty member and ExitCode.failure(i64) external forms.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR16 independently verifies external member and enum-case payload values and direct-entry facts.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -52898,13 +52898,13 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "build_process_executable_artifact",
           "claim": "The Windows emitter owns startup, argument-count descriptors, branch output, exit, and root cleanup.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_process_input0_public_artifact",
           "claim": "Native0 tests selection identity, capacity transactionality, and target rejection.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -52991,25 +52991,25 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "normalize_expression_node",
           "claim": "Frontend normalizes an unparenthesized trailing nested scalar if as a value-block tail.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "frontend_scalar_if_tree_ok",
           "claim": "HIR input validation admits only pure, same-typed signed-i64 or Bool scalar-if trees with Bool conditions.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
           "claim": "HIR verification retains nested typed diamonds, ownership, dominance, capacity, alias, receipt and digest barriers.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_function",
           "claim": "MLIR emits nested llvm.cond_br diamonds and typed llvm.br incoming values without llvm.select.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -53021,19 +53021,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_scalar_if_frontend_subset",
           "claim": "Frontend tests cover the nested scalar-if source normalization and unsupported-form boundaries.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_value_diamond",
           "claim": "HIR tests assert two nested typed scalar diamonds and reject a forged root type, branch, join and incoming records transactionally.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_nested_scalar_if_depth_boundary",
           "claim": "HIR tests accept scalar-if depth 64 and reject depth 65 without changing caller-owned output or result.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53045,7 +53045,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_nested_scalar_if_value_native",
           "claim": "Native0 tests exact nested fixture output and reject a forged outer branch target transactionally.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-nested-scalar-if.w",
@@ -53063,19 +53063,19 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:6a569a419671a04241091d146282b63521b22b2261f74be0bb33229e8ab72ccd"
+          "sha256": "sha256:6b57a9ec0b072d56e8ce48717d3501340bff4ec0d25a755d1b7fef61f7e9f919"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:15a26a746af98c8f9c9b13b99b319a4f059408c13a4018d6f50ae9daf34fd18d"
+          "sha256": "sha256:7cdbec5e3d5ec9a49646a556a234446f2c9d55201bfa1413104e5785b99bcd14"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public HIR0 record schema.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/include/w_seed_mlir0.h",
@@ -53087,7 +53087,7 @@
           "path": "compiler/seed-c/include/w_seed_native0.h",
           "symbol": "W_SEED_NATIVE0_SCHEMA_VERSION",
           "claim": "Nested scalar-if lowering reuses the existing public Native0 record schema.",
-          "sha256": "sha256:97933bc4beeeeee8351fa3439a479d42a74eb492c0d08943a6fd8bc15e86ad7c"
+          "sha256": "sha256:9f12e3a12be9346cc9b0e23a2c2923bacdd2d85abc634a874421300d3b5b8c13"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53158,7 +53158,7 @@
           "path": "compiler/seed-c/CMakeLists.txt",
           "symbol": "W_MLIR0_LINUX_LINK_DRIVER",
           "claim": "The opt-in Linux build requires an absolute linker that advertises elf_x86_64 support.",
-          "sha256": "sha256:ed331fca0c8d4fced9587d0b1381c2171fb5d8bd5060334c260671f1d50c7f01"
+          "sha256": "sha256:c51d98dff7fa7b9d46c115a39f0896049a0c1de5c5ae6c4d554731855e6323f1"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53211,13 +53211,13 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "MLIR0_CHECKED_I64_DIVIDE_HELPER",
           "claim": "The private helper rejects zero and signed overflow before llvm.sdiv.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "MLIR0_CHECKED_I64_REMAINDER_HELPER",
           "claim": "The private helper rejects zero and bypasses llvm.srem for i64.min and -1.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "tooling/check-mlir0.mjs",
@@ -53270,13 +53270,13 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "W_SEED_HIR0_VALUE_UNARY_I64",
           "claim": "HIR0 publishes an explicit checked signed-i64 unary value.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR verification proves type, operator, operand and ownership.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -53288,19 +53288,19 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_unary_i64_operation",
           "claim": "MLIR selects direct constant or checked runtime lowering.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_i64_unary_negate_positive",
           "claim": "HIR units cover the positive record and forged operator/type rejection.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_unary_i64_native_selector",
           "claim": "Native0 proves direct safe constant lowering without the checked helper.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-negate.w",
@@ -53359,19 +53359,19 @@
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "expression_parse_interpolated_string",
           "claim": "The frontend applies canonical i64 context before publishing a leading prefix-negative interpolation tree.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_interpolated_string_projection",
           "claim": "Frontend units prove the literal, unary root and segment type relation.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_direct_i64_unary_interpolation",
           "claim": "HIR units retain the explicit typed unary tree as an interpolation value.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/fixtures/restaurant-unary-interpolation.w",
@@ -53430,25 +53430,25 @@
           "path": "compiler/seed-c/include/w_seed_hir0.h",
           "symbol": "w_seed_hir0_binding",
           "claim": "HIR18 records source identity and the preceding SSA version.",
-          "sha256": "sha256:7b6aceb261de15036d59780c7910dd004938dc5e2d50b625e47a02e836d5e389"
+          "sha256": "sha256:dfc02e80d9e845121e4ce07b9799f6270005b3090e29674951d6ce91ed331f4b"
         },
         {
           "path": "compiler/seed-c/src/w_seed_frontend.c",
           "symbol": "mutable_binding_for_name",
           "claim": "The frontend admits only a preceding mutable binding target.",
-          "sha256": "sha256:dd75dd26eef56de7f706d567d2db2e78e71330d1ccf63a1259d477c0f00aaad9"
+          "sha256": "sha256:f1bdb026cdae038cf10177796b935bde851c261520b329983850938bff8a1aaa"
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "root_binding_index_for_statement",
           "claim": "HIR lowering retains the source root across ordered versions.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_straight_line_mutation_ssa",
           "claim": "HIR tests cover read selection and forged version chains.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53507,13 +53507,13 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_value_tree",
           "claim": "HIR verification admits cross-block binding reads only from the same function root block.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_conditional_mutation_merge",
           "claim": "HIR tests prove the root read, scalar join, and single ordered update.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53578,7 +53578,7 @@
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_bool_mutation_ssa",
           "claim": "HIR tests retain two Boolean versions and the explicit parameter read.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53643,19 +53643,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove lexical ancestor visibility, nested shadowing, and branch-local non-escape.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_merge",
           "claim": "HIR tests prove two incoming values, one join argument, and one successor binding version.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing else, unequal targets, and extra arm statements.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53720,19 +53720,19 @@
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_local_assignment_projection",
           "claim": "Frontend tests prove opposite arm order and resolved root target identity.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_multi_branch_mutation_merge",
           "claim": "HIR tests prove declaration-order join arguments, merged versions, and edge-list barriers.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_branch_local_mutation_barriers",
           "claim": "HIR tests reject missing, duplicate, unmatched, dependent, effectful, and nested branch shapes.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53803,13 +53803,13 @@
           "path": "compiler/seed-c/tests/test_parser.c",
           "symbol": "test_while_shapes",
           "claim": "Parser tests prove the explicit condition/body owner and malformed-body recovery.",
-          "sha256": "sha256:204658df194a6606a498c004c9a3481464a0be1b38f165db57cbe3e3942cbbdb"
+          "sha256": "sha256:c52e31f8ca0b1c3a4ff8e41e45108f4446a1385ca4d3a8345173687733a51b5c"
         },
         {
           "path": "compiler/seed-c/tests/test_frontend.c",
           "symbol": "test_while_projection",
           "claim": "Frontend tests prove statement relations, lexical root resolution, and non-Bool diagnostics.",
-          "sha256": "sha256:5d3b4d256d33faf0286b1dc3588776c766368b7511634333c9cb1100d10a3709"
+          "sha256": "sha256:08d2bff6ef601fb3a3300ce9c50afab94a484bccfc53cca513fc33731bb1708b"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53850,19 +53850,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_natural_loop",
           "claim": "The HIR verifier independently checks the exact natural-loop CFG and rejects arbitrary cycles.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_ssa",
           "claim": "The focused witness proves explicit header and edge arguments and adversarial record barriers.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_while_mutation_barriers",
           "claim": "Source barriers reject unsupported effectful, nested, multi-statement, and non-i64 loop shapes.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53909,7 +53909,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_program_natural_loop",
           "claim": "MLIR0 emits structured SCF with no source-variable allocation.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -53980,19 +53980,19 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_enum_records",
           "claim": "The HIR verifier checks nominal enum ownership, lexical dense ordinals and tags, zero payloads, duplicate names, and source spans.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_local_enum_hir",
           "claim": "Focused HIR tests prove local enum and case records, nominal type identity, local case values, VALUE_COPY/NONE lifecycle, forged-record rejection, and capacity/alias barriers.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_frontend_storage",
           "claim": "Native0 tests prove frontend to verified-HIR admission and unchanged output/result when the MLIR boundary returns unsupported.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54033,7 +54033,7 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_cfg_switch",
           "claim": "HIR21 independently verifies canonical enum-switch ownership, coverage, target blocks, result values, and the bounded dispatch shape.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/src/w_seed_native_subset0.c",
@@ -54045,7 +54045,7 @@
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "append_enum_switch_case_value",
           "claim": "MLIR0 emits the iN carrier, canonical cf.switch cases, and the backend-only unreachable default.",
-          "sha256": "sha256:7575548bfe739ebd4c26f0675535e48087de2428207d6811d4095ea6108f0599"
+          "sha256": "sha256:bb3e3fab661d77299c822ab89f248c6ae4fd2e974ca73a772789c0921a022f2b"
         },
         {
           "path": "compiler/seed-c/tests/test_mlir0.c",
@@ -54057,7 +54057,7 @@
           "path": "compiler/seed-c/tests/test_native0.c",
           "symbol": "test_enum_switch_native_lowering",
           "claim": "Native0 tests cover reordered arms, local calls, the exact Restaurant fixture, and the emitted switch markers.",
-          "sha256": "sha256:bb22f35af1579e83b03202ac4ea8645557da24d165228572cf5fe34abafc4f91"
+          "sha256": "sha256:7d05b3a0af33e587da903b895ffa097138a8a72041d06c127db7e327b95bb147"
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -54104,13 +54104,13 @@
           "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "digest_program",
           "claim": "HIR22 copies, semantically binds, and independently verifies every declared function export fact.",
-          "sha256": "sha256:e16763db3a494f0ad519e05375471f3488f840feb43a7cc616ea599c68b38c2d"
+          "sha256": "sha256:cf16a9e989ff0c55534d7ce6aa77252a9139fdea3da290aa951a0dca42e63ee6"
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
           "symbol": "test_function_export_facts",
           "claim": "Focused HIR tests distinguish exported, private, and synthesized-entry functions and reject forged facts.",
-          "sha256": "sha256:fd2cd86167d5e7a89f3dc2018d63abca64494bc3edda8cd37313c7c1d671dc70"
+          "sha256": "sha256:9b029d426157557f3f5dbaeb31711d4f3e3b9b729bdb0bdf6ec36819d271b9d4"
         },
         {
           "path": "tooling/check-mlir0.mjs",

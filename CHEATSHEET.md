@@ -14,7 +14,7 @@
 - [Operators and pipe-forward](#operators-and-pipe-forward)
 - [Numeric policies and bit primitives](#numeric-policies-and-bit-primitives)
 - [Functions, labels, defaults, and rest](#functions-labels-defaults-and-rest)
-- [Structs, objects, enums, and extensions](#structs-objects-enums-and-extensions)
+- [Enums, structs, objects, and extensions](#enums-structs-objects-and-extensions)
 - [Protocols, generics, refinements, and specialization](#protocols-generics-refinements-and-specialization)
 - [Properties, behaviors, and facets](#properties-behaviors-and-facets)
 - [Option, conversion, and type queries](#option-conversion-and-type-queries)
@@ -491,10 +491,15 @@ test "call labels and rest arguments keep their shape" for labelled {
 }
 ```
 
-## Structs, objects, enums, and extensions
+## Enums, structs, objects, and extensions
 
 <!-- w-example role=executable use=Place,Counter,Signal,describe observable=value -->
 ```w
+enum Signal {
+  quiet
+  alert(level: u8)
+}
+
 struct Place {
   let id: u64
   var label: String = "square"
@@ -510,11 +515,6 @@ struct Place {
 object Counter {
   var value: i32
   mut fn increment() { value += 1 }
-}
-
-enum Signal {
-  quiet
-  alert(level: u8)
 }
 
 extension Place {

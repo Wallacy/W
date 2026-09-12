@@ -5626,6 +5626,26 @@ Os precedentes de callable ficam em
 Herança de implementação não entra no design vigente. Composição, protocols e funções
 livres são a baseline.
 
+Um domínio mutuamente exclusivo deve preferir `enum`: estados, resultados,
+eventos, comandos, políticas e erros são sums fechados, com payload somente no
+case que o possui. `struct` permanece o product type para dados simultaneamente
+válidos; `object`, para identidade e lifecycle compartilhado. Em particular,
+uma struct com tag manual, vários booleans de estado ou campos opcionais
+mutuamente exclusivos não é a forma canônica quando um enum expressa exatamente
+os estados válidos. Essa disciplina torna estados inválidos
+irrepresentáveis e entrega ao compiler um conjunto fechado para exhaustiveness,
+reachability e especialização.
+
+O uso de `enum` não promete um layout público único. Dentro de uma região de
+otimização, o compiler pode escolher a largura mínima do discriminante,
+reutilizar niches comprovados, remover cases e payloads inalcançáveis e evitar
+materializar o discriminante quando o fluxo já prova o case. Essas
+transformações não introduzem allocation implícita e precisam preservar ABI
+explícita, reflection alcançável e observabilidade. Uma fronteira ABI ou de
+serialização escolhe sua representação no contrato da fronteira; ela não força
+o layout interno de todos os valores. Métricas decidem a qualidade da
+representação, não a preferência sintática por si só.
+
 `some P` em um parâmetro é shorthand para um generic anônimo. `some P` em um
 return type oculta um tipo concreto único:
 
@@ -37991,6 +38011,15 @@ private helper data. The exact
 the private `bill` helper but omits both an unused exported function and an
 unused private function, including the latter's `Never served` text. Its native
 artifact executes with stdout `Bill 42\n`, empty stderr, and exit zero.
+
+```w
+fn bill(total: i64): i64 { return total + 2 }
+fn unused(total: i64): i64 { return total / 2 }
+
+entry {
+  print("Bill ${bill(total: 40)}")
+}
+```
 
 This is evidence for one bounded executable product closure inside one module,
 not cross-module WMO/WPO. HIR0 still admits exactly one source document and one

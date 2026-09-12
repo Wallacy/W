@@ -138,10 +138,13 @@ timing, ranking, or performance.
 The next enum increment has started at the real product boundary. The seed
 parser/frontend preserves positional and labeled payload patterns, wildcards,
 trailing rest, typed captures, and capture reads in `w-seed-frontend-20`.
-Current HIR0 `w-seed-hir0-23` also owns dense signed-`i64` case-parameter
-declarations: a payloadless case still emits no parameter records. Constructors,
-pattern captures, physical payload layout, and native payload execution remain
-fail-closed gates rather than inferred support.
+Current HIR0 `w-seed-hir0-24` owns dense signed-`i64` case-parameter
+declarations and constructor payload values. Constructor records preserve source
+evaluation order separately from declaration-slot identity, so reordered named
+payloads do not become calls or silently reorder effects. Payloadless cases emit
+neither parameter nor constructor-payload records. Pattern captures, physical
+payload layout, and native payload execution remain fail-closed gates rather
+than inferred support.
 W-1564 introduced HIR0 `w-seed-hir0-22` by preserving and binding each declared
 function's `exported` fact. The executable root walk now has an exact
 same-module witness: [`restaurant-wmo.w`](compiler/seed-c/fixtures/restaurant-wmo.w)

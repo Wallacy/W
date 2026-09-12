@@ -1468,9 +1468,9 @@ This remains a correctness-only compiler-lifecycle witness. Payload-bearing
 cases, enum subsets, general or mixed CFG, public ABI/layout stability, other
 targets, timing, ranking, and performance are not implemented or claimed.
 
-### Enum payload declaration identity (current HIR23)
+### Enum payload declaration and constructor identity (current HIR24)
 
-Current HIR0 (`w-seed-hir0-23`) copies the bounded frontend's signed-`i64`
+Current HIR0 (`w-seed-hir0-24`) copies the bounded frontend's signed-`i64`
 enum case parameters into a separate caller-owned dense range. Each case keeps
 `first_payload`/`payload_count`; each parameter keeps its owner case, ordinal,
 type, optional label, and source span. The semantic and provenance digests,
@@ -1478,15 +1478,23 @@ receipt counts, capacity checks, alias barriers, and independent verifier cover
 the new records. Cases without payloads keep a zero-length range and add no
 payload record.
 
-This increment represents declarations only. Local payload constructors,
-pattern-capture values, projection, physical enum layout, MLIR lowering, native
+Local constructors now create one `VALUE_ENUM_CASE` plus a dense
+`w_seed_hir0_enum_payload` range. Each payload relation retains both its source
+ordinal and its resolved declaration `parameter_ordinal`: child values are
+evaluated in source order, while the declaration ordinal determines the closed
+sum slot. Named payloads may therefore reorder without type-directed matching
+or an effect reorder. Constructor payloads are not represented as calls or call
+arguments. The verifier independently rejects missing, duplicated, orphaned,
+cross-case, mistyped, aliased, truncated, or digest-forged relations.
+
+Pattern-capture values, projection, physical enum layout, MLIR lowering, native
 execution, public ABI, and performance remain explicit fail-closed boundaries.
 The existing payloadless minimum-width carrier is unchanged.
 
 ### Bounded same-module executable product closure (W-1564)
 
 HIR22 (`w-seed-hir0-22`) introduced copying the frontend function `exported`
-fact; current HIR23 preserves that contract,
+fact; current HIR24 preserves that contract,
 binds it into the semantic digest, and verifies it independently. Export is
 module visibility, not an unconditional executable retention root. For the
 current one-module executable recipe, `.default` is the product root and local

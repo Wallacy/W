@@ -15,7 +15,7 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-23"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-24"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
@@ -78,8 +78,8 @@ typedef enum {
   W_SEED_HIR0_VALUE_EXTERNAL_MEMBER,
   /* Checked signed-i64 unary negation. */
   W_SEED_HIR0_VALUE_UNARY_I64,
-  /* A case of a caller-owned local enum. HIR0 values remain payloadless until
-   * constructor payload relations are added. */
+  /* A case of a caller-owned local enum. Payload constructors own a dense
+   * enum-payload relation; payloadless cases own an empty range. */
   W_SEED_HIR0_VALUE_ENUM_CASE,
 } w_seed_hir0_value_kind;
 
@@ -93,6 +93,8 @@ typedef enum {
   /* Append-only owners for the closed process external-value children. */
   W_SEED_HIR0_VALUE_OWNER_EXTERNAL_MEMBER,
   W_SEED_HIR0_VALUE_OWNER_EXTERNAL_ENUM_CASE,
+  /* A child value evaluated for one local enum constructor payload. */
+  W_SEED_HIR0_VALUE_OWNER_ENUM_PAYLOAD,
 } w_seed_hir0_value_owner_kind;
 
 typedef enum {
@@ -456,6 +458,18 @@ typedef struct {
   w_seed_span source_span;
 } w_seed_hir0_argument;
 
+/* Constructor payloads are distinct from call arguments: constructing a
+ * closed sum value is not a function call. `ordinal` preserves source
+ * evaluation order; `parameter_ordinal` identifies the declaration slot. */
+typedef struct {
+  uint32_t owner_value;
+  uint32_t ordinal;
+  uint32_t parameter_ordinal;
+  uint32_t value_index;
+  uint32_t type_index;
+  w_seed_span source_span;
+} w_seed_hir0_enum_payload;
+
 typedef struct {
   w_seed_hir0_value_kind kind;
   w_seed_hir0_value_owner_kind owner_kind;
@@ -469,6 +483,8 @@ typedef struct {
   uint32_t right_value;
   uint32_t first_interpolation_segment;
   uint32_t interpolation_segment_count;
+  uint32_t first_enum_payload;
+  uint32_t enum_payload_count;
   w_seed_hir0_binary_operator binary_operator;
   w_seed_hir0_unary_operator unary_operator;
   uint32_t block_argument_index;
@@ -556,6 +572,7 @@ typedef struct {
   size_t calls;
   size_t host_parameters;
   size_t arguments;
+  size_t enum_payloads;
   size_t requirements;
   size_t values;
   size_t interpolation_segments;
@@ -625,6 +642,9 @@ typedef struct {
   const w_seed_hir0_argument *arguments;
   size_t argument_count;
   size_t argument_capacity;
+  const w_seed_hir0_enum_payload *enum_payloads;
+  size_t enum_payload_count;
+  size_t enum_payload_capacity;
   const w_seed_hir0_requirement *requirements;
   size_t requirement_count;
   size_t requirement_capacity;
@@ -692,6 +712,8 @@ typedef struct {
   size_t host_parameter_capacity;
   w_seed_hir0_argument *arguments;
   size_t argument_capacity;
+  w_seed_hir0_enum_payload *enum_payloads;
+  size_t enum_payload_capacity;
   w_seed_hir0_requirement *requirements;
   size_t requirement_capacity;
   w_seed_hir0_value *values;

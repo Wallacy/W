@@ -127,6 +127,7 @@ typedef struct {
   w_seed_hir0_call hir_calls[TEST_HIR_RECORDS];
   w_seed_hir0_host_parameter hir_host_parameters[TEST_HIR_RECORDS];
   w_seed_hir0_argument hir_arguments[TEST_HIR_RECORDS];
+  w_seed_hir0_enum_payload hir_enum_payloads[TEST_HIR_RECORDS];
   w_seed_hir0_requirement hir_requirements[TEST_HIR_RECORDS];
   w_seed_hir0_value hir_values[TEST_HIR_RECORDS];
   w_seed_hir0_interpolation_segment
@@ -531,6 +532,8 @@ static void setup_hir_output(void) {
       .host_parameter_capacity = TEST_HIR_RECORDS,
       .arguments = fixture.hir_arguments,
       .argument_capacity = TEST_HIR_RECORDS,
+      .enum_payloads = fixture.hir_enum_payloads,
+      .enum_payload_capacity = TEST_HIR_RECORDS,
       .requirements = fixture.hir_requirements,
       .requirement_capacity = TEST_HIR_RECORDS,
       .values = fixture.hir_values,
@@ -2353,6 +2356,78 @@ static bool test_local_enum_payload_declarations_hir(void) {
   return true;
 }
 
+static bool test_local_enum_payload_constructor_hir(void) {
+  static const char SOURCE[] =
+      "enum Outcome { idle pair(left: i64, right: i64) }\n"
+      "fn make(left: i64, right: i64): Outcome { "
+      "return .pair(right: right, left: left) }\n"
+      "entry { }\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->enum_count == 1u && program->enum_case_count == 2u &&
+        program->enum_case_parameter_count == 2u &&
+        program->call_count == 0u && program->argument_count == 0u &&
+        program->enum_payload_count == 2u && program->value_count == 3u);
+  const w_seed_hir0_terminator *terminator = &program->terminators[0];
+  CHECK(terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+        terminator->value_index == 2u);
+  const w_seed_hir0_value *constructed =
+      &program->values[terminator->value_index];
+  CHECK(constructed->kind == W_SEED_HIR0_VALUE_ENUM_CASE &&
+        constructed->enum_index == 0u && constructed->enum_case_index == 1u &&
+        constructed->first_enum_payload == 0u &&
+        constructed->enum_payload_count == 2u);
+  CHECK(program->enum_payloads[0].owner_value == 2u &&
+        program->enum_payloads[0].ordinal == 0u &&
+        program->enum_payloads[0].parameter_ordinal == 1u &&
+        program->enum_payloads[0].value_index == 0u &&
+        program->values[0].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[0].parameter_index == 1u &&
+        program->enum_payloads[1].owner_value == 2u &&
+        program->enum_payloads[1].ordinal == 1u &&
+        program->enum_payloads[1].parameter_ordinal == 0u &&
+        program->enum_payloads[1].value_index == 1u &&
+        program->values[1].kind == W_SEED_HIR0_VALUE_PARAMETER_READ &&
+        program->values[1].parameter_index == 0u);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_enum_payload saved_payload = fixture.hir_enum_payloads[0];
+  fixture.hir_enum_payloads[0].owner_value = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_payloads[0] = saved_payload;
+  fixture.hir_enum_payloads[0].parameter_ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_enum_payloads[0] = saved_payload;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_input input = hir_input();
+  const uint8_t sentinel = 0x6cu;
+  w_seed_hir0_result rejected;
+  (void)memset(&rejected, 0x43, sizeof(rejected));
+  const w_seed_hir0_result rejected_before = rejected;
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  fixture.hir_output.enum_payload_capacity = 1u;
+  CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &rejected) ==
+        W_SEED_HIR0_CAPACITY);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+
+  setup_hir_output();
+  fill_hir_output(sentinel);
+  w_seed_hir0_output alias = fixture.hir_output;
+  alias.enum_payloads =
+      (w_seed_hir0_enum_payload *)(void *)alias.values;
+  rejected = rejected_before;
+  CHECK(w_seed_hir0_run(&input, &alias, &rejected) == W_SEED_HIR0_INVALID);
+  CHECK(hir_output_is_byte(sentinel) &&
+        memcmp(&rejected, &rejected_before, sizeof(rejected)) == 0);
+  return true;
+}
+
 static w_seed_hir0_input hir_input(void) {
   return (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
 }
@@ -2381,6 +2456,8 @@ static void fill_hir_output(uint8_t value) {
   (void)memset(fixture.hir_host_parameters, value,
                sizeof(fixture.hir_host_parameters));
   (void)memset(fixture.hir_arguments, value, sizeof(fixture.hir_arguments));
+  (void)memset(fixture.hir_enum_payloads, value,
+               sizeof(fixture.hir_enum_payloads));
   (void)memset(fixture.hir_requirements, value,
                sizeof(fixture.hir_requirements));
   (void)memset(fixture.hir_values, value, sizeof(fixture.hir_values));
@@ -2423,6 +2500,7 @@ static bool hir_output_is_byte(uint8_t value) {
       (const uint8_t *)fixture.hir_calls,
       (const uint8_t *)fixture.hir_host_parameters,
       (const uint8_t *)fixture.hir_arguments,
+      (const uint8_t *)fixture.hir_enum_payloads,
       (const uint8_t *)fixture.hir_requirements,
       (const uint8_t *)fixture.hir_values,
       (const uint8_t *)fixture.hir_interpolation_segments,
@@ -2446,6 +2524,7 @@ static bool hir_output_is_byte(uint8_t value) {
       sizeof(fixture.hir_instructions), sizeof(fixture.hir_bindings),
       sizeof(fixture.hir_calls),
       sizeof(fixture.hir_host_parameters), sizeof(fixture.hir_arguments),
+      sizeof(fixture.hir_enum_payloads),
       sizeof(fixture.hir_requirements), sizeof(fixture.hir_values),
       sizeof(fixture.hir_interpolation_segments),
       sizeof(fixture.hir_terminators), sizeof(fixture.hir_entries),
@@ -5039,6 +5118,7 @@ int main(void) {
   if (!test_local_binding_verify_mutations()) return 1;
   if (!test_local_enum_hir()) return 1;
   if (!test_local_enum_payload_declarations_hir()) return 1;
+  if (!test_local_enum_payload_constructor_hir()) return 1;
   if (!test_enum_switch_hir()) return 1;
   if (!test_enum_switch_local_calls()) return 1;
   if (!test_enum_switch_cfg_composition_barrier()) return 1;
