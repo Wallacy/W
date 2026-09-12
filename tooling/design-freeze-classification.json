@@ -23,7 +23,7 @@
   "ledger": {
     "path": "RATIONALE.md",
     "section": "3. Ledger",
-    "sha256": "sha256:b9b53412dd9ba54cc14edfb7e938a813c96bd468a79612f1c08e17432830c7c3",
+    "sha256": "sha256:2b06f0f9137c56e04092f9cec66bbfe7fd2838b00a122a3bc6e96e442dc622d9",
     "count": 1564,
     "first": "W-001",
     "last": "W-1564"
@@ -703,7 +703,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-018 (reflection, sha256:4462016f43d6a32548e2fdc6a882942eaa2eb83119492a03532a6fa803722006) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -866,7 +866,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-023 (transfer, sha256:fa82aec7fa53bd41d0dadfd9a5e2405eac9722bbfac9b0fd5dc47564e4afcc05) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -899,7 +899,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-024 (copy, sha256:1cc58ddad8cea1265b68517175e144c36f9d8cdc680e2ea42319d99c4fabc125) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -1598,7 +1598,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-045 (nomes de mobilidade, sha256:e9f4fd24efa30f4f4b203e02d8d1abc6aa4d1d9692b55dc2f612de1c01764204) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -2111,7 +2111,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-060 (String indexing, sha256:d3143782682e82dc2b2467cf11d3047a8ee02cbc45f272912c012c4d4b1e724d) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -2340,7 +2340,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-067 (device, sha256:e8f93c1ad797aa634ef751ea713b1d50415516539be4d738567380dea4098356) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -3405,7 +3405,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-100 (tensor indexing, sha256:b8a8657bd9f6bd9242e4074d352c05c24d8c31cbda346ab3efcc322ca989973e) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -3966,7 +3966,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-117 (eixos de execução, sha256:7d6f815526b0abcc1df42717746b840d6b21c503926789124a0f80446786384a) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -4032,7 +4032,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-119 (task longa, sha256:2c57eb787c726a47f0f3eec6900eacb3f050a4f3a01d3788f9c7e7e10ce26bc7) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -4158,7 +4158,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-123 (resolução de domain, sha256:708ec1ab97c5c8740fe0ebc61a2bb9af46bc7f642d444d16f5799bad91adb197) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -4556,7 +4556,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-135 (payload de service, sha256:15c824f087e889ac94c20e005ab0e9976f46b746eddfd491975a0d79f04fd1c6) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -5877,7 +5877,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-176 (authority de `deinit`, sha256:92b2a6cc60bfbf0a339383dacf9ee63ea3adb1e8030581479cb46d2cf8889e15) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -5910,7 +5910,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-177 (supressão de drop, sha256:9e45f0ac734de513ed5f859c34435bc645f1b77ee252e7a4f4f0cc04bb24f4ea) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -6597,7 +6597,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-198 (method reference, sha256:416f523258a0ec51b7bd78a16edcd059fa264ffbce1a0ce3f826ca78d52c2d15) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -6630,7 +6630,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-199 (callback C, sha256:6261a87abf559ca26c71a3c119b6b653600e1f99968f08bd1106bd42c6bd33c6) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -6922,7 +6922,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-208 (callable transfer, sha256:2ca1ded7a557ed9e5b66662c72ea1c62ca50fc719a2b93bb596cfede38d80b63) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7002,7 +7002,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-210 (semântica de String, sha256:26e727c11252e8f6aaf62e1b68a3297ea0aa2406a529333fde6dd3f1a483b6b7) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7068,7 +7068,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-212 (elementos de texto, sha256:06bd62cd246168b8905513905671752ffe5bc90de4153d05fe0a2c1819782a5e) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7101,7 +7101,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-213 (índices de texto, sha256:1d195fd73825f871a615ce1081c77e6c001c16f528db9675acb82cb38f0feab5) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7134,7 +7134,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-214 (slices de texto, sha256:f1d8fd77a7c8fc4188838b26ed483702e32fb53a6ccf0a1d797706aa66321bd7) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7602,7 +7602,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-228 (array dinâmico, sha256:cd09463b699bbe29ef603bf77cd320934acfb947408039084720feec9f7554e5) has no executable witness for component allocation. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7635,7 +7635,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-229 (literais de array, sha256:e989a865c3d9b44021337917568feb1da7b1e9c7058d5cba193688e82c23cd8d) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7668,7 +7668,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-230 (views de array, sha256:7336cac77e659e2420f0e0e53960c277eeacdaa837c0a1ed54bbe619a5b41c69) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7734,7 +7734,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-232 (pipelines, sha256:445981162fe7b59baa40161f565d461ccc1488212920f01464460ceacb143aee) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -7866,7 +7866,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-236 (lookup borrowed, sha256:b153ad336944a57746438a4e2d39ee30ae8e379e896b591f68b27c7b188aac69) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -8031,7 +8031,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-241 (duplicação owned, sha256:1ed755d740f6f64dad340458596122b3a2059abfd94b55eda469f17abe171188) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -8877,7 +8877,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-267 (materialização, sha256:710f2355225f162936a18040c31b02c932d3bb38808472c13b0c450fd6c5dfc1) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -10348,7 +10348,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-312 (reflection reachability, sha256:cfa83225cf824578a17ec50eb3f1525a4de91ac7f24e6e6960c55602fd404bbd) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11167,7 +11167,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-337 (low-bit, sha256:3102c99915ebc4223bdb061b76de56e20b1eab1ed8abf374bb965838b353cc53) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11200,7 +11200,7 @@
         "path": "DESIGN.md",
         "section": "9.9",
         "heading": "### 9.9 Seleção de representação",
-        "sectionDigest": "sha256:fb551c917a186e1a163ed2b59922e7434b9680f90ecde855626482f80b0ea60a"
+        "sectionDigest": "sha256:d78d934446e8012264d364dda46f43f506a974e310338f56970de20d2e4d6f32"
       },
       "evidence": [],
       "reason": "W-338 (high-bit, sha256:b41d9cf9a09027c6a3eb17a249674c15970b780d28dfd71867f13addcc4d85a0) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9.9 / 9.9 Seleção de representação.",
@@ -11233,7 +11233,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-339 (metadata mutável, sha256:1c92c748347a7eaf98035585a7c03db055a18897c4a61796d87e15571692fff3) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11491,7 +11491,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-347 (contexto de child, sha256:4952d0b38875ac33ed4f609e59f9c18b477814f822b9887f26a1ca64751ad499) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11557,7 +11557,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-349 (domain schema, sha256:1cc3e54eb33eda1e57258d544391fdfa442785bfc455aa13602088b9a9d36b25) has no executable witness for component allocation. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11830,7 +11830,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-357 (bytes de String, sha256:1f830f2a802b50b160015ec9008fdb9a7bf36f0ce30055f6ba6785fa2c3612f8) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -11863,7 +11863,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-358 (conversão UTF-8, sha256:8632d0ff3852000a8af6e647834cd4aa18e0bff28d8394993df8bae459787afc) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -12292,7 +12292,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-371 (largura interna, sha256:9694596b977d71c8e465d1e6fc01811b0cb544731d8480c2f7ea23d082b33804) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -12358,7 +12358,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-373 (storage estreito, sha256:d367aec20c603e553b3b3c54b03b4f35f7b39477bd61bdd245ae8c0c3a4b52ed) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -12490,7 +12490,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-377 (device e fusion, sha256:cfd355b58e9b40d206ad5b14cf78821ebfa57c5d45d9c39624ec717b3f6cf969) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -12754,7 +12754,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-385 (valor do literal, sha256:b7618125c15dde5724e375f4b3c9888d7c45385212132067caf2318b42caa893) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -13247,7 +13247,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-400 (saída de pinning, sha256:770a40756db424879b3fc2ca00326167f98bbfdc1c1ad9bc55711f81cf56fad2) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -13379,7 +13379,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-404 (view genérica, sha256:7edf7145d7189808d0bd6e23de3b40136557223ee80277606b201e0ea6b18857) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -13799,7 +13799,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-417 (`ref` versus `view`, sha256:25a444b9c2d1a411013e0f749e9b2f9e0ad0c838e6a4884ed4e1c7487e2cbc17) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -13865,7 +13865,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-419 (materialização, sha256:d8c7099b281f48f4b2e9825a728b73bd5c76a1e70fca6705deecc17d2007744e) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14036,7 +14036,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-424 (mobilidade pública, sha256:78ea58061d35069b4ded251b9d61d05833107d1bd12ad67a94747f9e738416fd) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14069,7 +14069,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-425 (transferência, sha256:79394f679b00fc72101ecfe54f5c92e9faaed39623f12d168e4227d575fbd0a6) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14102,7 +14102,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-426 (sharing, sha256:0daf7631316918699fb25f7a721014f5e001e8c3f56b8e6edfd7f96515c67feb) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14135,7 +14135,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-427 (constraint de mobilidade, sha256:71f10a7826a79c42fb1228c649c7714b1704bd543508c0faf81d5c871ed7cf6e) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14360,7 +14360,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-434 (esvaziar String, sha256:a290a623b46a09ac391d6eb25738966888b245a920fb019ec88014bbbe536ec4) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14530,7 +14530,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-439 (String no self-host, sha256:a2a8fe766b5ae7bdf75526303e4d418516e141281269561faaae1e26c5a67310) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -14656,7 +14656,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-443 (atomic value, sha256:3b8b063e541c5d596a303f3d2309683f4363f3180b5bc562f560784725590f01) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -15768,7 +15768,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-474 (destino de read, sha256:0216e7e07629e3737afb255be05f5f5a2a727d39231a2f86c202b5d78f725092) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16148,7 +16148,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-486 (adapters de stream, sha256:7a6140b38bfc971b25eb9798db322c6f50f9026497447c8e94f2a0e1d71d56b2) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16214,7 +16214,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-488 (lifetime de buffer I/O, sha256:c80deb71eb26e1d45e8949a16851e5264517e16bcbf28441fdc2262441a46e23) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16247,7 +16247,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-489 (famílias de I/O especializado, sha256:825e610dc0e8efa33460adc91fae3ea5a122cc96759bccbabbac0566de49bf2c) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16313,7 +16313,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-491 (trabalho runtime-owned, sha256:45550ef38998e49334c4c0a6065ddf7a25ad2a3f272bd5a225ee402478cc67d3) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16379,7 +16379,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-493 (admission de work, sha256:ddf33f037157b0acb4f2d80398aae59d455d6a4a25489df5669ce8f28793a975) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -16478,7 +16478,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-496 (rights de work, sha256:46de5d389b2bc68c3a0bebbe6350361dce05190c2c84da6283314e6f7ed7b7c7) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -17159,7 +17159,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-516 (produto de referência, sha256:c50d052baaae353caaff654cc5e1d40754a2ca6e5f2529596f832434cf6466ff) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -17685,7 +17685,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-532 (ownership de request, sha256:3fe07a1d3b917aba15993d78035bcd5577ee734e934777051875c2feb4aafe60) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -17782,7 +17782,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-535 (response streaming, sha256:7856e0b0e7742e9507c5e6e2705738e6c1a2af4bd9df13b157f8db1b111442df) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -18275,7 +18275,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-550 (scatter read, sha256:9959a0d50abe3bcff2caea3aa971452eecfe7072a7a2a2d73c8a7088c4fb44c2) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -18308,7 +18308,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-551 (transferência especializada, sha256:3ec8dd874f65de5222ab7e18362189cd48bca2e2108e552db4119716e7519c3f) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -19496,7 +19496,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-587 (mutation do package graph, sha256:ac8fff06412ead906ef5646aeb1acb167a8a7bbe0072255c54eaf143e1145c64) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -20024,7 +20024,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-603 (materialização de provider, sha256:b2c1a5562b2d0215611a2aa4651c951b773d8ef82ab2172a1487366684a1d284) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -20641,7 +20641,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-622 (export C, sha256:e095b52697dc6e268780715036fe14c55f561f77cbc5a81aec475e8d65470073) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -21031,7 +21031,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-634 (`Address`, sha256:f4b8a34bf1c729a4c75fa1960584f436eb52a00989e6f13ba6332bf8083378be) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -21198,7 +21198,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-639 (profile de memória, sha256:64fb8e91ae90de7d2208a7b5eb20282ce6ae40a0bf938ca83cfe50a0a5d20884) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -21491,7 +21491,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-648 (deadline, sha256:80039f514cf6de3032fc4c6e62258257825911c5d9f1eff9494baed9730719dd) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -21524,7 +21524,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-649 (admission de task, sha256:472f09dac4127a4aa409e4e99ed0125938083abe7c4def2460e42ce6bed5a896) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -21753,7 +21753,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-656 (device execution, sha256:90d0df1437987d114703698b61d0fbf238369826cbf1ce71ec4739692b87f9d9) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -22048,7 +22048,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-665 (service bridge, sha256:e9c76f33fcd642e30a2097bea77f9916f8733317e00d70601f780eeb4b14d18e) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -22246,7 +22246,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-671 (stream remoto, sha256:86eca38995be837d7ee7043f786a64e38859b33f1cd7cbfb30e1545c988df56a) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -22609,7 +22609,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-682 (decode canônico, sha256:699881de59a3fcc0f6df86024b97cf0936ca5dd06817e6008aca62630f5436e3) has no executable witness for component allocation. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -23535,7 +23535,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-710 (representação por fronteira, sha256:129d19b453ad282a957572bcd00a3673401093f65fa3d3535fcc588686543342) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -23731,7 +23731,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-716 (replay do scheduler, sha256:645cf1a8451a190e3a2ae286a2f370b3ad6e912cd0b877952d661f87673c419f) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -23764,7 +23764,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-717 (schema do replay, sha256:793ff8c322db6b5da4cc809b43f3194e73c4df56a9ab7a52052b6bab0163ecac) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -23863,7 +23863,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-720 (preflight do decoder wWire, sha256:3c123bb230bc28a3a5548cf21da3fb33e4fc5905a469dd1656369300b65681ab) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -24204,7 +24204,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-730 (kernel HIR de memória e ABI, sha256:4d5681340a042fd981ad57fc874b4c34017e4bff007a377abafcab46eb117a84) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -24662,7 +24662,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-744 (extensões de service (parcialmente retired), sha256:a8e8d8b1e2d06f0ed2e45d6f7aa71b440751d206bc1b35ae72422886e9a32773), sha256:a8e8d8b1e2d06f0ed2e45d6f7aa71b440751d206bc1b35ae72422886e9a32773) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -24903,7 +24903,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-751 (grammar normativa G0, sha256:79efc13e8aa67c81d06e215be9e1030b8c7d558401c94a557e2ed7c858869347) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -27772,7 +27772,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-840 (operand de ownership prefix, sha256:89f1cc5dcb008bdcd2567c6438bbde11d8305f858a64b78bc1c9f2f2d775e7d9) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -28465,7 +28465,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-861 (schema de substituição R0, sha256:7e8cc748a3f15087ebbeafe2210765f4aea56a54119b00169e94e6b547ffc0fc) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -28793,7 +28793,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-871 (forma do corpus M1, sha256:618ea59617a50edbcf280238b2f7d9e391db905d02272da76314701c3a3e1a3f) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -28925,7 +28925,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-875 (limite de E0, sha256:7bbf7041956d5bcb744c37764a3d2d132d6b6beb597387f354389b96fa26c988) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -29024,7 +29024,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-878 (limite de B0, sha256:c045e8adf51e53c6f4ce4ce9ee205434ecb7ce745934e0df9e035fc9993b262d) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -29057,7 +29057,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-879 (identity de supply chain P0, sha256:e49ea203a3f57643ed7d0f456c0d6982322a8fce9ab519df42d158caa66afa50) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -29976,7 +29976,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-907 (kernel M1 de place loans, sha256:5dec97d44ca7f3d77562d4d241ccd280b20b0414cdfd2ac1c424e88e864bce95) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -33184,7 +33184,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1004 (corpus e superfície TAB0, sha256:9b7bb4e21771179be6b3a75bd1c43f30f7186aa6fadbcdcfbeb50e3fea25f7b9) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -37853,7 +37853,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1151 (R1E0 assignment, sha256:2e4c0b9971c7bacf4cede0076390b5c2f4787a74c08280c79db8fe5ee123e7c0) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -38309,7 +38309,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1165 (caminho de memória, sha256:bd019a082f170d01c916336ffd09f36c97ab6c2a0a47dd8e9265f75ce3266133) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -38925,7 +38925,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1183 (conjunto mínimo (refinado), sha256:edee0e9eff64611768695b2faa5f86bd093964aaa8776ced3e11fa1e0b70193d), sha256:edee0e9eff64611768695b2faa5f86bd093964aaa8776ced3e11fa1e0b70193d) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -40616,7 +40616,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1229 (accounting de channel, sha256:fa88b517da0064779e4e0c8491fbf1161dd69c60228689ee62b60a1e1faaeeb8) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -40962,7 +40962,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1239 (assembly fechada, sha256:aac2562841576830f589ea5edef29a5dda19a28a8b057cfbc9d0f454806c1240) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -43867,7 +43867,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1325 (ASC0 memory transition evidence, sha256:b8e2a98de3c1f8a1e0ab3a72f4d9f9daaac0b7ada61e37a1af8d392014427b0c) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -44462,7 +44462,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1342 (família R1S1 de declarations, sha256:6d6fe125a2399997689b0de404c073a18d476436d8b914c004ebd671623cf745) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -44968,7 +44968,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1357 (channel mapped wire carrier, commit/materialization e crash, sha256:78b9a954ededa20789ca42d9a77874b06b950a020ba823737ef49d129c1739b0) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -45882,7 +45882,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1385 (CYC1 Restaurante e fronteira do problema, sha256:50da948a0248daa3bdd438cc60a81dd8c95566d505cd1fbc38280c6f2f39decc) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -45915,7 +45915,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1386 (CYC1 máquina event-derived, sha256:3fcbbee8db9fdaaeaf1387387b69788a4a02a1f0728e5d1ab1313f241fde144c) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -46014,7 +46014,7 @@
         "path": "DESIGN.md",
         "section": "9",
         "heading": "## 9. Memória, layout e alocação",
-        "sectionDigest": "sha256:eb9c725c1b822354bd6b44d2c3b9534975cbdf9d7ec530df78e89e10454859be"
+        "sectionDigest": "sha256:bb5f96e77531e0b97073b6a8b845bfab49b9f3f1bcbc801f10ea172232da266c"
       },
       "evidence": [],
       "reason": "W-1389 (CYC1 self-reference e lowering, sha256:82595380edf770c421262989a03437cfe4a436c8a80e1d48e79a624de876ab7f) has no executable witness for component memory-and-ownership. The checked current contract is DESIGN.md §9 / 9. Memória, layout e alocação.",
@@ -51689,7 +51689,7 @@
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d",
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06",
           "symbol": "main",
           "claim": "The native gate builds and executes the bounded Windows fixtures and negative cases."
         },
@@ -52012,7 +52012,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurant-comparison-composition",
           "claim": "The Windows gate checks the same bounded native comparison behavior.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52089,7 +52089,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolShortCircuitFixture",
           "claim": "The Windows gate checks the same exact short-circuit stdout through the native Windows route.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52172,7 +52172,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantScalarIfFixture",
           "claim": "The public Windows gate checks exact scalar-if stdout through the native Windows route.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -52910,7 +52910,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "processInputFixture",
           "claim": "The public gate runs source and one built PE with empty, normal, and empty-string arguments.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "deferred",
@@ -53063,13 +53063,13 @@
           "path": "tooling/executable-benchmark-machine.mjs",
           "symbol": "EXECUTABLE_WORKLOAD_IDS",
           "claim": "The live executable workload catalog includes restaurant-nested-scalar-if beside restaurant-scalar-if.",
-          "sha256": "sha256:2f76c2ecf2a04782be222311e8dff053dae4a3cac4855dafe143806b9360cdf9"
+          "sha256": "sha256:ae3ed5fd2a287eb27c3b6e8d653288545c33422125876b84ac05d323fcd87460"
         },
         {
           "path": "benchmarks/executable-catalog.json",
           "symbol": "restaurant-nested-scalar-if",
           "claim": "The executable catalog records the W source and exact oracle as public-end-to-end and source/oracle-ready with timing deferred.",
-          "sha256": "sha256:2862a34df1f989600dfb396ddc71a40089544fd44ff29e43a8d932d180a637f5"
+          "sha256": "sha256:86a11071e70de2acb235a1fc2b5bc93a5c39349816e2b2b232795287466c71d4"
         },
         {
           "path": "compiler/seed-c/include/w_seed_hir0.h",
@@ -53229,7 +53229,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantRuntimeDivremFixture",
           "claim": "The native Windows runner proves exact output for the same source witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53318,7 +53318,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryNegateFixture",
           "claim": "The native Windows runner proves exact output for the same source.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53389,7 +53389,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantUnaryInterpolationFixture",
           "claim": "The native Windows public runner executes the same direct source witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53466,7 +53466,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMutationFixture",
           "claim": "The native Windows public runner executes the mutation witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53537,7 +53537,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantConditionalMutationFixture",
           "claim": "The native Windows public runner executes the same source witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53602,7 +53602,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBoolMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53679,7 +53679,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53762,7 +53762,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantMultiBranchMutationFixture",
           "claim": "The native Windows public runner executes the same witness.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -53939,7 +53939,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWhileFixture",
           "claim": "The pinned native Windows 23.1.1 runner executes exact Served 3 output.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54063,7 +54063,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantEnumFixture",
           "claim": "The pinned Windows 23.1.1 gate executes restaurant-enum.w with exact output, empty stderr, and zero exit.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         }
       ],
       "benchmarkDisposition": "compiler-lifecycle",
@@ -54122,7 +54122,7 @@
           "path": "tooling/check-w-run-windows.mjs",
           "symbol": "restaurantWmoFixture",
           "claim": "The pinned Windows native gate executes the same-module product closure with exact output.",
-          "sha256": "sha256:62f33fb2565d08469f9df5321f45ed074c321432bb0dbd79812b2233ad58db7d"
+          "sha256": "sha256:906b2349ec6bbd99d68e7c1d6192111f349f90621c682734f0ab150abda49c06"
         },
         {
           "path": "tooling/check-w-run.mjs",
