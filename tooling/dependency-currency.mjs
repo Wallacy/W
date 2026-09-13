@@ -235,7 +235,7 @@ function validateSpecialEntries(value, errors) {
   if (!mlir) {
     errors.push("mlir0-llvm-clang entry is required");
   } else {
-    if (mlir.current?.version !== "20.1.2") errors.push("MLIR0 current evidence must remain 20.1.2");
+    if (mlir.current?.version !== "23.1.1") errors.push("MLIR0 current evidence must be 23.1.1");
     if (mlir.selected?.version !== "23.1.1") errors.push("MLIR0 selected successor must be 23.1.1");
     if (mlir.selected?.tag !== "llvmorg-23.1.1") errors.push("MLIR0 selected tag must be llvmorg-23.1.1");
     if (mlir.selected?.tagObject !== "e7ce3600b55034ddf819638f395e3c475fad5be2") {
@@ -246,8 +246,8 @@ function validateSpecialEntries(value, errors) {
     }
     if (mlir.selected?.promotion !== "blocked") errors.push("MLIR0 successor promotion must remain blocked");
     if (mlir.requirements?.zeroPromotion !== true) errors.push("MLIR0 must declare zero promotion");
-    if (mlir.requirements?.currentEvidenceMustRemain !== "20.1.2") {
-      errors.push("MLIR0 must declare 20.1.2 as the evidence snapshot");
+    if (mlir.requirements?.currentEvidenceMustRemain !== "23.1.1") {
+      errors.push("MLIR0 must declare 23.1.1 as the current evidence snapshot");
     }
     if (!Array.isArray(mlir.components) || JSON.stringify(mlir.components) !== JSON.stringify(["MLIR", "LLVM", "Clang", "LLD"])) {
       errors.push("MLIR0 components must include MLIR, LLVM, Clang, and LLD");

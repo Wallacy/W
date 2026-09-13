@@ -44,10 +44,10 @@ assert(manifest.materialization.stagingPrefix === STAGING_PREFIX,
 
 const linuxManifest = JSON.parse(await readFile(linuxManifestPath, "utf8"))
 assert(linuxManifest.status === "pinned" &&
-  linuxManifest.toolchain?.mlir === "20.1.2" &&
+  linuxManifest.toolchain?.mlir === "23.1.1" &&
   linuxManifest.target?.triple === "x86_64-unknown-linux-gnu" &&
   linuxManifest.windowsNative === false,
-"Linux/WSL 20.1.2 profile was not preserved")
+"Linux/WSL 23.1.1 profile is not current")
 
 const source = await readFile(acquisitionPath, "utf8")
 for (const marker of [

@@ -167,7 +167,7 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 - Observed: 2026-08-31.
 - Reference breadth goal: `at-least-rust-breadth`.
 - Rust target tiers imported: no.
-- Current evidence version: `20.1.2` (update-required).
+- Current evidence version: `23.1.1` (current).
 - Future native plan policy: `llvmorg-23.1.1-exact-pin-with-build-provenance-gate`; successor: `llvmorg-23.1.1` at `6dfe1677ab8dffbc6ec13d53a1e0215d75147689`.
 - Build and provenance blocker: `native-build-acquisition-provenance`.
 - The breadth goal is comparative. It is not an inherited Rust claim or tier snapshot.
@@ -183,8 +183,8 @@ The portable MLIR record is a possible bootstrap, mirror, or rebuild input for a
 ## MLIR0 manifest cross-check
 
 The current row references [tooling/mlir0-toolchain.json](tooling/mlir0-toolchain.json).
-The manifest target is `x86_64-unknown-linux-gnu` with MLIR, LLVM, and Clang 20.1.2.
-This 20.1.2 version is factual current evidence and is marked `update-required`; it is not the intended future native-plan release.
+The manifest target is `x86_64-unknown-linux-gnu` with MLIR, LLVM, and Clang 23.1.1.
+This 23.1.1 version is factual current evidence and is marked `current`; it is not the intended future native-plan release.
 The manifest records WSL Linux evidence and no Windows native evidence.
 
 ## Benchmark disposition

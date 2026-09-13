@@ -93,10 +93,10 @@ describe("platform support catalog", () => {
       "targetEndpoint",
       "toolchainSysrootLinkerPackaging",
     ]);
-    expect(source.crossChecks.mlir0Toolchain.currencyStatus).toBe("update-required");
+    expect(source.crossChecks.mlir0Toolchain.currencyStatus).toBe("current");
     expect(source.policy.dependencyCurrency).toEqual({
-      currentEvidenceVersion: "20.1.2",
-      currentEvidenceCurrencyStatus: "update-required",
+      currentEvidenceVersion: "23.1.1",
+      currentEvidenceCurrencyStatus: "current",
       futureNativePlanPolicy: "llvmorg-23.1.1-exact-pin-with-build-provenance-gate",
       successorVersion: "23.1.1",
       successorTag: "llvmorg-23.1.1",

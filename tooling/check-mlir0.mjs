@@ -37,7 +37,7 @@ const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
 const targetTriple = "x86_64-unknown-linux-gnu"
-const expectedVersion = "20.1.2"
+const expectedVersion = "23.1.1"
 const isWindows = process.platform === "win32"
 
 function fail(message) {
@@ -81,6 +81,22 @@ function validateManifest(manifest) {
   "toolchain manifest MLIR0 artifact scope is invalid")
   assert(manifest.target?.triple === targetTriple,
     "toolchain manifest target is not the closed MLIR0 target")
+  assert(manifest.toolchainDiscovery?.rootEnv === "W_MLIR0_TOOLCHAIN_ROOT" &&
+    manifest.toolchainDiscovery?.relativeBin === "bin" &&
+    manifest.toolchainDiscovery?.materializedManifest ===
+      "w-mlir0-linux-materialized.json" &&
+    manifest.toolchainDiscovery?.pathPolicy ===
+      "explicit-external-root-or-host-PATH" &&
+    manifest.toolchainDiscovery?.repositoryPath === false &&
+    manifest.toolchainDiscovery?.archive?.release === "2026.09.11" &&
+    manifest.toolchainDiscovery?.archive?.filename ===
+      "llvm-mlir_llvmorg-23.1.1_x86_64-unknown-linux-gnu.tar.zst" &&
+    manifest.toolchainDiscovery?.archive?.sizeBytes === 400536815 &&
+    manifest.toolchainDiscovery?.archive?.sha256 ===
+      "cfa94b0c4dfb933e755362468b615ada40e77e6d77b8db609505888de296ca7e" &&
+    manifest.toolchainDiscovery?.archive?.source ===
+      "munich-quantum-software/setup-mlir",
+  "toolchain discovery contract is invalid")
   for (const role of ["mlir", "llvm", "clang"])
     assert(manifest.toolchain?.[role] === expectedVersion,
       `toolchain manifest ${role} version is not ${expectedVersion}`)
@@ -133,8 +149,9 @@ function asCommand(value, label, allowMissing = false) {
   if (typeof value !== "string" || value.length === 0)
     fail(`${label} override is empty`)
   if (isWindows) {
-    if (!/^\/[A-Za-z0-9._+\-/]+$/u.test(value))
-      fail(`${label} override must be a simple absolute WSL path`)
+    if (!(/^[A-Za-z0-9._+-]+$/u.test(value) ||
+      /^\/[A-Za-z0-9._+\-/]+$/u.test(value)))
+      fail(`${label} override must be a simple WSL path or command name`)
     return value
   }
   const command = value.includes("/") ? value : Bun.which(value)
@@ -183,10 +200,31 @@ const compiler = ["cc", "gcc", "clang", "cl"].map((name) => Bun.which(name))
   .find(Boolean)
 const dialect = compiler ? await probeCDialect(compiler) : undefined
 const wsl = isWindows ? Bun.which("wsl.exe") : undefined
+function normalizeExternalToolchainRoot(value) {
+  if (typeof value !== "string" || value.length === 0)
+    fail("W_MLIR0_TOOLCHAIN_ROOT is empty")
+  const normalized = value.replace(/\/+$/u, "")
+  const valid = isWindows
+    ? /^\/[A-Za-z0-9._+\-/]+$/u.test(normalized)
+    : normalized.startsWith("/")
+  if (!valid || normalized === "/tmp" || normalized.startsWith("/tmp/"))
+    fail("W_MLIR0_TOOLCHAIN_ROOT must be a persistent absolute path outside /tmp")
+  return normalized
+}
+
+const externalToolchainRoot = process.env.W_MLIR0_TOOLCHAIN_ROOT === undefined
+  ? undefined : normalizeExternalToolchainRoot(
+    process.env.W_MLIR0_TOOLCHAIN_ROOT)
+
 function resolveToolCommand(role, environmentName) {
   const override = process.env[environmentName]
-  const value = override !== undefined ? override :
+  let value = override !== undefined ? override :
     (isWindows ? manifest.commands[role].wsl : manifest.commands[role].linux)
+  if (override === undefined && externalToolchainRoot !== undefined) {
+    assert(/^[A-Za-z0-9._+-]+$/u.test(value),
+      `manifest command ${role} is not a simple command name`)
+    value = `${externalToolchainRoot}/bin/${value}`
+  }
   return asCommand(value, environmentName, override === undefined)
 }
 

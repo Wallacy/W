@@ -736,8 +736,8 @@ pins and need not be raised to the latest editor release on every update.
 
 The canonical, machine-checked release snapshot is [DEPENDENCIES.md](DEPENDENCIES.md),
 not a duplicated table here. At the 2026-09-11 observation it selects Bun
-1.4.2 and LLVM/MLIR 23.1.1 as successors while preserving the actual 20.1.2
-LLVM/MLIR evidence. The online release watcher discovers candidates; the local
+1.4.2 and LLVM/MLIR 23.1.1 as the current local lane while preserving the
+historical 20.1.2 LLVM/MLIR evidence. The online release watcher discovers candidates; the local
 catalog checks consistency only. The open `native-build-acquisition-provenance`
 task must acquire, hash, inventory, smoke and record a real native toolchain
 before 23.1.1 becomes implementation evidence. Update a recipe only after its
@@ -1043,7 +1043,7 @@ selected, not an always-running goal.
 |---|---|---|---|
 | 1 | Build publication and reproducibility | P1 / M | W-1533/W-1534: explicit pre-release opt-in; exact release recipe and provenance; isolated fault tests prove safe post-commit cleanup; two clean build receipts agree; proof and PGO remain independent inputs, not profile substitutes |
 | 2 | Property/ownership contract reconciliation | P1 / M | Findings 1–4 contract and examples reconciled in canonical sections, including W-1536; checker, lowering, runtime and benchmark evidence remains pending; no new syntax family |
-| 3 | Mandatory native product and toolchain CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; `native-build-acquisition-provenance` qualifies LLVM/MLIR 23.1.1 without rewriting 20.1.2 evidence; a W-owned LLVM/MLIR/LLD lane compares no-LTO, ThinLTO and full-LTO recipes before selecting a release configuration |
+| 3 | Mandatory native product and toolchain CI | P1 / M | Windows and pinned Linux witnesses execute W under W-1533/W-1534; missing dependencies fail; skip counts remain explicit; the local Linux/WSL lane uses the exact 23.1.1 external portable bundle while `native-build-acquisition-provenance` remains open; historical 20.1.2 evidence is preserved; a W-owned LLVM/MLIR/LLD lane compares no-LTO, ThinLTO and full-LTO recipes before selecting a release configuration |
 | 4 | NCFG0 nested Unit conditionals — closed | P2 / M | Reviewed bounded code, current projections, and real Windows/Linux Restaurant execution; no general CFG or performance claim |
 | 5 | Evidence digest locality — phase 1 closed | P1 / M | Case/section/claim digests are local, stable under JSON key order, stale mutations fail, and `design:refresh-evidence` restores only direct consumers; generic symbol-range identity remains P2 |
 | 6 | Honest docs and example consolidation | P2 / M | Findings 5, 6, 11 and 12 addressed; English current-status surface; documentation examples have accurate evidence states |

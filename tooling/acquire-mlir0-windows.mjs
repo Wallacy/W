@@ -191,11 +191,11 @@ export function validateManifest(manifest) {
   "provenance boundary is invalid")
   pushError(errors, manifest.linuxWslProfile?.manifest ===
     "tooling/mlir0-toolchain.json" &&
-    manifest.linuxWslProfile?.version === "20.1.2" &&
+    manifest.linuxWslProfile?.version === "23.1.1" &&
     manifest.linuxWslProfile?.targetTriple === "x86_64-unknown-linux-gnu" &&
-    manifest.linuxWslProfile?.status === "pinned-update-required" &&
+    manifest.linuxWslProfile?.status === "pinned" &&
     manifest.linuxWslProfile?.nativeWindows === false,
-  "Linux/WSL profile is not kept separate")
+  "Linux/WSL profile is not current or kept separate")
   return errors
 }
 

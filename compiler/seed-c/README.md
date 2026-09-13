@@ -900,14 +900,16 @@ terminators e entry com target e slot. O programa não retém pointers do
 frontend e permanece válido depois que os buffers de source/CST/frontend são
 descartados.
 
-O schema HIR0 aceita exatamente um document, um module e um entry em `.default`,
-e rejeita nomes de function duplicados. As ranges de function/entry do module,
-parameters, blocks, host parameters/requirements e call arguments/values são
-partições densas: não há gap, overlap ou record órfão. `symbols` é um índice
-auxiliar validado na ordem module → parâmetros → function → entry; ele não é
-autoridade para o lowering. Famílias frontend sem record HIR0 falham fechadas.
-Labels host required copiam o nome público, positional usa label vazio e
-qualquer outra policy permanece fora deste subset.
+A forma inicial W-1494 do schema HIR0 aceitava exatamente um document, um module
+e um entry em `.default`. O bounded successor W-1575 aceita um grafo local de
+documents resolvido, com um module por document e um único `.default` root entry
+no module 0. As ranges de function/entry do module, parameters, blocks, host
+parameters/requirements e call arguments/values são partições densas: não há
+gap, overlap ou record órfão. `symbols` é um índice auxiliar validado na ordem
+module → parâmetros → function → entry; ele não é autoridade para o lowering.
+Famílias frontend sem record HIR0 falham fechadas. Labels host required copiam o
+nome público, positional usa label vazio e qualquer outra policy permanece fora
+deste subset.
 
 W-1519 introduced the binding records in HIR0 schema `w-seed-hir0-2`.
 Current schema `w-seed-hir0-9` generalizes that contract. The caller-owned
@@ -1146,8 +1148,9 @@ Ownership, 64-IF nesting, stdout bounds, and native linking recipes remain uncha
 `Seat party\nSeat party\nWaitlist\n`. The companion composition fixture
 checks six predicates, signed boundaries, and Bool result composition.
 Six focused C23 suites passed: frontend, HIR0, MLIR0, Native0, ConstIR,
-and generic validation. Native Linux/WSL LLVM 20.1.2 and Windows LLVM 23.1.0
-gates passed, including exact outputs and type rejection.
+and generic validation. The active native Linux/WSL lane is pinned to LLVM
+23.1.1, matching the Windows LLVM 23.1.1 lane, with exact outputs and type
+rejection required by the gates.
 The frontend fixes align contextual type interning across dry/emit passes,
 retain canonical integer-literal `let` typing, and resolve prior bindings within
 expression descendants. Existing function, direct-block, and declaration-order guards remain.
@@ -1268,7 +1271,7 @@ unary-negation exclusion. Power, other widths, named numeric APIs, and general
 numeric surfaces remain unsupported.
 
 `fixtures/restaurant-checked-arithmetic.w` uses `entry {}` and
-produces exact `Open 6; closed 1\n` on Linux/WSL with LLVM 20.1.2. No native
+produces exact `Open 6; closed 1\n` on the Linux/WSL 23.1.1 route. No native
 Windows evidence is claimed. The bundle keeps caller-owned all-or-nothing,
 capacity, alias, receipt, and digest invariants. Its `benchmarkDisposition` is
 `compiler-lifecycle`, correctness-only, with no timing or benchmark result.
@@ -1438,7 +1441,7 @@ fails closed.
 The original artifact record and byte envelope remain unchanged; the current
 global schema also contains later independent enum records. The capability
 scope is `unit-structured-cfg-natural-loop`. Correctness evidence covers Linux
-x86_64 under WSL with LLVM/MLIR 20.1.2 and Windows x86_64 MSVC with 23.1.1.
+x86_64 under WSL with LLVM/MLIR 23.1.1 and Windows x86_64 MSVC with 23.1.1.
 General or nested loops, multiple carried values, effects, macOS, PGO,
 code-size quality, ranking, and general performance remain outside this cut.
 
@@ -1505,6 +1508,26 @@ performance evidence. Nested/mixed loops, calls/effects in the body, aggregate
 or non-`i64` carriers, labels, `break`, `continue`, general CFG, ABI/layout,
 other targets, timing, and ranking remain outside this slice. The executable
 catalog separately owns exploratory W/C23/Rust measurements.
+
+### Resolved local-document graph in verified HIR (W-1575)
+
+W-1575 closes an HIR-only prerequisite for W-1568. The resolver supplies a
+bounded acyclic local-document graph. HIR0 copies one module per document and
+keeps exactly one explicit `.default` root entry in module 0. Imported modules
+have no entry in this slice.
+
+The focused `w_seed_hir0_multidoc_tests` unit uses an `app` root that imports
+`{ helper as h } from lib`, calls exported `lib.helper` through `run`, and keeps
+`lib` entry-free. The HIR preflight independently checks import path, target
+identity, dense ranges, cycle freedom, and source-span ownership. The verifier
+checks the copied module, function, call, identity, range, and root-entry
+relations. Forged path, cycle, owner, entry, or call records fail closed.
+
+The unit also checks repeated semantic/provenance digests, frontend-lifetime
+independence, output aliasing, and capacity transactionality. This evidence is
+limited to verified HIR. It does not provide public multi-file `w build` or
+`w run`, DCE, product reachability, WMO/WPO, or artifact equivalence. W-1568
+remains the future product-pipeline gap.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
@@ -1727,8 +1750,12 @@ integer fields. It requires byte-identical MLIR for the equivalent static Restau
 exact stdout, empty stderr, and exit zero. It preserves
 MLIR em trivia e rejeita comentário com `print`, noop, limits excedidos e formas
 fora do subset sem artifact parcial. O manifest `tooling/mlir0-toolchain.json` fixa
-MLIR/LLVM/Clang/LLVM-config 20.1.2 e a recipe; sua evidência tem status
-`update-required`. Linux usa ferramentas diretas; no checkout Windows
+MLIR/LLVM/Clang/LLVM-config 23.1.1 e a recipe; sua evidência tem status
+`current`. Linux/WSL resolve as ferramentas por um root externo persistente
+explícito (`W_MLIR0_TOOLCHAIN_ROOT`) materializado a partir do archive portátil
+23.1.1, ou pelo `PATH` de um host já compatível; não há caminho versionado
+presumido em `/usr/bin`. O archive portátil do runner não contém Clang, então
+`check:mlir0` requer um root Clang-capable separado. No checkout Windows
 `hostEvidence` é `wsl-linux` e `windowsNative` é `false`, logo a prova não é
 suporte Windows nativo. Windows native, macOS, packaging da toolchain, HIR
 geral, runtime-produced String or Bool, general Display dispatch, mutable
@@ -2169,17 +2196,20 @@ rejected. The bounded native Windows route is a separate W-1532 candidate;
 macOS, the general runner and performance remain gaps. The gate is
 compiler-lifecycle correctness evidence only.
 
-The NCI1 Linux 23.1.0 archive passed local size, SHA-256, and extraction checks.
+The NCI1 Linux 23.1.1 archive passed local size and SHA-256 verification and
+was materialized in the persistent external WSL cache; its extraction contract
+also validates archive paths and executable tool paths.
 Extraction uses Zstandard long-window support. The archive's missing Clang
 driver does not block the public runner's separate object and link stages.
 The CI workflow adds mandatory native Linux and Windows jobs. Neither remote
 job has run. These jobs do not promote general platform or cross-target support.
-The recorded 20.1.2 `check:mlir0` recipe remains separate and unchanged.
+The `check:mlir0` recipe remains separate and unchanged in shape, but uses the
+same exact 23.1.1 manifest and requires a Clang-capable external root.
 
-Local WSL gates passed with LLVM 20.1.2 and, separately, LLVM 23.1.0.
-Both used host GCC/cc 13.3.0 and target `x86_64-linux-gnu`. These gates
-checked exact output, stage failures, missing tools, restored execution, and cleanup.
-The local Linux harness used Bun 1.3.4, not the planned CI Bun 1.4.0.
+The active local WSL lane resolves LLVM 23.1.1 tools from
+`W_MLIR0_TOOLCHAIN_ROOT`, not versioned `/usr/bin` names. The public runner
+uses host GCC/cc 13.3.0 and target `x86_64-linux-gnu`; its gate checks exact
+output, stage failures, missing tools, restored execution, and cleanup.
 The host compiler builds the C seed separately from LLVM object generation.
 Run `bun tooling/command-runner.mjs --command check:w-run -- --ci` only on Linux x64 with the acquired CI tools.
 Mandatory mode fails when prerequisites are absent. It cannot pass through SKIP.
@@ -2265,13 +2295,14 @@ bun check --target w-run-windows
 For a manual Linux or WSL smoke from the repository root:
 
 ```sh
+export W_MLIR0_TOOLCHAIN_ROOT=/home/<user>/.cache/W/toolchains/portable-mlir-toolchain/2026.09.11/x86_64-unknown-linux-gnu/toolchain
 cmake -S compiler/seed-c -B build/seed-c-run -G Ninja \
   -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER:FILEPATH=/usr/bin/gcc \
   -DW_SEED_ENABLE_LINUX_NATIVE_RUN=ON \
-  -DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=/usr/bin/mlir-opt-20 \
-  -DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=/usr/bin/mlir-translate-20 \
-  -DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=/usr/bin/llvm-config-20 \
-  -DW_MLIR0_LINUX_LLC:FILEPATH=/usr/bin/llc-20 \
+  -DW_MLIR0_LINUX_MLIR_OPT:FILEPATH=${W_MLIR0_TOOLCHAIN_ROOT}/bin/mlir-opt \
+  -DW_MLIR0_LINUX_MLIR_TRANSLATE:FILEPATH=${W_MLIR0_TOOLCHAIN_ROOT}/bin/mlir-translate \
+  -DW_MLIR0_LINUX_LLVM_CONFIG:FILEPATH=${W_MLIR0_TOOLCHAIN_ROOT}/bin/llvm-config \
+  -DW_MLIR0_LINUX_LLC:FILEPATH=${W_MLIR0_TOOLCHAIN_ROOT}/bin/llc \
   -DW_MLIR0_LINUX_LINK_DRIVER:FILEPATH=/usr/bin/ld
 cmake --build build/seed-c-run --target w
 ./build/seed-c-run/w run compiler/seed-c/fixtures/hlo0-hello.w

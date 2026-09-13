@@ -226,8 +226,9 @@ The C23 route `source → parser → frontend → verified HIR0 → HLO0 → HLO
 remains limited to the documented subsets and witnesses. The W-1522 primary
 native route is independent: `source → parser/frontend → verified HIR0 → MLIR0 →
 mlir-opt → mlir-translate → llc → native host link`; HLO0, HLO1, and RUN0 are
-bootstrap, audit, and recovery, not prerequisites for that route. The historical
-Linux/WSL adapter remains `w-seed-mlir0-15` for its 20.1.2 toolchain evidence;
+bootstrap, audit, and recovery, not prerequisites for that route. The current
+Linux/WSL adapter remains `w-seed-mlir0-15` with exact 23.1.1 toolchain
+evidence acquired from the verified external portable bundle;
 the live producer is `w-seed-mlir0-17`, the current Windows label is
 `w-seed-mlir0-windows-8`, and Native0 is `w-seed-native0-9`. Historical pinned
 toolchain manifests retain the schema they actually validated; the
@@ -282,13 +283,18 @@ The public Linux gate uses `llc` for PIC program and WRT0 objects and an
 absolute native linker for a static PIE. WRT0 supplies `_start`, stdout write,
 and exit; the gate rejects `PT_INTERP` and `DT_NEEDED`, so the product acquires
 neither CRT nor libc. It generates no C source and does not require Clang.
-LLVM version checks remain separate from linker provenance. The older
-`check:mlir0` recipe is unchanged.
+LLVM version checks remain separate from linker provenance. The local
+`check:mlir0` recipe remains a separate Clang-based evidence gate and uses the
+same exact 23.1.1 manifest.
 `bun tooling/command-runner.mjs --command check:w-run -- --ci` requires Linux x64 and the separately acquired
-23.1.1 toolchain. Missing prerequisites fail instead of SKIP. Local WSL gates
-passed previously with LLVM 20.1.2 and 23.1.0, host GCC/cc 13.3.0, and Bun 1.3.4;
-the pinned 23.1.1 Linux archive still requires native execution evidence.
-The mandatory Linux and Windows hosted jobs use Bun 1.4.0 and have not run.
+23.1.1 toolchain. Missing prerequisites fail instead of SKIP. On a local Linux
+or WSL host, set `W_MLIR0_TOOLCHAIN_ROOT` to the persistent external root
+materialized by `bun tooling/acquire-mlir0-ci-linux.mjs`; the checker resolves
+`bin/mlir-opt`, `bin/mlir-translate`, `bin/llvm-config`, and `bin/llc` from
+that root and never assumes versioned `/usr/bin` names. The portable archive
+does not contain Clang; the public runner therefore uses its direct object and
+link stages, while the separate Clang recipe requires a Clang-capable root.
+The mandatory Linux and Windows hosted jobs use Bun 1.4.2 and have not run.
 
 ICMP0/W-1537 extends the comparison fixtures for six signed-`i64` operators.
 The HIR9/MLIR12/Windows3 labels describe Bool-producing comparisons through
@@ -296,9 +302,10 @@ real `llvm.icmp` operations. Native0 stays v6. Six focused C23 suites passed.
 The Windows LLVM 23.1.1 public `w run`/`w build` gate passed with MSVC C11
 recovery and `/WX` intact. The narrower historical ICMP0 result was produced
 with LLVM 23.1.0 and is not silently relabeled.
-The Linux/WSL LLVM 20.1.2 gate passed with the explicit GCC 13.3 host link driver.
+The Linux/WSL LLVM 23.1.1 gate uses the explicit GCC 13.3 host compiler and
+GNU `ld` link driver.
 Both verify exact admission output, signed boundaries, Bool composition, and type rejection.
-ICMP0 did not rerun Linux LLVM 23 or the hosted jobs.
+The hosted jobs remain separate evidence and have not run locally.
 Existing syntax, ownership, nesting, stdout limits, and native
 recipes remain unchanged. The gates make no timing or cross-target claim.
 
