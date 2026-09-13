@@ -68,6 +68,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | process-handler-lifecycle | c | Windows x64 / MinGW | MinGW runtime | 20480 B (20.0 KiB) | 10056 | 1472 | 994.2651 ms | 17.9129 ms | 18.9302 ms | 4751360 B (4.53 MiB) | 12.685 ms |
 | process-handler-lifecycle | rust | Windows x64 / MinGW | MinGW runtime | 21504 B (21.0 KiB) | 10760 | 1472 | 1.0045717 s | 17.93 ms | 18.2697 ms | 4751360 B (4.53 MiB) | 11.757 ms |
 | process-handler-lifecycle | w | Windows x64 / MinGW | MinGW runtime | 20992 B (20.5 KiB) | 10744 | 1472 | 1.0382448 s | 17.7365 ms | 18.0686 ms | 4751360 B (4.53 MiB) | 13.613 ms |
+| restaurant-async-join | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2624 | 131.1318 ms | 18 ms | 19.0541 ms | 4833280 B (4.61 MiB) | 12.376 ms |
+| restaurant-async-join | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79688 | 28348 | 1.081029 s | 17.9833 ms | 18.3623 ms | 4870144 B (4.64 MiB) | 12.995 ms |
+| restaurant-async-join | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 598 | 244 | 177.9059 ms | 16.8245 ms | 17.1711 ms | 3756032 B (3.58 MiB) | 10.983 ms |
 | restaurant-bool-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 646 | 224 | 177.3414 ms | 16.6843 ms | 17.1188 ms | 3756032 B (3.58 MiB) | 11.757 ms |
 | restaurant-branch | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2632 | 127.7022 ms | 18.018 ms | 19.0303 ms | 4808704 B (4.59 MiB) | 12.376 ms |
 | restaurant-branch | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 114176 B (111.5 KiB) | 80200 | 28332 | 1.0822891 s | 17.97 ms | 18.2438 ms | 4857856 B (4.63 MiB) | 12.53 ms |
