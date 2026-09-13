@@ -12936,7 +12936,6 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
       result_type = nested.type;
       supported = supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
                   nested.is_local_call &&
-                  !nested.local_call_is_async &&
                   task_result_kind_supported(result_type) &&
                   !parser->context->current_function_is_const;
     } else {

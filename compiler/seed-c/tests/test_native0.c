@@ -2310,8 +2310,31 @@ static bool test_virtual_structured_task_product(void) {
   return true;
 }
 
+static bool test_async_direct_entry_product(void) {
+  static const uint8_t source[] =
+      "async fn pause(value: i64): i64 { return value }\n"
+      "entry { let pending = async pause(value: 42) "
+      "let result = await pending print(\"Resumed ${result}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "async-direct-entry", 17u,
+                 output, sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(storage.hir_program.functions[0].is_async &&
+        storage.hir_program.functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_fn_0") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "@w_task") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "@w_async_") &&
+        !contains_bytes(output, result.mlir.written.mlir_bytes, "@WRT"));
+  return true;
+}
+
 int main(void) {
   const bool products = test_virtual_structured_task_product() &&
+                        test_async_direct_entry_product() &&
                         test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&

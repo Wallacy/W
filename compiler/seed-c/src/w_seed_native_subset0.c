@@ -561,7 +561,9 @@ static bool interpolation_maximum_bytes(
                                  &effective))
         return false;
       const bool runtime_value =
-          parameter_read || effective->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
+          parameter_read ||
+          embedded->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
+          effective->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
           effective->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
           effective->kind == W_SEED_HIR0_VALUE_UNARY_I64 ||
           effective->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
@@ -2662,6 +2664,10 @@ static bool program_function_maximum(
   const w_seed_hir0_function *function = &program->functions[function_index];
   const bool process_entry =
       process != NULL && process->function_index == function_index;
+  const bool async_direct_entry =
+      function->is_async && !function->is_const &&
+      !function->is_anonymous_entry &&
+      function->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
   if (function->return_type >= program->type_count ||
       (!(program->types[function->return_type].kind ==
              W_SEED_HIR0_TYPE_UNIT ||
@@ -2672,12 +2678,13 @@ static bool program_function_maximum(
        !(process_entry &&
          process_nominal_type_is(program, function->return_type, 0u,
                                  process->exit_code_symbol_index))) ||
-      (function->is_async && !process_entry) || function->is_throws ||
+      (function->is_async && !process_entry && !async_direct_entry) ||
+      function->is_throws ||
       function->is_unsafe ||
       function->has_borrow_clause || function->block_count == 0u ||
       function->block_count > W_SEED_NATIVE_SUBSET0_MAX_BLOCKS ||
       function->first_block >= program->block_count ||
-       function->block_count > program->block_count - function->first_block)
+      function->block_count > program->block_count - function->first_block)
     return false;
   const bool enum_switch =
       program_enum_switch_is_supported(program, function_index);
@@ -2791,11 +2798,19 @@ static bool program_function_maximum(
         if (callee->target_index >= program->function_count ||
             call->argument_count != callee->parameter_count)
           return false;
+        const w_seed_hir0_function *target =
+            &program->functions[callee->target_index];
+        if (target->is_async &&
+            (call->execution_kind !=
+                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
+             target->direct_entry !=
+                 W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE))
+          return false;
         for (size_t argument = 0u; argument < call->argument_count;
              argument += 1u) {
           const w_seed_hir0_argument *item =
               &program->arguments[(size_t)call->first_argument + argument];
-           if (!process_or_program_value_lowerable(
+          if (!process_or_program_value_lowerable(
                    program, item->value_index, (uint32_t)function_index,
                    process, false, 0u))
             return false;

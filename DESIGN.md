@@ -38907,6 +38907,46 @@ gaps. The primary benchmark disposition is `compiler-lifecycle`; the executable
 catalog separately measures equivalent sequential W, C23, and Rust programs
 and must not label them as concurrent execution.
 
+#### 26.4.1.59 W-1578 — bounded explicit async direct-entry structured-task elision
+
+W-1578 extends W-1577 to one explicit `async fn` callee without materializing
+the structured Task representation. The accepted source keeps an immutable
+root-block `async` launcher and one immutable same-block `await` consumer. The
+callee returns only `Bool` or signed `i64`, is non-throwing, non-unsafe, and
+free of borrow clauses, and has a complete body proof for an ordinary
+`directEntry`.
+
+The proof is conservative. The callee body contains no `async`, `await`, or
+host call. Every ordinary local callee has a scalar signature, is synchronous,
+and belongs to an acyclic call graph within the bounded nesting depth. A
+failure of any fact rejects the structured elision before caller-owned HIR
+output is published. The public async function facet still reports
+`suspension: MAY`; `directEntry: AVAILABLE` selects only the proven ordinary
+entry for this call.
+
+HIR30 reuses the W-1577 proof relations. The launcher and join remain scalar
+SSA relations with no Task allocation, frame, handle ABI, TCB, WRT entry, or
+Task-specific native symbol. NativeSubset0 and MLIR0 accept this exact
+direct-entry path and continue to fail closed for general async suspension.
+
+**Exemplo:** the upgraded Restaurant witness keeps the same observable result:
+
+```w
+async fn prepare(value: i64): i64 { return value }
+let pending = async prepare(value: 20)
+let prepared = await pending
+print("Prepared ${prepared + 22}")
+```
+
+The public Windows x64 `w run` and `w build` routes print exactly
+`Prepared 42\n`, with empty stderr and exit zero. The Linux/WSL route remains
+unclaimed until its local toolchain gate passes. This decision proves only the
+bounded direct-entry proof and product witness. It does not prove suspension,
+overlap, scheduling, general direct-entry coverage, cancellation, domains,
+runtime ownership, or a public Task representation. Its benchmark disposition
+is `compiler-lifecycle`; the executable catalog retains equivalent sequential
+W, C23, and Rust references and makes no concurrency claim.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

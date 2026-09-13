@@ -796,7 +796,7 @@
       "demoEvidence": "bounded-w-demo",
       "benchmarkStatus": "exploratory-ready",
       "lane": "equivalent",
-      "scope": "Run two scalar prepare calls sequentially through virtual task creation and joining, then print the exact receipt without claiming overlap.",
+      "scope": "Run two explicit async scalar prepare functions through verified direct-entry task elision, then print the exact receipt without claiming overlap.",
       "oracle": {
         "kind": "exact-output",
         "status": "source-backed",
@@ -808,7 +808,7 @@
         {
           "language": "w",
           "path": "compiler/seed-c/fixtures/restaurant-async-join.w",
-          "digest": "sha256:271ac84c26c303309d0be67eccb307e777db7dbf5da4db1cf72b88adafb3e038",
+          "digest": "sha256:edab56e77acae61414de23034b51d25fc5e4b87b79e7c30b96ea0f9f1ef1d232",
           "entry": "entry",
           "status": "source-oracle-ready",
           "profile": "release",
