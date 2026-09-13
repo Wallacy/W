@@ -1896,6 +1896,54 @@
       "blockers": []
     },
     {
+      "id": "local-module-graph",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "partial-exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Acquire one explicit local-module graph, call an exported child function, print its scalar result, and exit successfully.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "answer 42\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/local-graph/app.w",
+          "digest": "sha256:9e8dd928501b3d1ee64f5b3b9946f3bf140b6318bdf7a61ca1464b1eca05f447",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "local-module-graph-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence",
+          "supportSources": [
+            {
+              "role": "local-module",
+              "path": "compiler/seed-c/fixtures/local-graph/lib.w",
+              "digest": "sha256:4fb00d0e12f51ef6426e6589c68ea2ad8eea375218e1410aef54c80485cf380b"
+            }
+          ]
+        }
+      ],
+      "blockedLanguages": [
+        "c",
+        "rust"
+      ],
+      "blockers": [
+        "equivalent-multi-source-c23-and-rust-recipes-not-yet-materialized"
+      ]
+    },
+    {
       "id": "process-handler-lifecycle",
       "structureClass": "integration-linkage",
       "status": "source-oracle-ready",

@@ -150,8 +150,40 @@ static bool test_host_open_close_lifecycle(void) {
   return true;
 }
 
+static bool test_source_root_lifecycle(void) {
+  static const char path[] = "./hlo0-hello.w";
+  w_seed_check_host host = {0};
+  w_seed_ephemeral_provider_backend backend = {0};
+  w_seed_byte_view root_path = {(const uint8_t *)"sentinel", 8u};
+  CHECK(w_seed_check_host_init(&host) == W_SEED_CHECK_HOST_OK);
+  const w_seed_check_host_status status = w_seed_check_host_open_source(
+      &host, path, sizeof(path) - 1u, &root_path, &backend);
+#if defined(__linux__) || defined(_WIN32)
+  CHECK(status == W_SEED_CHECK_HOST_OK ||
+        status == W_SEED_CHECK_HOST_UNSUPPORTED);
+#else
+  CHECK(status == W_SEED_CHECK_HOST_UNSUPPORTED);
+#endif
+  if (status == W_SEED_CHECK_HOST_OK) {
+    CHECK(host.open && backend_shape(&backend));
+#if defined(__linux__)
+    CHECK(root_path.length == sizeof("hlo0-hello.w") - 1u);
+    CHECK(memcmp(root_path.data, "hlo0-hello.w", root_path.length) == 0);
+#else
+    CHECK(root_path.length == sizeof(path) - 1u);
+    CHECK(memcmp(root_path.data, path, root_path.length) == 0);
+#endif
+  } else {
+    CHECK(root_path.data == NULL && root_path.length == 0u);
+  }
+  w_seed_check_host_close(&host);
+  CHECK(!host.open);
+  return true;
+}
+
 int main(void) {
-  if (!test_root_source_id_table() || !test_host_open_close_lifecycle())
+  if (!test_root_source_id_table() || !test_host_open_close_lifecycle() ||
+      !test_source_root_lifecycle())
     return 1;
   (void)puts("w_seed_check_host_tests: ok");
   return 0;

@@ -38,6 +38,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | process-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/process-enum-payload.w), [c](./executable/process_enum_payload.c), [rust](./executable/process_enum_payload.rs) | source-backed | exploratory-ready |
 | process-arguments-count | public-end-to-end | [w](../compiler/seed-c/fixtures/process-arguments-count.w), [c](./executable/process_arguments_count.c), [rust](./executable/process_arguments_count.rs) | source-backed | exploratory-ready |
 | process-arguments-ordering | public-end-to-end | [w](../compiler/seed-c/fixtures/process-arguments-ordering.w), [c](./executable/process_arguments_ordering.c), [rust](./executable/process_arguments_ordering.rs) | source-backed | exploratory-ready |
+| local-module-graph | public-end-to-end | [w](../compiler/seed-c/fixtures/local-graph/app.w) | source-backed | partial-exploratory-ready |
 | process-handler-lifecycle | integration-linkage | [w](../compiler/seed-c/fixtures/process-entry0.w), [c](./executable/process_entry0.c), [rust](./executable/process_entry0.rs) | source-backed | exploratory-ready |
 
 ## Best values

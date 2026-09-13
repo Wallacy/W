@@ -63,6 +63,8 @@ const processArgumentsCountSelectiveImportFixture = resolve(seedDirectory,
   "tests", "fixtures", "process-arguments-count-selective-import.w")
 const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
   "process-enum-payload.w")
+const localGraphFixture = resolve(seedDirectory, "fixtures", "local-graph",
+  "app.w")
 const targetTriple = "x86_64-pc-windows-msvc"
 const maxWindowsCommandLineChars = 32767
 const expectedHelp =
@@ -364,6 +366,9 @@ try {
 
   const invalidSource = join(fixtureDirectory, "invalid.w")
   const unsupportedSource = join(fixtureDirectory, "unsupported.w")
+  const privateGraphDirectory = join(fixtureDirectory, "private-graph")
+  const privateGraphRoot = join(privateGraphDirectory, "app.w")
+  const privateGraphLibrary = join(privateGraphDirectory, "lib.w")
   const invalidComparisons = [
     ["Bool operands", "true == false"],
     ["String operands", '"a" != "b"'],
@@ -372,6 +377,13 @@ try {
   ]
   await writeFile(invalidSource, Buffer.from([0xc3]))
   await writeFile(unsupportedSource, "fn main() { noop(\"Other\") }\nentry(main)\n")
+  await mkdir(privateGraphDirectory)
+  await writeFile(privateGraphRoot,
+    "import { helper as h } from lib\n" +
+    "fn run() { let value = h() print(\"answer ${value}\") }\n" +
+    "entry(run)\n")
+  await writeFile(privateGraphLibrary,
+    "module lib\nfn helper(): i64 { return 42 }\n")
   for (const [index, [label, expression]] of invalidComparisons.entries()) {
     const path = join(fixtureDirectory, `invalid_comparison_${index}.w`)
     await writeFile(path,
@@ -385,6 +397,11 @@ try {
     "w build --help")
   expectExact(binary, ["run", helloFixture], 0,
     Buffer.from("Hello, world!\n", "utf8"), "Hello fixture")
+  expectExact(binary, ["run", localGraphFixture], 0,
+    Buffer.from("answer 42\n", "utf8"),
+    "resolved local-module graph fixture")
+  expectSourceFailure(binary, privateGraphRoot,
+    "private cross-module symbol")
   expectExact(binary, ["run", restaurantIfFixture], 0, expectedIf,
     "Restaurant if fixture")
   expectExact(binary, ["run", restaurantEnumFixture], 0,
@@ -544,6 +561,8 @@ try {
     "ordered process count input with two arguments")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
+  const buildLocalGraph = join(fixtureDirectory, "local-graph-build.exe")
+  const buildPrivateGraph = join(fixtureDirectory, "private-graph-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
   const buildRestaurantRepeat = join(fixtureDirectory,
     "restaurant-repeat-build.exe")
@@ -565,6 +584,16 @@ try {
     "build Hello did not produce a regular artifact")
   expectExact(buildHello, [], 0, Buffer.from("Hello, world!\n", "utf8"),
     "execute built Hello artifact")
+  expectExact(binary, ["build", localGraphFixture, "--target", targetTriple,
+    "--output", buildLocalGraph], 0, Buffer.alloc(0),
+    "build resolved local-module graph")
+  expectExact(buildLocalGraph, [], 0, Buffer.from("answer 42\n", "utf8"),
+    "execute built local-module graph artifact")
+  expectBuildFailure(binary, ["build", privateGraphRoot, "--target",
+    targetTriple, "--output", buildPrivateGraph],
+  "reject private cross-module build")
+  assert(!existsSync(buildPrivateGraph),
+    "private cross-module build left an artifact")
   const helloBytes = await readFile(buildHello)
   expectBuildFailure(binary, ["build", helloFixture, "--target", targetTriple,
     "--output", buildHello], "reject existing build output")

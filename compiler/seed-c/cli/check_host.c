@@ -122,6 +122,65 @@ w_seed_check_host_status w_seed_check_host_open(
 #endif
 }
 
+w_seed_check_host_status w_seed_check_host_open_source(
+    w_seed_check_host *host, const char *path, size_t path_length,
+    w_seed_byte_view *root_path,
+    w_seed_ephemeral_provider_backend *backend) {
+  if (root_path != NULL) *root_path = (w_seed_byte_view){NULL, 0u};
+  if (host == NULL || path == NULL || path_length == 0u ||
+      path_length > (size_t)W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES ||
+      root_path == NULL || backend == NULL || !host->initialized || host->open)
+    return W_SEED_CHECK_HOST_INVALID;
+#if defined(__linux__)
+  size_t leaf_start = 0u;
+  for (size_t index = 0u; index < path_length; index += 1u) {
+    if ((uint8_t)path[index] == 0u) return W_SEED_CHECK_HOST_INVALID;
+    if (path[index] == '/') leaf_start = index + 1u;
+  }
+  if (leaf_start >= path_length) return W_SEED_CHECK_HOST_INVALID;
+  char parent[W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES + 1u];
+  size_t parent_length = leaf_start == 0u ? 1u : leaf_start - 1u;
+  if (leaf_start == 1u) parent_length = 1u;
+  if (parent_length > (size_t)W_SEED_EPHEMERAL_PROVIDER_MAX_PATH_BYTES)
+    return W_SEED_CHECK_HOST_INVALID;
+  if (leaf_start == 0u) {
+    parent[0] = '.';
+  } else if (leaf_start == 1u) {
+    parent[0] = '/';
+  } else {
+    (void)memcpy(parent, path, parent_length);
+  }
+  parent[parent_length] = '\0';
+  const int base_fd = open(parent, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+  if (base_fd < 0) return W_SEED_CHECK_HOST_IO;
+  if (!w_seed_ephemeral_provider_linux_init(&host->linux_context, base_fd)) {
+    (void)close(base_fd);
+    return W_SEED_CHECK_HOST_IO;
+  }
+  if (!host->linux_context.openat2_supported) {
+    (void)close(base_fd);
+    return W_SEED_CHECK_HOST_UNSUPPORTED;
+  }
+  if (!w_seed_ephemeral_provider_linux_backend(&host->linux_context,
+                                               backend)) {
+    (void)close(base_fd);
+    return W_SEED_CHECK_HOST_IO;
+  }
+  host->base_dir_fd = base_fd;
+  host->backend = *backend;
+  host->open = true;
+  *root_path = (w_seed_byte_view){(const uint8_t *)path + leaf_start,
+                                  path_length - leaf_start};
+  return W_SEED_CHECK_HOST_OK;
+#else
+  const w_seed_check_host_status status =
+      w_seed_check_host_open(host, backend);
+  if (status == W_SEED_CHECK_HOST_OK)
+    *root_path = (w_seed_byte_view){(const uint8_t *)path, path_length};
+  return status;
+#endif
+}
+
 w_seed_check_host_status w_seed_check_host_init(w_seed_check_host *host) {
   if (host == NULL || host->initialized) return W_SEED_CHECK_HOST_INVALID;
   (void)memset(host, 0, sizeof(*host));

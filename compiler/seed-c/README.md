@@ -1525,9 +1525,9 @@ relations. Forged path, cycle, owner, entry, or call records fail closed.
 
 The unit also checks repeated semantic/provenance digests, frontend-lifetime
 independence, output aliasing, and capacity transactionality. This evidence is
-limited to verified HIR. It does not provide public multi-file `w build` or
-`w run`, DCE, product reachability, WMO/WPO, or artifact equivalence. W-1568
-remains the future product-pipeline gap.
+limited to verified HIR; W-1576 owns the public local-module product route.
+DCE, WMO/WPO, and native artifact equivalence remain outside W-1575. W-1568
+remains the stronger future product-equivalence gap.
 
 ### ProductClosure0 reachable product projection (W-1576)
 
@@ -1551,19 +1551,25 @@ independent reachability walk and cross-checks every ProductClosure0 candidate.
 resolver-complete local graph: it consumes borrowed ordered documents and
 resolved local-import edges, runs frontend normalization, verified-HIR
 lowering, ProductClosure0 selection, and MLIR0 emission with caller-owned
-storage. It does not acquire files, resolve external catalogs, or expose a
-public CLI route.
+storage. `w_seed_check_compile_local_graph` is the bounded CLI acquisition seam:
+it confines discovery to the explicit source's parent, acquires the reachable
+local graph, and passes the resolver-complete documents to that internal
+boundary. The ordinary single-document path remains first and the graph route
+requires at least two documents and one resolved local edge.
 The focused app→lib source witness retains its reachable `helper`. A synthetic
 dead module is omitted, while the reachable digest and emitted MLIR bytes stay
 identical. Enum, switch, pattern, external-module, process, effect, service,
 reflection, FFI, and dynamic-loading families fail closed.
 
-Its `benchmarkDisposition` is `compiler-lifecycle`, with correctness-only
-evidence. It does not add public
-multi-file `w build` or `w run`, native artifact/runtime equivalence, or W-1568
-completion. Run `bun tooling/check-hir0.mjs` to build and execute the focused
-HIR0, multi-document HIR, and ProductClosure0 units. No timing or benchmark
-result is published.
+The physical `fixtures/local-graph/app.w` → `lib.w` witness is covered by public
+`w run` and `w build` gates on Windows x64 and Linux/WSL x64; the artifacts
+print exactly `answer 42\n`, exit zero, and keep stderr empty. Making the target
+private fails before output or artifact publication. This does not establish
+package/workspace/provider resolution, multi-document process entry, native
+dead-node artifact equivalence, general WMO/WPO quality, or W-1568 completion.
+Run `bun tooling/check-hir0.mjs` for the focused HIR/ProductClosure0 units and
+`bun check --target w-run-windows` or `bun check --target w-run` for the public
+native route. Performance ranking remains outside this correctness evidence.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
