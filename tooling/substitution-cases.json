@@ -7258,9 +7258,9 @@
     },
     {
       "id": "R0-cooperative-selection-boundary",
-      "reviewItem": "bounded Cooperative0 product-selection proof against reuse of host-oracle state, broad state-machine emission, and target-specific claims",
+      "reviewItem": "bounded Cooperative0 product selection and scalar state-machine core against reuse of host-oracle state, general scheduler claims, and target-specific IR",
       "decisions": ["W-1584"],
-      "task": "Select the narrow target-neutral M1 product shape from verified HIR34 without reusing COOP0 execution state or making downstream target claims.",
+      "task": "Select the narrow cooperative product shape from verified HIR34 and emit its target-neutral scalar state-machine core without reusing COOP0 host state or making downstream target claims.",
       "selected": {
         "language": "w",
         "source": [
@@ -7274,13 +7274,13 @@
           "name": "reuse-host-oracle-state",
           "language": "w-internal-rejected",
           "source": ["publish the COOP0 plan, frames, FIFO queue, or lifecycle as a product selection"],
-          "expectedDifference": "The selected record carries borrowed HIR indices and copied proof facts only, without task frames, scheduler state, or runtime identity."
+          "expectedDifference": "The selected record carries copied HIR indices and proof facts only, without task frames, scheduler state, or runtime identity."
         },
         {
-          "name": "emit-product-state-machine",
+          "name": "emit-target-specific-state-machine",
           "language": "w-internal-rejected",
-          "source": ["emit an MLIR Task state machine, artifact, runtime, or scheduler ABI from the selection"],
-          "expectedDifference": "M1 stops at target-neutral admission and independent verification, leaving emission and runtime evidence as explicit blockers."
+          "source": ["embed a target triple, physical pointers, OS calls, or a general scheduler ABI in the cooperative semantic core"],
+          "expectedDifference": "M2 emits only a target-neutral scalar state machine; process, target, runtime, and packaging projections remain separate blockers."
         },
         {
           "name": "restrict-target-matrix",
@@ -7319,7 +7319,12 @@
         {
           "path": "compiler/seed-c/src/w_seed_mlir0.c",
           "symbol": "w_seed_mlir0_select_cooperative",
-          "claim": "The MLIR0 boundary delegates selection and verification only and does not emit a state machine or artifact."
+          "claim": "The MLIR0 boundary exposes selection verification and a separate target-neutral scalar state-machine emitter."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "w_seed_mlir0_emit_cooperative",
+          "claim": "The transactional M2 emitter produces target-neutral func/arith/scf MLIR without target, OS, runtime, or artifact-format facts."
         },
         {
           "path": "compiler/seed-c/tests/test_cooperative0.c",
@@ -7328,13 +7333,13 @@
         }
       ],
       "checks": [
-        "the versioned reserved selection record is target-neutral, caller-owned, and limited to borrowed HIR indices plus copied proof facts",
+        "the versioned reserved selection record is target-neutral, caller-owned, and limited to copied HIR indices plus proof facts",
         "NativeSubset0 independently verifies HIR34 before rederiving the selection and leaves the destination unchanged on invalid input",
         "the deliberately narrower subset has one fixed anonymous Unit root, exactly two ordered scalar async children, one or two yields each, and at most 64 reachable functions",
         "zero or more host print calls are admitted only after both joins and no task frame or scheduler state is selected",
-        "MLIR0 exposes selection and verification only, with no MLIR state-machine emission or artifact",
+        "MLIR0 independently reverifies the selection and emits deterministic target-neutral func/arith/scf state-machine bytes with transactional measure, emit, and verify",
         "normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged",
-        "all viable LLVM targets remain candidates and the evidence makes no runtime, scheduler ABI, benchmark, or platform-support claim"
+        "all viable LLVM targets remain candidates and the evidence makes no process projection, public artifact, runtime, scheduler ABI, benchmark, or platform-support claim"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }

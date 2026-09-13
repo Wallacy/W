@@ -290,16 +290,26 @@ Normal W-1582 elision remains unchanged. Future product emission remains
 target-neutral; currently available Windows/Linux gates do not narrow the
 candidate matrix or exclude macOS and other viable LLVM targets.
 
-W-1584 is the M1 target-neutral selection boundary. The versioned and reserved
+W-1584 starts with a target-neutral selection boundary. The versioned and reserved
 caller-owned `w-seed-cooperative-selection0-1` record carries copied HIR
 indices and admission facts only. NativeSubset0 independently
 rederives its deliberately narrower one-block subset from verified HIR34:
 exactly two ordered scalar async children, one or two yields each, at most 64
 reachable functions, a fixed anonymous Unit root, and zero or more post-join
-`print` calls. MLIR0 exposes selection and verification only. No MLIR
-state-machine emission, artifact, product runtime, scheduler ABI, benchmark,
-or platform support is current. All viable LLVM targets remain candidates, so
-Windows/Linux evidence cannot restrict macOS or other targets.
+`print` calls. MLIR0 reverifies that proof and emits the distinct
+`w-seed-mlir0-cooperative-1` target-neutral `func`/`arith`/`scf` scalar
+state-machine core. The C unit exposes
+`--emit-target-neutral-mlir`; the pinned MLIR 23.1.1 parser and lowering
+pipeline accept its bytes. The core has no triple, data layout, physical
+pointer, WRT/process/OS surface, or artifact format. Product process projection,
+root output, public execution, runtime/scheduler ABI, benchmark, and platform
+support remain gaps. All applicable catalog targets consume the same semantic
+core, so Windows/Linux evidence cannot restrict macOS, cross-compilation, or
+other targets. M1 selects Bool/signed-`i64`; the current M2 execution emitter is
+signed-`i64` only and fails closed for Bool-dependent bodies. A local compiler
+request may select one target, while CI/release fan-out can emit every supported
+target from the same core; host, emitted-target, and evidence matrices remain
+independent.
 
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou

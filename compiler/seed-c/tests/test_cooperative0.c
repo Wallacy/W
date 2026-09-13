@@ -32,6 +32,9 @@ _Static_assert(W_SEED_COOPERATIVE0_MAX_FUNCTIONS ==
 
 static w_seed_native0_storage storage;
 static uint8_t normal_artifact[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t cooperative_mlir[W_SEED_MLIR0_MAX_BYTES];
+static uint8_t short_cooperative_mlir[W_SEED_MLIR0_MAX_BYTES];
+static size_t cooperative_mlir_length;
 static uint8_t artifact[W_SEED_COOPERATIVE0_MAX_ARTIFACT_BYTES];
 static uint8_t stdout_bytes[W_SEED_COOPERATIVE0_MAX_STDOUT_BYTES];
 static w_seed_cooperative0_trace_event trace[W_SEED_COOPERATIVE0_MAX_TRACE_EVENTS];
@@ -665,6 +668,135 @@ static bool test_cooperative_product_selection(void) {
   CHECK(w_seed_mlir0_verify_cooperative_selection(
       &storage.hir_program, &storage.hir_result, &selection));
 
+  const w_seed_mlir0_cooperative_counts counts_sentinel = {
+      91u, 92u, 93u, 94u, 95};
+  w_seed_mlir0_cooperative_counts counts = counts_sentinel;
+  w_seed_mlir0_cooperative_result measured;
+  (void)memset(&measured, 0x5au, sizeof(measured));
+  CHECK(w_seed_mlir0_measure_cooperative(
+            &storage.hir_program, &storage.hir_result, &selection, &counts,
+            &measured) == W_SEED_MLIR0_OK);
+  CHECK(counts.mlir_bytes > 0u &&
+        counts.mlir_bytes < sizeof(cooperative_mlir) &&
+        counts.frame_count == 2u && counts.queue_capacity == 2u &&
+        counts.yield_count == 4u && counts.result_value == 88 &&
+        measured.status == W_SEED_MLIR0_OK &&
+        measured.required.mlir_bytes == counts.mlir_bytes &&
+        measured.required.frame_count == counts.frame_count &&
+        measured.required.queue_capacity == counts.queue_capacity &&
+        measured.required.yield_count == counts.yield_count &&
+        measured.required.result_value == counts.result_value);
+  static const w_seed_mlir0_cooperative_counts ZERO_COUNTS = {0};
+  CHECK(memcmp(&measured.written, &ZERO_COUNTS, sizeof(ZERO_COUNTS)) == 0);
+
+  (void)memset(cooperative_mlir, 0xa5, sizeof(cooperative_mlir));
+  w_seed_mlir0_cooperative_result emitted;
+  (void)memset(&emitted, 0x6bu, sizeof(emitted));
+  CHECK(w_seed_mlir0_emit_cooperative(
+            &storage.hir_program, &storage.hir_result, &selection,
+            &(w_seed_mlir0_cooperative_output){cooperative_mlir,
+                                               sizeof(cooperative_mlir)},
+            &emitted) == W_SEED_MLIR0_OK);
+  cooperative_mlir_length = counts.mlir_bytes;
+  CHECK(emitted.required.mlir_bytes == counts.mlir_bytes &&
+        emitted.required.frame_count == counts.frame_count &&
+        emitted.required.queue_capacity == counts.queue_capacity &&
+        emitted.required.yield_count == counts.yield_count &&
+        emitted.required.result_value == counts.result_value &&
+        emitted.written.mlir_bytes == counts.mlir_bytes &&
+        emitted.written.frame_count == counts.frame_count &&
+        emitted.written.queue_capacity == counts.queue_capacity &&
+        emitted.written.yield_count == counts.yield_count &&
+        emitted.written.result_value == counts.result_value &&
+        memcmp(emitted.mlir_sha256, measured.mlir_sha256,
+               sizeof(emitted.mlir_sha256)) == 0 &&
+        w_seed_mlir0_verify_cooperative_emission(
+            &storage.hir_program, &storage.hir_result, &selection,
+            cooperative_mlir, counts.mlir_bytes, &emitted));
+  CHECK(contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                       W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION) &&
+        contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                       "func.func @w_seed_cooperative_core() -> i64") &&
+        contains_bytes(cooperative_mlir, counts.mlir_bytes, "scf.while") &&
+        contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                       "%pc_end0 = arith.constant 3 : i32") &&
+        contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                       "%pc_end1 = arith.constant 3 : i32") &&
+        contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                       "arith.addi %final_result0, %final_result1") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes, "llvm.") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes,
+                        "llvm.target_triple") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes, "!llvm.ptr") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes, "WriteFile") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes, "syscall") &&
+        !contains_bytes(cooperative_mlir, counts.mlir_bytes, "mainCRTStartup"));
+
+  (void)memset(short_cooperative_mlir, 0x31,
+               sizeof(short_cooperative_mlir));
+  uint8_t short_before[32];
+  uint8_t short_after[32];
+  digest_bytes(short_cooperative_mlir, sizeof(short_cooperative_mlir),
+               short_before);
+  w_seed_mlir0_cooperative_result unchanged_emission;
+  (void)memset(&unchanged_emission, 0x42, sizeof(unchanged_emission));
+  const w_seed_mlir0_cooperative_result unchanged_before = unchanged_emission;
+  CHECK(w_seed_mlir0_emit_cooperative(
+            &storage.hir_program, &storage.hir_result, &selection,
+            &(w_seed_mlir0_cooperative_output){short_cooperative_mlir,
+                                               counts.mlir_bytes - 1u},
+            &unchanged_emission) == W_SEED_MLIR0_CAPACITY);
+  digest_bytes(short_cooperative_mlir, sizeof(short_cooperative_mlir),
+               short_after);
+  CHECK(memcmp(short_after, short_before, sizeof(short_before)) == 0 &&
+        memcmp(&unchanged_emission, &unchanged_before,
+               sizeof(unchanged_emission)) == 0);
+
+  w_seed_mlir0_cooperative_result alias_result;
+  (void)memset(&alias_result, 0x44, sizeof(alias_result));
+  const w_seed_mlir0_cooperative_result alias_before = alias_result;
+  CHECK(w_seed_mlir0_measure_cooperative(
+            &storage.hir_program, &storage.hir_result, &selection,
+            (w_seed_mlir0_cooperative_counts *)(void *)&alias_result,
+            &alias_result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&alias_result, &alias_before, sizeof(alias_result)) == 0);
+
+  const w_seed_cooperative_selection0 selection_before_alias = selection;
+  w_seed_mlir0_cooperative_result selection_alias_result;
+  (void)memset(&selection_alias_result, 0x45,
+               sizeof(selection_alias_result));
+  const w_seed_mlir0_cooperative_result selection_alias_result_before =
+      selection_alias_result;
+  CHECK(w_seed_mlir0_emit_cooperative(
+            &storage.hir_program, &storage.hir_result, &selection,
+            &(w_seed_mlir0_cooperative_output){(uint8_t *)(void *)&selection,
+                                               sizeof(selection)},
+            &selection_alias_result) == W_SEED_MLIR0_ALIAS);
+  CHECK(memcmp(&selection, &selection_before_alias, sizeof(selection)) == 0 &&
+        memcmp(&selection_alias_result, &selection_alias_result_before,
+               sizeof(selection_alias_result)) == 0);
+
+  cooperative_mlir[0] ^= 1u;
+  CHECK(!w_seed_mlir0_verify_cooperative_emission(
+      &storage.hir_program, &storage.hir_result, &selection, cooperative_mlir,
+      counts.mlir_bytes, &emitted));
+  cooperative_mlir[0] ^= 1u;
+  w_seed_mlir0_cooperative_result forged_emission = emitted;
+  forged_emission.required.yield_count ^= 1u;
+  CHECK(!w_seed_mlir0_verify_cooperative_emission(
+      &storage.hir_program, &storage.hir_result, &selection, cooperative_mlir,
+      counts.mlir_bytes, &forged_emission));
+  forged_emission = emitted;
+  forged_emission.written.result_value ^= 1;
+  CHECK(!w_seed_mlir0_verify_cooperative_emission(
+      &storage.hir_program, &storage.hir_result, &selection, cooperative_mlir,
+      counts.mlir_bytes, &forged_emission));
+  forged_emission = emitted;
+  forged_emission.mlir_sha256[0] ^= 1u;
+  CHECK(!w_seed_mlir0_verify_cooperative_emission(
+      &storage.hir_program, &storage.hir_result, &selection, cooperative_mlir,
+      counts.mlir_bytes, &forged_emission));
+
   w_seed_cooperative_selection0 forged = selection;
 #define REJECT_SELECTION_MUTATION(statement)                                  \
   do {                                                                         \
@@ -738,10 +870,18 @@ static bool test_cooperative_product_selection(void) {
   return true;
 }
 
-int main(void) {
+int main(int argc, char **argv) {
   const bool ok = test_cooperative_fixture() && test_negative_shapes() &&
-                  test_transactional_boundaries() &&
-                  test_cooperative_product_selection();
+                   test_transactional_boundaries() &&
+                   test_cooperative_product_selection();
   (void)remove(NEGATIVE_PATH);
+  if (ok && argc == 2 && argv != NULL &&
+      strcmp(argv[1], "--emit-target-neutral-mlir") == 0) {
+    const size_t written =
+        fwrite(cooperative_mlir, sizeof(uint8_t), cooperative_mlir_length,
+               stdout);
+    return written == cooperative_mlir_length && fflush(stdout) == 0 ? 0 : 1;
+  }
+  if (argc != 1) return 2;
   return ok ? 0 : 1;
 }

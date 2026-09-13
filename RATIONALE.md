@@ -234,7 +234,7 @@ O corpus compara, no mínimo:
 - bounded resolver-complete local-document graph into verified HIR against single-document assumptions, source-name call matching, and shared-source ownership.
 - bounded ProductClosure0 reachability against exported metadata as a root, retained dead modules, and non-independent MLIR closure.
 - bounded Cooperative0 compiler-host trace oracle against product state-machine emission, scheduler-provider claims, and false performance claims.
-- bounded Cooperative0 product-selection proof against reuse of host-oracle state, broad state-machine emission, and target-specific claims.
+- bounded Cooperative0 product selection and scalar state-machine core against reuse of host-oracle state, general scheduler claims, and target-specific IR.
 
 ### 1.1 Cobertura de substituições
 
@@ -7885,7 +7885,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1581 | proof-directed virtual aggregate materialization | `struct`, `enum`, and `object` share aggregate lowering and may be erased or represented in SSA, registers, stack, fixed, device, or runtime storage. Object syntax keeps reference and identity-capable defaults, but declaration and `ref` do not imply heap, header, address, or storage. Identity is latent and `isSameInstance` may fold without allocation. Materialization occurs only for unresolved observables such as stable address or pinning, FFI, escaping identity, shared or weak runtime state, dynamic suspension, cancellation or lifetime, target residency or ABI, or observable budget, allocation, or drop. `struct` and `object` share custom `init`/`deinit`; enums retain case construction and synthesized payload cleanup. Custom `deinit` makes its declaring type non-`Copy`, while automatic drop glue does not change the `Copy` contract. | `implementation-evidence-gap` beyond existing bounded enum and scalar witnesses. General aggregate lowering, object identity materialization, device or runtime residency, FFI, layout, ABI, and lifecycle evidence remain missing. `benchmarkDisposition: deferred`, task `aggregate-materialization-evidence`, with promotion only after one bounded source-backed aggregate witness and independent target evidence. |
 | W-1582 | bounded virtual Task across a same-module scalar helper graph | W-1582 extends W-1580 under the existing `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation. HIR33 admits a finite acyclic same-module graph of ordinary synchronous pure scalar helpers. Helpers may use already verified closed scalar control and local scalar mutation, but they cannot use host or external calls, `async`, `await`, `execution#yield()`, effects, `throws`, `unsafe`, borrows, allocation, or runtime owners. The root remains one linear async block with finite root yields and one lexical join. Standalone HIR re-proves locality, ownership, acyclicity, helper admissibility, marker order, scalar types, and the closed return. NativeSubset0 and MLIR0 emit ordinary scalar calls and erase Task and yield markers only after complete proof. | `source-backed-current` for the bounded HIR33 graph and verifier relation, ordinary scalar lowering, and the changed source fixture. The Windows product gate must be rerun after the fixture calls `stage`. Zero logical admission remains conditional on complete proof. No concurrency, fairness, scheduler, overlap, or Linux claim is made. `benchmarkDisposition: compiler-lifecycle`; comparison lanes remain sequential. |
 | W-1583 | bounded Cooperative0 compiler-host trace oracle | COOP0 is a compiler-host oracle and specification-only profile. HIR34 adds the distinct `COOPERATIVE_TRACE` execution profile and `STRUCTURED_ASYNC_COOPERATIVE_TRACE` call kind for exactly two sibling scalar async tasks in one closed root. Each task has one or two `execution#yield()` markers and a fixed caller-owned frame. The oracle uses two-phase reserve/publish and a deterministic provider/test-profile FIFO trace, then verifies lifecycle, program counter, queue, frame, and outcome transitions through independent plan, trace, and execution checks. Normal W-1582 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` lowering remains unchanged. COOP0 does not emit a NativeSubset0 or MLIR0 state machine and does not provide a product runtime or executable, scheduler provider, threads, parallelism, cancellation, I/O, or general Task behavior. It makes no public benchmark or performance claim. | `source-backed-current` for the bounded HIR34 cooperative profile, fixed caller-owned plan/frame records, deterministic FIFO test-profile trace, independent lifecycle/PC/queue/outcome verification, and the unchanged W-1582 elision boundary. No product runtime, executable, scheduler provider, threads, parallelism, cancellation, I/O, general Task behavior, benchmark, or performance claim is made. |
-| W-1584 | M1 target-neutral Cooperative0 product-selection proof | W-1584 defines a target-neutral M1 selection boundary with versioned reserved schema `w-seed-cooperative-selection0-1` and caller-owned proof records. NativeSubset0 independently rederives a deliberately narrower one-block product-selection subset from verified HIR34: one fixed anonymous Unit root in one module, exactly two ordered scalar async children with one or two `execution#yield()` markers each, a complete reachable helper graph of at most 64 functions, and zero or more post-join `print` calls. The proof carries copied HIR indices and facts only and is not a frame, scheduler, runtime, or ABI record. The MLIR0 selection wrapper exposes admission and verification only; it emits no MLIR state machine or artifact. Normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged. No product runtime, scheduler ABI, benchmark, or platform support is claimed: all viable LLVM targets remain candidates, and current Windows/Linux evidence does not restrict macOS or other targets. | `source-backed-current` only for the target-neutral M1 selection boundary, its versioned caller-owned proof record, and NativeSubset0's independent rederivation from verified HIR34. MLIR/product state-machine emission, artifacts, runtime and scheduler ABI, benchmark, and platform support remain unimplemented. Windows/Linux evidence cannot restrict macOS or other viable LLVM targets. |
+| W-1584 | target-neutral cooperative product selection and scalar state-machine core | W-1584 defines a target-neutral M1 selection boundary with versioned reserved schema `w-seed-cooperative-selection0-1` and caller-owned proof records. NativeSubset0 independently rederives a deliberately narrower one-block product-selection subset from verified HIR34: one fixed anonymous Unit root in one module, exactly two ordered scalar async children with one or two `execution#yield()` markers each, a complete reachable helper graph of at most 64 functions, and zero or more post-join `print` calls. The proof carries copied HIR indices and facts only and is not a frame, scheduler, runtime, or ABI record. MLIR0 reverifies the proof and emits schema `w-seed-mlir0-cooperative-1`, a target-neutral `func`/`arith`/`scf` scalar state machine with two logical frames, explicit PCs, completion states, outcomes, and no target, OS, ABI, runtime, or artifact-format facts. Normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged. No process projection, public artifact execution, product runtime, scheduler ABI, benchmark, or platform support is claimed: all viable LLVM targets remain candidates, and current Windows/Linux evidence does not restrict macOS or other targets. | `source-backed-current` for the target-neutral selection boundary, its versioned caller-owned proof record, NativeSubset0's independent rederivation from verified HIR34, and the bounded transactional scalar MLIR state-machine core accepted by MLIR 23.1.1. Process/target projection, root output formatting, public artifact execution, runtime and scheduler ABI, benchmark, and platform support remain unimplemented. Windows/Linux evidence cannot restrict macOS or other viable LLVM targets. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -12105,9 +12105,10 @@ general Task behavior, a public benchmark, or a performance claim. Product
 lowering remains target-neutral: initial Windows and Linux execution evidence
 cannot narrow the relation or preclude macOS and other viable LLVM targets.
 
-#### W-1584 — M1 target-neutral Cooperative0 product-selection proof
+#### W-1584 — target-neutral cooperative product selection and scalar state-machine core
 
-W-1584 is the M1 selection boundary, not product implementation. It defines a
+W-1584 starts with the M1 selection boundary rather than inferring product
+implementation from the host oracle. It defines a
 target-neutral, versioned, reserved, caller-owned proof record with schema
 `w-seed-cooperative-selection0-1`. The record carries copied HIR indices and
 admission facts only. It is not a task frame, scheduler record, runtime
@@ -12120,10 +12121,28 @@ exact `execution#yield()` markers. Every reachable function belongs to the
 closed scalar helper graph and the total is at most 64 functions. After both
 joins, the root may contain zero or more verified host `print` calls.
 
-The MLIR0 entrypoints only expose admission and independent verification of
-this selection record. They do not emit an MLIR state machine or artifact.
-Normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged.
-Selection evidence does not establish a product runtime, scheduler ABI,
-benchmark, or platform support. All viable LLVM targets remain candidates, and
-current Windows/Linux evidence cannot restrict macOS or other viable LLVM
-targets.
+The M2 MLIR0 entrypoints reverify the selection and emit a distinct
+`w-seed-mlir0-cooperative-1` scalar core. It uses `func`, `arith`, and
+`scf`, with two logical frames, explicit PCs, completion bits, outcomes, and a
+work-conserving two-slot turn. The pure scalar task bodies execute only on
+their completion transitions; moving this work across the retained yields is
+legal because the admitted subset has no intervening observable effects. The
+core returns the joined `i64` sum and carries no target triple, data layout,
+pointer, allocation, Task object, WRT, process, OS, linker, SDK, or packaging
+fact. The emitter is transactional and its verifier independently rebuilds the
+bytes and digest. MLIR 23.1.1 parses the module and lowers its
+`scf`/`arith`/`func`/`cf` operations to the LLVM dialect.
+
+The M1 proof still admits Bool and signed-`i64` scalar relations. M2 executes
+only the signed-`i64` slice and rejects Bool-dependent task bodies; this is a
+bounded emitter gap, not a source-language decision.
+
+This turn policy is an implementation choice for the bounded core, not W
+fairness or FIFO semantics. Normal W-1582 elision and the COOP0 compiler-host
+oracle remain unchanged. Process projection, root output formatting, public
+artifact execution, a product runtime or scheduler ABI, and benchmarking remain
+gaps. The same semantic core is required across applicable emitted targets;
+Windows/Linux evidence cannot restrict macOS, cross-compilation, or other viable
+LLVM targets. A developer build may request one output target, while CI or a
+release command may fan out all supported targets from the same verified core;
+the compiler-host, emitted-target, and evidence matrices are independent.

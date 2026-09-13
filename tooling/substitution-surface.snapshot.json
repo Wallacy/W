@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:8d300b28ad95c76e71d517248259dc094c955fc572943bd42503e6ef55280d8e",
+  "corpusDigest": "sha256:ebda63fece4b24b497ab209637c50dee728f2d2511d71f24f1f318f312b92eef",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7375,11 +7375,11 @@
     {
       "id": "R0-cooperative-selection-boundary",
       "task": {
-        "utf8Bytes": 143,
-        "codePoints": 143,
-        "nonWhitespaceCodePoints": 124,
+        "utf8Bytes": 186,
+        "codePoints": 186,
+        "nonWhitespaceCodePoints": 161,
         "lines": 1,
-        "surfaceLexemes": 23
+        "surfaceLexemes": 31
       },
       "selected": {
         "name": "selected",
@@ -7407,15 +7407,15 @@
           }
         },
         {
-          "name": "emit-product-state-machine",
+          "name": "emit-target-specific-state-machine",
           "language": "w-internal-rejected",
-          "sourceDigest": "sha256:64cad121a8d678f67e719c593eaac0f4792f1b04b1460e5bc4afe522b4635c4b",
+          "sourceDigest": "sha256:4780a60dccbdd126eb6061e642b7c7d61a15c605160502b95ce014997a10ff2e",
           "metrics": {
-            "utf8Bytes": 87,
-            "codePoints": 87,
-            "nonWhitespaceCodePoints": 74,
+            "utf8Bytes": 111,
+            "codePoints": 111,
+            "nonWhitespaceCodePoints": 94,
             "lines": 1,
-            "surfaceLexemes": 17
+            "surfaceLexemes": 21
           }
         },
         {

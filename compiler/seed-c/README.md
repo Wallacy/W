@@ -1731,9 +1731,9 @@ performance claim. Normal W-1582 static-yield elision remains unchanged. Any
 later emitted state machine must be target-neutral; Windows/Linux gates are
 evidence lanes, not restrictions on macOS or other viable LLVM targets.
 
-### Cooperative product-selection proof (W-1584 M1)
+### Cooperative product selection and scalar state-machine core (W-1584)
 
-W-1584 adds only a target-neutral, versioned, reserved, caller-owned selection
+W-1584 starts with a target-neutral, versioned, reserved, caller-owned selection
 proof with schema `w-seed-cooperative-selection0-1`. The record carries
 copied HIR indices and admission facts. It is not a task frame,
 scheduler record, runtime object, or ABI.
@@ -1746,12 +1746,30 @@ helper graph of at most 64 functions. After both joins, zero or more host
 `print` calls are admitted in the root. Invalid or forged HIR and selection
 facts fail closed.
 
-The MLIR0 entrypoints expose selection and independent verification only. They
-do not emit an MLIR state machine or artifact. Normal W-1582 elision and the
-COOP0 compiler-host oracle remain unchanged. This M1 boundary makes no
-product-runtime, scheduler-ABI, benchmark, or platform-support claim. All
-viable LLVM targets remain candidates. Current Windows/Linux evidence cannot
-restrict macOS or other viable LLVM targets.
+MLIR0 independently reverifies that record and emits
+`w-seed-mlir0-cooperative-1`, a target-neutral scalar `func`/`arith`/`scf`
+state machine. It carries two logical frames, explicit PCs and completion
+states, and returns the joined `i64` result without target triple, data
+layout, pointer, allocation, Task object, WRT, process, OS, linker, SDK, or
+packaging facts. The hidden unit mode
+`w_seed_cooperative0_tests --emit-target-neutral-mlir` writes the exact
+verified bytes for MLIR parser/lowering checks.
+
+Selection remains Bool/signed-`i64`; this first state-machine emitter supports
+only signed-`i64` task computation and rejects Bool-dependent bodies.
+
+    w_seed_cooperative0_tests --emit-target-neutral-mlir |
+      mlir-opt --convert-scf-to-cf --convert-arith-to-llvm --convert-func-to-llvm --convert-cf-to-llvm --reconcile-unrealized-casts --verify-each
+
+This bounded turn policy is not a language FIFO/fairness contract. Normal
+W-1582 elision and the COOP0 compiler-host oracle remain unchanged. Process
+projection, root output formatting, public artifact execution, runtime and
+scheduler ABI, and benchmark evidence remain gaps. The semantic core must be
+reusable across applicable targets; Windows/Linux evidence cannot restrict
+macOS, cross-compilation, or other viable LLVM targets. One local invocation
+may select one target, while release automation may fan the same core out to
+every supported target; host, target, and evidence support are tracked
+independently.
 
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
