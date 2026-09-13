@@ -5699,3 +5699,21 @@ w_seed_mlir0_status w_seed_mlir0_emit(
   *result = candidate_result;
   return W_SEED_MLIR0_OK;
 }
+
+w_seed_mlir0_status w_seed_mlir0_select_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_cooperative_selection0 *selection) {
+  const w_seed_native_subset0_status selected =
+      w_seed_native_subset0_select_cooperative(program, hir_result, selection);
+  if (selected == W_SEED_NATIVE_SUBSET0_OK) return W_SEED_MLIR0_OK;
+  if (selected == W_SEED_NATIVE_SUBSET0_UNSUPPORTED)
+    return W_SEED_MLIR0_UNSUPPORTED;
+  return W_SEED_MLIR0_INVALID_HIR;
+}
+
+bool w_seed_mlir0_verify_cooperative_selection(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection) {
+  return w_seed_native_subset0_verify_cooperative(program, hir_result,
+                                                  selection);
+}

@@ -600,9 +600,148 @@ static bool test_transactional_boundaries(void) {
   return true;
 }
 
+static bool test_cooperative_product_selection(void) {
+  const w_seed_cooperative_selection0 selection_sentinel = {
+      .schema = {0x51u},
+      .root_function_index = 91u,
+      .task_count = 92u,
+      .function_count = 93u,
+      .instruction_count = 94u,
+      .binding_count = 95u,
+      .call_count = 96u,
+      .yield_count = 97u,
+      .task_call_indices = {98u, 99u},
+      .task_function_indices = {100u, 101u},
+      .launch_binding_indices = {102u, 103u},
+      .join_binding_indices = {104u, 105u},
+      .task_yield_counts = {1u, 2u},
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL,
+      .reserved = {0x52u, 0x53u, 0x54u},
+      .hir_semantic_digest = {0xa5u}};
+  const w_seed_cooperative0_input input =
+      input_for_path(W_SEED_COOPERATIVE0_FIXTURE_PATH);
+  w_seed_cooperative0_result oracle_result;
+  const w_seed_cooperative0_output output = full_output();
+  CHECK(w_seed_native0_run_cooperative_oracle(&input, &storage, &output,
+                                              &oracle_result) ==
+        W_SEED_COOPERATIVE0_OK);
+  w_seed_cooperative_selection0 selection;
+  CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                        &storage.hir_result, &selection) ==
+        W_SEED_MLIR0_OK);
+  static const uint8_t EXPECTED_DIGEST[32] = {
+      0xc0u, 0xc3u, 0xe0u, 0xdbu, 0x44u, 0x0bu, 0xd2u, 0x10u,
+      0x70u, 0x01u, 0x65u, 0xe0u, 0x6fu, 0xaau, 0x40u, 0x79u,
+      0xc1u, 0x7au, 0xfbu, 0x86u, 0xb4u, 0x2cu, 0x9fu, 0xb9u,
+      0xaeu, 0xcau, 0x2eu, 0xf4u, 0x09u, 0xf9u, 0x9du, 0x05u};
+  static const uint32_t EXPECTED_CALLS[2] = {1u, 2u};
+  static const uint32_t EXPECTED_FUNCTIONS[2] = {1u, 1u};
+  static const uint32_t EXPECTED_LAUNCHES[2] = {2u, 3u};
+  static const uint32_t EXPECTED_JOINS[2] = {4u, 5u};
+  static const uint32_t EXPECTED_YIELDS[2] = {2u, 2u};
+  static const uint8_t ZERO_RESERVED[3] = {0u, 0u, 0u};
+  CHECK(memcmp(selection.schema, W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION,
+              sizeof(selection.schema)) == 0 &&
+        selection.root_function_index == 2u &&
+        selection.task_count == W_SEED_HIR0_COOPERATIVE_MAX_TASKS &&
+        selection.function_count == 3u && selection.instruction_count == 12u &&
+        selection.binding_count == 6u && selection.call_count == 4u &&
+        selection.yield_count == 4u &&
+        memcmp(selection.task_call_indices, EXPECTED_CALLS,
+               sizeof(EXPECTED_CALLS)) == 0 &&
+        memcmp(selection.task_function_indices, EXPECTED_FUNCTIONS,
+               sizeof(EXPECTED_FUNCTIONS)) == 0 &&
+        memcmp(selection.launch_binding_indices, EXPECTED_LAUNCHES,
+               sizeof(EXPECTED_LAUNCHES)) == 0 &&
+        memcmp(selection.join_binding_indices, EXPECTED_JOINS,
+               sizeof(EXPECTED_JOINS)) == 0 &&
+        memcmp(selection.task_yield_counts, EXPECTED_YIELDS,
+               sizeof(EXPECTED_YIELDS)) == 0 &&
+        selection.execution_profile ==
+            W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE &&
+        memcmp(selection.reserved, ZERO_RESERVED, sizeof(ZERO_RESERVED)) == 0 &&
+        memcmp(selection.hir_semantic_digest, EXPECTED_DIGEST,
+               sizeof(EXPECTED_DIGEST)) == 0);
+  CHECK(w_seed_mlir0_verify_cooperative_selection(
+      &storage.hir_program, &storage.hir_result, &selection));
+
+  w_seed_cooperative_selection0 forged = selection;
+#define REJECT_SELECTION_MUTATION(statement)                                  \
+  do {                                                                         \
+    forged = selection;                                                        \
+    statement;                                                                 \
+    CHECK(!w_seed_mlir0_verify_cooperative_selection(                          \
+        &storage.hir_program, &storage.hir_result, &forged));                 \
+  } while (0)
+  REJECT_SELECTION_MUTATION(forged.root_function_index ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.task_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.function_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.instruction_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.binding_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.call_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.yield_count ^= 1u);
+  REJECT_SELECTION_MUTATION(forged.execution_profile =
+                            W_SEED_HIR0_EXECUTION_PROFILE_NORMAL);
+  for (size_t index = 0u; index < sizeof(forged.task_call_indices) /
+                                  sizeof(forged.task_call_indices[0]);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.task_call_indices[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.task_function_indices) /
+                                  sizeof(forged.task_function_indices[0]);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.task_function_indices[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.launch_binding_indices) /
+                                  sizeof(forged.launch_binding_indices[0]);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.launch_binding_indices[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.join_binding_indices) /
+                                  sizeof(forged.join_binding_indices[0]);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.join_binding_indices[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.task_yield_counts) /
+                                  sizeof(forged.task_yield_counts[0]);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.task_yield_counts[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.schema); index += 1u)
+    REJECT_SELECTION_MUTATION(forged.schema[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.reserved); index += 1u)
+    REJECT_SELECTION_MUTATION(forged.reserved[index] ^= 1u);
+  for (size_t index = 0u; index < sizeof(forged.hir_semantic_digest);
+       index += 1u)
+    REJECT_SELECTION_MUTATION(forged.hir_semantic_digest[index] ^= 1u);
+#undef REJECT_SELECTION_MUTATION
+
+  w_seed_hir0_result forged_hir_result = storage.hir_result;
+  forged_hir_result.semantic_digest[0] ^= 1u;
+  w_seed_cooperative_selection0 unchanged = selection_sentinel;
+  CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                        &forged_hir_result, &unchanged) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&unchanged, &selection_sentinel, sizeof(unchanged)) == 0);
+  unchanged = selection_sentinel;
+  CHECK(w_seed_mlir0_select_cooperative(NULL, &storage.hir_result, &unchanged) ==
+        W_SEED_MLIR0_INVALID_HIR);
+  CHECK(memcmp(&unchanged, &selection_sentinel, sizeof(unchanged)) == 0);
+
+  const w_seed_native0_input normal_input =
+      native_input_for_path(W_SEED_COOPERATIVE0_FIXTURE_PATH);
+  w_seed_native0_result normal_result;
+  CHECK(w_seed_native0_run(
+            &normal_input, &storage,
+            &(w_seed_native0_output){normal_artifact, sizeof(normal_artifact)},
+            &normal_result) == W_SEED_NATIVE0_OK);
+  unchanged = selection_sentinel;
+  CHECK(w_seed_mlir0_select_cooperative(&storage.hir_program,
+                                        &storage.hir_result, &unchanged) ==
+        W_SEED_MLIR0_UNSUPPORTED);
+  CHECK(memcmp(&unchanged, &selection_sentinel, sizeof(unchanged)) == 0);
+  return true;
+}
+
 int main(void) {
   const bool ok = test_cooperative_fixture() && test_negative_shapes() &&
-                  test_transactional_boundaries();
+                  test_transactional_boundaries() &&
+                  test_cooperative_product_selection();
   (void)remove(NEGATIVE_PATH);
   return ok ? 0 : 1;
 }

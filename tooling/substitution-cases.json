@@ -7255,6 +7255,88 @@
         "the evidence makes no scheduler, threads, parallelism, cancellation, I/O, general Task, public benchmark, or performance claim"
       ],
       "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
+    },
+    {
+      "id": "R0-cooperative-selection-boundary",
+      "reviewItem": "bounded Cooperative0 product-selection proof against reuse of host-oracle state, broad state-machine emission, and target-specific claims",
+      "decisions": ["W-1584"],
+      "task": "Select the narrow target-neutral M1 product shape from verified HIR34 without reusing COOP0 execution state or making downstream target claims.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn stage(value: i64): i64 { return value + 1 }",
+          "async fn prepare(value: i64): i64 { let staged = stage(value: value) await execution#yield() let doubled = staged * 2 await execution#yield() return doubled }",
+          "entry { let left = async prepare(value: 20) let right = async prepare(value: 22) let first = await left let second = await right print(\"Cooperative ${first + second}\") }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "reuse-host-oracle-state",
+          "language": "w-internal-rejected",
+          "source": ["publish the COOP0 plan, frames, FIFO queue, or lifecycle as a product selection"],
+          "expectedDifference": "The selected record carries borrowed HIR indices and copied proof facts only, without task frames, scheduler state, or runtime identity."
+        },
+        {
+          "name": "emit-product-state-machine",
+          "language": "w-internal-rejected",
+          "source": ["emit an MLIR Task state machine, artifact, runtime, or scheduler ABI from the selection"],
+          "expectedDifference": "M1 stops at target-neutral admission and independent verification, leaving emission and runtime evidence as explicit blockers."
+        },
+        {
+          "name": "restrict-target-matrix",
+          "language": "w-internal-rejected",
+          "source": ["declare Windows/Linux support and exclude macOS or other viable LLVM targets"],
+          "expectedDifference": "Current Windows/Linux evidence is only an evidence lane; all viable LLVM targets remain candidates."
+        },
+        {
+          "name": "admit-general-task-shape",
+          "language": "w-internal-rejected",
+          "source": ["admit arbitrary control flow, task counts, suspension shapes, or helper graphs beyond the one-block M1 subset"],
+          "expectedDifference": "The selected proof remains deliberately narrow: two ordered scalar children, one or two yields each, and at most 64 reachable functions."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_cooperative_selection0.h",
+          "symbol": "W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION",
+          "claim": "The M1 selection proof is versioned, reserved, target-neutral, caller-owned, and carries no runtime ABI."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS",
+          "claim": "The HIR34 cooperative envelope supplies the shared 64-function bound."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "w_seed_native_subset0_select_cooperative",
+          "claim": "NativeSubset0 verifies HIR first and independently rederives the narrower two-child one-block selection."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "cooperative_selection_derive",
+          "claim": "The selector checks ordered scalar async children, one or two yields, reachable functions, the anonymous Unit root, and post-join print calls."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "w_seed_mlir0_select_cooperative",
+          "claim": "The MLIR0 boundary delegates selection and verification only and does not emit a state machine or artifact."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_cooperative_product_selection",
+          "claim": "Focused tests cover exact selection facts, forged-field rejection, invalid HIR transactionality, and unchanged normal lowering."
+        }
+      ],
+      "checks": [
+        "the versioned reserved selection record is target-neutral, caller-owned, and limited to borrowed HIR indices plus copied proof facts",
+        "NativeSubset0 independently verifies HIR34 before rederiving the selection and leaves the destination unchanged on invalid input",
+        "the deliberately narrower subset has one fixed anonymous Unit root, exactly two ordered scalar async children, one or two yields each, and at most 64 reachable functions",
+        "zero or more host print calls are admitted only after both joins and no task frame or scheduler state is selected",
+        "MLIR0 exposes selection and verification only, with no MLIR state-machine emission or artifact",
+        "normal W-1582 elision and the COOP0 compiler-host oracle remain unchanged",
+        "all viable LLVM targets remain candidates and the evidence makes no runtime, scheduler ABI, benchmark, or platform-support claim"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

@@ -3703,3 +3703,477 @@ w_seed_native_subset0_select_process_executable(
   (void)memcpy(selection, &candidate, sizeof(candidate));
   return W_SEED_NATIVE_SUBSET0_OK;
 }
+
+/* W-1584 M1 is deliberately only a target-neutral admission boundary for a
+ * one-block subset of the wider HIR34 cooperative envelope. Keep its proof
+ * here rather than borrowing COOP0's execution-plan builder: a future emitter
+ * must be unable to make a compiler-host oracle record look like a product
+ * selection by construction. */
+static bool cooperative_selection_range(size_t first, size_t count,
+                                        size_t total) {
+  return first <= total && count <= total - first;
+}
+
+static bool cooperative_selection_scalar_type(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  return program->types[type_index].kind == W_SEED_HIR0_TYPE_I64 ||
+         program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL;
+}
+
+static bool cooperative_selection_function_span(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t *first, uint32_t *count) {
+  if (program == NULL || first == NULL || count == NULL ||
+      function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->block_count != 1u || function->first_block >= program->block_count)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->owner_function != function_index ||
+      !cooperative_selection_range(block->first_instruction,
+                                   block->instruction_count,
+                                   program->instruction_count) ||
+      block->instruction_count > UINT32_MAX - block->first_instruction)
+    return false;
+  *first = block->first_instruction;
+  *count = block->instruction_count;
+  return true;
+}
+
+static bool cooperative_selection_sync_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t module_index,
+    uint8_t state[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS],
+    bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS], size_t depth);
+
+static bool cooperative_selection_sync_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t module_index,
+    uint8_t state[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS],
+    bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS], size_t depth) {
+  if (program == NULL || state == NULL || reachable == NULL ||
+      function_index >= program->function_count ||
+      function_index >= W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
+      depth > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS)
+    return false;
+  reachable[function_index] = true;
+  if (state[function_index] == 2u) return true;
+  if (state[function_index] == 1u || state[function_index] == 3u)
+    return false;
+  state[function_index] = 1u;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  bool valid = function->module_index == module_index && !function->is_async &&
+               !function->is_const && !function->is_throws &&
+               !function->is_unsafe && !function->has_borrow_clause &&
+               !function->is_anonymous_entry &&
+               cooperative_selection_scalar_type(program, function->return_type) &&
+               function->parameter_count <= 16u &&
+               cooperative_selection_range(function->first_parameter,
+                                           function->parameter_count,
+                                           program->parameter_count);
+  for (size_t ordinal = 0u; valid && ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[(size_t)function->first_parameter + ordinal];
+    valid = parameter->owner_function == function_index &&
+            parameter->ordinal == ordinal &&
+            cooperative_selection_scalar_type(program, parameter->type_index);
+  }
+  uint32_t first = 0u;
+  uint32_t instruction_count = 0u;
+  if (!cooperative_selection_function_span(program, function_index, &first,
+                                           &instruction_count))
+    valid = false;
+  for (size_t ordinal = 0u; valid && ordinal < instruction_count;
+       ordinal += 1u) {
+    const uint32_t instruction_index = first + (uint32_t)ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != function->first_block ||
+        instruction->ordinal != ordinal)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count)
+        valid = false;
+      else {
+        const w_seed_hir0_binding *binding =
+            &program->bindings[instruction->binding_index];
+        valid = binding->owner_instruction == instruction_index &&
+                binding->owner_block == function->first_block &&
+                binding->task_role == W_SEED_HIR0_TASK_ROLE_NONE &&
+                cooperative_selection_scalar_type(program, binding->type_index);
+      }
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) {
+        valid = false;
+      } else {
+        const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+        if (call->owner_instruction != instruction_index ||
+            call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+            call->callee_identity >= program->identity_count ||
+            !cooperative_selection_scalar_type(program, call->result_type)) {
+          valid = false;
+        } else {
+          const w_seed_hir0_identity *identity =
+              &program->identities[call->callee_identity];
+          valid = identity->kind == W_SEED_HIR0_IDENTITY_FUNCTION &&
+                  identity->target_index < program->function_count &&
+                  cooperative_selection_sync_function(
+                      program, identity->target_index, module_index, state,
+                      reachable, depth + 1u);
+        }
+      }
+    } else {
+      valid = false;
+    }
+  }
+  const w_seed_hir0_block *block =
+      function->first_block < program->block_count
+          ? &program->blocks[function->first_block]
+          : NULL;
+  if (block == NULL || block->terminator_index >= program->terminator_count) {
+    valid = false;
+  } else {
+    const w_seed_hir0_terminator *terminator =
+        &program->terminators[block->terminator_index];
+    valid = valid &&
+            terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+            terminator->value_index < program->value_count &&
+            cooperative_selection_scalar_type(program, terminator->result_type) &&
+            terminator->result_type == function->return_type;
+  }
+  state[function_index] = valid ? 2u : 3u;
+  return valid;
+}
+
+static bool cooperative_selection_async_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t module_index,
+    uint8_t state[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS],
+    bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS],
+    uint32_t *yield_count) {
+  if (program == NULL || state == NULL || reachable == NULL ||
+      yield_count == NULL || function_index >= program->function_count ||
+      function_index >= W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS)
+    return false;
+  reachable[function_index] = true;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (!function->is_async || function->is_const || function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry || function->module_index != module_index ||
+      !cooperative_selection_scalar_type(program, function->return_type) ||
+      function->parameter_count > 16u ||
+      !cooperative_selection_range(function->first_parameter,
+                                   function->parameter_count,
+                                   program->parameter_count))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count; ordinal += 1u) {
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[(size_t)function->first_parameter + ordinal];
+    if (parameter->owner_function != function_index ||
+        parameter->ordinal != ordinal ||
+        !cooperative_selection_scalar_type(program, parameter->type_index))
+      return false;
+  }
+  uint32_t first = 0u;
+  uint32_t instruction_count = 0u;
+  if (!cooperative_selection_function_span(program, function_index, &first,
+                                           &instruction_count) ||
+      instruction_count == 0u)
+    return false;
+  uint32_t yields = 0u;
+  for (size_t ordinal = 0u; ordinal < instruction_count; ordinal += 1u) {
+    const uint32_t instruction_index = first + (uint32_t)ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != function->first_block ||
+        instruction->ordinal != ordinal)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD) {
+      yields += 1u;
+      if (yields > W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK) return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count) return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[instruction->binding_index];
+      if (binding->owner_instruction != instruction_index ||
+          binding->owner_block != function->first_block ||
+          binding->task_role != W_SEED_HIR0_TASK_ROLE_NONE ||
+          !cooperative_selection_scalar_type(program, binding->type_index))
+        return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->owner_instruction != instruction_index ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->callee_identity >= program->identity_count ||
+          !cooperative_selection_scalar_type(program, call->result_type))
+        return false;
+      const w_seed_hir0_identity *identity =
+          &program->identities[call->callee_identity];
+      if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          identity->target_index >= program->function_count ||
+          !cooperative_selection_sync_function(
+              program, identity->target_index, module_index, state, reachable,
+              0u))
+        return false;
+    } else {
+      return false;
+    }
+  }
+  if (yields == 0u) return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->terminator_index >= program->terminator_count) return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      terminator->value_index >= program->value_count ||
+      !cooperative_selection_scalar_type(program, terminator->result_type) ||
+      terminator->result_type != function->return_type)
+    return false;
+  *yield_count = yields;
+  return true;
+}
+
+static bool cooperative_selection_host_print(
+    const w_seed_hir0_program *program, const w_seed_hir0_call *call) {
+  if (program == NULL || call == NULL || call->callee_identity >= program->identity_count)
+    return false;
+  const w_seed_hir0_identity *identity =
+      &program->identities[call->callee_identity];
+  return identity->kind == W_SEED_HIR0_IDENTITY_HOST_PRELUDE &&
+         text_is(program, identity->name, (const uint8_t *)"print",
+                 sizeof("print") - 1u) &&
+         call->argument_count == 1u && call->result_type < program->type_count &&
+         program->types[call->result_type].kind == W_SEED_HIR0_TYPE_UNIT;
+}
+
+static bool cooperative_selection_derive(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_cooperative_selection0 *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      program->module_count != 1u || program->entry_count != 1u ||
+      program->function_count == 0u ||
+      program->function_count > W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS ||
+      program->function_count > UINT32_MAX ||
+      program->instruction_count > UINT32_MAX ||
+      program->binding_count > UINT32_MAX || program->call_count > UINT32_MAX)
+    return false;
+  const w_seed_hir0_entry *entry = &program->entries[0];
+  if (!entry->is_body || entry->module_index != 0u ||
+      entry->adapter_kind != W_SEED_HIR0_ENTRY_ADAPTER_DEFAULT_UNIT ||
+      entry->target_function >= program->function_count)
+    return false;
+  const uint32_t root_index = entry->target_function;
+  const w_seed_hir0_function *root = &program->functions[root_index];
+  if (root->module_index != 0u || !root->is_anonymous_entry || root->is_async ||
+      root->is_const || root->is_throws || root->is_unsafe ||
+      root->has_borrow_clause || root->parameter_count != 0u ||
+      root->return_type >= program->type_count ||
+      program->types[root->return_type].kind != W_SEED_HIR0_TYPE_UNIT ||
+      root->block_count != 1u || root->first_block >= program->block_count)
+    return false;
+  const w_seed_hir0_block *root_block = &program->blocks[root->first_block];
+  uint32_t root_first = 0u;
+  uint32_t root_instruction_count = 0u;
+  if (root_block->owner_function != root_index ||
+      root_block->terminator_index >= program->terminator_count ||
+      !cooperative_selection_function_span(program, root_index, &root_first,
+                                           &root_instruction_count) ||
+      program->terminators[root_block->terminator_index].kind !=
+          W_SEED_HIR0_TERMINATOR_RETURN_UNIT)
+    return false;
+
+  uint32_t physical_calls[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t task_functions[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t task_yields[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0u, 0u};
+  uint8_t state[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {0u};
+  bool reachable[W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS] = {false};
+  reachable[root_index] = true;
+  size_t physical_count = 0u;
+  for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    if (call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
+        call->execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED)
+      return false;
+    if (call->execution_kind !=
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE)
+      continue;
+    if (physical_count >= W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
+        call->owner_block != root->first_block ||
+        call->owner_instruction < root_first ||
+        call->owner_instruction >= root_first + root_instruction_count ||
+        call->callee_identity >= program->identity_count)
+      return false;
+    const w_seed_hir0_identity *identity =
+        &program->identities[call->callee_identity];
+    if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+        identity->target_index >= program->function_count ||
+        identity->target_index == root_index ||
+        !cooperative_selection_async_function(
+            program, identity->target_index, root->module_index, state,
+            reachable, &task_yields[physical_count]))
+      return false;
+    physical_calls[physical_count] = (uint32_t)call_index;
+    task_functions[physical_count] = identity->target_index;
+    physical_count += 1u;
+  }
+  if (physical_count != W_SEED_HIR0_COOPERATIVE_MAX_TASKS) return false;
+
+  uint32_t launch_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  uint32_t join_bindings[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {
+      W_SEED_HIR0_NONE, W_SEED_HIR0_NONE};
+  size_t physical_seen = 0u;
+  size_t launch_count = 0u;
+  size_t join_count = 0u;
+  for (size_t ordinal = 0u; ordinal < root_instruction_count; ordinal += 1u) {
+    const uint32_t instruction_index = root_first + (uint32_t)ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != root->first_block ||
+        instruction->ordinal != ordinal)
+      return false;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count) return false;
+      const w_seed_hir0_binding *binding =
+          &program->bindings[instruction->binding_index];
+      if (binding->owner_instruction != instruction_index ||
+          binding->owner_block != root->first_block)
+        return false;
+      if (binding->task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH) {
+        if (join_count != 0u || launch_count >= 2u) return false;
+        launch_bindings[launch_count] = instruction->binding_index;
+        launch_count += 1u;
+      } else if (binding->task_role == W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT) {
+        if (launch_count != 2u || join_count >= 2u) return false;
+        join_bindings[join_count] = instruction->binding_index;
+        join_count += 1u;
+      } else {
+        return false;
+      }
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call = &program->calls[instruction->call_index];
+      if (call->owner_instruction != instruction_index) return false;
+      if (call->execution_kind ==
+          W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) {
+        if (physical_seen >= 2u || instruction->call_index != physical_calls[physical_seen] ||
+            ordinal + 1u >= root_instruction_count)
+          return false;
+        const w_seed_hir0_instruction *binding_instruction =
+            &program->instructions[instruction_index + 1u];
+        if (binding_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+            binding_instruction->binding_index >= program->binding_count ||
+            program->bindings[binding_instruction->binding_index].task_role !=
+                W_SEED_HIR0_TASK_ROLE_LAUNCH)
+          return false;
+        physical_seen += 1u;
+      } else if (!cooperative_selection_host_print(program, call) ||
+                 launch_count != 2u || join_count != 2u) {
+        return false;
+      }
+    } else {
+      return false;
+    }
+  }
+  if (physical_seen != 2u || launch_count != 2u || join_count != 2u)
+    return false;
+  for (size_t task = 0u; task < 2u; task += 1u) {
+    const w_seed_hir0_binding *launch = &program->bindings[launch_bindings[task]];
+    const w_seed_hir0_binding *join = &program->bindings[join_bindings[task]];
+    const w_seed_hir0_call *call = &program->calls[physical_calls[task]];
+    if (launch->task_peer_binding != join_bindings[task] ||
+        join->task_peer_binding != launch_bindings[task] ||
+        launch->owner_instruction <= call->owner_instruction ||
+        join->owner_instruction <= launch->owner_instruction)
+      return false;
+  }
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (!reachable[function]) return false;
+
+  (void)memset(selection, 0, sizeof(*selection));
+  (void)memcpy(selection->schema,
+               W_SEED_COOPERATIVE_SELECTION0_SCHEMA_VERSION,
+               sizeof(selection->schema));
+  selection->root_function_index = root_index;
+  selection->task_count = W_SEED_HIR0_COOPERATIVE_MAX_TASKS;
+  selection->function_count = (uint32_t)program->function_count;
+  selection->instruction_count = (uint32_t)program->instruction_count;
+  selection->binding_count = (uint32_t)program->binding_count;
+  selection->call_count = (uint32_t)program->call_count;
+  selection->task_call_indices[0] = physical_calls[0];
+  selection->task_call_indices[1] = physical_calls[1];
+  selection->task_function_indices[0] = task_functions[0];
+  selection->task_function_indices[1] = task_functions[1];
+  selection->launch_binding_indices[0] = launch_bindings[0];
+  selection->launch_binding_indices[1] = launch_bindings[1];
+  selection->join_binding_indices[0] = join_bindings[0];
+  selection->join_binding_indices[1] = join_bindings[1];
+  selection->task_yield_counts[0] = task_yields[0];
+  selection->task_yield_counts[1] = task_yields[1];
+  selection->yield_count = task_yields[0] + task_yields[1];
+  selection->execution_profile =
+      W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE;
+  (void)memcpy(selection->hir_semantic_digest, hir_result->semantic_digest,
+               sizeof(selection->hir_semantic_digest));
+  return true;
+}
+
+static bool cooperative_selection_equal(
+    const w_seed_cooperative_selection0 *left,
+    const w_seed_cooperative_selection0 *right) {
+  if (left == NULL || right == NULL ||
+      memcmp(left->schema, right->schema, sizeof(left->schema)) != 0 ||
+      left->root_function_index != right->root_function_index ||
+      left->task_count != right->task_count ||
+      left->function_count != right->function_count ||
+      left->instruction_count != right->instruction_count ||
+      left->binding_count != right->binding_count ||
+      left->call_count != right->call_count ||
+      left->yield_count != right->yield_count ||
+      left->execution_profile != right->execution_profile ||
+      memcmp(left->reserved, right->reserved, sizeof(left->reserved)) != 0 ||
+      memcmp(left->hir_semantic_digest, right->hir_semantic_digest,
+             sizeof(left->hir_semantic_digest)) != 0)
+    return false;
+  return memcmp(left->task_call_indices, right->task_call_indices,
+                sizeof(left->task_call_indices)) == 0 &&
+         memcmp(left->task_function_indices, right->task_function_indices,
+                sizeof(left->task_function_indices)) == 0 &&
+         memcmp(left->launch_binding_indices, right->launch_binding_indices,
+                sizeof(left->launch_binding_indices)) == 0 &&
+         memcmp(left->join_binding_indices, right->join_binding_indices,
+                sizeof(left->join_binding_indices)) == 0 &&
+         memcmp(left->task_yield_counts, right->task_yield_counts,
+                sizeof(left->task_yield_counts)) == 0;
+}
+
+w_seed_native_subset0_status w_seed_native_subset0_select_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_cooperative_selection0 *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return W_SEED_NATIVE_SUBSET0_INVALID;
+  w_seed_cooperative_selection0 candidate;
+  if (!cooperative_selection_derive(program, hir_result, &candidate))
+    return W_SEED_NATIVE_SUBSET0_UNSUPPORTED;
+  *selection = candidate;
+  return W_SEED_NATIVE_SUBSET0_OK;
+}
+
+bool w_seed_native_subset0_verify_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      !w_seed_hir0_verify(program, hir_result))
+    return false;
+  w_seed_cooperative_selection0 expected;
+  return cooperative_selection_derive(program, hir_result, &expected) &&
+         cooperative_selection_equal(selection, &expected);
+}

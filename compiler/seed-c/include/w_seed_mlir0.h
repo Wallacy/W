@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "w_seed_cooperative_selection0.h"
 #include "w_seed_hir0.h"
 
 #ifdef __cplusplus
@@ -93,6 +94,17 @@ w_seed_mlir0_status w_seed_mlir0_measure(
 w_seed_mlir0_status w_seed_mlir0_emit(
     const w_seed_mlir0_input *input, const w_seed_mlir0_target *target,
     const w_seed_mlir0_output *output, w_seed_mlir0_result *result);
+
+/* Target-neutral M1 boundary for a verified HIR34 cooperative selection. The
+ * selector admits only its narrower one-block subset and records admission
+ * facts; no MLIR state machine is emitted. */
+w_seed_mlir0_status w_seed_mlir0_select_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    w_seed_cooperative_selection0 *selection);
+
+bool w_seed_mlir0_verify_cooperative_selection(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection);
 
 #ifdef __cplusplus
 }

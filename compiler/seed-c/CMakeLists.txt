@@ -28,6 +28,7 @@ add_library(w_seed_source STATIC
   include/w_seed_manifest_windows.h
   include/w_seed_source_binding.h
   include/w_seed_process0.h
+  include/w_seed_cooperative_selection0.h
   include/w_seed_source_binding_linux.h
   src/w_seed_manifest.c
   src/w_seed_manifest_linux.c
