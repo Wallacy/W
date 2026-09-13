@@ -1442,6 +1442,26 @@ x86_64 under WSL with LLVM/MLIR 20.1.2 and Windows x86_64 MSVC with 23.1.1.
 General or nested loops, multiple carried values, effects, macOS, PGO,
 code-size quality, ranking, and general performance remain outside this cut.
 
+### Multi-carrier structured natural loop (W-1569)
+
+HIR0 and NativeSubset0 now admit a nonempty tuple of mutable signed-`i64`
+roots in the same bounded four-block natural-loop form. Tuple ordinals follow
+root declaration order. Body values and instructions retain source order, so
+a later assignment may observe an earlier assignment's new binding version
+without changing the physical tuple order. The verifier checks each owner,
+ordinal, type, initial/backedge value, and version chain. The existing
+caller-owned capacities are the only lane bound.
+
+MLIR0 preserves the tuple in one `scf.while`, with ordered
+`scf.condition` operands and `scf.yield` values and no source-variable
+`llvm.alloca`. [`restaurant-while-multi.w`](fixtures/restaurant-while-multi.w)
+prints exactly `Served 9\n` through the native Windows PE lane and the
+Linux/WSL ELF lane. Calls, effects, suspension, nested or mixed control,
+non-`i64` carriers, and mutation after the loop remain unsupported. The
+executable catalog owns the separate equivalent W/C23/Rust exploratory
+measurement; no cross-platform performance claim follows from the two
+correctness gates.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

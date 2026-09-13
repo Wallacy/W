@@ -1009,10 +1009,34 @@ typedef struct {
   uint32_t failure_symbol_index;
 } mlir0_process_emit_context;
 
+/* An SCF natural loop exposes its carried HIR block arguments as the result
+ * tuple after the operation.  Keep this projection local to the adapter so
+ * ordinary CFG emission continues to use the original block-argument names. */
+typedef struct {
+  uint32_t function_index;
+  uint32_t header_block_index;
+  uint32_t first_block_argument;
+  size_t block_argument_count;
+  const uint32_t *result_binding_indices;
+} mlir0_natural_loop_result_context;
+
 static bool append_program_value_operand(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     uint8_t *artifact, size_t capacity, size_t *offset);
+
+static bool append_program_value_operand_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset);
+
+static bool append_program_value_tree_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth);
 
 static const char *program_type_name(const w_seed_hir0_program *program,
                                      uint32_t type_index, char buffer[96],
@@ -1207,10 +1231,11 @@ static bool mlir0_enum_type_info(const w_seed_hir0_program *program,
   return true;
 }
 
-static bool append_binary_value_operation(
+static bool append_binary_value_operation_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
-    uint8_t *artifact, size_t capacity, size_t *offset) {
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count ||
       program->values[value_index].kind != W_SEED_HIR0_VALUE_BINARY_I64)
@@ -1231,33 +1256,43 @@ static bool append_binary_value_operation(
     return append_literal(artifact, capacity, offset, "llvm.call ") &&
            append_literal(artifact, capacity, offset, helper) &&
            append_literal(artifact, capacity, offset, "(") &&
-           append_program_value_operand(program, value->left_value,
-                                        function_index, process, artifact,
-                                        capacity, offset) &&
+            append_program_value_operand_in_loop(
+                program, value->left_value, function_index, process, loop,
+                artifact, capacity, offset) &&
            append_literal(artifact, capacity, offset, ", ") &&
-           append_program_value_operand(program, value->right_value,
-                                     function_index, process, artifact,
-                                     capacity, offset) &&
+            append_program_value_operand_in_loop(
+                program, value->right_value, function_index, process, loop,
+                artifact, capacity, offset) &&
            append_literal(artifact, capacity, offset,
                           ") : (i64, i64) -> i64\n");
   const char *operation = binary_operation(value->binary_operator);
   return operation != NULL &&
          append_literal(artifact, capacity, offset, operation) &&
          append_literal(artifact, capacity, offset, " ") &&
-         append_program_value_operand(program, value->left_value,
-                                     function_index, process, artifact,
-                                     capacity, offset) &&
+          append_program_value_operand_in_loop(
+              program, value->left_value, function_index, process, loop,
+              artifact, capacity, offset) &&
          append_literal(artifact, capacity, offset, ", ") &&
-         append_program_value_operand(program, value->right_value,
-                                     function_index, process, artifact,
-                                     capacity, offset) &&
-         append_literal(artifact, capacity, offset, " : i64\n");
+          append_program_value_operand_in_loop(
+              program, value->right_value, function_index, process, loop,
+              artifact, capacity, offset) &&
+          append_literal(artifact, capacity, offset, " : i64\n");
 }
 
-static bool append_usize_count_comparison_operation(
+static bool append_binary_value_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     uint8_t *artifact, size_t capacity, size_t *offset) {
+  return append_binary_value_operation_in_loop(
+      program, value_index, function_index, process, NULL, artifact, capacity,
+      offset);
+}
+
+static bool append_usize_count_comparison_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || process == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count ||
       function_index != process->function_index)
@@ -1304,20 +1339,30 @@ static bool append_usize_count_comparison_operation(
          append_literal(artifact, capacity, offset, " = ") &&
          append_literal(artifact, capacity, offset, operation) &&
          append_literal(artifact, capacity, offset, " ") &&
-         append_program_value_operand(program, value->left_value,
-                                      function_index, process, artifact,
-                                      capacity, offset) &&
+         append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop, artifact,
+             capacity, offset) &&
          append_literal(artifact, capacity, offset, ", ") &&
-         append_program_value_operand(program, value->right_value,
-                                      function_index, process, artifact,
-                                      capacity, offset) &&
+         append_program_value_operand_in_loop(
+             program, value->right_value, function_index, process, loop, artifact,
+             capacity, offset) &&
          append_literal(artifact, capacity, offset, " : i64\n");
 }
 
-static bool append_unary_i64_operation(
+static bool append_usize_count_comparison_operation(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
     uint8_t *artifact, size_t capacity, size_t *offset) {
+  return append_usize_count_comparison_operation_in_loop(
+      program, value_index, function_index, process, NULL, artifact, capacity,
+      offset);
+}
+
+static bool append_unary_i64_operation_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || artifact == NULL || offset == NULL ||
       value_index >= program->value_count)
     return false;
@@ -1352,11 +1397,20 @@ static bool append_unary_i64_operation(
        !append_size(artifact, capacity, offset, value_index) ||
        !append_literal(artifact, capacity, offset, "_neg_zero, ")))
     return false;
-  return append_program_value_operand(program, value->left_value,
-                                      function_index, process, artifact,
-                                      capacity, offset) &&
+  return append_program_value_operand_in_loop(
+             program, value->left_value, function_index, process, loop, artifact,
+             capacity, offset) &&
          append_literal(artifact, capacity, offset,
                         constant ? " : i64\n" : ") : (i64, i64) -> i64\n");
+}
+
+static bool append_unary_i64_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  return append_unary_i64_operation_in_loop(
+      program, value_index, function_index, process, NULL, artifact, capacity,
+      offset);
 }
 
 static bool append_program_block_argument_name(
@@ -1944,19 +1998,34 @@ static bool build_program_plan(const w_seed_hir0_program *program,
   return true;
 }
 
-static bool append_program_value_operand(
+static bool append_program_value_operand_in_loop(
     const w_seed_hir0_program *program, uint32_t value_index,
     uint32_t function_index, const mlir0_process_emit_context *process,
-    uint8_t *artifact, size_t capacity, size_t *offset) {
+    const mlir0_natural_loop_result_context *loop, uint8_t *artifact,
+    size_t capacity, size_t *offset) {
   if (program == NULL || value_index >= program->value_count ||
       artifact == NULL || offset == NULL)
     return false;
   const w_seed_hir0_value *value = &program->values[value_index];
   if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
     if (value->binding_index >= program->binding_count) return false;
-    return append_program_value_operand(
+    if (loop != NULL && loop->result_binding_indices != NULL) {
+      for (size_t lane = 0u; lane < loop->block_argument_count; lane += 1u) {
+        if (loop->result_binding_indices[lane] != value->binding_index)
+          continue;
+        if (!append_literal(artifact, capacity, offset, "%loop") ||
+            !append_size(artifact, capacity, offset, loop->function_index))
+          return false;
+        if (loop->block_argument_count > 1u &&
+            (!append_literal(artifact, capacity, offset, "_") ||
+             !append_size(artifact, capacity, offset, lane)))
+          return false;
+        return true;
+      }
+    }
+    return append_program_value_operand_in_loop(
         program, program->bindings[value->binding_index].initializer_value,
-        function_index, process, artifact, capacity, offset);
+        function_index, process, loop, artifact, capacity, offset);
   }
   if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
     if (value->parameter_index >= program->parameter_count) return false;
@@ -1979,10 +2048,49 @@ static bool append_program_value_operand(
              program->types[value->type_index].kind == W_SEED_HIR0_TYPE_I64)) &&
            append_literal(artifact, capacity, offset, "%v") &&
            append_size(artifact, capacity, offset, value_index);
-  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ)
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (loop != NULL &&
+        (function_index != loop->function_index ||
+         value->block_argument_index < loop->first_block_argument ||
+         (size_t)value->block_argument_index -
+                 (size_t)loop->first_block_argument >=
+             loop->block_argument_count))
+      return false;
+    if (loop != NULL) {
+      const size_t lane = (size_t)value->block_argument_index -
+                          (size_t)loop->first_block_argument;
+      if (loop->header_block_index >= program->block_count ||
+          loop->block_argument_count == 0u ||
+          loop->first_block_argument >= program->block_argument_count ||
+          loop->block_argument_count >
+              program->block_argument_count - loop->first_block_argument ||
+          lane >= loop->block_argument_count)
+        return false;
+      const w_seed_hir0_block *header =
+          &program->blocks[loop->header_block_index];
+      if (header->owner_function != function_index ||
+          header->block_argument_count != loop->block_argument_count ||
+          header->first_block_argument != loop->first_block_argument)
+        return false;
+      const w_seed_hir0_block_argument *argument =
+          &program->block_arguments[value->block_argument_index];
+      if (argument->owner_block != loop->header_block_index ||
+          argument->ordinal != lane || argument->type_index >= program->type_count ||
+          program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64)
+        return false;
+      if (!append_literal(artifact, capacity, offset, "%loop") ||
+          !append_size(artifact, capacity, offset, loop->function_index))
+        return false;
+      if (loop->block_argument_count > 1u &&
+          (!append_literal(artifact, capacity, offset, "_") ||
+           !append_size(artifact, capacity, offset, lane)))
+        return false;
+      return true;
+    }
     return append_program_block_argument_name(
         program, value->block_argument_index, function_index, artifact,
         capacity, offset);
+  }
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
           value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
@@ -1994,6 +2102,15 @@ static bool append_program_value_operand(
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_ENUM_CASE) &&
          append_literal(artifact, capacity, offset, "%v") &&
          append_size(artifact, capacity, offset, value_index);
+}
+
+static bool append_program_value_operand(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  return append_program_value_operand_in_loop(
+      program, value_index, function_index, process, NULL, artifact, capacity,
+      offset);
 }
 
 static bool append_program_value_tree(
@@ -2619,6 +2736,148 @@ static bool append_program_value_tree(
   return false;
 }
 
+/* Emit an exit expression after an SCF loop.  Ordinary value-tree emission
+ * deliberately keeps header block arguments as %argN inside the loop; this
+ * companion only changes operands that resolve to those arguments into the
+ * corresponding SCF result lane. */
+static bool append_program_value_tree_in_loop(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    const mlir0_natural_loop_result_context *loop,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth) {
+  if (program == NULL || loop == NULL || emitted == NULL || artifact == NULL ||
+      offset == NULL || depth > 256u || value_index >= program->value_count ||
+      value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  if (emitted[value_index]) return true;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
+      value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      value->kind == W_SEED_HIR0_VALUE_CALL_RESULT ||
+      value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER) {
+    if (process == NULL || function_index != process->function_index ||
+        value->external_module_index != 0u ||
+        value->left_value >= program->value_count ||
+        value->type_index >= program->type_count)
+      return false;
+    const bool is_empty =
+        value->external_symbol_index == process->is_empty_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+        text_is(program, value->member_name, (const uint8_t *)"isEmpty", 7u);
+    const bool is_count =
+        value->external_symbol_index == process->count_symbol_index &&
+        program->types[value->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+        text_is(program, value->member_name, (const uint8_t *)"count", 5u);
+    if ((!is_empty && !is_count) ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.call @w_seed_process_arguments_") ||
+        !append_literal(artifact, capacity, offset,
+                        is_empty ? "is_empty(" : "count(") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop, artifact,
+            capacity, offset) ||
+        !append_literal(artifact, capacity, offset,
+                        is_empty ? ") : (!llvm.ptr) -> i1\n"
+                                  : ") : (!llvm.ptr) -> i64\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_BOOL) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        "_not_mask = llvm.mlir.constant(true) : i1\n") ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, " = llvm.xor ") ||
+        !append_program_value_operand_in_loop(
+            program, value->left_value, function_index, process, loop, artifact,
+            capacity, offset) ||
+        !append_literal(artifact, capacity, offset, ", %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset, "_not_mask : i1\n"))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+        value->left_value == W_SEED_HIR0_NONE ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_unary_i64_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_program_value_tree_in_loop(
+            program, value->right_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_binary_value_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+    if (value->left_value >= program->value_count ||
+        value->right_value >= program->value_count ||
+        !append_program_value_tree_in_loop(
+            program, value->left_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_program_value_tree_in_loop(
+            program, value->right_value, function_index, process, loop, emitted,
+            artifact, capacity, offset, depth + 1u) ||
+        !append_usize_count_comparison_operation_in_loop(
+            program, value_index, function_index, process, loop, artifact,
+            capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+
+  /* Constants, parameters, calls, and other already materialized values do
+   * not contain a loop block argument in the natural-loop subset.  Reuse the
+   * established emitter for those forms. */
+  return append_program_value_tree(program, value_index, function_index,
+                                   process, emitted, artifact, capacity, offset,
+                                   depth);
+}
+
 static const char *program_type_name(const w_seed_hir0_program *program,
                                      uint32_t type_index, char buffer[96],
                                      const mlir0_process_emit_context *process) {
@@ -2909,8 +3168,9 @@ static bool append_program_block_definition(
 
 /* Preserve W-1560 as structured control until the MLIR pass pipeline chooses
  * when to lower SCF to CFG. The HIR verifier and native selector have already
- * proved the exact four-block, one-carried-i64 shape; this adapter maps its
- * preheader/header/body/exit directly to scf.while without a stack cell. */
+ * proved the exact four-block, nonempty carried-i64 tuple shape; this adapter
+ * maps its preheader/header/body/exit directly to scf.while without a stack
+ * cell. */
 static bool append_program_natural_loop(
     const w_seed_hir0_program *program, size_t function_index,
     const mlir0_process_emit_context *process, uint8_t *artifact,
@@ -2930,16 +3190,37 @@ static bool append_program_natural_loop(
   const w_seed_hir0_block *header = &program->blocks[header_index];
   const w_seed_hir0_block *body = &program->blocks[body_index];
   const w_seed_hir0_block *exit = &program->blocks[exit_index];
-  if (preheader->instruction_count != 1u || body->instruction_count != 1u ||
+  const size_t carrier_count = header->block_argument_count;
+  if (preheader->owner_function != function_index ||
+      header->owner_function != function_index ||
+      body->owner_function != function_index ||
+      exit->owner_function != function_index || carrier_count == 0u ||
+      carrier_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      header->first_block_argument == W_SEED_HIR0_NONE ||
+      (size_t)header->first_block_argument > program->block_argument_count ||
+      carrier_count >
+          program->block_argument_count - header->first_block_argument ||
+      header->instruction_count != 0u ||
+      body->instruction_count != carrier_count ||
+      body->first_instruction == W_SEED_HIR0_NONE ||
+      (size_t)body->first_instruction > program->instruction_count ||
+      carrier_count > program->instruction_count - body->first_instruction ||
+      exit->instruction_count != 0u || preheader->block_argument_count != 0u ||
+      preheader->first_block_argument != W_SEED_HIR0_NONE ||
+      body->block_argument_count != 0u ||
+      body->first_block_argument != W_SEED_HIR0_NONE ||
+      exit->block_argument_count != 0u ||
+      exit->first_block_argument != W_SEED_HIR0_NONE ||
+      preheader->instruction_count == 0u ||
+      preheader->first_instruction == W_SEED_HIR0_NONE ||
+      (size_t)preheader->first_instruction > program->instruction_count ||
+      preheader->instruction_count >
+          program->instruction_count - preheader->first_instruction ||
       preheader->terminator_index >= program->terminator_count ||
       header->terminator_index >= program->terminator_count ||
       body->terminator_index >= program->terminator_count ||
       exit->terminator_index >= program->terminator_count)
     return false;
-  const w_seed_hir0_instruction *initial_instruction =
-      &program->instructions[preheader->first_instruction];
-  const w_seed_hir0_instruction *update_instruction =
-      &program->instructions[body->first_instruction];
   const w_seed_hir0_terminator *preheader_term =
       &program->terminators[preheader->terminator_index];
   const w_seed_hir0_terminator *header_term =
@@ -2948,37 +3229,211 @@ static bool append_program_natural_loop(
       &program->terminators[body->terminator_index];
   const w_seed_hir0_terminator *exit_term =
       &program->terminators[exit->terminator_index];
-  if (initial_instruction->binding_index >= program->binding_count ||
-      update_instruction->binding_index >= program->binding_count ||
-      preheader_term->first_edge_argument >= program->edge_argument_count ||
-      body_term->first_edge_argument >= program->edge_argument_count ||
-      header->first_block_argument >= program->block_argument_count ||
+  if (preheader_term->owner_block != preheader_index ||
+      preheader_term->ordinal != preheader->instruction_count ||
+      preheader_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      preheader_term->target_block != header_index ||
+      preheader_term->else_block != W_SEED_HIR0_NONE ||
+      preheader_term->value_index != W_SEED_HIR0_NONE ||
+      preheader_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      preheader_term->edge_argument_count != carrier_count ||
+      preheader_term->first_edge_argument == W_SEED_HIR0_NONE ||
+      (size_t)preheader_term->first_edge_argument >
+          program->edge_argument_count ||
+      carrier_count > program->edge_argument_count -
+                           preheader_term->first_edge_argument ||
+      header_term->owner_block != header_index ||
+      header_term->ordinal != header->instruction_count ||
+      header_term->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
+      header_term->target_block != body_index ||
+      header_term->else_block != exit_index ||
+      header_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      header_term->edge_argument_count != 0u ||
+      header_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
       header_term->value_index >= program->value_count ||
-      exit_term->value_index >= program->value_count)
+      body_term->owner_block != body_index ||
+      body_term->ordinal != body->instruction_count ||
+      body_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
+      body_term->target_block != header_index ||
+      body_term->else_block != W_SEED_HIR0_NONE ||
+      body_term->value_index != W_SEED_HIR0_NONE ||
+      body_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      body_term->edge_argument_count != carrier_count ||
+      body_term->first_edge_argument == W_SEED_HIR0_NONE ||
+      (size_t)body_term->first_edge_argument > program->edge_argument_count ||
+      carrier_count > program->edge_argument_count - body_term->first_edge_argument ||
+      exit_term->owner_block != exit_index ||
+      exit_term->ordinal != exit->instruction_count ||
+      exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      exit_term->target_block != W_SEED_HIR0_NONE ||
+      exit_term->else_block != W_SEED_HIR0_NONE ||
+      exit_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      exit_term->edge_argument_count != 0u ||
+      exit_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      exit_term->value_index >= program->value_count ||
+      function->return_type == 0u)
     return false;
-  const w_seed_hir0_binding *initial =
-      &program->bindings[initial_instruction->binding_index];
-  const w_seed_hir0_binding *update =
-      &program->bindings[update_instruction->binding_index];
-  const w_seed_hir0_edge_argument *initial_edge =
-      &program->edge_arguments[preheader_term->first_edge_argument];
-  const w_seed_hir0_edge_argument *back_edge =
-      &program->edge_arguments[body_term->first_edge_argument];
+
+  uint32_t initial_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  uint32_t result_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    initial_bindings[ordinal] = W_SEED_HIR0_NONE;
+    result_bindings[ordinal] = W_SEED_HIR0_NONE;
+    const size_t argument_index =
+        (size_t)header->first_block_argument + ordinal;
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[argument_index];
+    const w_seed_hir0_edge_argument *initial_edge =
+        &program->edge_arguments[(size_t)preheader_term->first_edge_argument +
+                                 ordinal];
+    const w_seed_hir0_edge_argument *back_edge =
+        &program->edge_arguments[(size_t)body_term->first_edge_argument +
+                                 ordinal];
+    if (argument->owner_block != header_index || argument->ordinal != ordinal ||
+        argument->type_index >= program->type_count ||
+        program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+        initial_edge->owner_terminator != preheader->terminator_index ||
+        initial_edge->owner_block != preheader_index ||
+        initial_edge->ordinal != ordinal ||
+        initial_edge->type_index != argument->type_index ||
+        initial_edge->value_index >= program->value_count ||
+        program->values[initial_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[initial_edge->value_index].binding_index ==
+            W_SEED_HIR0_NONE ||
+        program->values[initial_edge->value_index].binding_index >=
+            program->binding_count ||
+        back_edge->owner_terminator != body->terminator_index ||
+        back_edge->owner_block != body_index || back_edge->ordinal != ordinal ||
+        back_edge->type_index != argument->type_index ||
+        back_edge->value_index >= program->value_count ||
+        program->values[back_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[back_edge->value_index].binding_index ==
+            W_SEED_HIR0_NONE ||
+        program->values[back_edge->value_index].binding_index >=
+            program->binding_count)
+      return false;
+    const uint32_t initial_binding_index =
+        program->values[initial_edge->value_index].binding_index;
+    const uint32_t result_binding_index =
+        program->values[back_edge->value_index].binding_index;
+    const w_seed_hir0_binding *initial =
+        &program->bindings[initial_binding_index];
+    const w_seed_hir0_binding *update =
+        &program->bindings[result_binding_index];
+    if (initial->owner_block != preheader_index || !initial->is_mutable ||
+        initial->source_binding != initial_binding_index ||
+        initial->previous_version != W_SEED_HIR0_NONE ||
+        initial->next_version == W_SEED_HIR0_NONE ||
+        initial->type_index != argument->type_index ||
+        initial->owner_instruction == W_SEED_HIR0_NONE ||
+        initial->owner_instruction >= program->instruction_count ||
+        initial->initializer_value >= program->value_count ||
+        update->owner_block != body_index ||
+        update->source_binding != initial_binding_index ||
+        update->previous_version != initial_binding_index ||
+        update->next_version != W_SEED_HIR0_NONE ||
+        update->type_index != argument->type_index ||
+        update->owner_instruction == W_SEED_HIR0_NONE ||
+        update->owner_instruction >= program->instruction_count ||
+        update->initializer_value >= program->value_count ||
+        initial->next_version != result_binding_index)
+      return false;
+    initial_bindings[ordinal] = initial_binding_index;
+    result_bindings[ordinal] = result_binding_index;
+  }
+  bool update_seen[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  for (size_t instruction_ordinal = 0u;
+       instruction_ordinal < body->instruction_count;
+       instruction_ordinal += 1u) {
+    const size_t instruction_index =
+        (size_t)body->first_instruction + instruction_ordinal;
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[instruction_index];
+    if (instruction->owner_block != body_index ||
+        instruction->ordinal != instruction_ordinal ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index == W_SEED_HIR0_NONE)
+      return false;
+    size_t matching_lane = carrier_count;
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (result_bindings[lane] == instruction->binding_index) {
+        matching_lane = lane;
+        break;
+      }
+    if (matching_lane == carrier_count || update_seen[matching_lane])
+      return false;
+    update_seen[matching_lane] = true;
+  }
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (!update_seen[lane]) return false;
+
   bool preheader_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
-  if (!append_program_value_tree(
-          program, initial->initializer_value, (uint32_t)function_index,
-          process, preheader_emitted, artifact, capacity, offset, 0u) ||
-      !append_literal(artifact, capacity, offset, "    %loop") ||
-      !append_size(artifact, capacity, offset, function_index) ||
-      !append_literal(artifact, capacity, offset, " = scf.while (%arg") ||
-      !append_size(artifact, capacity, offset,
-                   header->first_block_argument) ||
-      !append_literal(artifact, capacity, offset, " = ") ||
-      !append_program_value_operand(program, initial_edge->value_index,
-                                    (uint32_t)function_index, process,
-                                    artifact, capacity, offset) ||
-      !append_literal(artifact, capacity, offset,
-                      ") : (i64) -> i64 {\n"))
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u)
+    if (!append_program_value_tree(
+            program, program->bindings[initial_bindings[ordinal]]
+                         .initializer_value,
+            (uint32_t)function_index, process, preheader_emitted, artifact,
+            capacity, offset, 0u))
+      return false;
+  if (!append_literal(artifact, capacity, offset, "    ")) return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if (ordinal != 0u && !append_literal(artifact, capacity, offset, ", "))
+      return false;
+    if (!append_literal(artifact, capacity, offset, "%loop") ||
+        !append_size(artifact, capacity, offset, function_index) ||
+        (carrier_count > 1u &&
+         (!append_literal(artifact, capacity, offset, "_") ||
+          !append_size(artifact, capacity, offset, ordinal))) )
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, " = scf.while (")) return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if ((ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)header->first_block_argument + ordinal) ||
+        !append_literal(artifact, capacity, offset, " = ") ||
+        !append_program_value_operand(
+            program,
+            program->edge_arguments[(size_t)preheader_term->first_edge_argument +
+                                    ordinal]
+                .value_index,
+            (uint32_t)function_index, process, artifact, capacity, offset))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, ") : (")) return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    char type_buffer[96];
+    const char *type = program_type_name(
+        program,
+        program->block_arguments[(size_t)header->first_block_argument + ordinal]
+            .type_index,
+        type_buffer, process);
+    if (type == NULL ||
+        (ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, carrier_count > 1u
+                          ? ") -> ("
+                          : ") -> "))
+    return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    char type_buffer[96];
+    const char *type = program_type_name(
+        program,
+        program->block_arguments[(size_t)header->first_block_argument + ordinal]
+            .type_index,
+        type_buffer, process);
+    if (type == NULL ||
+        (ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset,
+                      carrier_count > 1u ? ") {\n" : " {\n"))
     return false;
 
   bool condition_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
@@ -2991,29 +3446,93 @@ static bool append_program_natural_loop(
       !append_program_value_operand(program, header_term->value_index,
                                     (uint32_t)function_index, process,
                                     artifact, capacity, offset) ||
-      !append_literal(artifact, capacity, offset, ") %arg") ||
-      !append_size(artifact, capacity, offset,
-                   header->first_block_argument) ||
-      !append_literal(artifact, capacity, offset,
-                      " : i64\n    } do {\n    ^bb0(%arg") ||
-      !append_size(artifact, capacity, offset,
-                   header->first_block_argument) ||
-      !append_literal(artifact, capacity, offset, ": i64):\n"))
+      !append_literal(artifact, capacity, offset, ") "))
     return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if ((ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)header->first_block_argument + ordinal))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, " : ")) return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if (ordinal != 0u && !append_literal(artifact, capacity, offset, ", "))
+      return false;
+    if (!append_literal(artifact, capacity, offset, "i64")) return false;
+  }
+  if (!append_literal(artifact, capacity, offset, "\n    } do {\n    ^bb0("))
+    return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if ((ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%arg") ||
+        !append_size(artifact, capacity, offset,
+                     (size_t)header->first_block_argument + ordinal) ||
+        !append_literal(artifact, capacity, offset, ": i64"))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, "):\n")) return false;
 
   bool update_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
   (void)memcpy(update_emitted, preheader_emitted, sizeof(update_emitted));
-  if (!append_program_value_tree(
-          program, update->initializer_value, (uint32_t)function_index,
-          process, update_emitted, artifact, capacity, offset, 0u) ||
-      !append_literal(artifact, capacity, offset, "      scf.yield ") ||
-      !append_program_value_operand(program, back_edge->value_index,
-                                    (uint32_t)function_index, process,
-                                    artifact, capacity, offset) ||
-      !append_literal(artifact, capacity, offset, " : i64\n    }\n") ||
-      !append_literal(artifact, capacity, offset, "    llvm.return %loop") ||
-      !append_size(artifact, capacity, offset, function_index) ||
-      !append_literal(artifact, capacity, offset, " : i64\n  }\n"))
+  for (size_t instruction_ordinal = 0u;
+       instruction_ordinal < body->instruction_count;
+       instruction_ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)body->first_instruction +
+                               instruction_ordinal];
+    if (instruction->binding_index >= program->binding_count) return false;
+    const w_seed_hir0_binding *update =
+        &program->bindings[instruction->binding_index];
+    if (!append_program_value_tree(
+            program, update->initializer_value, (uint32_t)function_index,
+            process, update_emitted, artifact, capacity, offset, 0u))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, "      scf.yield "))
+    return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if ((ordinal != 0u && !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_program_value_operand(
+            program,
+            program->edge_arguments[(size_t)body_term->first_edge_argument +
+                                    ordinal]
+                .value_index,
+            (uint32_t)function_index, process, artifact, capacity, offset))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, " : ")) return false;
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    if (ordinal != 0u && !append_literal(artifact, capacity, offset, ", "))
+      return false;
+    if (!append_literal(artifact, capacity, offset, "i64")) return false;
+  }
+  if (!append_literal(artifact, capacity, offset, "\n    }\n")) return false;
+
+  mlir0_natural_loop_result_context loop = {
+      .function_index = (uint32_t)function_index,
+      .header_block_index = (uint32_t)header_index,
+      .first_block_argument = header->first_block_argument,
+      .block_argument_count = carrier_count,
+      .result_binding_indices = result_bindings};
+  bool exit_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
+  (void)memcpy(exit_emitted, update_emitted, sizeof(exit_emitted));
+  if (!append_program_value_tree_in_loop(
+          program, exit_term->value_index, (uint32_t)function_index, process,
+          &loop, exit_emitted, artifact, capacity, offset, 0u))
+    return false;
+  char return_type_buffer[96];
+  const char *return_type =
+      program_type_name(program, function->return_type, return_type_buffer,
+                        process);
+  if (return_type == NULL ||
+      !append_literal(artifact, capacity, offset, "    llvm.return ") ||
+      !append_program_value_operand_in_loop(
+          program, exit_term->value_index, (uint32_t)function_index, process,
+          &loop, artifact, capacity, offset) ||
+      !append_literal(artifact, capacity, offset, " : ") ||
+      !append_literal(artifact, capacity, offset, return_type) ||
+      !append_literal(artifact, capacity, offset, "\n  }\n"))
     return false;
   return true;
 }

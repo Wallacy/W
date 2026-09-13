@@ -5554,6 +5554,97 @@
       ]
     },
     {
+      "id": "R0-structured-natural-loop-multi-carrier",
+      "reviewItem": "multi-carrier natural-loop lowering against tuple/source-order coupling and platform-specific substitution",
+      "decisions": [
+        "W-1569"
+      ],
+      "task": "Preserve multiple verified signed-i64 loop carriers as one ordered SCF tuple and execute the same public source on Windows and Linux.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "var served = 0",
+          "var total = 0",
+          "while served < limit {",
+          "  total = total + 2",
+          "  served = served + 1",
+          "}",
+          "return served + total"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "tuple-order-follows-body-order",
+          "language": "text",
+          "source": [
+            "reorder the physical carrier tuple whenever assignments are reordered"
+          ],
+          "expectedDifference": "The selected tuple order follows root declarations while evaluation and instruction order follow the source body."
+        },
+        {
+          "name": "hidden-stack-loop-state",
+          "language": "text",
+          "source": [
+            "spill each source variable to an alloca across the loop"
+          ],
+          "expectedDifference": "The selected route keeps every carried value in SSA block arguments and SCF results without source-variable allocas."
+        },
+        {
+          "name": "windows-only-witness",
+          "language": "text",
+          "source": [
+            "accept the new executable after running only the native Windows artifact"
+          ],
+          "expectedDifference": "The same source and exact output oracle execute as both a Windows PE and a Linux/WSL ELF."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_natural_loop",
+          "claim": "HIR0 independently checks the multi-carrier topology, canonical edge ordinals, types, and version chains."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_natural_loop_is_supported",
+          "claim": "NativeSubset0 rechecks the exact nonempty signed-i64 carrier tuple before MLIR emission."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_natural_loop",
+          "claim": "MLIR0 emits an ordered tuple-valued scf.while while preserving source-order body evaluation."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-while-multi.w",
+          "symbol": "serve",
+          "claim": "The public Restaurant fixture carries two roots and prints their combined result."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantWhileMultiFixture",
+          "claim": "The Linux/WSL route executes the exact multi-carrier fixture and oracle."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantWhileMultiFixture",
+          "claim": "The native Windows route executes the same exact fixture and oracle."
+        }
+      ],
+      "checks": [
+        "carrier ordinals follow root declaration order independently of body statement order",
+        "later body updates may read earlier source-order update versions",
+        "raw MLIR contains one tuple-valued scf.while and no source-variable alloca",
+        "Windows PE and Linux/WSL ELF print exact Served 9 with empty stderr and zero exit",
+        "forged tuple records and unsupported loop families fail closed"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-hir20-local-payloadless-enum",
       "reviewItem": "local payloadless enum identity against raw integer tags and premature switch lowering",
       "decisions": [

@@ -125,6 +125,22 @@ toolchain, platform, runner, or semantic-equivalence blocker. The executable
 benchmark checker must reject a public runnable fixture that has no catalog
 owner.
 
+For target-sensitive lowering, runtime, linker, or public executable work, the
+fast inner loop may use focused units and one available host lane. The feature
+checkpoint must execute the same source and observable oracle on native
+Windows and on the Linux target (native Linux or WSL) whenever both maintained
+lanes support that surface. WSL execution is Linux-target evidence, never
+native-Windows evidence. A missing lane needs a concrete toolchain or product
+blocker; it must not be silently treated as a pass.
+
+Performance records are partitioned by platform target, artifact target,
+profile, toolchain, and recipe. Never pool, rank, or replace measurements
+across operating systems. Run the second platform's full sample set at stable
+performance checkpoints or when platform-sensitive code changes, rather than
+duplicating every mechanical inner-loop sample. Add macOS execution before
+promoting its ABI, linker, runtime, packaging, or public support contract; it
+does not block target-independent HIR and MLIR work before that boundary.
+
 For a WBench/1 result, use `kind: result` and link the validation-oracle digest
 to later samples. The record includes raw samples, warmup, stop rule,
 randomized/interleaved order, environment, complete provenance, derived

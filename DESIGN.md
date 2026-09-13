@@ -38301,6 +38301,82 @@ general equivalence for imports that observe different exports, or equivalence
 across modules, packages, products, targets, or profiles. It does not establish
 cross-module WMO/WPO, summary reuse, or optimization quality.
 
+#### 26.4.1.49 W-1568 — future bounded module-graph dead-node elimination and artifact equivalence (Future task; implementation evidence missing)
+
+W-1568 is a future pipeline task. It preserves the idiomatic process root
+`import std.process` followed by unaliased `Arguments`, `Context`, and
+`ExitCode`. It does not claim multi-module support for the current build/run
+route. That route remains single-source, and CHK4 only checks a caller-owned
+graph.
+
+**Example:** the future acceptance fixture pairs `app.w` with
+`app-with-dead.w`; both must publish the same artifact digest, and the latter
+must record its unused module as omitted from the reachable product closure.
+
+The task is bounded to one package or workspace, one executable product, one
+explicit entry, one target/profile pair, and the existing finite CHK4 graph
+limits. It compares two explicit source graphs with the same reachable entry
+closure. One graph may add unused imports or an unreachable module chain. The
+graph-to-HIR and product pipeline must emit only reachable code, data, imports,
+and runtime records. Unused nodes must not become hidden roots.
+
+Acceptance requires all of the following:
+
+- the two reachable semantic HIR digests and reachable graph projections are
+  equal, while graph and provenance digests may differ;
+- complete artifacts and artifact digests are byte-identical under the same
+  target/profile and deterministic recipe;
+- both artifacts produce identical stdout, stderr, exit status, and cleanup
+  results for a fixed input matrix;
+- explicit effect, provider, service, reflection, FFI, dynamic-loading, and
+  other runtime roots remain retained, and a changed reachable body or
+  target/profile fails equivalence.
+
+This task remains `implementation-evidence-gap`. Its benchmark disposition is
+`deferred` with blocker `single-source-build-run-and-check-only-graph`, task ID
+`module-graph-dce-equivalence`, and a stop condition that requires the
+multi-module graph-to-HIR/product route and every acceptance item above.
+
+#### 26.4.1.50 W-1569 — bounded multi-carrier natural `while` through verified HIR and native execution (Current form)
+
+W-1569 extends the W-1560/W-1561 natural loop from one carried root to a
+nonempty tuple of root-block mutable signed-`i64` bindings. The ordinary
+pre-test `while condition { body }` remains the only source form. The condition
+and every update are pure scalar trees using literals, parameters, carried
+roots, supported operators, and the binding versions established by source
+order. Calls, effects, suspension, nested control, aggregates, and non-`i64`
+roots remain outside this form.
+
+The tuple has no artificial two- or four-carrier semantic limit: its size is
+bounded by the existing caller-owned HIR0 and NativeSubset0 capacities. HIR0
+publishes one header block argument and one typed preheader/backedge edge value
+per root, with one successor binding version per root. Carrier ordinals follow
+root declaration order, independently of the order of body statements. RHS
+evaluation and emitted body instructions retain source order, so a later update
+may read an earlier update's new binding version. The verifier independently
+checks the four-block natural-loop topology, owner and ordinal relations, types,
+version chains, and value dependencies before publishing the tuple. No source
+variable stack cell or emitted `llvm.alloca` is introduced.
+
+NativeSubset0 rechecks the same verified tuple and exact four-block topology.
+MLIR0 emits one `scf.while` with the signed-`i64` tuple, `scf.condition`, and
+`scf.yield`; it does not flatten the loop or substitute a host-C loop. The
+fixture [`restaurant-while-multi.w`](compiler/seed-c/fixtures/restaurant-while-multi.w)
+prints exactly `Served 9\n`.
+
+The public Linux/WSL route produces an x86_64 ELF using the pinned local
+LLVM/MLIR 20.1.2 profile. The native Windows route produces an x86_64 PE with
+the pinned LLVM/MLIR 23.1.1 MSVC profile. Both routes execute the same fixture
+and require exact stdout, empty stderr, exit zero, and cleanup. The Linux/WSL
+route is correctness-only. The same public executable catalog workload also
+has a separate Windows exploratory W/C/Rust measurement track; it does not
+establish cross-OS ranking. Broader cyclic CFG, nested or mixed control,
+labels, `break`, `continue`, `while let`, calls/effects, suspension, other root
+types, mutation after the loop, other targets, ABI/layout, optimization
+quality, timing claims, and general performance remain gaps. Its primary
+benchmark disposition is `compiler-lifecycle`; the correctness track and the
+separate Windows exploratory catalog track must remain distinct.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:
