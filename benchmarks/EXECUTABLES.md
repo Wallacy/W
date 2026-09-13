@@ -50,6 +50,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | process-arguments-count | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2676 | 130.3478 ms | 18.0029 ms | 19.0491 ms | 4808704 B (4.59 MiB) | 13.923 ms |
 | process-arguments-count | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83192 | 27378 | 1.1378609 s | 18.075 ms | 19.0888 ms | 4866048 B (4.64 MiB) | 12.995 ms |
 | process-arguments-count | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1446 | 316 | 189.5191 ms | 16.9215 ms | 17.2491 ms | 3764224 B (3.59 MiB) | 10.983 ms |
+| process-arguments-ordering | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3526 | 2660 | 128.1311 ms | 18.0056 ms | 18.9931 ms | 4829184 B (4.61 MiB) | 13.459 ms |
+| process-arguments-ordering | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83224 | 27378 | 1.1357736 s | 17.9828 ms | 18.4334 ms | 4878336 B (4.65 MiB) | 12.84 ms |
+| process-arguments-ordering | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1510 | 316 | 188.5388 ms | 16.9228 ms | 17.1818 ms | 3764224 B (3.59 MiB) | 10.365 ms |
 | process-entry | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3494 | 2600 | 125.146 ms | 17.9583 ms | 18.7021 ms | 4804608 B (4.58 MiB) | 13.304 ms |
 | process-entry | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 115200 B (112.5 KiB) | 82760 | 26922 | 1.1235825 s | 17.0132 ms | 17.7982 ms | 4476928 B (4.27 MiB) | 11.912 ms |
 | process-entry | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1430 | 268 | 187.4327 ms | 15.9992 ms | 16.9816 ms | 3760128 B (3.59 MiB) | 10.519 ms |
