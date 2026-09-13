@@ -235,6 +235,94 @@ static bool read_source(const w_seed_native0_input *input,
   return true;
 }
 
+static void configure_frontend_storage(w_seed_native0_storage *storage) {
+  if (storage == NULL) return;
+  storage->output = (w_seed_frontend_output){
+      .modules = storage->modules,
+      .module_capacity = W_SEED_NATIVE0_MODULES,
+      .imports = storage->imports,
+      .import_capacity = W_SEED_NATIVE0_IMPORTS,
+      .import_items = storage->import_items,
+      .import_item_capacity = W_SEED_NATIVE0_IMPORT_ITEMS,
+      .structs = storage->structs,
+      .struct_capacity = W_SEED_NATIVE0_STRUCTS,
+      .fields = storage->fields,
+      .field_capacity = W_SEED_NATIVE0_FIELDS,
+      .enums = storage->enums,
+      .enum_capacity = W_SEED_NATIVE0_ENUMS,
+      .enum_cases = storage->enum_cases,
+      .enum_case_capacity = W_SEED_NATIVE0_ENUM_CASES,
+      .enum_case_parameters = storage->enum_case_parameters,
+      .enum_case_parameter_capacity = W_SEED_NATIVE0_ENUM_CASE_PARAMETERS,
+      .type_declarations = storage->type_declarations,
+      .type_declaration_capacity = W_SEED_NATIVE0_STRUCTS,
+      .aliases = storage->aliases,
+      .alias_capacity = W_SEED_NATIVE0_STRUCTS,
+      .types = storage->types,
+      .type_capacity = W_SEED_NATIVE0_TYPES,
+      .functions = storage->functions,
+      .function_capacity = W_SEED_NATIVE0_FUNCTIONS,
+      .parameters = storage->parameters,
+      .parameter_capacity = W_SEED_NATIVE0_PARAMETERS,
+      .entries = storage->entries,
+      .entry_capacity = W_SEED_NATIVE0_ENTRIES,
+      .statements = storage->statements,
+      .statement_capacity = W_SEED_NATIVE0_STATEMENTS,
+      .expressions = storage->expressions,
+      .expression_capacity = W_SEED_NATIVE0_EXPRESSIONS,
+      .arguments = storage->arguments,
+      .argument_capacity = W_SEED_NATIVE0_ARGUMENTS,
+      .switch_arms = storage->switch_arms,
+      .switch_arm_capacity = W_SEED_NATIVE0_SWITCH_ARMS,
+      .pattern_captures = storage->pattern_captures,
+      .pattern_capture_capacity = W_SEED_NATIVE0_PATTERN_CAPTURES,
+      .enum_subset_members = storage->enum_subset_members,
+      .enum_subset_member_capacity = W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS,
+      .enum_membership_cases = storage->enum_membership_cases,
+      .enum_membership_case_capacity = W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES,
+      .interpolation_segments = storage->interpolation_segments,
+      .interpolation_segment_capacity = W_SEED_NATIVE0_INTERPOLATION_SEGMENTS,
+      .symbols = storage->symbols,
+      .symbol_capacity = W_SEED_NATIVE0_SYMBOLS,
+      .facts = storage->facts,
+      .fact_capacity = W_SEED_NATIVE0_FACTS,
+      .diagnostics = storage->diagnostics,
+      .diagnostic_capacity = W_SEED_NATIVE0_DIAGNOSTICS,
+      .diagnostic_facts = storage->diagnostic_facts,
+      .diagnostic_fact_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 5u,
+      .diagnostic_items = storage->diagnostic_items,
+      .diagnostic_item_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 4u,
+      .diagnostic_labels = storage->diagnostic_labels,
+      .diagnostic_label_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 2u,
+      .const_bytes = storage->const_bytes,
+      .const_bytes_capacity = sizeof(storage->const_bytes),
+      .receipt = storage->frontend_receipt,
+      .receipt_capacity = sizeof(storage->frontend_receipt)};
+
+  storage->host_requirements[0] = (w_seed_frontend_host_requirement){
+      .name = (w_seed_frontend_text){"Console", 7u}};
+  storage->host_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"message", 7u},
+      .type = (w_seed_frontend_text){"String", 6u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  storage->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"noop", 4u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .return_type = (w_seed_frontend_text){"()", 2u}};
+  storage->host_symbols[1] = (w_seed_frontend_host_prelude_symbol){
+      .name = (w_seed_frontend_text){"print", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .parameters = storage->host_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"()", 2u},
+      .requirements = storage->host_requirements,
+      .requirement_count = 1u};
+  storage->host_scope = (w_seed_frontend_host_prelude){
+      .profile = (w_seed_frontend_text){"native-process@1", 16u},
+      .symbols = storage->host_symbols,
+      .symbol_count = 2u};
+}
+
 static w_seed_native0_status prepare_frontend(
     const w_seed_native0_input *input, w_seed_native0_storage *storage) {
   if (input == NULL || storage == NULL) return W_SEED_NATIVE0_INVALID;
@@ -281,98 +369,7 @@ static w_seed_native0_status prepare_frontend(
       .resolved_imports =
           has_process_import ? storage->process_resolved_imports : NULL,
       .resolved_import_count = has_process_import ? 1u : 0u};
-  storage->output = (w_seed_frontend_output){
-      .modules = storage->modules,
-      .module_capacity = W_SEED_NATIVE0_MODULES,
-      .imports = storage->imports,
-      .import_capacity = W_SEED_NATIVE0_IMPORTS,
-      .import_items = storage->import_items,
-      .import_item_capacity = W_SEED_NATIVE0_IMPORT_ITEMS,
-      .structs = storage->structs,
-      .struct_capacity = W_SEED_NATIVE0_STRUCTS,
-      .fields = storage->fields,
-      .field_capacity = W_SEED_NATIVE0_FIELDS,
-      .enums = storage->enums,
-      .enum_capacity = W_SEED_NATIVE0_ENUMS,
-      .enum_cases = storage->enum_cases,
-      .enum_case_capacity = W_SEED_NATIVE0_ENUM_CASES,
-      .enum_case_parameters = storage->enum_case_parameters,
-      .enum_case_parameter_capacity = W_SEED_NATIVE0_ENUM_CASE_PARAMETERS,
-      .type_declarations = storage->type_declarations,
-      .type_declaration_capacity = W_SEED_NATIVE0_STRUCTS,
-      .aliases = storage->aliases,
-      .alias_capacity = W_SEED_NATIVE0_STRUCTS,
-      .types = storage->types,
-      .type_capacity = W_SEED_NATIVE0_TYPES,
-      .functions = storage->functions,
-      .function_capacity = W_SEED_NATIVE0_FUNCTIONS,
-      .parameters = storage->parameters,
-      .parameter_capacity = W_SEED_NATIVE0_PARAMETERS,
-      .entries = storage->entries,
-      .entry_capacity = W_SEED_NATIVE0_ENTRIES,
-      .statements = storage->statements,
-      .statement_capacity = W_SEED_NATIVE0_STATEMENTS,
-      .expressions = storage->expressions,
-      .expression_capacity = W_SEED_NATIVE0_EXPRESSIONS,
-      .arguments = storage->arguments,
-      .argument_capacity = W_SEED_NATIVE0_ARGUMENTS,
-      .switch_arms = storage->switch_arms,
-      .switch_arm_capacity = W_SEED_NATIVE0_SWITCH_ARMS,
-      .pattern_captures = storage->pattern_captures,
-      .pattern_capture_capacity = W_SEED_NATIVE0_PATTERN_CAPTURES,
-      .enum_subset_members = storage->enum_subset_members,
-      .enum_subset_member_capacity = W_SEED_NATIVE0_ENUM_SUBSET_MEMBERS,
-      .enum_membership_cases = storage->enum_membership_cases,
-      .enum_membership_case_capacity =
-          W_SEED_NATIVE0_ENUM_MEMBERSHIP_CASES,
-      .interpolation_segments = storage->interpolation_segments,
-      .interpolation_segment_capacity =
-          W_SEED_NATIVE0_INTERPOLATION_SEGMENTS,
-      .symbols = storage->symbols,
-      .symbol_capacity = W_SEED_NATIVE0_SYMBOLS,
-      .facts = storage->facts,
-      .fact_capacity = W_SEED_NATIVE0_FACTS,
-      .diagnostics = storage->diagnostics,
-      .diagnostic_capacity = W_SEED_NATIVE0_DIAGNOSTICS,
-      .diagnostic_facts = storage->diagnostic_facts,
-      .diagnostic_fact_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 5u,
-      .diagnostic_items = storage->diagnostic_items,
-      .diagnostic_item_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 4u,
-      .diagnostic_labels = storage->diagnostic_labels,
-      .diagnostic_label_capacity = W_SEED_NATIVE0_DIAGNOSTICS * 2u,
-      .const_bytes = storage->const_bytes,
-      .const_bytes_capacity = sizeof(storage->const_bytes),
-      .receipt = storage->frontend_receipt,
-      .receipt_capacity = sizeof(storage->frontend_receipt)};
-
-  storage->host_requirements[0] = (w_seed_frontend_host_requirement){
-      .name = (w_seed_frontend_text){"Console", 7u}};
-  storage->host_parameters[0] = (w_seed_frontend_external_parameter){
-      .name = (w_seed_frontend_text){"message", 7u},
-      .type = (w_seed_frontend_text){"String", 6u},
-      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
-  storage->host_symbols[0] = (w_seed_frontend_host_prelude_symbol){
-      .name = (w_seed_frontend_text){"noop", 4u},
-      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
-      .parameters = NULL,
-      .parameter_count = 0u,
-      .return_type = (w_seed_frontend_text){"()", 2u},
-      .is_const = false,
-      .requirements = NULL,
-      .requirement_count = 0u};
-  storage->host_symbols[1] = (w_seed_frontend_host_prelude_symbol){
-      .name = (w_seed_frontend_text){"print", 5u},
-      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
-      .parameters = storage->host_parameters,
-      .parameter_count = 1u,
-      .return_type = (w_seed_frontend_text){"()", 2u},
-      .is_const = false,
-      .requirements = storage->host_requirements,
-      .requirement_count = 1u};
-  storage->host_scope = (w_seed_frontend_host_prelude){
-      .profile = (w_seed_frontend_text){"native-process@1", 16u},
-      .symbols = storage->host_symbols,
-      .symbol_count = 2u};
+  configure_frontend_storage(storage);
 
   const w_seed_frontend_status frontend_status = w_seed_frontend_run(
       &storage->input, &storage->output, &storage->frontend_result);
@@ -490,6 +487,187 @@ static w_seed_native0_status map_mlir_status(w_seed_mlir0_status status) {
   return W_SEED_NATIVE0_MLIR;
 }
 
+static w_seed_native0_status emit_hir_program(
+    w_seed_native0_storage *storage, const w_seed_mlir0_target *target,
+    w_seed_mlir0_artifact_kind artifact_kind, size_t source_bytes,
+    const w_seed_native0_output *output, w_seed_native0_result *result) {
+  if (storage == NULL || target == NULL || output == NULL || result == NULL)
+    return W_SEED_NATIVE0_INVALID;
+  if (artifact_kind == W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
+      storage->hir_program.external_module_count == 1u &&
+      storage->hir_program.external_symbol_count == 7u)
+    artifact_kind = W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
+  const w_seed_mlir0_input mlir_input = {
+      .program = &storage->hir_program,
+      .hir_result = &storage->hir_result,
+      .artifact_kind = artifact_kind};
+  w_seed_mlir0_result mlir_result;
+  const w_seed_native0_status status = map_mlir_status(
+      w_seed_mlir0_emit(&mlir_input, target, output, &mlir_result));
+  if (status != W_SEED_NATIVE0_OK) return status;
+  *result = (w_seed_native0_result){
+      W_SEED_NATIVE0_OK, source_bytes, mlir_result};
+  return W_SEED_NATIVE0_OK;
+}
+
+static bool size_product(size_t count, size_t item_size, size_t *bytes) {
+  if (bytes == NULL || (item_size != 0u && count > SIZE_MAX / item_size))
+    return false;
+  *bytes = count * item_size;
+  return true;
+}
+
+static bool local_frontend_graph_shape(
+    const w_seed_frontend_input *input, const w_seed_native0_storage *storage,
+    const w_seed_native0_output *output, const w_seed_native0_result *result,
+    size_t *source_bytes) {
+  if (input == NULL || storage == NULL || output == NULL || result == NULL ||
+      source_bytes == NULL || input->documents == NULL ||
+      input->document_count == 0u ||
+      input->document_count > W_SEED_NATIVE0_MODULES ||
+      input->external_modules != NULL || input->external_module_count != 0u ||
+      input->host_scope != NULL || !input->import_resolution_complete ||
+      (input->resolved_import_count != 0u && input->resolved_imports == NULL))
+    return false;
+
+  size_t document_bytes = 0u;
+  size_t edge_bytes = 0u;
+  if (!size_product(input->document_count, sizeof(*input->documents),
+                    &document_bytes) ||
+      !size_product(input->resolved_import_count,
+                    sizeof(*input->resolved_imports), &edge_bytes) ||
+      ranges_overlap(input, sizeof(*input), storage, sizeof(*storage)) ||
+      ranges_overlap(input->documents, document_bytes, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(input->resolved_imports, edge_bytes, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(output, sizeof(*output), storage, sizeof(*storage)) ||
+      ranges_overlap(result, sizeof(*result), storage, sizeof(*storage)) ||
+      ranges_overlap(output, sizeof(*output), result, sizeof(*result)) ||
+      ranges_overlap(result, sizeof(*result), input, sizeof(*input)) ||
+      ranges_overlap(result, sizeof(*result), input->documents,
+                     document_bytes) ||
+      ranges_overlap(result, sizeof(*result), input->resolved_imports,
+                     edge_bytes) ||
+      ranges_overlap(result, sizeof(*result), output->bytes,
+                     output->capacity) ||
+      ranges_overlap(output->bytes, output->capacity, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(output->bytes, output->capacity, input, sizeof(*input)) ||
+      ranges_overlap(output->bytes, output->capacity, input->documents,
+                     document_bytes) ||
+      ranges_overlap(output->bytes, output->capacity, input->resolved_imports,
+                     edge_bytes))
+    return false;
+
+  size_t total = 0u;
+  for (size_t index = 0u; index < input->document_count; index += 1u) {
+    const w_seed_frontend_document *document = &input->documents[index];
+    if (document->source == NULL || document->nodes == NULL ||
+        document->node_count == 0u ||
+        document->source->bytes.data == NULL ||
+        document->source->bytes.length == 0u ||
+        document->source->bytes.length > W_SEED_NATIVE0_MAX_SOURCE_BYTES ||
+        total > SIZE_MAX - document->source->bytes.length)
+      return false;
+    size_t node_bytes = 0u;
+    if (!size_product(document->node_count, sizeof(*document->nodes),
+                      &node_bytes) ||
+        ranges_overlap(document->source, sizeof(*document->source), storage,
+                       sizeof(*storage)) ||
+        ranges_overlap(document->source->bytes.data,
+                       document->source->bytes.length, storage,
+                       sizeof(*storage)) ||
+        ranges_overlap(document->nodes, node_bytes, storage,
+                       sizeof(*storage)) ||
+        ranges_overlap(document->logical_source_id.data,
+                       document->logical_source_id.length, storage,
+                       sizeof(*storage)) ||
+        ranges_overlap(document->module_id.data, document->module_id.length,
+                       storage, sizeof(*storage)) ||
+        ranges_overlap(document->local_module_name.data,
+                       document->local_module_name.length, storage,
+                       sizeof(*storage)) ||
+        ranges_overlap(result, sizeof(*result), document->source,
+                       sizeof(*document->source)) ||
+        ranges_overlap(result, sizeof(*result), document->source->bytes.data,
+                       document->source->bytes.length) ||
+        ranges_overlap(result, sizeof(*result), document->nodes, node_bytes) ||
+        ranges_overlap(result, sizeof(*result),
+                       document->logical_source_id.data,
+                       document->logical_source_id.length) ||
+        ranges_overlap(result, sizeof(*result), document->module_id.data,
+                       document->module_id.length) ||
+        ranges_overlap(result, sizeof(*result),
+                       document->local_module_name.data,
+                       document->local_module_name.length) ||
+        ranges_overlap(output->bytes, output->capacity, document->source,
+                       sizeof(*document->source)) ||
+        ranges_overlap(output->bytes, output->capacity,
+                       document->source->bytes.data,
+                       document->source->bytes.length) ||
+        ranges_overlap(output->bytes, output->capacity, document->nodes,
+                       node_bytes) ||
+        ranges_overlap(output->bytes, output->capacity,
+                       document->logical_source_id.data,
+                       document->logical_source_id.length) ||
+        ranges_overlap(output->bytes, output->capacity,
+                       document->module_id.data, document->module_id.length) ||
+        ranges_overlap(output->bytes, output->capacity,
+                       document->local_module_name.data,
+                       document->local_module_name.length))
+      return false;
+    total += document->source->bytes.length;
+  }
+  for (size_t index = 0u; index < input->resolved_import_count; index += 1u)
+    if (input->resolved_imports[index].target_kind !=
+        W_SEED_FRONTEND_RESOLVED_IMPORT_LOCAL_DOCUMENT)
+      return false;
+  *source_bytes = total;
+  return true;
+}
+
+w_seed_native0_status w_seed_native0_run_frontend_graph(
+    const w_seed_frontend_input *frontend_input,
+    const w_seed_mlir0_target *target, w_seed_native0_storage *storage,
+    const w_seed_native0_output *output, w_seed_native0_result *result) {
+  if (target == NULL || output == NULL || result == NULL || storage == NULL)
+    return W_SEED_NATIVE0_INVALID;
+  if (ranges_overlap(target, sizeof(*target), storage, sizeof(*storage)) ||
+      ranges_overlap(target, sizeof(*target), result, sizeof(*result)) ||
+      ranges_overlap(target, sizeof(*target), output->bytes,
+                     output->capacity))
+    return W_SEED_NATIVE0_INVALID;
+  if (output->capacity > W_SEED_MLIR0_MAX_BYTES ||
+      (output->capacity != 0u && output->bytes == NULL))
+    return W_SEED_NATIVE0_CAPACITY;
+  if (!w_seed_mlir0_target_is_supported(target))
+    return W_SEED_NATIVE0_UNSUPPORTED;
+  size_t source_bytes = 0u;
+  if (!local_frontend_graph_shape(frontend_input, storage, output, result,
+                                  &source_bytes))
+    return W_SEED_NATIVE0_INVALID;
+
+  (void)memset(storage, 0, sizeof(*storage));
+  configure_frontend_storage(storage);
+  storage->input = *frontend_input;
+  storage->input.host_scope = &storage->host_scope;
+  const w_seed_frontend_status frontend_status = w_seed_frontend_run(
+      &storage->input, &storage->output, &storage->frontend_result);
+  if (frontend_status == W_SEED_FRONTEND_UNSUPPORTED)
+    return W_SEED_NATIVE0_UNSUPPORTED;
+  if (frontend_status == W_SEED_FRONTEND_CAPACITY)
+    return W_SEED_NATIVE0_CAPACITY;
+  if (frontend_status != W_SEED_FRONTEND_OK)
+    return W_SEED_NATIVE0_FRONTEND;
+
+  const w_seed_native0_status hir_status = lower_hir(storage);
+  if (hir_status != W_SEED_NATIVE0_OK) return hir_status;
+  return emit_hir_program(storage, target,
+                          W_SEED_MLIR0_ARTIFACT_EXECUTABLE, source_bytes,
+                          output, result);
+}
+
 w_seed_native0_status w_seed_native0_run(
     const w_seed_native0_input *input, w_seed_native0_storage *storage,
     const w_seed_native0_output *output, w_seed_native0_result *result) {
@@ -515,23 +693,6 @@ w_seed_native0_status w_seed_native0_run(
   status = lower_hir(storage);
   if (status != W_SEED_NATIVE0_OK) return status;
 
-  w_seed_mlir0_artifact_kind artifact_kind = input->artifact_kind;
-  if (artifact_kind == W_SEED_MLIR0_ARTIFACT_EXECUTABLE &&
-      storage->hir_program.external_module_count == 1u &&
-      storage->hir_program.external_symbol_count == 7u)
-    artifact_kind = W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE;
-  const w_seed_mlir0_input mlir_input = {
-      .program = &storage->hir_program,
-      .hir_result = &storage->hir_result,
-      .artifact_kind = artifact_kind};
-  w_seed_mlir0_result mlir_result;
-  const w_seed_native0_status mlir_status = map_mlir_status(
-      w_seed_mlir0_emit(&mlir_input, &input->target,
-                        output, &mlir_result));
-  if (mlir_status != W_SEED_NATIVE0_OK) return mlir_status;
-
-  const w_seed_native0_result candidate = {
-      W_SEED_NATIVE0_OK, storage->source_length, mlir_result};
-  *result = candidate;
-  return W_SEED_NATIVE0_OK;
+  return emit_hir_program(storage, &input->target, input->artifact_kind,
+                          storage->source_length, output, result);
 }
