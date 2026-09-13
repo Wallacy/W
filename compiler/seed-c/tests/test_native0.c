@@ -2150,15 +2150,16 @@ static bool test_aliases(void) {
   CHECK(memcmp(&alias_snapshot, &identity_snapshot,
                sizeof(alias_snapshot)) == 0);
 
-  union {
+  static union {
     w_seed_native0_input input;
     w_seed_native0_storage storage;
-  } input_storage_alias = {{
+  } input_storage_alias;
+  input_storage_alias.input = (w_seed_native0_input){
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
       {"input-storage", 13u},
       TARGET,
-      W_SEED_MLIR0_ARTIFACT_EXECUTABLE}};
+      W_SEED_MLIR0_ARTIFACT_EXECUTABLE};
   (void)memset(output, 0x31u, sizeof(output));
   (void)memset(&alias_snapshot, 0x32u, sizeof(alias_snapshot));
   const w_seed_native0_result input_storage_result_snapshot = alias_snapshot;
@@ -2200,10 +2201,12 @@ static bool test_aliases(void) {
   CHECK(memcmp(&alias_snapshot, &input_result_snapshot,
                sizeof(alias_snapshot)) == 0);
 
-  union {
+  static union {
     w_seed_native0_output output;
     w_seed_native0_storage storage;
-  } output_storage_alias = {{output, sizeof(output)}};
+  } output_storage_alias;
+  output_storage_alias.output =
+      (w_seed_native0_output){output, sizeof(output)};
   const w_seed_native0_input output_storage_input = {
       TEST_PATH,
       sizeof(TEST_PATH) - 1u,
@@ -2286,8 +2289,30 @@ static bool test_signed_comparison_products(void) {
   return true;
 }
 
+static bool test_virtual_structured_task_product(void) {
+  static const uint8_t source[] =
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let left = async prepare(value: 20) "
+      "let right = async prepare(value: 22) "
+      "let first = await left let second = await right "
+      "print(\"Prepared ${first + second}\") }\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status status =
+      run_source(source, sizeof(source) - 1u, "async-join", 10u, output,
+                 sizeof(output), &result);
+  CHECK(status == W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes,
+                       "llvm.call @w_fn_0"));
+  CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes, "@w_task"));
+  CHECK(!contains_bytes(output, result.mlir.written.mlir_bytes,
+                        "@w_async_"));
+  return true;
+}
+
 int main(void) {
-  const bool products = test_signed_comparison_products() && test_products() &&
+  const bool products = test_virtual_structured_task_product() &&
+                        test_signed_comparison_products() && test_products() &&
                         test_enum_frontend_storage() &&
                         test_enum_payload_native_lowering() &&
                         test_bool_payload_native_lowering() &&

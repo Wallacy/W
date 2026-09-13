@@ -33,6 +33,8 @@ const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
   "fixtures", "restaurant-branch-mutation-multi.w")
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
+const restaurantAsyncJoinFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-async-join.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -478,6 +480,8 @@ try {
       expected: Buffer.from("Served 3\n", "utf8") },
     { name: "restaurant-wmo", source: restaurantWmoFixture,
       expected: Buffer.from("Bill 42\n", "utf8") },
+    { name: "restaurant-async-join", source: restaurantAsyncJoinFixture,
+      expected: Buffer.from("Prepared 42\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()

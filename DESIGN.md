@@ -12403,13 +12403,13 @@ criar child lexical por binding é:
 
 ```w
 let stock = async pantry.reserve(order)
-let plan = spawn<.compute> optimize(take snapshot)
-let plan = spawn<domain: .compute> optimize(take snapshot)
+let plan = spawn<.domain> optimize(take snapshot)
+let plan = spawn<domain: .domain> optimize(take snapshot)
 ```
 
 `async` cria o child no domain atual. `spawn<domain>` cria o child no domain
-explícito. O initializer produz `Task<T, E>`, o handle continua cancelável e
-join, drain e cancelamento implícitos permanecem estruturados. Callee,
+explícito. O initializer produz `Task<T, E>`, a capability semântica continua
+cancelável e join, drain e cancelamento implícitos permanecem estruturados. Callee,
 arguments e captures são staged uma vez no parent antes do child existir.
 W-1470 remove sem shim as grafias declaration-like anteriores. A posição
 anterior vinha do modelo de declaration de Swift, mas W mantém o mesmo Task
@@ -12525,19 +12525,38 @@ As regras são:
 
 1. cada child pertence ao scope criador;
 2. o scope não termina antes do cleanup de todos os children;
-3. `await` consome o handle e move um resultado owned;
-4. `task#cancel()` solicita cancelamento, mas não consome o handle;
+3. `await` consome a capability e move um resultado owned;
+4. `task#cancel()` solicita cancelamento, mas não consome a capability;
 5. retorno antecipado cancela e faz join dos children restantes;
-6. esquecer ou destruir o handle não destaca a task;
-7. o compiler diagnostica um handle sem consumo.
+6. esquecer ou destruir a capability não destaca a task;
+7. o compiler diagnostica uma capability sem consumo.
 
-**W-1502 — handle core (Forma vigente):** `Task<T, E>` é `linear` e `opaque`.
-As expressions `async` e `spawn<domain>` são os únicos producers públicos do
-handle. Depois do staging, o launcher publica o child e seu handle ou produz o
-handle estruturado inline-canceled definido para budget exhaustion. Não existe
-constructor, field, layout ou conversão de `Task` na source surface.
+**W-1502 — capability core virtual (Forma vigente):** `Task<T, E>` é `linear` e
+`opaque`. Ela é uma capability semântica para um child, não um objeto com
+identidade observável. As expressions `async` e `spawn<domain>` são os únicos
+producers públicos dessa capability. Depois do staging, o launcher publica o
+child e sua capability ou produz o estado semântico inline-canceled definido
+para budget exhaustion. Não existe constructor, field, layout, endereço,
+igualdade de identidade ou conversão de `Task` na source surface.
 `task#cancel` é non-consuming. `await`, `join` e `(take task)#outcome()`
-consomem o handle e fecham a observação do child.
+consomem a capability e fecham a observação do child.
+
+A representação é deliberadamente virtual. O compiler pode manter apenas um
+token SSA de prova e apagar completamente `Task` quando lifetime, ownership e
+join ficam provados estaticamente. Em particular, um child local
+`neverSuspend`, consumido uma única vez pelo `await` lexical, pode virar a call
+escalar e o resultado `T`, sem frame, allocation, handle ABI, TCB ou estado de
+runtime. Os IDs usados pelo compiler para relacionar launch, child e join são
+transientes e não criam identidade na linguagem.
+
+Uma representação física só é introduzida quando a semântica sobrevivente
+exige estado: suspensão real, placement que requer dispatch, cancelamento
+concorrente, arbitration entre consumers, outcome compartilhado, tracing
+solicitado pelo profile ou transferência para um owner runtime explícito. Mesmo
+nesses casos, a identidade física permanece privada ao runtime e não se torna
+igualdade ou endereço observável de `Task`. A ausência dessa necessidade deve
+ser provada antes da elisão; sua presença autoriza materialização, mas não fixa
+um layout público.
 
 Os companions públicos de task são source-backed em
 [`std/runtime/task.w`](std/runtime/task.w): `CancellationReason`,
@@ -12546,10 +12565,11 @@ Os companions públicos de task são source-backed em
 criam um constructor alternativo para `Task` e mantêm application error,
 cancellation, ordering e input index separados.
 
-O handle de um child publicado fica disponível somente depois que a publicação
-termina. Uma falha durante a avaliação dos argumentos não publica task nem
-handle. Budget exhaustion usa o handle estruturado inline-canceled previsto
-acima, sem publicar o child. Uma reserva de runtime não usada volta ao scope.
+A capability de um child publicado fica disponível somente depois que a
+publicação termina. Uma falha durante a avaliação dos argumentos não publica
+child nem capability. Budget exhaustion produz a capability estruturada
+inline-canceled prevista acima, sem exigir objeto ou handle físico. Uma reserva
+de runtime não usada volta ao scope.
 
 Um child estruturado pode receber um value dependent somente quando o join do
 child precede a última origin. O valor também deve continuar `transferable` no
@@ -38839,6 +38859,53 @@ outside this slice. W-1568 remains an implementation-evidence gap. Its
 benchmark disposition is `compiler-lifecycle`: public executable correctness is
 current, while cross-language graph recipes and performance ranking remain
 separate benchmark work.
+
+#### 26.4.1.58 W-1577 — bounded virtual structured-task elision (Current bounded form)
+
+W-1577 is the first executable proof that a W `Task` need not become a runtime
+object. The admitted source shape is deliberately narrow: an immutable
+root-block binding launches one local, synchronous, non-throwing,
+`neverSuspend` scalar function with `async`; exactly one later immutable
+binding in the same block consumes it with `await`; and the result is `Bool` or
+signed `i64`. The Task cannot escape, cross a branch, be copied, enter a call,
+or use explicit `spawn` placement, cancellation, arbitration, sharing, or an
+async callee.
+
+**Exemplo:** a source ainda expressa ownership estruturado, embora o carrier
+físico desapareça neste caso provado:
+
+```w
+let pending = async prepare(value: 20)
+let prepared = await pending
+```
+
+HIR0 schema `w-seed-hir0-30` lowers the launcher to its ordinary scalar call
+result and the join to a scalar binding read. `execution_kind`, `task_role`, a
+reciprocal peer binding, and the copied source-expression ordinal are proof
+facts only. The independent verifier rechecks the closed enums, launch/join
+direction, reciprocity, source order, lexical block, immutability, scalar type,
+initializer shape, and the local `neverSuspend` callee. These ordinals are
+compiler-private transient relations; they do not give `Task` identity,
+address, equality, fields, or ABI.
+
+The frontend uses bounded normalization scratch to make its dry and emit passes
+infer later scalar uses identically. That scratch is neither HIR ownership nor
+runtime state. NativeSubset0 and MLIR0 consume only verified HIR and emit
+ordinary scalar calls and SSA values. No Task-specific allocator, frame,
+handle, TCB, WRT entry, or native symbol is introduced. This optimization is
+representation erasure, not a concurrency claim: the current lowering may run
+the two calls sequentially and does not prove temporal overlap.
+
+[`restaurant-async-join.w`](compiler/seed-c/fixtures/restaurant-async-join.w)
+passes through public `w run` and `w build` on Windows x64 and prints exactly
+`Prepared 42\n`, with empty stderr and exit zero. The Linux/WSL gate is wired
+to the same witness, but a passing local Linux toolchain execution is required
+before claiming that platform. General suspension, scheduling, parallel
+domains, cancellation, shared outcomes, runtime owners, tracing that preserves
+task state, other payload types, and Task ABI/layout remain implementation
+gaps. The primary benchmark disposition is `compiler-lifecycle`; the executable
+catalog separately measures equivalent sequential W, C23, and Rust programs
+and must not label them as concurrent execution.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

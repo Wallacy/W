@@ -76,6 +76,10 @@ static bool run_logical_source_id(const char *path, size_t length,
 #include <unistd.h>
 
 static w_seed_native0_storage native_storage;
+/* The CLI is single-shot. Keep the bounded compiler artifact arena out of
+ * small host thread stacks; stack size must not become an accepted-source
+ * limit as HIR records evolve. */
+static uint8_t native_artifact[W_SEED_MLIR0_MAX_BYTES];
 
 static const char MLIR_OPT[] = W_SEED_LINUX_MLIR_OPT_PATH;
 static const char MLIR_TRANSLATE[] = W_SEED_LINUX_MLIR_TRANSLATE_PATH;
@@ -284,14 +288,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
   if (!run_logical_source_id(request->source_path, path_length, &source_id))
     return 2;
 
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_input native_input = {
       .path = request->source_path,
       .path_length = path_length,
       .logical_source_id = source_id,
       .target =
           (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_UNKNOWN_LINUX_GNU}};
-  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
+  const w_seed_native0_output native_output = {native_artifact,
+                                                sizeof(native_artifact)};
   w_seed_native0_result native_result;
   w_seed_native0_status native_status = w_seed_native0_run(
       &native_input, &native_storage, &native_output, &native_result);
@@ -327,7 +331,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                  "wrt0.ll") ||
       !path_join(runtime_object_path, sizeof(runtime_object_path),
                  request->directory, "wrt0.o") ||
-      !write_private_file(input_path, artifact,
+      !write_private_file(input_path, native_artifact,
                           native_result.mlir.written.mlir_bytes) ||
       !write_private_file(runtime_ll_path, WRT0_LL, sizeof(WRT0_LL) - 1u) ||
       !create_private_file(verified_path, (mode_t)0600) ||
@@ -492,6 +496,10 @@ enum {
 };
 
 static w_seed_native0_storage native_storage;
+/* The CLI is single-shot. Keep the bounded compiler artifact arena out of
+ * small host thread stacks; stack size must not become an accepted-source
+ * limit as HIR records evolve. */
+static uint8_t native_artifact[W_SEED_MLIR0_MAX_BYTES];
 
 typedef struct {
   wchar_t *data;
@@ -864,14 +872,14 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
                             sizeof(artifact_path) / sizeof(artifact_path[0])))
     return 2;
 
-  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
   const w_seed_native0_input native_input = {
       .path = request->source_path,
       .path_length = path_length,
       .logical_source_id = source_id,
       .target =
           (w_seed_mlir0_target){W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC}};
-  const w_seed_native0_output native_output = {artifact, sizeof(artifact)};
+  const w_seed_native0_output native_output = {native_artifact,
+                                                sizeof(native_artifact)};
   w_seed_native0_result native_result;
   w_seed_native0_status native_status = w_seed_native0_run(
       &native_input, &native_storage, &native_output, &native_result);
@@ -918,7 +926,7 @@ int w_seed_run_compile(const w_seed_run_compile_request *request) {
       !windows_path_join(object_path,
                          sizeof(object_path) / sizeof(object_path[0]), directory,
                          L"output.obj") ||
-      !windows_write_new_file(input_path, artifact,
+      !windows_write_new_file(input_path, native_artifact,
                               native_result.mlir.written.mlir_bytes))
     goto cleanup;
 

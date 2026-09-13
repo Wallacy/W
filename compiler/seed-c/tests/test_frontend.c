@@ -5203,6 +5203,7 @@ static bool test_structured_async_projection(void) {
       "  let right = async prepare(value: 22)\n"
       "  let first = await left\n"
       "  let second = await right\n"
+      "  let total = first + second\n"
       "}\n";
   CHECK(fixture_run(value, valid_source));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
@@ -5228,13 +5229,17 @@ static bool test_structured_async_projection(void) {
                 value->result.written.expressions &&
             value->expressions[expression->task_call_expression].kind ==
                 W_SEED_FRONTEND_EXPR_CALL &&
-            expression->task_result_type < value->result.written.types);
+            expression->task_result_type < value->result.written.types &&
+            expression->enum_index == W_SEED_FRONTEND_NONE &&
+            expression->enum_case_index == W_SEED_FRONTEND_NONE);
       launches += 1u;
     } else if (expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
       CHECK(expression->supported &&
             expression->task_binding_statement <
                 value->result.written.statements &&
-            expression->task_result_type < value->result.written.types);
+            expression->task_result_type < value->result.written.types &&
+            expression->enum_index == W_SEED_FRONTEND_NONE &&
+            expression->enum_case_index == W_SEED_FRONTEND_NONE);
       awaits += 1u;
     }
   }
@@ -5247,6 +5252,16 @@ static bool test_structured_async_projection(void) {
             W_SEED_FRONTEND_OK &&
         value->result.receipt_bytes == receipt_bytes &&
         memcmp(value->receipt, receipt, receipt_bytes) == 0);
+
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let task = async prepare(value: 1) "
+      "let first = await task "
+      "if true { let first = true let nested = !first } "
+      "let total = first + 1 }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
 
   CHECK(fixture_run(value,
                     "fn prepare(value: i64): i64 { return value }\n"

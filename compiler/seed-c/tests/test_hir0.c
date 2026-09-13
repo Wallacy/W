@@ -1999,6 +1999,152 @@ static bool test_function_parameter_records(void) {
   return true;
 }
 
+static bool test_structured_async_elision_hir(void) {
+  static const char SOURCE[] =
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry {\n"
+      "  let left = async prepare(value: 20)\n"
+      "  let right = async prepare(value: 22)\n"
+      "  let first = await left\n"
+      "  let second = await right\n"
+      "}\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->call_count == 2u &&
+        program->binding_count == 4u && program->instruction_count == 6u &&
+        program->argument_count == 2u && program->value_count == 7u);
+  CHECK(program->calls[0].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
+        program->calls[1].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+  CHECK(program->bindings[0].task_peer_binding == 2u &&
+        program->bindings[1].task_peer_binding == 3u &&
+        program->bindings[2].task_peer_binding == 0u &&
+        program->bindings[3].task_peer_binding == 1u);
+  CHECK(program->bindings[0].task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH &&
+        program->bindings[1].task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH &&
+        program->bindings[2].task_role ==
+            W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT &&
+        program->bindings[3].task_role ==
+            W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT);
+  CHECK(program->values[program->bindings[0].initializer_value].kind ==
+            W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[program->bindings[1].initializer_value].kind ==
+            W_SEED_HIR0_VALUE_CALL_RESULT &&
+        program->values[program->bindings[2].initializer_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[program->bindings[3].initializer_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ);
+
+  const w_seed_hir0_function saved_prepare = fixture.hir_functions[0];
+  fixture.hir_functions[0].is_throws = true;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_prepare;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_call saved_call = fixture.hir_calls[0];
+  fixture.hir_calls[0].execution_kind = W_SEED_HIR0_CALL_DIRECT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+
+  fixture.hir_calls[0].execution_kind =
+      (w_seed_hir0_call_execution_kind)-1;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_call;
+
+  const w_seed_hir0_binding saved_launch = fixture.hir_bindings[0];
+  fixture.hir_bindings[0].task_peer_binding = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_launch;
+
+  fixture.hir_bindings[0].task_role = W_SEED_HIR0_TASK_ROLE_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[0] = saved_launch;
+
+  const w_seed_hir0_binding saved_join = fixture.hir_bindings[2];
+  fixture.hir_bindings[2].task_peer_binding = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[2] = saved_join;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  uint32_t task_type = W_SEED_FRONTEND_NONE;
+  uint32_t scalar_expression = W_SEED_FRONTEND_NONE;
+  for (size_t type = 0u; type < fixture.result.written.types; type += 1u)
+    if (fixture.types[type].kind == W_SEED_FRONTEND_TYPE_TASK) {
+      task_type = (uint32_t)type;
+      break;
+    }
+  for (size_t expression = 0u; expression < fixture.result.written.expressions;
+       expression += 1u)
+    if (fixture.expressions[expression].kind == W_SEED_FRONTEND_EXPR_INTEGER) {
+      scalar_expression = (uint32_t)expression;
+      break;
+    }
+  CHECK(task_type != W_SEED_FRONTEND_NONE &&
+        scalar_expression != W_SEED_FRONTEND_NONE);
+  fixture.expressions[scalar_expression].inferred_type = task_type;
+  w_seed_hir0_input forged_input = {
+      &fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_counts forged_counts;
+  w_seed_hir0_result forged_result;
+  CHECK(w_seed_hir0_measure(&forged_input, &forged_counts, &forged_result) !=
+        W_SEED_HIR0_OK);
+
+  static const char BOOL_SOURCE[] =
+      "fn confirm(value: Bool): Bool { return value }\n"
+      "entry { let pending = async confirm(value: true) "
+      "let accepted = await pending }\n";
+  CHECK(lower(BOOL_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->call_count == 1u && program->binding_count == 2u &&
+        program->calls[0].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
+        program->bindings[0].task_role == W_SEED_HIR0_TASK_ROLE_LAUNCH &&
+        program->bindings[1].task_role ==
+            W_SEED_HIR0_TASK_ROLE_AWAIT_RESULT &&
+        program->bindings[0].task_peer_binding == 1u &&
+        program->bindings[1].task_peer_binding == 0u);
+
+  static const char UNIT_SOURCE[] =
+      "fn finish() {}\nentry { let pending = async finish() "
+      "let done = await pending }\n";
+  CHECK(fixture_frontend(UNIT_SOURCE));
+  setup_hir_output();
+  w_seed_hir0_input input = {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_counts counts;
+  w_seed_hir0_result result;
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char STRING_SOURCE[] =
+      "fn echo(value: String): String { return value }\n"
+      "entry { let pending = async echo(value: \"ready\") "
+      "let text = await pending }\n";
+  CHECK(fixture_frontend(STRING_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char THROWING_SOURCE[] =
+      "fn danger(value: i64): i64 throws Error { return value }\n"
+      "entry { let pending = async danger(value: 1) "
+      "let value = await pending }\n";
+  CHECK(fixture_frontend(THROWING_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
+  return true;
+}
+
 static bool test_lowering_is_not_hello_hardcoded(void) {
   static const char OTHER_SOURCE[] =
       "fn main() { print(message: \"north\", suffix: \"!\") }\nentry(main)\n";
@@ -6611,6 +6757,7 @@ int main(void) {
   if (!test_canonical_and_copy_boundary()) return 1;
   if (!test_semantic_and_provenance_digests()) return 1;
   if (!test_function_parameter_records()) return 1;
+  if (!test_structured_async_elision_hir()) return 1;
   if (!test_lowering_is_not_hello_hardcoded()) return 1;
   if (!test_local_binding_lowering()) return 1;
   if (!test_straight_line_mutation_ssa()) return 1;
