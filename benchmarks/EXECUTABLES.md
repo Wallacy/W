@@ -89,6 +89,9 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-mutation | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 550 | 212 | 175.1766 ms | 16.0612 ms | 16.9951 ms | 3756032 B (3.58 MiB) | 10.829 ms |
 | restaurant-nested-branch | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 368 | 179.5562 ms | 16.8636 ms | 17.0991 ms | 3760128 B (3.59 MiB) | 11.448 ms |
 | restaurant-nested-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 742 | 216 | 176.228 ms | 16.9054 ms | 17.2046 ms | 3756032 B (3.58 MiB) | 10.829 ms |
+| restaurant-repeat | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3510 | 2632 | 129.5563 ms | 17.9833 ms | 18.7295 ms | 4833280 B (4.61 MiB) | 11.912 ms |
+| restaurant-repeat | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113664 B (111.0 KiB) | 79704 | 28348 | 1.0822302 s | 17.9944 ms | 18.3194 ms | 4874240 B (4.65 MiB) | 12.066 ms |
+| restaurant-repeat | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 694 | 268 | 177.678 ms | 16.009 ms | 17.0043 ms | 3756032 B (3.58 MiB) | 11.602 ms |
 | restaurant-runtime-divrem | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 758 | 240 | 178.0803 ms | 16.4971 ms | 17.1205 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | restaurant-scalar-if | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 630 | 224 | 179.4772 ms | 16.8189 ms | 17.1398 ms | 3756032 B (3.58 MiB) | 10.674 ms |
 | restaurant-unary-interpolation | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 454 | 208 | 173.7539 ms | 16.9549 ms | 17.1994 ms | 3756032 B (3.58 MiB) | 11.912 ms |
