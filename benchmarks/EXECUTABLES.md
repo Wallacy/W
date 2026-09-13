@@ -47,7 +47,6 @@ Current portable-release values. Lower is better; `—` means no published measu
 | bool-short-circuit | w | Windows x64 / MSVC | CRT-free | 3072 B (3.0 KiB) | 966 | 308 | 182.0096 ms | 16.9107 ms | 17.9359 ms | 3756032 B (3.58 MiB) | 11.912 ms |
 | hello | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3446 | 2596 | 126.1595 ms | 17.1805 ms | 18.1178 ms | 4808704 B (4.59 MiB) | 13.459 ms |
 | hello | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 113152 B (110.5 KiB) | — | — | 237.4533 ms | 17.8031 ms | 18.2169 ms | 4857856 B (4.63 MiB) | 11.757 ms |
-| hello | w | Windows x64 / MSVC | CRT-free | 2560 B (2.5 KiB) | 134 | 184 | 166.0238 ms | 15.9946 ms | 16.9434 ms | 3751936 B (3.58 MiB) | 10.674 ms |
 | process-arguments-count | c | Windows x64 / MSVC | MSVC CRT DLL | 9216 B (9.0 KiB) | 3558 | 2676 | 130.3478 ms | 18.0029 ms | 19.0491 ms | 4808704 B (4.59 MiB) | 13.923 ms |
 | process-arguments-count | rust | Windows x64 / MSVC | Rust std + MSVC CRT DLL | 116224 B (113.5 KiB) | 83192 | 27378 | 1.1378609 s | 18.075 ms | 19.0888 ms | 4866048 B (4.64 MiB) | 12.995 ms |
 | process-arguments-count | w | Windows x64 / MSVC | CRT-free | 3584 B (3.5 KiB) | 1446 | 316 | 189.5191 ms | 16.9215 ms | 17.2491 ms | 3764224 B (3.59 MiB) | 10.983 ms |
