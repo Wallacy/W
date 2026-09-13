@@ -1480,6 +1480,32 @@ non-`i64` carrier remain rejected. Other targets, ABI/layout, optimization
 quality, timing, ranking, and general post-loop mutation remain gaps. The
 executable catalog owns separate exploratory W/C23/Rust measurements.
 
+### Structured post-test repeat (W-1574)
+
+Frontend21 preserves `repeat` as a distinct statement. HIR29 admits one bounded
+helper with a nonempty tuple of mutable signed-`i64` carriers and pure scalar
+assignments. It emits preheader, carrier body, condition, latch, and exit blocks.
+The latch owns the updated back-edge tuple because branch records cannot attach
+edge arguments to only one successor. The verifier independently checks dense
+ownership, carrier order, initial and updated values, version chains, condition
+dependence, dominance, and exit projection.
+
+Native0 schema `w-seed-native0-9` records a dedicated post-test fact. MLIR0
+schema `w-seed-mlir0-17` and Windows label `w-seed-mlir0-windows-8` lower it to
+one structured `scf.while` with a private Bool carrier initialized to true.
+Each body trip yields the updated signed tuple and trailing condition. Safe
+constant division remains `llvm.sdiv`; dynamic division remains checked. No
+source-variable `llvm.alloca` or host-C loop is introduced.
+
+[`restaurant-repeat.w`](fixtures/restaurant-repeat.w) calls the same helper for
+zero and 42424 and prints exactly `Receipt digits 1/5\n`. Native Windows emits
+a PE x64 artifact; Linux/WSL emits a CRT-free ELF x86_64 artifact. Both require
+empty stderr and exit zero. WSL is correctness evidence, not native Linux
+performance evidence. Nested/mixed loops, calls/effects in the body, aggregate
+or non-`i64` carriers, labels, `break`, `continue`, general CFG, ABI/layout,
+other targets, timing, and ranking remain outside this slice. The executable
+catalog separately owns exploratory W/C23/Rust measurements.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

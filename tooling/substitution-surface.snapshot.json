@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:d0e36f0a42de4d586c9127257773a1497f813a5441457b049478bfd041873fce",
+  "corpusDigest": "sha256:f458b8da38897a86c30babdf100eb3635c04d803a4654185b63daaf130af16b6",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6888,6 +6888,78 @@
             "nonWhitespaceCodePoints": 20,
             "lines": 1,
             "surfaceLexemes": 8
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-structured-post-test-repeat",
+      "task": {
+        "utf8Bytes": 149,
+        "codePoints": 149,
+        "nonWhitespaceCodePoints": 131,
+        "lines": 1,
+        "surfaceLexemes": 26
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:c8236446dc699b8a5ce199d1ba2fe98f71e3c65eb02f67c094a19e7ffbda0a60",
+        "metrics": {
+          "utf8Bytes": 318,
+          "codePoints": 318,
+          "nonWhitespaceCodePoints": 246,
+          "lines": 14,
+          "surfaceLexemes": 63
+        }
+      },
+      "alternatives": [
+        {
+          "name": "pre-test-rewrite",
+          "language": "text",
+          "sourceDigest": "sha256:2a815fee29d2d57433cde16d99767e0f6c1775547745ee4e6dd1eda14ad70028",
+          "metrics": {
+            "utf8Bytes": 65,
+            "codePoints": 65,
+            "nonWhitespaceCodePoints": 56,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "hidden-stack-loop-state",
+          "language": "text",
+          "sourceDigest": "sha256:78ed2020414ee3de04ca32019f6f7086d2e7f5a21c931555ba088f3e5c5adf15",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 49,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "stale-condition-carrier",
+          "language": "text",
+          "sourceDigest": "sha256:e7b6cf19ffdf88263809161df8e99d839c1c33e9911edb1403a917fe6e8b17f7",
+          "metrics": {
+            "utf8Bytes": 60,
+            "codePoints": 60,
+            "nonWhitespaceCodePoints": 53,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "unbounded-repeat-surface",
+          "language": "text",
+          "sourceDigest": "sha256:016ce9bd0de8bbdb3180e78f7aa8c610ae8257019bd871ae1ad88b06f8c9fe56",
+          "metrics": {
+            "utf8Bytes": 75,
+            "codePoints": 75,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 16
           }
         }
       ]

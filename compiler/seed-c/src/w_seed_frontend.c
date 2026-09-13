@@ -4737,8 +4737,7 @@ static bool kind_is_statement(w_seed_cst_kind kind) {
 }
 
 static bool kind_is_unsupported_owner(w_seed_cst_kind kind) {
-  return kind == W_SEED_CST_ARRAY || kind == W_SEED_CST_REPEAT_STATEMENT ||
-         kind == W_SEED_CST_FOR_STATEMENT ||
+  return kind == W_SEED_CST_ARRAY || kind == W_SEED_CST_FOR_STATEMENT ||
          kind == W_SEED_CST_CONTRACT_ENVELOPE ||
          kind == W_SEED_CST_PIPELINE_EXPRESSION ||
          kind == W_SEED_CST_COMMIT_STATEMENT ||
@@ -14317,6 +14316,9 @@ static bool normalize_statement_depth(frontend_context *context,
     case W_SEED_CST_WHILE_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_WHILE;
       break;
+    case W_SEED_CST_REPEAT_STATEMENT:
+      value.kind = W_SEED_FRONTEND_STMT_REPEAT;
+      break;
     case W_SEED_CST_GUARD_STATEMENT:
       value.kind = W_SEED_FRONTEND_STMT_GUARD;
       break;
@@ -14426,7 +14428,8 @@ static bool normalize_statement_depth(frontend_context *context,
     }
   }
   if (node->kind == W_SEED_CST_IF_STATEMENT ||
-      node->kind == W_SEED_CST_WHILE_STATEMENT) {
+      node->kind == W_SEED_CST_WHILE_STATEMENT ||
+      node->kind == W_SEED_CST_REPEAT_STATEMENT) {
     value.condition_expression = value.expression_index;
     const frontend_simple_type condition = normalized_actual;
     if (condition.kind != W_SEED_FRONTEND_TYPE_UNKNOWN &&
@@ -14510,6 +14513,7 @@ static bool normalize_statement_depth(frontend_context *context,
   }
   if (node->kind == W_SEED_CST_IF_STATEMENT ||
       node->kind == W_SEED_CST_WHILE_STATEMENT ||
+      node->kind == W_SEED_CST_REPEAT_STATEMENT ||
       node->kind == W_SEED_CST_GUARD_STATEMENT ||
       node->kind == W_SEED_CST_FOR_STATEMENT) {
     uint32_t child_cursor = node->first_child;
@@ -15250,7 +15254,8 @@ static bool binding_declaration_visible_in_chain(
       return true;
     }
     if (statement->kind == W_SEED_FRONTEND_STMT_IF ||
-        statement->kind == W_SEED_FRONTEND_STMT_WHILE) {
+        statement->kind == W_SEED_FRONTEND_STMT_WHILE ||
+        statement->kind == W_SEED_FRONTEND_STMT_REPEAT) {
       if (statement->first_child != W_SEED_FRONTEND_NONE &&
           binding_declaration_visible_in_chain(
               context, function_index, statement->first_child,

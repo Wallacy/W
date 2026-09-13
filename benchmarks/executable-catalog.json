@@ -621,6 +621,72 @@
       "blockers": []
     },
     {
+      "id": "restaurant-repeat",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Count decimal digits with a post-test loop and preserve the exact receipt output.",
+      "oracle": {
+        "kind": "exact-output",
+        "status": "source-backed",
+        "exitCode": 0,
+        "stdout": "Receipt digits 1/5\n",
+        "stderr": ""
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/restaurant-repeat.w",
+          "digest": "sha256:5d1f59d60cc02ada11e81ac6f45e328ff0f8b6208ae357d0a2ad6f658f752581",
+          "entry": "entry",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "restaurant-repeat-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/restaurant_repeat.c",
+          "digest": "sha256:53fee13d7232dc9338223590a9a7809b8faac98a373e9c096658f56e85773fa6",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "restaurant-repeat-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/restaurant_repeat.rs",
+          "digest": "sha256:22fa457ed42fb648159c0518f2b954a80f08a41bf27bd8d4e7f5c62c712728e7",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "restaurant-repeat-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": []
+    },
+    {
       "id": "restaurant-wmo",
       "structureClass": "public-end-to-end",
       "status": "source-oracle-ready",

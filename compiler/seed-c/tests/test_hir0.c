@@ -2538,6 +2538,128 @@ static bool test_while_mutation_ssa(void) {
   return true;
 }
 
+static bool test_repeat_mutation_ssa(void) {
+  static const char SOURCE[] =
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  repeat { count = count + 1 } while count < limit\n"
+      "  return count\n"
+      "}\n"
+      "entry(countTo)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 5u &&
+        program->block_argument_count == 1u &&
+        program->edge_argument_count == 2u && program->binding_count == 2u &&
+        program->instruction_count == 2u && program->terminator_count == 5u);
+  CHECK(program->blocks[0].instruction_count == 1u &&
+        program->blocks[1].first_block_argument == 0u &&
+        program->blocks[1].block_argument_count == 1u &&
+        program->blocks[1].instruction_count == 1u &&
+        program->blocks[2].instruction_count == 0u &&
+        program->blocks[3].instruction_count == 0u &&
+        program->blocks[4].instruction_count == 0u &&
+        program->block_arguments[0].owner_block == 1u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[0].type_index == W_SEED_HIR0_TYPE_I64);
+  CHECK(program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[0].target_block == 1u &&
+        program->terminators[0].edge_argument_count == 1u &&
+        program->terminators[1].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[1].target_block == 2u &&
+        program->terminators[1].edge_argument_count == 0u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[2].else_block == 4u &&
+        program->terminators[2].edge_argument_count == 0u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].target_block == 1u &&
+        program->terminators[3].edge_argument_count == 1u &&
+        program->terminators[4].kind ==
+            W_SEED_HIR0_TERMINATOR_RETURN_VALUE);
+  const w_seed_hir0_binding declaration = fixture.hir_bindings[0];
+  const w_seed_hir0_binding update = fixture.hir_bindings[1];
+  CHECK(declaration.owner_block == 0u && declaration.is_mutable &&
+        declaration.source_binding == 0u && declaration.next_version == 1u &&
+        update.owner_block == 1u && update.is_mutable &&
+        update.source_binding == 0u && update.previous_version == 0u &&
+        update.next_version == W_SEED_HIR0_NONE &&
+        program->values[update.initializer_value].kind ==
+            W_SEED_HIR0_VALUE_BINARY_I64 &&
+        program->values[program->values[update.initializer_value].left_value]
+                .kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[program->values[update.initializer_value].left_value]
+                .block_argument_index == 0u);
+  CHECK(program->values[program->terminators[2].value_index].type_index ==
+        W_SEED_HIR0_TYPE_BOOL);
+  CHECK(program->values[program->terminators[4].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[program->terminators[4].value_index].binding_index ==
+            1u);
+  CHECK(program->values[edge_value_at(program, 0u)].binding_index == 0u);
+  CHECK(program->values[edge_value_at(program, 3u)].binding_index == 1u);
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_terminator saved_condition = fixture.hir_terminators[2];
+  fixture.hir_terminators[2].target_block = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[2] = saved_condition;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_repeat_multi_carrier_ssa(void) {
+  static const char SOURCE[] =
+      "fn receiptDigits(value: i64): i64 {\n"
+      "  var remaining = value\n"
+      "  var digits = 0\n"
+      "  repeat {\n"
+      "    digits = digits + 1\n"
+      "    remaining = remaining / 10\n"
+      "  } while remaining > 0\n"
+      "  return digits\n"
+      "}\n"
+      "entry(receiptDigits)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 5u &&
+        program->block_argument_count == 2u &&
+        program->edge_argument_count == 4u && program->binding_count == 4u &&
+        program->instruction_count == 4u && program->terminator_count == 5u);
+  CHECK(program->blocks[1].block_argument_count == 2u &&
+        program->blocks[1].instruction_count == 2u &&
+        program->blocks[2].instruction_count == 0u &&
+        program->blocks[3].instruction_count == 0u &&
+        program->blocks[4].instruction_count == 0u &&
+        program->terminators[2].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[2].target_block == 3u &&
+        program->terminators[2].else_block == 4u &&
+        program->terminators[3].kind == W_SEED_HIR0_TERMINATOR_JUMP &&
+        program->terminators[3].target_block == 1u &&
+        program->terminators[3].edge_argument_count == 2u);
+  CHECK(program->bindings[0].source_binding == 0u &&
+        program->bindings[0].next_version == 3u &&
+        program->bindings[1].source_binding == 1u &&
+        program->bindings[1].next_version == 2u &&
+        program->bindings[2].source_binding == 1u &&
+        program->bindings[2].previous_version == 1u &&
+        program->bindings[3].source_binding == 0u &&
+        program->bindings[3].previous_version == 0u &&
+        value_tree_contains_binding_read(
+            program, program->terminators[2].value_index, 3u, 0u) &&
+        program->values[edge_value_at(program, 3u)].binding_index == 3u &&
+        program->values[program->edge_arguments[3].value_index].binding_index ==
+            2u &&
+        program->values[program->terminators[4].value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[program->terminators[4].value_index].binding_index ==
+            2u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_while_multi_carrier_ssa(void) {
   static const char SOURCE[] =
       "fn serve(limit: i64): i64 {\n"
@@ -6498,6 +6620,8 @@ int main(void) {
   if (!test_branch_local_mutation_merge()) return 1;
   if (!test_multi_branch_mutation_merge()) return 1;
   if (!test_while_mutation_ssa()) return 1;
+  if (!test_repeat_mutation_ssa()) return 1;
+  if (!test_repeat_multi_carrier_ssa()) return 1;
   if (!test_while_multi_carrier_ssa()) return 1;
   if (!test_while_multi_carrier_source_order()) return 1;
   if (!test_while_post_loop_continuation_ssa()) return 1;
