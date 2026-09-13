@@ -38593,8 +38593,8 @@ async fn run(args: Arguments, ctx: Context): ExitCode {
 entry(run)
 ```
 
-The same public `process-enum-payload.w` source is exercised with no user
-arguments, one empty argument, and one ordinary payload argument. The same
+The public `process-input0.w` and `process-enum-payload.w` sources are exercised
+with no user arguments, one empty argument, and one ordinary payload argument. The same
 `process-arguments-count.w` product is exercised with zero, one empty, two
 ordinary, and exactly 256 arguments; 257 is rejected with exit 3 and no partial
 stdout. Windows PE behavior remains independently gated. This evidence covers
@@ -38602,6 +38602,11 @@ only borrowed process-lifetime descriptors, `Arguments.isEmpty`,
 `Arguments.count`, the already admitted bounded process body, and Linux x86_64.
 Decoded argument access, iteration, mutation, other architectures, macOS,
 cross-compilation, stable ABI/layout, timing, and ranking remain gaps.
+`benchmarkDisposition: deferred` uses blocker
+`linux-native-executable-benchmark-runner`, task ID
+`linux-process-executable-benchmark`, and a stop condition that requires the
+catalog schema and runner to execute these exact oracles on a native Linux host
+under a pinned target, profile, toolchain, and recipe before publishing a result.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 
