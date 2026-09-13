@@ -2075,6 +2075,57 @@ static bool test_structured_async_elision_hir(void) {
   reseal_hir_fixture();
   CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
 
+  static const char ASYNC_STATIC_YIELD_SOURCE[] =
+      "async fn prepare(value: i64): i64 { "
+      "let staged = value + 1 await execution#yield() "
+      "return staged * 2 }\n"
+      "entry { let pending = async prepare(value: 20) "
+      "let result = await pending }\n";
+  CHECK(lower(ASYNC_STATIC_YIELD_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->call_count == 1u &&
+        program->binding_count == 3u && program->instruction_count == 5u &&
+        program->functions[0].is_async &&
+        program->functions[0].suspension == W_SEED_HIR0_SUSPENSION_MAY &&
+        program->functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_ABSENT &&
+        program->calls[0].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED);
+  size_t yield_instruction = W_SEED_HIR0_NONE;
+  for (size_t index = 0u; index < program->instruction_count; index += 1u)
+    if (program->instructions[index].kind ==
+        W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      yield_instruction = index;
+  CHECK(yield_instruction != W_SEED_HIR0_NONE &&
+        program->instructions[yield_instruction].call_index ==
+            W_SEED_HIR0_NONE &&
+        program->instructions[yield_instruction].binding_index ==
+            W_SEED_HIR0_NONE &&
+        program->instructions[yield_instruction].result_type == 0u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_instruction saved_yield =
+      fixture.hir_instructions[yield_instruction];
+  fixture.hir_instructions[yield_instruction].kind =
+      W_SEED_HIR0_INSTRUCTION_BINDING;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_instructions[yield_instruction] = saved_yield;
+  const w_seed_hir0_call saved_static_yield_call = fixture.hir_calls[0];
+  fixture.hir_calls[0].execution_kind =
+      W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_static_yield_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0].is_async = false;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0].is_async = true;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
   uint32_t task_type = W_SEED_FRONTEND_NONE;
   uint32_t scalar_expression = W_SEED_FRONTEND_NONE;
   for (size_t type = 0u; type < fixture.result.written.types; type += 1u)
@@ -2187,6 +2238,25 @@ static bool test_structured_async_elision_hir(void) {
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
         W_SEED_HIR0_UNSUPPORTED);
+
+  static const char STATIC_YIELD_UNIT_SOURCE[] =
+      "async fn finish() { await execution#yield() }\n"
+      "entry { let pending = async finish() let done = await pending }\n";
+  CHECK(fixture_frontend(STATIC_YIELD_UNIT_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+
+  static const char TWO_YIELDS_SOURCE[] =
+      "async fn pause(value: i64): i64 { await execution#yield() "
+      "await execution#yield() return value }\n"
+      "entry { let pending = async pause(value: 1) "
+      "let value = await pending }\n";
+  CHECK(fixture_frontend(TWO_YIELDS_SOURCE));
+  setup_hir_output();
+  input = (w_seed_hir0_input){&fixture.input, &fixture.output, &fixture.result};
+  CHECK(w_seed_hir0_measure(&input, &counts, &result) != W_SEED_HIR0_OK);
 
   static const char STRING_SOURCE[] =
       "fn echo(value: String): String { return value }\n"

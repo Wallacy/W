@@ -27,6 +27,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-repeat",
   "restaurant-wmo",
   "restaurant-async-join",
+  "restaurant-async-yield",
   "restaurant-enum-switch",
   "restaurant-enum-subset",
   "restaurant-enum-payload",

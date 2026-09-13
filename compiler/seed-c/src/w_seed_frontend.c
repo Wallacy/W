@@ -257,8 +257,9 @@ typedef struct {
       active_pattern_captures[FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES];
   size_t active_pattern_capture_count;
   /* Async0 uses a bounded lexical scratch table in both dry and emit passes.
-   * It is compiler workspace only; public Task identity is emitted in the
-   * expression/type records and later copied into HIR. */
+   * It is compiler workspace only. Expression/type records preserve the
+   * linear Task relation and result type, not public identity or layout; HIR
+   * may erase the relation completely when no physical state must survive. */
   frontend_task_binding task_bindings[FRONTEND_MAX_TASK_BINDINGS];
   size_t task_binding_count;
   uint32_t task_result_type_indices[4];
@@ -12922,6 +12923,53 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
   if (parser == NULL || value == NULL) return false;
   frontend_token token;
   if (!cursor_peek(&parser->cursor, &token)) return false;
+  if (token_text(parser->document, &token, "await")) {
+    frontend_token_cursor look = parser->cursor;
+    frontend_token await_token = {0};
+    frontend_token execution_token = {0};
+    frontend_token yield_token = {0};
+    frontend_token close_token = {0};
+    const bool exact_execution_yield =
+        cursor_take_text(&look, "await", &await_token) &&
+        cursor_take_text(&look, "execution", &execution_token) &&
+        cursor_take_text(&look, "#", NULL) &&
+        cursor_take_text(&look, "yield", &yield_token) &&
+        cursor_take_text(&look, "(", NULL) &&
+        cursor_take_text(&look, ")", &close_token);
+    if (exact_execution_yield) {
+      parser->cursor = look;
+      const bool in_async_function =
+          parser->context->function_node != NULL &&
+          (parser->context->function_node->flags &
+           W_SEED_CST_FUNCTION_FLAG_ASYNC) != 0u;
+      const bool supported = in_async_function &&
+                             !parser->context->current_function_is_const;
+      const w_seed_span span = {await_token.span.start_byte,
+                                close_token.span.end_byte};
+      if (!supported &&
+          !context_append_fact(parser->context,
+                               W_SEED_FRONTEND_FACT_EXECUTION_YIELD, span,
+                               text_from_span(parser->document, span))) {
+        return false;
+      }
+      value->is_enum_case = false;
+      value->is_external_enum_case = false;
+      value->enum_index = W_SEED_FRONTEND_NONE;
+      value->enum_case_index = W_SEED_FRONTEND_NONE;
+      uint32_t unit_type_index = W_SEED_FRONTEND_NONE;
+      if (!context_append_type(parser->context,
+                               inferred_unit_type(span),
+                               &unit_type_index))
+        return false;
+      return expression_append(
+          parser, W_SEED_FRONTEND_EXPR_EXECUTION_YIELD, span,
+          text_from_span(parser->document, span),
+          text_from_span(parser->document, yield_token.span),
+          simple_type_from_view((w_seed_frontend_text){"()", 2u}), supported,
+          (size_t)W_SEED_FRONTEND_NONE, (size_t)W_SEED_FRONTEND_NONE,
+          W_SEED_FRONTEND_NONE, 0u, value);
+    }
+  }
   if (token_text(parser->document, &token, "async") ||
       token_text(parser->document, &token, "await")) {
     const bool launch = token_text(parser->document, &token, "async");
@@ -14904,6 +14952,8 @@ static bool normalize_statement_depth(frontend_context *context,
     const bool root_launch =
         expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
     const bool root_await = expression_value.kind == W_SEED_FRONTEND_EXPR_AWAIT;
+    const bool root_execution_yield =
+        expression_value.kind == W_SEED_FRONTEND_EXPR_EXECUTION_YIELD;
     const bool has_async = span_has_keyword(doc, expression_span, "async");
     const bool has_await = span_has_keyword(doc, expression_span, "await");
     const bool uses_task = span_uses_task_binding(
@@ -14926,10 +14976,14 @@ static bool normalize_statement_depth(frontend_context *context,
         node->kind == W_SEED_CST_LET_STATEMENT && depth == 1u &&
         type_node == W_SEED_CST_NONE && value.binding_name.length != 0u &&
         context->task_binding_count < FRONTEND_MAX_TASK_BINDINGS;
+    const bool accept_execution_yield =
+        root_execution_yield && expression_value.supported &&
+        node->kind == W_SEED_CST_EXPRESSION_STATEMENT && depth == 1u;
     const bool task_surface = has_async || has_await || uses_task ||
                               normalized_actual.kind ==
                                   W_SEED_FRONTEND_TYPE_TASK;
-    if (task_surface && !register_task_launch && !accept_task_await) {
+    if (task_surface && !register_task_launch && !accept_task_await &&
+        !accept_execution_yield) {
       if (expression_value.supported) {
         const w_seed_frontend_fact_kind fact_kind =
             root_await || has_await
@@ -16862,6 +16916,8 @@ static const char *fact_name(w_seed_frontend_fact_kind kind) {
       return "await";
     case W_SEED_FRONTEND_FACT_TASK_ESCAPE:
       return "task-escape";
+    case W_SEED_FRONTEND_FACT_EXECUTION_YIELD:
+      return "execution-yield";
   }
   return "unknown";
 }

@@ -1613,6 +1613,30 @@ identity. The upgraded `fixtures/restaurant-async-join.w` declares
 Windows x64 public route. This remains representation-erasure evidence, not a
 suspension, overlap, scheduler, or concurrency claim.
 
+### Virtual Task across one statically discharged yield (W-1579)
+
+Frontend23 recognizes exact `await execution#yield()` as one Unit expression
+inside an async function. HIR31 preserves it as a distinct instruction rather
+than pretending the function never suspends: the public suspension fact stays
+`MAY` and `directEntry` stays absent.
+
+The first product slice is deliberately closed. The local child has one block,
+exactly one yield, a `Bool` or signed-`i64` scalar signature, scalar bindings,
+and no nested call, control flow, host operation, throwing, unsafe or borrow
+surface. Its immutable Task binding has exactly one lexical await in the
+launcher's root block. Source preflight and the standalone HIR verifier both
+prove this shape before NativeSubset0 accepts it.
+
+Because yield is an opportunity rather than a guaranteed handoff, immediate
+resumption is a legal schedule. MLIR0 therefore emits ordinary scalar work and
+calls while erasing the Task relation and yield marker. It emits no Task
+allocation, frame, TCB, WRT or scheduler call. The Windows public fixture
+[`fixtures/restaurant-async-yield.w`](fixtures/restaurant-async-yield.w)
+prints exactly `Prepared 88\n`; `tooling/check-mlir0.mjs` also rejects a
+product that retains Task, async, yield, or WRT names. This does not prove
+fairness, overlap, a scheduler, cancellation, general suspension, Linux
+execution, or concurrent performance.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

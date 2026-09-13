@@ -2642,6 +2642,60 @@ static bool program_host_print_maximum(
 }
 
 
+static bool program_function_has_static_yield(
+    const w_seed_hir0_program *program, size_t function_index) {
+  if (program == NULL || function_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (!function->is_async || function->is_const || function->is_throws ||
+      function->is_unsafe || function->has_borrow_clause ||
+      function->is_anonymous_entry ||
+      function->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_ABSENT ||
+      function->block_count != 1u ||
+      function->first_block >= program->block_count)
+    return false;
+  if (function->return_type >= program->type_count ||
+      (program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64 &&
+       program->types[function->return_type].kind != W_SEED_HIR0_TYPE_BOOL))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const size_t parameter_index =
+        (size_t)function->first_parameter + ordinal;
+    if (parameter_index >= program->parameter_count) return false;
+    const uint32_t type_index = program->parameters[parameter_index].type_index;
+    if (type_index >= program->type_count ||
+        (program->types[type_index].kind != W_SEED_HIR0_TYPE_I64 &&
+         program->types[type_index].kind != W_SEED_HIR0_TYPE_BOOL))
+      return false;
+  }
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  if (block->owner_function != function_index ||
+      block->first_instruction > program->instruction_count ||
+      block->instruction_count >
+          program->instruction_count - block->first_instruction)
+    return false;
+  size_t yields = 0u;
+  for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)block->first_instruction + ordinal];
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      yields += 1u;
+    else if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+             instruction->binding_index >= program->binding_count ||
+             program->bindings[instruction->binding_index].type_index >=
+                 program->type_count ||
+             (program->types[program->bindings[instruction->binding_index]
+                                 .type_index]
+                      .kind != W_SEED_HIR0_TYPE_I64 &&
+              program->types[program->bindings[instruction->binding_index]
+                                 .type_index]
+                      .kind != W_SEED_HIR0_TYPE_BOOL))
+      return false;
+  }
+  return yields == 1u;
+}
+
 /* HIR0 verification proves that each function has a dense, forward-only
  * block order. Reverse topological dynamic programming computes each block
  * exactly once. A shared continuation is therefore read from the cache once,
@@ -2668,6 +2722,8 @@ static bool program_function_maximum(
       function->is_async && !function->is_const &&
       !function->is_anonymous_entry &&
       function->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+  const bool async_static_yield =
+      program_function_has_static_yield(program, function_index);
   if (function->return_type >= program->type_count ||
       (!(program->types[function->return_type].kind ==
              W_SEED_HIR0_TYPE_UNIT ||
@@ -2678,7 +2734,8 @@ static bool program_function_maximum(
        !(process_entry &&
          process_nominal_type_is(program, function->return_type, 0u,
                                  process->exit_code_symbol_index))) ||
-      (function->is_async && !process_entry && !async_direct_entry) ||
+      (function->is_async && !process_entry && !async_direct_entry &&
+       !async_static_yield) ||
       function->is_throws ||
       function->is_unsafe ||
       function->has_borrow_clause || function->block_count == 0u ||
@@ -2772,6 +2829,10 @@ static bool program_function_maximum(
           return false;
         continue;
       }
+      if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD) {
+        if (!async_static_yield) return false;
+        continue;
+      }
       if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
           instruction->call_index >= program->call_count)
         return false;
@@ -2800,12 +2861,18 @@ static bool program_function_maximum(
           return false;
         const w_seed_hir0_function *target =
             &program->functions[callee->target_index];
-        if (target->is_async &&
-            (call->execution_kind !=
-                 W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
-             target->direct_entry !=
-                 W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE))
-          return false;
+        if (target->is_async) {
+          const bool direct =
+              call->execution_kind ==
+                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
+              target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+          const bool static_yield =
+              call->execution_kind ==
+                  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED &&
+              program_function_has_static_yield(program,
+                                                callee->target_index);
+          if (!direct && !static_yield) return false;
+        }
         for (size_t argument = 0u; argument < call->argument_count;
              argument += 1u) {
           const w_seed_hir0_argument *item =

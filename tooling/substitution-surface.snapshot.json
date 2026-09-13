@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:1e6dc83d3cb96d8befde67fe748ddc88a794d2f67aa1e6c8da51b5657b437b38",
+  "corpusDigest": "sha256:902f54390e00506e4a9c1102a335db99d5a4082287b4f04cd6a00bbee0e60d98",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -7051,22 +7051,22 @@
     {
       "id": "R0-product-closure0",
       "task": {
-        "utf8Bytes": 222,
-        "codePoints": 222,
-        "nonWhitespaceCodePoints": 192,
+        "utf8Bytes": 279,
+        "codePoints": 279,
+        "nonWhitespaceCodePoints": 241,
         "lines": 1,
-        "surfaceLexemes": 38
+        "surfaceLexemes": 49
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:324bfc90053cee70d541b7a3766937ad48e3d291596f8c5fb98f1d646cec65e4",
+        "sourceDigest": "sha256:e37989202f561fb4f39e68823b72b2306dd9956f2b0b88d2edaa64755ebcf4fd",
         "metrics": {
-          "utf8Bytes": 138,
-          "codePoints": 138,
-          "nonWhitespaceCodePoints": 109,
+          "utf8Bytes": 163,
+          "codePoints": 163,
+          "nonWhitespaceCodePoints": 131,
           "lines": 7,
-          "surfaceLexemes": 47
+          "surfaceLexemes": 51
         }
       },
       "alternatives": [
@@ -7119,15 +7119,195 @@
           }
         },
         {
-          "name": "public-multifile-native-equivalence",
-          "language": "text",
-          "sourceDigest": "sha256:11bcb0e89c149281ebb3a4b411600f220b7cd87f8cd87099f8a2b82975f16a1c",
+          "name": "unconfined-ambient-graph",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:0c8449f26e6da02ac68afb6c4beb7858edf8173db7066ee90e787e3ee5e09a48",
           "metrics": {
-            "utf8Bytes": 102,
-            "codePoints": 102,
-            "nonWhitespaceCodePoints": 91,
+            "utf8Bytes": 97,
+            "codePoints": 97,
+            "nonWhitespaceCodePoints": 81,
             "lines": 1,
-            "surfaceLexemes": 18
+            "surfaceLexemes": 17
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-virtual-structured-task-elision",
+      "task": {
+        "utf8Bytes": 180,
+        "codePoints": 180,
+        "nonWhitespaceCodePoints": 157,
+        "lines": 1,
+        "surfaceLexemes": 31
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:2fe86d651b7d229fe101653e36e5769cb7fdc79f6825e0810e88c93147453dbf",
+        "metrics": {
+          "utf8Bytes": 196,
+          "codePoints": 196,
+          "nonWhitespaceCodePoints": 163,
+          "lines": 4,
+          "surfaceLexemes": 43
+        }
+      },
+      "alternatives": [
+        {
+          "name": "unconditional-task-control-block",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:abbd4acdf6c6a5a359343c960e225e7fce23b03972ec139878cd0c9ad28b5ba0",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 59,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "observable-task-identity",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:0c30a0e9c234fc7a24edc49437a29a45eaf41fbc246dfeeff0eeb0610b48f24e",
+          "metrics": {
+            "utf8Bytes": 62,
+            "codePoints": 62,
+            "nonWhitespaceCodePoints": 54,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "claim-overlap-from-erasure",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:75072d907666580063043ea4e355abd1ac243be1fef79cc8cd16692ccf90a506",
+          "metrics": {
+            "utf8Bytes": 74,
+            "codePoints": 74,
+            "nonWhitespaceCodePoints": 63,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-explicit-async-direct-entry-elision",
+      "task": {
+        "utf8Bytes": 175,
+        "codePoints": 175,
+        "nonWhitespaceCodePoints": 151,
+        "lines": 1,
+        "surfaceLexemes": 28
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:7a59699eb59607408cde1d730884284d2eab2dee7cd34d902bca4e1c14dc7da9",
+        "metrics": {
+          "utf8Bytes": 118,
+          "codePoints": 118,
+          "nonWhitespaceCodePoints": 99,
+          "lines": 3,
+          "surfaceLexemes": 29
+        }
+      },
+      "alternatives": [
+        {
+          "name": "materialize-by-async-spelling",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:c439e65937adffe631f4324e6b124224b910ee1ce0e71ed5b54e452bbb771d90",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 66,
+            "lines": 1,
+            "surfaceLexemes": 13
+          }
+        },
+        {
+          "name": "erase-without-body-proof",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:e2f5989b128a6b05f16d10f2ee3c8b991d74c4369adc5a62406f9afc40e1db98",
+          "metrics": {
+            "utf8Bytes": 54,
+            "codePoints": 54,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "claim-concurrency-from-direct-call",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:1ac8d572430f8f206829d52f7f3f986550fe338a5dc84279eeca8afec4839c6a",
+          "metrics": {
+            "utf8Bytes": 70,
+            "codePoints": 70,
+            "nonWhitespaceCodePoints": 60,
+            "lines": 1,
+            "surfaceLexemes": 11
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-virtual-task-static-yield-elision",
+      "task": {
+        "utf8Bytes": 174,
+        "codePoints": 174,
+        "nonWhitespaceCodePoints": 147,
+        "lines": 1,
+        "surfaceLexemes": 30
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:a7333252349af783100d44b291adcdf8cc373311b161ea9f082ae06400653ac2",
+        "metrics": {
+          "utf8Bytes": 161,
+          "codePoints": 161,
+          "nonWhitespaceCodePoints": 132,
+          "lines": 3,
+          "surfaceLexemes": 43
+        }
+      },
+      "alternatives": [
+        {
+          "name": "materialize-at-first-yield",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:ecf1976a59f2d09d29ae2738d18ee653362e3b0592a003096c7d6261f5d714a1",
+          "metrics": {
+            "utf8Bytes": 83,
+            "codePoints": 83,
+            "nonWhitespaceCodePoints": 73,
+            "lines": 1,
+            "surfaceLexemes": 15
+          }
+        },
+        {
+          "name": "erase-yield-before-verification",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:0ce900d470b6ce6891414499ea80dc9106d260fbb71ebd72231a1c7a4c9a355a",
+          "metrics": {
+            "utf8Bytes": 50,
+            "codePoints": 50,
+            "nonWhitespaceCodePoints": 46,
+            "lines": 1,
+            "surfaceLexemes": 7
+          }
+        },
+        {
+          "name": "claim-overlap-from-yield",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:1c8fc9c56ca54b385c3d59caa8146b302278abb57c7f3c447649aaff859a9191",
+          "metrics": {
+            "utf8Bytes": 71,
+            "codePoints": 71,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 11
           }
         }
       ]

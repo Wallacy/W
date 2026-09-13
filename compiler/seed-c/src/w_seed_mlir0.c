@@ -1910,6 +1910,8 @@ static bool mark_program_reachable_values(
             return false;
           continue;
         }
+        if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+          continue;
         if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
             instruction->call_index >= program->call_count)
           return false;
@@ -3312,10 +3314,15 @@ static bool append_program_local_call(
     return false;
   const w_seed_hir0_function *target =
       &program->functions[callee->target_index];
-  if (target->is_async &&
-      (call->execution_kind != W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
-       target->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE))
-    return false;
+  if (target->is_async) {
+    const bool direct =
+        call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED &&
+        target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE;
+    const bool static_yield =
+        call->execution_kind ==
+        W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELD_ELIDED;
+    if (!direct && !static_yield) return false;
+  }
   uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
   for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
        index += 1u)
@@ -4363,6 +4370,8 @@ static bool append_program_function(
           return false;
         continue;
       }
+      if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+        continue;
       if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
           instruction->call_index >= program->call_count)
         return false;
