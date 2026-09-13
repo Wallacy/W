@@ -91,9 +91,9 @@ typedef enum {
   W_SEED_HIR0_VALUE_ENUM_CASE,
   /* A typed read of one payload captured by the active enum-switch arm. */
   W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ,
-  /* Exact public process Arguments.count equality/inequality with a
-   * non-negative compile-time integer literal.  The count child remains
-   * logical USIZE; only the process MLIR adapter chooses its physical type. */
+  /* Exact public process Arguments.count comparison with a non-negative
+   * compile-time integer literal. The count child remains logical USIZE; only
+   * the process MLIR adapter chooses its physical type. */
   W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON,
 } w_seed_hir0_value_kind;
 

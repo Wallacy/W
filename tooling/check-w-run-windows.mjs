@@ -55,6 +55,8 @@ const restaurantMultiBranchMutationFixture = resolve(seedDirectory,
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processArgumentsCountFixture = resolve(seedDirectory, "fixtures",
   "process-arguments-count.w")
+const processArgumentsOrderingFixture = resolve(seedDirectory, "fixtures",
+  "process-arguments-ordering.w")
 const processArgumentsCountSelectiveImportFixture = resolve(seedDirectory,
   "tests", "fixtures", "process-arguments-count-selective-import.w")
 const processEnumPayloadFixture = resolve(seedDirectory, "fixtures",
@@ -525,12 +527,24 @@ try {
   expectExact(binary, ["run", processEnumPayloadFixture, "--", "payload"], 0,
     Buffer.from("enum-received false\n", "utf8"),
     "public enum payload process input with one argument")
+  expectExact(binary, ["run", processArgumentsOrderingFixture], 0,
+    Buffer.from("Kitchen seats 0 guests\n", "utf8"),
+    "ordered process count input without arguments")
+  expectExact(binary, ["run", processArgumentsOrderingFixture, "--", ""], 0,
+    Buffer.from("Kitchen seats 1 guests\n", "utf8"),
+    "ordered process count input with empty argument")
+  expectExact(binary,
+    ["run", processArgumentsOrderingFixture, "--", "alpha", "beta"], 0,
+    Buffer.from("Banquet seats 2 guests\n", "utf8"),
+    "ordered process count input with two arguments")
 
   const buildHello = join(fixtureDirectory, "hello-build.exe")
   const buildRestaurantIf = join(fixtureDirectory, "restaurant-if-build.exe")
   const buildProcessInput = join(fixtureDirectory, "process-input-build.exe")
   const buildProcessArgumentsCount = join(fixtureDirectory,
     "process-arguments-count-build.exe")
+  const buildProcessArgumentsOrdering = join(fixtureDirectory,
+    "process-arguments-ordering-build.exe")
   const buildProcessArgumentsCountSelectiveImport = join(fixtureDirectory,
     "process-arguments-count-selective-import-build.exe")
   const buildProcessEnumPayload = join(fixtureDirectory,
@@ -612,6 +626,31 @@ try {
       Buffer.from(expectedOutput, "utf8"),
       `execute selective-import process-arguments-count artifact ${label}`)
   }
+  expectExact(binary, ["build", processArgumentsOrderingFixture, "--target",
+    targetTriple, "--output", buildProcessArgumentsOrdering], 0,
+    Buffer.alloc(0), "build ordered process-arguments fixture")
+  const builtProcessArgumentsOrderingStats = await lstat(
+    buildProcessArgumentsOrdering)
+  assert(builtProcessArgumentsOrderingStats.isFile() &&
+    !builtProcessArgumentsOrderingStats.isSymbolicLink(),
+    "build ordered process-arguments did not produce a regular artifact")
+  assertPeX64(await readFile(buildProcessArgumentsOrdering),
+    "built ordered process-arguments artifact")
+  const orderedArgumentCountCases = [
+    ["without user arguments", [], "Kitchen seats 0 guests\n"],
+    ["with one empty argument", [""], "Kitchen seats 1 guests\n"],
+    ["with two ordinary arguments", ["alpha", "beta"],
+      "Banquet seats 2 guests\n"],
+    ["with exactly 256 user arguments", Array.from({ length: 256 }, () => "x"),
+      "Banquet seats 256 guests\n"],
+  ]
+  for (const [label, argumentsList, expectedOutput] of orderedArgumentCountCases)
+    expectExact(buildProcessArgumentsOrdering, argumentsList, 0,
+      Buffer.from(expectedOutput, "utf8"),
+      `execute built ordered process-arguments artifact ${label}`)
+  expectExact(buildProcessArgumentsOrdering,
+    Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
+    "reject ordered process descriptor overflow without partial output")
   expectExact(binary, ["build", processEnumPayloadFixture, "--target", targetTriple,
     "--output", buildProcessEnumPayload], 0, Buffer.alloc(0),
     "build public enum payload process fixture")

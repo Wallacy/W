@@ -44,6 +44,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "process-entry",
   "process-enum-payload",
   "process-arguments-count",
+  "process-arguments-ordering",
   "process-handler-lifecycle",
 ]);
 export const EXECUTABLE_RUN_TARGETS = Object.freeze(
@@ -68,6 +69,7 @@ const PUBLIC_WINDOWS_RUN_VARIANTS = Object.freeze({
   "compiler/seed-c/fixtures/hlo0-hello.w": "hello",
   "compiler/seed-c/fixtures/process-enum-payload.w": "process-enum-payload",
   "compiler/seed-c/fixtures/process-arguments-count.w": "process-arguments-count",
+  "compiler/seed-c/fixtures/process-arguments-ordering.w": "process-arguments-ordering",
 });
 export const PROCESS_ENTRY_WORKLOAD_ID = "process-entry";
 export const PROCESS_ENTRY_ORACLE_KIND = "argument-dependent-output";
@@ -113,6 +115,20 @@ export const PROCESS_ARGUMENTS_COUNT_ORACLE_CASES = Object.freeze([
   Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Argument count 1\n", stderr: "" }),
   Object.freeze({ arguments: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Exactly two arguments\n", stderr: "" }),
 ]);
+export const PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID = "process-arguments-ordering";
+export const PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND = PROCESS_ENTRY_ORACLE_KIND;
+export const PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS = "process-arguments-ordering-release";
+export const PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT = Object.freeze(["alpha", "beta"]);
+export const PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS = Object.freeze([
+  Object.freeze([]),
+  Object.freeze([""]),
+  PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT,
+]);
+export const PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES = Object.freeze([
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[0], exitCode: 0, stdout: "Kitchen seats 0 guests\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[1], exitCode: 0, stdout: "Kitchen seats 1 guests\n", stderr: "" }),
+  Object.freeze({ arguments: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS[2], exitCode: 0, stdout: "Banquet seats 2 guests\n", stderr: "" }),
+]);
 const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
   [PROCESS_ENTRY_WORKLOAD_ID]: Object.freeze({
     kind: PROCESS_ENTRY_ORACLE_KIND,
@@ -132,11 +148,18 @@ const PROCESS_ARGUMENT_ORACLE_CONTRACTS = Object.freeze({
     correctnessInputs: PROCESS_ARGUMENTS_COUNT_CORRECTNESS_INPUTS,
     cases: PROCESS_ARGUMENTS_COUNT_ORACLE_CASES,
   }),
+  [PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID]: Object.freeze({
+    kind: PROCESS_ARGUMENTS_ORDERING_ORACLE_KIND,
+    timedInput: PROCESS_ARGUMENTS_ORDERING_TIMED_INPUT,
+    correctnessInputs: PROCESS_ARGUMENTS_ORDERING_CORRECTNESS_INPUTS,
+    cases: PROCESS_ARGUMENTS_ORDERING_ORACLE_CASES,
+  }),
 });
 export const PROCESS_ARGUMENT_WORKLOAD_IDS = Object.freeze([
   PROCESS_ENTRY_WORKLOAD_ID,
   PROCESS_ENUM_PAYLOAD_WORKLOAD_ID,
   PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID,
+  PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID,
 ]);
 export function isProcessArgumentWorkload(workloadId) {
   return PROCESS_ARGUMENT_WORKLOAD_IDS.includes(workloadId);
@@ -518,6 +541,7 @@ function checkSource(source, location, workload, root, errors) {
   if (workload?.id === PROCESS_ENTRY_WORKLOAD_ID && source.recipeClass !== PROCESS_ENTRY_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-entry release class.");
   if (workload?.id === PROCESS_ENUM_PAYLOAD_WORKLOAD_ID && source.recipeClass !== PROCESS_ENUM_PAYLOAD_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-enum-payload release class.");
   if (workload?.id === PROCESS_ARGUMENTS_COUNT_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_COUNT_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-count release class.");
+  if (workload?.id === PROCESS_ARGUMENTS_ORDERING_WORKLOAD_ID && source.recipeClass !== PROCESS_ARGUMENTS_ORDERING_RECIPE_CLASS) push(errors, location + ".recipeClass must identify the public process-arguments-ordering release class.");
   if (source.status !== "source-oracle-ready") push(errors, location + ".status must be source-oracle-ready for a materialized source.");
   if (!MEASUREMENT_PROFILES.includes(source.profile) || source.profile !== "release") push(errors, location + ".profile must be release for M3a sources.");
   if (source.quality !== "correctness-gate") push(errors, location + ".quality must identify correctness as a gate.");

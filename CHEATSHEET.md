@@ -73,17 +73,18 @@ async fn run(
 entry(run)
 ```
 
-Bounded process count equality uses the logical `usize` member directly:
+Bounded process count comparisons use the logical `usize` member directly:
 
 The declaration/use is `import std.process` with
 `async fn countCase(args: Arguments, ctx: Context): ExitCode`; its body tests
 `if args.count == 2`, prints `Exactly two arguments` for the true branch, and
 prints `Argument count ${args.count}` otherwise before returning `.success`.
 
-The bounded compiler also accepts `!=` with the operands reversed, such as
-`0 != args.count`. It does not generalize this cut to `usize` arithmetic or
-ordering; helper parameters and returns of type `usize` remain outside this
-bounded form.
+The bounded compiler accepts `==`, `!=`, `<`, `<=`, `>`, and `>=` against a
+nonnegative unsuffixed integer literal in either operand order. For example,
+`2 > args.count` is the reversed spelling of `args.count < 2`. This does not
+generalize the cut to `usize` arithmetic or runtime-computed operands; helper
+parameters and returns of type `usize` remain outside this bounded form.
 
 Named function descriptor:
 

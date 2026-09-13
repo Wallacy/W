@@ -178,6 +178,7 @@ O corpus compara, no mínimo:
 - CRT-free Linux process startup against ABI leakage, prologue-sensitive stack capture, copied argv storage, and target-encoding confusion.
 - same-module executable product roots against retain-all-exports and source-name shortcuts.
 - bounded public `Arguments.count` equality and flat/selective `std.process` imports against source-name recognition, general `usize` operations, owner escape, and import-specific product output.
+- bounded public `Arguments.count` ordering against signed physical lowering, computed or negative literals, wrong owner or identity, and general `usize` arithmetic.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
 - typed topological interpolation HIR against precomputed output, source reparsing, and witness-specific print paths.
 - runtime signed-i64 interpolation against precomputed output, printInt bypass, and unchecked LLVM arithmetic.
@@ -7865,6 +7866,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 
 | W-1571 | bounded local payloadless enum subset switch | Aliases in the bounded enum-subset slice canonicalize by the base enum and normalized base-case indices. A full case-set remains the base enum identity. The first executable implementation admits only proper, nonempty, payloadless subsets of a local closed enum. It preserves the base enum's private carrier width and declaration tags, keeps values scalar, and adds no wrapper or enum-specific allocation. A switch covers normalized subset members in base declaration order even when source arms use another order. Its backend-only synthetic llvm.unreachable default closes the lowered CFG after verification and is not a runtime narrowing guard. Subset-to-base is a no-op only after the same-base proof. Base-to-subset checked conversion and arbitrary superset conversion remain outside this executable slice. The same source produces the exact Work 1/2\n oracle, empty stderr, and exit zero as a Windows PE and a Linux/WSL ELF. | `source-backed-current` only for the bounded payloadless local subset, focused HIR/native/MLIR proofs, and dual-platform correctness witness. Payload-bearing/imported/generic subsets, general case-set algebra and conversions, public ABI/layout, other targets, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
 | W-1572 | bounded CRT-free Linux process arguments and payload-enum execution | The public process executable subset now targets Linux x86_64 without changing W-visible syntax or the ordinary generated `main() -> i32`. WRT0 captures the original kernel stack in target-owned module assembly, publishes private argc/argv accessors, and exits through syscalls. Generated process MLIR excludes argv0, accepts 0...256 borrowed POSIX-byte descriptors, derives the root encoding from the vector, and rejects 257 before W code or stdout. The existing process-input, process enum-payload, and count sources execute with exact outputs and cleanup as CRT-free ELF files; Windows remains independently gated. | `source-backed-current` only for Linux/WSL x86_64, borrowed process-lifetime descriptors, `Arguments.isEmpty`/`count`, the existing bounded process body, exact runtime cases, and CRT-free ELF closure. Decoded access, iteration, mutation, other architectures/OSes, cross-compilation, stable ABI/layout, timing, and ranking remain gaps. `benchmarkDisposition: deferred`; blocker `linux-native-executable-benchmark-runner`; task ID `linux-process-executable-benchmark`; stop after the catalog schema and runner publish the first validated native-Linux result for these exact oracles under a pinned target, profile, toolchain, and recipe. Existing Windows exploratory measurements remain separate. |
+| W-1573 | bounded public `Arguments.count` usize ordering | The bounded public process subset extends the exact resolver-owned `std.process.Arguments.count` comparison from `==`/`!=` to `<`, `<=`, `>`, and `>=` against a nonnegative unsuffixed compile-time integer literal, in either operand order. HIR reuses the `USIZE_COUNT_COMPARISON` record and keeps logical `usize` in HIR28. The x86_64 MLIR adapter emits unsigned `ult`/`ule`/`ugt`/`uge` for ordered count predicates over its physical `i64` carrier, while ordinary signed-`i64` comparisons retain signed predicates. Wrong identity or receiver, negative or computed literals, raw `Arguments`, and general `usize` arithmetic remain rejected. The public Restaurant ordering fixture executes exact bounded outputs through native Windows and Linux/WSL routes. | `source-backed-current` only for the bounded HIR28 logical `usize` comparison, exact identity/receiver/operator and operand-order barriers, unsigned x86_64 predicates, signed-`i64` regression, and dual-target correctness witness. General `usize` arithmetic, runtime or computed count comparisons, helper `usize` parameters/returns/indexing, decoded `OsString`, other targets, stable ABI/layout, native Linux benchmark execution, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements. WSL is Linux-target correctness evidence, not native Linux performance evidence. No timing or language-ranking claim is made. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11715,3 +11717,42 @@ Timing remains deferred behind task `linux-process-executable-benchmark` and
 blocker `linux-native-executable-benchmark-runner`. The task stops only after
 the schema and runner publish a validated result from a native Linux host with
 the exact source, oracle, target, profile, toolchain, and recipe identities.
+
+#### W-1573 — bounded public `Arguments.count` usize ordering
+
+W-1566 admitted equality and inequality for the checked process count. W-1573
+keeps that logical `usize` identity and extends the accepted predicate set to
+`<`, `<=`, `>`, and `>=`. The source surface does not change because these
+operators already exist in W syntax.
+
+The accepted operands remain the resolver-owned exported `count` member on the
+selected entry's actual `Arguments` receiver and a nonnegative unsuffixed
+compile-time integer literal. Either operand may occur first. The public
+Restaurant witness uses `if 2 > args.count`, so the end-to-end route proves the
+reversed form rather than only a frontend microcase.
+
+HIR reuses the HIR28 `USIZE_COUNT_COMPARISON` record and preserves logical
+`usize`. NativeSubset0 rechecks the member identity, owner, literal type, and
+operator before lowering. Raw `Arguments` values remain non-lowerable. MLIR0
+uses `eq` and `ne` for equality predicates, and `ult`, `ule`, `ugt`, and `uge`
+for ordered logical-`usize` predicates on the x86_64 physical `i64` carrier.
+The ordinary signed-`i64` path remains `slt`, `sle`, `sgt`, and `sge`.
+
+Negative literals, computed literals, wrong external identity, wrong receiver,
+general `usize` arithmetic, helper `usize` parameters or returns, indexing,
+iteration, and decoded `OsString` remain outside this slice. The implementation
+does not define a public ABI or stable physical representation.
+
+The native Windows and Linux/WSL gates execute
+[`process-arguments-ordering.w`](compiler/seed-c/fixtures/process-arguments-ordering.w)
+from source and from a built artifact. The source prints `Kitchen seats 0
+guests\n` with no user arguments, `Kitchen seats 1 guests\n` with one empty
+argument, `Banquet seats 2 guests\n` with two ordinary arguments, and
+`Banquet seats 256 guests\n` at the upper admitted bound. A 257th argument
+fails with exit 3 and no partial stdout. WSL is Linux-target correctness
+evidence, not native Linux performance evidence.
+
+This evidence is `source-backed-current` only for the bounded comparison and
+dual-target correctness route. The primary benchmark disposition is
+`compiler-lifecycle`. The executable catalog separately owns exploratory
+W/C23/Rust measurements. W-1573 makes no timing or language-ranking claim.

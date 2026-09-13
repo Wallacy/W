@@ -4401,7 +4401,11 @@ static bool frontend_usize_count_comparison_ok(
       hir_logical_operator(value->operator_text) !=
           W_SEED_HIR0_LOGICAL_NONE ||
       (!text_is(value->operator_text, "==") &&
-       !text_is(value->operator_text, "!=")))
+       !text_is(value->operator_text, "!=") &&
+       !text_is(value->operator_text, "<") &&
+       !text_is(value->operator_text, "<=") &&
+       !text_is(value->operator_text, ">") &&
+       !text_is(value->operator_text, ">=")))
     return false;
   const w_seed_frontend_expression *left =
       &input->frontend_output->expressions[value->left];
@@ -10527,8 +10531,8 @@ static bool verify_value_tree(
   }
 
   if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
-    if ((value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
-         value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+    if (value->binary_operator < W_SEED_HIR0_BINARY_EQUAL ||
+        value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
         !hir_type_index_valid(program, value->type_index) ||
         program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
         value->left_value == W_SEED_HIR0_NONE ||
@@ -10550,7 +10554,7 @@ static bool verify_value_tree(
         value->call_index != W_SEED_HIR0_NONE ||
         value->first_interpolation_segment != W_SEED_HIR0_NONE ||
         value->interpolation_segment_count != 0u ||
-        value->binary_operator > W_SEED_HIR0_BINARY_NOT_EQUAL ||
+        value->binary_operator > W_SEED_HIR0_BINARY_GREATER_EQUAL ||
         value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
         value->block_argument_index != W_SEED_HIR0_NONE ||
         value->integer_value != 0 || value->bool_value ||

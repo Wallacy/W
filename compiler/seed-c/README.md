@@ -1846,9 +1846,10 @@ Native0 automatically selects `w-seed-mlir0-process-executable-1` for this
 verified HIR on `x86_64-pc-windows-msvc` and
 `x86_64-unknown-linux-gnu`. Explicit artifact selection uses the same verified
 route. W-1565 appends `Arguments.count` to the seven-symbol
-public catalog. W-1566 adds its bounded `==`/`!=` comparison form, and W-1567
-records flat/selective import equivalence. The private four-symbol handler
-remains unchanged.
+public catalog. W-1566 adds its bounded `==`/`!=` comparison form, W-1567
+records flat/selective import equivalence, and W-1573 completes the bounded
+count-versus-literal operator set with `<`, `<=`, `>`, and `>=`. The private
+four-symbol handler remains unchanged.
 The generated `mainCRTStartup` captures
 `GetCommandLineW`, skips the program token, and retains at most 256 borrowed
 UTF-16 descriptors. The descriptor table is a zero-initialized private PE
@@ -1926,24 +1927,26 @@ focused Windows and Linux/WSL gates execute the same source for zero, empty,
 ordinary multiple, and exactly 256 user arguments. The executable catalog owns
 the separate exploratory W/C/Rust measurement lane.
 
-### Bounded public `Arguments.count` equality (W-1566)
+### Bounded public `Arguments.count` comparisons (W-1566, W-1573)
 
 HIR27 advances the schema to `w-seed-hir0-27` and adds a dedicated
 `USIZE_COUNT_COMPARISON` value plus a logical `CONST_USIZE` literal. The public
-process subset accepts only `==` or `!=` between the exact resolver-owned
+process subset accepts `==`, `!=`, `<`, `<=`, `>`, or `>=` between the exact resolver-owned
 `std.process.Arguments.count` member on the entry's real `Arguments` owner and
 a nonnegative unsuffixed integer literal. Either operand order is valid. The
 result is `Bool`.
 
-General `usize` arithmetic and ordering remain unsupported. Helper function
+General `usize` arithmetic and comparisons outside this count-literal form
+remain unsupported. Helper function
 parameters and returns of type `usize` remain unsupported too. Negative and
-computed literals, other comparison operators, owner escape, and forged
+computed literals, owner escape, and forged
 identity or type metadata fail closed. Raw `Arguments` and `Context` values
 remain non-lowerable.
 
 HIR retains logical `usize`. NativeSubset0 and MLIR0 recheck the relation, and
 the verified Windows and Linux x86_64 layouts use physical `i64` only at the MLIR
-boundary. The helper reads the existing process-root count without scanning,
+boundary. Ordered count predicates use unsigned `ult`/`ule`/`ugt`/`uge`;
+ordinary `i64` predicates remain signed. The helper reads the existing process-root count without scanning,
 allocation, copying, or suspension. Focused HIR0, MLIR0, and Native0 tests plus
 the pinned Windows and Linux/WSL gates cover the accepted predicate and bounded
 runtime count cases.

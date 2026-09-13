@@ -29,6 +29,8 @@ const restaurantWhilePostFixture = resolve(seedDirectory,
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const processArgumentsCountFixture = resolve(seedDirectory,
   "fixtures", "process-arguments-count.w")
+const processArgumentsOrderingFixture = resolve(seedDirectory,
+  "fixtures", "process-arguments-ordering.w")
 const processInputFixture = resolve(seedDirectory, "fixtures", "process-input0.w")
 const processEnumPayloadFixture = resolve(seedDirectory,
   "fixtures", "process-enum-payload.w")
@@ -785,6 +787,16 @@ try {
   expectExact(binary, ["run", toWsl(processEnumPayloadFixture), "--", "payload"], 0,
     Buffer.from("enum-received false\n", "utf8"),
     "Linux public enum payload process input with one argument")
+  expectExact(binary, ["run", toWsl(processArgumentsOrderingFixture)], 0,
+    Buffer.from("Kitchen seats 0 guests\n", "utf8"),
+    "Linux ordered process count input without arguments")
+  expectExact(binary, ["run", toWsl(processArgumentsOrderingFixture), "--", ""], 0,
+    Buffer.from("Kitchen seats 1 guests\n", "utf8"),
+    "Linux ordered process count input with empty argument")
+  expectExact(binary,
+    ["run", toWsl(processArgumentsOrderingFixture), "--", "alpha", "beta"], 0,
+    Buffer.from("Banquet seats 2 guests\n", "utf8"),
+    "Linux ordered process count input with two arguments")
 
   const buildOutput = (name) => isWindows
     ? `${buildArtifactDirectory}/${name}`
@@ -793,6 +805,8 @@ try {
   const buildRestaurantIf = buildOutput("restaurant-if-build")
   const buildProcessInput = buildOutput("process-input-build")
   const buildProcessArgumentsCount = buildOutput("process-arguments-count-build")
+  const buildProcessArgumentsOrdering = buildOutput(
+    "process-arguments-ordering-build")
   const buildProcessEnumPayload = buildOutput("process-enum-payload-build")
   const buildMounted = join(fixtureDirectory, "mounted-build")
   const buildWrongTarget = buildOutput("wrong-target-build")
@@ -850,6 +864,27 @@ try {
   expectExact(buildProcessArgumentsCount,
     Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
     "reject Linux process descriptor overflow without partial output")
+  expectSuccess(binary, ["build", toWsl(processArgumentsOrderingFixture), "--target",
+    targetTriple, "--output", buildProcessArgumentsOrdering], Buffer.alloc(0),
+  "build Linux ordered process-arguments fixture")
+  const processArgumentsOrderingBytes = await readBuildArtifact(
+    buildProcessArgumentsOrdering)
+  assertCrtFreeElf(processArgumentsOrderingBytes)
+  const orderedArgumentCountCases = [
+    ["without user arguments", [], "Kitchen seats 0 guests\n"],
+    ["with one empty argument", [""], "Kitchen seats 1 guests\n"],
+    ["with two ordinary arguments", ["alpha", "beta"],
+      "Banquet seats 2 guests\n"],
+    ["with exactly 256 user arguments", Array.from({ length: 256 }, () => "x"),
+      "Banquet seats 256 guests\n"],
+  ]
+  for (const [label, argumentsList, expectedOutput] of orderedArgumentCountCases)
+    expectExact(buildProcessArgumentsOrdering, argumentsList, 0,
+      Buffer.from(expectedOutput, "utf8"),
+      `execute Linux ordered process-arguments artifact ${label}`)
+  expectExact(buildProcessArgumentsOrdering,
+    Array.from({ length: 257 }, () => "x"), 3, Buffer.alloc(0),
+    "reject Linux ordered process descriptor overflow without partial output")
   expectSuccess(binary, ["build", toWsl(processEnumPayloadFixture), "--target",
     targetTriple, "--output", buildProcessEnumPayload], Buffer.alloc(0),
   "build Linux public enum payload process fixture")

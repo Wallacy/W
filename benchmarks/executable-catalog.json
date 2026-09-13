@@ -1702,6 +1702,98 @@
       "blockers": []
     },
     {
+      "id": "process-arguments-ordering",
+      "structureClass": "public-end-to-end",
+      "status": "source-oracle-ready",
+      "sourceReadiness": "source-and-oracle-ready",
+      "demoEvidence": "bounded-w-demo",
+      "benchmarkStatus": "exploratory-ready",
+      "lane": "equivalent",
+      "scope": "Order user process arguments by count and print the exact kitchen or banquet seating output.",
+      "oracle": {
+        "kind": "argument-dependent-output",
+        "status": "source-backed",
+        "timedInput": [
+          "alpha",
+          "beta"
+        ],
+        "cases": [
+          {
+            "arguments": [],
+            "exitCode": 0,
+            "stdout": "Kitchen seats 0 guests\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              ""
+            ],
+            "exitCode": 0,
+            "stdout": "Kitchen seats 1 guests\n",
+            "stderr": ""
+          },
+          {
+            "arguments": [
+              "alpha",
+              "beta"
+            ],
+            "exitCode": 0,
+            "stdout": "Banquet seats 2 guests\n",
+            "stderr": ""
+          }
+        ]
+      },
+      "sources": [
+        {
+          "language": "w",
+          "path": "compiler/seed-c/fixtures/process-arguments-ordering.w",
+          "digest": "sha256:063ac2e1f6e6f88843522423769768c38be682c08d9f957da75298102064c899",
+          "entry": "run",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "public-w-build-release",
+          "recipeClass": "process-arguments-ordering-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "c",
+          "path": "benchmarks/executable/process_arguments_ordering.c",
+          "digest": "sha256:81019a5d1499c9fbe3e24317c0e04f789b0b91c6d7416afaefec79e1e8145e15",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "clang-c23-msvc",
+          "recipeClass": "process-arguments-ordering-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        },
+        {
+          "language": "rust",
+          "path": "benchmarks/executable/process_arguments_ordering.rs",
+          "digest": "sha256:378ffd05c1b77c74514ba54528a1aee16bf3d261a193cc0877bbccdee5a6aead",
+          "entry": "main",
+          "status": "source-oracle-ready",
+          "profile": "release",
+          "quality": "correctness-gate",
+          "recipe": "rustc-edition-2024",
+          "recipeClass": "process-arguments-ordering-release",
+          "platformTarget": "windows-x64",
+          "artifactTarget": "x86_64-pc-windows-msvc",
+          "comparability": "promotable-after-equivalence",
+          "eligibility": "promotable-after-equivalence"
+        }
+      ],
+      "blockedLanguages": [],
+      "blockers": []
+    },
+    {
       "id": "process-handler-lifecycle",
       "structureClass": "integration-linkage",
       "status": "source-oracle-ready",

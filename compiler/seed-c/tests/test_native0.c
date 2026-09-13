@@ -927,20 +927,17 @@ static bool test_process_handler_catalog_and_artifact(void) {
         !contains_bytes(windows_bytes, windows_result.mlir.written.mlir_bytes,
                         "mainCRTStartup"));
 
-  (void)memset(canonical_bytes, 0xa5u, sizeof(canonical_bytes));
-  (void)memset(&canonical_result, 0x5au, sizeof(canonical_result));
-  uint8_t executable_snapshot[sizeof(canonical_result)];
-  (void)memcpy(executable_snapshot, &canonical_result,
-               sizeof(executable_snapshot));
   CHECK(run_source_mode(
             canonical, sizeof(canonical) - 1u, "process-default", 15u,
             &TARGET, W_SEED_MLIR0_ARTIFACT_EXECUTABLE, canonical_bytes,
             sizeof(canonical_bytes), &canonical_result) ==
-        W_SEED_NATIVE0_UNSUPPORTED);
-  for (size_t index = 0u; index < sizeof(canonical_bytes); index += 1u)
-    CHECK(canonical_bytes[index] == 0xa5u);
-  CHECK(memcmp(&canonical_result, executable_snapshot,
-               sizeof(executable_snapshot)) == 0);
+        W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.func @main"));
+  CHECK(contains_bytes(canonical_bytes,
+                       canonical_result.mlir.written.mlir_bytes,
+                       "llvm.func internal @w_seed_process_arguments_drop"));
 
   (void)memset(canonical_bytes, 0xb6u, sizeof(canonical_bytes));
   (void)memset(&canonical_result, 0x6bu, sizeof(canonical_result));
@@ -1032,18 +1029,18 @@ static bool test_process_input0_public_artifact(void) {
   CHECK(memcmp(&explicit_result, &short_snapshot,
                sizeof(explicit_result)) == 0);
 
-  (void)memset(explicit_output, 0xb6, sizeof(explicit_output));
-  (void)memset(&explicit_result, 0x6b, sizeof(explicit_result));
-  const w_seed_native0_result target_snapshot = explicit_result;
   CHECK(run_source_mode(
             source, sizeof(source) - 1u, "process-input0", 14u, &TARGET,
             W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, explicit_output,
             sizeof(explicit_output), &explicit_result) ==
-        W_SEED_NATIVE0_UNSUPPORTED);
-  for (size_t index = 0u; index < sizeof(explicit_output); index += 1u)
-    CHECK(explicit_output[index] == 0xb6u);
-  CHECK(memcmp(&explicit_result, &target_snapshot,
-               sizeof(explicit_result)) == 0);
+        W_SEED_NATIVE0_OK);
+  CHECK(contains_bytes(explicit_output,
+                       explicit_result.mlir.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(explicit_output,
+                       explicit_result.mlir.written.mlir_bytes,
+                       "llvm.func @main"));
   return true;
 }
 
@@ -1185,6 +1182,120 @@ static bool test_process_arguments_count_public_artifact(void) {
               &storage.hir_program, &storage.hir_result,
               &rejected_selection) != W_SEED_NATIVE_SUBSET0_OK);
   }
+  return true;
+}
+
+static bool expect_process_count_native_unsigned_predicate(
+    const uint8_t *source, size_t source_length, const char *predicate) {
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source_mode(
+            source, source_length, "process-arguments-ordered",
+            sizeof("process-arguments-ordered") - 1u, &WINDOWS_TARGET,
+            W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE, output, sizeof(output),
+            &result) == W_SEED_NATIVE0_OK);
+  uint32_t comparison_value = UINT32_MAX;
+  for (uint32_t index = 0u; index < storage.hir_program.value_count; ++index) {
+    if (storage.hir_program.values[index].kind ==
+        W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+      comparison_value = index;
+      break;
+    }
+  }
+  CHECK(comparison_value != UINT32_MAX);
+  const w_seed_hir0_value *comparison =
+      &storage.hir_program.values[comparison_value];
+  char expected[160];
+  const int expected_length = snprintf(expected, sizeof(expected),
+                                       "%%v%u = %s %%v%u, %%v%u : i64",
+                                       comparison_value, predicate,
+                                       comparison->left_value,
+                                       comparison->right_value);
+  CHECK(expected_length > 0 && (size_t)expected_length < sizeof(expected));
+  CHECK(contains_bytes(output, result.mlir.written.mlir_bytes, expected));
+  return true;
+}
+
+static bool test_process_arguments_count_ordered_native(void) {
+  static const uint8_t LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count < 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count <= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count > 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${args.count >= 2}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_LESS_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 < args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_LESS_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 <= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_GREATER_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 > args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const uint8_t REVERSED_GREATER_EQUAL_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${2 >= args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  CHECK(expect_process_count_native_unsigned_predicate(
+      LESS_SOURCE, sizeof(LESS_SOURCE) - 1u, "llvm.icmp \"ult\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      LESS_EQUAL_SOURCE, sizeof(LESS_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"ule\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      GREATER_SOURCE, sizeof(GREATER_SOURCE) - 1u, "llvm.icmp \"ugt\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      GREATER_EQUAL_SOURCE, sizeof(GREATER_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"uge\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      REVERSED_LESS_SOURCE, sizeof(REVERSED_LESS_SOURCE) - 1u,
+      "llvm.icmp \"ult\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      REVERSED_LESS_EQUAL_SOURCE, sizeof(REVERSED_LESS_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"ule\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      REVERSED_GREATER_SOURCE, sizeof(REVERSED_GREATER_SOURCE) - 1u,
+      "llvm.icmp \"ugt\""));
+  CHECK(expect_process_count_native_unsigned_predicate(
+      REVERSED_GREATER_EQUAL_SOURCE,
+      sizeof(REVERSED_GREATER_EQUAL_SOURCE) - 1u,
+      "llvm.icmp \"uge\""));
   return true;
 }
 
@@ -2185,6 +2296,7 @@ int main(void) {
                         test_process_handler_catalog_and_artifact() &&
                         test_process_input0_public_artifact() &&
                         test_process_arguments_count_public_artifact() &&
+                        test_process_arguments_count_ordered_native() &&
                         test_process_stdout_bounds() &&
                         test_process_enum_payload_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
