@@ -39212,9 +39212,9 @@ project it through the general emitted-target matrix; evidence available first
 on Windows and Linux must not specialize the HIR, frame, queue, or lifecycle
 contract or exclude macOS and other viable LLVM targets.
 
-#### 26.4.1.65 W-1584 — M1 target-neutral cooperative product-selection proof (Current selection boundary; emission/runtime evidence missing)
+#### 26.4.1.65 W-1584 — target-neutral cooperative product selection and scalar state-machine core (Current bounded form)
 
-W-1584 defines only a target-neutral, versioned, reserved, caller-owned
+W-1584 starts with a target-neutral, versioned, reserved, caller-owned
 selection proof for the narrower product boundary. Schema
 `w-seed-cooperative-selection0-1` carries copied HIR indices and admission
 facts. It is not a task frame, scheduler record, runtime object, or
@@ -39227,13 +39227,34 @@ scalar async children. Each child has one or two exact
 has at most 64 functions. After both joins, zero or more host `print` calls may
 remain in the root. Unknown or forged HIR and selection facts fail closed.
 
-The MLIR0 entrypoints expose this selection and its independent verification
-only. They do not emit an MLIR state machine or artifact. Normal W-1582
+M2 consumes only that independently verified selection and emits schema
+`w-seed-mlir0-cooperative-1`: a target-neutral `func`/`arith`/`scf`
+module with two logical scalar frames, explicit program counters, completion
+states, outcomes, and a bounded work-conserving two-slot turn. The loop
+preserves all four admitted suspension transitions and returns the sum of both
+joined `i64` outcomes. Because the selected bodies are closed and pure, their
+scalar computation may be delayed to each completion transition; no observable
+effect crosses a yield. The IR contains no target triple, data layout, physical
+pointer, allocation, Task object, thread, WRT call, process entry, OS API, or
+artifact-format fact. Its deterministic bytes and digest are independently
+re-emitted and verified; measure/emit are caller-owned and all-or-nothing.
+
+M1 continues to admit scalar `Bool` and signed `i64`; this M2 emitter is the
+narrower signed-`i64` execution slice and fails closed for Bool-dependent task
+bodies. That bounded implementation limit is not a language restriction.
+
+The two-slot turn is this bounded backend implementation, not a language-level
+FIFO, fairness, or scheduler contract. Normal W-1582
 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` lowering and the COOP0 compiler-host
-oracle remain unchanged. M1 adds no product runtime, scheduler ABI, benchmark,
-or platform support claim. All viable LLVM targets remain candidates. Current
-Windows and Linux evidence is an evidence lane only and cannot restrict macOS
-or other viable LLVM targets.
+oracle remain unchanged. M2 does not yet project the core into a process
+adapter, format the root `print`, execute a public artifact, define a runtime
+or scheduler ABI, or publish a benchmark. Backend target selection remains
+independent: one semantic core must be reusable for every applicable target in
+the emitted-target catalog. Current Windows and Linux checks are evidence lanes
+only and cannot restrict macOS, cross-compilation, or other viable LLVM targets.
+An ordinary compiler invocation may request one target; release automation may
+fan the same verified core out across every supported target. Host support,
+emitted-target support, and locally available evidence remain separate axes.
 
 #### 26.4.2 Execução RUN0 interna e bounded
 

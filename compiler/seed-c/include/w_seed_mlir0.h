@@ -24,6 +24,10 @@ extern "C" {
   "w-seed-mlir0-process-handler-1"
 #define W_SEED_MLIR0_PROCESS_EXECUTABLE_SCHEMA_VERSION \
   "w-seed-mlir0-process-executable-1"
+/* Target-neutral M2 cooperative product emission is a scalar MLIR core.  It
+ * has no target triple, data-layout, runtime, or process-entry contract. */
+#define W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION \
+  "w-seed-mlir0-cooperative-1"
 /* The unsuffixed aliases retain the byte-for-byte Linux seed contract. */
 #define W_SEED_MLIR0_TARGET_TRIPLE W_SEED_MLIR0_TARGET_TRIPLE_LINUX
 /* The dynamic seed artifact is bounded by 64 HIR values, 64 interpolation
@@ -81,6 +85,29 @@ typedef struct {
   size_t capacity;
 } w_seed_mlir0_output;
 
+/* M2 keeps the fixed state-machine facts in a separate record from the
+ * target-sensitive MLIR0 artifact result.  The record is caller-owned and
+ * contains no frame address, scheduler handle, or ABI field. */
+typedef struct {
+  size_t mlir_bytes;
+  uint32_t frame_count;
+  uint32_t queue_capacity;
+  uint32_t yield_count;
+  int64_t result_value;
+} w_seed_mlir0_cooperative_counts;
+
+typedef struct {
+  w_seed_mlir0_status status;
+  w_seed_mlir0_cooperative_counts required;
+  w_seed_mlir0_cooperative_counts written;
+  uint8_t mlir_sha256[32];
+} w_seed_mlir0_cooperative_result;
+
+typedef struct {
+  uint8_t *bytes;
+  size_t capacity;
+} w_seed_mlir0_cooperative_output;
+
 /* Return true only for the explicit Linux or Windows target schemas. */
 bool w_seed_mlir0_target_is_supported(const w_seed_mlir0_target *target);
 
@@ -105,6 +132,27 @@ w_seed_mlir0_status w_seed_mlir0_select_cooperative(
 bool w_seed_mlir0_verify_cooperative_selection(
     const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
     const w_seed_cooperative_selection0 *selection);
+
+/* M2 target-neutral product core.  The emitter consumes a separately
+ * verified HIR34 program and selection proof.  It emits scalar structured
+ * control flow only.  No WRT or host process adapter is selected here. */
+w_seed_mlir0_status w_seed_mlir0_measure_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    w_seed_mlir0_cooperative_counts *counts,
+    w_seed_mlir0_cooperative_result *result);
+
+w_seed_mlir0_status w_seed_mlir0_emit_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    const w_seed_mlir0_cooperative_output *output,
+    w_seed_mlir0_cooperative_result *result);
+
+/* Recheck a complete emitted core without changing caller-owned storage. */
+bool w_seed_mlir0_verify_cooperative_emission(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection, const uint8_t *artifact,
+    size_t artifact_bytes, const w_seed_mlir0_cooperative_result *result);
 
 #ifdef __cplusplus
 }

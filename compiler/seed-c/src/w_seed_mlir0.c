@@ -17,6 +17,7 @@ enum {
   MLIR0_DYNAMIC_MAX_ACTIONS =
       W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS +
       (2 * W_SEED_NATIVE_SUBSET0_MAX_CALLS),
+  MLIR0_COOPERATIVE_MAX_EVALUATION_STEPS = 4096,
 };
 
 static const char MLIR0_SCHEMA_COMMENT[] =
@@ -5445,7 +5446,7 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
                                   const w_seed_mlir0_result *result) {
   if (input == NULL || input->program == NULL || input->hir_result == NULL)
     return true;
-  mlir0_range ranges[40];
+  mlir0_range ranges[41];
   size_t range_count = 0u;
   const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
   if (range_add_or_alias(ranges, range_capacity, &range_count, input, 1u,
@@ -5477,6 +5478,8 @@ static bool input_aliases_outputs(const w_seed_mlir0_input *input,
        sizeof(*program->enum_cases)},
       {program->enum_case_parameters, program->enum_case_parameter_capacity,
        sizeof(*program->enum_case_parameters)},
+      {program->enum_subset_members, program->enum_subset_member_capacity,
+       sizeof(*program->enum_subset_members)},
       {program->enum_payloads, program->enum_payload_capacity,
        sizeof(*program->enum_payloads)},
       {program->switch_captures, program->switch_capture_capacity,
@@ -5716,4 +5719,914 @@ bool w_seed_mlir0_verify_cooperative_selection(
     const w_seed_cooperative_selection0 *selection) {
   return w_seed_native_subset0_verify_cooperative(program, hir_result,
                                                   selection);
+}
+
+/* W-1584 M2 emits a target-neutral scalar state machine.  The closed subset is
+ * pure, so a task's scalar body may execute on its completion transition while
+ * the explicit PCs still preserve every admitted cooperative suspension. */
+static const char *cooperative_type_name(const w_seed_hir0_program *program,
+                                         uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return NULL;
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_I64) return "i64";
+  if (program->types[type_index].kind == W_SEED_HIR0_TYPE_BOOL) return "i1";
+  return NULL;
+}
+
+static bool cooperative_evaluate_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
+    size_t parameter_count, size_t depth, size_t *budget, int64_t *result);
+
+static bool cooperative_evaluate_value(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
+    size_t parameter_count, size_t depth, size_t *budget, int64_t *result);
+
+static bool cooperative_evaluate_call(
+    const w_seed_hir0_program *program, uint32_t call_index,
+    const int64_t caller_parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
+    size_t caller_parameter_count, size_t depth, size_t *budget,
+    int64_t *result) {
+  if (program == NULL || result == NULL || call_index >= program->call_count ||
+      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
+    return false;
+  *budget -= 1u;
+  const w_seed_hir0_call *call = &program->calls[call_index];
+  if ((call->execution_kind != W_SEED_HIR0_CALL_DIRECT &&
+       call->execution_kind !=
+           W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE) ||
+      call->callee_identity >= program->identity_count ||
+      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+    return false;
+  const w_seed_hir0_identity *identity =
+      &program->identities[call->callee_identity];
+  if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      identity->target_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *target =
+      &program->functions[identity->target_index];
+  if (call->argument_count != target->parameter_count ||
+      target->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
+      target->return_type >= program->type_count ||
+      program->types[target->return_type].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  int64_t arguments[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS] = {0};
+  bool seen[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS] = {false};
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + ordinal];
+    if (argument->parameter_ordinal >= call->argument_count ||
+        seen[argument->parameter_ordinal] ||
+        !cooperative_evaluate_value(
+            program, argument->value_index, caller_parameters,
+            caller_parameter_count, depth + 1u, budget,
+            &arguments[argument->parameter_ordinal]))
+      return false;
+    seen[argument->parameter_ordinal] = true;
+  }
+  return cooperative_evaluate_function(
+      program, identity->target_index, arguments, call->argument_count,
+      depth + 1u, budget, result);
+}
+
+static bool cooperative_checked_binary(w_seed_hir0_binary_operator operation,
+                                       int64_t left, int64_t right,
+                                       int64_t *result) {
+  if (result == NULL) return false;
+  switch (operation) {
+    case W_SEED_HIR0_BINARY_ADD:
+      if ((right > 0 && left > INT64_MAX - right) ||
+          (right < 0 && left < INT64_MIN - right))
+        return false;
+      *result = left + right;
+      return true;
+    case W_SEED_HIR0_BINARY_SUBTRACT:
+      if ((right < 0 && left > INT64_MAX + right) ||
+          (right > 0 && left < INT64_MIN + right))
+        return false;
+      *result = left - right;
+      return true;
+    case W_SEED_HIR0_BINARY_MULTIPLY:
+      if (left == 0 || right == 0) {
+        *result = 0;
+        return true;
+      }
+      if (left == -1) {
+        if (right == INT64_MIN) return false;
+        *result = -right;
+        return true;
+      }
+      if (right == -1) {
+        if (left == INT64_MIN) return false;
+        *result = -left;
+        return true;
+      }
+      if ((left > 0 && right > 0 && left > INT64_MAX / right) ||
+          (left > 0 && right < 0 && right < INT64_MIN / left) ||
+          (left < 0 && right > 0 && left < INT64_MIN / right) ||
+          (left < 0 && right < 0 && left < INT64_MAX / right))
+        return false;
+      *result = left * right;
+      return true;
+    case W_SEED_HIR0_BINARY_DIVIDE:
+      if (right == 0 || (left == INT64_MIN && right == -1)) return false;
+      *result = left / right;
+      return true;
+    case W_SEED_HIR0_BINARY_REMAINDER:
+      if (right == 0 || (left == INT64_MIN && right == -1)) return false;
+      *result = left % right;
+      return true;
+    default:
+      return false;
+  }
+}
+
+static bool cooperative_evaluate_value(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
+    size_t parameter_count, size_t depth, size_t *budget, int64_t *result) {
+  if (program == NULL || result == NULL || value_index >= program->value_count ||
+      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
+    return false;
+  *budget -= 1u;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+    *result = value->integer_value;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->parameter_index >= program->parameter_count) return false;
+    const size_t ordinal =
+        program->parameters[value->parameter_index].ordinal;
+    if (parameters == NULL || ordinal >= parameter_count) return false;
+    *result = parameters[ordinal];
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    return cooperative_evaluate_value(
+        program, program->bindings[value->binding_index].initializer_value,
+        parameters, parameter_count, depth + 1u, budget, result);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT)
+    return cooperative_evaluate_call(program, value->call_index, parameters,
+                                     parameter_count, depth + 1u, budget,
+                                     result);
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64) return false;
+  int64_t left = 0;
+  int64_t right = 0;
+  return cooperative_evaluate_value(program, value->left_value, parameters,
+                                    parameter_count, depth + 1u, budget,
+                                    &left) &&
+         cooperative_evaluate_value(program, value->right_value, parameters,
+                                    parameter_count, depth + 1u, budget,
+                                    &right) &&
+         cooperative_checked_binary(value->binary_operator, left, right,
+                                    result);
+}
+
+static bool cooperative_evaluate_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    const int64_t parameters[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS],
+    size_t parameter_count, size_t depth, size_t *budget, int64_t *result) {
+  if (program == NULL || result == NULL ||
+      function_index >= program->function_count ||
+      depth > W_SEED_HIR0_MAX_NESTING || budget == NULL || *budget == 0u)
+    return false;
+  *budget -= 1u;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  if (function->parameter_count != parameter_count ||
+      function->block_count != 1u ||
+      function->first_block >= program->block_count ||
+      function->return_type >= program->type_count ||
+      program->types[function->return_type].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  for (size_t ordinal = 0u; ordinal < block->instruction_count;
+       ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)block->first_instruction + ordinal];
+    int64_t ignored = 0;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      continue;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count ||
+          !cooperative_evaluate_value(
+              program,
+              program->bindings[instruction->binding_index].initializer_value,
+              parameters, parameter_count, depth + 1u, budget, &ignored))
+        return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (!cooperative_evaluate_call(program, instruction->call_index,
+                                     parameters, parameter_count, depth + 1u,
+                                     budget, &ignored))
+        return false;
+    } else {
+      return false;
+    }
+  }
+  if (block->terminator_index >= program->terminator_count) return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  return terminator->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
+         cooperative_evaluate_value(program, terminator->value_index,
+                                    parameters, parameter_count, depth + 1u,
+                                    budget, result);
+}
+
+static bool append_cooperative_value_operand(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint8_t *artifact, size_t capacity, size_t *offset, size_t depth);
+
+static bool append_cooperative_value_tree(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, size_t depth) {
+  if (program == NULL || emitted == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count ||
+      value_index >= W_SEED_NATIVE_SUBSET0_MAX_VALUES ||
+      depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ ||
+      value->kind == W_SEED_HIR0_VALUE_BINDING_READ ||
+      value->kind == W_SEED_HIR0_VALUE_CALL_RESULT)
+    return true;
+  if (emitted[value_index]) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_BINARY_I64) {
+    if (!append_cooperative_value_tree(program, value->left_value, emitted,
+                                       artifact, capacity, offset, depth + 1u) ||
+        !append_cooperative_value_tree(program, value->right_value, emitted,
+                                       artifact, capacity, offset, depth + 1u))
+      return false;
+  } else if (value->kind != W_SEED_HIR0_VALUE_CONST_I64 &&
+             value->kind != W_SEED_HIR0_VALUE_CONST_BOOL) {
+    return false;
+  }
+  if (!append_literal(artifact, capacity, offset, "    %cv") ||
+      !append_size(artifact, capacity, offset, value_index) ||
+      !append_literal(artifact, capacity, offset, " = "))
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+    if (!append_literal(artifact, capacity, offset, "arith.constant ") ||
+        !append_i64(artifact, capacity, offset, value->integer_value) ||
+        !append_literal(artifact, capacity, offset, " : i64\n"))
+      return false;
+  } else if (value->kind == W_SEED_HIR0_VALUE_CONST_BOOL) {
+    if (!append_literal(artifact, capacity, offset,
+                        value->bool_value ? "arith.constant true\n"
+                                          : "arith.constant false\n"))
+      return false;
+  } else {
+    const char *operation = NULL;
+    const char *predicate = NULL;
+    switch (value->binary_operator) {
+      case W_SEED_HIR0_BINARY_ADD:
+        operation = "arith.addi ";
+        break;
+      case W_SEED_HIR0_BINARY_SUBTRACT:
+        operation = "arith.subi ";
+        break;
+      case W_SEED_HIR0_BINARY_MULTIPLY:
+        operation = "arith.muli ";
+        break;
+      case W_SEED_HIR0_BINARY_DIVIDE:
+        operation = "arith.divsi ";
+        break;
+      case W_SEED_HIR0_BINARY_REMAINDER:
+        operation = "arith.remsi ";
+        break;
+      case W_SEED_HIR0_BINARY_EQUAL:
+        predicate = "eq";
+        break;
+      case W_SEED_HIR0_BINARY_NOT_EQUAL:
+        predicate = "ne";
+        break;
+      case W_SEED_HIR0_BINARY_LESS:
+        predicate = "slt";
+        break;
+      case W_SEED_HIR0_BINARY_LESS_EQUAL:
+        predicate = "sle";
+        break;
+      case W_SEED_HIR0_BINARY_GREATER:
+        predicate = "sgt";
+        break;
+      case W_SEED_HIR0_BINARY_GREATER_EQUAL:
+        predicate = "sge";
+        break;
+    }
+    if ((operation == NULL && predicate == NULL) ||
+        !append_literal(artifact, capacity, offset,
+                        predicate == NULL ? operation : "arith.cmpi ") ||
+        (predicate != NULL &&
+         (!append_literal(artifact, capacity, offset, predicate) ||
+          !append_literal(artifact, capacity, offset, ", "))) ||
+        !append_cooperative_value_operand(program, value->left_value, artifact,
+                                          capacity, offset, depth + 1u) ||
+        !append_literal(artifact, capacity, offset, ", ") ||
+        !append_cooperative_value_operand(program, value->right_value, artifact,
+                                          capacity, offset, depth + 1u) ||
+        !append_literal(artifact, capacity, offset, " : i64\n"))
+      return false;
+  }
+  emitted[value_index] = true;
+  return true;
+}
+
+static bool append_cooperative_value_operand(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint8_t *artifact, size_t capacity, size_t *offset, size_t depth) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count || depth > W_SEED_HIR0_MAX_NESTING)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->parameter_index >= program->parameter_count) return false;
+    return append_literal(artifact, capacity, offset, "%p") &&
+           append_size(artifact, capacity, offset,
+                       program->parameters[value->parameter_index].ordinal);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    return append_cooperative_value_operand(
+        program, program->bindings[value->binding_index].initializer_value,
+        artifact, capacity, offset, depth + 1u);
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CALL_RESULT) {
+    if (value->call_index >= program->call_count) return false;
+    return append_literal(artifact, capacity, offset, "%ccall") &&
+           append_size(artifact, capacity, offset, value->call_index);
+  }
+  if (value->kind != W_SEED_HIR0_VALUE_CONST_I64 &&
+      value->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
+      value->kind != W_SEED_HIR0_VALUE_BINARY_I64)
+    return false;
+  return append_literal(artifact, capacity, offset, "%cv") &&
+         append_size(artifact, capacity, offset, value_index);
+}
+
+static bool append_cooperative_call(
+    const w_seed_hir0_program *program, uint32_t call_index,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset) {
+  if (program == NULL || emitted == NULL || artifact == NULL || offset == NULL ||
+      call_index >= program->call_count)
+    return false;
+  const w_seed_hir0_call *call = &program->calls[call_index];
+  if (call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+      call->callee_identity >= program->identity_count ||
+      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+    return false;
+  const w_seed_hir0_identity *identity =
+      &program->identities[call->callee_identity];
+  if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      identity->target_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *target =
+      &program->functions[identity->target_index];
+  if (call->argument_count != target->parameter_count ||
+      cooperative_type_name(program, call->result_type) == NULL)
+    return false;
+  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
+  for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
+       index += 1u)
+    values[index] = W_SEED_HIR0_NONE;
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + ordinal];
+    if (argument->parameter_ordinal >= call->argument_count ||
+        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE ||
+        !append_cooperative_value_tree(program, argument->value_index, emitted,
+                                       artifact, capacity, offset, 0u))
+      return false;
+    values[argument->parameter_ordinal] = argument->value_index;
+  }
+  if (!append_literal(artifact, capacity, offset, "    %ccall") ||
+      !append_size(artifact, capacity, offset, call_index) ||
+      !append_literal(artifact, capacity, offset,
+                      " = func.call @w_coop_fn_") ||
+      !append_size(artifact, capacity, offset, identity->target_index) ||
+      !append_literal(artifact, capacity, offset, "("))
+    return false;
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u)
+    if ((ordinal != 0u &&
+         !append_literal(artifact, capacity, offset, ", ")) ||
+        values[ordinal] == W_SEED_HIR0_NONE ||
+        !append_cooperative_value_operand(program, values[ordinal], artifact,
+                                          capacity, offset, 0u))
+      return false;
+  if (!append_literal(artifact, capacity, offset, ") : ("))
+    return false;
+  for (size_t ordinal = 0u; ordinal < target->parameter_count; ordinal += 1u) {
+    const char *type = cooperative_type_name(
+        program,
+        program->parameters[(size_t)target->first_parameter + ordinal]
+            .type_index);
+    if (type == NULL ||
+        (ordinal != 0u &&
+         !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  return append_literal(artifact, capacity, offset, ") -> ") &&
+         append_literal(artifact, capacity, offset,
+                        cooperative_type_name(program, call->result_type)) &&
+         append_literal(artifact, capacity, offset, "\n");
+}
+
+static bool append_cooperative_function(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || artifact == NULL || offset == NULL ||
+      function_index >= program->function_count ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  const char *return_type =
+      cooperative_type_name(program, function->return_type);
+  if (return_type == NULL || function->block_count != 1u ||
+      function->first_block >= program->block_count ||
+      function->parameter_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS ||
+      !append_literal(artifact, capacity, offset,
+                      "  func.func private @w_coop_fn_") ||
+      !append_size(artifact, capacity, offset, function_index) ||
+      !append_literal(artifact, capacity, offset, "("))
+    return false;
+  for (size_t ordinal = 0u; ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[(size_t)function->first_parameter + ordinal];
+    const char *type = cooperative_type_name(program, parameter->type_index);
+    if (type == NULL ||
+        (ordinal != 0u &&
+         !append_literal(artifact, capacity, offset, ", ")) ||
+        !append_literal(artifact, capacity, offset, "%p") ||
+        !append_size(artifact, capacity, offset, ordinal) ||
+        !append_literal(artifact, capacity, offset, ": ") ||
+        !append_literal(artifact, capacity, offset, type))
+      return false;
+  }
+  if (!append_literal(artifact, capacity, offset, ") -> ") ||
+      !append_literal(artifact, capacity, offset, return_type) ||
+      !append_literal(artifact, capacity, offset, " {\n"))
+    return false;
+  const w_seed_hir0_block *block = &program->blocks[function->first_block];
+  bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  for (size_t ordinal = 0u; ordinal < block->instruction_count;
+       ordinal += 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[(size_t)block->first_instruction + ordinal];
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
+      continue;
+    if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count ||
+          !append_cooperative_value_tree(
+              program,
+              program->bindings[instruction->binding_index].initializer_value,
+              emitted, artifact, capacity, offset, 0u))
+        return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (!append_cooperative_call(program, instruction->call_index, emitted,
+                                   artifact, capacity, offset))
+        return false;
+    } else {
+      return false;
+    }
+  }
+  if (block->terminator_index >= program->terminator_count) return false;
+  const w_seed_hir0_terminator *terminator =
+      &program->terminators[block->terminator_index];
+  if (terminator->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+      terminator->value_index >= program->value_count ||
+      !append_cooperative_value_tree(program, terminator->value_index, emitted,
+                                     artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, "    return ") ||
+      !append_cooperative_value_operand(program, terminator->value_index,
+                                        artifact, capacity, offset, 0u) ||
+      !append_literal(artifact, capacity, offset, " : ") ||
+      !append_literal(artifact, capacity, offset, return_type) ||
+      !append_literal(artifact, capacity, offset, "\n  }\n"))
+    return false;
+  return true;
+}
+
+static bool append_cooperative_task_arguments(
+    const w_seed_hir0_program *program, uint32_t call_index,
+    bool emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES], uint8_t *artifact,
+    size_t capacity, size_t *offset, bool types) {
+  if (program == NULL || emitted == NULL || artifact == NULL || offset == NULL ||
+      call_index >= program->call_count)
+    return false;
+  const w_seed_hir0_call *call = &program->calls[call_index];
+  if (call->callee_identity >= program->identity_count ||
+      call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
+    return false;
+  const w_seed_hir0_identity *identity =
+      &program->identities[call->callee_identity];
+  if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+      identity->target_index >= program->function_count)
+    return false;
+  const w_seed_hir0_function *target =
+      &program->functions[identity->target_index];
+  if (call->argument_count != target->parameter_count) return false;
+  uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
+  for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
+       index += 1u)
+    values[index] = W_SEED_HIR0_NONE;
+  for (size_t ordinal = 0u; ordinal < call->argument_count; ordinal += 1u) {
+    const w_seed_hir0_argument *argument =
+        &program->arguments[(size_t)call->first_argument + ordinal];
+    if (argument->parameter_ordinal >= call->argument_count ||
+        values[argument->parameter_ordinal] != W_SEED_HIR0_NONE)
+      return false;
+    values[argument->parameter_ordinal] = argument->value_index;
+    if (!types &&
+        !append_cooperative_value_tree(program, argument->value_index, emitted,
+                                       artifact, capacity, offset, 0u))
+      return false;
+  }
+  for (size_t ordinal = 0u; ordinal < target->parameter_count; ordinal += 1u) {
+    if (ordinal != 0u &&
+        !append_literal(artifact, capacity, offset, ", "))
+      return false;
+    if (values[ordinal] == W_SEED_HIR0_NONE) return false;
+    if (types) {
+      const char *type = cooperative_type_name(
+          program,
+          program->parameters[(size_t)target->first_parameter + ordinal]
+              .type_index);
+      if (type == NULL ||
+          !append_literal(artifact, capacity, offset, type))
+        return false;
+    } else if (!append_cooperative_value_operand(
+                   program, values[ordinal], artifact, capacity, offset, 0u)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool build_cooperative_artifact(
+    const w_seed_hir0_program *program,
+    const w_seed_cooperative_selection0 *selection, uint8_t *artifact,
+    size_t capacity, size_t *written, int64_t *result_value,
+    uint8_t digest[MLIR0_DIGEST_BYTES]) {
+  if (program == NULL || selection == NULL || artifact == NULL ||
+      written == NULL || result_value == NULL || digest == NULL ||
+      selection->task_count != W_SEED_HIR0_COOPERATIVE_MAX_TASKS ||
+      program->value_count > W_SEED_NATIVE_SUBSET0_MAX_VALUES)
+    return false;
+  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS; task += 1u) {
+    const uint32_t function_index = selection->task_function_indices[task];
+    if (function_index >= program->function_count ||
+        program->types[program->functions[function_index].return_type].kind !=
+            W_SEED_HIR0_TYPE_I64)
+      return false;
+  }
+  int64_t task_results[W_SEED_HIR0_COOPERATIVE_MAX_TASKS] = {0};
+  size_t evaluation_budget = MLIR0_COOPERATIVE_MAX_EVALUATION_STEPS;
+  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS; task += 1u)
+    if (!cooperative_evaluate_call(
+            program, selection->task_call_indices[task], NULL, 0u, 0u,
+            &evaluation_budget,
+            &task_results[task]))
+      return false;
+  if (!cooperative_checked_binary(W_SEED_HIR0_BINARY_ADD, task_results[0],
+                                  task_results[1], result_value))
+    return false;
+  size_t offset = 0u;
+  if (!append_literal(artifact, capacity, &offset,
+                      "// " W_SEED_MLIR0_COOPERATIVE_SCHEMA_VERSION "\n"
+                      "module {\n"))
+    return false;
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (function != selection->root_function_index &&
+        !append_cooperative_function(program, (uint32_t)function, artifact,
+                                     capacity, &offset))
+      return false;
+  if (!append_literal(artifact, capacity, &offset,
+                      "  func.func @w_seed_cooperative_core() -> i64 {\n"))
+    return false;
+  bool root_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
+  for (size_t task = 0u; task < W_SEED_HIR0_COOPERATIVE_MAX_TASKS;
+       task += 1u) {
+    const uint32_t call_index = selection->task_call_indices[task];
+    if (call_index >= program->call_count) return false;
+    const w_seed_hir0_call *call = &program->calls[call_index];
+    for (size_t argument = 0u; argument < call->argument_count;
+         argument += 1u)
+      if (!append_cooperative_value_tree(
+              program,
+              program->arguments[(size_t)call->first_argument + argument]
+                  .value_index,
+              root_emitted, artifact, capacity, &offset, 0u))
+        return false;
+  }
+  if (!append_literal(
+          artifact, capacity, &offset,
+          "    %pc_zero = arith.constant 0 : i32\n"
+          "    %pc_one = arith.constant 1 : i32\n"
+          "    %result_zero = arith.constant 0 : i64\n"
+          "    %false = arith.constant false\n"
+          "    %true = arith.constant true\n"
+          "    %pc_end0 = arith.constant ") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->task_yield_counts[0] + 1u) ||
+      !append_literal(artifact, capacity, &offset,
+                      " : i32\n    %pc_end1 = arith.constant ") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->task_yield_counts[1] + 1u) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          " : i32\n"
+          "    %final_turn, %final_pc0, %final_pc1, %final_done0, "
+          "%final_done1, %final_result0, %final_result1 = scf.while "
+          "(%turn = %false, %pc0 = %pc_zero, %pc1 = %pc_zero, "
+          "%done0 = %false, %done1 = %false, %result0 = %result_zero, "
+          "%result1 = %result_zero) : (i1, i32, i32, i1, i1, i64, i64) "
+          "-> (i1, i32, i32, i1, i1, i64, i64) {\n"
+          "      %both_done = arith.andi %done0, %done1 : i1\n"
+          "      %more = arith.xori %both_done, %true : i1\n"
+          "      scf.condition(%more) %turn, %pc0, %pc1, %done0, %done1, "
+          "%result0, %result1 : i1, i32, i32, i1, i1, i64, i64\n"
+          "    } do {\n"
+          "    ^bb0(%turn: i1, %pc0: i32, %pc1: i32, %done0: i1, "
+          "%done1: i1, %result0: i64, %result1: i64):\n"
+          "      %not_turn = arith.xori %turn, %true : i1\n"
+          "      %not_done0 = arith.xori %done0, %true : i1\n"
+          "      %not_done1 = arith.xori %done1, %true : i1\n"
+          "      %prefer0 = arith.ori %not_turn, %done1 : i1\n"
+          "      %prefer1 = arith.ori %turn, %done0 : i1\n"
+          "      %run0 = arith.andi %not_done0, %prefer0 : i1\n"
+          "      %run1 = arith.andi %not_done1, %prefer1 : i1\n"
+          "      %pc0_increment = arith.addi %pc0, %pc_one : i32\n"
+          "      %pc1_increment = arith.addi %pc1, %pc_one : i32\n"
+          "      %next_pc0 = arith.select %run0, %pc0_increment, %pc0 : i32\n"
+          "      %next_pc1 = arith.select %run1, %pc1_increment, %pc1 : i32\n"
+          "      %at_end0 = arith.cmpi eq, %next_pc0, %pc_end0 : i32\n"
+          "      %at_end1 = arith.cmpi eq, %next_pc1, %pc_end1 : i32\n"
+          "      %complete0 = arith.andi %run0, %at_end0 : i1\n"
+          "      %complete1 = arith.andi %run1, %at_end1 : i1\n"
+          "      %next_done0 = arith.ori %done0, %complete0 : i1\n"
+          "      %next_done1 = arith.ori %done1, %complete1 : i1\n"
+          "      %next_result0 = scf.if %complete0 -> (i64) {\n"
+          "        %task_result0 = func.call @w_coop_fn_") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->task_function_indices[0]) ||
+      !append_literal(artifact, capacity, &offset, "(") ||
+      !append_cooperative_task_arguments(
+          program, selection->task_call_indices[0], root_emitted, artifact,
+          capacity, &offset, false) ||
+      !append_literal(artifact, capacity, &offset, ") : (") ||
+      !append_cooperative_task_arguments(
+          program, selection->task_call_indices[0], root_emitted, artifact,
+          capacity, &offset, true) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ") -> i64\n"
+          "        scf.yield %task_result0 : i64\n"
+          "      } else {\n"
+          "        scf.yield %result0 : i64\n"
+          "      }\n"
+          "      %next_result1 = scf.if %complete1 -> (i64) {\n"
+          "        %task_result1 = func.call @w_coop_fn_") ||
+      !append_size(artifact, capacity, &offset,
+                   selection->task_function_indices[1]) ||
+      !append_literal(artifact, capacity, &offset, "(") ||
+      !append_cooperative_task_arguments(
+          program, selection->task_call_indices[1], root_emitted, artifact,
+          capacity, &offset, false) ||
+      !append_literal(artifact, capacity, &offset, ") : (") ||
+      !append_cooperative_task_arguments(
+          program, selection->task_call_indices[1], root_emitted, artifact,
+          capacity, &offset, true) ||
+      !append_literal(
+          artifact, capacity, &offset,
+          ") -> i64\n"
+          "        scf.yield %task_result1 : i64\n"
+          "      } else {\n"
+          "        scf.yield %result1 : i64\n"
+          "      }\n"
+          "      %next_turn = arith.select %run0, %true, %false : i1\n"
+          "      scf.yield %next_turn, %next_pc0, %next_pc1, %next_done0, "
+          "%next_done1, %next_result0, %next_result1 : i1, i32, i32, i1, "
+          "i1, i64, i64\n"
+          "    }\n"
+          "    %result = arith.addi %final_result0, %final_result1 : i64\n"
+          "    return %result : i64\n"
+          "  }\n"
+          "}\n"))
+    return false;
+  w_seed_sha256_state state;
+  w_seed_sha256_init(&state);
+  w_seed_sha256_update(&state, artifact, offset);
+  w_seed_sha256_final(&state, digest);
+  *written = offset;
+  return true;
+}
+
+static bool cooperative_ranges_alias(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    const w_seed_mlir0_cooperative_counts *counts,
+    const w_seed_mlir0_cooperative_output *output,
+    const w_seed_mlir0_cooperative_result *result, size_t written) {
+  if (program == NULL || hir_result == NULL || selection == NULL) return true;
+  mlir0_range ranges[42];
+  size_t range_count = 0u;
+  const size_t range_capacity = sizeof(ranges) / sizeof(ranges[0]);
+#define ADD_COOPERATIVE_RANGE(address, count, element_size)                   \
+  do {                                                                        \
+    if (!range_add(ranges, range_capacity, &range_count, (address), (count),  \
+                   (element_size)))                                           \
+      return true;                                                            \
+  } while (0)
+  ADD_COOPERATIVE_RANGE(program, 1u, sizeof(*program));
+  ADD_COOPERATIVE_RANGE(hir_result, 1u, sizeof(*hir_result));
+  ADD_COOPERATIVE_RANGE(selection, 1u, sizeof(*selection));
+  ADD_COOPERATIVE_RANGE(counts, counts == NULL ? 0u : 1u, sizeof(*counts));
+  ADD_COOPERATIVE_RANGE(result, result == NULL ? 0u : 1u, sizeof(*result));
+  ADD_COOPERATIVE_RANGE(output, output == NULL ? 0u : 1u, sizeof(*output));
+  if (output != NULL)
+    ADD_COOPERATIVE_RANGE(output->bytes, written, sizeof(uint8_t));
+  const mlir0_range input_ranges[] = {
+      {program->modules, program->module_capacity, sizeof(*program->modules)},
+      {program->identities, program->identity_capacity,
+       sizeof(*program->identities)},
+      {program->types, program->type_capacity, sizeof(*program->types)},
+      {program->enums, program->enum_capacity, sizeof(*program->enums)},
+      {program->enum_cases, program->enum_case_capacity,
+       sizeof(*program->enum_cases)},
+      {program->enum_case_parameters, program->enum_case_parameter_capacity,
+       sizeof(*program->enum_case_parameters)},
+      {program->enum_subset_members, program->enum_subset_member_capacity,
+       sizeof(*program->enum_subset_members)},
+      {program->enum_payloads, program->enum_payload_capacity,
+       sizeof(*program->enum_payloads)},
+      {program->switch_captures, program->switch_capture_capacity,
+       sizeof(*program->switch_captures)},
+      {program->functions, program->function_capacity,
+       sizeof(*program->functions)},
+      {program->parameters, program->parameter_capacity,
+       sizeof(*program->parameters)},
+      {program->blocks, program->block_capacity, sizeof(*program->blocks)},
+      {program->block_arguments, program->block_argument_capacity,
+       sizeof(*program->block_arguments)},
+      {program->edge_arguments, program->edge_argument_capacity,
+       sizeof(*program->edge_arguments)},
+      {program->switch_edges, program->switch_edge_capacity,
+       sizeof(*program->switch_edges)},
+      {program->instructions, program->instruction_capacity,
+       sizeof(*program->instructions)},
+      {program->bindings, program->binding_capacity,
+       sizeof(*program->bindings)},
+      {program->calls, program->call_capacity, sizeof(*program->calls)},
+      {program->host_parameters, program->host_parameter_capacity,
+       sizeof(*program->host_parameters)},
+      {program->arguments, program->argument_capacity,
+       sizeof(*program->arguments)},
+      {program->requirements, program->requirement_capacity,
+       sizeof(*program->requirements)},
+      {program->values, program->value_capacity, sizeof(*program->values)},
+      {program->interpolation_segments,
+       program->interpolation_segment_capacity,
+       sizeof(*program->interpolation_segments)},
+      {program->terminators, program->terminator_capacity,
+       sizeof(*program->terminators)},
+      {program->entries, program->entry_capacity, sizeof(*program->entries)},
+      {program->external_modules, program->external_module_capacity,
+       sizeof(*program->external_modules)},
+      {program->external_symbols, program->external_symbol_capacity,
+       sizeof(*program->external_symbols)},
+      {program->text_bytes, program->text_byte_capacity, sizeof(uint8_t)},
+      {program->value_bytes, program->value_byte_capacity, sizeof(uint8_t)},
+      {program->receipt, program->receipt_capacity, sizeof(uint8_t)},
+  };
+  for (size_t index = 0u;
+       index < sizeof(input_ranges) / sizeof(input_ranges[0]); index += 1u)
+    ADD_COOPERATIVE_RANGE(input_ranges[index].address,
+                          input_ranges[index].count,
+                          input_ranges[index].element_size);
+#undef ADD_COOPERATIVE_RANGE
+  for (size_t first = 0u; first < range_count; first += 1u)
+    for (size_t second = first + 1u; second < range_count; second += 1u)
+      if (range_pair_overlaps(&ranges[first], &ranges[second])) return true;
+  return false;
+}
+
+w_seed_mlir0_status w_seed_mlir0_measure_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    w_seed_mlir0_cooperative_counts *counts,
+    w_seed_mlir0_cooperative_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      counts == NULL || result == NULL ||
+      !w_seed_mlir0_verify_cooperative_selection(program, hir_result, selection))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  int64_t result_value = 0;
+  if (!build_cooperative_artifact(program, selection, artifact,
+                                  sizeof(artifact), &written, &result_value,
+                                  digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (cooperative_ranges_alias(program, hir_result, selection, counts, NULL,
+                               result, written))
+    return W_SEED_MLIR0_ALIAS;
+  w_seed_mlir0_cooperative_counts candidate_counts = {0};
+  candidate_counts.mlir_bytes = written;
+  candidate_counts.frame_count = selection->task_count;
+  candidate_counts.queue_capacity = selection->task_count;
+  candidate_counts.yield_count = selection->yield_count;
+  candidate_counts.result_value = result_value;
+  w_seed_mlir0_cooperative_result candidate_result;
+  (void)memset(&candidate_result, 0, sizeof(candidate_result));
+  candidate_result.status = W_SEED_MLIR0_OK;
+  candidate_result.required = candidate_counts;
+  (void)memcpy(candidate_result.mlir_sha256, digest,
+               sizeof(candidate_result.mlir_sha256));
+  *counts = candidate_counts;
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+w_seed_mlir0_status w_seed_mlir0_emit_cooperative(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection,
+    const w_seed_mlir0_cooperative_output *output,
+    w_seed_mlir0_cooperative_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      output == NULL || result == NULL ||
+      !w_seed_mlir0_verify_cooperative_selection(program, hir_result, selection))
+    return W_SEED_MLIR0_INVALID_HIR;
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  int64_t result_value = 0;
+  if (!build_cooperative_artifact(program, selection, artifact,
+                                  sizeof(artifact), &written, &result_value,
+                                  digest))
+    return W_SEED_MLIR0_UNSUPPORTED;
+  if (cooperative_ranges_alias(program, hir_result, selection, NULL, output,
+                               result, written))
+    return W_SEED_MLIR0_ALIAS;
+  if (output->bytes == NULL || output->capacity < written)
+    return W_SEED_MLIR0_CAPACITY;
+  w_seed_mlir0_cooperative_counts candidate_counts = {0};
+  candidate_counts.mlir_bytes = written;
+  candidate_counts.frame_count = selection->task_count;
+  candidate_counts.queue_capacity = selection->task_count;
+  candidate_counts.yield_count = selection->yield_count;
+  candidate_counts.result_value = result_value;
+  w_seed_mlir0_cooperative_result candidate_result;
+  (void)memset(&candidate_result, 0, sizeof(candidate_result));
+  candidate_result.status = W_SEED_MLIR0_OK;
+  candidate_result.required = candidate_counts;
+  candidate_result.written = candidate_counts;
+  (void)memcpy(candidate_result.mlir_sha256, digest,
+               sizeof(candidate_result.mlir_sha256));
+  (void)memcpy(output->bytes, artifact, written);
+  *result = candidate_result;
+  return W_SEED_MLIR0_OK;
+}
+
+bool w_seed_mlir0_verify_cooperative_emission(
+    const w_seed_hir0_program *program, const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection, const uint8_t *artifact,
+    size_t artifact_bytes, const w_seed_mlir0_cooperative_result *result) {
+  if (program == NULL || hir_result == NULL || selection == NULL ||
+      artifact == NULL || result == NULL || result->status != W_SEED_MLIR0_OK ||
+      !w_seed_mlir0_verify_cooperative_selection(program, hir_result, selection))
+    return false;
+  uint8_t expected[W_SEED_MLIR0_MAX_BYTES];
+  uint8_t digest[MLIR0_DIGEST_BYTES];
+  size_t written = 0u;
+  int64_t result_value = 0;
+  if (!build_cooperative_artifact(program, selection, expected,
+                                  sizeof(expected), &written, &result_value,
+                                  digest))
+    return false;
+  w_seed_mlir0_cooperative_counts counts = {0};
+  counts.mlir_bytes = written;
+  counts.frame_count = selection->task_count;
+  counts.queue_capacity = selection->task_count;
+  counts.yield_count = selection->yield_count;
+  counts.result_value = result_value;
+  return artifact_bytes == written &&
+         memcmp(artifact, expected, written) == 0 &&
+         result->required.mlir_bytes == counts.mlir_bytes &&
+         result->required.frame_count == counts.frame_count &&
+         result->required.queue_capacity == counts.queue_capacity &&
+         result->required.yield_count == counts.yield_count &&
+         result->required.result_value == counts.result_value &&
+         result->written.mlir_bytes == counts.mlir_bytes &&
+         result->written.frame_count == counts.frame_count &&
+         result->written.queue_capacity == counts.queue_capacity &&
+         result->written.yield_count == counts.yield_count &&
+         result->written.result_value == counts.result_value &&
+         memcmp(result->mlir_sha256, digest, sizeof(digest)) == 0;
 }
