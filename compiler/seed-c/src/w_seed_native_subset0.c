@@ -2681,17 +2681,36 @@ static bool program_function_has_static_yields(
         &program->instructions[(size_t)block->first_instruction + ordinal];
     if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD)
       yields += 1u;
-    else if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
-             instruction->binding_index >= program->binding_count ||
-             program->bindings[instruction->binding_index].type_index >=
-                 program->type_count ||
-             (program->types[program->bindings[instruction->binding_index]
-                                 .type_index]
-                      .kind != W_SEED_HIR0_TYPE_I64 &&
-              program->types[program->bindings[instruction->binding_index]
-                                 .type_index]
-                      .kind != W_SEED_HIR0_TYPE_BOOL))
+    else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count ||
+          program->bindings[instruction->binding_index].type_index >=
+              program->type_count ||
+          (program->types[program->bindings[instruction->binding_index]
+                              .type_index]
+                   .kind != W_SEED_HIR0_TYPE_I64 &&
+           program->types[program->bindings[instruction->binding_index]
+                              .type_index]
+                   .kind != W_SEED_HIR0_TYPE_BOOL))
+        return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call =
+          &program->calls[instruction->call_index];
+      if (call->owner_block != function->first_block ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->callee_identity >= program->identity_count)
+        return false;
+      const w_seed_hir0_identity *identity =
+          &program->identities[call->callee_identity];
+      if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          identity->target_index >= program->function_count ||
+          program->functions[identity->target_index].is_async ||
+          program->functions[identity->target_index].module_index !=
+              function->module_index)
+        return false;
+    } else {
       return false;
+    }
   }
   return yields != 0u;
 }
@@ -2870,7 +2889,7 @@ static bool program_function_maximum(
               call->execution_kind ==
                   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED &&
               program_function_has_static_yields(program,
-                                                callee->target_index);
+                                                 callee->target_index);
           if (!direct && !static_yield) return false;
         }
         for (size_t argument = 0u; argument < call->argument_count;

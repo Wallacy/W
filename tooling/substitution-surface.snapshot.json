@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:5df367e6976d03a5ea839bf25aad76dfd6bddeb5d8e8457112e7f61b1e777e78",
+  "corpusDigest": "sha256:b8dccd72f16f6944b3d5556add28e06edc1f65f063ced32f068bca8286b6d3b2",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -1075,11 +1075,11 @@
     {
       "id": "R0-encapsulated-object",
       "task": {
-        "utf8Bytes": 100,
-        "codePoints": 100,
-        "nonWhitespaceCodePoints": 89,
+        "utf8Bytes": 117,
+        "codePoints": 117,
+        "nonWhitespaceCodePoints": 104,
         "lines": 1,
-        "surfaceLexemes": 13
+        "surfaceLexemes": 17
       },
       "selected": {
         "name": "selected",
@@ -7255,22 +7255,22 @@
     {
       "id": "R0-virtual-task-static-yield-elision",
       "task": {
-        "utf8Bytes": 191,
-        "codePoints": 191,
-        "nonWhitespaceCodePoints": 163,
+        "utf8Bytes": 227,
+        "codePoints": 227,
+        "nonWhitespaceCodePoints": 194,
         "lines": 1,
-        "surfaceLexemes": 33
+        "surfaceLexemes": 40
       },
       "selected": {
         "name": "selected",
         "language": "w",
-        "sourceDigest": "sha256:08771e61f03f1efb4169c8cf2ab14a8bfa3fdb538072a9ca6938190aeaf47251",
+        "sourceDigest": "sha256:6d6452e72da645a44456b08226b5bcf22299c16e4126d2bd2fa66d11f0185f7e",
         "metrics": {
-          "utf8Bytes": 279,
-          "codePoints": 279,
-          "nonWhitespaceCodePoints": 233,
-          "lines": 4,
-          "surfaceLexemes": 73
+          "utf8Bytes": 336,
+          "codePoints": 336,
+          "nonWhitespaceCodePoints": 281,
+          "lines": 5,
+          "surfaceLexemes": 91
         }
       },
       "alternatives": [

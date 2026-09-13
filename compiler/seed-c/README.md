@@ -1666,6 +1666,44 @@ budget-exhaustion outcome. A source relation that fails this complete proof
 returns to the ordinary physical admission contract rather than reusing this
 lowering.
 
+### Proof-directed virtual aggregate materialization (W-1581, design-only)
+
+W-1581 gives `struct`, `enum`, and `object` one aggregate representation rule.
+The compiler may erase a value, use SSA or registers, or select stack, fixed,
+device, or runtime storage. Object syntax keeps reference and identity-capable
+defaults, but an object declaration or `ref` use does not imply a heap, header,
+address, or storage class. `struct` and `object` may declare `init` and
+`deinit`; enums retain case construction and synthesized payload cleanup. A
+custom `deinit` makes the type non-`Copy`, while automatic drop glue does not.
+`isSameInstance` may fold without allocation when the identity relation is
+proven.
+
+The general rule is not seed implementation evidence. Existing bounded enum
+payload and scalar routes remain separate. General aggregate lowering,
+materialization, device or runtime residency, FFI, layout, ABI, and lifecycle
+support remain implementation-evidence gaps.
+
+### Virtual Task across a same-module scalar helper graph (W-1582)
+
+HIR33 extends the W-1580 `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation to a
+finite acyclic same-module graph of ordinary synchronous pure scalar helpers.
+Helpers may use already verified closed scalar control and local scalar
+mutation. They cannot use host or external calls, `async`, `await`,
+`execution#yield()`, effects, throwing, unsafe code, borrows, allocation, or
+runtime owners.
+
+The root remains one linear async block with finite root yield markers and one
+lexical join. Standalone HIR verification re-proves graph locality, ownership,
+acyclicity, helper admissibility, marker order, scalar types, and the closed
+return. NativeSubset0 and MLIR0 emit ordinary scalar calls and erase the
+transient Task and yield markers only after complete proof. Zero logical
+admission remains conditional on that proof.
+
+The updated `fixtures/restaurant-async-yield.w` source calls `stage`. The
+Windows product gate must be rerun for this source change. This remains
+compiler-lifecycle correctness evidence. It makes no concurrency, fairness,
+scheduler, overlap, or Linux claim.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

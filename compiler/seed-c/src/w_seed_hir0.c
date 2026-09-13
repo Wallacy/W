@@ -1557,12 +1557,34 @@ static bool frontend_elision_task_value_type_ok(
       &input->frontend_output->types[type_index];
   return type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
          (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
-          type->bit_width == 64u);
+         type->bit_width == 64u);
+}
+
+/* A resolved local call keeps its source callee name as an identifier
+ * expression with no value type. It is a designator, not a runtime scalar.
+ * The owning CALL record below remains the authority for target identity. */
+static bool frontend_elision_call_designator(
+    const w_seed_hir0_input *input, size_t function_index,
+    size_t expression_index) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  for (size_t candidate = 0u;
+       candidate < input->frontend_result->written.expressions;
+       candidate += 1u) {
+    const w_seed_frontend_expression *call =
+        &input->frontend_output->expressions[candidate];
+    if (call->owner_function == function_index &&
+        call->kind == W_SEED_FRONTEND_EXPR_CALL &&
+        call->left == expression_index)
+      return true;
+  }
+  return false;
 }
 
 static bool frontend_elision_function_never(
     const w_seed_hir0_input *input, size_t function_index,
-    frontend_elision_path *path, size_t depth) {
+    uint32_t required_module, frontend_elision_path *path, size_t depth) {
   if (input == NULL || input->frontend_output == NULL ||
       input->frontend_result == NULL || path == NULL ||
       function_index >= input->frontend_result->written.functions ||
@@ -1578,7 +1600,9 @@ static bool frontend_elision_function_never(
   const w_seed_frontend_result *result = input->frontend_result;
   const w_seed_frontend_function *function =
       &output->functions[function_index];
-  bool valid = !function->is_throws && !function->is_unsafe &&
+  bool valid = (required_module == W_SEED_FRONTEND_NONE ||
+                function->module_index == required_module) &&
+               !function->is_throws && !function->is_unsafe &&
                !function->has_borrow_clause &&
                frontend_elision_scalar_type_ok(input, function->return_type);
   for (size_t parameter = 0u;
@@ -1608,6 +1632,10 @@ static bool frontend_elision_function_never(
        valid && expression < result->written.expressions; expression += 1u) {
     const w_seed_frontend_expression *value = &output->expressions[expression];
     if (value->owner_function != function_index) continue;
+    if (value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        value->inferred_type == W_SEED_FRONTEND_NONE &&
+        frontend_elision_call_designator(input, function_index, expression))
+      continue;
     if (!value->supported || value->inferred_type == W_SEED_FRONTEND_NONE ||
         !frontend_elision_scalar_type_ok(input, value->inferred_type) ||
         value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
@@ -1628,7 +1656,7 @@ static bool frontend_elision_function_never(
         &output->functions[value->resolved_function_index];
     if (callee->is_async || callee->is_anonymous_entry ||
         !frontend_elision_function_never(input, value->resolved_function_index,
-                                         path, depth + 1u))
+                                         required_module, path, depth + 1u))
       valid = false;
   }
   path->count -= 1u;
@@ -1638,10 +1666,10 @@ static bool frontend_elision_function_never(
 /* Prove a suspended virtual-Task slice without pretending the common async
  * entry is synchronous. The target owns one or more root-level
  * `await execution#yield()` markers, scalar values only, and otherwise only
- * pure scalar expressions and bindings; nested calls remain outside this
- * proof. Yield is a scheduling opportunity rather than an observable barrier,
- * so a closed launch/join scope may discharge each marker without allocating
- * a Task/frame. */
+ * pure scalar expressions, bindings, and bounded acyclic local calls already
+ * accepted by the ordinary never-suspending proof. Yield is a scheduling
+ * opportunity rather than an observable barrier, so a closed launch/join
+ * scope may discharge each marker without allocating a Task/frame. */
 static bool frontend_elision_function_static_yields(
     const w_seed_hir0_input *input, size_t function_index) {
   if (input == NULL || input->frontend_output == NULL ||
@@ -1692,6 +1720,10 @@ static bool frontend_elision_function_static_yields(
       yield_count += 1u;
       continue;
     }
+    if (value->kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+        value->inferred_type == W_SEED_FRONTEND_NONE &&
+        frontend_elision_call_designator(input, function_index, expression))
+      continue;
     if (!value->supported || value->inferred_type == W_SEED_FRONTEND_NONE ||
         !frontend_elision_task_value_type_ok(input, value->inferred_type) ||
         value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
@@ -1699,10 +1731,23 @@ static bool frontend_elision_function_static_yields(
       valid = false;
       break;
     }
-    /* The static-yield witness has no nested calls. This keeps the
-     * source preflight and independent HIR proof identical; ordinary callees
-     * can be admitted later with a fixed-point proof of the composed body. */
-    if (value->kind == W_SEED_FRONTEND_EXPR_CALL) valid = false;
+    if (value->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
+    if (value->resolved_callee_kind !=
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        value->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)value->resolved_function_index >= result->written.functions) {
+      valid = false;
+      break;
+    }
+    const w_seed_frontend_function *callee =
+        &output->functions[value->resolved_function_index];
+    frontend_elision_path path = {0};
+    if (callee->module_index != function->module_index || callee->is_async ||
+        callee->is_anonymous_entry ||
+        !frontend_elision_function_never(input,
+                                         value->resolved_function_index,
+                                         function->module_index, &path, 0u))
+      valid = false;
   }
   return valid && yield_count != 0u;
 }
@@ -1750,7 +1795,8 @@ static bool frontend_structured_elision_preflight(
     if (target->is_async &&
         (target->is_const ||
           (!frontend_elision_function_never(
-              input, call->resolved_function_index, &path, 0u) &&
+              input, call->resolved_function_index, W_SEED_FRONTEND_NONE,
+              &path, 0u) &&
           !frontend_elision_function_static_yields(
               input, call->resolved_function_index))))
       return false;
@@ -8901,14 +8947,14 @@ static size_t hir0_emit_expression_layout_m2(hir0_emit_context *context,
      * proved that this wrapper owns exactly one root local call. */
     const w_seed_frontend_expression *call =
         &context->frontend->expressions[source->task_call_expression];
+    const w_seed_hir0_input elision_input = {
+        .frontend_input = context->frontend_input,
+        .frontend_output = context->frontend,
+        .frontend_result = context->frontend_result};
     const bool static_yield =
         call->resolved_function_index != W_SEED_FRONTEND_NONE &&
         frontend_elision_function_static_yields(
-            &(w_seed_hir0_input){
-                .frontend_input = context->frontend_input,
-                .frontend_output = context->frontend,
-                .frontend_result = context->frontend_result},
-            call->resolved_function_index);
+            &elision_input, call->resolved_function_index);
     context->output->calls[*context->call_offset - 1u].execution_kind =
         static_yield
             ? W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED
@@ -14516,10 +14562,111 @@ static bool verify_direct_entry_facts(const w_seed_hir0_program *program) {
   return true;
 }
 
+static bool hir0_static_yield_scalar_type(
+    const w_seed_hir0_program *program, uint32_t type_index) {
+  if (program == NULL || type_index >= program->type_count) return false;
+  const w_seed_hir0_type_kind kind = program->types[type_index].kind;
+  return kind == W_SEED_HIR0_TYPE_UNIT || kind == W_SEED_HIR0_TYPE_I64 ||
+         kind == W_SEED_HIR0_TYPE_BOOL;
+}
+
+/* Independently re-prove the local helper graph instead of trusting frontend
+ * acceptance or published suspension facts. State 1 detects recursion, state
+ * 2 memoizes an accepted helper, and state 3 memoizes rejection. */
+static bool hir0_static_yield_helper_graph(
+    const w_seed_hir0_program *program, uint32_t function_index,
+    uint32_t owner_module, const uint8_t *body_never, uint8_t *state,
+    size_t depth) {
+  if (program == NULL || body_never == NULL || state == NULL ||
+      function_index >= program->function_count ||
+      function_index >= W_SEED_FRONTEND_MAX_CST_NODES ||
+      depth >= W_SEED_HIR0_MAX_NESTING)
+    return false;
+  if (state[function_index] == 2u) return true;
+  if (state[function_index] != 0u) return false;
+  state[function_index] = 1u;
+
+  const w_seed_hir0_function *function = &program->functions[function_index];
+  bool valid = function->module_index == owner_module &&
+               !function->is_async && !function->is_throws &&
+               !function->is_unsafe && !function->has_borrow_clause &&
+               !function->is_anonymous_entry &&
+               hir0_function_bit_get(body_never, function_index) &&
+               hir0_static_yield_scalar_type(program, function->return_type) &&
+               range_valid(function->first_parameter,
+                           function->parameter_count,
+                           program->parameter_count) &&
+               range_valid(function->first_block, function->block_count,
+                           program->block_count);
+  for (size_t ordinal = 0u; valid && ordinal < function->parameter_count;
+       ordinal += 1u) {
+    const size_t parameter_index =
+        (size_t)function->first_parameter + ordinal;
+    valid = hir0_static_yield_scalar_type(
+        program, program->parameters[parameter_index].type_index);
+  }
+  for (size_t block_ordinal = 0u;
+       valid && block_ordinal < function->block_count; block_ordinal += 1u) {
+    const size_t block_index = (size_t)function->first_block + block_ordinal;
+    const w_seed_hir0_block *block = &program->blocks[block_index];
+    if (block->owner_function != function_index ||
+        !range_valid(block->first_instruction, block->instruction_count,
+                     program->instruction_count)) {
+      valid = false;
+      break;
+    }
+    for (size_t ordinal = 0u; valid && ordinal < block->instruction_count;
+         ordinal += 1u) {
+      const size_t instruction_index =
+          (size_t)block->first_instruction + ordinal;
+      const w_seed_hir0_instruction *instruction =
+          &program->instructions[instruction_index];
+      if (instruction->owner_block != block_index ||
+          instruction->ordinal != ordinal) {
+        valid = false;
+        break;
+      }
+      if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+        valid = instruction->binding_index < program->binding_count &&
+                hir0_static_yield_scalar_type(
+                    program,
+                    program->bindings[instruction->binding_index].type_index);
+        continue;
+      }
+      if (instruction->kind != W_SEED_HIR0_INSTRUCTION_CALL ||
+          instruction->call_index >= program->call_count) {
+        valid = false;
+        break;
+      }
+      const w_seed_hir0_call *call =
+          &program->calls[instruction->call_index];
+      if (call->owner_block != block_index ||
+          call->owner_instruction != instruction_index ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->callee_identity >= program->identity_count ||
+          !hir0_static_yield_scalar_type(program, call->result_type)) {
+        valid = false;
+        break;
+      }
+      const w_seed_hir0_identity *identity =
+          &program->identities[call->callee_identity];
+      if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          identity->target_index >= program->function_count ||
+          !hir0_static_yield_helper_graph(
+              program, identity->target_index, owner_module, body_never, state,
+              depth + 1u))
+        valid = false;
+    }
+  }
+  state[function_index] = valid ? 2u : 3u;
+  return valid;
+}
+
 /* Independent HIR proof for the virtual suspension slice. It accepts one
- * async scalar function, one block, one or more yield instructions, and no
- * nested call. The yields remain explicit in verified HIR but a closed
- * launch/join consumer may choose a legal serial schedule and erase them. */
+ * async scalar function, one block, one or more yield instructions, and a
+ * bounded acyclic graph of local pure scalar helpers. The yields remain
+ * explicit in verified HIR but a closed launch/join consumer may choose a
+ * legal serial schedule and erase them. */
 static bool hir0_function_static_yields(
     const w_seed_hir0_program *program, uint32_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -14555,22 +14702,39 @@ static bool hir0_function_static_yields(
                    program->instruction_count) ||
       block->terminator_index >= program->terminator_count)
     return false;
+  uint8_t body_never[HIR0_DIRECT_FUNCTION_BITSET_BYTES];
+  uint8_t helper_state[W_SEED_FRONTEND_MAX_CST_NODES] = {0};
+  hir0_compute_body_never(program, body_never);
   size_t yields = 0u;
   for (size_t ordinal = 0u; ordinal < block->instruction_count; ordinal += 1u) {
     const w_seed_hir0_instruction *instruction =
         &program->instructions[(size_t)block->first_instruction + ordinal];
     if (instruction->kind == W_SEED_HIR0_INSTRUCTION_EXECUTION_YIELD) {
       yields += 1u;
-    } else if (instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
-               instruction->binding_index >= program->binding_count ||
-               program->bindings[instruction->binding_index].type_index >=
-                   program->type_count ||
-               (program->types[program->bindings[instruction->binding_index]
-                                   .type_index]
-                        .kind != W_SEED_HIR0_TYPE_I64 &&
-                program->types[program->bindings[instruction->binding_index]
-                                   .type_index]
-                        .kind != W_SEED_HIR0_TYPE_BOOL)) {
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_BINDING) {
+      if (instruction->binding_index >= program->binding_count ||
+          !hir0_static_yield_scalar_type(
+              program,
+              program->bindings[instruction->binding_index].type_index))
+        return false;
+    } else if (instruction->kind == W_SEED_HIR0_INSTRUCTION_CALL) {
+      if (instruction->call_index >= program->call_count) return false;
+      const w_seed_hir0_call *call =
+          &program->calls[instruction->call_index];
+      if (call->owner_block != function->first_block ||
+          call->execution_kind != W_SEED_HIR0_CALL_DIRECT ||
+          call->callee_identity >= program->identity_count ||
+          !hir0_static_yield_scalar_type(program, call->result_type))
+        return false;
+      const w_seed_hir0_identity *identity =
+          &program->identities[call->callee_identity];
+      if (identity->kind != W_SEED_HIR0_IDENTITY_FUNCTION ||
+          identity->target_index >= program->function_count ||
+          !hir0_static_yield_helper_graph(program, identity->target_index,
+                                          function->module_index, body_never,
+                                          helper_state, 0u))
+        return false;
+    } else {
       return false;
     }
   }

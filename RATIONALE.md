@@ -107,7 +107,7 @@ O corpus compara, no mínimo:
 - tuple scrutinee contra syntax especial para múltiplos valores;
 - patterns fechados contra handler customizado pelo usuário;
 - `...` externo obrigatório contra exaustividade aberta implícita;
-- object encapsulado contra storage público e constructor herdado;
+- object defaults and proof-directed aggregate materialization against public storage, heap/header requirements, and inherited constructors.
 - overload por forma contra ranking por tipos e nomes distintos;
 - vários initializers contra initializer único e factories nomeadas;
 - computed property property-safe contra method com `try` ou `await`;
@@ -185,7 +185,7 @@ O corpus compara, no mínimo:
 - internal bounded i64 Display helpers against target-ABI snprintf, precomputed output, per-segment writes, and NUL rejection.
 - bounded Bool and String interpolation values against erased type identity, source re-resolution, generic runtime ABI, and precomputed Bool text.
 - virtual structured Task capability against unconditional runtime object materialization, observable identity, and false overlap claims.
-- bounded static-yield Task erasure against eager runtime materialization and false scheduler claims.
+- bounded static-yield helper-graph erasure against eager runtime materialization and false scheduler claims.
 - bounded explicit async direct-entry proof against general direct-entry coverage, runtime materialization, and false overlap claims.
 - typed immutable binding initializers against byte-only binding records, downstream name lookup, precomputed arithmetic, and unchecked forward or cross-block reads.
 - typed direct Unit calls against flattened bodies, ABI-order evaluation, downstream name lookup, and recursive or indirect call admission.
@@ -7880,6 +7880,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1578 | bounded explicit async direct-entry structured-task elision | W-1578 extends W-1577 to an immutable root-block `async` launch of one explicit local `async fn` callee followed by one immutable same-block `await`. The callee receives an ordinary `directEntry` only after a conservative whole-body proof: it has a `Bool` or signed-`i64` scalar signature, is non-throwing, non-unsafe, and free of borrow clauses, its body has no `async`, `await`, or host call, and its ordinary local callees are scalar, synchronous, acyclic, and within the bounded nesting depth. Public async suspension remains `MAY`; HIR30 records `directEntry: AVAILABLE` for the proven ordinary entry and erases Task, frame, and WRT state as in W-1577. The upgraded Restaurant W source uses `async fn prepare` and still emits exact `Prepared 42\n` on the current Windows x64 product route. This is source-backed-current only for the bounded proof and product witness. General direct-entry coverage, suspending bodies, scheduling, overlap, concurrency, cancellation, domains, sharing, runtime ownership, public Task ABI/layout, other payloads, and Linux/WSL execution remain gaps. `benchmarkDisposition: compiler-lifecycle`; equivalent C23 and Rust references remain sequential and no concurrency ranking is claimed. | `source-backed-current` only for the bounded whole-body direct-entry proof, HIR30 proof relations, NativeSubset0/MLIR0 ordinary scalar lowering, the upgraded Windows x64 product witness, and the unchanged sequential comparison sources. General direct-entry inference, suspension/runtime machinery, scheduling or overlap, cancellation, domains, sharing, runtime ownership, public Task ABI/layout, other payloads, and Linux/WSL execution remain gaps. |
 | W-1579 | bounded virtual Task across one statically discharged yield | One local explicit `async fn` with a `Bool` or signed-`i64` signature, one root block, exactly one `await execution#yield()`, and otherwise only pure scalar bindings may retain the yield in frontend23/HIR31 while a closed immutable launch/single-join scope selects a legal serial schedule. Independent HIR verification requires the async owner, one block, one yield, scalar-only bindings, a `Bool` or signed-`i64` return, and the closed static-yield execution relation. NativeSubset0/MLIR0 then erase both Task and yield and retain ordinary scalar work. The Restaurant witness prints exactly `Prepared 88\n` on Windows x64, and emitted MLIR contains no Task, async, yield, or WRT surface. | `source-backed-current` only for this exact bounded proof, HIR31 marker and verifier barriers, ordinary scalar lowering, and Windows x64 public product witness. A scheduler, fairness realization, handoff, overlap, cancellation, nested calls/control/effects, general suspension, physical frame/Task layout, Linux/WSL execution, timing, and concurrency ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; comparison lanes are sequential lifecycle evidence only. |
 | W-1580 | bounded virtual Task across finite statically discharged root yields | One local explicit `async fn` with a `Bool` or signed-`i64` signature, one linear root block, and a finite nonempty sequence of exact `await execution#yield()` statements may preserve every ordered marker in frontend24/HIR32 while a closed immutable launch/single-join scope selects an immediate-resume serial schedule. Frontend24 shares the canonical Unit type identity without dropping expression provenance. Independent HIR verification requires a positive marker count, exact owner/order, scalar-only bindings, a closed return, and the plural static-yields execution relation. NativeSubset0/MLIR0 erase the transient Task relation and all markers only after this proof, retaining ordinary scalar SSA work. A fully verified virtual relation has normative zero logical admission cost, debits no task/frame/timer/ready budget, and cannot produce budget-exhaustion cancellation. | `source-backed-current` only for this bounded call-site-specific proof, HIR32 verifier barriers, zero-cost virtual admission, ordinary NativeSubset0/MLIR0 lowering, and the Windows x64 `Prepared 88\n` product witness. W-1579 is its `k = 1` predecessor. Scheduler implementation, fairness, handoff, overlap, cancellation requests, nested calls/control/effects, general suspension, physical Task/frame layout, Linux/WSL execution, timing, and concurrency ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; comparison lanes are sequential only. |
+| W-1581 | proof-directed virtual aggregate materialization | `struct`, `enum`, and `object` share aggregate lowering and may be erased or represented in SSA, registers, stack, fixed, device, or runtime storage. Object syntax keeps reference and identity-capable defaults, but declaration and `ref` do not imply heap, header, address, or storage. Identity is latent and `isSameInstance` may fold without allocation. Materialization occurs only for unresolved observables such as stable address or pinning, FFI, escaping identity, shared or weak runtime state, dynamic suspension, cancellation or lifetime, target residency or ABI, or observable budget, allocation, or drop. `struct` and `object` share custom `init`/`deinit`; enums retain case construction and synthesized payload cleanup. Custom `deinit` makes its declaring type non-`Copy`, while automatic drop glue does not change the `Copy` contract. | `implementation-evidence-gap` beyond existing bounded enum and scalar witnesses. General aggregate lowering, object identity materialization, device or runtime residency, FFI, layout, ABI, and lifecycle evidence remain missing. `benchmarkDisposition: deferred`, task `aggregate-materialization-evidence`, with promotion only after one bounded source-backed aggregate witness and independent target evidence. |
+| W-1582 | bounded virtual Task across a same-module scalar helper graph | W-1582 extends W-1580 under the existing `STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation. HIR33 admits a finite acyclic same-module graph of ordinary synchronous pure scalar helpers. Helpers may use already verified closed scalar control and local scalar mutation, but they cannot use host or external calls, `async`, `await`, `execution#yield()`, effects, `throws`, `unsafe`, borrows, allocation, or runtime owners. The root remains one linear async block with finite root yields and one lexical join. Standalone HIR re-proves locality, ownership, acyclicity, helper admissibility, marker order, scalar types, and the closed return. NativeSubset0 and MLIR0 emit ordinary scalar calls and erase Task and yield markers only after complete proof. | `source-backed-current` for the bounded HIR33 graph and verifier relation, ordinary scalar lowering, and the changed source fixture. The Windows product gate must be rerun after the fixture calls `stage`. Zero logical admission remains conditional on complete proof. No concurrency, fairness, scheduler, overlap, or Linux claim is made. `benchmarkDisposition: compiler-lifecycle`; comparison lanes remain sequential. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11991,3 +11993,74 @@ normative logical cost is zero task, frame, timer, and ready units, so staging
 commits directly and budget exhaustion is impossible for this exact relation.
 This is part of the verified contract rather than a backend heuristic; if the
 proof fails, ordinary physical admission and inline-canceled outcomes apply.
+
+#### W-1581 — proof-directed virtual aggregate materialization
+
+W-1581 consolidates several existing representation statements into one rule.
+`struct`, `enum`, and `object` use shared aggregate infrastructure. The
+compiler may erase a value, keep it in SSA or a register, or use stack, fixed,
+device, or runtime storage. The physical choice must preserve logical type,
+ownership, initialization, destruction, identity, and every observable value.
+
+The source distinction remains useful. `struct` and `enum` default to value
+semantics. `object` defaults to reference and identity-capable semantics. This
+default does not make an object declaration a heap request. It does not require
+a header, address, or storage class for a `ref` use. Object identity is latent.
+Even `isSameInstance` can fold when proof resolves the relation without an
+allocation.
+
+Materialization is driven by unresolved observables. The relevant cases are:
+
+- stable address or pin
+- FFI
+- escaping identity
+- shared or weak runtime state
+- dynamic suspension, cancellation, or lifetime
+- target residency or ABI
+- observable budget, allocation, or drop
+
+A materialized value can use inline, stack, fixed, device, task-frame, or
+runtime storage. Heap storage is only one candidate.
+
+`struct` and `object` share the custom lifecycle declaration surface. Enums
+retain case construction and synthesized payload cleanup rather than gaining
+custom `init` or `deinit` by representation symmetry. A custom `deinit` makes
+its declaring type non-`Copy`; automatic field or payload drop glue does not
+change the `Copy` contract. This rule does not introduce public layout or a
+universal object header.
+
+The decision is design-only beyond the existing bounded enum and scalar
+witnesses. General aggregate lowering, identity materialization, device and
+runtime residency, FFI, layout, ABI, and lifecycle behavior remain
+implementation-evidence gaps. A future implementation must prove each
+materialization boundary independently.
+
+#### W-1582 — bounded virtual Task across a same-module scalar helper graph
+
+W-1582 applies W-1580 to a concrete helper graph. It does not add a runtime or
+object category. The existing
+`STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` relation remains the authority for
+erasing a transient Task and its root yield markers.
+
+HIR33 admits a finite acyclic graph in one module. Every helper is an ordinary
+synchronous pure scalar function. A helper may use closed scalar control and
+local scalar mutation that existing verification already accepts. It may not
+use host or external calls, async or yield operations, effects, throwing,
+unsafe code, borrows, allocation, or a runtime owner.
+
+The root remains one linear async block. It retains a finite nonempty ordered
+set of root `await execution#yield()` markers and one lexical join. Standalone
+HIR verification re-proves same-module locality, function ownership, graph
+acyclicity, helper admissibility, marker count and order, scalar types, the
+closed return, and the launch/join relation. A missing or uncertain fact fails
+closed.
+
+NativeSubset0 and MLIR0 emit ordinary scalar calls. They erase Task and yield
+markers only after complete HIR proof. The zero logical admission cost from
+W-1580 remains conditional on that proof. A failed proof returns to ordinary
+physical admission and does not receive the virtual relation's zero cost.
+
+The updated `restaurant-async-yield.w` fixture calls `stage`. Its Windows
+product gate must be rerun after the source change. The benchmark disposition
+is `compiler-lifecycle`. This evidence makes no claim about concurrency,
+fairness, scheduler behavior, overlap, or Linux execution.
