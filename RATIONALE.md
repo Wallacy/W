@@ -222,6 +222,7 @@ O corpus compara, no mínimo:
 - bounded natural-loop SSA against hidden storage and permissive cyclic verification.
 - structured natural-loop lowering against early flattening and host-language substitution.
 - multi-carrier natural-loop lowering against tuple/source-order coupling and platform-specific substitution.
+- bounded post-loop SSA continuation against hidden stack state, unrestricted mutation, and return bypass.
 - local payloadless enum identity against raw integer tags and premature switch lowering.
 
 ### 1.1 Cobertura de substituições
@@ -7858,6 +7859,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1567 | bounded flat/selective `std.process` import semantic/product equivalence | In the bounded one-module process witness, flat `import std.process` with direct `Arguments`, `Context`, and `ExitCode` names and grouped selective imports with aliases resolve to the same seven-symbol public catalog and same HIR semantics. The two forms have equal semantic HIR digests and byte-identical Windows PE artifacts under the same target/profile, while their provenance digests remain distinct. This is same-module process evidence, not general cross-module WPO. | `source-backed-current` only for the bounded flat/selective process HIR and Windows PE equivalence under one target/profile. Frontend/HIR evidence compares semantic and provenance digests. The pinned Windows gate compares artifact bytes and exact runtime results. General import equivalence across modules, packages, products, targets, or profiles, cross-module WPO, and optimization-quality claims remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
 | W-1568 | future bounded module-graph dead-node elimination and artifact equivalence | Future pipeline task: preserve the idiomatic process root `import std.process` followed by unaliased `Arguments`, `Context`, and `ExitCode`. For one bounded package/workspace executable, compare two explicit source graphs with the same reachable entry closure, where one adds unused imports or unreachable module nodes. After graph resolution, graph-to-HIR lowering, and product reachability, emit only reachable code, data, imports, and runtime records. The reachable semantic HIR digest, complete artifact bytes and artifact digest, stdout, stderr, exit status, and cleanup must match under the same target/profile and deterministic recipe. Graph and provenance digests may differ. Explicit effect, provider, service, reflection, FFI, dynamic-loading, or other runtime roots must prevent elimination. This is a future contract because current `w build` and `w run` are single-source and CHK4 is check-only. | `implementation-evidence-gap`; `benchmarkDisposition: deferred` with blocker `single-source-build-run-and-check-only-graph`, task ID `module-graph-dce-equivalence`, and stop condition requiring the multi-module graph-to-HIR/product route, reachable-closure equality, byte-identical artifacts under one target/profile, exact runtime equality, and explicit-root retention. No current build/run support is claimed. |
 | W-1569 | bounded multi-carrier natural `while` through verified HIR and native execution | A bounded natural `while` carries a nonempty tuple of mutable signed-`i64` root bindings without an artificial lane limit beyond existing caller-owned capacities. Carrier ordinals follow declaration order, while body values and instructions preserve source order so a later update may read an earlier update's new version. Verified HIR and NativeSubset0 independently check the four-block topology, owners, types, edge mappings, and version chains. MLIR0 emits one tuple-valued `scf.while`, ordered `scf.condition` operands, and ordered `scf.yield` values without `llvm.alloca`. The same public fixture produces exact output as a native Windows PE and Linux/WSL ELF. | `source-backed-current` only for the bounded pure signed-`i64` tuple slice and its Windows/Linux execution evidence. Nested or mixed control, calls/effects, suspension, other carrier types, post-loop mutation, general cyclic CFG, other targets, ABI/layout, and optimization quality remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns equivalent W/C23/Rust exploratory measurement and does not establish a performance ranking. |
+| W-1570 | bounded post-loop SSA continuation after a multi-carrier natural `while` | A bounded natural `while` admits exactly one pure post-loop `=` assignment to an existing mutable signed-`i64` loop carrier. Its RHS may use literals, same-function signed-`i64` parameters, and latest loop results, must use at least one latest loop result, and the function return must depend on the continuation binding. The route reuses existing HIR0 records without a schema change, preserves SSA version chains, and emits no `llvm.alloca`. The public fixture produces exact `Final 9\n` as a native Windows PE and a CRT-free Linux/WSL ELF. | `source-backed-current` only for this bounded pure continuation and its dual-platform correctness witness. A second continuation assignment, `let` or unrelated targets, calls/effects, post-loop control, non-`i64` carriers, missing loop-result use, return bypass, nested or mixed control, other targets, ABI/layout, optimization quality, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements and makes no timing or ranking claim. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11610,3 +11612,30 @@ Calls, effects, suspension, nested or mixed control, labels, `break`,
 `continue`, `while let`, non-`i64` carriers, post-loop mutation, general cyclic
 CFG, additional targets, ABI/layout guarantees, and optimization-quality
 claims remain outside this bounded slice.
+
+#### W-1570 — bounded post-loop SSA continuation after a multi-carrier natural `while`
+
+W-1570 closes one narrow successor to W-1569. After the natural loop, the exit
+block may contain exactly one pure `=` assignment. The target must be an
+existing mutable signed-`i64` loop carrier. The RHS is a scalar signed-`i64`
+tree over literals, same-function parameters, and the loop's latest result
+bindings. It must read at least one loop result.
+
+The continuation is a normal existing HIR0 binding and instruction record. Its
+`previous_version` is the selected carrier's loop result, and the return value
+must read the new continuation binding. HIR0, NativeSubset0, and MLIR0 verify
+the ownership, source binding, version chain, value shape, and return
+dependency independently. No HIR0 schema change or source-variable
+`llvm.alloca` is required.
+
+The public `restaurant-while-post.w` fixture prints `Final 9\n` with exit zero
+and empty stderr through the native Windows PE route and the CRT-free Linux/WSL
+ELF route. This is dual-platform correctness evidence. The primary bundle uses
+the `compiler-lifecycle` disposition. The executable catalog separately owns
+exploratory W/C23/Rust measurements, with no timing or ranking claim.
+
+The bounded verifier rejects a second post-loop assignment, `let` or unrelated
+targets, calls or effects, post-loop control, a continuation RHS that does not
+use a loop result, return bypass, nested or mixed control, non-`i64` carriers,
+and other targets. General post-loop mutation, cyclic CFG, ABI/layout, and
+optimization quality remain gaps.

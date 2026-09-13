@@ -1760,6 +1760,82 @@ static bool program_value_contains_any_block_argument(
   return false;
 }
 
+static bool program_value_contains_binding_read(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ)
+    return value->binding_index == binding_index;
+  return (value->left_value != W_SEED_HIR0_NONE &&
+          program_value_contains_binding_read(program, value->left_value,
+                                              binding_index, depth + 1u)) ||
+         (value->right_value != W_SEED_HIR0_NONE &&
+          program_value_contains_binding_read(program, value->right_value,
+                                              binding_index, depth + 1u));
+}
+
+/* Keep an exit-side continuation narrower than the ordinary value emitter:
+ * constants, i64 parameters, arithmetic, and reads of the loop's body
+ * results only.  In particular, calls, unrelated block arguments, and
+ * effects cannot be smuggled into the post-loop SSA operation by malformed
+ * HIR. */
+static bool program_natural_loop_continuation_value_ok(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const uint32_t *result_bindings,
+    uint32_t first_block_argument, size_t carrier_count, bool *uses_result,
+    size_t depth) {
+  if (program == NULL || result_bindings == NULL || uses_result == NULL ||
+      carrier_count == 0u || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ)
+    return value->parameter_index < program->parameter_count &&
+           program->parameters[value->parameter_index].owner_function ==
+               function_index;
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (result_bindings[lane] == value->binding_index) {
+        *uses_result = true;
+        return true;
+      }
+    return false;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (value->block_argument_index == W_SEED_HIR0_NONE ||
+        value->block_argument_index < first_block_argument ||
+        (size_t)value->block_argument_index - first_block_argument >=
+            carrier_count)
+      return false;
+    *uses_result = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           program_natural_loop_continuation_value_ok(
+               program, value->left_value, function_index, result_bindings,
+               first_block_argument, carrier_count, uses_result, depth + 1u);
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  return program_natural_loop_continuation_value_ok(
+             program, value->left_value, function_index, result_bindings,
+             first_block_argument, carrier_count, uses_result, depth + 1u) &&
+         program_natural_loop_continuation_value_ok(
+             program, value->right_value, function_index, result_bindings,
+             first_block_argument, carrier_count, uses_result, depth + 1u);
+}
+
 /* HIR0 has already proved the exact bounded natural-loop invariants. This
  * selector repeats the backend-relevant boundary: four ordered blocks, a
  * nonempty tuple of carried i64 values, one tuple backedge, and only scalar
@@ -1797,7 +1873,12 @@ static bool program_natural_loop_is_supported(
       body->first_instruction == W_SEED_HIR0_NONE ||
       (size_t)body->first_instruction > program->instruction_count ||
       carrier_count > program->instruction_count - body->first_instruction ||
-      exit->instruction_count != 0u ||
+      exit->instruction_count > 1u ||
+      (exit->instruction_count != 0u &&
+       (exit->first_instruction == W_SEED_HIR0_NONE ||
+        (size_t)exit->first_instruction > program->instruction_count ||
+        exit->instruction_count >
+            program->instruction_count - exit->first_instruction)) ||
       preheader->block_argument_count != 0u ||
       preheader->first_block_argument != W_SEED_HIR0_NONE ||
       body->block_argument_count != 0u ||
@@ -1868,6 +1949,8 @@ static bool program_natural_loop_is_supported(
       !program_value_lowerable(program, exit_term->value_index,
                                (uint32_t)function_index, false, 0u))
     return false;
+  uint32_t initial_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {0u};
+  uint32_t result_bindings[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {0u};
   for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
     const size_t argument_index =
         (size_t)header->first_block_argument + ordinal;
@@ -1973,7 +2056,6 @@ static bool program_natural_loop_is_supported(
         update->type_index != argument->type_index ||
         update->previous_version != source_index ||
         source->next_version != update_index ||
-        update->next_version != W_SEED_HIR0_NONE ||
         update->initializer_value >= program->value_count ||
         !program_value_contains_any_block_argument(
             program, update->initializer_value,
@@ -1982,7 +2064,53 @@ static bool program_natural_loop_is_supported(
                                  (uint32_t)function_index, false, 0u) ||
         program->values[back_edge->value_index].binding_index != update_index)
       return false;
+    initial_bindings[ordinal] = source_index;
+    result_bindings[ordinal] = update_index;
   }
+  uint32_t continuation_binding = W_SEED_HIR0_NONE;
+  size_t continuation_lane = carrier_count;
+  if (exit->instruction_count == 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[exit->first_instruction];
+    if (instruction->owner_block != exit_index || instruction->ordinal != 0u ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[instruction->binding_index];
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (continuation->source_binding == initial_bindings[lane]) {
+        if (continuation_lane != carrier_count) return false;
+        continuation_lane = lane;
+      }
+    if (continuation_lane == carrier_count ||
+        continuation->owner_instruction != exit->first_instruction ||
+        continuation->owner_block != exit_index || !continuation->is_mutable ||
+        continuation->source_binding != initial_bindings[continuation_lane] ||
+        continuation->previous_version != result_bindings[continuation_lane] ||
+        continuation->next_version != W_SEED_HIR0_NONE ||
+        continuation->type_index != W_SEED_HIR0_TYPE_I64 ||
+        continuation->initializer_value >= program->value_count ||
+        !program_value_lowerable(program, continuation->initializer_value,
+                                 (uint32_t)function_index, false, 0u))
+      return false;
+    bool uses_result = false;
+    if (!program_natural_loop_continuation_value_ok(
+            program, continuation->initializer_value,
+            (uint32_t)function_index, result_bindings,
+            header->first_block_argument, carrier_count,
+            &uses_result, 0u) ||
+        !uses_result ||
+        !program_value_contains_binding_read(
+            program, exit_term->value_index, instruction->binding_index, 0u))
+      return false;
+    continuation_binding = instruction->binding_index;
+  }
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (program->bindings[result_bindings[lane]].next_version !=
+        (lane == continuation_lane ? continuation_binding
+                                    : W_SEED_HIR0_NONE))
+      return false;
   return true;
 }
 

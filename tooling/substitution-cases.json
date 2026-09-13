@@ -5645,6 +5645,137 @@
       ]
     },
     {
+      "id": "R0-structured-natural-loop-post-continuation",
+      "reviewItem": "bounded post-loop SSA continuation against hidden stack state, unrestricted mutation, and return bypass",
+      "decisions": [
+        "W-1570"
+      ],
+      "task": "Admit one pure post-loop SSA assignment to an existing signed-i64 loop carrier and execute the same source on Windows and Linux.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn settle(limit: i64): i64 {",
+          "  var served = 0",
+          "  var total = 0",
+          "  while served < limit {",
+          "    total = total + 2",
+          "    served = served + 1",
+          "  }",
+          "  total = total + served",
+          "  return total",
+          "}",
+          "entry {",
+          "  let result = settle(limit: 3)",
+          "  print(\"Final ${result}\")",
+          "}"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "hidden-stack-post-loop-state",
+          "language": "text",
+          "source": [
+            "spill the post-loop carrier to a source-variable alloca before the continuation"
+          ],
+          "expectedDifference": "The selected route extends the existing SSA binding chain and emits no source-variable alloca."
+        },
+        {
+          "name": "unrestricted-post-loop-mutation",
+          "language": "text",
+          "source": [
+            "allow multiple post-loop assignments, calls, effects, or control after the while"
+          ],
+          "expectedDifference": "The selected form admits exactly one pure assignment and rejects calls, effects, control, and a second assignment."
+        },
+        {
+          "name": "continuation-without-loop-result",
+          "language": "text",
+          "source": [
+            "accept a continuation RHS that uses only literals or parameters and does not read a loop result"
+          ],
+          "expectedDifference": "The selected form requires at least one latest loop result in the continuation RHS."
+        },
+        {
+          "name": "return-bypass",
+          "language": "text",
+          "source": [
+            "return a loop result directly while the post-loop continuation assignment is unused"
+          ],
+          "expectedDifference": "The selected form requires the function return to depend on the continuation binding."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_SCHEMA_VERSION",
+          "claim": "The bounded continuation reuses the existing HIR0 record schema without adding a public field."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "hir0_natural_loop_continuation_value_ok",
+          "claim": "HIR0 admits only a pure signed-i64 continuation tree over literals, parameters, and loop results, with a required result use."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_cfg_natural_loop",
+          "claim": "HIR0 verifies one exit-side binding, its selected carrier version, and the return dependency."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_natural_loop_is_supported",
+          "claim": "NativeSubset0 rechecks the strict post-loop continuation boundary before MLIR emission."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_mlir0.c",
+          "symbol": "append_program_natural_loop",
+          "claim": "MLIR0 preserves one tuple-valued scf.while and emits the continuation in the exit block without llvm.alloca."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_while_post_loop_continuation_ssa",
+          "claim": "Focused HIR tests cover continuation version links, return dependence, and malformed exit records."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_mlir0.c",
+          "symbol": "test_natural_loop_post_loop_continuation_mlir",
+          "claim": "Focused MLIR tests observe the loop, exit continuation add, return ordering, and absence of alloca."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_post_loop_continuation_native_subset",
+          "claim": "Focused Native0 tests execute the fixture and reject forged continuation metadata and unsupported post-loop forms."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-while-post.w",
+          "symbol": "settle",
+          "claim": "The public fixture uses one post-loop total assignment and prints Final 9."
+        },
+        {
+          "path": "tooling/check-w-run.mjs",
+          "symbol": "restaurantWhilePostFixture",
+          "claim": "The Linux/WSL route executes the exact post-loop fixture and Final 9 oracle."
+        },
+        {
+          "path": "tooling/check-w-run-windows.mjs",
+          "symbol": "restaurantWhilePostFixture",
+          "claim": "The native Windows route executes the same post-loop fixture and Final 9 oracle."
+        }
+      ],
+      "checks": [
+        "exactly one post-loop assignment targets an existing signed-i64 loop carrier",
+        "the continuation RHS uses at least one latest loop result and the return reads its new version",
+        "HIR0, NativeSubset0, and MLIR0 accept the existing record schema without llvm.alloca",
+        "Windows PE and CRT-free Linux/WSL ELF print exact Final 9 with empty stderr and zero exit",
+        "second assignments, unrelated targets, calls, effects, control, missing result use, and return bypass fail closed"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
       "id": "R0-hir20-local-payloadless-enum",
       "reviewItem": "local payloadless enum identity against raw integer tags and premature switch lowering",
       "decisions": [

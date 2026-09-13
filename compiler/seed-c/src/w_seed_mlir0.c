@@ -2878,6 +2878,77 @@ static bool append_program_value_tree_in_loop(
                                    depth);
 }
 
+static bool mlir0_program_value_contains_binding_read(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ)
+    return value->binding_index == binding_index;
+  return (value->left_value != W_SEED_HIR0_NONE &&
+          mlir0_program_value_contains_binding_read(
+              program, value->left_value, binding_index, depth + 1u)) ||
+         (value->right_value != W_SEED_HIR0_NONE &&
+          mlir0_program_value_contains_binding_read(
+              program, value->right_value, binding_index, depth + 1u));
+}
+
+static bool mlir0_natural_loop_continuation_value_ok(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const uint32_t *result_bindings,
+    uint32_t first_block_argument, size_t carrier_count, bool *uses_result,
+    size_t depth) {
+  if (program == NULL || result_bindings == NULL || uses_result == NULL ||
+      carrier_count == 0u || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_I64)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) return true;
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ)
+    return value->parameter_index < program->parameter_count &&
+           program->parameters[value->parameter_index].owner_function ==
+               function_index;
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count) return false;
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (result_bindings[lane] == value->binding_index) {
+        *uses_result = true;
+        return true;
+      }
+    return false;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (value->block_argument_index == W_SEED_HIR0_NONE ||
+        value->block_argument_index < first_block_argument ||
+        (size_t)value->block_argument_index - first_block_argument >=
+            carrier_count)
+      return false;
+    *uses_result = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           mlir0_natural_loop_continuation_value_ok(
+               program, value->left_value, function_index, result_bindings,
+               first_block_argument, carrier_count, uses_result, depth + 1u);
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  return mlir0_natural_loop_continuation_value_ok(
+             program, value->left_value, function_index, result_bindings,
+             first_block_argument, carrier_count, uses_result, depth + 1u) &&
+         mlir0_natural_loop_continuation_value_ok(
+             program, value->right_value, function_index, result_bindings,
+             first_block_argument, carrier_count, uses_result, depth + 1u);
+}
+
 static const char *program_type_name(const w_seed_hir0_program *program,
                                      uint32_t type_index, char buffer[96],
                                      const mlir0_process_emit_context *process) {
@@ -3205,7 +3276,13 @@ static bool append_program_natural_loop(
       body->first_instruction == W_SEED_HIR0_NONE ||
       (size_t)body->first_instruction > program->instruction_count ||
       carrier_count > program->instruction_count - body->first_instruction ||
-      exit->instruction_count != 0u || preheader->block_argument_count != 0u ||
+      exit->instruction_count > 1u ||
+      (exit->instruction_count != 0u &&
+       (exit->first_instruction == W_SEED_HIR0_NONE ||
+        (size_t)exit->first_instruction > program->instruction_count ||
+        exit->instruction_count >
+            program->instruction_count - exit->first_instruction)) ||
+      preheader->block_argument_count != 0u ||
       preheader->first_block_argument != W_SEED_HIR0_NONE ||
       body->block_argument_count != 0u ||
       body->first_block_argument != W_SEED_HIR0_NONE ||
@@ -3333,7 +3410,6 @@ static bool append_program_natural_loop(
         update->owner_block != body_index ||
         update->source_binding != initial_binding_index ||
         update->previous_version != initial_binding_index ||
-        update->next_version != W_SEED_HIR0_NONE ||
         update->type_index != argument->type_index ||
         update->owner_instruction == W_SEED_HIR0_NONE ||
         update->owner_instruction >= program->instruction_count ||
@@ -3368,6 +3444,48 @@ static bool append_program_natural_loop(
   }
   for (size_t lane = 0u; lane < carrier_count; lane += 1u)
     if (!update_seen[lane]) return false;
+
+  uint32_t continuation_binding = W_SEED_HIR0_NONE;
+  size_t continuation_lane = carrier_count;
+  if (exit->instruction_count == 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[exit->first_instruction];
+    if (instruction->owner_block != exit_index || instruction->ordinal != 0u ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[instruction->binding_index];
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (continuation->source_binding == initial_bindings[lane]) {
+        if (continuation_lane != carrier_count) return false;
+        continuation_lane = lane;
+      }
+    if (continuation_lane == carrier_count ||
+        continuation->owner_instruction != exit->first_instruction ||
+        continuation->owner_block != exit_index || !continuation->is_mutable ||
+        continuation->source_binding != initial_bindings[continuation_lane] ||
+        continuation->previous_version != result_bindings[continuation_lane] ||
+        continuation->next_version != W_SEED_HIR0_NONE ||
+        continuation->type_index != W_SEED_HIR0_TYPE_I64 ||
+        continuation->initializer_value >= program->value_count)
+      return false;
+    bool uses_result = false;
+    if (!mlir0_natural_loop_continuation_value_ok(
+            program, continuation->initializer_value,
+            (uint32_t)function_index, result_bindings,
+            header->first_block_argument, carrier_count, &uses_result, 0u) ||
+        !uses_result ||
+        !mlir0_program_value_contains_binding_read(
+            program, exit_term->value_index, instruction->binding_index, 0u))
+      return false;
+    continuation_binding = instruction->binding_index;
+  }
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (program->bindings[result_bindings[lane]].next_version !=
+        (lane == continuation_lane ? continuation_binding
+                                    : W_SEED_HIR0_NONE))
+      return false;
 
   bool preheader_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES] = {false};
   for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u)
@@ -3517,6 +3635,14 @@ static bool append_program_natural_loop(
       .result_binding_indices = result_bindings};
   bool exit_emitted[W_SEED_NATIVE_SUBSET0_MAX_VALUES];
   (void)memcpy(exit_emitted, update_emitted, sizeof(exit_emitted));
+  if (continuation_binding != W_SEED_HIR0_NONE) {
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[continuation_binding];
+    if (!append_program_value_tree_in_loop(
+            program, continuation->initializer_value, (uint32_t)function_index,
+            process, &loop, exit_emitted, artifact, capacity, offset, 0u))
+      return false;
+  }
   if (!append_program_value_tree_in_loop(
           program, exit_term->value_index, (uint32_t)function_index, process,
           &loop, exit_emitted, artifact, capacity, offset, 0u))

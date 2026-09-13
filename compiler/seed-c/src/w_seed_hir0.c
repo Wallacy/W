@@ -2961,6 +2961,9 @@ typedef struct {
   size_t *switch_capture_total;
   bool has_value_return;
   bool loop_seen;
+  bool loop_continuation_seen;
+  uint32_t loop_root_statements[HIR0_MAX_BRANCH_ASSIGNMENTS];
+  size_t loop_root_count;
   bool allow_branch_return;
 } hir0_statement_walk;
 
@@ -3321,7 +3324,7 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
     return add_size(*walk->bindings, 1u, walk->bindings);
   }
   if (statement->kind == W_SEED_FRONTEND_STMT_EXPRESSION) {
-    if (walk->loop_seen || statement->binding_name.length != 0u ||
+    if (statement->binding_name.length != 0u ||
         statement->declared_type != W_SEED_FRONTEND_NONE ||
         statement->effective_type != W_SEED_FRONTEND_NONE ||
         statement->expression_index == W_SEED_FRONTEND_NONE ||
@@ -3330,9 +3333,49 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
       return false;
     const w_seed_frontend_expression *expression =
         &walk->output->expressions[statement->expression_index];
-    if (expression->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT)
-      return !branch && frontend_assignment_expression_ok(
-                            walk, index, statement->expression_index);
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ASSIGNMENT) {
+      if (branch ||
+          (walk->loop_seen &&
+           (walk->loop_continuation_seen || walk->loop_root_count == 0u)))
+        return false;
+      if (walk->loop_seen) {
+        const uint32_t left = expression->left;
+        if (left == W_SEED_FRONTEND_NONE ||
+            (size_t)left >= walk->result->written.expressions)
+          return false;
+        const w_seed_frontend_expression *target =
+            &walk->output->expressions[left];
+        bool carried_root = false;
+        for (size_t ordinal = 0u; ordinal < walk->loop_root_count; ordinal += 1u)
+          if (target->resolved_binding_statement ==
+              walk->loop_root_statements[ordinal]) {
+            carried_root = true;
+            break;
+          }
+        if (!carried_root || target->inferred_type == W_SEED_FRONTEND_NONE ||
+            (size_t)target->inferred_type >= walk->result->written.types ||
+            walk->output->types[target->inferred_type].kind !=
+                W_SEED_FRONTEND_TYPE_INTEGER ||
+            !walk->output->types[target->inferred_type].is_signed ||
+            walk->output->types[target->inferred_type].bit_width != 64u)
+          return false;
+        bool uses_root = false;
+        if (!frontend_loop_scalar_tree_ok(
+                walk->input, walk->module_index, walk->function_index,
+                walk->document_index, expression->right,
+                walk->loop_root_statements, walk->loop_root_count, &uses_root,
+                0u) ||
+            !uses_root ||
+            !frontend_assignment_expression_ok(
+                walk, index, statement->expression_index))
+          return false;
+        walk->loop_continuation_seen = true;
+        return true;
+      }
+      return frontend_assignment_expression_ok(
+          walk, index, statement->expression_index);
+    }
+    if (walk->loop_seen) return false;
     return frontend_call_expression_ok(
         walk->input, walk->module_index, walk->function_index,
         walk->document_index, index, statement->expression_index, false,
@@ -3450,6 +3493,10 @@ static bool hir0_walk_statement(hir0_statement_walk *walk, uint32_t index,
         !add_size(*walk->loop_carrier_total, root_count,
                   walk->loop_carrier_total))
       return false;
+    (void)memcpy(walk->loop_root_statements, root_statements,
+                 root_count * sizeof(root_statements[0]));
+    walk->loop_root_count = root_count;
+    walk->loop_continuation_seen = false;
     walk->loop_seen = true;
     return true;
   }
@@ -3652,6 +3699,9 @@ static bool frontend_statement_and_expression_cfg_ok(
         .switch_capture_total = &function_switch_capture_count,
         .has_value_return = false,
         .loop_seen = false,
+        .loop_continuation_seen = false,
+        .loop_root_statements = {0u},
+        .loop_root_count = 0u,
         .allow_branch_return = frontend_function_has_terminal_if(
             input, function_index),
     };
@@ -6254,8 +6304,15 @@ static void hir0_emit_chain_terms_m2(hir0_emit_context *context,
           W_SEED_HIR0_VALUE_OWNER_TERMINATOR, (uint32_t)header, 0u, header,
           0u);
       context->loop_active = false;
-      context->statement_index =
-          (uint32_t)context->frontend_result->written.statements;
+      /* Backedge values must see the loop body's latest versions, but not a
+       * later exit-side continuation assignment.  The first sibling after
+       * the while is the correct source-order cut; with no sibling the
+       * bounded function's terminal return remains the cut. */
+      context->statement_index = statement->next_sibling !=
+                                         W_SEED_FRONTEND_NONE
+                                     ? statement->next_sibling
+                                     : (uint32_t)context->frontend_result
+                                           ->written.statements;
       for (size_t carrier_ordinal = 0u;
            carrier_ordinal < context->loop_root_count; carrier_ordinal += 1u) {
         uint32_t assignment_expression = W_SEED_FRONTEND_NONE;
@@ -9424,6 +9481,15 @@ static bool natural_loop_header_dominates(
          body_term->edge_argument_count == header->block_argument_count;
 }
 
+static bool natural_loop_exit_binding_available(
+    const w_seed_hir0_program *program, uint32_t use_block,
+    uint32_t binding_block) {
+  if (program == NULL || use_block < 2u || binding_block + 1u != use_block)
+    return false;
+  const uint32_t header = use_block - 2u;
+  return natural_loop_header_dominates(program, header, use_block);
+}
+
 static uint32_t hir0_external_type_index(const w_seed_hir0_program *program,
                                          uint32_t symbol_index) {
   if (program == NULL || program->external_module_count != 1u) return W_SEED_HIR0_NONE;
@@ -10439,6 +10505,171 @@ static bool value_tree_contains_any_block_argument(
               block_argument_count, depth + 1u));
 }
 
+/* The exit-side continuation is intentionally narrower than the ordinary HIR
+ * value language.  This independent proof keeps calls, effects, control
+ * values, and unrelated bindings out of the one bounded post-loop operation;
+ * only scalar i64 arithmetic over loop results, parameters, and constants is
+ * admitted. */
+static bool hir0_natural_loop_continuation_value_ok(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, uint32_t header_index,
+    const uint32_t *result_bindings, size_t carrier_count,
+    bool *uses_result, bool *result_lanes, size_t depth) {
+  if (program == NULL || result_bindings == NULL || uses_result == NULL ||
+      result_lanes == NULL || carrier_count == 0u ||
+      carrier_count > HIR0_MAX_BRANCH_ASSIGNMENTS ||
+      depth > W_SEED_HIR0_MAX_NESTING || value_index >= program->value_count ||
+      header_index >= program->block_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->type_index != W_SEED_HIR0_TYPE_I64 ||
+      value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+      value->interpolation_segment_count != 0u ||
+      value->first_enum_payload != 0u || value->enum_payload_count != 0u ||
+      value->pattern_capture_index != W_SEED_HIR0_NONE ||
+      value->unsigned_integer_value != 0u || value->byte_offset != 0u ||
+      value->byte_count != 0u ||
+      value->external_module_index != W_SEED_HIR0_NONE ||
+      value->external_symbol_index != W_SEED_HIR0_NONE ||
+      value->member_name.offset != 0u || value->member_name.count != 0u ||
+      value->enum_index != W_SEED_HIR0_NONE ||
+      value->enum_case_index != W_SEED_HIR0_NONE)
+    return false;
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_I64) {
+    return value->binding_index == W_SEED_HIR0_NONE &&
+           value->parameter_index == W_SEED_HIR0_NONE &&
+           value->call_index == W_SEED_HIR0_NONE &&
+           value->left_value == W_SEED_HIR0_NONE &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           value->block_argument_index == W_SEED_HIR0_NONE &&
+           value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+           value->unary_operator == W_SEED_HIR0_UNARY_NOT &&
+           !value->bool_value;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_PARAMETER_READ) {
+    if (value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index >= program->parameter_count ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value != W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->integer_value != 0 || value->bool_value)
+      return false;
+    const w_seed_hir0_parameter *parameter =
+        &program->parameters[value->parameter_index];
+    return parameter->owner_function == function_index &&
+           parameter->type_index == W_SEED_HIR0_TYPE_I64;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index >= program->binding_count ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value != W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->block_argument_index != W_SEED_HIR0_NONE ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->integer_value != 0 || value->bool_value)
+      return false;
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (result_bindings[lane] == value->binding_index) {
+        *uses_result = true;
+        result_lanes[lane] = true;
+        return true;
+      }
+    return false;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ) {
+    if (value->binding_index != W_SEED_HIR0_NONE ||
+        value->parameter_index != W_SEED_HIR0_NONE ||
+        value->call_index != W_SEED_HIR0_NONE ||
+        value->left_value != W_SEED_HIR0_NONE ||
+        value->right_value != W_SEED_HIR0_NONE ||
+        value->first_interpolation_segment != W_SEED_HIR0_NONE ||
+        value->interpolation_segment_count != 0u ||
+        value->block_argument_index == W_SEED_HIR0_NONE ||
+        value->block_argument_index >= program->block_argument_count ||
+        value->binary_operator != W_SEED_HIR0_BINARY_ADD ||
+        value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+        value->integer_value != 0 || value->bool_value)
+      return false;
+    const w_seed_hir0_block *header = &program->blocks[header_index];
+    if (header->first_block_argument == W_SEED_HIR0_NONE ||
+        !range_valid(header->first_block_argument, carrier_count,
+                     program->block_argument_count) ||
+        value->block_argument_index < header->first_block_argument ||
+        (size_t)value->block_argument_index >=
+            (size_t)header->first_block_argument + carrier_count)
+      return false;
+    const size_t lane = (size_t)value->block_argument_index -
+                        header->first_block_argument;
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[value->block_argument_index];
+    if (argument->owner_block != header_index || argument->ordinal != lane ||
+        argument->type_index != W_SEED_HIR0_TYPE_I64)
+      return false;
+    *uses_result = true;
+    result_lanes[lane] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_UNARY_I64)
+    return value->unary_operator == W_SEED_HIR0_UNARY_NEGATE &&
+           value->binary_operator == W_SEED_HIR0_BINARY_ADD &&
+           value->binding_index == W_SEED_HIR0_NONE &&
+           value->parameter_index == W_SEED_HIR0_NONE &&
+           value->call_index == W_SEED_HIR0_NONE &&
+           value->block_argument_index == W_SEED_HIR0_NONE &&
+           value->integer_value == 0 && !value->bool_value &&
+           value->left_value != W_SEED_HIR0_NONE &&
+           value->right_value == W_SEED_HIR0_NONE &&
+           hir0_natural_loop_continuation_value_ok(
+               program, value->left_value, function_index, header_index,
+               result_bindings, carrier_count, uses_result, result_lanes,
+               depth + 1u);
+  if (value->kind != W_SEED_HIR0_VALUE_BINARY_I64 ||
+      value->binary_operator > W_SEED_HIR0_BINARY_REMAINDER ||
+      value->unary_operator != W_SEED_HIR0_UNARY_NOT ||
+      value->binding_index != W_SEED_HIR0_NONE ||
+      value->parameter_index != W_SEED_HIR0_NONE ||
+      value->call_index != W_SEED_HIR0_NONE ||
+      value->block_argument_index != W_SEED_HIR0_NONE ||
+      value->integer_value != 0 || value->bool_value ||
+      value->left_value == W_SEED_HIR0_NONE ||
+      value->right_value == W_SEED_HIR0_NONE)
+    return false;
+  return hir0_natural_loop_continuation_value_ok(
+             program, value->left_value, function_index, header_index,
+             result_bindings, carrier_count, uses_result, result_lanes,
+             depth + 1u) &&
+         hir0_natural_loop_continuation_value_ok(
+             program, value->right_value, function_index, header_index,
+             result_bindings, carrier_count, uses_result, result_lanes,
+             depth + 1u);
+}
+
+static bool value_tree_contains_binding_read(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t binding_index, size_t depth) {
+  if (program == NULL || depth > W_SEED_HIR0_MAX_NESTING ||
+      value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ)
+    return value->binding_index == binding_index;
+  return (value->left_value != W_SEED_HIR0_NONE &&
+          value_tree_contains_binding_read(program, value->left_value,
+                                           binding_index, depth + 1u)) ||
+         (value->right_value != W_SEED_HIR0_NONE &&
+          value_tree_contains_binding_read(program, value->right_value,
+                                           binding_index, depth + 1u));
+}
+
 /* Recognize exactly the first bounded loop CFG.  This is deliberately
  * separate from the forward-only diamond verifier: arbitrary cycles and a
  * second backward edge remain invalid. */
@@ -10459,6 +10690,7 @@ static bool verify_cfg_natural_loop(const w_seed_hir0_program *program,
   const w_seed_hir0_block *exit = &program->blocks[exit_index];
   const size_t carrier_count = header->block_argument_count;
   if (carrier_count == 0u || carrier_count > UINT32_MAX ||
+      carrier_count > HIR0_MAX_BRANCH_ASSIGNMENTS ||
       header->first_block_argument == W_SEED_HIR0_NONE ||
       !range_valid(header->first_block_argument, carrier_count,
                    program->block_argument_count))
@@ -10466,11 +10698,16 @@ static bool verify_cfg_natural_loop(const w_seed_hir0_program *program,
   if (header->block_argument_count == 0u ||
       header->first_block_argument == W_SEED_HIR0_NONE ||
       body->block_argument_count != 0u || exit->block_argument_count != 0u ||
-      body->instruction_count != carrier_count ||
-      body->first_instruction == W_SEED_HIR0_NONE ||
-      !range_valid(body->first_instruction, body->instruction_count,
-                   program->instruction_count) ||
-      !natural_loop_header_dominates(program, (uint32_t)header_index,
+       body->instruction_count != carrier_count ||
+       body->first_instruction == W_SEED_HIR0_NONE ||
+       !range_valid(body->first_instruction, body->instruction_count,
+                    program->instruction_count) ||
+       exit->instruction_count > 1u ||
+       (exit->instruction_count != 0u &&
+        (exit->first_instruction == W_SEED_HIR0_NONE ||
+         !range_valid(exit->first_instruction, exit->instruction_count,
+                      program->instruction_count))) ||
+       !natural_loop_header_dominates(program, (uint32_t)header_index,
                                      (uint32_t)body_index) ||
       !natural_loop_header_dominates(program, (uint32_t)header_index,
                                      (uint32_t)exit_index))
@@ -10490,9 +10727,11 @@ static bool verify_cfg_natural_loop(const w_seed_hir0_program *program,
       !value_tree_contains_any_block_argument(
           program, header_term->value_index, header->first_block_argument,
           carrier_count, 0u) ||
-      (exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
-       exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE))
+       (exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_UNIT &&
+        exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE))
     return false;
+  uint32_t initial_bindings[HIR0_MAX_BRANCH_ASSIGNMENTS] = {0u};
+  uint32_t result_bindings[HIR0_MAX_BRANCH_ASSIGNMENTS] = {0u};
   for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
     const w_seed_hir0_block_argument *argument =
         &program->block_arguments[(size_t)header->first_block_argument +
@@ -10578,7 +10817,55 @@ static bool verify_cfg_natural_loop(const w_seed_hir0_program *program,
     if (next->kind != W_SEED_HIR0_VALUE_BINDING_READ ||
         next->binding_index != update_index)
       return false;
+    initial_bindings[ordinal] = source_index;
+    result_bindings[ordinal] = update_index;
   }
+  uint32_t continuation_binding = W_SEED_HIR0_NONE;
+  size_t continuation_lane = carrier_count;
+  if (exit->instruction_count == 1u) {
+    const w_seed_hir0_instruction *instruction =
+        &program->instructions[exit->first_instruction];
+    if (exit_term->ordinal != 1u ||
+        exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
+        exit_term->result_type != W_SEED_HIR0_TYPE_I64 ||
+        instruction->owner_block != exit_index || instruction->ordinal != 0u ||
+        instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        instruction->result_type != 0u ||
+        instruction->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *continuation =
+        &program->bindings[instruction->binding_index];
+    for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+      if (continuation->source_binding == initial_bindings[lane]) {
+        if (continuation_lane != carrier_count) return false;
+        continuation_lane = lane;
+      }
+    if (continuation_lane == carrier_count ||
+        continuation->owner_instruction != exit->first_instruction ||
+        continuation->owner_block != exit_index || !continuation->is_mutable ||
+        continuation->source_binding != initial_bindings[continuation_lane] ||
+        continuation->previous_version != result_bindings[continuation_lane] ||
+        continuation->next_version != W_SEED_HIR0_NONE ||
+        continuation->type_index != W_SEED_HIR0_TYPE_I64 ||
+        continuation->initializer_value >= program->value_count)
+      return false;
+    bool uses_result = false;
+    bool result_lanes[HIR0_MAX_BRANCH_ASSIGNMENTS] = {false};
+    if (!hir0_natural_loop_continuation_value_ok(
+            program, continuation->initializer_value,
+            (uint32_t)function_index, (uint32_t)header_index,
+            result_bindings, carrier_count, &uses_result, result_lanes, 0u) ||
+        !uses_result ||
+        !value_tree_contains_binding_read(
+            program, exit_term->value_index, instruction->binding_index, 0u))
+      return false;
+    continuation_binding = instruction->binding_index;
+  }
+  for (size_t lane = 0u; lane < carrier_count; lane += 1u)
+    if (program->bindings[result_bindings[lane]].next_version !=
+        (lane == continuation_lane ? continuation_binding
+                                    : W_SEED_HIR0_NONE))
+      return false;
   if (exit_term->kind == W_SEED_HIR0_TERMINATOR_RETURN_VALUE &&
       (exit_term->value_index == W_SEED_HIR0_NONE ||
        exit_term->value_index >= program->value_count))
@@ -11975,11 +12262,16 @@ static bool verify_records(const w_seed_hir0_program *program) {
         const bool source_available =
             source->owner_block == binding->owner_block
                 ? source->owner_instruction < binding->owner_instruction
-                : source->owner_block == owner_function->first_block;
+                : source->owner_block == owner_function->first_block ||
+                      natural_loop_exit_binding_available(
+                          program, binding->owner_block, source->owner_block);
         const bool previous_available =
             previous->owner_block == binding->owner_block
                 ? previous->owner_instruction < binding->owner_instruction
-                : previous->owner_block == owner_function->first_block;
+                : previous->owner_block == owner_function->first_block ||
+                      natural_loop_exit_binding_available(
+                          program, binding->owner_block,
+                          previous->owner_block);
         if (!binding->is_mutable || !source->is_mutable ||
             source->source_binding != binding->source_binding ||
             !source_available ||

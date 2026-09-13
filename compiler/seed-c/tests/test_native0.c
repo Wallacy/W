@@ -1367,6 +1367,115 @@ static bool test_multi_carrier_native_subset_selector(void) {
   return true;
 }
 
+static bool test_post_loop_continuation_native_subset(void) {
+  static const uint8_t source[] =
+      "fn settle(limit: i64): i64 {\n"
+      "  var served = 0\n"
+      "  var total = 0\n"
+      "  while served < limit {\n"
+      "    total = total + 2\n"
+      "    served = served + 1\n"
+      "  }\n"
+      "  total = total + served\n"
+      "  return total\n"
+      "}\n"
+      "fn main() { let result = settle(limit: 3) print(\"Final ${result}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  CHECK(run_source(source, sizeof(source) - 1u, "post-loop-native", 16u,
+                   output, sizeof(output), &result) == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->functions[0].block_count == 4u &&
+        program->blocks[3].instruction_count == 1u &&
+        program->blocks[3].first_instruction == 4u &&
+        program->bindings[4].source_binding == 1u &&
+        program->bindings[4].previous_version == 2u &&
+        program->bindings[2].next_version == 4u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  const size_t function_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(output, result.mlir.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  CHECK(selection.natural_loop_functions[0] && selection.has_cfg &&
+        contains_bytes(output + function_start, function_bytes,
+                       "%loop0_0, %loop0_1 = scf.while (") &&
+        contains_bytes(output + function_start, function_bytes,
+                       "@w_seed_checked_add_i64(%loop0_1, %loop0_0)") &&
+        contains_bytes(output + function_start, function_bytes,
+                       "llvm.return %v") &&
+        !contains_bytes(output + function_start, function_bytes,
+                        "llvm.alloca"));
+
+  const w_seed_hir0_instruction saved_instruction = storage.hir_instructions[4];
+  storage.hir_instructions[4].owner_block = 2u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) !=
+        W_SEED_NATIVE_SUBSET0_OK);
+  storage.hir_instructions[4] = saved_instruction;
+
+  const w_seed_hir0_block saved_exit = storage.hir_blocks[3];
+  storage.hir_blocks[3].instruction_count = 2u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) !=
+        W_SEED_NATIVE_SUBSET0_OK);
+  storage.hir_blocks[3] = saved_exit;
+
+  const w_seed_hir0_binding saved_continuation = storage.hir_bindings[4];
+  storage.hir_bindings[4].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) !=
+        W_SEED_NATIVE_SUBSET0_OK);
+  storage.hir_bindings[4] = saved_continuation;
+
+  const w_seed_hir0_binding saved_update = storage.hir_bindings[2];
+  storage.hir_bindings[2].next_version = W_SEED_HIR0_NONE;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) !=
+        W_SEED_NATIVE_SUBSET0_OK);
+  storage.hir_bindings[2] = saved_update;
+
+  static const char *const rejected[] = {
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "let after = total + served return after } entry(settle)\n",
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "total = total + served total = total + 1 return total } entry(settle)\n",
+      "fn adjust(value: i64): i64 { return value + 1 }\n"
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "total = adjust(value: total) return total } entry(settle)\n",
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "limit = total + served return total } entry(settle)\n",
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "if limit > 0 { total = total + served } return total } entry(settle)\n",
+      "fn settle(limit: i64): i64 { var served = 0 var total = 0 "
+      "while served < limit { total = total + 2 served = served + 1 } "
+      "print(\"after\") return total } entry(settle)\n",
+  };
+  for (size_t index = 0u; index < sizeof(rejected) / sizeof(rejected[0]);
+       index += 1u) {
+    w_seed_native0_result rejected_result;
+    (void)memset(&rejected_result, 0x71, sizeof(rejected_result));
+    const w_seed_native0_result snapshot = rejected_result;
+    CHECK(run_source((const uint8_t *)rejected[index], strlen(rejected[index]),
+                     "post-loop-reject", 17u, output, sizeof(output),
+                     &rejected_result) != W_SEED_NATIVE0_OK);
+    CHECK(memcmp(&rejected_result, &snapshot, sizeof(snapshot)) == 0);
+  }
+  return true;
+}
+
 static bool test_unary_i64_native_selector(void) {
   static const uint8_t constant_source[] =
       "fn negative(): i64 { return -7 }\n"
@@ -1949,6 +2058,7 @@ int main(void) {
                         test_process_enum_payload_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
                        test_multi_carrier_native_subset_selector() &&
+                       test_post_loop_continuation_native_subset() &&
                        test_unary_i64_native_selector() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&

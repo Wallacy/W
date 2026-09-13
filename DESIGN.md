@@ -38377,6 +38377,44 @@ quality, timing claims, and general performance remain gaps. Its primary
 benchmark disposition is `compiler-lifecycle`; the correctness track and the
 separate Windows exploratory catalog track must remain distinct.
 
+#### 26.4.1.51 W-1570 — bounded post-loop SSA continuation after a multi-carrier natural `while` (Current form)
+
+W-1570 extends the W-1569 natural loop with one bounded exit-side
+continuation. The exit block may contain exactly one pure post-loop `=`
+assignment. Its target must be an existing mutable signed-`i64` root that the
+loop carries. No other post-loop assignment is admitted.
+
+The continuation RHS is a pure scalar signed-`i64` tree. It may use literals,
+same-function signed-`i64` parameters, and the latest result of any carried
+root. The RHS must use at least one latest loop result. The function return
+must read the continuation binding, so the continuation cannot be dead or
+bypassed. Calls, effects, `let` bindings, unrelated targets, post-loop
+control, nested control, aggregates, and non-`i64` values remain outside this
+form.
+
+HIR0 represents the continuation with the existing binding, instruction, and
+value records. Its source and previous-version links extend the selected loop
+carrier's SSA chain, and the exit return reads that new version. HIR0,
+NativeSubset0, and MLIR0 independently recheck the owner, type, source,
+version, value-tree, and return-dependency relations. This increment does not
+change the HIR0 schema. MLIR0 keeps the loop as one tuple-valued `scf.while`
+and emits the continuation in the exit block without a source-variable
+`llvm.alloca`.
+
+The fixture [`restaurant-while-post.w`](compiler/seed-c/fixtures/restaurant-while-post.w)
+prints exactly `Final 9\n`. The public Linux/WSL route produces a CRT-free
+x86_64 ELF. The native Windows route produces an x86_64 PE. Both routes require
+the same source, exact stdout, empty stderr, exit zero, and cleanup. The
+primary benchmark disposition is `compiler-lifecycle`. The executable catalog
+separately owns exploratory W/C23/Rust measurements, with no timing or ranking
+claim.
+
+The strict boundary rejects a second continuation assignment, a `let` or
+unrelated target, a call or effect, post-loop control, a RHS without a loop
+result, return bypass, nested or mixed control, non-`i64` carriers, other
+targets, and malformed SSA links. General post-loop mutation, cyclic CFG,
+ABI/layout, optimization quality, timing, and language ranking remain gaps.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

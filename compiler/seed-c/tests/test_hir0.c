@@ -2560,6 +2560,99 @@ static bool test_while_multi_carrier_source_order(void) {
   return true;
 }
 
+static bool test_while_post_loop_continuation_ssa(void) {
+  static const char SOURCE[] =
+      "fn settle(limit: i64): i64 {\n"
+      "  var served = 0\n"
+      "  var total = 0\n"
+      "  while served < limit {\n"
+      "    total = total + 2\n"
+      "    served = served + 1\n"
+      "  }\n"
+      "  total = total + served\n"
+      "  return total\n"
+      "}\n"
+      "entry(settle)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->block_argument_count == 2u &&
+        program->edge_argument_count == 4u && program->binding_count == 5u &&
+        program->instruction_count == 5u && program->blocks[3].instruction_count ==
+                                                     1u &&
+        program->blocks[3].first_instruction == 4u &&
+        program->terminators[3].ordinal == 1u);
+  CHECK(program->bindings[0].source_binding == 0u &&
+        program->bindings[0].next_version == 3u &&
+        program->bindings[1].source_binding == 1u &&
+        program->bindings[1].next_version == 2u &&
+        program->bindings[2].source_binding == 1u &&
+        program->bindings[2].previous_version == 1u &&
+        program->bindings[2].next_version == 4u &&
+        program->bindings[3].source_binding == 0u &&
+        program->bindings[3].previous_version == 0u &&
+        program->bindings[3].next_version == W_SEED_HIR0_NONE &&
+        program->bindings[4].source_binding == 1u &&
+        program->bindings[4].previous_version == 2u &&
+        program->bindings[4].next_version == W_SEED_HIR0_NONE &&
+        program->bindings[4].owner_block == 3u &&
+        program->bindings[4].ordinal == 0u);
+  const w_seed_hir0_value *continuation =
+      &program->values[program->bindings[4].initializer_value];
+  CHECK(continuation->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        continuation->left_value < program->value_count &&
+        continuation->right_value < program->value_count &&
+        program->values[continuation->left_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[continuation->right_value].kind ==
+            W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ &&
+        program->values[continuation->left_value].block_argument_index == 1u &&
+        program->values[continuation->right_value].block_argument_index == 0u);
+  const w_seed_hir0_terminator *exit_term = &program->terminators[3];
+  CHECK(exit_term->value_index < program->value_count &&
+        program->values[exit_term->value_index].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[exit_term->value_index].binding_index == 4u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_instruction saved_instruction = fixture.hir_instructions[4];
+  fixture.hir_instructions[4].owner_block = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_instructions[4] = saved_instruction;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_binding saved_continuation = fixture.hir_bindings[4];
+  fixture.hir_bindings[4].source_binding = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[4] = saved_continuation;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_block saved_exit = fixture.hir_blocks[3];
+  fixture.hir_blocks[3].instruction_count = 2u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_blocks[3] = saved_exit;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_binding saved_type = fixture.hir_bindings[4];
+  fixture.hir_bindings[4].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[4] = saved_type;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_binding saved_update = fixture.hir_bindings[2];
+  fixture.hir_bindings[2].next_version = W_SEED_HIR0_NONE;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[2] = saved_update;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
 static bool test_while_multi_carrier_general_values(void) {
   CHECK(lower(
       "fn exchange(limit: i64): i64 {\n"
@@ -2635,13 +2728,6 @@ static bool expect_branch_mutation_unsupported(const char *source) {
 }
 
 static bool test_while_mutation_barriers(void) {
-  CHECK(expect_branch_mutation_unsupported(
-      "fn countTo(limit: i64): i64 {\n"
-      "  var count = 0\n"
-      "  while count < limit { count = count + 1 }\n"
-      "  count = count + 10\n"
-      "  return count\n"
-      "}\nentry(countTo)\n"));
   CHECK(expect_branch_mutation_unsupported(
       "fn countTo(limit: i64): i64 {\n"
       "  var count = 0\n"
@@ -6065,6 +6151,7 @@ int main(void) {
   if (!test_while_mutation_ssa()) return 1;
   if (!test_while_multi_carrier_ssa()) return 1;
   if (!test_while_multi_carrier_source_order()) return 1;
+  if (!test_while_post_loop_continuation_ssa()) return 1;
   if (!test_while_multi_carrier_general_values()) return 1;
   if (!test_while_multi_carrier_native_subset()) return 1;
   if (!test_while_mutation_barriers()) return 1;

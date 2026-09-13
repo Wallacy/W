@@ -16,6 +16,7 @@ Current portable-release values. Lower is better; `—` means no published measu
 | restaurant-nested-scalar-if | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-nested-scalar-if.w) | source-backed | partial-exploratory-ready |
 | restaurant-while | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while.w), [c](./executable/restaurant_while.c), [rust](./executable/restaurant_while.rs) | source-backed | exploratory-ready |
 | restaurant-while-multi | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while-multi.w), [c](./executable/restaurant_while_multi.c), [rust](./executable/restaurant_while_multi.rs) | source-backed | exploratory-ready |
+| restaurant-while-post | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-while-post.w), [c](./executable/restaurant_while_post.c), [rust](./executable/restaurant_while_post.rs) | source-backed | exploratory-ready |
 | restaurant-wmo | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-wmo.w), [c](./executable/restaurant_wmo.c), [rust](./executable/restaurant_wmo.rs) | source-backed | exploratory-ready |
 | restaurant-enum-switch | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum.w), [c](./executable/restaurant_enum.c), [rust](./executable/restaurant_enum.rs) | source-backed | exploratory-ready |
 | restaurant-enum-payload | public-end-to-end | [w](../compiler/seed-c/fixtures/restaurant-enum-payload.w), [c](./executable/restaurant_enum_payload.c), [rust](./executable/restaurant_enum_payload.rs) | source-backed | exploratory-ready |

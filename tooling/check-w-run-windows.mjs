@@ -25,6 +25,8 @@ const restaurantEnumBoolPayloadFixture = resolve(seedDirectory, "fixtures", "res
 const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-while.w")
 const restaurantWhileMultiFixture = resolve(seedDirectory,
   "fixtures", "restaurant-while-multi.w")
+const restaurantWhilePostFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-while-post.w")
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
@@ -447,6 +449,9 @@ try {
   expectExact(binary, ["run", restaurantWhileMultiFixture], 0,
     Buffer.from("Served 9\n", "utf8"),
     "Restaurant structured multi-carrier natural while fixture")
+  expectExact(binary, ["run", restaurantWhilePostFixture], 0,
+    Buffer.from("Final 9\n", "utf8"),
+    "Restaurant post-loop SSA continuation fixture")
   expectExact(binary, ["run", restaurantWmoFixture], 0,
     Buffer.from("Bill 42\n", "utf8"),
     "Restaurant whole-module product closure fixture")

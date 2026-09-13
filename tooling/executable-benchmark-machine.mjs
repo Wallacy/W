@@ -23,6 +23,7 @@ export const EXECUTABLE_WORKLOAD_IDS = Object.freeze([
   "restaurant-nested-scalar-if",
   "restaurant-while",
   "restaurant-while-multi",
+  "restaurant-while-post",
   "restaurant-wmo",
   "restaurant-enum-switch",
   "restaurant-enum-payload",
