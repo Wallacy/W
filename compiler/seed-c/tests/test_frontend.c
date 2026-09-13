@@ -5255,6 +5255,32 @@ static bool test_structured_async_projection(void) {
 
   CHECK(fixture_run(
       value,
+      "async fn pause(value: i64): i64 { return value }\n"
+      "entry { let pending = async pause(value: 42) "
+      "let result = await pending }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.functions == 2u);
+  size_t async_launch = W_SEED_FRONTEND_NONE;
+  size_t async_call = W_SEED_FRONTEND_NONE;
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+      async_launch = index;
+      async_call = expression->task_call_expression;
+      break;
+    }
+  }
+  CHECK(async_launch != W_SEED_FRONTEND_NONE &&
+        async_call < value->result.written.expressions &&
+        value->expressions[async_call].kind == W_SEED_FRONTEND_EXPR_CALL &&
+        value->expressions[async_call].resolved_callee_kind ==
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION &&
+        value->expressions[async_call].resolved_function_index == 0u &&
+        value->functions[0].is_async);
+
+  CHECK(fixture_run(
+      value,
       "fn prepare(value: i64): i64 { return value }\n"
       "entry { let task = async prepare(value: 1) "
       "let first = await task "

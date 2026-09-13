@@ -59,9 +59,11 @@ typedef enum {
 
 typedef enum {
   W_SEED_HIR0_CALL_DIRECT = 0,
-  /* The structured child was proven never-suspending and is represented by
-   * the same scalar call result.  The matching await relation remains on the
-   * result binding, so independent verification can prove the elision. */
+  /* The structured child was proven to use a never-suspending ordinary entry
+   * (or an explicit async declaration's available direct entry) and is
+   * represented by the same scalar call result. The matching await relation
+   * remains on the result binding, so independent verification can prove the
+   * elision. */
   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED,
 } w_seed_hir0_call_execution_kind;
 

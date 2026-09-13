@@ -1523,6 +1523,153 @@ static bool frontend_task_result_is_unsupported(
   return false;
 }
 
+typedef struct {
+  uint32_t function_indices[W_SEED_HIR0_MAX_NESTING];
+  size_t count;
+} frontend_elision_path;
+
+/* Preflight the body proof used by a structured scalar elision before HIR
+ * output is written.  Direct-entry facts are published only after emission,
+ * so this small frontend-side proof prevents a later verifier rejection from
+ * partially committing caller-owned output.  It is intentionally conservative:
+ * the bounded seed admits scalar pure local calls only. */
+static bool frontend_elision_scalar_type_ok(
+    const w_seed_hir0_input *input, uint32_t type_index) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || type_index == W_SEED_FRONTEND_NONE ||
+      (size_t)type_index >= input->frontend_result->written.types)
+    return false;
+  const w_seed_frontend_type *type =
+      &input->frontend_output->types[type_index];
+  return type->kind == W_SEED_FRONTEND_TYPE_UNIT ||
+         type->kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         (type->kind == W_SEED_FRONTEND_TYPE_INTEGER && type->is_signed &&
+          type->bit_width == 64u);
+}
+
+static bool frontend_elision_function_never(
+    const w_seed_hir0_input *input, size_t function_index,
+    frontend_elision_path *path, size_t depth) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL || path == NULL ||
+      function_index >= input->frontend_result->written.functions ||
+      function_index >= W_SEED_FRONTEND_MAX_CST_NODES ||
+      depth >= W_SEED_HIR0_MAX_NESTING ||
+      path->count >= W_SEED_HIR0_MAX_NESTING)
+    return false;
+  for (size_t active = 0u; active < path->count; active += 1u)
+    if (path->function_indices[active] == function_index) return false;
+  path->function_indices[path->count] = (uint32_t)function_index;
+  path->count += 1u;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  const w_seed_frontend_function *function =
+      &output->functions[function_index];
+  bool valid = !function->is_throws && !function->is_unsafe &&
+               !function->has_borrow_clause &&
+               frontend_elision_scalar_type_ok(input, function->return_type);
+  for (size_t parameter = 0u;
+       valid && parameter < function->parameter_count; parameter += 1u) {
+    const size_t parameter_index = (size_t)function->first_parameter + parameter;
+    valid = parameter_index < result->written.parameters &&
+            frontend_elision_scalar_type_ok(
+                input, output->parameters[parameter_index].type_index);
+  }
+  if (valid &&
+      !range_valid(function->first_statement, function->statement_count,
+                   result->written.statements))
+    valid = false;
+  for (size_t statement = 0u;
+       valid && statement < result->written.statements; statement += 1u) {
+    const w_seed_frontend_statement *value = &output->statements[statement];
+    if (value->owner_function != function_index) continue;
+    if (value->kind == W_SEED_FRONTEND_STMT_UNSUPPORTED)
+      valid = false;
+    else if ((value->kind == W_SEED_FRONTEND_STMT_LET ||
+              value->kind == W_SEED_FRONTEND_STMT_VAR) &&
+             (value->effective_type == W_SEED_FRONTEND_NONE ||
+              !frontend_elision_scalar_type_ok(input, value->effective_type)))
+      valid = false;
+  }
+  for (size_t expression = 0u;
+       valid && expression < result->written.expressions; expression += 1u) {
+    const w_seed_frontend_expression *value = &output->expressions[expression];
+    if (value->owner_function != function_index) continue;
+    if (!value->supported || value->inferred_type == W_SEED_FRONTEND_NONE ||
+        !frontend_elision_scalar_type_ok(input, value->inferred_type) ||
+        value->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+        value->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      valid = false;
+      break;
+    }
+    if (value->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
+    if (value->resolved_callee_kind !=
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        value->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)value->resolved_function_index >= result->written.functions) {
+      valid = false;
+      break;
+    }
+    const w_seed_frontend_function *callee =
+        &output->functions[value->resolved_function_index];
+    if (callee->is_async || callee->is_anonymous_entry ||
+        !frontend_elision_function_never(input, value->resolved_function_index,
+                                         path, depth + 1u))
+      valid = false;
+  }
+  path->count -= 1u;
+  return valid;
+}
+
+/* Existing ordinary targets retain the W-1577 path and are checked by HIR's
+ * suspension proof. An explicit async target additionally requires this
+ * preflight because its direct-entry fact is published only after emission. */
+static bool frontend_structured_elision_preflight(
+    const w_seed_hir0_input *input) {
+  if (input == NULL || input->frontend_output == NULL ||
+      input->frontend_result == NULL)
+    return false;
+  const w_seed_frontend_output *output = input->frontend_output;
+  const w_seed_frontend_result *result = input->frontend_result;
+  bool has_launch = false;
+  for (size_t expression = 0u;
+       expression < result->written.expressions; expression += 1u)
+    if (output->expressions[expression].kind ==
+        W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+      has_launch = true;
+      break;
+    }
+  if (!has_launch) return true;
+  frontend_elision_path path = {0};
+  for (size_t expression = 0u;
+       expression < result->written.expressions; expression += 1u) {
+    const w_seed_frontend_expression *launch =
+        &output->expressions[expression];
+    if (launch->kind != W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) continue;
+    if (launch->task_call_expression == W_SEED_FRONTEND_NONE ||
+        (size_t)launch->task_call_expression >= result->written.expressions)
+      return false;
+    const w_seed_frontend_expression *call =
+        &output->expressions[launch->task_call_expression];
+    if (call->kind != W_SEED_FRONTEND_EXPR_CALL ||
+        call->resolved_callee_kind !=
+            W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
+        call->resolved_function_index == W_SEED_FRONTEND_NONE ||
+        (size_t)call->resolved_function_index >= result->written.functions)
+      return false;
+    const w_seed_frontend_function *target =
+        &output->functions[call->resolved_function_index];
+    if (target->is_throws || target->is_anonymous_entry)
+      return false;
+    if (target->is_async &&
+        (target->is_const ||
+         !frontend_elision_function_never(
+             input, call->resolved_function_index, &path, 0u)))
+      return false;
+  }
+  return true;
+}
+
 static bool frontend_enum_subset_unique_count(
     const w_seed_frontend_output *output,
     const w_seed_frontend_result *result, size_t *count) {
@@ -3462,8 +3609,10 @@ static bool frontend_call_expression_ok(
 }
 
 /* Async0 retains structured launch/join evidence but admits only local calls
- * whose body is synchronous.  The runtime carrier is therefore the callee's
- * scalar result; the wrapper records are consumed without adding HIR values. */
+ * whose ordinary entry is proven non-suspending.  An explicit async
+ * declaration may use its W-1484 direct entry when that proof is available;
+ * the runtime carrier is still the callee's scalar result and the wrapper
+ * records add no HIR values. */
 static bool frontend_async_launch_expression_ok(
     const w_seed_hir0_input *input, size_t module_index,
     size_t function_index, size_t document_index, size_t statement_index,
@@ -3508,8 +3657,7 @@ static bool frontend_async_launch_expression_ok(
       call->resolved_callee_kind != W_SEED_FRONTEND_CALLEE_LOCAL_FUNCTION ||
       call->resolved_function_index == W_SEED_FRONTEND_NONE ||
       (size_t)call->resolved_function_index >= result->written.functions ||
-      (output->functions[call->resolved_function_index].is_async ||
-       output->functions[call->resolved_function_index].is_throws) ||
+      output->functions[call->resolved_function_index].is_throws ||
       call->inferred_type != launch->task_result_type ||
       !frontend_call_expression_ok(
           input, module_index, function_index, document_index, statement_index,
@@ -5578,6 +5726,11 @@ static hir0_prepare_status collect(const w_seed_hir0_input *input,
       (frontend_result->written.aliases == 0u &&
        !frontend_symbol_records_ok(input)))
     return HIR0_PREPARE_INVALID;
+  /* Structured launch target facts are consumed by the post-emission direct
+   * entry publication.  Recompute the bounded body proof now as well so an
+   * absent direct entry is reported before caller-owned HIR bytes change. */
+  if (!frontend_structured_elision_preflight(input))
+    return HIR0_PREPARE_UNSUPPORTED;
   /* An alias record is part of the accepted subset projection only when its
    * target is a validated local enum subset.  Classify all other alias
    * families at the existing closed-family barrier before symbol-count
@@ -14083,8 +14236,9 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
 
   /* Host identities use their closed HIR0 profile witness. Direct local calls
    * inherit the target proof. A structured async-elided call is admissible
-   * only for a local never-suspending target and therefore adds no suspension
-   * edge or runtime carrier of its own. */
+   * for a local never-suspending target, including an explicit async target
+   * reached through its direct-entry facet, and adds no suspension edge or
+   * runtime carrier of its own. */
   for (size_t call_index = 0u; call_index < program->call_count; call_index += 1u) {
     const uint32_t owner = hir0_call_owner_function(program, call_index);
     if (owner == W_SEED_HIR0_NONE) continue;
@@ -14106,7 +14260,9 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
     }
     const w_seed_hir0_function *target =
         &program->functions[identity->target_index];
-    if (target->is_async || target->is_anonymous_entry)
+    if (target->is_anonymous_entry ||
+        (target->is_async &&
+         call->execution_kind != W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED))
       hir0_function_bit_set(body_never, owner, false);
   }
 
@@ -14125,8 +14281,11 @@ static void hir0_compute_body_never(const w_seed_hir0_program *program,
           identity->target_index >= program->function_count)
         continue;
       const size_t target = identity->target_index;
-      if (!program->functions[target].is_async &&
+      const bool ordinary_or_structured_async =
           !program->functions[target].is_anonymous_entry &&
+          (!program->functions[target].is_async ||
+           call->execution_kind == W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+      if (ordinary_or_structured_async &&
           !hir0_function_bit_get(body_never, target)) {
         hir0_function_bit_set(body_never, owner, false);
         changed = true;
@@ -14563,10 +14722,17 @@ static bool verify_records(const w_seed_hir0_program *program) {
     }
     if (value->execution_kind ==
         W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED) {
+      const w_seed_hir0_function *target =
+          local_call && identity->target_index < program->function_count
+              ? &program->functions[identity->target_index]
+              : NULL;
+      const bool target_non_suspending =
+          target != NULL &&
+          (target->suspension == W_SEED_HIR0_SUSPENSION_NEVER ||
+           (target->is_async &&
+            target->direct_entry == W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE));
       if (!local_call || identity->target_index >= program->function_count ||
-          (program->functions[identity->target_index].is_throws ||
-           program->functions[identity->target_index].suspension !=
-               W_SEED_HIR0_SUSPENSION_NEVER) ||
+          target == NULL || target->is_throws || !target_non_suspending ||
           value->owner_instruction + 1u >= program->instruction_count)
         return false;
       const w_seed_hir0_instruction *join_instruction =

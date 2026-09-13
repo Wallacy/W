@@ -6907,13 +6907,14 @@
     {
       "id": "R0-virtual-structured-task-elision",
       "reviewItem": "virtual structured Task capability against unconditional runtime object materialization, observable identity, and false overlap claims",
-      "decisions": ["W-1502", "W-1577"],
-      "task": "Lower one bounded local never-suspending async/await pair without creating observable Task identity or runtime state.",
+      "decisions": ["W-1502", "W-1577", "W-1578"],
+      "task": "Lower bounded local never-suspending launch/join pairs, including an explicit async function with a proven direct entry, without creating observable Task identity or runtime state.",
       "selected": {
         "language": "w",
         "source": [
           "let task = async prepare(value: 20)",
           "let result = await task",
+          "// prepare may be an explicit async fn with directEntry available.",
           "// HIR keeps a verified scalar relation; Task has no physical object."
         ]
       },
@@ -6956,8 +6957,13 @@
         },
         {
           "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_structured_elision_preflight",
+          "claim": "A conservative bounded body proof rejects absent direct-entry evidence before caller-owned HIR output changes."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
           "symbol": "verify_records",
-          "claim": "The independent verifier checks launch/join direction, reciprocity, order, types, lexical ownership, and initializer shape."
+          "claim": "The independent verifier checks launch/join relations and requires a structured-elided call plus available direct entry for an explicit async target."
         },
         {
           "path": "compiler/seed-c/tests/test_hir0.c",
@@ -6966,8 +6972,8 @@
         },
         {
           "path": "compiler/seed-c/tests/test_native0.c",
-          "symbol": "test_virtual_structured_task_product",
-          "claim": "Native0 proves that the bounded source emits ordinary scalar calls without Task-specific runtime symbols."
+          "symbol": "test_async_direct_entry_product",
+          "claim": "Native0 proves that the explicit async source emits an ordinary scalar entry call without Task-specific runtime symbols."
         },
         {
           "path": "tooling/check-w-run-windows.mjs",
@@ -6977,12 +6983,98 @@
       ],
       "checks": [
         "the launch and await are immutable root-block bindings with exactly one later join",
-        "the result is Bool or signed i64 and the local callee is synchronous, non-throwing, and never-suspending",
+        "the result is Bool or signed i64 and the local callee is synchronous or an explicit async function with a conservatively proven ordinary direct entry",
+        "explicit async body proof rejects host calls, nested async or await, throwing, unsafe, borrow clauses, recursion, excessive depth, and non-scalar signatures before HIR output",
         "HIR emits an ordinary scalar call result and scalar binding read with proof-only closed roles and reciprocal peers",
         "the verifier rejects escape, copying, branch crossing, wrong direction, forged peers, types, owners, and order",
         "NativeSubset0 and MLIR0 introduce no Task-specific allocation, frame, handle ABI, TCB, WRT entry, or native symbol",
         "Windows public execution prints exactly Prepared 42 with empty stderr and exit zero",
-        "the evidence makes no overlap, scheduler, general concurrency, Linux, or stable Task ABI claim"
+        "the evidence makes no suspension, overlap, scheduler, general concurrency, Linux, or stable Task ABI claim"
+      ],
+      "measures": [
+        "semantic-correctness",
+        "recall",
+        "repair-time",
+        "token-count"
+      ]
+    },
+    {
+      "id": "R0-explicit-async-direct-entry-elision",
+      "reviewItem": "bounded explicit async direct-entry proof against general direct-entry coverage, runtime materialization, and false overlap claims",
+      "decisions": ["W-1578"],
+      "task": "Select an explicit async function's proven ordinary entry for one bounded structured launch and join while keeping public suspension semantics and erasing physical Task state.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "async fn prepare(value: i64): i64 { return value }",
+          "let pending = async prepare(value: 20)",
+          "let prepared = await pending"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "materialize-by-async-spelling",
+          "language": "w-internal-rejected",
+          "source": [
+            "allocate a frame or Task control block solely because the declaration is async"
+          ],
+          "expectedDifference": "The selected route materializes state only when surviving semantics prove a need; explicit async spelling alone is not a physical-layout requirement."
+        },
+        {
+          "name": "erase-without-body-proof",
+          "language": "w-internal-rejected",
+          "source": [
+            "treat every async function as an ordinary scalar entry"
+          ],
+          "expectedDifference": "The selected route requires a bounded whole-body direct-entry proof before HIR publication and rechecks it at the verified-HIR boundary."
+        },
+        {
+          "name": "claim-concurrency-from-direct-call",
+          "language": "w-internal-rejected",
+          "source": [
+            "report scheduling overlap after lowering the child to an ordinary call"
+          ],
+          "expectedDifference": "Direct-entry Task erasure proves representation efficiency only; it does not prove suspension, overlap, or scheduler behavior."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_structured_elision_preflight",
+          "claim": "The conservative body proof completes before caller-owned HIR output changes."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "verify_records",
+          "claim": "Verified HIR requires an available direct entry and the structured-elided execution kind for an explicit async target."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_native_subset0.c",
+          "symbol": "program_function_maximum",
+          "claim": "Native selection admits only the verified ordinary entry and keeps the Task representation absent."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_hir0.c",
+          "symbol": "test_structured_async_elision_hir",
+          "claim": "Focused tests cover scalar variants, forged facts, conservative body rejection, and all-or-nothing output."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_native0.c",
+          "symbol": "test_async_direct_entry_product",
+          "claim": "Native lowering contains the ordinary scalar call and no Task-specific or WRT symbol."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-async-join.w",
+          "symbol": "async fn prepare",
+          "claim": "The public Restaurant fixture exercises explicit async direct-entry Task erasure."
+        }
+      ],
+      "checks": [
+        "the explicit async declaration retains public suspension MAY while its proven ordinary entry is marked available",
+        "preflight accepts only the bounded scalar pure acyclic body and fails before HIR output for absent proof",
+        "the verifier rejects forged direct-entry facts and a structured launch relabeled as a direct call",
+        "NativeSubset0 and MLIR0 emit an ordinary scalar call with no Task frame, allocation, TCB, WRT call, or public identity",
+        "Windows public execution preserves exact output and the evidence makes no suspension, overlap, scheduler, Linux, or general direct-entry claim"
       ],
       "measures": [
         "semantic-correctness",

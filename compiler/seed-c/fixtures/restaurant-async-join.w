@@ -1,4 +1,4 @@
-fn prepare(value: i64): i64 {
+async fn prepare(value: i64): i64 {
   return value
 }
 

@@ -1594,6 +1594,25 @@ Suspending callees, explicit domains, cancellation, arbitration, sharing,
 runtime owners, additional result types, and physical Task state remain outside
 this bounded slice.
 
+### Explicit-async direct-entry Task elision (W-1578)
+
+The same bounded launch/join relation may target a local explicit `async fn`
+when HIR0 proves `directEntry: AVAILABLE` for its ordinary entry. The public
+function still records `suspension: MAY`; only the proven call path becomes an
+ordinary scalar call. The current preflight accepts non-throwing, non-unsafe,
+borrow-free `Bool` or signed-`i64` functions whose body has no `async`,
+`await`, or host call and whose ordinary local callees are scalar,
+synchronous, acyclic, and within `W_SEED_HIR0_MAX_NESTING`.
+
+Preflight completes before caller-owned HIR output changes. The standalone
+verifier rejects a forged direct-entry fact and rejects an async target
+relabeled as an ordinary direct call. NativeSubset0 and MLIR0 then emit the
+ordinary entry with no Task frame, allocation, WRT dependency, or public Task
+identity. The upgraded `fixtures/restaurant-async-join.w` declares
+`prepare` as `async fn` and preserves exact `Prepared 42\n` output on the
+Windows x64 public route. This remains representation-erasure evidence, not a
+suspension, overlap, scheduler, or concurrency claim.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

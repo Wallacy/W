@@ -3310,6 +3310,12 @@ static bool append_program_local_call(
       callee->target_index >= program->function_count ||
       call->argument_count > W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS)
     return false;
+  const w_seed_hir0_function *target =
+      &program->functions[callee->target_index];
+  if (target->is_async &&
+      (call->execution_kind != W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED ||
+       target->direct_entry != W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE))
+    return false;
   uint32_t values[W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS];
   for (size_t index = 0u; index < W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS;
        index += 1u)
@@ -3347,8 +3353,6 @@ static bool append_program_local_call(
   if (!append_literal(artifact, capacity, offset,
                       ") : (!llvm.ptr, !llvm.ptr"))
     return false;
-  const w_seed_hir0_function *target =
-      &program->functions[callee->target_index];
   for (size_t parameter = 0u; parameter < target->parameter_count;
        parameter += 1u) {
     const w_seed_hir0_parameter *item =

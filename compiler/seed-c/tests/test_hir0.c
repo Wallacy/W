@@ -2113,6 +2113,70 @@ static bool test_structured_async_elision_hir(void) {
         program->bindings[0].task_peer_binding == 1u &&
         program->bindings[1].task_peer_binding == 0u);
 
+  static const char ASYNC_I64_SOURCE[] =
+      "async fn pause(value: i64): i64 { return value }\n"
+      "entry { let pending = async pause(value: 42) "
+      "let result = await pending }\n";
+  CHECK(lower(ASYNC_I64_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->call_count == 1u &&
+        program->functions[0].is_async &&
+        program->functions[0].suspension == W_SEED_HIR0_SUSPENSION_MAY &&
+        program->functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        program->calls[0].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+  const w_seed_hir0_function saved_async_function =
+      fixture.hir_functions[0];
+  const w_seed_hir0_call saved_async_call = fixture.hir_calls[0];
+  fixture.hir_functions[0].direct_entry =
+      W_SEED_HIR0_DIRECT_ENTRY_ABSENT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_functions[0] = saved_async_function;
+  fixture.hir_calls[0].execution_kind = W_SEED_HIR0_CALL_DIRECT;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_calls[0] = saved_async_call;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  static const char ASYNC_BOOL_SOURCE[] =
+      "async fn confirm(value: Bool): Bool { return value }\n"
+      "entry { let pending = async confirm(value: true) "
+      "let result = await pending }\n";
+  CHECK(lower(ASYNC_BOOL_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->function_count == 2u && program->call_count == 1u &&
+        program->functions[0].is_async &&
+        program->functions[0].direct_entry ==
+            W_SEED_HIR0_DIRECT_ENTRY_AVAILABLE &&
+        program->calls[0].execution_kind ==
+            W_SEED_HIR0_CALL_STRUCTURED_ASYNC_ELIDED);
+
+  static const char ASYNC_EFFECT_SOURCE[] =
+      "async fn pause(value: i64): i64 { "
+      "print(message: \"yielded\", suffix: \"\") return value }\n"
+      "entry { let pending = async pause(value: 42) "
+      "let result = await pending }\n";
+  CHECK(fixture_frontend(ASYNC_EFFECT_SOURCE));
+  setup_hir_output();
+  fill_hir_output(0xa5u);
+  w_seed_hir0_input effect_input =
+      {&fixture.input, &fixture.output, &fixture.result};
+  w_seed_hir0_counts effect_counts;
+  w_seed_hir0_result effect_result;
+  CHECK(w_seed_hir0_measure(&effect_input, &effect_counts, &effect_result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(0xa5u));
+  (void)memset(&effect_result, 0x5au, sizeof(effect_result));
+  const w_seed_hir0_result effect_result_before = effect_result;
+  CHECK(w_seed_hir0_run(&effect_input, &fixture.hir_output, &effect_result) ==
+        W_SEED_HIR0_UNSUPPORTED);
+  CHECK(hir_output_is_byte(0xa5u) &&
+        memcmp(&effect_result, &effect_result_before,
+               sizeof(effect_result)) == 0);
+
   static const char UNIT_SOURCE[] =
       "fn finish() {}\nentry { let pending = async finish() "
       "let done = await pending }\n";

@@ -235,10 +235,12 @@ does not claim a runtime-only enum-layout ranking. Live measurements belong to
 
 #### Restaurant async-join executable registration
 
-`restaurant-async-join` creates two virtual tasks, joins both results, and
-prints `Prepared 42\n`. Its C23 and Rust 2024 references call the same scalar
-`prepare` function sequentially. The workload measures virtual structured-task
-elision overhead and does not claim overlap or concurrency.
+`restaurant-async-join` launches two explicit `async fn` scalar calls, joins
+both results, and prints `Prepared 42\n`. The compiler proves an ordinary
+direct entry for each never-suspending body, so the physical Task carrier is
+erased. Its C23 and Rust 2024 references call the same scalar `prepare`
+function sequentially. The workload measures virtual structured-task elision
+overhead and does not claim overlap or concurrency.
 
 The short facade is `bun benchmark`: use `list` to inspect catalog readiness,
 `run --target <runnable-catalog-id> --language w|c|rust --output benchmarks/results/<new>.json`
