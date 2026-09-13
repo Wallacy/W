@@ -35,6 +35,8 @@ const restaurantWhileFixture = resolve(seedDirectory, "fixtures", "restaurant-wh
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantAsyncJoinFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-join.w")
+const restaurantAsyncYieldFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-async-yield.w")
 const mlirHeaderPath = resolve(seedDirectory, "include", "w_seed_mlir0.h")
 const mlirSourcePath = resolve(seedDirectory, "src", "w_seed_mlir0.c")
 const manifestPath = resolve(root, "tooling", "mlir0-toolchain.json")
@@ -482,6 +484,8 @@ try {
       expected: Buffer.from("Bill 42\n", "utf8") },
     { name: "restaurant-async-join", source: restaurantAsyncJoinFixture,
       expected: Buffer.from("Prepared 42\n", "utf8") },
+    { name: "restaurant-async-yield", source: restaurantAsyncYieldFixture,
+      expected: Buffer.from("Prepared 88\n", "utf8") },
     { name: "empty", source: emptyPath, expected: Buffer.from("\n", "utf8") },
   ]
   const artifacts = new Map()
@@ -630,6 +634,13 @@ try {
     !wmoArtifact.includes("@w_seed_checked_divide_i64") &&
     !wmoArtifact.includes("\\4E\\65\\76\\65\\72\\20\\73\\65\\72\\76\\65\\64"),
   "whole-module reachability did not retain only the selected product closure")
+  const asyncYieldArtifact = artifacts.get("restaurant-async-yield")
+    .toString("utf8")
+  assert(asyncYieldArtifact.includes("llvm.call @w_fn_0") &&
+    asyncYieldArtifact.includes("@w_seed_checked_add_i64") &&
+    asyncYieldArtifact.includes("@w_seed_checked_multiply_i64") &&
+    !/task|yield|async|wrt/i.test(asyncYieldArtifact),
+  "static-yield product retained Task/frame/runtime surface or lost scalar work")
   assert(artifacts.get("typed-bindings").includes(
     "llvm.call @w_seed_checked_multiply_i64(%v0, %v1) : (i64, i64) -> i64"),
   "typed binding arithmetic was precomputed before MLIR")

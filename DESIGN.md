@@ -38947,6 +38947,61 @@ runtime ownership, or a public Task representation. Its benchmark disposition
 is `compiler-lifecycle`; the executable catalog retains equivalent sequential
 W, C23, and Rust references and makes no concurrency claim.
 
+#### 26.4.1.60 W-1579 — bounded virtual Task across one statically discharged yield
+
+W-1579 extends virtual structured execution across the first explicit
+suspension marker without introducing a runtime object. The admitted child is
+one local explicit `async fn` with a `Bool` or signed-`i64` scalar signature,
+one root block, exactly one `await execution#yield()`, and otherwise only
+scalar bindings and pure scalar expressions. It is non-throwing, non-unsafe,
+borrow-free, and contains no nested call, branch, loop, host operation, second
+yield, cancellation, arbitration, sharing, tracing request, or runtime owner.
+The caller retains the W-1577 immutable root-block launch and single lexical
+join shape.
+
+Frontend schema `w-seed-frontend-23` records the exact yield surface as one
+supported Unit expression. HIR schema `w-seed-hir0-31` preserves it as a
+distinct `EXECUTION_YIELD` instruction. The public async function remains
+`suspension: MAY` and has no ordinary direct entry. The standalone HIR verifier
+independently requires one async scalar function, one block, one yield, only
+scalar binding instructions, and a `Bool` or signed-`i64` return before it
+accepts the closed `STRUCTURED_ASYNC_STATIC_YIELD_ELIDED` launch relation.
+
+For this closed launch/join scope, yielding is a scheduling opportunity rather
+than an observable handoff or barrier. A legal serial schedule may therefore
+resume the child immediately, so NativeSubset0 and MLIR0 discharge the marker
+and lower the child as an ordinary scalar function. The source Task remains a
+linear compiler relation: launch and join ordinals are transient proof facts,
+not identity. No Task allocation, address, equality, frame, handle ABI, TCB,
+WRT entry, scheduler call, or yield symbol reaches the product.
+
+```w
+async fn prepare(value: i64): i64 {
+  let staged = value + 1
+  await execution#yield()
+  return staged * 2
+}
+
+entry {
+  let left = async prepare(value: 20)
+  let right = async prepare(value: 22)
+  let first = await left
+  let second = await right
+  print("Prepared ${first + second}")
+}
+```
+
+The Windows x64 public route prints exactly `Prepared 88\n`, with empty stderr
+and exit zero. Emitted MLIR retains the scalar additions, multiplications, and
+ordinary local calls while containing no Task, async, yield, or WRT surface.
+Linux/WSL remains wired but unclaimed until its local pinned toolchain gate
+executes. This milestone proves representation erasure under one legal static
+schedule; it does not prove a scheduler, fairness realization, handoff,
+overlap, cancellation, general suspension, frame layout, or concurrent timing.
+Its primary benchmark disposition is `compiler-lifecycle`; any executable
+comparison is sequential lifecycle evidence and must not be ranked as
+concurrency.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -33,6 +33,8 @@ const restaurantRepeatFixture = resolve(seedDirectory,
 const restaurantWmoFixture = resolve(seedDirectory, "fixtures", "restaurant-wmo.w")
 const restaurantAsyncJoinFixture = resolve(seedDirectory,
   "fixtures", "restaurant-async-join.w")
+const restaurantAsyncYieldFixture = resolve(seedDirectory,
+  "fixtures", "restaurant-async-yield.w")
 const restaurantComparisonsFixture = resolve(seedDirectory, "fixtures", "restaurant-comparisons.w")
 const restaurantComparisonCompositionFixture = resolve(seedDirectory, "fixtures", "restaurant-comparison-composition.w")
 const restaurantBoolShortCircuitFixture = resolve(seedDirectory, "fixtures", "restaurant-bool-short-circuit.w")
@@ -488,6 +490,9 @@ try {
   expectExact(binary, ["run", restaurantAsyncJoinFixture], 0,
     Buffer.from("Prepared 42\n", "utf8"),
     "Restaurant virtual structured-task elision fixture")
+  expectExact(binary, ["run", restaurantAsyncYieldFixture], 0,
+    Buffer.from("Prepared 88\n", "utf8"),
+    "Restaurant virtual Task with statically discharged yield")
   expectExact(binary, ["run", restaurantComparisonsFixture], 0,
     Buffer.from("Seat party\nSeat party\nWaitlist\n", "utf8"),
     "Restaurant signed-i64 admission comparison")

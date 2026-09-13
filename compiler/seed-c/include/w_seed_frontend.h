@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-22"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-23"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -68,6 +68,8 @@ typedef enum {
   W_SEED_FRONTEND_FACT_ASYNC_LAUNCH,
   W_SEED_FRONTEND_FACT_AWAIT,
   W_SEED_FRONTEND_FACT_TASK_ESCAPE,
+  /* Rejected use of the non-reifiable current-execution yield facet. */
+  W_SEED_FRONTEND_FACT_EXECUTION_YIELD,
 } w_seed_frontend_fact_kind;
 
 typedef enum {
@@ -139,6 +141,9 @@ typedef enum {
   /* Append-only Async0 join. left is one Task binding identifier and the
    * result type is the launcher's result type. */
   W_SEED_FRONTEND_EXPR_AWAIT,
+  /* Exact `await execution#yield()` suspension point.  This is one semantic
+   * expression, not a member call and not a public Task value. */
+  W_SEED_FRONTEND_EXPR_EXECUTION_YIELD,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
