@@ -1714,10 +1714,57 @@ static bool program_process_terminal_return_cfg_is_supported(
   return true;
 }
 
-/* HIR0 has already proved W-1560's exact natural-loop invariants. This
- * selector repeats the backend-relevant boundary: four ordered blocks, one
- * carried i64, one backedge, and only scalar value trees the MLIR adapter can
- * emit. It deliberately does not admit an arbitrary cyclic CFG. */
+static bool program_value_contains_block_argument(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t block_argument_index, size_t depth) {
+  if (program == NULL || depth > 256u || value_index >= program->value_count)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind == W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ)
+    return value->block_argument_index == block_argument_index;
+  if (value->kind == W_SEED_HIR0_VALUE_BINDING_READ) {
+    if (value->binding_index == W_SEED_HIR0_NONE ||
+        value->binding_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *binding =
+        &program->bindings[value->binding_index];
+    return binding->initializer_value < program->value_count &&
+           program_value_contains_block_argument(
+               program, binding->initializer_value, block_argument_index,
+               depth + 1u);
+  }
+  return (value->left_value != W_SEED_HIR0_NONE &&
+          program_value_contains_block_argument(
+              program, value->left_value, block_argument_index,
+              depth + 1u)) ||
+         (value->right_value != W_SEED_HIR0_NONE &&
+          program_value_contains_block_argument(
+              program, value->right_value, block_argument_index,
+              depth + 1u));
+}
+
+static bool program_value_contains_any_block_argument(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t first_block_argument, size_t block_argument_count, size_t depth) {
+  if (program == NULL || block_argument_count == 0u ||
+      first_block_argument > program->block_argument_count ||
+      block_argument_count >
+          program->block_argument_count - first_block_argument)
+    return false;
+  for (size_t ordinal = 0u; ordinal < block_argument_count; ordinal += 1u)
+    if (program_value_contains_block_argument(
+            program, value_index, (uint32_t)((size_t)first_block_argument +
+                                             ordinal),
+            depth))
+      return true;
+  return false;
+}
+
+/* HIR0 has already proved the exact bounded natural-loop invariants. This
+ * selector repeats the backend-relevant boundary: four ordered blocks, a
+ * nonempty tuple of carried i64 values, one tuple backedge, and only scalar
+ * value trees the MLIR adapter can emit. It deliberately does not admit an
+ * arbitrary cyclic CFG. */
 static bool program_natural_loop_is_supported(
     const w_seed_hir0_program *program, size_t function_index) {
   if (program == NULL || function_index >= program->function_count)
@@ -1734,25 +1781,34 @@ static bool program_natural_loop_is_supported(
   const w_seed_hir0_block *header = &program->blocks[header_index];
   const w_seed_hir0_block *body = &program->blocks[body_index];
   const w_seed_hir0_block *exit = &program->blocks[exit_index];
+  const size_t carrier_count = header->block_argument_count;
   if (preheader->owner_function != function_index ||
       header->owner_function != function_index ||
       body->owner_function != function_index ||
-      exit->owner_function != function_index ||
-      preheader->instruction_count != 1u ||
-      header->instruction_count != 0u || body->instruction_count != 1u ||
+      exit->owner_function != function_index || carrier_count == 0u ||
+      carrier_count > UINT32_MAX ||
+      header->first_block_argument == W_SEED_HIR0_NONE ||
+      (size_t)header->first_block_argument >
+          program->block_argument_count ||
+      carrier_count > program->block_argument_count -
+                           header->first_block_argument ||
+      header->instruction_count != 0u ||
+      body->instruction_count != carrier_count ||
+      body->first_instruction == W_SEED_HIR0_NONE ||
+      (size_t)body->first_instruction > program->instruction_count ||
+      carrier_count > program->instruction_count - body->first_instruction ||
       exit->instruction_count != 0u ||
       preheader->block_argument_count != 0u ||
-      header->block_argument_count != 1u ||
-      header->first_block_argument == W_SEED_HIR0_NONE ||
-      header->first_block_argument >= program->block_argument_count ||
-      body->block_argument_count != 0u || exit->block_argument_count != 0u ||
+      preheader->first_block_argument != W_SEED_HIR0_NONE ||
+      body->block_argument_count != 0u ||
+      body->first_block_argument != W_SEED_HIR0_NONE ||
+      exit->block_argument_count != 0u ||
+      exit->first_block_argument != W_SEED_HIR0_NONE ||
       preheader->terminator_index >= program->terminator_count ||
       header->terminator_index >= program->terminator_count ||
       body->terminator_index >= program->terminator_count ||
       exit->terminator_index >= program->terminator_count)
     return false;
-  const w_seed_hir0_block_argument *carried =
-      &program->block_arguments[header->first_block_argument];
   const w_seed_hir0_terminator *preheader_term =
       &program->terminators[preheader->terminator_index];
   const w_seed_hir0_terminator *header_term =
@@ -1761,59 +1817,173 @@ static bool program_natural_loop_is_supported(
       &program->terminators[body->terminator_index];
   const w_seed_hir0_terminator *exit_term =
       &program->terminators[exit->terminator_index];
-  if (carried->owner_block != header_index || carried->ordinal != 0u ||
-      carried->type_index >= program->type_count ||
-      program->types[carried->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+  if (preheader_term->owner_block != preheader_index ||
+      preheader_term->ordinal != preheader->instruction_count ||
       preheader_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
       preheader_term->target_block != header_index ||
-      preheader_term->edge_argument_count != 1u ||
+      preheader_term->else_block != W_SEED_HIR0_NONE ||
+      preheader_term->value_index != W_SEED_HIR0_NONE ||
+      preheader_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      preheader_term->edge_argument_count != carrier_count ||
       preheader_term->first_edge_argument == W_SEED_HIR0_NONE ||
-      preheader_term->first_edge_argument >= program->edge_argument_count ||
+      (size_t)preheader_term->first_edge_argument >
+          program->edge_argument_count ||
+      carrier_count > program->edge_argument_count -
+                           preheader_term->first_edge_argument ||
+      header_term->owner_block != header_index ||
+      header_term->ordinal != header->instruction_count ||
       header_term->kind != W_SEED_HIR0_TERMINATOR_BRANCH ||
       header_term->target_block != body_index ||
       header_term->else_block != exit_index ||
+      header_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      header_term->edge_argument_count != 0u ||
+      header_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
       header_term->value_index >= program->value_count ||
+      body_term->owner_block != body_index ||
+      body_term->ordinal != body->instruction_count ||
       body_term->kind != W_SEED_HIR0_TERMINATOR_JUMP ||
       body_term->target_block != header_index ||
-      body_term->edge_argument_count != 1u ||
+      body_term->else_block != W_SEED_HIR0_NONE ||
+      body_term->value_index != W_SEED_HIR0_NONE ||
+      body_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      body_term->edge_argument_count != carrier_count ||
       body_term->first_edge_argument == W_SEED_HIR0_NONE ||
-      body_term->first_edge_argument >= program->edge_argument_count ||
+      (size_t)body_term->first_edge_argument > program->edge_argument_count ||
+      carrier_count > program->edge_argument_count -
+                           body_term->first_edge_argument ||
+      exit_term->owner_block != exit_index ||
+      exit_term->ordinal != exit->instruction_count ||
       exit_term->kind != W_SEED_HIR0_TERMINATOR_RETURN_VALUE ||
-      exit_term->value_index >= program->value_count)
+      exit_term->target_block != W_SEED_HIR0_NONE ||
+      exit_term->else_block != W_SEED_HIR0_NONE ||
+      exit_term->first_edge_argument != W_SEED_HIR0_NONE ||
+      exit_term->edge_argument_count != 0u ||
+      exit_term->logical_operator != W_SEED_HIR0_LOGICAL_NONE ||
+      exit_term->value_index >= program->value_count ||
+      !program_value_lowerable(program, header_term->value_index,
+                               (uint32_t)function_index, false, 0u) ||
+      !program_value_contains_any_block_argument(
+          program, header_term->value_index, header->first_block_argument,
+          carrier_count, 0u) ||
+      !program_value_lowerable(program, exit_term->value_index,
+                               (uint32_t)function_index, false, 0u))
     return false;
-  const w_seed_hir0_instruction *initial_instruction =
-      &program->instructions[preheader->first_instruction];
-  const w_seed_hir0_instruction *body_instruction =
-      &program->instructions[body->first_instruction];
-  if (initial_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
-      initial_instruction->binding_index >= program->binding_count ||
-      body_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
-      body_instruction->binding_index >= program->binding_count)
-    return false;
-  const w_seed_hir0_binding *initial =
-      &program->bindings[initial_instruction->binding_index];
-  const w_seed_hir0_binding *update =
-      &program->bindings[body_instruction->binding_index];
-  const w_seed_hir0_edge_argument *initial_edge =
-      &program->edge_arguments[preheader_term->first_edge_argument];
-  const w_seed_hir0_edge_argument *back_edge =
-      &program->edge_arguments[body_term->first_edge_argument];
-  return initial->initializer_value < program->value_count &&
-         update->initializer_value < program->value_count &&
-         initial_edge->value_index < program->value_count &&
-         back_edge->value_index < program->value_count &&
-         program_value_lowerable(program, initial->initializer_value,
-                                 (uint32_t)function_index, false, 0u) &&
-         program_value_lowerable(program, header_term->value_index,
-                                 (uint32_t)function_index, false, 0u) &&
-         program_value_lowerable(program, update->initializer_value,
-                                 (uint32_t)function_index, false, 0u) &&
-         program_value_lowerable(program, initial_edge->value_index,
-                                 (uint32_t)function_index, false, 0u) &&
-         program_value_lowerable(program, back_edge->value_index,
-                                 (uint32_t)function_index, false, 0u) &&
-         program_value_lowerable(program, exit_term->value_index,
-                                 (uint32_t)function_index, false, 0u);
+  for (size_t ordinal = 0u; ordinal < carrier_count; ordinal += 1u) {
+    const size_t argument_index =
+        (size_t)header->first_block_argument + ordinal;
+    const size_t initial_edge_index =
+        (size_t)preheader_term->first_edge_argument + ordinal;
+    const size_t back_edge_index =
+        (size_t)body_term->first_edge_argument + ordinal;
+    const w_seed_hir0_block_argument *argument =
+        &program->block_arguments[argument_index];
+    const w_seed_hir0_edge_argument *initial_edge =
+        &program->edge_arguments[initial_edge_index];
+    const w_seed_hir0_edge_argument *back_edge =
+        &program->edge_arguments[back_edge_index];
+    if (argument->owner_block != header_index || argument->ordinal != ordinal ||
+        argument->type_index >= program->type_count ||
+        program->types[argument->type_index].kind != W_SEED_HIR0_TYPE_I64 ||
+        initial_edge->owner_terminator != preheader->terminator_index ||
+        initial_edge->owner_block != preheader_index ||
+        initial_edge->ordinal != ordinal ||
+        initial_edge->type_index != argument->type_index ||
+        initial_edge->value_index >= program->value_count ||
+        program->values[initial_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        program->values[initial_edge->value_index].binding_index ==
+            W_SEED_HIR0_NONE ||
+        program->values[initial_edge->value_index].binding_index >=
+            program->binding_count ||
+        !program_value_lowerable(program, initial_edge->value_index,
+                                 (uint32_t)function_index, false, 0u) ||
+        back_edge->owner_terminator != body->terminator_index ||
+        back_edge->owner_block != body_index ||
+        back_edge->ordinal != ordinal ||
+        back_edge->type_index != argument->type_index ||
+        back_edge->value_index >= program->value_count ||
+        program->values[back_edge->value_index].kind !=
+            W_SEED_HIR0_VALUE_BINDING_READ ||
+        !program_value_lowerable(program, back_edge->value_index,
+                                 (uint32_t)function_index, false, 0u))
+      return false;
+    const uint32_t source_index =
+        program->values[initial_edge->value_index].binding_index;
+    if (ordinal != 0u) {
+      const w_seed_hir0_edge_argument *previous_edge =
+          &program->edge_arguments[initial_edge_index - 1u];
+      if (previous_edge->value_index >= program->value_count ||
+          program->values[previous_edge->value_index].kind !=
+              W_SEED_HIR0_VALUE_BINDING_READ ||
+          program->values[previous_edge->value_index].binding_index >=
+              source_index)
+        return false;
+    }
+    const w_seed_hir0_binding *source = &program->bindings[source_index];
+    if (source->owner_instruction == W_SEED_HIR0_NONE ||
+        source->owner_instruction >= program->instruction_count ||
+        source->owner_block != preheader_index || !source->is_mutable ||
+        source->type_index != argument->type_index ||
+        source->source_binding != source_index ||
+        source->previous_version != W_SEED_HIR0_NONE ||
+        source->next_version == W_SEED_HIR0_NONE ||
+        source->initializer_value >= program->value_count ||
+        !program_value_lowerable(program, source->initializer_value,
+                                 (uint32_t)function_index, false, 0u))
+      return false;
+    const w_seed_hir0_instruction *source_instruction =
+        &program->instructions[source->owner_instruction];
+    if (source_instruction->owner_block != preheader_index ||
+        source_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+        source_instruction->binding_index != source_index)
+      return false;
+
+    size_t matching_updates = 0u;
+    uint32_t update_index = W_SEED_HIR0_NONE;
+    for (size_t instruction_ordinal = 0u;
+         instruction_ordinal < body->instruction_count;
+         instruction_ordinal += 1u) {
+      const size_t body_instruction_index =
+          (size_t)body->first_instruction + instruction_ordinal;
+      const w_seed_hir0_instruction *body_instruction =
+          &program->instructions[body_instruction_index];
+      if (body_instruction->owner_block != body_index ||
+          body_instruction->ordinal != instruction_ordinal ||
+          body_instruction->kind != W_SEED_HIR0_INSTRUCTION_BINDING ||
+          body_instruction->binding_index == W_SEED_HIR0_NONE ||
+          body_instruction->binding_index >= program->binding_count)
+        return false;
+      const w_seed_hir0_binding *candidate =
+          &program->bindings[body_instruction->binding_index];
+      if (candidate->owner_instruction != body_instruction_index ||
+          candidate->owner_block != body_index ||
+          candidate->type_index != argument->type_index ||
+          candidate->source_binding == W_SEED_HIR0_NONE)
+        return false;
+      if (candidate->source_binding == source_index) {
+        matching_updates += 1u;
+        update_index = body_instruction->binding_index;
+      }
+    }
+    if (matching_updates != 1u || update_index == W_SEED_HIR0_NONE ||
+        update_index >= program->binding_count)
+      return false;
+    const w_seed_hir0_binding *update = &program->bindings[update_index];
+    if (!update->is_mutable || update->source_binding != source_index ||
+        update->type_index != argument->type_index ||
+        update->previous_version != source_index ||
+        source->next_version != update_index ||
+        update->next_version != W_SEED_HIR0_NONE ||
+        update->initializer_value >= program->value_count ||
+        !program_value_contains_any_block_argument(
+            program, update->initializer_value,
+            header->first_block_argument, carrier_count, 0u) ||
+        !program_value_lowerable(program, update->initializer_value,
+                                 (uint32_t)function_index, false, 0u) ||
+        program->values[back_edge->value_index].binding_index != update_index)
+      return false;
+  }
+  return true;
 }
 
 /* The only admitted enum CFG is the HIR21 dense dispatch followed by one

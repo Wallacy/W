@@ -221,6 +221,7 @@ O corpus compara, no mínimo:
 - ordinary while ownership against orphan continuation parsing and hidden lowering.
 - bounded natural-loop SSA against hidden storage and permissive cyclic verification.
 - structured natural-loop lowering against early flattening and host-language substitution.
+- multi-carrier natural-loop lowering against tuple/source-order coupling and platform-specific substitution.
 - local payloadless enum identity against raw integer tags and premature switch lowering.
 
 ### 1.1 Cobertura de substituições
@@ -7855,6 +7856,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1565 | bounded public `Arguments.count` lowering | The compiler-owned public `std.process@1` catalog appends an exact exported constant `Arguments.count: usize` member at ordinal 6 and advances verified HIR to schema `w-seed-hir0-26`. HIR keeps a distinct logical target-width unsigned `USIZE` type; the current Windows x86_64 MLIR path selects physical `i64` only after target layout is known. The receiver must be the selected entry's real `Arguments` owner. Raw `Arguments` and `Context` values remain non-lowerable, while the scalar count may bind and enter direct-print interpolation. MLIR reads the existing checked root count without allocation, scan, copy, or suspension. The adapter excludes `argv[0]`, counts an empty argument, admits 0...256 user arguments, and rejects overflow before publication. | `source-backed-current` only for the bounded frontend → HIR26 → MLIR/Native0 → Windows x86_64 route, exact identity/ownership adversarial checks, and runtime count cases. General `usize` operations, indexing, iteration, decoded `OsString`, full Windows quoting, other OS adapters, stable public ABI/layout, and language-level benchmark ranking remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
 | W-1566 | bounded public `Arguments.count` usize equality | HIR0 schema `w-seed-hir0-27` extends the public process count slice with a logical `usize` literal and a dedicated Bool comparison. The bounded compiler accepts only `==` or `!=` between the exact `std.process.Arguments.count` member and a nonnegative unsuffixed integer literal, in either operand order. HIR retains logical `usize`; only the verified Windows x86_64 target selects physical `i64`. General `usize` arithmetic and ordering remain outside the slice. | `source-backed-current` only for HIR27 comparison identity, operand-order, type, and owner barriers plus the Windows x86_64 MLIR/Native0 route. Focused HIR0, MLIR0, and Native0 tests and the pinned Windows gate provide correctness evidence. General `usize` arithmetic or ordering, indexing, iteration, decoded `OsString`, other OS adapters, stable public ABI/layout, and language-level benchmark ranking remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
 | W-1567 | bounded flat/selective `std.process` import semantic/product equivalence | In the bounded one-module process witness, flat `import std.process` with direct `Arguments`, `Context`, and `ExitCode` names and grouped selective imports with aliases resolve to the same seven-symbol public catalog and same HIR semantics. The two forms have equal semantic HIR digests and byte-identical Windows PE artifacts under the same target/profile, while their provenance digests remain distinct. This is same-module process evidence, not general cross-module WPO. | `source-backed-current` only for the bounded flat/selective process HIR and Windows PE equivalence under one target/profile. Frontend/HIR evidence compares semantic and provenance digests. The pinned Windows gate compares artifact bytes and exact runtime results. General import equivalence across modules, packages, products, targets, or profiles, cross-module WPO, and optimization-quality claims remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
+| W-1568 | future bounded module-graph dead-node elimination and artifact equivalence | Future pipeline task: preserve the idiomatic process root `import std.process` followed by unaliased `Arguments`, `Context`, and `ExitCode`. For one bounded package/workspace executable, compare two explicit source graphs with the same reachable entry closure, where one adds unused imports or unreachable module nodes. After graph resolution, graph-to-HIR lowering, and product reachability, emit only reachable code, data, imports, and runtime records. The reachable semantic HIR digest, complete artifact bytes and artifact digest, stdout, stderr, exit status, and cleanup must match under the same target/profile and deterministic recipe. Graph and provenance digests may differ. Explicit effect, provider, service, reflection, FFI, dynamic-loading, or other runtime roots must prevent elimination. This is a future contract because current `w build` and `w run` are single-source and CHK4 is check-only. | `implementation-evidence-gap`; `benchmarkDisposition: deferred` with blocker `single-source-build-run-and-check-only-graph`, task ID `module-graph-dce-equivalence`, and stop condition requiring the multi-module graph-to-HIR/product route, reachable-closure equality, byte-identical artifacts under one target/profile, exact runtime equality, and explicit-root retention. No current build/run support is claimed. |
+| W-1569 | bounded multi-carrier natural `while` through verified HIR and native execution | A bounded natural `while` carries a nonempty tuple of mutable signed-`i64` root bindings without an artificial lane limit beyond existing caller-owned capacities. Carrier ordinals follow declaration order, while body values and instructions preserve source order so a later update may read an earlier update's new version. Verified HIR and NativeSubset0 independently check the four-block topology, owners, types, edge mappings, and version chains. MLIR0 emits one tuple-valued `scf.while`, ordered `scf.condition` operands, and ordered `scf.yield` values without `llvm.alloca`. The same public fixture produces exact output as a native Windows PE and Linux/WSL ELF. | `source-backed-current` only for the bounded pure signed-`i64` tuple slice and its Windows/Linux execution evidence. Nested or mixed control, calls/effects, suspension, other carrier types, post-loop mutation, general cyclic CFG, other targets, ABI/layout, and optimization quality remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns equivalent W/C23/Rust exploratory measurement and does not establish a performance ranking. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11554,3 +11557,56 @@ W-1567 does not establish general import equivalence across modules, packages,
 products, targets, or profiles. It also does not establish cross-module WMO or
 WPO, summary reuse, or optimization quality. The executable catalog keeps its
 exploratory measurements separate from this bounded same-module evidence.
+
+#### W-1568 — future bounded module-graph dead-node elimination and artifact equivalence
+
+W-1567 proves only one-module process import equivalence. W-1568 records the
+next bounded pipeline proof, not current implementation. The root keeps the
+idiomatic `import std.process` form followed by unaliased `Arguments`,
+`Context`, and `ExitCode`.
+
+The comparison uses one package or workspace executable with one explicit
+entry and one target/profile pair. One source graph adds an unused import or
+an unreachable module chain. The other omits those nodes. Both graphs must
+resolve the same reachable entry closure. Graph-to-HIR and product reachability
+must omit dead code, data, imports, and runtime records without creating hidden
+roots. The reachable semantic digest and complete artifact bytes must match.
+Provenance and full source-graph digests may differ.
+
+The acceptance record must also compare exact stdout, stderr, exit status, and
+cleanup for a fixed input matrix. Explicit effect, provider, service,
+reflection, FFI, dynamic-loading, and other runtime roots must remain live.
+A changed reachable body or target/profile must fail equivalence. Current
+build/run remains single-source, and CHK4 remains check-only, so this task is
+`implementation-evidence-gap` with deferred benchmark disposition. The task
+ID is `module-graph-dce-equivalence`.
+
+#### W-1569 — bounded multi-carrier natural `while`
+
+The one-carrier W-1560/W-1561 route exposed an accidental coupling between
+source statement order and the physical order of loop-carried values. W-1569
+separates those concerns. The verified tuple order is stable and follows the
+root declarations. Body expressions and instructions retain source order,
+including the rule that a later assignment observes an earlier assignment's
+new binding version. Reordering the body therefore never silently reorders the
+tuple ABI.
+
+HIR0 and NativeSubset0 validate the nonempty signed-`i64` tuple and the exact
+preheader/header/body/exit topology independently. MLIR0 preserves it as one
+tuple-valued `scf.while` with ordered condition operands and backedge yields;
+it does not introduce source-variable stack cells or lower through a host-C
+loop. Focused adversarial cases cover forged ordinals, edge mappings, types,
+owners, and version chains, plus preheader and carrier-independent returns.
+
+`restaurant-while-multi.w` is the public witness. It prints `Served 9\n` with
+exit zero and empty stderr through both the native Windows PE route and the
+Linux/WSL ELF route. This is correctness evidence, not cross-platform
+performance equivalence. The primary implementation bundle uses the
+`compiler-lifecycle` disposition. Its executable-catalog entry separately
+owns equivalent W, C23, and Rust sources and exploratory measurements. Results
+remain partitioned by platform and do not establish a language ranking.
+
+Calls, effects, suspension, nested or mixed control, labels, `break`,
+`continue`, `while let`, non-`i64` carriers, post-loop mutation, general cyclic
+CFG, additional targets, ABI/layout guarantees, and optimization-quality
+claims remain outside this bounded slice.

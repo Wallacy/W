@@ -3215,6 +3215,61 @@ static bool test_natural_loop_preserves_structured_mlir(void) {
   return true;
 }
 
+static bool test_natural_loop_multi_carrier_projection_mlir(void) {
+  static const uint8_t source[] =
+      "fn accumulate(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  var total = 10\n"
+      "  while count < limit {\n"
+      "    total = total + 2\n"
+      "    count = count + 1\n"
+      "  }\n"
+      "  return count + total\n"
+      "}\n"
+      "entry {\n"
+      "  let total = accumulate(limit: 3)\n"
+      "  print(\"Total ${total}\")\n"
+      "}\n";
+  uint8_t artifact[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(lower_hir(source, sizeof(source) - 1u));
+  CHECK(fixture.hir_program.functions[0].block_count == 4u &&
+        fixture.hir_program.blocks[1].block_argument_count == 2u &&
+        fixture.hir_program.blocks[0].instruction_count == 2u &&
+        fixture.hir_program.blocks[2].instruction_count == 2u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.natural_loop_functions[0]);
+  w_seed_mlir0_result result;
+  CHECK(emit_current(artifact, sizeof(artifact), &result));
+  const size_t function_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_0", 0u);
+  const size_t entry_start =
+      find_bytes(artifact, result.written.mlir_bytes,
+                 "llvm.func internal @w_fn_1", function_start);
+  CHECK(function_start != SIZE_MAX && entry_start > function_start);
+  const size_t function_bytes = entry_start - function_start;
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "%loop0_0, %loop0_1 = scf.while ("));
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       ") : (i64, i64) -> (i64, i64) {"));
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "scf.condition("));
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "scf.yield "));
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "@w_seed_checked_add_i64(%loop0_0, %loop0_1)"));
+  CHECK(contains_bytes(artifact + function_start, function_bytes,
+                       "llvm.return %v"));
+  CHECK(!contains_bytes(artifact + function_start, function_bytes,
+                        "llvm.br ^w_fn_0_b_1"));
+  CHECK(count_bytes(artifact + function_start, function_bytes,
+                    "llvm.alloca") == 0u);
+  return true;
+}
+
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
   if (!test_process_arguments_count_comparison_mlir()) return 1;
@@ -3226,6 +3281,7 @@ int main(void) {
   if (!test_branch_local_mutation_merge_is_ssa()) return 1;
   if (!test_multi_branch_mutation_merge_is_ssa()) return 1;
   if (!test_natural_loop_preserves_structured_mlir()) return 1;
+  if (!test_natural_loop_multi_carrier_projection_mlir()) return 1;
   if (!test_direct_products()) return 1;
   if (!test_windows_target_runtime_surface()) return 1;
   if (!test_restaurant_and_nul()) return 1;

@@ -12,6 +12,7 @@
  * translation unit supplies the public HIR symbols, so the archive object is
  * not extracted a second time at link. */
 #include "../src/w_seed_hir0.c"
+#include "../src/w_seed_native_subset0.h"
 
 #define CHECK(condition)                                                       \
   do {                                                                         \
@@ -2436,6 +2437,192 @@ static bool test_while_mutation_ssa(void) {
   return true;
 }
 
+static bool test_while_multi_carrier_ssa(void) {
+  static const char SOURCE[] =
+      "fn serve(limit: i64): i64 {\n"
+      "  var served = 0\n"
+      "  var total = 0\n"
+      "  while served < limit {\n"
+      "    total = total + 2\n"
+      "    served = served + 1\n"
+      "  }\n"
+      "  return served + total\n"
+      "}\n"
+      "entry(serve)\n";
+  CHECK(lower(SOURCE));
+  w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->function_count == 1u && program->block_count == 4u &&
+        program->block_argument_count == 2u &&
+        program->edge_argument_count == 4u &&
+        program->binding_count == 4u && program->instruction_count == 4u &&
+        program->value_count == 18u && program->terminator_count == 4u);
+  CHECK(program->blocks[0].instruction_count == 2u &&
+        program->blocks[1].block_argument_count == 2u &&
+        program->blocks[2].instruction_count == 2u &&
+        program->block_arguments[0].ordinal == 0u &&
+        program->block_arguments[1].ordinal == 1u);
+
+  /* Carrier order follows root declarations even though the independent body
+   * assignments are deliberately written in the opposite order. */
+  CHECK(program->bindings[0].source_binding == 0u &&
+        program->bindings[0].next_version == 3u &&
+        program->bindings[1].source_binding == 1u &&
+        program->bindings[1].next_version == 2u &&
+        program->bindings[2].source_binding == 1u &&
+        program->bindings[2].previous_version == 1u &&
+        program->bindings[3].source_binding == 0u &&
+        program->bindings[3].previous_version == 0u &&
+        program->values[program->edge_arguments[0].value_index]
+                .binding_index == 0u &&
+        program->values[program->edge_arguments[1].value_index]
+                .binding_index == 1u &&
+        program->values[program->edge_arguments[2].value_index]
+                .binding_index == 3u &&
+        program->values[program->edge_arguments[3].value_index]
+                .binding_index == 2u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+
+  const w_seed_hir0_block_argument saved_argument =
+      fixture.hir_block_arguments[1];
+  fixture.hir_block_arguments[1].ordinal = 0u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_block_arguments[1] = saved_argument;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_edge_argument saved_edge = fixture.hir_edge_arguments[2];
+  fixture.hir_edge_arguments[2].value_index =
+      fixture.hir_edge_arguments[3].value_index;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_edge_arguments[2] = saved_edge;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_binding saved_update = fixture.hir_bindings[3];
+  fixture.hir_bindings[3].source_binding = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[3] = saved_update;
+  reseal_hir_fixture();
+
+  fixture.hir_bindings[3].previous_version = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[3] = saved_update;
+  reseal_hir_fixture();
+
+  fixture.hir_bindings[3].owner_block = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[3] = saved_update;
+  reseal_hir_fixture();
+
+  fixture.hir_bindings[3].type_index = W_SEED_HIR0_TYPE_BOOL;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_bindings[3] = saved_update;
+  reseal_hir_fixture();
+
+  const w_seed_hir0_terminator saved_backedge = fixture.hir_terminators[2];
+  fixture.hir_terminators[2].edge_argument_count = 1u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_terminators[2] = saved_backedge;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_while_multi_carrier_source_order(void) {
+  static const char SOURCE[] =
+      "fn accumulate(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  var total = 10\n"
+      "  while count < limit {\n"
+      "    count = count + 1\n"
+      "    total = total + count\n"
+      "  }\n"
+      "  return total\n"
+      "}\n"
+      "entry(accumulate)\n";
+  CHECK(lower(SOURCE));
+  const w_seed_hir0_program *program = &fixture.hir_program;
+  CHECK(program->binding_count == 4u && program->bindings[2].source_binding == 0u &&
+        program->bindings[3].source_binding == 1u);
+  const w_seed_hir0_value *total =
+      &program->values[program->bindings[3].initializer_value];
+  CHECK(total->kind == W_SEED_HIR0_VALUE_BINARY_I64 &&
+        total->right_value < program->value_count &&
+        program->values[total->right_value].kind ==
+            W_SEED_HIR0_VALUE_BINDING_READ &&
+        program->values[total->right_value].binding_index == 2u &&
+        w_seed_hir0_verify(program, &fixture.hir_result));
+  return true;
+}
+
+static bool test_while_multi_carrier_general_values(void) {
+  CHECK(lower(
+      "fn exchange(limit: i64): i64 {\n"
+      "  var left = 0\n"
+      "  var right = 10\n"
+      "  while left < limit {\n"
+      "    left = right + 1\n"
+      "    right = left + 1\n"
+      "  }\n"
+      "  return right\n"
+      "}\nentry(exchange)\n"));
+  CHECK(fixture.hir_program.block_argument_count == 2u &&
+        fixture.hir_program.binding_count == 4u &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  CHECK(lower(
+      "fn countTo(limit: i64): i64 {\n"
+      "  let seed = 1\n"
+      "  var count = seed\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  return seed\n"
+      "}\nentry(countTo)\n"));
+  CHECK(fixture.hir_program.blocks[0].instruction_count == 2u &&
+        fixture.hir_program.blocks[1].block_argument_count == 1u &&
+        w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  CHECK(lower(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  return 0\n"
+      "}\nentry(countTo)\n"));
+  CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
+
+  return true;
+}
+
+static bool test_while_multi_carrier_native_subset(void) {
+  static const char SOURCE[] =
+      "fn serve(limit: i64): i64 {\n"
+      "  let step = 1\n"
+      "  var count = 0\n"
+      "  var total = 10\n"
+      "  while count < limit {\n"
+      "    count = count + 1\n"
+      "    total = total + count\n"
+      "  }\n"
+      "  return 0\n"
+      "}\n"
+      "fn main() {\n"
+      "  let result = serve(limit: 3)\n"
+      "  print(\"${result}\")\n"
+      "}\n"
+      "entry(main)\n";
+  CHECK(lower_single_print_host(SOURCE));
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            &fixture.hir_program, &fixture.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.natural_loop_functions[0] && selection.has_cfg);
+  return true;
+}
+
 static bool expect_branch_mutation_unsupported(const char *source) {
   CHECK(fixture_frontend(source));
   setup_hir_output();
@@ -2448,6 +2635,13 @@ static bool expect_branch_mutation_unsupported(const char *source) {
 }
 
 static bool test_while_mutation_barriers(void) {
+  CHECK(expect_branch_mutation_unsupported(
+      "fn countTo(limit: i64): i64 {\n"
+      "  var count = 0\n"
+      "  while count < limit { count = count + 1 }\n"
+      "  count = count + 10\n"
+      "  return count\n"
+      "}\nentry(countTo)\n"));
   CHECK(expect_branch_mutation_unsupported(
       "fn countTo(limit: i64): i64 {\n"
       "  var count = 0\n"
@@ -5869,6 +6063,10 @@ int main(void) {
   if (!test_branch_local_mutation_merge()) return 1;
   if (!test_multi_branch_mutation_merge()) return 1;
   if (!test_while_mutation_ssa()) return 1;
+  if (!test_while_multi_carrier_ssa()) return 1;
+  if (!test_while_multi_carrier_source_order()) return 1;
+  if (!test_while_multi_carrier_general_values()) return 1;
+  if (!test_while_multi_carrier_native_subset()) return 1;
   if (!test_while_mutation_barriers()) return 1;
   if (!test_branch_local_mutation_barriers()) return 1;
   if (!test_bindings_across_functions()) return 1;

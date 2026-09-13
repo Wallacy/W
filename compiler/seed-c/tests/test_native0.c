@@ -1268,6 +1268,105 @@ static bool test_logical_native_selector(void) {
   return true;
 }
 
+static bool test_multi_carrier_native_subset_selector(void) {
+  static const uint8_t source[] =
+      "fn serve(limit: i64): i64 {\n"
+      "  var served = 0\n"
+      "  var total = 0\n"
+      "  while served < limit {\n"
+      "    total = total + 2\n"
+      "    served = served + 1\n"
+      "  }\n"
+      "  return served + total\n"
+      "}\n"
+      "fn main() { let result = serve(limit: 3) print(\"${result}\") }\n"
+      "entry(main)\n";
+  static uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  w_seed_native0_result result;
+  const w_seed_native0_status native_status = run_source(
+      source, sizeof(source) - 1u, "multi-carrier-native-subset", 23u,
+      output, sizeof(output), &result);
+  CHECK(native_status == W_SEED_NATIVE0_OK);
+  const w_seed_hir0_program *program = &storage.hir_program;
+  CHECK(program->function_count == 2u &&
+        program->functions[0].block_count == 4u &&
+        program->blocks[1].block_argument_count == 2u &&
+        program->blocks[0].instruction_count == 2u &&
+        program->blocks[2].instruction_count == 2u &&
+        program->terminators[0].edge_argument_count == 2u &&
+        program->terminators[2].edge_argument_count == 2u);
+  w_seed_native_subset0_program selection;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  CHECK(selection.natural_loop_functions[0] && selection.has_cfg &&
+        selection.has_local_calls && selection.maximum_stdout_bytes != 0u);
+
+  const w_seed_hir0_block_argument saved_argument =
+      storage.hir_block_arguments[1];
+  storage.hir_block_arguments[1].ordinal = 0u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_block_arguments[1] = saved_argument;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_edge_argument saved_edge = storage.hir_edge_arguments[2];
+  storage.hir_edge_arguments[2].ordinal = 1u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_edge_arguments[2] = saved_edge;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_edge_argument saved_edge_value =
+      storage.hir_edge_arguments[2];
+  storage.hir_edge_arguments[2].value_index =
+      storage.hir_edge_arguments[3].value_index;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_edge_arguments[2] = saved_edge_value;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_binding saved_binding = storage.hir_bindings[3];
+  storage.hir_bindings[3].type_index = W_SEED_HIR0_TYPE_BOOL;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_bindings[3] = saved_binding;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_terminator saved_body = storage.hir_terminators[2];
+  storage.hir_terminators[2].edge_argument_count = 1u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_terminators[2] = saved_body;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+
+  const w_seed_hir0_binding saved_source = storage.hir_bindings[2];
+  storage.hir_bindings[2].source_binding = 0u;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_INVALID);
+  storage.hir_bindings[2] = saved_source;
+  CHECK(w_seed_native_subset0_select_program(
+            program, &storage.hir_result, &selection) ==
+        W_SEED_NATIVE_SUBSET0_OK);
+  return true;
+}
+
 static bool test_unary_i64_native_selector(void) {
   static const uint8_t constant_source[] =
       "fn negative(): i64 { return -7 }\n"
@@ -1849,6 +1948,7 @@ int main(void) {
                         test_process_stdout_bounds() &&
                         test_process_enum_payload_public_artifact();
   const bool logical = products && test_logical_native_selector() &&
+                       test_multi_carrier_native_subset_selector() &&
                        test_unary_i64_native_selector() &&
                        test_scalar_if_value_native() &&
                        test_nested_scalar_if_value_native() &&
