@@ -1704,6 +1704,33 @@ Windows product gate must be rerun for this source change. This remains
 compiler-lifecycle correctness evidence. It makes no concurrency, fairness,
 scheduler, overlap, or Linux claim.
 
+### Cooperative0 compiler-host trace oracle (W-1583)
+
+COOP0 is an explicitly requested compiler-host oracle and specification-only
+profile. HIR34 adds the distinct `COOPERATIVE_TRACE` execution profile and
+`STRUCTURED_ASYNC_COOPERATIVE_TRACE` call kind for exactly two sibling scalar
+async tasks in one closed root. Each task has one or two
+`await execution#yield()` markers and fixed caller-owned frame data. HIR and
+the oracle share a 64-function ceiling for the complete cooperative helper
+graph. The root keeps launch order, two joins, and its final host print.
+
+The bounded plan and result records remain caller-owned. Execution first
+reserves both task slots, then evaluates arguments and publishes each frame to
+the deterministic provider/test-profile FIFO queue. Dispatch and resume retain
+program counters. Each yield requeues the task, followed by settle, cleanup,
+outcome commit, join, and release. Independent plan, trace, and execution
+verifiers cover lifecycle, program counter, queue, frame, and outcome
+relations, including forged-record, capacity, and alias rejection.
+
+The `fixtures/restaurant-cooperative0.w` oracle witness has four yields and a
+thirty-event trace, and requires exact stdout `Cooperative 88\n`. This route
+does not emit a NativeSubset0 or MLIR0 state machine and does not provide a
+product runtime or executable, scheduler provider, threads, parallelism,
+cancellation, I/O, or general Task behavior. It makes no public benchmark or
+performance claim. Normal W-1582 static-yield elision remains unchanged. Any
+later emitted state machine must be target-neutral; Windows/Linux gates are
+evidence lanes, not restrictions on macOS or other viable LLVM targets.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

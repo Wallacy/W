@@ -7169,6 +7169,92 @@
         "repair-time",
         "token-count"
       ]
+    },
+    {
+      "id": "R0-cooperative-trace-oracle",
+      "reviewItem": "bounded Cooperative0 compiler-host trace oracle against product state-machine emission, scheduler-provider claims, and false performance claims",
+      "decisions": ["W-1583"],
+      "task": "Validate a compiler-host Cooperative0 trace for two sibling scalar async tasks with fixed frames and a deterministic FIFO lifecycle.",
+      "selected": {
+        "language": "w",
+        "source": [
+          "fn stage(value: i64): i64 { return value + 1 }",
+          "async fn prepare(value: i64): i64 { let staged = stage(value: value) await execution#yield() let doubled = staged * 2 await execution#yield() return doubled }",
+          "entry { let left = async prepare(value: 20) let right = async prepare(value: 22) let first = await left let second = await right print(\"Cooperative ${first + second}\") }"
+        ]
+      },
+      "alternatives": [
+        {
+          "name": "emit-product-task-state-machine",
+          "language": "w-internal-rejected",
+          "source": ["emit a NativeSubset0 or MLIR0 Task state machine with frames and scheduler calls"],
+          "expectedDifference": "COOP0 remains a compiler-host oracle and leaves the normal W-1582 elision boundary unchanged."
+        },
+        {
+          "name": "add-scheduler-provider",
+          "language": "w-internal-rejected",
+          "source": ["use OS threads, a scheduler provider, cancellation, or I/O for the trace"],
+          "expectedDifference": "The selected profile proves one deterministic provider/test-profile FIFO trace without a product scheduler or external effect."
+        },
+        {
+          "name": "publish-performance-claim",
+          "language": "w-internal-rejected",
+          "source": ["rank threads or publish public performance after a deterministic serial trace"],
+          "expectedDifference": "The selected evidence checks lifecycle and state relations only and makes no public benchmark or performance claim."
+        }
+      ],
+      "sourceRefs": [
+        {
+          "path": "compiler/seed-c/include/w_seed_hir0.h",
+          "symbol": "W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE",
+          "claim": "HIR34 carries a distinct cooperative trace call kind and explicit execution profile."
+        },
+        {
+          "path": "compiler/seed-c/include/w_seed_cooperative0.h",
+          "symbol": "W_SEED_COOPERATIVE0_SCHEMA_VERSION",
+          "claim": "COOP0 publishes fixed caller-owned plan, frame, trace, and result records for a compiler-host oracle."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_hir0.c",
+          "symbol": "frontend_cooperative_trace_preflight",
+          "claim": "Source and standalone HIR checks bound the profile to two sibling scalar async tasks and one or two yields per task."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_cooperative0.c",
+          "symbol": "plan_from_program",
+          "claim": "The oracle plans exactly two physical cooperative calls and fixed caller-owned frame slots."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_cooperative0.c",
+          "symbol": "execute_plan",
+          "claim": "Execution uses two-phase reserve/publish and a deterministic FIFO trace with lifecycle and outcome events."
+        },
+        {
+          "path": "compiler/seed-c/src/w_seed_cooperative0.c",
+          "symbol": "w_seed_cooperative0_verify_trace",
+          "claim": "The independent trace verifier replays queue, program counter, lifecycle, frame, and outcome relations."
+        },
+        {
+          "path": "compiler/seed-c/tests/test_cooperative0.c",
+          "symbol": "test_cooperative_fixture",
+          "claim": "Focused tests verify the deterministic fixture, forged relations, and transactional capacity and alias boundaries."
+        },
+        {
+          "path": "compiler/seed-c/fixtures/restaurant-cooperative0.w",
+          "symbol": "async fn prepare",
+          "claim": "The witness contains exactly two sibling scalar async launches with two yields each and exact Cooperative output."
+        }
+      ],
+      "checks": [
+        "normal W-1582 lowering keeps the static-yield helper graph on the ordinary elision path with no Cooperative0 kind",
+        "HIR34 accepts only one root and exactly two sibling scalar async tasks with one or two yields per task",
+        "the plan publishes fixed caller-owned frames and two reserve events before two FIFO publish events",
+        "the test profile emits deterministic FIFO dispatch, resume, yield, settle, cleanup, outcome-commit, join, and release transitions",
+        "independent plan, trace, and execution verifiers reject forged HIR, frame, program-counter, queue, lifecycle, outcome, capacity, and alias relations",
+        "the bridge produces compiler-host oracle bytes only and does not reach NativeSubset0 or MLIR0 product emission",
+        "the evidence makes no scheduler, threads, parallelism, cancellation, I/O, general Task, public benchmark, or performance claim"
+      ],
+      "measures": ["semantic-correctness", "recall", "repair-time", "token-count"]
     }
   ]
 }

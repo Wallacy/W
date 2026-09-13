@@ -59,6 +59,7 @@ add_library(w_seed_source STATIC
   src/w_seed_generic_validation.c
   src/w_seed_native_subset0.c
   src/w_seed_native0.c
+  src/w_seed_cooperative0.c
   src/w_seed_hlo0.c
   src/w_seed_hlo1.c
   src/w_seed_mlir0.c
@@ -609,6 +610,14 @@ add_executable(w_seed_native0_tests
 )
 target_link_libraries(w_seed_native0_tests PRIVATE w_seed_source)
 
+add_executable(w_seed_cooperative0_tests
+  tests/test_cooperative0.c
+)
+target_link_libraries(w_seed_cooperative0_tests PRIVATE w_seed_source)
+target_compile_definitions(w_seed_cooperative0_tests PRIVATE
+  W_SEED_COOPERATIVE0_FIXTURE_PATH="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/restaurant-cooperative0.w"
+)
+
 add_executable(w_seed_hir0_tests
   tests/test_hir0.c
 )
@@ -772,6 +781,7 @@ if(MSVC)
   target_link_options(w_seed_mlir0_tests PRIVATE /STACK:8388608)
   target_compile_options(w_seed_mlir0_gate PRIVATE /W4 /WX)
   target_compile_options(w_seed_native0_tests PRIVATE /W4 /WX)
+  target_compile_options(w_seed_cooperative0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_hir0_multidoc_tests PRIVATE /W4 /WX)
   target_compile_options(w_seed_product_closure0_tests PRIVATE /W4 /WX)
@@ -1216,6 +1226,15 @@ else()
     -Wshadow
     -Werror
   )
+  target_compile_options(w_seed_cooperative0_tests PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+    -Wconversion
+    -Wsign-conversion
+    -Wshadow
+    -Werror
+  )
   target_compile_options(w_seed_hir0_tests PRIVATE
     -Wall
     -Wextra
@@ -1316,6 +1335,7 @@ add_test(NAME w_seed_hlo0_unit COMMAND w_seed_hlo0_tests)
 add_test(NAME w_seed_hlo1_unit COMMAND w_seed_hlo1_tests)
 add_test(NAME w_seed_mlir0_unit COMMAND w_seed_mlir0_tests)
 add_test(NAME w_seed_native0_unit COMMAND w_seed_native0_tests)
+add_test(NAME w_seed_cooperative0_unit COMMAND w_seed_cooperative0_tests)
 add_test(NAME w_seed_hir0_unit COMMAND w_seed_hir0_tests)
 add_test(NAME w_seed_hir0_multidoc_unit COMMAND w_seed_hir0_multidoc_tests)
 add_test(NAME w_seed_product_closure0_unit COMMAND w_seed_product_closure0_tests)

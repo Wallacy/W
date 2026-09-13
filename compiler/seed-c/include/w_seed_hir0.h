@@ -15,12 +15,19 @@ extern "C" {
  * verified-HIR-backed first executable seed subset. It owns copied names and
  * constant bytes. It does not retain frontend pointers and it does not
  * allocate. */
-#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-33"
+#define W_SEED_HIR0_SCHEMA_VERSION "w-seed-hir0-34"
 #define W_SEED_HIR0_NONE UINT32_MAX
 #define W_SEED_HIR0_MAX_NESTING 64u
 #define W_SEED_HIR0_MAX_TEXT_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_VALUE_BYTES (64u * 1024u)
 #define W_SEED_HIR0_MAX_RECEIPT_BYTES 320u
+/* Cooperative0 is a deliberately closed physical-evidence lane.  Keep its
+ * per-child yield budget in the HIR contract so frontend/HIR admission and
+ * the host oracle cannot drift apart. */
+#define W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK 2u
+/* The bounded helper graph and COOP0 memo table share this ceiling.  It is
+ * intentionally separate from the larger normal W-1582 frontend limit. */
+#define W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS 64u
 
 typedef enum {
   W_SEED_HIR0_OK = 0,
@@ -74,7 +81,20 @@ typedef enum {
    * bounded graph of ordinary local pure helpers. The closed lexical schedule
    * may erase both Task and yields while preserving suspension evidence. */
   W_SEED_HIR0_CALL_STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED,
+  /* A separately requested evidence/product execution lane.  The call is
+   * retained as a bounded cooperative Task relation and is never accepted by
+   * the ordinary NativeSubset0/MLIR0 scalar selectors. */
+  W_SEED_HIR0_CALL_STRUCTURED_ASYNC_COOPERATIVE_TRACE,
 } w_seed_hir0_call_execution_kind;
+
+typedef enum {
+  /* The historical HIR0 lowering profile.  Closed pure async children keep
+   * the W-1582 virtual-elision representation. */
+  W_SEED_HIR0_EXECUTION_PROFILE_NORMAL = 0,
+  /* Explicit bounded evidence/product request.  It can publish the physical
+   * cooperative execution proof only for the closed two-task shape. */
+  W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE,
+} w_seed_hir0_execution_profile;
 
 typedef enum {
   W_SEED_HIR0_TASK_ROLE_NONE = 0,
@@ -843,6 +863,9 @@ typedef struct {
   const w_seed_frontend_input *frontend_input;
   const w_seed_frontend_output *frontend_output;
   const w_seed_frontend_result *frontend_result;
+  /* This selector is an input fact, not an optimizer guess.  Existing
+   * aggregate initializers omit it and therefore retain NORMAL behavior. */
+  w_seed_hir0_execution_profile execution_profile;
 } w_seed_hir0_input;
 
 w_seed_hir0_status w_seed_hir0_measure(const w_seed_hir0_input *input,

@@ -38,6 +38,17 @@ static bool input_shape_valid(const w_seed_native0_input *input) {
              W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES;
 }
 
+static bool cooperative_oracle_input_shape_valid(
+    const w_seed_cooperative0_input *input) {
+  return input != NULL && input->path != NULL && input->path_length != 0u &&
+         input->path_length <= W_SEED_NATIVE0_MAX_PATH_BYTES &&
+         input->path[input->path_length] == '\0' &&
+         input->logical_source_id.data != NULL &&
+         input->logical_source_id.length != 0u &&
+         input->logical_source_id.length <=
+             W_SEED_NATIVE0_MAX_SOURCE_ID_BYTES;
+}
+
 static bool source_span_is(const w_seed_source *source, w_seed_span span,
                            const uint8_t *literal, size_t literal_bytes) {
   if (source == NULL || literal == NULL) return false;
@@ -382,7 +393,9 @@ static w_seed_native0_status prepare_frontend(
   return W_SEED_NATIVE0_FRONTEND;
 }
 
-static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
+static w_seed_native0_status lower_hir(
+    w_seed_native0_storage *storage,
+    w_seed_hir0_execution_profile execution_profile) {
   if (storage == NULL) return W_SEED_NATIVE0_INVALID;
   storage->hir_output = (w_seed_hir0_output){
       .modules = storage->hir_modules,
@@ -447,7 +460,10 @@ static w_seed_native0_status lower_hir(w_seed_native0_storage *storage) {
       .receipt = storage->hir_receipt,
       .receipt_capacity = sizeof(storage->hir_receipt)};
   const w_seed_hir0_input input = {
-      &storage->input, &storage->output, &storage->frontend_result};
+      .frontend_input = &storage->input,
+      .frontend_output = &storage->output,
+      .frontend_result = &storage->frontend_result,
+      .execution_profile = execution_profile};
   w_seed_hir0_counts counts;
   w_seed_hir0_result measured;
   const w_seed_hir0_status measure_status =
@@ -661,7 +677,8 @@ w_seed_native0_status w_seed_native0_run_frontend_graph(
   if (frontend_status != W_SEED_FRONTEND_OK)
     return W_SEED_NATIVE0_FRONTEND;
 
-  const w_seed_native0_status hir_status = lower_hir(storage);
+  const w_seed_native0_status hir_status =
+      lower_hir(storage, W_SEED_HIR0_EXECUTION_PROFILE_NORMAL);
   if (hir_status != W_SEED_NATIVE0_OK) return hir_status;
   return emit_hir_program(storage, target,
                           W_SEED_MLIR0_ARTIFACT_EXECUTABLE, source_bytes,
@@ -690,9 +707,135 @@ w_seed_native0_status w_seed_native0_run(
   if (!read_source(input, storage)) return W_SEED_NATIVE0_SOURCE;
   w_seed_native0_status status = prepare_frontend(input, storage);
   if (status != W_SEED_NATIVE0_OK) return status;
-  status = lower_hir(storage);
+  status = lower_hir(storage, W_SEED_HIR0_EXECUTION_PROFILE_NORMAL);
   if (status != W_SEED_NATIVE0_OK) return status;
 
   return emit_hir_program(storage, &input->target, input->artifact_kind,
                           storage->source_length, output, result);
+}
+
+static bool cooperative_oracle_output_shape(
+    const w_seed_cooperative0_output *output, size_t *trace_bytes) {
+  if (output == NULL || trace_bytes == NULL ||
+      output->artifact_capacity > W_SEED_COOPERATIVE0_MAX_ARTIFACT_BYTES ||
+      output->stdout_capacity > W_SEED_COOPERATIVE0_MAX_STDOUT_BYTES ||
+      output->trace_capacity > W_SEED_COOPERATIVE0_MAX_TRACE_EVENTS ||
+      output->trace_capacity > SIZE_MAX / sizeof(*output->trace) ||
+      (output->artifact_capacity != 0u && output->artifact == NULL) ||
+      (output->stdout_capacity != 0u && output->stdout_bytes == NULL) ||
+      (output->trace_capacity != 0u && output->trace == NULL))
+    return false;
+  *trace_bytes = output->trace_capacity * sizeof(*output->trace);
+  return true;
+}
+
+static bool cooperative_oracle_aliases(
+    const w_seed_cooperative0_input *input,
+    const w_seed_native0_storage *storage,
+    const w_seed_cooperative0_output *output,
+    const w_seed_cooperative0_result *result) {
+  if (input == NULL || storage == NULL || output == NULL || result == NULL)
+    return true;
+  size_t trace_bytes = 0u;
+  if (!cooperative_oracle_output_shape(output, &trace_bytes)) return true;
+  if (ranges_overlap(input, sizeof(*input), storage, sizeof(*storage)) ||
+      ranges_overlap(input, sizeof(*input), output, sizeof(*output)) ||
+      ranges_overlap(input, sizeof(*input), result, sizeof(*result)) ||
+      ranges_overlap(storage, sizeof(*storage), output, sizeof(*output)) ||
+      ranges_overlap(storage, sizeof(*storage), result, sizeof(*result)) ||
+      ranges_overlap(output, sizeof(*output), result, sizeof(*result)) ||
+      ranges_overlap(output->artifact, output->artifact_capacity, input,
+                     sizeof(*input)) ||
+      ranges_overlap(output->stdout_bytes, output->stdout_capacity, input,
+                     sizeof(*input)) ||
+      ranges_overlap(output->trace, trace_bytes, input, sizeof(*input)) ||
+      ranges_overlap(output->artifact, output->artifact_capacity, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(output->stdout_bytes, output->stdout_capacity, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(output->trace, trace_bytes, storage, sizeof(*storage)) ||
+      ranges_overlap(output->artifact, output->artifact_capacity, result,
+                     sizeof(*result)) ||
+      ranges_overlap(output->stdout_bytes, output->stdout_capacity, result,
+                     sizeof(*result)) ||
+      ranges_overlap(output->trace, trace_bytes, result, sizeof(*result)) ||
+      ranges_overlap(input->path, input->path_length + 1u, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(input->path, input->path_length + 1u, output,
+                     sizeof(*output)) ||
+      ranges_overlap(input->path, input->path_length + 1u, result,
+                     sizeof(*result)) ||
+      ranges_overlap(output->artifact, output->artifact_capacity, input->path,
+                     input->path_length + 1u) ||
+      ranges_overlap(output->stdout_bytes, output->stdout_capacity,
+                     input->path, input->path_length + 1u) ||
+      ranges_overlap(output->trace, trace_bytes, input->path,
+                     input->path_length + 1u) ||
+      ranges_overlap(input->logical_source_id.data,
+                     input->logical_source_id.length, storage,
+                     sizeof(*storage)) ||
+      ranges_overlap(input->logical_source_id.data,
+                     input->logical_source_id.length, output,
+                     sizeof(*output)) ||
+      ranges_overlap(input->logical_source_id.data,
+                     input->logical_source_id.length, result,
+                     sizeof(*result)) ||
+      ranges_overlap(output->artifact, output->artifact_capacity,
+                     input->logical_source_id.data,
+                     input->logical_source_id.length) ||
+      ranges_overlap(output->stdout_bytes, output->stdout_capacity,
+                     input->logical_source_id.data,
+                     input->logical_source_id.length) ||
+      ranges_overlap(output->trace, trace_bytes, input->logical_source_id.data,
+                     input->logical_source_id.length))
+    return true;
+  return false;
+}
+
+static w_seed_cooperative0_status map_native_oracle_status(
+    w_seed_native0_status status) {
+  switch (status) {
+    case W_SEED_NATIVE0_OK:
+      return W_SEED_COOPERATIVE0_OK;
+    case W_SEED_NATIVE0_CAPACITY:
+      return W_SEED_COOPERATIVE0_CAPACITY;
+    case W_SEED_NATIVE0_UNSUPPORTED:
+      return W_SEED_COOPERATIVE0_UNSUPPORTED;
+    default:
+      return W_SEED_COOPERATIVE0_INVALID;
+  }
+}
+
+w_seed_cooperative0_status w_seed_native0_run_cooperative_oracle(
+    const w_seed_cooperative0_input *input, w_seed_native0_storage *storage,
+    const w_seed_cooperative0_output *output,
+    w_seed_cooperative0_result *result) {
+  if (input == NULL || storage == NULL || output == NULL || result == NULL ||
+      !cooperative_oracle_input_shape_valid(input))
+    return W_SEED_COOPERATIVE0_INVALID;
+  size_t trace_bytes = 0u;
+  if (!cooperative_oracle_output_shape(output, &trace_bytes))
+    return W_SEED_COOPERATIVE0_CAPACITY;
+  (void)trace_bytes;
+  if (cooperative_oracle_aliases(input, storage, output, result))
+    return W_SEED_COOPERATIVE0_ALIAS;
+
+  (void)memset(storage, 0, sizeof(*storage));
+  /* The shared frontend helpers currently accept Native0's wider descriptor;
+   * this private adapter supplies only the source fields from the public
+   * target-neutral input and uses neutral internal selectors. */
+  const w_seed_native0_input frontend_input = {
+      .path = input->path,
+      .path_length = input->path_length,
+      .logical_source_id = input->logical_source_id,
+      .target = {W_SEED_MLIR0_TARGET_UNSUPPORTED},
+      .artifact_kind = W_SEED_MLIR0_ARTIFACT_PROCESS_HANDLER};
+  if (!read_source(&frontend_input, storage))
+    return W_SEED_COOPERATIVE0_INVALID;
+  w_seed_native0_status status = prepare_frontend(&frontend_input, storage);
+  if (status != W_SEED_NATIVE0_OK) return map_native_oracle_status(status);
+  status = lower_hir(storage, W_SEED_HIR0_EXECUTION_PROFILE_COOPERATIVE_TRACE);
+  if (status != W_SEED_NATIVE0_OK) return map_native_oracle_status(status);
+  return w_seed_cooperative0_run(&storage->hir_program, &storage->hir_result,
+                                 output, result);
 }

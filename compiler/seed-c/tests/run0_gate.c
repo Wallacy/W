@@ -386,8 +386,10 @@ static int run_gate(const char *path) {
 
   configure_hir_output();
   const w_seed_hir0_input hir_input = {
-      &storage.frontend_input, &storage.frontend_output,
-      &storage.frontend_result};
+      .frontend_input = &storage.frontend_input,
+      .frontend_output = &storage.frontend_output,
+      .frontend_result = &storage.frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   const w_seed_hir0_status hir_status = w_seed_hir0_run(
       &hir_input, &storage.hir_output, &storage.hir_result);
   if (hir_status == W_SEED_HIR0_FRONTEND ||

@@ -39170,6 +39170,48 @@ product gate must be rerun for the changed source. This milestone makes no
 claim about concurrency, fairness, a scheduler, overlap, or Linux execution.
 Its benchmark disposition is `compiler-lifecycle`.
 
+#### 26.4.1.64 W-1583 — bounded Cooperative0 compiler-host trace oracle (Current bounded oracle; compiler-host only)
+
+W-1583 defines COOP0 as an explicitly requested compiler-host oracle and
+specification. It is not a product runtime, public executable, or scheduler
+provider.
+
+HIR schema `w-seed-hir0-34` adds a distinct `COOPERATIVE_TRACE` execution
+profile and `STRUCTURED_ASYNC_COOPERATIVE_TRACE` call kind. The closed profile
+contains one root and exactly two sibling scalar async tasks. Each task has
+one or two `await execution#yield()` markers, scalar parameters and result,
+fixed caller-owned frame data, and only the bounded closed scalar helper shape.
+The entire cooperative helper graph has at most 64 functions; HIR admission
+and the oracle share that same constant. The root retains launch order, two
+awaits, and a final host print.
+
+The COOP0 plan and result use caller-owned fixed records. Execution keeps the
+published plan unchanged in a bounded stack copy. Phase one reserves both task
+slots. Phase two evaluates each launch and publishes its frame to a
+deterministic provider/test-profile FIFO queue. Dispatch and resume consume
+that queue in order. Each yield requeues the task, then settle, cleanup,
+outcome commit, join, and release close the task lifecycle.
+
+Independent plan, trace, and execution verification rechecks the semantic HIR
+relation, two-task and frame counts, launch/join bindings, program counters,
+queue transitions, yield ordinals, frame and outcome digests, lifecycle state,
+and final outcomes. Capacity and alias failures remain transactional. The
+`restaurant-cooperative0.w` witness has four yields, a deterministic
+thirty-event trace, and exact stdout `Cooperative 88\n` in the compiler-host
+oracle test.
+
+COOP0 is selected only by its explicit profile. Normal W-1582
+`STRUCTURED_ASYNC_STATIC_YIELDS_ELIDED` lowering remains unchanged, and
+ordinary NativeSubset0 and MLIR0 selectors continue to erase the normal
+transient Task relation only after their existing proof. COOP0 does not emit a
+NativeSubset0 or MLIR0 state machine. It provides no product runtime or
+executable, scheduler provider, threads, parallelism, cancellation, I/O, or
+general Task behavior. This decision makes no public benchmark or performance
+claim. A future product lowering must keep this relation target-neutral and
+project it through the general emitted-target matrix; evidence available first
+on Windows and Linux must not specialize the HIR, frame, queue, or lifecycle
+contract or exclude macOS and other viable LLVM targets.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "w_seed_frontend.h"
+#include "w_seed_cooperative0.h"
 #include "w_seed_hir0.h"
 #include "w_seed_mlir0.h"
 #include "w_seed_parser.h"
@@ -323,6 +324,16 @@ _Static_assert(sizeof(w_seed_native0_storage) <= 768u * 1024u,
 w_seed_native0_status w_seed_native0_run(
     const w_seed_native0_input *input, w_seed_native0_storage *storage,
     const w_seed_native0_output *output, w_seed_native0_result *result);
+
+/* Explicit compiler-host oracle bridge. It runs the same source/parser/
+ * frontend pipeline into HIR34's cooperative profile and then invokes
+ * Cooperative0's fixed single-thread oracle. It consumes only the dedicated
+ * target-neutral source descriptor; no backend artifact is emitted or
+ * executed. */
+w_seed_cooperative0_status w_seed_native0_run_cooperative_oracle(
+    const w_seed_cooperative0_input *input, w_seed_native0_storage *storage,
+    const w_seed_cooperative0_output *output,
+    w_seed_cooperative0_result *result);
 
 /* Emit the same verified-HIR-backed native subset from an already acquired,
  * resolver-complete local document graph. This internal bridge exists so a

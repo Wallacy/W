@@ -146,7 +146,10 @@ static bool lower_hir(gate_fixture *fixture) {
       .receipt = fixture->hir_receipt,
       .receipt_capacity = sizeof(fixture->hir_receipt)};
   const w_seed_hir0_input input = {
-      &fixture->input, &fixture->output, &fixture->frontend_result};
+      .frontend_input = &fixture->input,
+      .frontend_output = &fixture->output,
+      .frontend_result = &fixture->frontend_result,
+      .execution_profile = W_SEED_HIR0_EXECUTION_PROFILE_NORMAL};
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   return w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK &&

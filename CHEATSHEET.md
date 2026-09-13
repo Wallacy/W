@@ -1353,6 +1353,15 @@ may use verified scalar control and local mutation, but they cannot introduce
 effects, suspension, allocation, or runtime ownership. This is representation
 evidence and does not claim scheduler behavior or concurrency.
 
+COOP0 is separate compiler-host oracle evidence. It keeps exactly two sibling
+scalar async tasks, one or two yields per task, fixed caller-owned frames, and
+a deterministic provider/test-profile FIFO trace. The oracle verifies
+reserve/publish, program counters, queue transitions, lifecycle, frames, and
+outcomes. It does not emit a NativeSubset0 or MLIR0 state machine or provide a
+product runtime, scheduler provider, threads, parallelism, cancellation, I/O,
+general Task behavior, benchmark, or performance claim. Normal W-1582 elision
+remains unchanged.
+
 ## Bounded task pipelines
 
 <!-- w-example role=executable use=JobError,process,processAll,collectAll observable=value -->
