@@ -14,6 +14,11 @@ int main(int argc, char **argv) {
     if (_setmode(_fileno(stdout), _O_BINARY) == -1) return 1;
 #endif
 
-    if (printf("Argument count %d\n", argc - 1) < 0) return 1;
+    const int count = argc - 1;
+    if (count == 2) {
+        if (fputs("Exactly two arguments\n", stdout) == EOF) return 1;
+    } else if (printf("Argument count %d\n", count) < 0) {
+        return 1;
+    }
     return 0;
 }

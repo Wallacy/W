@@ -73,6 +73,18 @@ async fn run(
 entry(run)
 ```
 
+Bounded process count equality uses the logical `usize` member directly:
+
+The declaration/use is `import std.process` with
+`async fn countCase(args: Arguments, ctx: Context): ExitCode`; its body tests
+`if args.count == 2`, prints `Exactly two arguments` for the true branch, and
+prints `Argument count ${args.count}` otherwise before returning `.success`.
+
+The bounded compiler also accepts `!=` with the operands reversed, such as
+`0 != args.count`. It does not generalize this cut to `usize` arithmetic or
+ordering; helper parameters and returns of type `usize` remain outside this
+bounded form.
+
 Named function descriptor:
 
 <!-- w-example role=executable use=diagnose observable=effect -->
@@ -122,6 +134,13 @@ import std.process
 
 fn succeeded(code: ExitCode): Bool { return code == .success }
 ```
+
+For the bounded one-module process witness, flat and selective imports resolve
+the same semantic HIR and Windows product. Provenance still records the source
+spelling and spans separately. The equivalent selective declaration is
+`import { Arguments as ProcessArguments, Context as ProcessContext, ExitCode
+as ProcessExitCode } from std.process`; it uses `args.count == 2` in the same
+body.
 
 A module binding keeps qualification; braces select symbols:
 

@@ -39,6 +39,7 @@ import {
   executableHostIdentity,
   exactOutputDigest,
   loadExecutableDocuments,
+  pruneExecutableBestMetrics,
   updateExecutableBestMetrics,
   validateExecutableBestMetric,
   validateExecutableBestMetrics,
@@ -370,6 +371,85 @@ test("update replaces only lower cells and is idempotent for non-improving value
   const zero = clone(documents.catalog.bestMetrics.entries[0]);
   zero.value = "0";
   assert.match(validateExecutableBestMetric(zero, documents.catalog).join("\n"), /positive/);
+});
+
+test("source refresh evicts stale cells without relabeling history", () => {
+  const catalog = clone(documents.catalog);
+  catalog.bestMetrics.entries = catalog.bestMetrics.entries.filter((entry) => entry.workloadId === "hello");
+  const workload = catalog.workloads.find((item) => item.id === "hello");
+  const source = workload.sources.find((item) => item.language === "rust");
+  const staleEntries = catalog.bestMetrics.entries.filter(
+    (entry) => entry.workloadId === "hello" && entry.language === "rust",
+  );
+  const preserved = catalog.bestMetrics.entries.find(
+    (entry) => entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size",
+  );
+  const refreshedDigest = "sha256:" + "2".repeat(64);
+  source.digest = refreshedDigest;
+
+  const result = validResult("rust");
+  result.id = "hello-rust-source-refresh";
+  result.identity.sourceDigest = refreshedDigest;
+  result.provenance.sourceDigest = refreshedDigest;
+
+  assert.match(
+    validateExecutableBestMetrics(catalog.bestMetrics, catalog).join("\n"),
+    /sourceDigest must match the catalog source/u,
+  );
+  assert.deepEqual(validateExecutableBestMetrics(
+    catalog.bestMetrics, catalog, { allowStaleSourceDigest: true }), []);
+
+  const update = updateExecutableBestMetrics(catalog, result);
+  const refreshedEntries = update.catalog.bestMetrics.entries.filter(
+    (entry) => entry.workloadId === "hello" && entry.language === "rust",
+  );
+  assert.ok(update.changed);
+  assert.ok(update.updatedMetrics.includes("cpu-time"));
+  assert.ok(update.updatedMetrics.includes("run-wall-p95"));
+  assert.ok(refreshedEntries.length > 0);
+  assert.ok(refreshedEntries.every((entry) => entry.provenance.recordId === result.id));
+  assert.ok(refreshedEntries.every((entry) => entry.provenance.sourceDigest === refreshedDigest));
+  assert.ok(staleEntries.every((stale) =>
+    update.catalog.bestMetrics.entries.every((entry) => entry.provenance.recordId !== stale.provenance.recordId),
+  ));
+  assert.deepEqual(
+    update.catalog.bestMetrics.entries.find(
+      (entry) => entry.workloadId === preserved.workloadId && entry.language === preserved.language && entry.metric === preserved.metric,
+    ),
+    preserved,
+  );
+  assert.deepEqual(
+    validateExecutableBestMetrics(update.catalog.bestMetrics, update.catalog),
+    [],
+  );
+});
+
+test("best-metric prune removes only source-stale cells and is idempotent", () => {
+  const catalog = clone(documents.catalog);
+  const source = catalog.workloads.find((item) => item.id === "hello").sources
+    .find((item) => item.language === "rust");
+  const stale = clone(catalog.bestMetrics.entries.find(
+    (entry) => entry.workloadId === "hello" && entry.language === "rust" && entry.metric === "artifact-size",
+  ));
+  const preserved = clone(catalog.bestMetrics.entries.find(
+    (entry) => entry.workloadId === "hello" && entry.language === "c" && entry.metric === "artifact-size",
+  ));
+  assert.ok(stale);
+  assert.ok(preserved);
+  source.digest = "sha256:" + "3".repeat(64);
+  catalog.bestMetrics.entries = [stale, preserved];
+
+  const first = pruneExecutableBestMetrics(catalog);
+  assert.equal(first.removedCount, 1);
+  assert.deepEqual(first.removedMetrics, ["artifact-size"]);
+  assert.deepEqual(first.catalog.bestMetrics.entries, [preserved]);
+  assert.equal(first.catalog.bestMetrics.status, "current");
+  assert.deepEqual(validateExecutableBestMetrics(first.catalog.bestMetrics, first.catalog), []);
+
+  const second = pruneExecutableBestMetrics(first.catalog);
+  assert.equal(second.changed, false);
+  assert.equal(second.removedCount, 0);
+  assert.deepEqual(second.catalog, first.catalog);
 });
 
 test("artifact-size derivation preserves historical absence and enriches equal-size evidence atomically", () => {

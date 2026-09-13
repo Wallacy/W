@@ -70,6 +70,7 @@ export const W_LLC_FLAGS = Object.freeze([
 ]);
 
 export const W_LLD_LINK_FLAGS = Object.freeze([
+  "/Brepro",
   "/entry:mainCRTStartup",
   "/subsystem:console",
   "/nodefaultlib",

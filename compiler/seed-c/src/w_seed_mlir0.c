@@ -446,6 +446,35 @@ static bool append_i64(uint8_t *buffer, size_t capacity, size_t *offset,
   return append_bytes(buffer, capacity, offset, digits, length);
 }
 
+static bool append_u64(uint8_t *buffer, size_t capacity, size_t *offset,
+                       uint64_t value) {
+  char digits[3u * sizeof(uint64_t) + 1u];
+  size_t length = 0u;
+  do {
+    digits[length] = (char)('0' + value % 10u);
+    value /= 10u;
+    length += 1u;
+  } while (value != 0u);
+  for (size_t index = 0u; index < length / 2u; index += 1u) {
+    const char swap = digits[index];
+    digits[index] = digits[length - index - 1u];
+    digits[length - index - 1u] = swap;
+  }
+  return append_bytes(buffer, capacity, offset, digits, length);
+}
+
+/* MLIR's i64 carrier parser accepts signed APInt spellings. Preserve the
+ * logical usize bits by rendering values above INT64_MAX as their signed
+ * two's-complement spelling; this is a target-layout operation, not a HIR
+ * signed conversion. */
+static bool append_i64_carrier_bits(uint8_t *buffer, size_t capacity,
+                                    size_t *offset, uint64_t value) {
+  if (value <= (uint64_t)INT64_MAX)
+    return append_i64(buffer, capacity, offset, (int64_t)value);
+  return append_literal(buffer, capacity, offset, "-") &&
+         append_u64(buffer, capacity, offset, UINT64_MAX - value + 1u);
+}
+
 /* cf.switch parses case literals as signed APInt values in MLIR 23.1.1.
  * Render the canonical unsigned HIR tag as its sign-equivalent spelling when
  * the carrier's sign bit is set; the iN bit pattern remains unchanged. */
@@ -729,7 +758,9 @@ static bool build_dynamic_plan(
             return false;
         } else if (type == W_SEED_HIR0_TYPE_BOOL) {
           if ((effective->kind != W_SEED_HIR0_VALUE_CONST_BOOL &&
-               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64) ||
+               effective->kind != W_SEED_HIR0_VALUE_BINARY_I64 &&
+               effective->kind !=
+                   W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) ||
               !dynamic_plan_append_bool(&candidate, effective_index))
             return false;
         } else if (type == W_SEED_HIR0_TYPE_STRING) {
@@ -925,6 +956,13 @@ static bool mark_reachable_value_tree(
                                      has_add, has_subtract, has_multiply,
                                      has_divide, has_remainder, depth + 1u);
   }
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON)
+    return mark_reachable_value_tree(program, value->left_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u) &&
+           mark_reachable_value_tree(program, value->right_value, reachable,
+                                     has_add, has_subtract, has_multiply,
+                                     has_divide, has_remainder, depth + 1u);
   return true;
 }
 
@@ -1213,6 +1251,66 @@ static bool append_binary_value_operation(
          append_program_value_operand(program, value->right_value,
                                      function_index, process, artifact,
                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, " : i64\n");
+}
+
+static bool append_usize_count_comparison_operation(
+    const w_seed_hir0_program *program, uint32_t value_index,
+    uint32_t function_index, const mlir0_process_emit_context *process,
+    uint8_t *artifact, size_t capacity, size_t *offset) {
+  if (program == NULL || process == NULL || artifact == NULL || offset == NULL ||
+      value_index >= program->value_count ||
+      function_index != process->function_index)
+    return false;
+  const w_seed_hir0_value *value = &program->values[value_index];
+  if (value->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
+      (value->binary_operator != W_SEED_HIR0_BINARY_EQUAL &&
+       value->binary_operator != W_SEED_HIR0_BINARY_NOT_EQUAL) ||
+      value->type_index >= program->type_count ||
+      program->types[value->type_index].kind != W_SEED_HIR0_TYPE_BOOL ||
+      value->left_value >= program->value_count ||
+      value->right_value >= program->value_count)
+    return false;
+  const w_seed_hir0_value *left = &program->values[value->left_value];
+  const w_seed_hir0_value *right = &program->values[value->right_value];
+  const bool left_count =
+      left->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      left->external_module_index == 0u &&
+      left->external_symbol_index == process->count_symbol_index &&
+      left->type_index < program->type_count &&
+      program->types[left->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+      text_is(program, left->member_name, (const uint8_t *)"count", 5u);
+  const bool right_count =
+      right->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+      right->external_module_index == 0u &&
+      right->external_symbol_index == process->count_symbol_index &&
+      right->type_index < program->type_count &&
+      program->types[right->type_index].kind == W_SEED_HIR0_TYPE_USIZE &&
+      text_is(program, right->member_name, (const uint8_t *)"count", 5u);
+  const bool left_literal = left->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                            left->type_index < program->type_count &&
+                            program->types[left->type_index].kind ==
+                                W_SEED_HIR0_TYPE_USIZE;
+  const bool right_literal = right->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+                             right->type_index < program->type_count &&
+                             program->types[right->type_index].kind ==
+                                 W_SEED_HIR0_TYPE_USIZE;
+  if (!(left_count && right_literal) && !(right_count && left_literal))
+    return false;
+  const char *operation = binary_operation(value->binary_operator);
+  return operation != NULL &&
+         append_literal(artifact, capacity, offset, "    %v") &&
+         append_size(artifact, capacity, offset, value_index) &&
+         append_literal(artifact, capacity, offset, " = ") &&
+         append_literal(artifact, capacity, offset, operation) &&
+         append_literal(artifact, capacity, offset, " ") &&
+         append_program_value_operand(program, value->left_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
+         append_literal(artifact, capacity, offset, ", ") &&
+         append_program_value_operand(program, value->right_value,
+                                      function_index, process, artifact,
+                                      capacity, offset) &&
          append_literal(artifact, capacity, offset, " : i64\n");
 }
 
@@ -1886,8 +1984,10 @@ static bool append_program_value_operand(
         program, value->block_argument_index, function_index, artifact,
         capacity, offset);
   return (value->kind == W_SEED_HIR0_VALUE_CONST_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_CONST_USIZE ||
           value->kind == W_SEED_HIR0_VALUE_CONST_BOOL ||
           value->kind == W_SEED_HIR0_VALUE_BINARY_I64 ||
+          value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON ||
           value->kind == W_SEED_HIR0_VALUE_PATTERN_CAPTURE_READ ||
           value->kind == W_SEED_HIR0_VALUE_ENUM_CASE ||
           value->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ||
@@ -2068,6 +2168,34 @@ static bool append_program_value_tree(
                                    offset, depth + 1u) ||
         !append_binary_value_operation(program, value_index, function_index,
                                        process, artifact, capacity, offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) {
+    if (!append_program_value_tree(program, value->left_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_program_value_tree(program, value->right_value, function_index,
+                                   process, emitted, artifact, capacity,
+                                   offset, depth + 1u) ||
+        !append_usize_count_comparison_operation(
+            program, value_index, function_index, process, artifact, capacity,
+            offset))
+      return false;
+    emitted[value_index] = true;
+    return true;
+  }
+  if (value->kind == W_SEED_HIR0_VALUE_CONST_USIZE) {
+    if (value->type_index >= program->type_count ||
+        program->types[value->type_index].kind != W_SEED_HIR0_TYPE_USIZE ||
+        !append_literal(artifact, capacity, offset, "    %v") ||
+        !append_size(artifact, capacity, offset, value_index) ||
+        !append_literal(artifact, capacity, offset,
+                        " = llvm.mlir.constant(") ||
+        !append_i64_carrier_bits(artifact, capacity, offset,
+                                 value->unsigned_integer_value) ||
+        !append_literal(artifact, capacity, offset, " : i64) : i64\n"))
       return false;
     emitted[value_index] = true;
     return true;

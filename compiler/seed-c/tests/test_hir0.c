@@ -961,8 +961,15 @@ static bool test_process_arguments_count_hir(void) {
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
       "ExitCode as ProcessExitCode } from std.process\n"
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
-      "ProcessExitCode { print(\"count ${args.count}\") "
-      "return .success }\n"
+      "ProcessExitCode { if args.count == 2 { print(\"count 2\") "
+      "return .success } else { print(\"count ${args.count}\") "
+      "return .success } }\n"
+      "entry(run)\n";
+  static const char COUNT_FLAT_IMPORT_SOURCE[] =
+      "import std.process\n"
+      "async fn run(args: Arguments, ctx: Context): ExitCode { "
+      "if args.count == 2 { print(\"count 2\") return .success } "
+      "else { print(\"count ${args.count}\") return .success } }\n"
       "entry(run)\n";
   static const char COUNT_BIND_SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -970,6 +977,27 @@ static bool test_process_arguments_count_hir(void) {
       "async fn run(args: ProcessArguments, ctx: ProcessContext): "
       "ProcessExitCode { let observed = args.count print(\"count\") "
       "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let matches = args.count == 0 "
+      "print(\"matches ${matches}\") return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_REVERSED_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"matches ${0 != args.count}\") "
+      "return .success }\n"
+      "entry(run)\n";
+  static const char COUNT_COMPARISON_IF_SOURCE[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.count != 0 { return .failure(1) } "
+      "else { return .success } }\n"
       "entry(run)\n";
   static const char OPTIONAL_MEMBER_SOURCE[] =
       "import { Arguments as ProcessArguments, Context as ProcessContext, "
@@ -1018,7 +1046,7 @@ static bool test_process_arguments_count_hir(void) {
         value->type_index != usize_type ||
         !hir_text_is(program, value->member_name, "count"))
       continue;
-    CHECK(count_member_count == 0u && value->left_value < program->value_count);
+    CHECK(value->left_value < program->value_count);
     count_member = (uint32_t)value_index;
     count_member_count += 1u;
     const w_seed_hir0_value *receiver = &program->values[value->left_value];
@@ -1027,7 +1055,7 @@ static bool test_process_arguments_count_hir(void) {
               program->parameter_count &&
           program->parameters[receiver->parameter_index].ordinal == 0u);
   }
-  CHECK(count_member_count == 1u && count_member != W_SEED_HIR0_NONE);
+  CHECK(count_member_count == 2u && count_member != W_SEED_HIR0_NONE);
 
   bool interpolated_count = false;
   for (size_t value_index = 0u; value_index < program->value_count;
@@ -1045,11 +1073,39 @@ static bool test_process_arguments_count_hir(void) {
           &program->interpolation_segments[
               (size_t)value->first_interpolation_segment + segment];
       if (item->kind == W_SEED_HIR0_INTERPOLATION_VALUE &&
-          item->value_index == count_member)
-        interpolated_count = true;
+          item->value_index < program->value_count) {
+        const w_seed_hir0_value *embedded =
+            &program->values[item->value_index];
+        if (embedded->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+            embedded->external_module_index == 0u &&
+            embedded->external_symbol_index == 6u &&
+            hir_text_is(program, embedded->member_name, "count"))
+          interpolated_count = true;
+      }
     }
   }
   CHECK(interpolated_count);
+
+  uint8_t selective_semantic_digest[32];
+  uint8_t selective_provenance_digest[32];
+  (void)memcpy(selective_semantic_digest,
+               fixture.hir_result.semantic_digest,
+               sizeof(selective_semantic_digest));
+  (void)memcpy(selective_provenance_digest,
+               fixture.hir_result.provenance_digest,
+               sizeof(selective_provenance_digest));
+  CHECK(lower_process_input0_generic(COUNT_FLAT_IMPORT_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(fixture.result.written.imports == 1u &&
+        fixture.result.written.import_items == 1u &&
+        program->external_module_count == 1u &&
+        program->external_symbol_count == 7u &&
+        memcmp(selective_semantic_digest,
+               fixture.hir_result.semantic_digest,
+               sizeof(selective_semantic_digest)) == 0 &&
+        memcmp(selective_provenance_digest,
+               fixture.hir_result.provenance_digest,
+               sizeof(selective_provenance_digest)) != 0);
 
   /* A usize member is an ordinary scalar binding, independent of the
    * process adapter's fixed positive source shape. */
@@ -1070,6 +1126,145 @@ static bool test_process_arguments_count_hir(void) {
         observed->external_module_index == 0u &&
         observed->external_symbol_index == 6u &&
         hir_text_is(program, observed->member_name, "count"));
+
+  CHECK(lower_process_input0_generic(COUNT_COMPARISON_SOURCE));
+  program = &fixture.hir_program;
+  size_t count_comparisons = 0u;
+  size_t count_comparison_literal = 0u;
+  uint32_t comparison_index = W_SEED_HIR0_NONE;
+  uint32_t comparison_literal_index = W_SEED_HIR0_NONE;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u) {
+    const w_seed_hir0_value *value = &program->values[value_index];
+    if (value->kind != W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON) continue;
+    CHECK(value->type_index < program->type_count &&
+          program->types[value->type_index].kind == W_SEED_HIR0_TYPE_BOOL &&
+          (value->binary_operator == W_SEED_HIR0_BINARY_EQUAL ||
+           value->binary_operator == W_SEED_HIR0_BINARY_NOT_EQUAL) &&
+          value->left_value < program->value_count &&
+          value->right_value < program->value_count);
+    count_comparisons += 1u;
+    comparison_index = (uint32_t)value_index;
+    const w_seed_hir0_value *left = &program->values[value->left_value];
+    const w_seed_hir0_value *right = &program->values[value->right_value];
+    const w_seed_hir0_value *member =
+        left->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER ? left : right;
+    const w_seed_hir0_value *literal =
+        left->kind == W_SEED_HIR0_VALUE_CONST_USIZE ? left : right;
+    if (member->kind == W_SEED_HIR0_VALUE_EXTERNAL_MEMBER &&
+        literal->kind == W_SEED_HIR0_VALUE_CONST_USIZE &&
+        member->type_index == literal->type_index &&
+        literal->unsigned_integer_value == UINT64_C(0)) {
+      count_comparison_literal += 1u;
+      comparison_literal_index =
+          (uint32_t)(literal - program->values);
+    }
+  }
+  CHECK(count_comparisons == 1u && count_comparison_literal == 1u &&
+        comparison_index != W_SEED_HIR0_NONE &&
+        comparison_literal_index != W_SEED_HIR0_NONE);
+
+  const w_seed_hir0_value saved_comparison =
+      fixture.hir_values[comparison_index];
+  const w_seed_hir0_value saved_comparison_literal =
+      fixture.hir_values[comparison_literal_index];
+  fixture.hir_values[comparison_index].binary_operator =
+      W_SEED_HIR0_BINARY_LESS;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[comparison_index] = saved_comparison;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[comparison_literal_index].kind =
+      W_SEED_HIR0_VALUE_CONST_I64;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[comparison_literal_index] = saved_comparison_literal;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[comparison_literal_index].type_index = 3u;
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[comparison_literal_index] = saved_comparison_literal;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  fixture.hir_values[comparison_index].unsigned_integer_value = UINT64_C(1);
+  reseal_hir_fixture();
+  CHECK(!w_seed_hir0_verify(program, &fixture.hir_result));
+  fixture.hir_values[comparison_index] = saved_comparison;
+  reseal_hir_fixture();
+  CHECK(w_seed_hir0_verify(program, &fixture.hir_result));
+
+  CHECK(lower_process_input0_generic(COUNT_COMPARISON_REVERSED_SOURCE));
+  program = &fixture.hir_program;
+  count_comparisons = 0u;
+  for (size_t value_index = 0u; value_index < program->value_count;
+       value_index += 1u)
+    if (program->values[value_index].kind ==
+        W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON)
+      count_comparisons += 1u;
+  CHECK(count_comparisons == 1u);
+
+  CHECK(lower_process_input0_generic(COUNT_COMPARISON_IF_SOURCE));
+  program = &fixture.hir_program;
+  CHECK(program->functions[0].block_count == 3u &&
+        program->terminators[0].kind == W_SEED_HIR0_TERMINATOR_BRANCH &&
+        program->terminators[0].value_index < program->value_count &&
+        program->values[program->terminators[0].value_index].kind ==
+            W_SEED_HIR0_VALUE_USIZE_COUNT_COMPARISON);
+
+  static const char *const COUNT_COMPARISON_REJECTED[] = {
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"${args.count < 1}\") "
+      "return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"${args.count + 1}\") "
+      "return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"${args.count == -1}\") "
+      "return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { let saved = args.count "
+      "print(\"${saved == 0}\") return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { print(\"${ctx.count == 0}\") "
+      "return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn helper(value: usize) { }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n",
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "fn helper(): usize { return 0 }\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { return .success }\n"
+      "entry(run)\n"};
+  for (size_t index = 0u;
+       index < sizeof(COUNT_COMPARISON_REJECTED) /
+                   sizeof(COUNT_COMPARISON_REJECTED[0]);
+       index += 1u)
+    CHECK(expect_process_input0_source_rejected(
+        COUNT_COMPARISON_REJECTED[index]));
 
   /* Raw external owners stay blocked in every ownership position. */
   static const char *const RAW_REJECTED[] = {

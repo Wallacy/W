@@ -175,7 +175,7 @@ O corpus compara, no mínimo:
 - verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - closed local payloadless enum exhaustive switch against raw integer tags, incomplete coverage, and expected-output shortcuts.
 - same-module executable product roots against retain-all-exports and source-name shortcuts.
-- bounded public `Arguments.count` identity and ownership against source-name recognition, owner escape, fixed output, and signed-type erasure.
+- bounded public `Arguments.count` equality and flat/selective `std.process` imports against source-name recognition, general `usize` operations, owner escape, and import-specific product output.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
 - typed topological interpolation HIR against precomputed output, source reparsing, and witness-specific print paths.
 - runtime signed-i64 interpolation against precomputed output, printInt bypass, and unchecked LLVM arithmetic.
@@ -7853,6 +7853,8 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1563 | closed local payloadless enum exhaustive switch through native execution | HIR0 schema `w-seed-hir0-21` extends the local payloadless enum identity with one explicit `SWITCH_ENUM` terminator and dense caller-owned switch edges retaining the subject enum, enum-case identity, canonical declaration order, ordinal, arm block, and source span. The target block's `RETURN_VALUE` terminator carries and proves the arm result. The verifier admits only the bounded dispatch-plus-one-return-block-per-case shape and rejects incomplete, duplicate, unknown, or forged edges, carriers, targets, values, and default paths. NativeSubset0 proves the private minimum logical carrier width (`iN`, three cases => `i2`, with at most 64 cases); MLIR0 emits canonical `cf.switch` tags and a backend-only synthetic default ending in `llvm.unreachable`. The pinned Windows x86_64 MSVC LLVM/MLIR 23.1.1 route executes `compiler/seed-c/fixtures/restaurant-enum.w` with exact `Courses 10/30/20\n`, empty stderr, and exit zero through source → frontend → verified HIR → MLIR → conversion → LLVM/native execution. | `source-backed-current` only for this bounded local payloadless enum switch, HIR21 edge/verifier shape, private minimum-width carrier, MLIR0 `cf.switch` lowering, and the pinned native Windows witness. Payload-bearing cases, enum subsets, general or mixed CFG, public ABI/layout stability, other targets, and performance remain gaps. The MLIR 23.1.1 parser spells the i2 sign-bit tag `2` as the equivalent signed literal `-2`; this preserves the carrier bit pattern and is not a public representation. `benchmarkDisposition: compiler-lifecycle`, correctness-only, with no timing, ranking, or performance result. |
 | W-1564 | bounded same-module executable product closure | HIR0 schema `w-seed-hir0-22` preserves and semantically binds the frontend function `exported` fact. For the current single-module executable recipe, the anonymous `.default` entry is the product root: MLIR0 follows verified local callees transitively, retains the used private helper, and omits unused exported and private functions plus their unreachable helper data. The native Restaurant witness executes with exact `Bill 42\n`, empty stderr, and exit zero. | `source-backed-current` only for this bounded same-module executable closure, HIR22 export fact, structural omission evidence, and current native execution routes. It is not cross-module WMO/WPO: graph-to-HIR lowering, library exports, reflection/FFI/provider/service/dynamic roots, summary reuse, cross-module inlining, other targets, and optimization-quality claims remain gaps. `benchmarkDisposition: compiler-lifecycle`; exploratory executable metrics are catalogued separately. |
 | W-1565 | bounded public `Arguments.count` lowering | The compiler-owned public `std.process@1` catalog appends an exact exported constant `Arguments.count: usize` member at ordinal 6 and advances verified HIR to schema `w-seed-hir0-26`. HIR keeps a distinct logical target-width unsigned `USIZE` type; the current Windows x86_64 MLIR path selects physical `i64` only after target layout is known. The receiver must be the selected entry's real `Arguments` owner. Raw `Arguments` and `Context` values remain non-lowerable, while the scalar count may bind and enter direct-print interpolation. MLIR reads the existing checked root count without allocation, scan, copy, or suspension. The adapter excludes `argv[0]`, counts an empty argument, admits 0...256 user arguments, and rejects overflow before publication. | `source-backed-current` only for the bounded frontend → HIR26 → MLIR/Native0 → Windows x86_64 route, exact identity/ownership adversarial checks, and runtime count cases. General `usize` operations, indexing, iteration, decoded `OsString`, full Windows quoting, other OS adapters, stable public ABI/layout, and language-level benchmark ranking remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
+| W-1566 | bounded public `Arguments.count` usize equality | HIR0 schema `w-seed-hir0-27` extends the public process count slice with a logical `usize` literal and a dedicated Bool comparison. The bounded compiler accepts only `==` or `!=` between the exact `std.process.Arguments.count` member and a nonnegative unsuffixed integer literal, in either operand order. HIR retains logical `usize`; only the verified Windows x86_64 target selects physical `i64`. General `usize` arithmetic and ordering remain outside the slice. | `source-backed-current` only for HIR27 comparison identity, operand-order, type, and owner barriers plus the Windows x86_64 MLIR/Native0 route. Focused HIR0, MLIR0, and Native0 tests and the pinned Windows gate provide correctness evidence. General `usize` arithmetic or ordering, indexing, iteration, decoded `OsString`, other OS adapters, stable public ABI/layout, and language-level benchmark ranking remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
+| W-1567 | bounded flat/selective `std.process` import semantic/product equivalence | In the bounded one-module process witness, flat `import std.process` with direct `Arguments`, `Context`, and `ExitCode` names and grouped selective imports with aliases resolve to the same seven-symbol public catalog and same HIR semantics. The two forms have equal semantic HIR digests and byte-identical Windows PE artifacts under the same target/profile, while their provenance digests remain distinct. This is same-module process evidence, not general cross-module WPO. | `source-backed-current` only for the bounded flat/selective process HIR and Windows PE equivalence under one target/profile. Frontend/HIR evidence compares semantic and provenance digests. The pinned Windows gate compares artifact bytes and exact runtime results. General import equivalence across modules, packages, products, targets, or profiles, cross-module WPO, and optimization-quality claims remain gaps. `benchmarkDisposition: deferred`; the executable catalog owns separate exploratory W/C/Rust measurements. |
 
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
@@ -11006,7 +11008,9 @@ General argument indexing/iteration/text decoding, general CFG and loops,
 throws, cancellation, `Context` capabilities, general async/provider runtime,
 other target adapters, cross-compilation, and stable public ABI/layout remain
 gaps. W-1565 later appends the scalar `Arguments.count` member and advances the
-closed public catalog to HIR26; it does not retroactively change this milestone.
+closed public catalog to HIR26. W-1566 then adds the bounded HIR27
+`Arguments.count` equality form. Neither decision retroactively changes this
+milestone.
 
 #### W-1548 — external test subjects and one `w test`/`w bench` plan
 
@@ -11471,8 +11475,8 @@ call, enum payload, or return. Only the immediate canonical member receiver is
 consumed; the resulting logical `usize` is an ordinary copy value. This
 distinction admits binding and direct-print interpolation without turning an
 opaque process owner into an integer-shaped ABI value. General `usize`
-arithmetic, comparisons, helper parameters, and returns remain a later
-scalar-lowering increment.
+arithmetic, ordering, comparisons outside the exact count-literal form, helper
+parameters, and returns remain a later scalar-lowering increment.
 Optional chaining is not normalized away: `args?.count` is invalid because
 `Arguments` is not optional.
 
@@ -11486,3 +11490,67 @@ evidence therefore uses the same PE for zero, empty, multiple, and exactly 256
 user arguments. Separate C23 and Rust 2024 sources provide exploratory
 executable-catalog comparisons; they are not evidence for W's resolver,
 ownership verifier, or lowering.
+
+#### W-1566 — bounded public `Arguments.count` usize equality
+
+W-1565 made the checked process count available as a logical `usize` scalar.
+The next increment keeps that type identity while admitting one predicate form.
+HIR27 adds a `CONST_USIZE` literal and a dedicated
+`USIZE_COUNT_COMPARISON` value. The comparison result is `Bool` and remains
+inside the verified process-entry body.
+
+The accepted operands are the resolver-owned exported `count` member on the
+selected entry's actual `Arguments` receiver and a nonnegative unsuffixed
+integer literal contextualized as `usize`. Either operand may occur first.
+Only `==` and `!=` are accepted. The cut does not add general `usize`
+arithmetic, ordering, helper parameters, returns, indexing, or iteration.
+Negative literals, computed expressions, and other comparison operators remain
+outside this bounded form.
+
+The HIR verifier checks the dedicated value kind, Bool result, logical `usize`
+operand type, external symbol ordinal, member name, receiver ownership, and
+operator. NativeSubset0 rechecks the same relation before process lowering.
+MLIR0 emits `llvm.icmp` over the physical carrier selected by the target
+adapter. The current Windows x86_64 route uses physical `i64`; HIR does not
+convert logical `usize` to signed `i64`.
+
+The updated process fixture branches on `args.count == 2`, prints the literal
+branch result or the runtime count, and returns `.success`. Focused HIR0,
+MLIR0, and Native0 tests cover both operand orders and reject arithmetic,
+ordering, negative literals, owner escape, and forged HIR metadata. The pinned
+Windows gate checks zero, empty, ordinary multiple, and exactly 256 user
+arguments with exact output, empty stderr, exit status, and cleanup.
+
+This evidence is source-backed-current only for the HIR27 comparison slice and
+the Windows x86_64 route. General `usize` operations, other targets, complete
+Windows quoting, stable public ABI/layout, and language-level benchmark
+ranking remain gaps. The executable catalog keeps its exploratory W/C/Rust
+measurements separate from this compiler-lifecycle correctness evidence.
+
+#### W-1567 — bounded flat/selective `std.process` import semantic/product equivalence
+
+The canonical process-count witness now uses the flat module import
+`import std.process` and direct `Arguments`, `Context`, and `ExitCode` names.
+The selective witness in
+`compiler/seed-c/tests/fixtures/process-arguments-count-selective-import.w`
+uses the grouped import with local aliases and the same body. Both forms
+resolve the compiler-owned `std.process@1` symbols needed by the entry.
+
+Frontend and HIR evidence accepts one flat import item or the three selective
+items. The two witnesses produce the same semantic HIR digest because their
+resolved program meaning is the same. Their provenance digests remain
+distinct because source spelling and spans remain provenance. This identity
+split preserves source history without making import spelling semantic.
+
+The pinned Windows gate builds both witnesses with the same target and profile,
+requires valid x86_64 PE images, and compares their complete bytes. The images
+are byte-identical. The direct link uses `/Brepro`, so COFF timestamps cannot
+make the comparison depend on link timing. The gate then runs both images with zero, empty, ordinary
+multiple, and exactly 256 user arguments and checks identical exact output,
+empty stderr, exit status, and cleanup. The result is product evidence for
+this one-module process recipe.
+
+W-1567 does not establish general import equivalence across modules, packages,
+products, targets, or profiles. It also does not establish cross-module WMO or
+WPO, summary reuse, or optimization quality. The executable catalog keeps its
+exploratory measurements separate from this bounded same-module evidence.

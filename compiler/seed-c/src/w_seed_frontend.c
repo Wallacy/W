@@ -13339,10 +13339,12 @@ static frontend_simple_type infer_expression_span_inner(
     }
   }
   frontend_token token;
+  bool saw_member_access = false;
   while (cursor_take(&cursor, &token)) {
     const w_seed_frontend_text text = text_from_span(doc, token.span);
     if (text_equal(text, ".") || text_equal(text, "?.")) {
-      return simple_type_unknown();
+      saw_member_access = true;
+      continue;
     }
     if (text_equal(text, "in") || text_equal(text, "is") ||
         text_equal(text, "<<") || text_equal(text, ">>") ||
@@ -13362,6 +13364,7 @@ static frontend_simple_type infer_expression_span_inner(
       return simple_type_from_view((w_seed_frontend_text){"Bool", 4});
     }
   }
+  if (saw_member_access) return simple_type_unknown();
   if (first.kind == W_SEED_CST_WORD) {
     const frontend_simple_type binding =
         binding_type_for_name(context, first_text, span);

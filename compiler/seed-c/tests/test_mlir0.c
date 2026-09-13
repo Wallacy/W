@@ -165,7 +165,9 @@ static const w_seed_mlir0_target WINDOWS_TARGET = {
     W_SEED_MLIR0_TARGET_X86_64_PC_WINDOWS_MSVC};
 
 static bool process_frontend_mode;
+static bool process_input_frontend_mode;
 static void configure_process_external(void);
+static void configure_process_input_external(void);
 static bool resolve_process_import(void);
 static bool contains_bytes(const uint8_t *bytes, size_t length,
                            const char *needle);
@@ -298,6 +300,7 @@ static bool parse_source(const uint8_t *source_bytes, size_t source_length) {
   fixture.input.host_scope = &fixture.host_scope;
   if (process_frontend_mode) {
     configure_process_external();
+    if (process_input_frontend_mode) configure_process_input_external();
     if (!resolve_process_import()) return false;
   }
   return w_seed_frontend_run(&fixture.input, &fixture.output,
@@ -348,6 +351,41 @@ static void configure_process_external(void) {
       .symbol_count = 4u};
   fixture.input.external_modules = fixture.external_modules;
   fixture.input.external_module_count = 1u;
+}
+
+static void configure_process_input_external(void) {
+  fixture.external_parameters[0] = (w_seed_frontend_external_parameter){
+      .name = (w_seed_frontend_text){"code", 4u},
+      .type = (w_seed_frontend_text){"i64", 3u},
+      .label_kind = W_SEED_FRONTEND_LABEL_POSITIONAL_ONLY};
+  fixture.external_symbols[4] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"isEmpty", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"Bool", 4u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture.external_symbols[5] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"failure", 7u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = fixture.external_parameters,
+      .parameter_count = 1u,
+      .return_type = (w_seed_frontend_text){"ExitCode", 8u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"ExitCode", 8u}};
+  fixture.external_symbols[6] = (w_seed_frontend_external_symbol){
+      .name = (w_seed_frontend_text){"count", 5u},
+      .kind = W_SEED_FRONTEND_EXTERNAL_VALUE,
+      .exported = true,
+      .parameters = NULL,
+      .parameter_count = 0u,
+      .return_type = (w_seed_frontend_text){"usize", 5u},
+      .is_const = true,
+      .receiver_type = (w_seed_frontend_text){"Arguments", 9u}};
+  fixture.external_modules[0].symbol_count = 7u;
 }
 
 static bool resolve_process_import(void) {
@@ -506,8 +544,12 @@ static bool lower_process_hir(const uint8_t *source_bytes,
   w_seed_hir0_counts counts;
   w_seed_hir0_result result;
   CHECK(w_seed_hir0_measure(&input, &counts, &result) == W_SEED_HIR0_OK);
-  CHECK(counts.external_modules == 1u && counts.external_symbols == 4u &&
-        counts.types == 7u);
+  const size_t expected_external_symbols =
+      process_input_frontend_mode ? 7u : 4u;
+  const size_t expected_types = process_input_frontend_mode ? 8u : 7u;
+  CHECK(counts.external_modules == 1u &&
+        counts.external_symbols == expected_external_symbols &&
+        counts.types == expected_types);
   CHECK(w_seed_hir0_run(&input, &fixture.hir_output, &fixture.hir_result) ==
         W_SEED_HIR0_OK);
   CHECK(w_seed_hir0_program_from_output(&fixture.hir_output,
@@ -515,6 +557,17 @@ static bool lower_process_hir(const uint8_t *source_bytes,
                                         &fixture.hir_program));
   CHECK(w_seed_hir0_verify(&fixture.hir_program, &fixture.hir_result));
   return true;
+}
+
+static bool lower_process_input_hir(const uint8_t *source_bytes,
+                                    size_t source_length) {
+  process_input_frontend_mode = true;
+  const bool lowered = lower_process_hir(source_bytes, source_length);
+  process_input_frontend_mode = false;
+  if (!lowered) return false;
+  return fixture.hir_program.external_module_count == 1u &&
+         fixture.hir_program.external_symbol_count == 7u &&
+         fixture.hir_program.type_count == 8u;
 }
 
 static w_seed_mlir0_input mlir_input(void) {
@@ -722,6 +775,40 @@ static bool emit_current(uint8_t *bytes, size_t capacity,
   return w_seed_mlir0_emit(&input, &TARGET,
                            &(w_seed_mlir0_output){bytes, capacity}, result) ==
          W_SEED_MLIR0_OK;
+}
+
+static bool test_process_arguments_count_comparison_mlir(void) {
+  static const uint8_t source[] =
+      "import { Arguments as ProcessArguments, Context as ProcessContext, "
+      "ExitCode as ProcessExitCode } from std.process\n"
+      "async fn run(args: ProcessArguments, ctx: ProcessContext): "
+      "ProcessExitCode { if args.count != 0 { print(\"has arguments\") "
+      "return .success } else { print(\"no arguments\") "
+      "return .success } }\n"
+      "entry(run)\n";
+  CHECK(lower_process_input_hir(source, sizeof(source) - 1u));
+  const w_seed_mlir0_input input = {
+      &fixture.hir_program, &fixture.hir_result,
+      W_SEED_MLIR0_ARTIFACT_PROCESS_EXECUTABLE};
+  w_seed_mlir0_counts counts;
+  w_seed_mlir0_result result;
+  CHECK(w_seed_mlir0_measure(&input, &WINDOWS_TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  uint8_t output[W_SEED_MLIR0_MAX_BYTES];
+  CHECK(w_seed_mlir0_emit(
+            &input, &WINDOWS_TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.mlir.constant(0 : i64) : i64") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_arguments_count") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.icmp \"ne\"") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.cond_br"));
+  return true;
 }
 
 static bool test_enum_switch_mlir(void) {
@@ -3130,6 +3217,7 @@ static bool test_natural_loop_preserves_structured_mlir(void) {
 
 int main(void) {
   if (!test_process_hir_is_closed_to_mlir()) return 1;
+  if (!test_process_arguments_count_comparison_mlir()) return 1;
   if (!test_enum_switch_mlir()) return 1;
   if (!test_signed_comparison_artifacts()) return 1;
   if (!test_straight_line_mutation_is_ssa()) return 1;

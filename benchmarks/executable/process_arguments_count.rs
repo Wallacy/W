@@ -5,7 +5,12 @@ use std::io::{self, Write};
 fn main() {
     let count = std::env::args_os().count().saturating_sub(1);
     let mut stdout = io::stdout().lock();
-    if writeln!(stdout, "Argument count {count}").is_err() {
+    let written = if count == 2 {
+        writeln!(stdout, "Exactly two arguments")
+    } else {
+        writeln!(stdout, "Argument count {count}")
+    };
+    if written.is_err() {
         std::process::exit(1);
     }
 }

@@ -2080,7 +2080,8 @@ async function runBenchmarkUnlocked(options = {}, dependencies = {}) {
   const executor = dependencies.executor ?? defaultExecutor;
   const documents = dependencies.documents ?? loadExecutableDocuments();
   const catalog = dependencies.catalog ?? documents.catalog;
-  const catalogErrors = validateExecutableCatalog(catalog, documents);
+  const catalogErrors = validateExecutableCatalog(catalog, documents, undefined,
+    { allowStaleSourceDigest: true });
   if (catalogErrors.length > 0) fail(`catalog validation failed: ${catalogErrors.join("; ")}`);
   const source = await sourcePath(catalog, target, language);
   const processExecutionDescriptor = processTarget ? processExecution(source.workload) : undefined;

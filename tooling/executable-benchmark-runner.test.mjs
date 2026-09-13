@@ -112,6 +112,7 @@ test("release recipes prioritize runtime and strip distributable symbols", () =>
   assert.equal(RUST_RELEASE_FLAGS.includes("incremental=off"), false, "rustc treats this as an output directory rather than disabling incremental compilation");
   assert.deepEqual(W_MLIR_OPT_FLAGS, ["--verify-each", "--canonicalize", "--cse"]);
   assert.ok(W_LLC_FLAGS.includes("-O3"));
+  assert.ok(W_LLD_LINK_FLAGS.includes("/Brepro"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:ref"));
   assert.ok(W_LLD_LINK_FLAGS.includes("/opt:icf"));
   const all = [...C_RELEASE_FLAGS, ...CLANG_RELEASE_FLAGS, ...RUST_RELEASE_FLAGS, ...W_LLC_FLAGS, ...W_LLD_LINK_FLAGS];
