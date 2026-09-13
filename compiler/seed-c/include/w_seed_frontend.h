@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 /* Internal seed frontend. It is not a public W command or compiler driver. */
-#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-21"
+#define W_SEED_FRONTEND_SCHEMA_VERSION "w-seed-frontend-22"
 #define W_SEED_FRONTEND_NONE UINT32_MAX
 #define W_SEED_FRONTEND_NONE_SIZE SIZE_MAX
 #define W_SEED_FRONTEND_MAX_CST_NODES 32768u
@@ -62,6 +62,12 @@ typedef enum {
   W_SEED_FRONTEND_FACT_UNRESOLVED_IMPORTED_SYMBOL,
   W_SEED_FRONTEND_FACT_UNRESOLVED_LOCAL_SYMBOL,
   W_SEED_FRONTEND_FACT_INVALID_ENTRY,
+  /* Append-only Async0 semantic facts.  These are emitted for rejected
+   * task-form expressions instead of leaving consumers to infer meaning from
+   * source spelling. */
+  W_SEED_FRONTEND_FACT_ASYNC_LAUNCH,
+  W_SEED_FRONTEND_FACT_AWAIT,
+  W_SEED_FRONTEND_FACT_TASK_ESCAPE,
 } w_seed_frontend_fact_kind;
 
 typedef enum {
@@ -83,6 +89,9 @@ typedef enum {
   /* Append-only compile-time ordered list and half-open range types. */
   W_SEED_FRONTEND_TYPE_STATIC_LIST,
   W_SEED_FRONTEND_TYPE_RANGE,
+  /* Append-only opaque task handle.  The result type is carried by the
+   * element_type relation on the normalized type record. */
+  W_SEED_FRONTEND_TYPE_TASK,
 } w_seed_frontend_type_kind;
 
 typedef enum {
@@ -124,6 +133,12 @@ typedef enum {
   /* Append-only local assignment. left is the mutable binding identifier,
    * right is the replacement value, and the expression type is Unit. */
   W_SEED_FRONTEND_EXPR_ASSIGNMENT,
+  /* Append-only Async0 structured child launcher. left is exactly one root
+   * CALL expression and the result type is an explicit Task record. */
+  W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH,
+  /* Append-only Async0 join. left is one Task binding identifier and the
+   * result type is the launcher's result type. */
+  W_SEED_FRONTEND_EXPR_AWAIT,
 } w_seed_frontend_expr_kind;
 
 typedef enum {
@@ -525,6 +540,9 @@ typedef struct {
   uint32_t subset_member_count;
   /* W_SEED_FRONTEND_NONE unless this root owns a generic application. */
   uint32_t generic_application_index;
+  /* Append-only Task result relation.  It is populated only for
+   * W_SEED_FRONTEND_TYPE_TASK and indexes the result type record. */
+  uint32_t task_result_type;
   /* External nominal identity.  These fields are populated only when the
    * spelling is bound to an imported external TYPE; the pair indexes the
    * resolver-owned external module/symbol tables and is never a pointer. */
@@ -827,6 +845,12 @@ typedef struct {
   /* Append-only scalar-if else-arm relation.  It is NONE for every other
    * expression kind. */
   uint32_t else_expression;
+  /* Append-only Async0 relations.  ASYNC_LAUNCH uses task_result_type and
+   * task_call_expression; AWAIT uses task_binding_statement and
+   * task_result_type. */
+  uint32_t task_result_type;
+  uint32_t task_call_expression;
+  uint32_t task_binding_statement;
 } w_seed_frontend_expression;
 
 typedef enum {

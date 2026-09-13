@@ -18,6 +18,7 @@ _Static_assert(sizeof(size_t) * CHAR_BIT >= W_SEED_FRONTEND_TARGET_USIZE_BITS,
 #define FRONTEND_MAX_DIAGNOSTIC_ITEMS 4096u
 #define FRONTEND_MAX_DIAGNOSTIC_LABELS 8u
 #define FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES 64u
+#define FRONTEND_MAX_TASK_BINDINGS 1024u
 #define FRONTEND_DIAGNOSTIC_CATEGORY_TEXT_MAX 128u
 #define FRONTEND_DIAGNOSTIC_CATEGORY_SLOTS \
   (W_SEED_FRONTEND_MAX_CST_NODES * 2u)
@@ -61,6 +62,13 @@ typedef struct {
   uint32_t element_enum_index;
   w_seed_frontend_text element_spelling;
   w_seed_frontend_text element_enum_name;
+  /* Async0 task result metadata.  The result type is scalar in this bounded
+   * slice, so a compact non-recursive descriptor keeps dry/emit typing
+   * deterministic without a heap allocation. */
+  w_seed_frontend_type_kind task_result_kind;
+  bool task_result_is_signed;
+  uint16_t task_result_bit_width;
+  w_seed_frontend_text task_result_spelling;
   /* Source provenance for diagnostics that point at a type annotation. */
   bool has_origin;
   size_t origin_document_index;
@@ -90,6 +98,10 @@ typedef struct {
   uint32_t external_member_module_index;
   uint32_t external_member_symbol_index;
   const w_seed_frontend_external_symbol *external_member_symbol;
+  bool is_local_call;
+  uint32_t local_call_function;
+  bool local_call_is_async;
+  uint32_t task_binding_statement;
 } frontend_expr_value;
 
 typedef struct {
@@ -175,6 +187,18 @@ typedef struct {
   uint32_t capture_index;
 } frontend_active_pattern_capture;
 
+typedef struct {
+  uint32_t owner_function;
+  uint32_t statement_index;
+  uint32_t launch_expression;
+  uint32_t call_expression;
+  w_seed_frontend_text name;
+  frontend_simple_type result_type;
+  uint32_t join_count;
+  w_seed_span span;
+  bool supported;
+} frontend_task_binding;
+
 /* The D7 solver keeps only the compact scalar metadata that is needed while
  * the dry and emit passes normalize the same source.  Type indices are
  * process-local and are assigned after inference. */
@@ -228,6 +252,13 @@ typedef struct {
   frontend_active_pattern_capture
       active_pattern_captures[FRONTEND_MAX_ACTIVE_PATTERN_CAPTURES];
   size_t active_pattern_capture_count;
+  /* Async0 uses a bounded lexical scratch table in both dry and emit passes.
+   * It is compiler workspace only; public Task identity is emitted in the
+   * expression/type records and later copied into HIR. */
+  frontend_task_binding task_bindings[FRONTEND_MAX_TASK_BINDINGS];
+  size_t task_binding_count;
+  uint32_t task_result_type_indices[4];
+  uint32_t task_type_indices[4];
 } frontend_context;
 
 /* These arrays are temporary per-thread inference workspace.  Each measure or
@@ -363,6 +394,12 @@ static w_seed_frontend_text enum_case_parameter_label(
     const w_seed_frontend_document *doc, uint32_t parameter_node);
 static const w_seed_frontend_document *context_document(
     const frontend_context *context);
+static uint32_t innermost_block_for_span(
+    const w_seed_frontend_document *doc, uint32_t function_node,
+    w_seed_span span);
+static bool block_scope_contains(const w_seed_frontend_document *doc,
+                                 uint32_t declaration_block,
+                                 uint32_t use_block);
 static size_t context_document_index_for(
     const frontend_context *context,
     const w_seed_frontend_document *document);
@@ -3242,6 +3279,8 @@ static bool receipt_size_type(frontend_context *context,
          receipt_size_size(context, type->first_subset_member) &&
          receipt_size_literal(context, "|subset-count=") &&
          receipt_size_size(context, type->subset_member_count) &&
+         receipt_size_literal(context, "|task-result=") &&
+         receipt_size_size(context, type->task_result_type) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -3423,6 +3462,23 @@ static bool receipt_size_call_identity(
          receipt_size_size(context, external_module_index) &&
          receipt_size_literal(context, ":") &&
          receipt_size_size(context, external_symbol_index) &&
+         receipt_size_literal(context, "\n");
+}
+
+static bool receipt_size_task_expression(
+    frontend_context *context, size_t expression_index,
+    w_seed_frontend_expr_kind kind, uint32_t result_type,
+    uint32_t call_expression, uint32_t binding_statement) {
+  return receipt_size_literal(context, "task-expression=") &&
+         receipt_size_size(context, expression_index) &&
+         receipt_size_literal(context, "|kind=") &&
+         receipt_size_size(context, (size_t)kind) &&
+         receipt_size_literal(context, "|result=") &&
+         receipt_size_size(context, result_type) &&
+         receipt_size_literal(context, "|call=") &&
+         receipt_size_size(context, call_expression) &&
+         receipt_size_literal(context, "|binding=") &&
+         receipt_size_size(context, binding_statement) &&
          receipt_size_literal(context, "\n");
 }
 
@@ -4315,7 +4371,167 @@ static frontend_simple_type simple_type_unknown(void) {
   type.subset_span = empty_span(0);
   type.element_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
   type.element_enum_index = W_SEED_FRONTEND_NONE;
+  type.task_result_kind = W_SEED_FRONTEND_TYPE_UNKNOWN;
+  type.task_result_spelling = (w_seed_frontend_text){NULL, 0u};
   return type;
+}
+
+static bool task_result_kind_supported(frontend_simple_type type) {
+  return type.kind == W_SEED_FRONTEND_TYPE_UNIT ||
+         type.kind == W_SEED_FRONTEND_TYPE_BOOL ||
+         type.kind == W_SEED_FRONTEND_TYPE_STRING ||
+         (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
+          type.bit_width == 64u);
+}
+
+static frontend_simple_type task_simple_type(frontend_simple_type result) {
+  frontend_simple_type task = simple_type_unknown();
+  task.kind = W_SEED_FRONTEND_TYPE_TASK;
+  task.spelling = (w_seed_frontend_text){"Task", 4u};
+  task.task_result_kind = result.kind;
+  task.task_result_is_signed = result.is_signed;
+  task.task_result_bit_width = result.bit_width;
+  task.task_result_spelling = result.spelling;
+  task.element_kind = result.kind;
+  task.element_is_signed = result.is_signed;
+  task.element_bit_width = result.bit_width;
+  task.element_spelling = result.spelling;
+  task.element_enum_index = result.enum_index;
+  return task;
+}
+
+static bool task_result_slot(frontend_simple_type result, size_t *slot) {
+  if (slot == NULL) return false;
+  if (result.kind == W_SEED_FRONTEND_TYPE_UNIT) {
+    *slot = 0u;
+    return true;
+  }
+  if (result.kind == W_SEED_FRONTEND_TYPE_INTEGER && result.is_signed &&
+      result.bit_width == 64u) {
+    *slot = 1u;
+    return true;
+  }
+  if (result.kind == W_SEED_FRONTEND_TYPE_BOOL) {
+    *slot = 2u;
+    return true;
+  }
+  if (result.kind == W_SEED_FRONTEND_TYPE_STRING) {
+    *slot = 3u;
+    return true;
+  }
+  return false;
+}
+
+static frontend_simple_type task_result_simple_type(
+    frontend_simple_type task) {
+  frontend_simple_type result = simple_type_unknown();
+  if (task.kind != W_SEED_FRONTEND_TYPE_TASK) return result;
+  result.kind = task.task_result_kind;
+  result.is_signed = task.task_result_is_signed;
+  result.bit_width = task.task_result_bit_width;
+  result.spelling = task.task_result_spelling;
+  return result;
+}
+
+static void task_context_initialize(frontend_context *context) {
+  if (context == NULL) return;
+  context->task_binding_count = 0u;
+  (void)memset(context->task_result_type_indices, 0xff,
+               sizeof(context->task_result_type_indices));
+  (void)memset(context->task_type_indices, 0xff,
+               sizeof(context->task_type_indices));
+}
+
+static frontend_task_binding *task_binding_for_name(
+    frontend_context *context, uint32_t owner_function,
+    w_seed_frontend_text name, w_seed_span use_span) {
+  if (context == NULL || name.length == 0u) return NULL;
+  const w_seed_frontend_document *document = context_document(context);
+  const bool have_function =
+      document != NULL && context->function_node != NULL &&
+      context->function_node >= document->nodes &&
+      context->function_node < document->nodes + document->parse.node_count;
+  const uint32_t function_node =
+      have_function
+          ? (uint32_t)(context->function_node - document->nodes)
+          : W_SEED_CST_NONE;
+  const uint32_t use_block =
+      have_function
+          ? innermost_block_for_span(document, function_node, use_span)
+          : W_SEED_CST_NONE;
+  for (size_t index = context->task_binding_count; index > 0u; index -= 1u) {
+    frontend_task_binding *binding = &context->task_bindings[index - 1u];
+    if (binding->owner_function == owner_function &&
+        binding->span.end_byte <= use_span.start_byte &&
+        text_equal_text(binding->name, name)) {
+      const uint32_t binding_block =
+          have_function
+              ? innermost_block_for_span(document, function_node,
+                                         binding->span)
+              : W_SEED_CST_NONE;
+      if (have_function &&
+          !block_scope_contains(document, binding_block, use_block)) {
+        continue;
+      }
+      if (have_function) {
+        for (size_t node_index = 0u;
+             node_index < document->parse.node_count; node_index += 1u) {
+          const w_seed_cst_node *candidate = &document->nodes[node_index];
+          if ((candidate->kind == W_SEED_CST_LET_STATEMENT ||
+               candidate->kind == W_SEED_CST_VAR_STATEMENT) &&
+              candidate->raw_span.start_byte >= binding->span.end_byte &&
+              candidate->raw_span.end_byte <= use_span.start_byte &&
+              block_scope_contains(
+                  document,
+                  innermost_block_for_span(document, function_node,
+                                           candidate->raw_span),
+                  use_block) &&
+              text_equal_text(
+                  binding_name_after_keyword(
+                      document, candidate->raw_span,
+                      candidate->kind == W_SEED_CST_LET_STATEMENT ? "let"
+                                                                   : "var"),
+                  name)) {
+            return NULL;
+          }
+        }
+      }
+      return binding;
+    }
+  }
+  return NULL;
+}
+
+static frontend_task_binding *task_binding_for_statement(
+    frontend_context *context, uint32_t owner_function,
+    uint32_t statement_index) {
+  if (context == NULL || statement_index == W_SEED_FRONTEND_NONE) return NULL;
+  for (size_t index = context->task_binding_count; index > 0u; index -= 1u) {
+    frontend_task_binding *binding = &context->task_bindings[index - 1u];
+    if (binding->owner_function == owner_function &&
+        binding->statement_index == statement_index) {
+      return binding;
+    }
+  }
+  return NULL;
+}
+
+static bool span_uses_task_binding(frontend_context *context,
+                                   uint32_t owner_function,
+                                   const w_seed_frontend_document *document,
+                                   w_seed_span span) {
+  if (context == NULL || document == NULL) return false;
+  frontend_token_cursor cursor = token_cursor_for(document, span);
+  frontend_token token;
+  while (cursor_take(&cursor, &token)) {
+    if (token.kind != W_SEED_CST_WORD) continue;
+    const w_seed_frontend_text name = text_from_span(document, token.span);
+    if (task_binding_for_name(context, owner_function, name, token.span) !=
+        NULL) {
+      return true;
+    }
+  }
+  return false;
 }
 
 static frontend_simple_type simple_type_from_text(
@@ -4422,6 +4638,13 @@ static bool type_equal(frontend_simple_type left, frontend_simple_type right) {
   }
   if (left.kind == W_SEED_FRONTEND_TYPE_FUNCTION) {
     return text_equal_text(left.spelling, right.spelling);
+  }
+  if (left.kind == W_SEED_FRONTEND_TYPE_TASK) {
+    return left.task_result_kind == right.task_result_kind &&
+           left.task_result_is_signed == right.task_result_is_signed &&
+           left.task_result_bit_width == right.task_result_bit_width &&
+           text_equal_text(left.task_result_spelling,
+                           right.task_result_spelling);
   }
   if (left.kind == W_SEED_FRONTEND_TYPE_NOMINAL) {
     const bool left_external =
@@ -5094,6 +5317,7 @@ w_seed_frontend_status w_seed_frontend_measure(
   }
   frontend_context dry;
   (void)memset(&dry, 0, sizeof(dry));
+  task_context_initialize(&dry);
   dry.input = *input;
   dry.output = NULL;
   dry.result = result;
@@ -6987,6 +7211,11 @@ static bool context_append_const_declaration(
 static bool context_append_type(frontend_context *context,
                                 w_seed_frontend_type value,
                                 uint32_t *index) {
+  if (value.kind != W_SEED_FRONTEND_TYPE_TASK) {
+    value.task_result_type = W_SEED_FRONTEND_NONE;
+  } else if (value.task_result_type == W_SEED_FRONTEND_NONE) {
+    return false;
+  }
   if (context == NULL || index == NULL ||
       !external_identity_pair_valid(context, value.kind,
                                     value.external_module_index,
@@ -9029,6 +9258,40 @@ static bool normalize_block_statements_depth(frontend_context *context,
                                              uint32_t *first_statement,
                                              uint32_t *statement_count);
 
+static bool finalize_function_tasks(frontend_context *context,
+                                    size_t first_task_binding,
+                                    uint32_t owner_function) {
+  const w_seed_frontend_document *doc = context_document(context);
+  if (context == NULL || doc == NULL ||
+      first_task_binding > context->task_binding_count) {
+    return false;
+  }
+  for (size_t index = first_task_binding;
+       index < context->task_binding_count; index += 1u) {
+    frontend_task_binding *binding = &context->task_bindings[index];
+    if (binding->owner_function != owner_function) continue;
+    if (binding->supported && binding->join_count == 1u) continue;
+    if (!context_append_fact(context, W_SEED_FRONTEND_FACT_TASK_ESCAPE,
+                             binding->span,
+                             text_from_span(doc, binding->span))) {
+      return false;
+    }
+    binding->supported = false;
+    if (context->emit && context->output != NULL) {
+      if (binding->launch_expression >=
+              context->output->expression_capacity ||
+          binding->statement_index >= context->output->statement_capacity) {
+        return false;
+      }
+      context->output->expressions[binding->launch_expression].supported =
+          false;
+      context->output->statements[binding->statement_index].kind =
+          W_SEED_FRONTEND_STMT_UNSUPPORTED;
+    }
+  }
+  return true;
+}
+
 static bool normalize_function(frontend_context *context, uint32_t node_index,
                                uint32_t *function_index) {
   const w_seed_frontend_document *doc = context_document(context);
@@ -9055,6 +9318,7 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
   value.return_type = W_SEED_FRONTEND_NONE;
   value.first_statement = (uint32_t)context->count.statements;
   value.statement_count = 0;
+  const size_t first_task_binding = context->task_binding_count;
   context->current_function_is_const = value.is_const;
   context->current_const_body_active = false;
   context->current_const_body_supported = value.const_body_supported;
@@ -9132,6 +9396,8 @@ static bool normalize_function(frontend_context *context, uint32_t node_index,
                                      (size_t)value.first_parameter);
   value.statement_count = (uint32_t)(context->count.statements -
                                      (size_t)value.first_statement);
+  if (!finalize_function_tasks(context, first_task_binding, *function_index))
+    return false;
   if (context->emit && context->output != NULL &&
       *function_index < context->output->function_capacity) {
     context->output->functions[*function_index] = value;
@@ -9174,6 +9440,7 @@ static bool normalize_entry(frontend_context *context, uint32_t node_index,
     function.parameter_count = 0u;
     function.first_statement = (uint32_t)context->count.statements;
     function.statement_count = 0u;
+    const size_t first_task_binding = context->task_binding_count;
     function.is_const = false;
     function.const_body_supported = true;
     function.is_async = false;
@@ -9195,6 +9462,9 @@ static bool normalize_entry(frontend_context *context, uint32_t node_index,
     if (!normalize_block_statements(context, block_node)) return false;
     function.statement_count =
         (uint32_t)(context->count.statements - function.first_statement);
+    if (!finalize_function_tasks(context, first_task_binding,
+                                 value.target_function))
+      return false;
     if (context->emit && context->output != NULL &&
         (size_t)value.target_function < context->output->function_capacity) {
       context->output->functions[value.target_function] = function;
@@ -10470,6 +10740,10 @@ static frontend_simple_type binding_type_for_name(
     frontend_context *context, w_seed_frontend_text name,
     w_seed_span use_span) {
   if (context == NULL) return simple_type_unknown();
+  frontend_task_binding *task = task_binding_for_name(
+      context, context->function_index, name, use_span);
+  if (task != NULL && task->supported)
+    return task_simple_type(task->result_type);
   for (size_t index = context->active_pattern_capture_count; index > 0u;
        index -= 1u) {
     const frontend_active_pattern_capture *capture =
@@ -10791,6 +11065,71 @@ static bool output_type_index_for_simple(frontend_context *context,
   if (index == NULL) return false;
   *index = W_SEED_FRONTEND_NONE;
   if (context == NULL) return true;
+  size_t task_slot = 0u;
+  if (type.kind == W_SEED_FRONTEND_TYPE_TASK) {
+    const frontend_simple_type result = task_result_simple_type(type);
+    if (!task_result_slot(result, &task_slot)) return true;
+    if (context->task_type_indices[task_slot] != W_SEED_FRONTEND_NONE) {
+      *index = context->task_type_indices[task_slot];
+      return true;
+    }
+    uint32_t result_index = context->task_result_type_indices[task_slot];
+    if (result_index == W_SEED_FRONTEND_NONE) {
+      if (result.kind == W_SEED_FRONTEND_TYPE_INTEGER ||
+          result.kind == W_SEED_FRONTEND_TYPE_BOOL) {
+        if (!output_type_index_for_simple(context, result, &result_index) ||
+            result_index == W_SEED_FRONTEND_NONE) {
+          return false;
+        }
+      } else {
+        w_seed_frontend_type result_record;
+        (void)memset(&result_record, 0, sizeof(result_record));
+        result_record.kind = result.kind;
+        result_record.spelling =
+            result.kind == W_SEED_FRONTEND_TYPE_UNIT
+                ? (w_seed_frontend_text){"()", 2u}
+                : (w_seed_frontend_text){"String", 6u};
+        result_record.nominal_name = result_record.spelling;
+        result_record.span = empty_span(0u);
+        result_record.is_signed = result.is_signed;
+        result_record.bit_width = result.bit_width;
+        result_record.element_type = W_SEED_FRONTEND_NONE;
+        result_record.return_type = W_SEED_FRONTEND_NONE;
+        result_record.first_parameter = W_SEED_FRONTEND_NONE;
+        result_record.enum_base_index = W_SEED_FRONTEND_NONE;
+        result_record.first_subset_member = W_SEED_FRONTEND_NONE;
+        result_record.generic_application_index = W_SEED_FRONTEND_NONE;
+        result_record.external_module_index = W_SEED_FRONTEND_NONE;
+        result_record.external_symbol_index = W_SEED_FRONTEND_NONE;
+        if (!context_append_type(context, result_record, &result_index))
+          return false;
+      }
+      context->task_result_type_indices[task_slot] = result_index;
+    }
+    w_seed_frontend_type task_record;
+    (void)memset(&task_record, 0, sizeof(task_record));
+    task_record.kind = W_SEED_FRONTEND_TYPE_TASK;
+    task_record.spelling = (w_seed_frontend_text){"Task", 4u};
+    task_record.nominal_name = task_record.spelling;
+    task_record.span = empty_span(0u);
+    task_record.element_type = result_index;
+    task_record.return_type = W_SEED_FRONTEND_NONE;
+    task_record.first_parameter = W_SEED_FRONTEND_NONE;
+    task_record.enum_base_index = W_SEED_FRONTEND_NONE;
+    task_record.first_subset_member = W_SEED_FRONTEND_NONE;
+    task_record.generic_application_index = W_SEED_FRONTEND_NONE;
+    task_record.task_result_type = result_index;
+    task_record.external_module_index = W_SEED_FRONTEND_NONE;
+    task_record.external_symbol_index = W_SEED_FRONTEND_NONE;
+    if (!context_append_type(context, task_record, index)) return false;
+    context->task_type_indices[task_slot] = *index;
+    return true;
+  }
+  if (task_result_slot(type, &task_slot) &&
+      context->task_result_type_indices[task_slot] != W_SEED_FRONTEND_NONE) {
+    *index = context->task_result_type_indices[task_slot];
+    return true;
+  }
   if (type.kind == W_SEED_FRONTEND_TYPE_INTEGER && type.is_signed &&
       type.bit_width == 64u && text_equal(type.spelling, "i64")) {
     if (context->default_integer_type_index == W_SEED_FRONTEND_NONE) {
@@ -11099,6 +11438,9 @@ static bool expression_append(frontend_expression_parser *parser,
   record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   record.interpolation_segment_count = 0u;
   record.else_expression = W_SEED_FRONTEND_NONE;
+  record.task_result_type = W_SEED_FRONTEND_NONE;
+  record.task_call_expression = W_SEED_FRONTEND_NONE;
+  record.task_binding_statement = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_IDENTIFIER) {
     for (size_t index = parser->context->active_pattern_capture_count;
          index > 0u; index -= 1u) {
@@ -11212,6 +11554,10 @@ static bool expression_append(frontend_expression_parser *parser,
   value->name = value->has_name ? spelling : (w_seed_frontend_text){NULL, 0};
   value->operator_text = operator_text;
   value->span = span;
+  value->is_local_call = false;
+  value->local_call_function = W_SEED_FRONTEND_NONE;
+  value->local_call_is_async = false;
+  value->task_binding_statement = W_SEED_FRONTEND_NONE;
   if (kind == W_SEED_FRONTEND_EXPR_ENUM_MEMBERSHIP) {
     value->enum_index = record.enum_index;
     value->enum_case_index = W_SEED_FRONTEND_NONE;
@@ -12449,6 +12795,12 @@ static bool expression_parse_postfix(frontend_expression_parser *parser,
                            argument_count, value)) {
       return false;
     }
+    value->is_local_call = local_signature;
+    value->local_call_is_async =
+        local_signature && signature_doc != NULL &&
+        signature_node < signature_doc->parse.node_count &&
+        (signature_doc->nodes[signature_node].flags &
+         W_SEED_CST_FUNCTION_FLAG_ASYNC) != 0u;
     if (!parser->context->emit) {
       w_seed_frontend_callee_kind identity_kind =
           W_SEED_FRONTEND_CALLEE_NONE;
@@ -12501,6 +12853,92 @@ static bool expression_parse_prefix_inner(frontend_expression_parser *parser,
   if (parser == NULL || value == NULL) return false;
   frontend_token token;
   if (!cursor_peek(&parser->cursor, &token)) return false;
+  if (token_text(parser->document, &token, "async") ||
+      token_text(parser->document, &token, "await")) {
+    const bool launch = token_text(parser->document, &token, "async");
+    (void)cursor_take(&parser->cursor, &token);
+    frontend_expr_value nested;
+    if (!expression_parse_prefix(parser, &nested)) return false;
+    const w_seed_span span = {token.span.start_byte, nested.span.end_byte};
+    frontend_simple_type result_type = simple_type_unknown();
+    frontend_task_binding *binding = NULL;
+    bool supported = nested.supported;
+    if (launch) {
+      result_type = nested.type;
+      supported = supported && nested.kind == W_SEED_FRONTEND_EXPR_CALL &&
+                  nested.is_local_call &&
+                  !nested.local_call_is_async &&
+                  task_result_kind_supported(result_type) &&
+                  !parser->context->current_function_is_const;
+    } else {
+      binding = nested.kind == W_SEED_FRONTEND_EXPR_IDENTIFIER &&
+                        nested.has_name
+                    ? task_binding_for_name(parser->context,
+                                            parser->context->function_index,
+                                            nested.name, span)
+                    : NULL;
+      supported = supported && binding != NULL && binding->supported;
+      if (supported) result_type = binding->result_type;
+    }
+    if (!supported) {
+      (void)context_append_fact(
+          parser->context,
+          launch ? W_SEED_FRONTEND_FACT_ASYNC_LAUNCH
+                 : W_SEED_FRONTEND_FACT_AWAIT,
+          span, text_from_span(parser->document, span));
+      if (parser->context->current_function_is_const)
+        (void)const_record_failure(parser->context, span,
+                                   text_from_span(parser->document, span));
+    }
+    if (nested.index >= (size_t)UINT32_MAX) return false;
+    const uint32_t nested_index = (uint32_t)nested.index;
+    const uint32_t binding_statement =
+        binding == NULL ? W_SEED_FRONTEND_NONE : binding->statement_index;
+    const frontend_simple_type expression_type =
+        launch ? task_simple_type(result_type) : result_type;
+    if (!expression_append(
+            parser,
+            launch ? W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH
+                   : W_SEED_FRONTEND_EXPR_AWAIT,
+            span, text_from_span(parser->document, span),
+            text_from_span(parser->document, token.span), expression_type,
+            supported, nested_index, (size_t)W_SEED_FRONTEND_NONE,
+            W_SEED_FRONTEND_NONE, 0u, value)) {
+      return false;
+    }
+    value->task_binding_statement = binding_statement;
+    uint32_t result_type_index = W_SEED_FRONTEND_NONE;
+    if (!output_type_index_for_simple(parser->context, result_type,
+                                      &result_type_index) ||
+        (supported && result_type_index == W_SEED_FRONTEND_NONE)) {
+      return false;
+    }
+    if (parser->context->emit && parser->context->output != NULL &&
+        value->index < parser->context->output->expression_capacity) {
+      w_seed_frontend_expression *record =
+          &parser->context->output->expressions[value->index];
+      record->task_call_expression =
+          launch ? nested_index : W_SEED_FRONTEND_NONE;
+      record->task_binding_statement =
+          launch ? W_SEED_FRONTEND_NONE : binding_statement;
+      if (launch && record->inferred_type != W_SEED_FRONTEND_NONE &&
+          record->inferred_type < parser->context->count.types) {
+        record->task_result_type =
+            parser->context->output->types[record->inferred_type]
+                .task_result_type;
+      } else if (!launch) {
+        record->task_result_type = result_type_index;
+      }
+    } else if (!parser->context->emit &&
+               !receipt_size_task_expression(
+                   parser->context, value->index, value->kind,
+                   result_type_index,
+                   launch ? nested_index : W_SEED_FRONTEND_NONE,
+                   launch ? W_SEED_FRONTEND_NONE : binding_statement)) {
+      return false;
+    }
+    return true;
+  }
   if (token_text(parser->document, &token, "!") ||
       token_text(parser->document, &token, "-")) {
     (void)cursor_take(&parser->cursor, &token);
@@ -13089,6 +13527,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
     fallback.else_expression = W_SEED_FRONTEND_NONE;
+    fallback.task_result_type = W_SEED_FRONTEND_NONE;
+    fallback.task_call_expression = W_SEED_FRONTEND_NONE;
+    fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -13136,6 +13577,9 @@ static bool normalize_expression_node(frontend_context *context,
     fallback.first_interpolation_segment = W_SEED_FRONTEND_NONE;
     fallback.interpolation_segment_count = 0u;
     fallback.else_expression = W_SEED_FRONTEND_NONE;
+    fallback.task_result_type = W_SEED_FRONTEND_NONE;
+    fallback.task_call_expression = W_SEED_FRONTEND_NONE;
+    fallback.task_binding_statement = W_SEED_FRONTEND_NONE;
     fallback.member_name = (w_seed_frontend_text){NULL, 0};
     fallback.supported = false;
     if (actual_out != NULL) *actual_out = simple_type_unknown();
@@ -13937,6 +14381,9 @@ static bool normalize_switch_expression(
   switch_record.first_interpolation_segment = W_SEED_FRONTEND_NONE;
   switch_record.interpolation_segment_count = 0u;
   switch_record.else_expression = W_SEED_FRONTEND_NONE;
+  switch_record.task_result_type = W_SEED_FRONTEND_NONE;
+  switch_record.task_call_expression = W_SEED_FRONTEND_NONE;
+  switch_record.task_binding_statement = W_SEED_FRONTEND_NONE;
   switch_record.supported = subject_is_enum;
   uint32_t switch_index = W_SEED_FRONTEND_NONE;
   if (!context_append_expression(context, switch_record, &switch_index)) {
@@ -14374,6 +14821,56 @@ static bool normalize_statement_depth(frontend_context *context,
     normalized_actual = infer_expression_span(
         context, doc->nodes[expression_node].raw_span);
   }
+  bool register_task_launch = false;
+  bool accept_task_await = false;
+  frontend_task_binding *awaited_task = NULL;
+  if (expression_node != W_SEED_CST_NONE) {
+    const w_seed_span expression_span = doc->nodes[expression_node].raw_span;
+    const bool root_launch =
+        expression_value.kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH;
+    const bool root_await = expression_value.kind == W_SEED_FRONTEND_EXPR_AWAIT;
+    const bool has_async = span_has_keyword(doc, expression_span, "async");
+    const bool has_await = span_has_keyword(doc, expression_span, "await");
+    const bool uses_task = span_uses_task_binding(
+        context, context->function_index, doc, expression_span);
+    if (root_await) {
+      awaited_task = task_binding_for_statement(
+          context, context->function_index,
+          expression_value.task_binding_statement);
+    }
+    register_task_launch =
+        root_launch && expression_value.supported &&
+        node->kind == W_SEED_CST_LET_STATEMENT && depth == 1u &&
+        type_node == W_SEED_CST_NONE && value.binding_name.length != 0u &&
+        context->task_binding_count < FRONTEND_MAX_TASK_BINDINGS &&
+        task_binding_for_name(context, context->function_index,
+                              value.binding_name, node->raw_span) == NULL;
+    accept_task_await =
+        root_await && expression_value.supported && awaited_task != NULL &&
+        awaited_task->join_count == 0u &&
+        node->kind == W_SEED_CST_LET_STATEMENT && depth == 1u &&
+        type_node == W_SEED_CST_NONE && value.binding_name.length != 0u;
+    const bool task_surface = has_async || has_await || uses_task ||
+                              normalized_actual.kind ==
+                                  W_SEED_FRONTEND_TYPE_TASK;
+    if (task_surface && !register_task_launch && !accept_task_await) {
+      if (expression_value.supported) {
+        const w_seed_frontend_fact_kind fact_kind =
+            root_await || has_await
+                ? W_SEED_FRONTEND_FACT_AWAIT
+                : W_SEED_FRONTEND_FACT_TASK_ESCAPE;
+        if (!context_append_fact(context, fact_kind, expression_span,
+                                 text_from_span(doc, expression_span))) {
+          return false;
+        }
+      }
+      value.kind = W_SEED_FRONTEND_STMT_UNSUPPORTED;
+      if (context->emit && context->output != NULL &&
+          value.expression_index < context->output->expression_capacity) {
+        context->output->expressions[value.expression_index].supported = false;
+      }
+    }
+  }
   if ((node->kind == W_SEED_CST_LET_STATEMENT ||
        node->kind == W_SEED_CST_VAR_STATEMENT) &&
       expression_node != W_SEED_CST_NONE) {
@@ -14502,6 +14999,25 @@ static bool normalize_statement_depth(frontend_context *context,
     }
   }
   if (!context_append_statement(context, value, statement_index)) return false;
+  if (register_task_launch) {
+    frontend_task_binding *binding =
+        &context->task_bindings[context->task_binding_count++];
+    (void)memset(binding, 0, sizeof(*binding));
+    binding->owner_function = context->function_index;
+    binding->statement_index = *statement_index;
+    binding->launch_expression = value.expression_index;
+    binding->call_expression =
+        expression_value.left >= (size_t)UINT32_MAX
+            ? W_SEED_FRONTEND_NONE
+            : (uint32_t)expression_value.left;
+    binding->name = value.binding_name;
+    binding->result_type = task_result_simple_type(normalized_actual);
+    binding->join_count = 0u;
+    binding->span = value.span;
+    binding->supported = true;
+  } else if (accept_task_await) {
+    awaited_task->join_count += 1u;
+  }
   if ((node->kind == W_SEED_CST_LET_STATEMENT ||
        node->kind == W_SEED_CST_VAR_STATEMENT) && value.binding_name.length != 0) {
     uint32_t symbol_index = W_SEED_FRONTEND_NONE;
@@ -16250,6 +16766,12 @@ static const char *fact_name(w_seed_frontend_fact_kind kind) {
       return "unresolved-local-symbol";
     case W_SEED_FRONTEND_FACT_INVALID_ENTRY:
       return "invalid-entry";
+    case W_SEED_FRONTEND_FACT_ASYNC_LAUNCH:
+      return "async-launch";
+    case W_SEED_FRONTEND_FACT_AWAIT:
+      return "await";
+    case W_SEED_FRONTEND_FACT_TASK_ESCAPE:
+      return "task-escape";
   }
   return "unknown";
 }
@@ -16634,6 +17156,8 @@ static void receipt_write_records(frontend_receipt_writer *writer,
       receipt_write_size(writer, type->first_subset_member);
       receipt_write_literal(writer, "|subset-count=");
       receipt_write_size(writer, type->subset_member_count);
+      receipt_write_literal(writer, "|task-result=");
+      receipt_write_size(writer, type->task_result_type);
       receipt_write_literal(writer, "\n");
     }
     for (size_t index = 0; index < context->count.enum_subset_members;
@@ -16688,6 +17212,20 @@ static void receipt_write_records(frontend_receipt_writer *writer,
         receipt_write_size(writer, expression->resolved_external_symbol_index);
         receipt_write_literal(writer, "|name=");
         receipt_write_text(writer, expression->member_name);
+        receipt_write_literal(writer, "\n");
+      }
+      if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH ||
+          expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+        receipt_write_literal(writer, "task-expression=");
+        receipt_write_size(writer, index);
+        receipt_write_literal(writer, "|kind=");
+        receipt_write_size(writer, (size_t)expression->kind);
+        receipt_write_literal(writer, "|result=");
+        receipt_write_size(writer, expression->task_result_type);
+        receipt_write_literal(writer, "|call=");
+        receipt_write_size(writer, expression->task_call_expression);
+        receipt_write_literal(writer, "|binding=");
+        receipt_write_size(writer, expression->task_binding_statement);
         receipt_write_literal(writer, "\n");
       }
       if (expression->kind != W_SEED_FRONTEND_EXPR_CALL) continue;
@@ -16908,6 +17446,7 @@ w_seed_frontend_status w_seed_frontend_run(
 
   frontend_context dry;
   (void)memset(&dry, 0, sizeof(dry));
+  task_context_initialize(&dry);
   dry.input = *input;
   dry.output = NULL;
   dry.result = result;
@@ -16977,6 +17516,7 @@ w_seed_frontend_status w_seed_frontend_run(
   frontend_diagnostic_category_scratch_count = 0u;
   frontend_context emit;
   (void)memset(&emit, 0, sizeof(emit));
+  task_context_initialize(&emit);
   emit.input = *input;
   emit.output = output;
   emit.result = result;

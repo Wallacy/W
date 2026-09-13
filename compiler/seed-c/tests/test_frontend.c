@@ -147,6 +147,7 @@ static fixture fixture_host;
 static char long_source[8192];
 static fixture fixture_scalar_if;
 static fixture fixture_mutation;
+static fixture fixture_async;
 
 static bool all_bytes_equal(const void *data, size_t size, uint8_t value) {
   if (size == 0) return true;
@@ -2603,7 +2604,7 @@ static bool test_local_binding_resolution(void) {
         W_SEED_FRONTEND_OK);
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-21") &&
+                         "w-seed-frontend-22") &&
         value->result.written.statements == 2u);
   const w_seed_frontend_statement *binding = &value->statements[0];
   CHECK(binding->kind == W_SEED_FRONTEND_STMT_LET &&
@@ -2642,8 +2643,8 @@ static bool test_local_binding_resolution(void) {
   }
   CHECK(binding_symbol != W_SEED_FRONTEND_NONE &&
         message_expression != W_SEED_FRONTEND_NONE &&
-        receipt_contains(value, "schema=w-seed-frontend-21\n",
-                         strlen("schema=w-seed-frontend-21\n")));
+        receipt_contains(value, "schema=w-seed-frontend-22\n",
+                         strlen("schema=w-seed-frontend-22\n")));
 
   fixture *trivia = &fixture_a;
   CHECK(fixture_parse(
@@ -5078,7 +5079,7 @@ static bool test_local_assignment_projection(void) {
                     "}\n"));
   CHECK(value->result.status == W_SEED_FRONTEND_OK &&
         frontend_text_is(value->result.schema_version,
-                         "w-seed-frontend-21") &&
+                         "w-seed-frontend-22") &&
         value->result.written.statements == 2u);
   CHECK(value->statements[0].kind == W_SEED_FRONTEND_STMT_VAR &&
         value->statements[0].effective_type != W_SEED_FRONTEND_NONE &&
@@ -5190,6 +5191,114 @@ static bool test_local_assignment_projection(void) {
   }
   CHECK(multi_assignment_index ==
         sizeof(expected_roots) / sizeof(expected_roots[0]));
+  return true;
+}
+
+static bool test_structured_async_projection(void) {
+  fixture *value = &fixture_async;
+  static const char valid_source[] =
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry {\n"
+      "  let left = async prepare(value: 20)\n"
+      "  let right = async prepare(value: 22)\n"
+      "  let first = await left\n"
+      "  let second = await right\n"
+      "}\n";
+  CHECK(fixture_run(value, valid_source));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  size_t task_types = 0u;
+  size_t launches = 0u;
+  size_t awaits = 0u;
+  for (size_t index = 0u; index < value->result.written.types; index += 1u) {
+    const w_seed_frontend_type *type = &value->types[index];
+    if (type->kind != W_SEED_FRONTEND_TYPE_TASK) continue;
+    CHECK(type->task_result_type < value->result.written.types &&
+          type->element_type == type->task_result_type &&
+          value->types[type->task_result_type].kind ==
+              W_SEED_FRONTEND_TYPE_INTEGER);
+    task_types += 1u;
+  }
+  for (size_t index = 0u; index < value->result.written.expressions;
+       index += 1u) {
+    const w_seed_frontend_expression *expression = &value->expressions[index];
+    if (expression->kind == W_SEED_FRONTEND_EXPR_ASYNC_LAUNCH) {
+      CHECK(expression->supported &&
+            expression->task_call_expression <
+                value->result.written.expressions &&
+            value->expressions[expression->task_call_expression].kind ==
+                W_SEED_FRONTEND_EXPR_CALL &&
+            expression->task_result_type < value->result.written.types);
+      launches += 1u;
+    } else if (expression->kind == W_SEED_FRONTEND_EXPR_AWAIT) {
+      CHECK(expression->supported &&
+            expression->task_binding_statement <
+                value->result.written.statements &&
+            expression->task_result_type < value->result.written.types);
+      awaits += 1u;
+    }
+  }
+  CHECK(task_types == 1u && launches == 2u && awaits == 2u);
+  const size_t receipt_bytes = value->result.receipt_bytes;
+  uint8_t receipt[TEST_RECEIPT];
+  CHECK(receipt_bytes <= sizeof(receipt));
+  (void)memcpy(receipt, value->receipt, receipt_bytes);
+  CHECK(w_seed_frontend_run(&value->input, &value->output, &value->result) ==
+            W_SEED_FRONTEND_OK &&
+        value->result.receipt_bytes == receipt_bytes &&
+        memcmp(value->receipt, receipt, receipt_bytes) == 0);
+
+  CHECK(fixture_run(value,
+                    "fn prepare(value: i64): i64 { return value }\n"
+                    "entry { let task = async prepare(value: 1) }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_TASK_ESCAPE));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let task = async prepare(value: 1) let escaped = task "
+      "let value = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_TASK_ESCAPE));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let task = async prepare(value: 1) let first = await task "
+      "let second = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_AWAIT));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let task = async prepare(value: 1) if true { let task = 2 "
+      "let local = task } let value = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_OK &&
+        value->result.written.facts == 0u);
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i32): i32 { return value }\n"
+      "entry { let task = async prepare(value: 1) let value = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_ASYNC_LAUNCH));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let task = async prepare(value: 1) let task = 2 "
+      "let value = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_AWAIT));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { var task = async prepare(value: 1) let first = await task }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_TASK_ESCAPE));
+  CHECK(fixture_run(
+      value,
+      "fn prepare(value: i64): i64 { return value }\n"
+      "entry { let value = await prepare(value: 1) }\n"));
+  CHECK(value->result.status == W_SEED_FRONTEND_UNSUPPORTED &&
+        has_fact(value, W_SEED_FRONTEND_FACT_AWAIT));
   return true;
 }
 
@@ -5325,6 +5434,7 @@ int main(void) {
   if (!test_barrier_and_capacity()) return 1;
   if (!test_process_abi_alias_and_exit_case()) return 1;
   if (!test_local_assignment_projection()) return 1;
+  if (!test_structured_async_projection()) return 1;
   if (!test_while_projection()) return 1;
   if (!test_repeat_projection()) return 1;
   return 0;
