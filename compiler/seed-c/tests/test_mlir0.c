@@ -818,6 +818,35 @@ static bool test_process_arguments_count_comparison_mlir(void) {
                        "llvm.icmp \"ne\"") &&
         contains_bytes(output, result.written.mlir_bytes,
                        "llvm.cond_br"));
+
+  CHECK(w_seed_mlir0_measure(&input, &TARGET, &counts, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(w_seed_mlir0_emit(
+            &input, &TARGET,
+            &(w_seed_mlir0_output){output, sizeof(output)}, &result) ==
+        W_SEED_MLIR0_OK);
+  CHECK(result.written.mlir_bytes == counts.mlir_bytes &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.target_triple = \"" W_SEED_MLIR0_TARGET_TRIPLE
+                       "\"") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.func @main() -> i32") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_argc()") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_argv()") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @w_seed_process_count_arguments") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.store %process_one, %process_vector_encoding_address") &&
+        contains_bytes(output, result.written.mlir_bytes,
+                       "llvm.call @write(%process_fd") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "mainCRTStartup") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "GetCommandLineW") &&
+        !contains_bytes(output, result.written.mlir_bytes,
+                        "ExitProcess"));
   return true;
 }
 

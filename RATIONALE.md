@@ -175,6 +175,7 @@ O corpus compara, no mínimo:
 - verified-HIR direct MLIR0 native route source → HIR0 → LLVM dialect → native contra emissão C HLO1, HLO0 as native prerequisite, LLVM/source bypass e futuro W/MLIR geral.
 - closed local payloadless enum exhaustive switch against raw integer tags, incomplete coverage, and expected-output shortcuts.
 - bounded payloadless enum subsets against subset-index renumbering, wrapper allocation, runtime narrowing guards, unchecked reverse conversion, and source-arm order coupling.
+- CRT-free Linux process startup against ABI leakage, prologue-sensitive stack capture, copied argv storage, and target-encoding confusion.
 - same-module executable product roots against retain-all-exports and source-name shortcuts.
 - bounded public `Arguments.count` equality and flat/selective `std.process` imports against source-name recognition, general `usize` operations, owner escape, and import-specific product output.
 - structured interpolation records against opaque literal events, precomputed output, and witness-specific print paths.
@@ -7863,6 +7864,7 @@ policy plana por módulo, capability, target facts, provider e reachability.
 | W-1570 | bounded post-loop SSA continuation after a multi-carrier natural `while` | A bounded natural `while` admits exactly one pure post-loop `=` assignment to an existing mutable signed-`i64` loop carrier. Its RHS may use literals, same-function signed-`i64` parameters, and latest loop results, must use at least one latest loop result, and the function return must depend on the continuation binding. The route reuses existing HIR0 records without a schema change, preserves SSA version chains, and emits no `llvm.alloca`. The public fixture produces exact `Final 9\n` as a native Windows PE and a CRT-free Linux/WSL ELF. | `source-backed-current` only for this bounded pure continuation and its dual-platform correctness witness. A second continuation assignment, `let` or unrelated targets, calls/effects, post-loop control, non-`i64` carriers, missing loop-result use, return bypass, nested or mixed control, other targets, ABI/layout, optimization quality, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurements and makes no timing or ranking claim. |
 
 | W-1571 | bounded local payloadless enum subset switch | Aliases in the bounded enum-subset slice canonicalize by the base enum and normalized base-case indices. A full case-set remains the base enum identity. The first executable implementation admits only proper, nonempty, payloadless subsets of a local closed enum. It preserves the base enum's private carrier width and declaration tags, keeps values scalar, and adds no wrapper or enum-specific allocation. A switch covers normalized subset members in base declaration order even when source arms use another order. Its backend-only synthetic llvm.unreachable default closes the lowered CFG after verification and is not a runtime narrowing guard. Subset-to-base is a no-op only after the same-base proof. Base-to-subset checked conversion and arbitrary superset conversion remain outside this executable slice. The same source produces the exact Work 1/2\n oracle, empty stderr, and exit zero as a Windows PE and a Linux/WSL ELF. | `source-backed-current` only for the bounded payloadless local subset, focused HIR/native/MLIR proofs, and dual-platform correctness witness. Payload-bearing/imported/generic subsets, general case-set algebra and conversions, public ABI/layout, other targets, timing, and ranking remain gaps. Primary `benchmarkDisposition: compiler-lifecycle`; the executable catalog separately owns exploratory W/C23/Rust measurement. |
+| W-1572 | bounded CRT-free Linux process arguments and payload-enum execution | The public process executable subset now targets Linux x86_64 without changing W-visible syntax or the ordinary generated `main() -> i32`. WRT0 captures the original kernel stack in target-owned module assembly, publishes private argc/argv accessors, and exits through syscalls. Generated process MLIR excludes argv0, accepts 0...256 borrowed POSIX-byte descriptors, derives the root encoding from the vector, and rejects 257 before W code or stdout. The existing process enum-payload and count sources execute with exact outputs and cleanup as CRT-free ELF files; Windows remains independently gated. | `source-backed-current` only for Linux/WSL x86_64, borrowed process-lifetime descriptors, `Arguments.isEmpty`/`count`, the existing bounded process body, exact runtime cases, and CRT-free ELF closure. Decoded access, iteration, mutation, other architectures/OSes, cross-compilation, stable ABI/layout, timing, and ranking remain gaps. `benchmarkDisposition: deferred`; existing Windows exploratory measurements remain separate and no Linux measurement is claimed. |
 Amendments desta rodada fecham os detalhes operacionais. W-1514 permite named
 arguments em qualquer posição sem consumir as sequências positional-only e
 exige exatamente um hole em pipe, inclusive para named holes. Type
@@ -11677,3 +11679,35 @@ forged records. This evidence is current only for the bounded slice. Its primary
 disposition is compiler-lifecycle. The executable catalog owns exploratory
 W/C23/Rust measurements separately and makes no timing or language ranking
 claim.
+
+#### W-1572 — bounded CRT-free Linux process arguments and payload-enum execution
+
+The public process subset had a target asymmetry: Windows could construct the
+verified process root from its native command line, while the CRT-free Linux
+startup discarded the kernel argument vector before calling generated code.
+W-1572 closes that bounded target gap without exposing a POSIX ABI in W source
+or changing the ordinary generated `main() -> i32` interface.
+
+WRT0 now owns a small x86_64 module-assembly `_start`. Assembly is intentional:
+reading `%rsp` inside an ordinary LLVM function could observe a prologue-adjusted
+stack. `_start` instead passes the untouched kernel stack pointer to an LLVM
+helper. That helper records private argc/argv accessors, calls `main`, and the
+startup exits through the Linux syscall ABI. The final ELF remains a static PIE
+without an interpreter, CRT, libc, or `DT_NEEDED` entry.
+
+Generated process MLIR validates argc and argv before publishing a root. It
+excludes argv0, limits user arguments to 256, scans the kernel-provided
+NUL-terminated byte strings only to obtain their lengths, and records borrowed
+POSIX-byte descriptors. The contents are not copied. Empty arguments remain
+observable as one zero-length descriptor. Root initialization now copies the
+vector encoding instead of embedding the Windows UTF-16 value, allowing the
+same verified owner and cleanup machinery to serve both targets.
+
+The acceptance lane executes the existing process enum-payload fixture from
+source and as a built ELF for absent, empty, and ordinary arguments. It also
+executes the count fixture at zero, one empty, two ordinary, and 256 arguments,
+then proves 257 fails with exit 3 and no stdout. Exact stderr, ELF closure,
+atomic build behavior, and temporary-file cleanup remain part of the gate. This
+is correctness and compiler-lifecycle evidence, not a Linux benchmark result.
+Argument decoding/indexing, mutation, other architectures or OSes,
+cross-compilation, stable public layout, and performance remain open.

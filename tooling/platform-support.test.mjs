@@ -288,7 +288,7 @@ describe("platform support catalog", () => {
     const errors = errorsAfter((value) => {
       value.crossCompilation.developmentEvidence[0].evidence[2].symbol = "notDeclared";
     });
-    expectError(errors, "crossCompilation.developmentEvidence[0].evidence[2].symbol must identify a declared symbol in tooling/check-mlir0.mjs");
+    expectError(errors, "crossCompilation.developmentEvidence[0].evidence[2].symbol must identify a declared symbol in tooling/check-w-run.mjs");
   });
 
   test("requires manifest evidence symbols to be top-level keys", () => {

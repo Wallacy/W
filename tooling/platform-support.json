@@ -886,17 +886,17 @@
           },
           {
             "kind": "check",
-            "path": "tooling/check-mlir0.mjs",
-            "symbol": "runRequired",
-            "claim": "The focal MLIR0 check provides local build evidence for the WSL Linux development edge.",
+            "path": "tooling/check-w-run.mjs",
+            "symbol": "processArgumentsCountFixture",
+            "claim": "The public gate builds bounded CRT-free Linux process artifacts through the WSL development edge.",
             "role": "build",
             "executionMode": null
           },
           {
             "kind": "check",
-            "path": "tooling/check-mlir0.mjs",
-            "symbol": "invokeProgram",
-            "claim": "The focal MLIR0 check executes the Linux artifact locally for the WSL development edge.",
+            "path": "tooling/check-w-run.mjs",
+            "symbol": "processEnumPayloadFixture",
+            "claim": "The public gate executes the process entry and enum payload oracle on the Linux target through WSL.",
             "role": "execution",
             "executionMode": "local"
           }

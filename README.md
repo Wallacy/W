@@ -33,7 +33,7 @@ otherwise.
 | Enum subsets | The bounded seed target admits proper nonempty payloadless subsets of local enums with base tags and no wrapper allocation; focused checks and native Windows plus Linux/WSL execution are current. |
 | Source entry | entry { ... } and entry(functionName) are accepted in the bounded surface. An empty entry { } is valid. |
 | Public CLI | Explicit source paths support w check, bounded w run, and bounded w build on configured routes. Package and workspace resolution are outside this surface. |
-| Public process entry | The bounded Windows route lowers normal verified HIR/MLIR bodies. [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) is the minimal fixture. [`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w) composes helpers, enum payloads, switch, and interpolation. Identity, owner, CFG, stdout, and exit-range proofs remain required. |
+| Public process entry | The bounded Windows and CRT-free Linux/WSL routes lower normal verified HIR/MLIR bodies. [`process-input0.w`](compiler/seed-c/fixtures/process-input0.w) is the minimal fixture. [`process-enum-payload.w`](compiler/seed-c/fixtures/process-enum-payload.w) composes helpers, enum payloads, switch, and interpolation. Identity, owner, CFG, stdout, argument bounds, and exit-range proofs remain required. |
 | Windows candidate | A local Windows x64 route uses the pinned LLVM, MLIR, and LLD toolchain when its prerequisites are materialized. |
 | Benchmarks | WBench records exact-oracle executable evidence and current artifact or timing cells when available. The published status remains exploratory and measurement-only. |
 
