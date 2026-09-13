@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "w_seed_cooperative_selection0.h"
 #include "w_seed_hir0.h"
 
 #ifdef __cplusplus
@@ -160,6 +161,20 @@ w_seed_native_subset0_select_process_executable(
     const w_seed_hir0_program *program,
     const w_seed_hir0_result *hir_result,
     w_seed_native_subset0_process *selection);
+
+/* Select the target-neutral closed cooperative product shape. This is only
+ * an admission record for a future emitter; it does not emit or execute. */
+w_seed_native_subset0_status w_seed_native_subset0_select_cooperative(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    w_seed_cooperative_selection0 *selection);
+
+/* Independently rederive every cooperative selection field from verified HIR.
+ * No selector-produced pointer or field is trusted. */
+bool w_seed_native_subset0_verify_cooperative(
+    const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
+    const w_seed_cooperative_selection0 *selection);
 
 #ifdef __cplusplus
 }

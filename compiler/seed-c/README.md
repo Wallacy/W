@@ -1731,6 +1731,28 @@ performance claim. Normal W-1582 static-yield elision remains unchanged. Any
 later emitted state machine must be target-neutral; Windows/Linux gates are
 evidence lanes, not restrictions on macOS or other viable LLVM targets.
 
+### Cooperative product-selection proof (W-1584 M1)
+
+W-1584 adds only a target-neutral, versioned, reserved, caller-owned selection
+proof with schema `w-seed-cooperative-selection0-1`. The record carries
+copied HIR indices and admission facts. It is not a task frame,
+scheduler record, runtime object, or ABI.
+
+NativeSubset0 independently rederives this narrower one-block product shape
+from verified HIR34. It requires one module, one fixed anonymous Unit root,
+exactly two ordered scalar async children, one or two
+`await execution#yield()` markers per child, and a complete reachable scalar
+helper graph of at most 64 functions. After both joins, zero or more host
+`print` calls are admitted in the root. Invalid or forged HIR and selection
+facts fail closed.
+
+The MLIR0 entrypoints expose selection and independent verification only. They
+do not emit an MLIR state machine or artifact. Normal W-1582 elision and the
+COOP0 compiler-host oracle remain unchanged. This M1 boundary makes no
+product-runtime, scheduler-ABI, benchmark, or platform-support claim. All
+viable LLVM targets remain candidates. Current Windows/Linux evidence cannot
+restrict macOS or other viable LLVM targets.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense

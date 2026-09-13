@@ -290,6 +290,17 @@ Normal W-1582 elision remains unchanged. Future product emission remains
 target-neutral; currently available Windows/Linux gates do not narrow the
 candidate matrix or exclude macOS and other viable LLVM targets.
 
+W-1584 is the M1 target-neutral selection boundary. The versioned and reserved
+caller-owned `w-seed-cooperative-selection0-1` record carries copied HIR
+indices and admission facts only. NativeSubset0 independently
+rederives its deliberately narrower one-block subset from verified HIR34:
+exactly two ordered scalar async children, one or two yields each, at most 64
+reachable functions, a fixed anonymous Unit root, and zero or more post-join
+`print` calls. MLIR0 exposes selection and verification only. No MLIR
+state-machine emission, artifact, product runtime, scheduler ABI, benchmark,
+or platform support is current. All viable LLVM targets remain candidates, so
+Windows/Linux evidence cannot restrict macOS or other targets.
+
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

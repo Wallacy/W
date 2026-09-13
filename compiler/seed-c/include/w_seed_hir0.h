@@ -25,6 +25,9 @@ extern "C" {
  * per-child yield budget in the HIR contract so frontend/HIR admission and
  * the host oracle cannot drift apart. */
 #define W_SEED_HIR0_COOPERATIVE_MAX_YIELDS_PER_TASK 2u
+/* The product-selection boundary is fixed to the same two sibling tasks as
+ * the compiler-host oracle; this is a proof bound, not a public runtime ABI. */
+#define W_SEED_HIR0_COOPERATIVE_MAX_TASKS 2u
 /* The bounded helper graph and COOP0 memo table share this ceiling.  It is
  * intentionally separate from the larger normal W-1582 frontend limit. */
 #define W_SEED_HIR0_COOPERATIVE_MAX_FUNCTIONS 64u
