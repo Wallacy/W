@@ -19,6 +19,7 @@ extern "C" {
 #define W_SEED_NATIVE_SUBSET0_MAX_VALUES 128u
 #define W_SEED_NATIVE_SUBSET0_MAX_INTERPOLATION_SEGMENTS 64u
 #define W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS 8u
+#define W_SEED_NATIVE_SUBSET0_MAX_MODULES 32u
 #define W_SEED_NATIVE_SUBSET0_MAX_PARAMETERS 16u
 /* Matches Native0's statement-derived HIR block capacity. */
 #define W_SEED_NATIVE_SUBSET0_MAX_BLOCKS 392u
@@ -82,6 +83,7 @@ typedef struct {
  * mutually-exclusive path. */
 typedef struct {
   const w_seed_hir0_entry *entry;
+  size_t module_count;
   size_t function_count;
   size_t parameter_count;
   size_t instruction_count;

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "w_seed_native_subset0.h"
+#include "w_seed_product_closure0.h"
 #include "w_seed_sha256.h"
 
 enum {
@@ -1971,6 +1972,52 @@ static bool mark_program_reachable_values(
   return true;
 }
 
+/* ProductClosure0 v1 deliberately publishes only the scalar/local-call
+ * family.  MLIR still owns the established enum/process adapters; keep their
+ * existing behavior while requiring an independent closure cross-check for
+ * every input that is in the published ProductClosure0 domain. */
+static bool mlir_product_closure_shape_candidate(
+    const w_seed_hir0_program *program) {
+  if (program == NULL || program->type_count != 4u ||
+      program->external_module_count != 0u ||
+      program->external_symbol_count != 0u || program->enum_count != 0u ||
+      program->enum_case_count != 0u ||
+      program->enum_case_parameter_count != 0u ||
+      program->enum_subset_member_count != 0u ||
+      program->enum_payload_count != 0u || program->switch_edge_count != 0u ||
+      program->switch_capture_count != 0u)
+    return false;
+  for (size_t function = 0u; function < program->function_count; function += 1u)
+    if (program->functions[function].is_async ||
+        program->functions[function].is_throws ||
+        program->functions[function].is_unsafe ||
+        program->functions[function].has_borrow_clause)
+      return false;
+  for (size_t value = 0u; value < program->value_count; value += 1u)
+    switch (program->values[value].kind) {
+      case W_SEED_HIR0_VALUE_CONST_STRING:
+      case W_SEED_HIR0_VALUE_BINDING_READ:
+      case W_SEED_HIR0_VALUE_PARAMETER_READ:
+      case W_SEED_HIR0_VALUE_CONST_I64:
+      case W_SEED_HIR0_VALUE_CONST_BOOL:
+      case W_SEED_HIR0_VALUE_BINARY_I64:
+      case W_SEED_HIR0_VALUE_INTERPOLATED_STRING:
+      case W_SEED_HIR0_VALUE_CALL_RESULT:
+      case W_SEED_HIR0_VALUE_UNARY_BOOL:
+      case W_SEED_HIR0_VALUE_BLOCK_ARGUMENT_READ:
+      case W_SEED_HIR0_VALUE_UNARY_I64:
+        break;
+      default:
+        return false;
+    }
+  for (size_t terminator = 0u; terminator < program->terminator_count;
+       terminator += 1u)
+    if (program->terminators[terminator].kind ==
+        W_SEED_HIR0_TERMINATOR_SWITCH_ENUM)
+      return false;
+  return true;
+}
+
 static bool program_plan_append_text(mlir0_program_plan *plan,
                                      const uint8_t *bytes, size_t length) {
   if (plan == NULL || (length != 0u && bytes == NULL)) return false;
@@ -2056,7 +2103,9 @@ static bool program_plan_append_print(mlir0_program_plan *plan,
 }
 
 static bool build_program_plan(const w_seed_hir0_program *program,
-                               mlir0_program_plan *plan, bool allow_empty) {
+                               const w_seed_hir0_result *hir_result,
+                               mlir0_program_plan *plan, bool allow_empty,
+                               bool cross_check_product) {
   if (program == NULL || plan == NULL ||
       program->call_count > W_SEED_NATIVE_SUBSET0_MAX_CALLS)
     return false;
@@ -2066,6 +2115,11 @@ static bool build_program_plan(const w_seed_hir0_program *program,
       !mark_program_reachable_functions(
           program, program->entries[0].target_function,
           candidate.reachable_functions, 0u))
+    return false;
+  if (cross_check_product && mlir_product_closure_shape_candidate(program) &&
+      !w_seed_product_closure0_cross_check_functions(
+          program, hir_result, candidate.reachable_functions,
+          W_SEED_NATIVE_SUBSET0_MAX_FUNCTIONS))
     return false;
   for (size_t call_index = 0u; call_index < program->call_count;
        call_index += 1u) {
@@ -4525,6 +4579,7 @@ static bool append_program_function(
 
 static bool build_program_artifact(
     const w_seed_hir0_program *program,
+    const w_seed_hir0_result *hir_result,
     const w_seed_native_subset0_program *selection,
     const w_seed_mlir0_target *target, uint8_t *artifact, size_t capacity,
     size_t *written, uint8_t digest[MLIR0_DIGEST_BYTES]) {
@@ -4537,7 +4592,7 @@ static bool build_program_artifact(
       digest == NULL || selection->maximum_stdout_bytes > MLIR0_MAX_STDOUT_BYTES)
     return false;
   mlir0_program_plan plan;
-  if (!build_program_plan(program, &plan, false)) return false;
+  if (!build_program_plan(program, hir_result, &plan, false, true)) return false;
   size_t offset = 0u;
   const bool windows = target_is_windows(target);
   if (!append_literal(artifact, capacity, &offset,
@@ -5005,7 +5060,7 @@ static bool build_process_executable_artifact(
     return false;
 
   mlir0_program_plan plan;
-  if (!build_program_plan(program, &plan, true) ||
+  if (!build_program_plan(program, NULL, &plan, true, false) ||
       !plan.reachable_functions[selection->function_index])
     return false;
   mlir0_process_emit_context process = {
@@ -5523,8 +5578,9 @@ w_seed_mlir0_status w_seed_mlir0_measure(
              program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
-    if (!build_program_artifact(input->program, &program_selection, target,
-                                artifact, sizeof(artifact), &written, digest))
+    if (!build_program_artifact(input->program, input->hir_result,
+                                &program_selection, target, artifact,
+                                sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else {
     w_seed_native_subset0_sequence sequence;
@@ -5599,8 +5655,9 @@ w_seed_mlir0_status w_seed_mlir0_emit(
              program_selection.has_enum_switch ||
              program_selection.has_mutable_bindings ||
              program_selection.function_count > 1u) {
-    if (!build_program_artifact(input->program, &program_selection, target,
-                                artifact, sizeof(artifact), &written, digest))
+    if (!build_program_artifact(input->program, input->hir_result,
+                                &program_selection, target, artifact,
+                                sizeof(artifact), &written, digest))
       return W_SEED_MLIR0_INVALID_HIR;
   } else {
     w_seed_native_subset0_sequence sequence;

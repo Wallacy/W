@@ -101,7 +101,10 @@ typedef struct {
   w_seed_frontend_diagnostic_fact diagnostic_facts[TEST_DIAGNOSTICS * 5];
   w_seed_frontend_diagnostic_item diagnostic_items[TEST_DIAGNOSTICS * 4];
   w_seed_frontend_diagnostic_label diagnostic_labels[TEST_DIAGNOSTICS * 2];
+  uint8_t const_bytes[TEST_SOURCE_BYTES];
   w_seed_frontend_resolved_import resolved_imports[TEST_IMPORTS];
+  w_seed_frontend_external_parameter host_parameters[1];
+  w_seed_frontend_host_requirement host_requirements[1];
   w_seed_frontend_host_prelude_symbol host_symbols[1];
   w_seed_frontend_host_prelude host_scope;
   uint8_t frontend_receipt[TEST_RECEIPT];
@@ -252,8 +255,8 @@ static void setup_frontend_output(multidoc_fixture *fixture) {
       .enum_membership_case_capacity = 0u,
       .const_declarations = NULL,
       .const_declaration_capacity = 0u,
-      .const_bytes = NULL,
-      .const_bytes_capacity = 0u};
+      .const_bytes = fixture->const_bytes,
+      .const_bytes_capacity = sizeof(fixture->const_bytes)};
 }
 
 static void setup_hir_output(multidoc_fixture *fixture) {
@@ -320,8 +323,9 @@ static void setup_hir_output(multidoc_fixture *fixture) {
       .external_symbol_capacity = 1u};
 }
 
-static bool prepare_fixture(multidoc_fixture *fixture, const char *root_source,
-                            const char *library_source) {
+static bool initialize_fixture(multidoc_fixture *fixture,
+                               const char *root_source,
+                               const char *library_source) {
   if (fixture == NULL || root_source == NULL || library_source == NULL)
     return false;
   (void)memset(fixture, 0, sizeof(*fixture));
@@ -381,6 +385,12 @@ static bool prepare_fixture(multidoc_fixture *fixture, const char *root_source,
       .resolved_imports = fixture->resolved_imports,
       .resolved_import_count = 1u};
   setup_frontend_output(fixture);
+  return true;
+}
+
+static bool prepare_fixture(multidoc_fixture *fixture, const char *root_source,
+                            const char *library_source) {
+  if (!initialize_fixture(fixture, root_source, library_source)) return false;
   if (w_seed_frontend_run(&fixture->frontend_input, &fixture->frontend_output,
                           &fixture->frontend_result) != W_SEED_FRONTEND_OK)
     return false;

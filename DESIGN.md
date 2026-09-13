@@ -38785,6 +38785,43 @@ It does not add public multi-file `w build` or `w run`, product reachability,
 dead-node elimination, DCE, WMO/WPO, or artifact equivalence. W-1568 remains
 an implementation-evidence gap for that product pipeline.
 
+#### 26.4.1.57 W-1576 — bounded ProductClosure0 reachable product projection (Current bounded form)
+
+W-1576 adds the first internal product projection after the resolved HIR0
+milestone. ProductClosure0 calls the complete HIR0 verifier before it reads
+any record for reachability. A malformed dead record therefore rejects the
+operation instead of being hidden by omission.
+
+ProductClosure0 is bounded, borrowed, and caller-owned. It does not copy HIR
+records. Its measure, run, and verify operations preserve capacity, alias, and
+all-or-nothing barriers. The projection publishes deterministic source-indexed
+remaps, reachable and omitted module and function lists, supported scalar
+facts, and a reachable semantic digest.
+
+**Exemplo:** the real app→lib product and the same input with a synthetic dead
+module publish the same `reachableDigest`; the latter lists that module in
+`omittedModules`, while the emitted MLIR bytes compare equal.
+
+The root is exactly source entry index 0. Its slot is `.default`, and its module
+is module 0. Exported function metadata remains semantic visibility metadata.
+It does not create a product root. The accepted family is limited to the
+verified scalar and local-call path: Unit, String, signed `i64`, and Bool,
+pure scalar values, local function calls, and the native `print`/`Console`
+relation. Functions are synchronous, non-throwing, safe, and free of borrow
+clauses.
+
+NativeSubset0 now accepts the generic bounded multi-module path. MLIR0 keeps an
+independent reachability walk and cross-checks every candidate in the
+ProductClosure0 domain. The focused app→lib witness retains its reachable
+`helper`. A synthetic dead module is omitted, while the reachable semantic
+digest and emitted MLIR bytes remain identical.
+
+Enum, switch, pattern, external-module, process, effect, service, reflection,
+FFI, and dynamic-loading families fail closed. This milestone does not add
+public multi-file `w build` or `w run`. It does not prove native
+artifact/runtime equivalence. W-1568 remains an implementation-evidence gap.
+Its benchmark disposition is `compiler-lifecycle`, correctness-only.
+
 #### 26.4.2 Execução RUN0 interna e bounded
 
 **Exemplo:** o adapter interno executa somente o plano canônico deste source:

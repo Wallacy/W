@@ -262,6 +262,19 @@ semantic input. The `restaurant-wmo.w` gate proves only a same-module
 executable product closure: retain the used private helper, omit unused
 exported/private functions and dead text, then execute exact `Bill 42\n`.
 Cross-module graph lowering and complete product-root planning remain gaps.
+W-1575 closes the preceding resolver-complete local-document graph into
+verified HIR only. W-1576 adds the internal ProductClosure0 projection after
+complete HIR verification. It publishes caller-owned deterministic reachable
+and omitted module/function projections and a reachable semantic digest. The
+`.default` entry at source index zero in module 0 is the only root. Exported
+metadata is not a root. NativeSubset0 accepts the generic bounded
+multi-module scalar/local-call path, while MLIR0 performs an independent
+cross-check. The app→lib helper is retained, and a synthetic dead module is
+omitted with byte-identical MLIR. Enum, switch, pattern, external, process,
+effect, service, reflection, FFI, and dynamic-loading families fail closed.
+The milestone has `benchmarkDisposition: compiler-lifecycle` and correctness
+evidence only. It does not add public multi-file build/run or native
+artifact/runtime equivalence. W-1568 remains open.
 ACQ0 executa CHK6 em
 storage caller-owned, com retry bounded e sem frontend, policy de filesystem ou
 CLI. Execute `bun check --target acquisition` para compilar os cinco targets focais,

@@ -1,7 +1,7 @@
 {
   "$schema": "w-substitution-surface-1",
   "status": "deterministic-surface-baseline",
-  "corpusDigest": "sha256:f458b8da38897a86c30babdf100eb3635c04d803a4654185b63daaf130af16b6",
+  "corpusDigest": "sha256:1e6dc83d3cb96d8befde67fe748ddc88a794d2f67aa1e6c8da51b5657b437b38",
   "metricVersion": "unicode-surface-1",
   "cases": [
     {
@@ -6960,6 +6960,174 @@
             "nonWhitespaceCodePoints": 66,
             "lines": 1,
             "surfaceLexemes": 16
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-hir0-multidoc",
+      "task": {
+        "utf8Bytes": 151,
+        "codePoints": 151,
+        "nonWhitespaceCodePoints": 131,
+        "lines": 1,
+        "surfaceLexemes": 29
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:324bfc90053cee70d541b7a3766937ad48e3d291596f8c5fb98f1d646cec65e4",
+        "metrics": {
+          "utf8Bytes": 138,
+          "codePoints": 138,
+          "nonWhitespaceCodePoints": 109,
+          "lines": 7,
+          "surfaceLexemes": 47
+        }
+      },
+      "alternatives": [
+        {
+          "name": "single-document-only-hir",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:428999159bc4612203318ff4bf7d2c231ba2139bae931075fa06faaba4447c92",
+          "metrics": {
+            "utf8Bytes": 51,
+            "codePoints": 51,
+            "nonWhitespaceCodePoints": 45,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "source-name-call-resolution",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:25516bbe8d71765d553bfde6515fc61656bd55fb486bfb648ddfe29b3b5e5c88",
+          "metrics": {
+            "utf8Bytes": 67,
+            "codePoints": 67,
+            "nonWhitespaceCodePoints": 58,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "shared-source-ownership",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:d49cc210602bd92dfda2e8e163a99e9f2b3050ccd5ccaf4f5d457b48af1692ab",
+          "metrics": {
+            "utf8Bytes": 61,
+            "codePoints": 61,
+            "nonWhitespaceCodePoints": 55,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "cycle-blind-graph",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:795701b0e8c0f947b02e56af39753c901c6bc0fcbc5743d836084dc615209173",
+          "metrics": {
+            "utf8Bytes": 50,
+            "codePoints": 50,
+            "nonWhitespaceCodePoints": 44,
+            "lines": 1,
+            "surfaceLexemes": 9
+          }
+        },
+        {
+          "name": "public-multifile-product-claim",
+          "language": "text",
+          "sourceDigest": "sha256:2a1e9e597f14fa2af5485d921c4cc08ebf00fccb16b43cfe510bc23f7d843a67",
+          "metrics": {
+            "utf8Bytes": 79,
+            "codePoints": 79,
+            "nonWhitespaceCodePoints": 68,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        }
+      ]
+    },
+    {
+      "id": "R0-product-closure0",
+      "task": {
+        "utf8Bytes": 222,
+        "codePoints": 222,
+        "nonWhitespaceCodePoints": 192,
+        "lines": 1,
+        "surfaceLexemes": 38
+      },
+      "selected": {
+        "name": "selected",
+        "language": "w",
+        "sourceDigest": "sha256:324bfc90053cee70d541b7a3766937ad48e3d291596f8c5fb98f1d646cec65e4",
+        "metrics": {
+          "utf8Bytes": 138,
+          "codePoints": 138,
+          "nonWhitespaceCodePoints": 109,
+          "lines": 7,
+          "surfaceLexemes": 47
+        }
+      },
+      "alternatives": [
+        {
+          "name": "exported-metadata-root",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:f3c02243a1a887ef6e721518ddb24a848d0eaf5654f167e772fb5623973ad331",
+          "metrics": {
+            "utf8Bytes": 57,
+            "codePoints": 57,
+            "nonWhitespaceCodePoints": 48,
+            "lines": 1,
+            "surfaceLexemes": 10
+          }
+        },
+        {
+          "name": "source-name-call-shortcut",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:8e7ff50a0657665c11a0df2968f05f61fa98883f99030610f661da5aabe0e7e5",
+          "metrics": {
+            "utf8Bytes": 78,
+            "codePoints": 78,
+            "nonWhitespaceCodePoints": 67,
+            "lines": 1,
+            "surfaceLexemes": 14
+          }
+        },
+        {
+          "name": "retain-synthetic-dead-module",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:d6d9716d87ab14dcdc16533fac8318fc77d1f49dcac8d982b9ee630a2bc74ae2",
+          "metrics": {
+            "utf8Bytes": 72,
+            "codePoints": 72,
+            "nonWhitespaceCodePoints": 61,
+            "lines": 1,
+            "surfaceLexemes": 12
+          }
+        },
+        {
+          "name": "single-mlir-reachability-walk",
+          "language": "w-internal-rejected",
+          "sourceDigest": "sha256:9dd14dc56ead6933de0f94e1fa291d369787b9a3a7d4fe9aa6ae149a1a62b8e1",
+          "metrics": {
+            "utf8Bytes": 47,
+            "codePoints": 47,
+            "nonWhitespaceCodePoints": 42,
+            "lines": 1,
+            "surfaceLexemes": 8
+          }
+        },
+        {
+          "name": "public-multifile-native-equivalence",
+          "language": "text",
+          "sourceDigest": "sha256:11bcb0e89c149281ebb3a4b411600f220b7cd87f8cd87099f8a2b82975f16a1c",
+          "metrics": {
+            "utf8Bytes": 102,
+            "codePoints": 102,
+            "nonWhitespaceCodePoints": 91,
+            "lines": 1,
+            "surfaceLexemes": 18
           }
         }
       ]

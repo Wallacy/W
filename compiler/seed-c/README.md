@@ -1529,6 +1529,36 @@ limited to verified HIR. It does not provide public multi-file `w build` or
 `w run`, DCE, product reachability, WMO/WPO, or artifact equivalence. W-1568
 remains the future product-pipeline gap.
 
+### ProductClosure0 reachable product projection (W-1576)
+
+`include/w_seed_product_closure0.h` and `src/w_seed_product_closure0.c` form a
+bounded, borrowed projection over complete verified HIR0. ProductClosure0
+verifies HIR before the reachability walk, keeps all HIR records caller-owned,
+and publishes output arrays, source-to-closure remaps, counts, and a reachable
+semantic digest transactionally. A capacity, alias, malformed-record, or
+unsupported-family failure leaves the caller's published output unchanged.
+
+The projection accepts exactly one `.default` entry at source entry index zero
+in module zero. Exported function metadata remains visibility metadata and is
+not a product root. The supported domain is the scalar/local-call family with
+Unit, String, signed `i64`, and Bool, pure scalar value trees, local function
+calls, and the native `print`/`Console` relation. Synchronous, non-throwing,
+safe functions without borrow clauses are required.
+
+NativeSubset0 now selects the generic bounded multi-module path. MLIR0 keeps an
+independent reachability walk and cross-checks every ProductClosure0 candidate.
+The focused app→lib source witness retains its reachable `helper`. A synthetic
+dead module is omitted, while the reachable digest and emitted MLIR bytes stay
+identical. Enum, switch, pattern, external-module, process, effect, service,
+reflection, FFI, and dynamic-loading families fail closed.
+
+Its `benchmarkDisposition` is `compiler-lifecycle`, with correctness-only
+evidence. It does not add public
+multi-file `w build` or `w run`, native artifact/runtime equivalence, or W-1568
+completion. Run `bun tooling/check-hir0.mjs` to build and execute the focused
+HIR0, multi-document HIR, and ProductClosure0 units. No timing or benchmark
+result is published.
+
 ### Closed local payloadless enum exhaustive switch (W-1563)
 
 HIR21 (`w-seed-hir0-21`) adds one explicit `SWITCH_ENUM` terminator and dense
